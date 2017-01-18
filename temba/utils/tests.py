@@ -926,6 +926,11 @@ class GSM7Test(TembaTest):
         self.assertEquals('No crazy "word" quotes.', replaced)
         self.assertTrue(is_gsm7(replaced))
 
+        # non breaking space
+        replaced = replace_non_gsm7_accents("Pour chercher du boulot, comment fais-tu ?")
+        self.assertEquals('Pour chercher du boulot, comment fais-tu ?', replaced)
+        self.assertTrue(is_gsm7(replaced))
+
 
 class ChunkTest(TembaTest):
 

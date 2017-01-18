@@ -807,46 +807,38 @@ class ContactCRUDL(SmartCRUDL):
             # message has a timestamp slightly earlier than the contact itself.
             contact_creation = contact.created_on - timedelta(hours=1)
 
-            refresh_recent = self.request.GET.get('r', False)
-            recent_start = ms_to_datetime(int(self.request.GET.get('rs', 0)))
+            before = int(self.request.GET.get('before', 0))
+            after = int(self.request.GET.get('after', 0))
 
-            if 'before' in self.request.GET:
-                older_before = ms_to_datetime(int(self.request.GET['before']))
+            # if we want an expanding window, or just all the recent activity
+            recent_only = False
+            if not before:
+                recent_only = True
+                before = timezone.now()
             else:
-                older_before = timezone.now()  # this is the initial request for the timeline
+                before = ms_to_datetime(before)
 
-            if refresh_recent:
-                # if we are just grabbing recent history use that window
-                start_time = recent_start
-                end_time = timezone.now()
-
-                activity = contact.get_activity(start_time, end_time)
+            if not after:
+                after = before - timedelta(days=90)
             else:
-                start_time = max(older_before - timedelta(days=90), contact_creation)
-                end_time = older_before
+                after = ms_to_datetime(after)
 
-                while True:
-                    activity = contact.get_activity(start_time, end_time)
+            # keep looking further back until we get at least 20 items
+            while True:
+                activity = contact.get_activity(after, before)
+                if recent_only or len(activity) >= 20 or after == contact_creation:
+                    break
+                else:
+                    after = max(after - timedelta(days=90), contact_creation)
 
-                    # keep looking further back until we get at least 20 items
-                    if len(activity) >= 20 or start_time == contact_creation:
-                        break
-                    else:
-                        start_time = max(start_time - timedelta(days=90), contact_creation)
+            # check if there are more pages to fetch
+            if not recent_only:
+                if before > contact.created_on:
+                    context['has_older'] = bool(contact.get_activity(contact_creation, after))
+                context['before'] = datetime_to_ms(after)
+                context['after'] = datetime_to_ms(max(after - timedelta(days=90), contact_creation))
 
-            if start_time > contact.created_on:
-                has_older = bool(contact.get_activity(contact_creation, start_time))
-            else:
-                has_older = False
-
-            # make it easier to tell which items fall in the recent time window
-            for item in activity:
-                item.is_recent = refresh_recent or item.created_on > recent_start
-
-            context['recent'] = refresh_recent
             context['activity'] = activity
-            context['start_time'] = datetime_to_ms(start_time)
-            context['has_older'] = has_older
             return context
 
     class List(ContactActionMixin, ContactListView):
