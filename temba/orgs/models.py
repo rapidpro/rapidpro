@@ -96,6 +96,12 @@ NEXMO_UUID = 'NEXMO_UUID'
 TRANSFERTO_ACCOUNT_LOGIN = 'TRANSFERTO_ACCOUNT_LOGIN'
 TRANSFERTO_AIRTIME_API_TOKEN = 'TRANSFERTO_AIRTIME_API_TOKEN'
 
+EMAIL_SMTP_HOST = 'EMAIL_SMTP_HOST'
+EMAIL_SMTP_USERNAME = 'EMAIL_SMTP_USERNAME'
+EMAIL_SMTP_PASSWORD = 'EMAIL_SMTP_PASSWORD'
+EMAIL_SMTP_PORT = 'EMAIL_SMTP_PORT'
+EMAIL_SMTP_USE_TLS = 'EMAIL_SMTP_USE_TLS'
+
 ORG_STATUS = 'STATUS'
 SUSPENDED = 'suspended'
 RESTORED = 'restored'
@@ -666,6 +672,28 @@ class Org(SmartModel):
                 with r.lock(key, timeout=900):
                     pending = Channel.get_pending_messages(self)
                     Msg.send_messages(pending)
+
+    def add_smtp_config(self, host, username, password, port, use_tls, user):
+        smtp_config = {EMAIL_SMTP_HOST: host, EMAIL_SMTP_USERNAME: username, EMAIL_SMTP_PASSWORD: password,
+                       EMAIL_SMTP_PORT: port, EMAIL_SMTP_USE_TLS: use_tls}
+
+        config = self.config_json()
+        config.update(smtp_config)
+        self.config = json.dumps(config)
+        self.modified_by = user
+        self.save()
+
+    def remove_smtp_config(self, user):
+        if self.config:
+            config = self.config_json()
+            config[EMAIL_SMTP_HOST] = ''
+            config[EMAIL_SMTP_USERNAME] = ''
+            config[EMAIL_SMTP_PASSWORD] = ''
+            config[EMAIL_SMTP_PORT] = ''
+            config[EMAIL_SMTP_USE_TLS] = ''
+            self.config = json.dumps(config)
+            self.modified_by = user
+            self.save()
 
     def has_airtime_transfers(self):
         from temba.airtime.models import AirtimeTransfer
