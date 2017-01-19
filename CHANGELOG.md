@@ -1,3 +1,17 @@
+v3.0.10
+----------
+ * Log any exceptions encountered in Celery tasks to Raven
+ * Tell user to get pages_messaging_subscriptions permission for their FB app
+
+v3.0.6
+----------
+ * Replace unicode non breaking spaces with a normal space for GSM7 encoding (Kannel only)
+ * Add migrations for custom indexes (existing installs before v3 should fake these)
+
+v3.0.5
+----------
+ * fix styling on loader ball animation
+
 v3.0.4
 ----------
  * Fix issue causing flow run table on flow dashboard to be very slow if a flow contained many responses
