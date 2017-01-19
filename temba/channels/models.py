@@ -638,7 +638,7 @@ class Channel(TembaModel):
 
                 # notify Mage so that it activates this channel
                 from .tasks import MageStreamAction, notify_mage_task
-                on_transaction_commit(lambda: notify_mage_task.delay(channel.uuid, MageStreamAction.activate))
+                on_transaction_commit(lambda: notify_mage_task.delay(channel.uuid, MageStreamAction.activate.name))
 
         return channel
 
@@ -1081,7 +1081,7 @@ class Channel(TembaModel):
         if notify_mage and self.channel_type == Channel.TYPE_TWITTER:
             # notify Mage so that it deactivates this channel
             from .tasks import MageStreamAction, notify_mage_task
-            on_transaction_commit(lambda: notify_mage_task.delay(self.uuid, MageStreamAction.deactivate))
+            on_transaction_commit(lambda: notify_mage_task.delay(self.uuid, MageStreamAction.deactivate.name))
 
         from temba.triggers.models import Trigger
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)
