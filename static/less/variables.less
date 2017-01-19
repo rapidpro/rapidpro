@@ -107,6 +107,11 @@
 
 @primary-font: @helvetica, sans-serif;
 
+[class^="icon-"], [class*=" icon-"] {
+  transition: transform 400ms;
+  -webkit-transition: -webkit-transform 400ms; 
+}
+
 .placeholder-text(@placeholder-color, @font-weight:400) {
   ::-webkit-input-placeholder { color:@placeholder-color; font-weight: @font-weight; }
   ::-moz-placeholder { color:@placeholder-color; font-weight: @font-weight;  } /* firefox 19+ */
