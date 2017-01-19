@@ -2793,6 +2793,16 @@ class ActionTest(TembaTest):
         self.assertEquals(mail.outbox[2].body, 'Email notification for allo allo')
         self.assertEquals(mail.outbox[2].recipients(), ["steve@apple.com"])
 
+        self.org.add_smtp_config('smtp.example.com', 'support@example.com', 'secret', '465', True, self.admin)
+
+        action = EmailAction(["steve@apple.com"], "Subject", "Body")
+        action.execute(run, None, msg)
+
+        self.assertEquals(len(mail.outbox), 4)
+        self.assertEquals(mail.outbox[3].subject, 'Subject')
+        self.assertEquals(mail.outbox[3].body, 'Body')
+        self.assertEquals(mail.outbox[3].recipients(), ["steve@apple.com"])
+
     def test_save_to_contact_action(self):
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="batman")
         test = SaveToContactAction.from_json(self.org, dict(type='save', label="Superhero Name", value='@step'))
