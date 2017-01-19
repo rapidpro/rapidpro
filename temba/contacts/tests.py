@@ -1217,8 +1217,11 @@ class ContactTest(TembaTest):
 
         self.create_campaign()
 
+        # add one that is a video
+        self.create_msg(direction='I', contact=self.joe, media="video:http://blah/file.mp4", text="Video caption", created_on=timezone.now())
+
         # create some messages
-        for i in range(100):
+        for i in range(99):
             self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i,
                             created_on=timezone.now() - timedelta(days=(100 - i)))
 
@@ -1256,7 +1259,9 @@ class ContactTest(TembaTest):
         self.assertEqual(activity[2].direction, 'O')
         self.assertIsInstance(activity[3], FlowRun)
         self.assertIsInstance(activity[4], Msg)
-        self.assertEqual(activity[4].text, "Inbound message 99")
+        self.assertEqual(activity[4].media, "video:http://blah/file.mp4")
+        self.assertIsInstance(activity[5], Msg)
+        self.assertEqual(activity[5].text, "Inbound message 98")
         self.assertIsInstance(activity[8], EventFire)
         self.assertEqual(activity[-1].text, "Inbound message 11")
 
@@ -1311,7 +1316,8 @@ class ContactTest(TembaTest):
 
         # with our recent flag on, should not see the older messages
         activity = response.context['activity']
-        self.assertEqual(len(activity), 5)
+        self.assertEqual(len(activity), 6)
+        self.assertContains(response, 'file.mp4')
 
         # can't view history of contact in another org
         self.create_secondary_org()
