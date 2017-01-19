@@ -859,10 +859,10 @@ class ContactTest(TembaTest):
         self.assertEqual("8877", mr_long_name.get_urn_display())
         self.assertEqual("", self.billy.get_urn_display())
 
-        self.assertEqual("Joe Blow", self.joe.__unicode__())
-        self.assertEqual("0768 383 383", self.voldemort.__unicode__())
-        self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", mr_long_name.__unicode__())
-        self.assertEqual("Billy Nophone", self.billy.__unicode__())
+        self.assertEqual("Joe Blow", six.text_type(self.joe))
+        self.assertEqual("0768 383 383", six.text_type(self.voldemort))
+        self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", six.text_type(mr_long_name))
+        self.assertEqual("Billy Nophone", six.text_type(self.billy))
 
         with AnonymousOrg(self.org):
             self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, formatted=False))
@@ -879,10 +879,10 @@ class ContactTest(TembaTest):
             self.assertEqual(mr_long_name.anon_identifier, mr_long_name.get_urn_display())
             self.assertEqual(self.billy.anon_identifier, self.billy.get_urn_display())
 
-            self.assertEqual("Joe Blow", self.joe.__unicode__())
-            self.assertEqual("%010d" % self.voldemort.pk, self.voldemort.__unicode__())
-            self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", mr_long_name.__unicode__())
-            self.assertEqual("Billy Nophone", self.billy.__unicode__())
+            self.assertEqual("Joe Blow", six.text_type(self.joe))
+            self.assertEqual("%010d" % self.voldemort.pk, six.text_type(self.voldemort))
+            self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", six.text_type(mr_long_name))
+            self.assertEqual("Billy Nophone", six.text_type(self.billy))
 
     def test_bulk_cache_initialize(self):
         ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N', show_in_table=True)
@@ -1490,7 +1490,7 @@ class ContactTest(TembaTest):
                                                                     message='{"base": "Sent %d days after planting date"}' % (i + 10))
 
         now = timezone.now()
-        self.joe.set_field(self.user, 'planting_date', unicode(now + timedelta(days=1)))
+        self.joe.set_field(self.user, 'planting_date', six.text_type(now + timedelta(days=1)))
         EventFire.update_campaign_events(self.campaign)
 
         # should have seven fires, one for each campaign event

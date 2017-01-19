@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import six
 import time
 
 from colorama import init as colorama_init, Fore, Style
@@ -108,8 +109,8 @@ class Command(BaseCommand):  # pragma: no cover
 
 
 def colored(text, color):
-    return color + unicode(text) + Fore.RESET
+    return color + six.text_type(text) + Fore.RESET
 
 
 def styled(text, style):
-    return style + unicode(text) + Style.RESET_ALL
+    return style + six.text_type(text) + Style.RESET_ALL

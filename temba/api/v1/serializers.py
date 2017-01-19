@@ -2,6 +2,7 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import phonenumbers
+import six
 
 from django.conf import settings
 from django.utils import timezone
@@ -1159,7 +1160,7 @@ class FlowRunReadSerializer(ReadSerializer):
                               arrived_on=step.arrived_on,
                               left_on=step.left_on,
                               text=step.get_text(),
-                              value=unicode(step.rule_value)))
+                              value=six.text_type(step.rule_value)))
 
         return steps
 
@@ -1743,7 +1744,7 @@ class ChannelReadSerializer(ReadSerializer):
         return obj.get_unsent_messages().count()
 
     def get_country(self, obj):
-        return unicode(obj.country) if obj.country else None
+        return six.text_type(obj.country) if obj.country else None
 
     class Meta:
         model = Channel

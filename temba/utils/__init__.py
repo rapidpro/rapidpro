@@ -8,6 +8,7 @@ import pytz
 import random
 import regex
 import resource
+import six
 
 from dateutil.parser import parse
 from decimal import Decimal
@@ -199,7 +200,7 @@ def format_decimal(val):
     elif val == 0:
         return '0'
 
-    val = unicode(val)
+    val = six.text_type(val)
 
     if '.' in val:
         val = val.rstrip('0').rstrip('.')  # e.g. 12.3000 -> 12.3
@@ -243,6 +244,7 @@ def get_dict_from_cursor(cursor):
     ]
 
 
+@six.python_2_unicode_compatible
 class DictStruct(object):
     """
     Wraps a dictionary turning it into a structure looking object. This is useful to 'mock' dictionaries
@@ -276,7 +278,7 @@ class DictStruct(object):
 
         self._values[item] = value
 
-    def __unicode__(self):
+    def __str__(self):
         return "%s [%s]" % (self._classname, self._values)
 
 
