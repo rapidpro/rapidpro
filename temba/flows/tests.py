@@ -4502,6 +4502,10 @@ class FlowsTest(FlowFileTest):
         other_recent = FlowPathRecentStep.get_recent_messages(other_rule.uuid, other_action.uuid)
         self.assertEqual([m.text for m in other_recent], ["12", "11", "10", "9", "8", "7", "6", "5", "4", "3", "2", "1"])
 
+        # even when limit is applied
+        other_recent = FlowPathRecentStep.get_recent_messages(other_rule.uuid, other_action.uuid, limit=5)
+        self.assertEqual([m.text for m in other_recent], ["12", "11", "10", "9", "8"])
+
         prune_flowpathrecentsteps()
 
         # now only 10 newest are stored
