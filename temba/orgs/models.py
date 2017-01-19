@@ -25,6 +25,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction, connection
 from django.db.models import Sum, F, Q
 from django.utils import timezone
+from temba.utils.email import send_simple_email, send_custom_stmp_email
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
 from django_redis import get_redis_connection
@@ -706,6 +707,22 @@ class Org(SmartModel):
             return smtp_host and smtp_username and smtp_password and smtp_port
         else:
             return False
+
+    @classmethod
+    def email_action_send(cls, org_id, recipients, subject, message):
+        org = Org.objects.filter(pk=org_id)
+        if org.has_smtp_config():
+            config = org.config_json()
+            smtp_host = config.get(EMAIL_SMTP_HOST, None)
+            smtp_port = config.get(EMAIL_SMTP_PORT, None)
+            smtp_username = config.get(EMAIL_SMTP_USERNAME, None)
+            smtp_password = config.get(EMAIL_SMTP_PASSWORD, None)
+            use_tls = config.get(EMAIL_SMTP_USE_TLS, None)
+
+            send_custom_stmp_email(recipients, subject, message, smtp_host, smtp_port, smtp_username, smtp_password,
+                                   use_tls)
+        else:
+            send_simple_email(recipients, subject, message)
 
     def has_airtime_transfers(self):
         from temba.airtime.models import AirtimeTransfer
