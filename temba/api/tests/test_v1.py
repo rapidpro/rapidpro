@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import pytz
+import six
 import xml.etree.ElementTree as ET
 
 from datetime import datetime, timedelta
@@ -1940,7 +1941,7 @@ class APITest(TembaTest):
         self.create_msg(direction='I', contact=contact4, text="Hello")
 
         # try adding more contacts to group than this endpoint is allowed to operate on at one time
-        response = self.postJSON(url, dict(contacts=[unicode(x) for x in range(101)],
+        response = self.postJSON(url, dict(contacts=[six.text_type(x) for x in range(101)],
                                            action='add', group="Testers"))
         self.assertResponseError(response, 'contacts', "Maximum of 100 contacts allowed")
 
@@ -3045,14 +3046,14 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "name=Report")
         self.assertResultCount(response, 1)
         self.assertJSON(response, 'name', "Reporters")
-        self.assertJSON(response, 'uuid', unicode(reporters.uuid))
+        self.assertJSON(response, 'uuid', six.text_type(reporters.uuid))
         self.assertJSON(response, 'size', 2)
 
         # fetch by UUID
         response = self.fetchJSON(url, "uuid=%s" % just_joe.uuid)
         self.assertResultCount(response, 1)
         self.assertJSON(response, 'name', "Just Joe")
-        self.assertJSON(response, 'uuid', unicode(just_joe.uuid))
+        self.assertJSON(response, 'uuid', six.text_type(just_joe.uuid))
         self.assertJSON(response, 'size', 1)
 
         just_frank = self.create_group("Just Frank", [frank])

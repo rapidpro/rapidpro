@@ -1,4 +1,7 @@
+from __future__ import unicode_literals
+
 import json
+import six
 import uuid
 
 from datetime import datetime
@@ -236,12 +239,12 @@ class VumiUssdTest(TembaTest):
                 data = {
                     "transport_name": "ussd_transport",
                     "event_type": "ack",
-                    "event_id": unicode(uuid.uuid4()),
-                    "sent_message_id": unicode(uuid.uuid4()),
+                    "event_id": six.text_type(uuid.uuid4()),
+                    "sent_message_id": six.text_type(uuid.uuid4()),
                     "helper_metadata": {},
                     "routing_metadata": {},
                     "message_version": "20110921",
-                    "timestamp": unicode(timezone.now()),
+                    "timestamp": six.text_type(timezone.now()),
                     "transport_metadata": {},
                     "user_message_id": msg.external_id,
                     "message_type": "event"
@@ -290,8 +293,8 @@ class VumiUssdTest(TembaTest):
                     "transport_name": "ussd_transport",
                     "event_type": "nack",
                     "nack_reason": "Unknown address.",
-                    "event_id": unicode(uuid.uuid4()),
-                    "timestamp": unicode(timezone.now()),
+                    "event_id": six.text_type(uuid.uuid4()),
+                    "timestamp": six.text_type(timezone.now()),
                     "message_version": "20110921",
                     "transport_metadata": {},
                     "user_message_id": msg.external_id,

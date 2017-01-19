@@ -285,7 +285,7 @@ class CampaignTest(TembaTest):
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
 
         self.assertTrue(response.context['form'].errors)
-        self.assertTrue('A message is required' in unicode(response.context['form'].errors['__all__']))
+        self.assertTrue('A message is required' in six.text_type(response.context['form'].errors['__all__']))
 
         post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, base='', direction='A', offset=2, unit='D', event_type='F')
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
@@ -573,13 +573,13 @@ class CampaignTest(TembaTest):
 
     def test_scheduling(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
-        self.assertEquals("Planting Reminders", unicode(campaign))
+        self.assertEquals("Planting Reminders", six.text_type(campaign))
 
         # create a reminder for our first planting event
         planting_reminder = CampaignEvent.create_flow_event(self.org, self.admin, campaign, relative_to=self.planting_date,
                                                             offset=0, unit='D', flow=self.reminder_flow, delivery_hour=17)
 
-        self.assertEquals("Planting Date == 0 -> Color Flow", unicode(planting_reminder))
+        self.assertEquals("Planting Date == 0 -> Color Flow", six.text_type(planting_reminder))
 
         # schedule our reminders
         EventFire.update_campaign_events(campaign)

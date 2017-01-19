@@ -535,8 +535,8 @@ class FlowTest(TembaTest):
         context = self.flow.build_message_context(self.contact, incoming)
         self.assertTrue(context['flow'])
         self.assertEqual("color: orange", context['flow']['__default__'])
-        self.assertEqual("orange", unicode(context['flow']['color']['__default__']))
-        self.assertEqual("orange", unicode(context['flow']['color']['value']))
+        self.assertEqual("orange", six.text_type(context['flow']['color']['__default__']))
+        self.assertEqual("orange", six.text_type(context['flow']['color']['value']))
         self.assertEqual("Orange", context['flow']['color']['category'])
         self.assertEqual("orange", context['flow']['color']['text'])
 
@@ -5311,7 +5311,7 @@ class FlowsTest(FlowFileTest):
 
         # we should be a normal unicode response
         self.assertTrue(isinstance(reply['msg'], dict))
-        self.assertTrue(isinstance(reply['msg']['base'], unicode))
+        self.assertTrue(isinstance(reply['msg']['base'], six.text_type))
 
         # now our replies are language dicts
         json_dict = favorites.as_json()
