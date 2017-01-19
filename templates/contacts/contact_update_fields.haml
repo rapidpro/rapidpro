@@ -6,6 +6,12 @@
       background: #ffffff !important;
     }
 
+    .loader-circles {
+      position: absolute;
+      left: 150px;
+      top: 130px;
+    }
+
 
 -block modal-script
   {{block.super}}
@@ -13,9 +19,12 @@
     var input_url = '/contact/update_fields_input/{{contact.id}}/?field=';
     $(document).ready(function() {
     	$('input.select2_field').on('change', function(evt) {
-    		$('.rendered-field-input').children().css('visibility', 'invisible');
+        $('.rendered-field-input').children().css('visibility', 'hidden');
+        $('.modal-footer .btn').attr('disabled', true);
+        $('.modal .loader-circles').show();
+
     		$('.rendered-field-input').attr('ic-src', input_url + evt.added.id)
-   		  Intercooler.triggerRequest($('.rendered-field-input'));
+        Intercooler.triggerRequest($('.rendered-field-input'));
     	});
     });
 
@@ -30,9 +39,10 @@
       value: "{{contact_field.id}}",
       text: "{{contact_field.label}}"
     }
+  .loader-circles.hide
   .rendered-field-input
     -if contact_field
       %label.control-label
         {{contact_field.get_value_type_display}} Value
       .controls
-          %input{ name:'field_value', type:'text', disabled:'disabled' }
+        %input{ name:'field_value', type:'text', disabled:'disabled' }

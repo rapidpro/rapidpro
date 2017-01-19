@@ -26,7 +26,7 @@
         .{class:"glyph {{urn|urn_icon}}"}
         -if not user_org.is_anon
           -if urn.sendable
-            %a.contact-urn-path{href:"javascript:showComposeInitialized(\"u={{ urn.id }}\", null, fetchRecentMessages)"}><
+            %a.contact-urn-path{href:"javascript:showComposeInitialized(\"u={{ urn.id }}\", null, refreshRecents)"}><
               {{urn|format_urn:user_org}}
           -else
             %i.contact-urn-path

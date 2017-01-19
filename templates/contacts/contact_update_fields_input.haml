@@ -16,3 +16,7 @@
   var val = ele.val();
   ele.val('');
   ele.val(val);
+
+  // re-enable our submission
+  $('.modal-footer .btn').attr('disabled', false);
+  $('.modal .loader-circles').hide();
