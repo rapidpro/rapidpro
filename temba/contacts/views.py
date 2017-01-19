@@ -1051,7 +1051,6 @@ class ContactCRUDL(SmartCRUDL):
             context = super(ContactCRUDL.UpdateFields, self).get_context_data(**kwargs)
             org = self.request.user.get_org()
             field_id = self.request.GET.get('field', 0)
-            print field_id
             if field_id:
                 context['contact_field'] = org.contactfields.get(id=field_id)
             return context
