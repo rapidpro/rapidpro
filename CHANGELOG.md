@@ -1,3 +1,7 @@
+v3.0.7
+----------
+ * Introduce new model, FlowPathRecentStep that tracks recent steps from one flow node to another. This will replace the rather expensive index used to show recent flow activity on a flow path.
+
 v3.0.10
 ----------
  * Log any exceptions encountered in Celery tasks to Raven
