@@ -695,6 +695,18 @@ class Org(SmartModel):
             self.modified_by = user
             self.save()
 
+    def has_smtp_config(self):
+        if self.config:
+            config = self.config_json()
+            smtp_host = config.get(EMAIL_SMTP_HOST, None)
+            smtp_username = config.get(EMAIL_SMTP_USERNAME, None)
+            smtp_password = config.get(EMAIL_SMTP_PASSWORD, None)
+            smtp_port = config.get(EMAIL_SMTP_PORT, None)
+
+            return smtp_host and smtp_username and smtp_password and smtp_port
+        else:
+            return False
+
     def has_airtime_transfers(self):
         from temba.airtime.models import AirtimeTransfer
         return AirtimeTransfer.objects.filter(org=self).exists()

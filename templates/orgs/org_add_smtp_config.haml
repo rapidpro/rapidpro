@@ -1,0 +1,41 @@
+-extends "smartmin/form.html"
+
+-load compress temba smartmin i18n
+
+-block title-icon
+  .title-icon
+    %span.glyph.icon-email
+
+-block form-span
+
+-block title-text
+  .title-text
+    %h1
+      -trans "Remove SMTP configuration"
+
+-block summary
+  -if object.has_smtp_config
+    -trans "Configured SMTP server to send with "
+    <span class='attn'>{{ smtp_username }}</span>
+  -else
+    -trans "No SMTP configured"
+
+-block post-form
+  -if object.has_smtp_config and request.META.HTTP_X_FORMAX
+    If you no longer want to use {{ smtp_username }} to send emails, you can
+    %a{href:'javascript:confirmSMTPRemove();'}
+      remove your SMTP configuration
+
+    .remove-smtp.hide
+      .title
+        -trans "Remove SMTP configuration"
+      .body
+        -blocktrans
+          Removing your SMTP configuration will prevent to send email using {{ smtp_username }}. Are you sure you want to proceed?
+    %a#remove-smtp-form.posterize{href:'{% url "orgs.org_add_smtp_config" %}?disconnect=true'}
+
+-block extra-script
+  :javascript
+    function confirmSMTPRemove() {
+      removalConfirmation("remove-smtp", "Remove");
+    }

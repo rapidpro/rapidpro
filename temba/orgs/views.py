@@ -426,7 +426,7 @@ class OrgCRUDL(SmartCRUDL):
                'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
                'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect',
                'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'resthooks', 'service', 'surveyor',
-               'transfer_credits', 'transfer_to_account')
+               'transfer_credits', 'transfer_to_account', 'add_smtp_config')
 
     model = Org
 
@@ -886,6 +886,16 @@ class OrgCRUDL(SmartCRUDL):
 
                 org.add_smtp_config(smtp_host, smtp_username, smtp_password, smtp_port, use_tls, user)
                 return super(OrgCRUDL.AddSmtpConfig, self).form_valid(form)
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.AddSmtpConfig, self).get_context_data(**kwargs)
+
+            org = self.get_object()
+            if org.has_smtp_config():
+                config = org.config_json()
+                context['smtp_username'] = config.get(EMAIL_SMTP_USERNAME, '--')
+
+            return context
 
     class Manage(SmartListView):
         fields = ('credits', 'used', 'name', 'owner', 'service', 'created_on')
@@ -1943,6 +1953,9 @@ class OrgCRUDL(SmartCRUDL):
                 nexmo_client = org.get_nexmo_client()
                 if nexmo_client:  # pragma: needs cover
                     formax.add_section('nexmo', reverse('orgs.org_nexmo_account'), icon='icon-channel-nexmo')
+
+            if self.has_org_perm("orgs.org_add_smtp_config"):
+                formax.add_section('email', reverse('orgs.org_add_smtp_config'), icon='icon-envelop', action='redirect')
 
             if self.has_org_perm('orgs.org_profile'):
                 formax.add_section('user', reverse('orgs.user_edit'), icon='icon-user', action='redirect')

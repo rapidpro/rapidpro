@@ -372,6 +372,7 @@ PERMISSIONS = {
                                 'geometry'),
 
     'orgs.org': ('accounts',
+                 'add_smtp_config',
                  'api',
                  'country',
                  'clear_cache',
@@ -616,6 +617,7 @@ GROUP_PERMISSIONS = {
         'locations.adminboundary_geometry',
 
         'orgs.org_accounts',
+        'orgs.org_add_smtp_config',
         'orgs.org_api',
         'orgs.org_country',
         'orgs.org_create_sub_org',
