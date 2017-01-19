@@ -14,6 +14,7 @@ from collections import OrderedDict, defaultdict
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
+from django.core.cache import cache
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
@@ -655,12 +656,7 @@ class Flow(TembaModel):
         # and onto the destination
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
         if destination:
-            arrived_on = timezone.now()
-            step.left_on = arrived_on
-            step.next_uuid = destination.uuid
-            step.save(update_fields=['left_on', 'next_uuid'])
-
-            step = run.flow.add_step(run, destination, previous_step=step, arrived_on=arrived_on)
+            step = run.flow.add_step(run, destination, previous_step=step)
         else:
             run.set_completed(final_step=step)
             step = None
@@ -738,10 +734,6 @@ class Flow(TembaModel):
         # Create the step for our destination
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
         if destination:
-            arrived_on = timezone.now()
-            step.left_on = arrived_on
-            step.next_uuid = rule.destination
-            step.save(update_fields=['left_on', 'next_uuid'])
             step = flow.add_step(run, destination, rule=rule.uuid, category=rule.category, previous_step=step)
 
         return dict(handled=True, destination=destination, step=step)
@@ -1783,7 +1775,7 @@ class Flow(TembaModel):
                                                 entry_actions.destination,
                                                 entry_actions.destination_type)
 
-                    next_step = self.add_step(run, destination, previous_step=step, arrived_on=timezone.now())
+                    next_step = self.add_step(run, destination, previous_step=step)
 
                     msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
                     handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
@@ -1840,6 +1832,14 @@ class Flow(TembaModel):
 
         if not arrived_on:
             arrived_on = timezone.now()
+
+        if previous_step:
+            previous_step.left_on = arrived_on
+            previous_step.next_uuid = node.uuid
+            previous_step.save(update_fields=('left_on', 'next_uuid'))
+
+            if not previous_step.contact.is_test:
+                FlowPathRecentStep.record_step(previous_step)
 
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
@@ -2939,12 +2939,8 @@ class FlowStep(models.Model):
         node = json_obj['node']
         arrived_on = json_date_to_datetime(json_obj['arrived_on'])
 
-        # find and update the previous step
+        # find the previous step
         prev_step = FlowStep.objects.filter(run=run).order_by('-left_on').first()
-        if prev_step:
-            prev_step.left_on = arrived_on
-            prev_step.next_uuid = node.uuid
-            prev_step.save(update_fields=('left_on', 'next_uuid'))
 
         # generate the messages for this step
         msgs = []
@@ -3743,6 +3739,80 @@ class FlowPathCount(models.Model):
 
     class Meta:
         index_together = ['flow', 'from_uuid', 'to_uuid', 'period']
+
+
+class FlowPathRecentStep(models.Model):
+    """
+    Maintains recent messages for a flow path segment
+    """
+    PRUNE_TO = 10
+    LAST_PRUNED_KEY = 'last_flowpathrecentstep_pruned'
+
+    from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
+    to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
+    step = models.ForeignKey(FlowStep, related_name='recent_segments')
+    left_on = models.DateTimeField(help_text=_("When they left the first node"))
+
+    @classmethod
+    def record_step(cls, step):
+        from_uuid = step.rule_uuid or step.step_uuid
+        to_uuid = step.next_uuid
+
+        cls.objects.create(from_uuid=from_uuid, to_uuid=to_uuid, step=step, left_on=step.left_on)
+
+    @classmethod
+    def get_recent(cls, from_uuid, to_uuid):
+        """
+        Gets the recent step records for the given flow segment
+        """
+        recent = cls.objects.filter(from_uuid=from_uuid, to_uuid=to_uuid)
+        return recent.order_by('-left_on').prefetch_related('step')
+
+    @classmethod
+    def get_recent_messages(cls, from_uuid, to_uuid):
+        """
+        Gets the recent messages for the given flow segment
+        """
+        recent = cls.get_recent(from_uuid, to_uuid).prefetch_related('step__messages')
+
+        messages = []
+        for r in recent:
+            for msg in r.step.messages.all():
+                if msg.visibility == Msg.VISIBILITY_VISIBLE:
+                    messages.append(msg)
+
+        return messages
+
+    @classmethod
+    def prune(cls):
+        """
+        Removes old steps leaving only PRUNE_TO most recent for each segment
+        """
+        last_id = cache.get(cls.LAST_PRUNED_KEY, -1)
+
+        newest = cls.objects.order_by('-id').values('id').first()
+        newest_id = newest['id'] if newest else -1
+
+        sql = """
+        DELETE FROM %(table)s WHERE id IN (
+          SELECT id FROM (
+              SELECT
+                r.id,
+                dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY left_on DESC) AS pos
+              FROM %(table)s r
+              WHERE (from_uuid, to_uuid) IN (
+                -- get the unique segments added to since last prune
+                SELECT DISTINCT from_uuid, to_uuid FROM %(table)s WHERE id > %(last_id)d
+              )
+          ) s WHERE s.pos > %(limit)d
+        )""" % {'table': cls._meta.db_table, 'last_id': last_id, 'limit': cls.PRUNE_TO}
+
+        cursor = connection.cursor()
+        cursor.execute(sql)
+
+        cache.set(cls.LAST_PRUNED_KEY, newest_id)
+
+        return cursor.rowcount  # number of deleted entries
 
 
 class FlowRunCount(models.Model):

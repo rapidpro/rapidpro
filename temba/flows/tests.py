@@ -37,7 +37,7 @@ from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate
 from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate_export_to_version_9
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
 from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user
-from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
+from .models import FlowPathRecentStep, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
@@ -47,7 +47,7 @@ from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromG
 from .models import VariableContactAction, UssdAction
 from .views import FlowCRUDL
 from .flow_migrations import map_actions
-from .tasks import update_run_expirations_task
+from .tasks import update_run_expirations_task, prune_flowpathrecentsteps
 
 
 class FlowTest(TembaTest):
@@ -4217,6 +4217,7 @@ class FlowsTest(FlowFileTest):
         # clear our previous redis activity
         self.clear_activity(flow)
 
+        color_question = ActionSet.objects.get(y=0, flow=flow)
         other_action = ActionSet.objects.get(y=8, flow=flow)
         beer_question = ActionSet.objects.get(y=237, flow=flow)
         beer = RuleSet.objects.get(label='Beer', flow=flow)
@@ -4259,6 +4260,19 @@ class FlowsTest(FlowFileTest):
         (active, visited) = flow.get_activity()
         self.assertEquals(1, len(active))
         self.assertEquals(1, active[beer.uuid])
+
+        # check recent steps
+        recent = FlowPathRecentStep.get_recent_messages(color_question.uuid, color.uuid)
+        self.assertEqual([m.text for m in recent], ["What is your favorite color?"])
+
+        recent = FlowPathRecentStep.get_recent_messages(color_other_uuid, other_action.uuid)
+        self.assertEqual([m.text for m in recent], ["mauve", "chartreuse"])
+
+        recent = FlowPathRecentStep.get_recent_messages(other_action.uuid, color.uuid)
+        self.assertEqual([m.text for m in recent], ["I don't know that color. Try again.", "I don't know that color. Try again."])
+
+        recent = FlowPathRecentStep.get_recent_messages(color_blue_uuid, beer_question.uuid)
+        self.assertEqual([m.text for m in recent], ["blue"])
 
         # a new participant, showing distinct active counts and incremented path
         ryan = self.create_contact('Ryan Lewis', '+12065550725')
@@ -4347,6 +4361,10 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(100, flow.get_completed_percentage())
 
+        # messages to/from deleted contacts shouldn't appear in the recent messages
+        recent = FlowPathRecentStep.get_recent_messages(color_other_uuid, other_action.uuid)
+        self.assertEqual([m.text for m in recent], ["burnt sienna"])
+
         # test contacts should not affect the counts
         hammer = Contact.get_test_contact(self.admin)
 
@@ -4365,6 +4383,10 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_total_runs())
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(100, flow.get_completed_percentage())
+
+        # and no recent message entries for this test contact
+        recent = FlowPathRecentStep.get_recent_messages(color_other_uuid, other_action.uuid)
+        self.assertEqual([m.text for m in recent], ["burnt sienna"])
 
         # try the same thing after squashing
         FlowPathCount.squash_counts()
@@ -4456,8 +4478,45 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(counts, len(flow.get_visit_counts()))
 
         # ensure no negative counts
-        for k, v in flow.get_visit_counts().iteritems():
+        for k, v in flow.get_visit_counts().items():
             self.assertTrue(v >= 0)
+
+    def test_prune_recentsteps(self):
+        flow = self.get_flow('favorites')
+
+        other_action = ActionSet.objects.get(y=8, flow=flow)
+        color_ruleset = RuleSet.objects.get(label='Color', flow=flow)
+        other_rule = color_ruleset.get_rules()[-1]
+
+        # send 12 invalid color responses (must be from different contacts to avoid loop detection at 10 messages)
+        bob = self.create_contact("Bob", number="+260964151234")
+        for m in range(12):
+            contact = self.contact if m % 2 == 0 else bob
+            self.send_message(flow, '%d' % (m + 1), contact=contact)
+
+        # all 12 steps are stored for the other segment
+        other_recent = FlowPathRecentStep.objects.filter(from_uuid=other_rule.uuid, to_uuid=other_action.uuid)
+        self.assertEqual(len(other_recent), 12)
+
+        # and these are returned with most-recent first
+        other_recent = FlowPathRecentStep.get_recent_messages(other_rule.uuid, other_action.uuid)
+        self.assertEqual([m.text for m in other_recent], ["12", "11", "10", "9", "8", "7", "6", "5", "4", "3", "2", "1"])
+
+        prune_flowpathrecentsteps()
+
+        # now only 10 newest are stored
+        other_recent = FlowPathRecentStep.objects.filter(from_uuid=other_rule.uuid, to_uuid=other_action.uuid)
+        self.assertEqual(len(other_recent), 10)
+
+        other_recent = FlowPathRecentStep.get_recent_messages(other_rule.uuid, other_action.uuid)
+        self.assertEqual([m.text for m in other_recent], ["12", "11", "10", "9", "8", "7", "6", "5", "4", "3"])
+
+        # send another message and prune again
+        self.send_message(flow, "13", contact=bob)
+        prune_flowpathrecentsteps()
+
+        other_recent = FlowPathRecentStep.get_recent_messages(other_rule.uuid, other_action.uuid)
+        self.assertEqual([m.text for m in other_recent], ["13", "12", "11", "10", "9", "8", "7", "6", "5", "4"])
 
     def test_destination_type(self):
         flow = self.get_flow('pick_a_number')
