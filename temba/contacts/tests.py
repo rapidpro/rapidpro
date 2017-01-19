@@ -2005,8 +2005,13 @@ class ContactTest(TembaTest):
         self.assertContains(response, 'Rwama Category')
 
         # bad field
-        ContactField.objects.create(org=self.org, key='language', label='User Language',
-                                    created_by=self.admin, modified_by=self.admin)
+        contact_field = ContactField.objects.create(org=self.org, key='language', label='User Language',
+                                                    created_by=self.admin, modified_by=self.admin)
+
+        response = self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]),
+                                    dict(contact_field=contact_field.id, field_value='Kinyarwanda'))
+
+        self.assertFormError(response, 'form', None, "Field key language has invalid characters or is a reserved field name")
 
         # try to push into a dynamic group
         self.login(self.admin)
@@ -3561,6 +3566,23 @@ class ContactFieldTest(TembaTest):
             self.assertExcelRow(sheet, 4, [contact4.uuid, "Stephen", "", "", ""])
 
             self.assertEqual(len(list(sheet.rows)), 5)  # no other contacts
+
+    def test_contact_field_list(self):
+        url = reverse('contacts.contactfield_list')
+        self.login(self.admin)
+        response = self.client.get(url)
+
+        # label and key
+        self.assertContains(response, 'First')
+        self.assertContains(response, 'first')
+        self.assertContains(response, 'Second')
+        self.assertContains(response, 'second')
+
+        # try a search and make sure we filter out the second one
+        response = self.client.get('%s?search=first' % url)
+        self.assertContains(response, 'First')
+        self.assertContains(response, 'first')
+        self.assertNotContains(response, 'Second')
 
     def test_manage_fields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')
