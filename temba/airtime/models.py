@@ -1,12 +1,13 @@
+from __future__ import unicode_literals
+
 import hashlib
 import json
+import requests
+import six
 import time
 
-import requests
 from django.conf import settings
 from django.db import models
-
-
 from smartmin.models import SmartModel
 from temba.api.models import get_api_user
 from temba.channels.models import Channel
@@ -203,7 +204,7 @@ class AirtimeTransfer(SmartModel):
             traceback.print_exc()
 
             airtime.status = AirtimeTransfer.FAILED
-            message = "Error transferring airtime: %s" % unicode(e)
+            message = "Error transferring airtime: %s" % six.text_type(e)
 
         finally:
             airtime.message = message

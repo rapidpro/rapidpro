@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import json
 import logging
 import regex
+import six
 import traceback
 
 from collections import Counter
@@ -795,37 +796,37 @@ class FlowCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             contact_variables = [
-                dict(name='contact', display=unicode(_('Contact Name'))),
-                dict(name='contact.first_name', display=unicode(_('Contact First Name'))),
-                dict(name='contact.groups', display=unicode(_('Contact Groups'))),
-                dict(name='contact.language', display=unicode(_('Contact Language'))),
-                dict(name='contact.mailto', display=unicode(_('Contact Email Address'))),
-                dict(name='contact.name', display=unicode(_('Contact Name'))),
-                dict(name='contact.tel', display=unicode(_('Contact Phone'))),
-                dict(name='contact.tel_e164', display=unicode(_('Contact Phone - E164'))),
-                dict(name='contact.uuid', display=unicode(_("Contact UUID"))),
-                dict(name='new_contact', display=unicode(_('New Contact')))
+                dict(name='contact', display=six.text_type(_('Contact Name'))),
+                dict(name='contact.first_name', display=six.text_type(_('Contact First Name'))),
+                dict(name='contact.groups', display=six.text_type(_('Contact Groups'))),
+                dict(name='contact.language', display=six.text_type(_('Contact Language'))),
+                dict(name='contact.mailto', display=six.text_type(_('Contact Email Address'))),
+                dict(name='contact.name', display=six.text_type(_('Contact Name'))),
+                dict(name='contact.tel', display=six.text_type(_('Contact Phone'))),
+                dict(name='contact.tel_e164', display=six.text_type(_('Contact Phone - E164'))),
+                dict(name='contact.uuid', display=six.text_type(_("Contact UUID"))),
+                dict(name='new_contact', display=six.text_type(_('New Contact')))
             ]
             contact_variables += [dict(name="contact.%s" % field.key, display=field.label) for field in ContactField.objects.filter(org=org, is_active=True)]
 
             date_variables = [
-                dict(name='date', display=unicode(_('Current Date and Time'))),
-                dict(name='date.now', display=unicode(_('Current Date and Time'))),
-                dict(name='date.today', display=unicode(_('Current Date'))),
-                dict(name='date.tomorrow', display=unicode(_("Tomorrow's Date"))),
-                dict(name='date.yesterday', display=unicode(_("Yesterday's Date")))
+                dict(name='date', display=six.text_type(_('Current Date and Time'))),
+                dict(name='date.now', display=six.text_type(_('Current Date and Time'))),
+                dict(name='date.today', display=six.text_type(_('Current Date'))),
+                dict(name='date.tomorrow', display=six.text_type(_("Tomorrow's Date"))),
+                dict(name='date.yesterday', display=six.text_type(_("Yesterday's Date")))
             ]
 
             flow_variables = [
-                dict(name='channel', display=unicode(_('Sent to'))),
-                dict(name='channel.name', display=unicode(_('Sent to'))),
-                dict(name='channel.tel', display=unicode(_('Sent to'))),
-                dict(name='channel.tel_e164', display=unicode(_('Sent to'))),
-                dict(name='step', display=unicode(_('Sent to'))),
-                dict(name='step.value', display=unicode(_('Sent to')))
+                dict(name='channel', display=six.text_type(_('Sent to'))),
+                dict(name='channel.name', display=six.text_type(_('Sent to'))),
+                dict(name='channel.tel', display=six.text_type(_('Sent to'))),
+                dict(name='channel.tel_e164', display=six.text_type(_('Sent to'))),
+                dict(name='step', display=six.text_type(_('Sent to'))),
+                dict(name='step.value', display=six.text_type(_('Sent to')))
             ]
             flow_variables += [dict(name='step.%s' % v['name'], display=v['display']) for v in contact_variables]
-            flow_variables.append(dict(name='flow', display=unicode(_('All flow variables'))))
+            flow_variables.append(dict(name='flow', display=six.text_type(_('All flow variables'))))
 
             flow_id = self.request.GET.get('flow', None)
 

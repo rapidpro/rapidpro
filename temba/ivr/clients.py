@@ -2,9 +2,9 @@ from __future__ import unicode_literals
 
 import json
 import mimetypes
-
 import re
 import requests
+import six
 import time
 
 from django.conf import settings
@@ -39,7 +39,7 @@ class TwilioClient(TwilioRestClient):
                                             from_=call.channel.address,
                                             url=status_callback,
                                             status_callback=status_callback)
-            call.external_id = unicode(twilio_call.sid)
+            call.external_id = six.text_type(twilio_call.sid)
             call.save()
         except TwilioRestException as twilio:
             message = 'Twilio Error: %s' % twilio.msg
@@ -120,7 +120,7 @@ class VerboiceClient:  # pragma: needs cover
         Contact.get_or_create(channel.org, channel.created_by, urns=[URN.from_tel(to)])
 
         # Verboice differs from Twilio in that they expect the first block of twiml up front
-        payload = unicode(Flow.handle_call(call, {}))
+        payload = six.text_type(Flow.handle_call(call, {}))
 
         # now we can post that to verboice
         url = "%s?%s" % (self.endpoint, urlencode(dict(channel=self.verboice_channel, address=to)))

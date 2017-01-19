@@ -9,6 +9,7 @@ import re
 import redis
 import shutil
 import string
+import six
 import time
 
 from datetime import datetime, timedelta
@@ -133,7 +134,7 @@ class TembaTest(SmartminTest):
         cursor.execute('explain %s' % query)
         plan = cursor.fetchall()
         indexes = []
-        for match in re.finditer('Index Scan using (.*?) on (.*?) \(cost', unicode(plan), re.DOTALL):
+        for match in re.finditer('Index Scan using (.*?) on (.*?) \(cost', six.text_type(plan), re.DOTALL):
             index = match.group(1).strip()
             table = match.group(2).strip()
             indexes.append((table, index))

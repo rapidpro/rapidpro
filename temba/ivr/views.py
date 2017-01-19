@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import json
+import six
 
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse, JsonResponse
@@ -60,7 +61,7 @@ class CallHandler(View):
 
             if call.status in [IVRCall.IN_PROGRESS, IVRCall.RINGING] or hangup:
                 response = Flow.handle_call(call, user_response, hangup=hangup)
-                return HttpResponse(unicode(response))
+                return HttpResponse(six.text_type(response))
             else:
                 if call.status == IVRCall.COMPLETED:
                     # if our call is completed, hangup

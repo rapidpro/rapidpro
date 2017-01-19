@@ -170,6 +170,7 @@ MIDDLEWARE_CLASSES = (
     'temba.middleware.FlowSimulationMiddleware',
     'temba.middleware.ActivateLanguageMiddleware',
     'temba.middleware.NonAtomicGetsMiddleware',
+    'temba.utils.middleware.OrgHeaderMiddleware',
 )
 
 ROOT_URLCONF = 'temba.urls'
@@ -1032,6 +1033,10 @@ CELERYBEAT_SCHEDULE = {
     },
     "squash-flowpathcounts": {
         'task': 'squash_flowpathcounts',
+        'schedule': timedelta(seconds=300),
+    },
+    "prune-flowpathrecentsteps": {
+        'task': 'prune_flowpathrecentsteps',
         'schedule': timedelta(seconds=300),
     },
     "squash-channelcounts": {
