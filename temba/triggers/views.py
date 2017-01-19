@@ -285,6 +285,42 @@ class NewConversationTriggerForm(BaseTriggerForm):
         fields = ('channel', 'flow')
 
 
+class ReferralTriggerForm(BaseTriggerForm):
+    """
+    Form for referral triggers
+    """
+    channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("Channel"),
+                                     help_text=_("The channel to apply this trigger to, leave blank for all Facebook channels"))
+    referrer_id = forms.CharField(max_length=255, required=True, label=_("Referrer Id"),
+                                  help_text=_("The referrer id that will trigger us"))
+
+    def __init__(self, user, *args, **kwargs):
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE])
+        super(ReferralTriggerForm, self).__init__(user, flows, *args, **kwargs)
+
+        self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
+                                                                 scheme__in=ContactURN.SCHEMES_SUPPORTING_REFERRALS)
+
+    def get_existing_triggers(self, cleaned_data):
+        ref_id = cleaned_data.get('referrer_id', '').strip()
+        channel_id = cleaned_data.get('channel_id')
+        existing = Trigger.objects.filter(org=self.org, trigger_type=Trigger.TYPE_REFERRAL,
+                                          is_active=True, is_archived=False, referrer_id=ref_id)
+        if channel_id:
+            existing = existing.filter(channel_id=channel_id)
+
+        return existing
+
+    def clean(self):
+        data = super(ReferralTriggerForm, self).clean()
+        if data['referrer_id'] and self.get_existing_triggers(data):
+            raise forms.ValidationError(_("An active trigger uses this referrer id, referrer ids must be unique"))
+        return data
+
+    class Meta(BaseTriggerForm.Meta):
+        fields = ('channel', 'referrer_id', 'flow')
+
+
 class UssdTriggerForm(BaseTriggerForm):
     """
     Form for USSD triggers
@@ -353,7 +389,7 @@ class TriggerCRUDL(SmartCRUDL):
     model = Trigger
     actions = ('list', 'create', 'update', 'archived',
                'keyword', 'register', 'schedule', 'inbound_call', 'missed_call', 'catchall', 'follow',
-               'new_conversation', 'ussd')
+               'new_conversation', 'referral', 'ussd')
 
     class OrgMixin(OrgPermsMixin):
         def derive_queryset(self, *args, **kwargs):
@@ -597,6 +633,30 @@ class TriggerCRUDL(SmartCRUDL):
             kwargs = super(TriggerCRUDL.Register, self).get_form_kwargs()
             kwargs['auto_id'] = "id_register_%s"
             return kwargs
+
+    class Referral(CreateTrigger):
+        form_class = ReferralTriggerForm
+        title = _("Create Referral Trigger")
+
+        def get_form_kwargs(self):
+            kwargs = super(TriggerCRUDL.Referral, self).get_form_kwargs()
+            kwargs['auto_id'] = "id_referral_%s"
+            return kwargs
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+
+            trigger = Trigger.objects.create(created_by=user, modified_by=user, org=org, trigger_type=Trigger.TYPE_REFERRAL,
+                                             flow=form.cleaned_data['flow'], channel=form.cleaned_data['channel'],
+                                             referrer_id=form.cleaned_data['referrer_id'])
+            trigger.archive_conflicts(user)
+
+            analytics.track(self.request.user.username, 'temba.trigger_created_referral')
+
+            response = self.render_to_response(self.get_context_data(form=form))
+            response['REDIRECT'] = self.get_success_url()
+            return response
 
     class Schedule(CreateTrigger):
         form_class = ScheduleTriggerForm
