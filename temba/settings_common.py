@@ -170,6 +170,7 @@ MIDDLEWARE_CLASSES = (
     'temba.middleware.FlowSimulationMiddleware',
     'temba.middleware.ActivateLanguageMiddleware',
     'temba.middleware.NonAtomicGetsMiddleware',
+    'temba.utils.middleware.OrgHeaderMiddleware',
 )
 
 ROOT_URLCONF = 'temba.urls'
