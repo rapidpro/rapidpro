@@ -34,13 +34,13 @@ from temba.reports.models import Report
 from temba.flows.models import Flow, FlowRun, FlowRevision, FlowRunCount
 from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, INCOMING, OUTGOING, PENDING
+from temba.msgs.models import Msg, PENDING
 from temba.triggers.models import Trigger
 from temba.utils import analytics, percentage, datetime_to_str, on_transaction_commit
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 from temba.values.models import Value
-from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart
+from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart, FlowPathRecentStep
 
 logger = logging.getLogger(__name__)
 
@@ -358,34 +358,13 @@ class FlowCRUDL(SmartCRUDL):
 
             recent_messages = []
 
-            # noop if we are missing needed parameters
-            if not step_uuid or not next_uuid:
-                return JsonResponse(recent_messages, safe=False)
+            if (step_uuid or rule_uuid) and next_uuid:
+                recent = FlowPathRecentStep.get_recent_messages(rule_uuid or step_uuid, next_uuid, limit=5)
 
-            if rule_uuid:
-                rule_uuids = rule_uuid.split(',')
-                recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
-                                                       next_uuid=next_uuid,
-                                                       rule_uuid__in=rule_uuids).order_by('-left_on')[:20].prefetch_related('messages', 'contact')
-                msg_direction_filter = INCOMING
+                for msg in recent:
+                    recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=org.timezone), text=msg.text))
 
-            else:
-                recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
-                                                       next_uuid=next_uuid,
-                                                       rule_uuid=None).order_by('-left_on')[:20].prefetch_related('messages', 'contact')
-
-                msg_direction_filter = OUTGOING
-
-            # this is slightly goofy for performance reasons, we don't want to do the big join, so instead use the
-            # prefetch related above and do the filtering ourselves
-            for step in recent_steps:
-                if not step.contact.is_test:
-                    for msg in step.messages.all():
-                        if msg.visibility == Msg.VISIBILITY_VISIBLE and msg.direction == msg_direction_filter:
-                            recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=org.timezone),
-                                                        text=msg.text))
-
-            return JsonResponse(recent_messages[:5], safe=False)
+            return JsonResponse(recent_messages, safe=False)
 
     class Revisions(OrgObjPermsMixin, SmartReadView):
 
