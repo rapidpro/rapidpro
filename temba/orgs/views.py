@@ -697,7 +697,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super(OrgCRUDL.NexmoAccount, self).derive_initial()
             org = self.get_object()
-            config = json.loads(org.config)
+            config = org.config_json()
             initial['api_key'] = config.get(NEXMO_KEY, '')
             initial['api_secret'] = config.get(NEXMO_SECRET, '')
             initial['disconnect'] = 'false'
@@ -859,7 +859,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super(OrgCRUDL.AddSmtpConfig, self).derive_initial()
             org = self.get_object()
-            config = json.loads(org.config)
+            config = org.config_json()
             initial['smtp_host'] = config.get(EMAIL_SMTP_HOST, '')
             initial['smtp_username'] = config.get(EMAIL_SMTP_USERNAME, '')
             initial['smtp_password'] = config.get(EMAIL_SMTP_PASSWORD, '')

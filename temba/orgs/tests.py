@@ -1400,6 +1400,48 @@ class OrgTest(TembaTest):
         response = self.client.get(resthook_url)
         self.assertFalse(response.context['current_resthooks'])
 
+    def test_add_smtp_config(self):
+        self.login(self.admin)
+
+        add_smtp_config_url = reverse('orgs.org_add_smtp_config')
+
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.has_smtp_config())
+        response = self.client.post(add_smtp_config_url, dict(smtp_host='smtp.example.com',
+                                                              smtp_username='support@example.com',
+                                                              smtp_password='secret',
+                                                              smtp_port='465',
+                                                              use_tls=True,
+                                                              disconnect='false'), follow=True)
+
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.has_smtp_config())
+        self.assertEquals(self.org.config_json()['EMAIL_SMTP_HOST'], 'smtp.example.com')
+        self.assertEquals(self.org.config_json()['EMAIL_SMTP_USERNAME'], 'support@example.com')
+        self.assertEquals(self.org.config_json()['EMAIL_SMTP_PASSWORD'], 'secret')
+        self.assertEquals(self.org.config_json()['EMAIL_SMTP_PORT'], '465')
+
+        response = self.client.get(add_smtp_config_url)
+        self.assertEquals('support@example.com', response.context['smtp_username'])
+
+        self.client.post(add_smtp_config_url, dict(smtp_host='smtp.example.com',
+                                                   smtp_username='support@example.com',
+                                                   smtp_password='secret',
+                                                   smtp_port='465',
+                                                   use_tls=True,
+                                                   name="DO NOT CHANGE ME",
+                                                   disconnect='false'), follow=True)
+
+        # name shouldn't change
+        self.org.refresh_from_db()
+        self.assertEquals(self.org.name, "Temba")
+        self.assertTrue(self.org.has_smtp_config())
+
+        self.client.post(add_smtp_config_url, dict(disconnect='true'), follow=True)
+
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.has_smtp_config())
+
     def test_connect_nexmo(self):
         self.login(self.admin)
 
