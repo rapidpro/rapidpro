@@ -3111,9 +3111,6 @@ class FlowStep(models.Model):
     def __str__(self):
         return "%s - %s:%s" % (self.run.contact, self.step_type, self.step_uuid)
 
-    class Meta:
-        index_together = ['step_uuid', 'next_uuid', 'rule_uuid', 'left_on']
-
 
 @six.python_2_unicode_compatible
 class RuleSet(models.Model):
@@ -3775,7 +3772,7 @@ class FlowPathRecentStep(models.Model):
         return recent.order_by('-left_on').prefetch_related('step')
 
     @classmethod
-    def get_recent_messages(cls, from_uuid, to_uuid):
+    def get_recent_messages(cls, from_uuid, to_uuid, limit=None):
         """
         Gets the recent messages for the given flow segment
         """
@@ -3786,6 +3783,9 @@ class FlowPathRecentStep(models.Model):
             for msg in r.step.messages.all():
                 if msg.visibility == Msg.VISIBILITY_VISIBLE:
                     messages.append(msg)
+
+                    if limit is not None and len(messages) >= limit:
+                        return messages
 
         return messages
 
