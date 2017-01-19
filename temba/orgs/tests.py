@@ -1407,6 +1407,29 @@ class OrgTest(TembaTest):
 
         self.org.refresh_from_db()
         self.assertFalse(self.org.has_smtp_config())
+
+        response = self.client.post(add_smtp_config_url, dict(disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "You must enter the SMTP host", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
+        response = self.client.post(add_smtp_config_url, dict(smtp_host='smtp.example.com',
+                                                              disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "You must enter the SMTP username", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
+        response = self.client.post(add_smtp_config_url, dict(smtp_host='smtp.example.com',
+                                                              smtp_username='support@example.com',
+                                                              disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "You must enter the SMTP password", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
+        response = self.client.post(add_smtp_config_url, dict(smtp_host='smtp.example.com',
+                                                              smtp_username='support@example.com',
+                                                              smtp_password='secret',
+                                                              disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "You must enter the SMTP port", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
         response = self.client.post(add_smtp_config_url, dict(smtp_host='smtp.example.com',
                                                               smtp_username='support@example.com',
                                                               smtp_password='secret',
