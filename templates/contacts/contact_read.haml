@@ -93,15 +93,16 @@
       .normal.hide
         -for field in contact_fields
           -if field.value and not field.featured
-            .contact-field
+            .contact-field{data-id:'{{field.id}}'}
               .contact-field-label
                 {{field.label|title}}
               .contact-field-value
                 {{field.value}}
 
 
-  %a.pull-right.show-all.fields
-      .icon-arrow-down
+  -if contact_fields|length > 4
+    %a.pull-right.show-all.fields
+        .icon-arrow-down
 
   -if upcoming_events
     %h5
