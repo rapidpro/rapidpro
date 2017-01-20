@@ -859,10 +859,10 @@ class ContactTest(TembaTest):
         self.assertEqual("8877", mr_long_name.get_urn_display())
         self.assertEqual("", self.billy.get_urn_display())
 
-        self.assertEqual("Joe Blow", self.joe.__unicode__())
-        self.assertEqual("0768 383 383", self.voldemort.__unicode__())
-        self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", mr_long_name.__unicode__())
-        self.assertEqual("Billy Nophone", self.billy.__unicode__())
+        self.assertEqual("Joe Blow", six.text_type(self.joe))
+        self.assertEqual("0768 383 383", six.text_type(self.voldemort))
+        self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", six.text_type(mr_long_name))
+        self.assertEqual("Billy Nophone", six.text_type(self.billy))
 
         with AnonymousOrg(self.org):
             self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, formatted=False))
@@ -879,10 +879,10 @@ class ContactTest(TembaTest):
             self.assertEqual(mr_long_name.anon_identifier, mr_long_name.get_urn_display())
             self.assertEqual(self.billy.anon_identifier, self.billy.get_urn_display())
 
-            self.assertEqual("Joe Blow", self.joe.__unicode__())
-            self.assertEqual("%010d" % self.voldemort.pk, self.voldemort.__unicode__())
-            self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", mr_long_name.__unicode__())
-            self.assertEqual("Billy Nophone", self.billy.__unicode__())
+            self.assertEqual("Joe Blow", six.text_type(self.joe))
+            self.assertEqual("%010d" % self.voldemort.pk, six.text_type(self.voldemort))
+            self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", six.text_type(mr_long_name))
+            self.assertEqual("Billy Nophone", six.text_type(self.billy))
 
     def test_bulk_cache_initialize(self):
         ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N', show_in_table=True)
@@ -1490,7 +1490,7 @@ class ContactTest(TembaTest):
                                                                     message='{"base": "Sent %d days after planting date"}' % (i + 10))
 
         now = timezone.now()
-        self.joe.set_field(self.user, 'planting_date', unicode(now + timedelta(days=1)))
+        self.joe.set_field(self.user, 'planting_date', six.text_type(now + timedelta(days=1)))
         EventFire.update_campaign_events(self.campaign)
 
         # should have seven fires, one for each campaign event
@@ -1873,8 +1873,13 @@ class ContactTest(TembaTest):
         self.assertEqual(response.context['form'].initial['name'], "Joe Blow")
         self.assertEqual(response.context['form'].fields['urn__tel__1'].initial, "+250781111111")
 
-        response = self.client.get(reverse('contacts.contact_update_fields', args=[self.joe.id]))
-        self.assertEqual(response.context['form'].fields['__field__state'].initial, "Kigali City")  # parsed name
+        contact_field = ContactField.objects.filter(key='state').first()
+        response = self.client.get('%s?field=%s' % (reverse('contacts.contact_update_fields', args=[self.joe.id]), contact_field.id))
+        self.assertEqual('Home state', response.context['contact_field'].label)
+
+        # grab our input field which is loaded async
+        response = self.client.get('%s?field=%s' % (reverse('contacts.contact_update_fields_input', args=[self.joe.id]), contact_field.id))
+        self.assertContains(response, 'Kigali City')
 
         # update it to something else
         self.joe.set_field(self.user, 'state', "eastern province")
@@ -1888,7 +1893,7 @@ class ContactTest(TembaTest):
         self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), data)
 
         # update the state contact field to something invalid
-        self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]), dict(__field__state='newyork'))
+        self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]), dict(contact_field=contact_field.id, field_value='newyork'))
 
         # check that old URN is detached, new URN is attached, and Joe still exists
         self.joe = Contact.objects.get(pk=self.joe.id)
@@ -1973,12 +1978,13 @@ class ContactTest(TembaTest):
 
         # update our contact with some locations
         state = ContactField.get_or_create(self.org, self.admin, 'state', "Home State", value_type='S')
-        ContactField.get_or_create(self.org, self.admin, 'home', "Home District", value_type='I')
+        district = ContactField.get_or_create(self.org, self.admin, 'home', "Home District", value_type='I')
 
-        self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]),
-                         dict(__field__state='eastern province', __field__home='rwamagana'))
+        self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]), dict(contact_field=state.id, field_value='eastern province'))
+        self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]), dict(contact_field=district.id, field_value='rwamagana'))
 
         response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
+
         self.assertContains(response, 'Eastern Province')
         self.assertContains(response, 'Rwamagana')
 
@@ -2005,15 +2011,13 @@ class ContactTest(TembaTest):
         self.assertContains(response, 'Rwama Category')
 
         # bad field
-        ContactField.objects.create(org=self.org, key='language', label='User Language',
-                                    created_by=self.admin, modified_by=self.admin)
+        contact_field = ContactField.objects.create(org=self.org, key='language', label='User Language',
+                                                    created_by=self.admin, modified_by=self.admin)
 
         response = self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]),
-                                    dict(__field__state='eastern province', __field__home='rwamagana',
-                                         __field__language='Kinyarwanda'))
+                                    dict(contact_field=contact_field.id, field_value='Kinyarwanda'))
 
-        self.assertFormError(response, 'form', None, "Field key language has invalid characters "
-                                                     "or is a reserved field name")
+        self.assertFormError(response, 'form', None, "Field key language has invalid characters or is a reserved field name")
 
         # try to push into a dynamic group
         self.login(self.admin)
@@ -3568,6 +3572,23 @@ class ContactFieldTest(TembaTest):
             self.assertExcelRow(sheet, 4, [contact4.uuid, "Stephen", "", "", ""])
 
             self.assertEqual(len(list(sheet.rows)), 5)  # no other contacts
+
+    def test_contact_field_list(self):
+        url = reverse('contacts.contactfield_list')
+        self.login(self.admin)
+        response = self.client.get(url)
+
+        # label and key
+        self.assertContains(response, 'First')
+        self.assertContains(response, 'first')
+        self.assertContains(response, 'Second')
+        self.assertContains(response, 'second')
+
+        # try a search and make sure we filter out the second one
+        response = self.client.get('%s?search=first' % url)
+        self.assertContains(response, 'First')
+        self.assertContains(response, 'first')
+        self.assertNotContains(response, 'Second')
 
     def test_manage_fields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')

@@ -108,6 +108,7 @@ def notify_mage_task(channel_uuid, action):
     """
     Notifies Mage of a change to a Twitter channel
     """
+    action = MageStreamAction[action]
     mage = MageClient(settings.MAGE_API_URL, settings.MAGE_AUTH_TOKEN)
 
     if action == MageStreamAction.activate:

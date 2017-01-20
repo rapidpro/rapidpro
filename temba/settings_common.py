@@ -170,6 +170,7 @@ MIDDLEWARE_CLASSES = (
     'temba.middleware.FlowSimulationMiddleware',
     'temba.middleware.ActivateLanguageMiddleware',
     'temba.middleware.NonAtomicGetsMiddleware',
+    'temba.utils.middleware.OrgHeaderMiddleware',
 )
 
 ROOT_URLCONF = 'temba.urls'
@@ -355,7 +356,8 @@ PERMISSIONS = {
                          'omnibox',
                          'unblock',
                          'unstop',
-                         'update_fields'
+                         'update_fields',
+                         'update_fields_input'
                          ),
 
     'contacts.contactfield': ('api',
@@ -603,6 +605,7 @@ GROUP_PERMISSIONS = {
         'contacts.contact_unstop',
         'contacts.contact_update',
         'contacts.contact_update_fields',
+        'contacts.contact_update_fields_input',
         'contacts.contactfield.*',
         'contacts.contactgroup.*',
 
@@ -761,6 +764,7 @@ GROUP_PERMISSIONS = {
         'contacts.contact_unstop',
         'contacts.contact_update',
         'contacts.contact_update_fields',
+        'contacts.contact_update_fields_input',
         'contacts.contactfield.*',
         'contacts.contactgroup.*',
 
@@ -1031,6 +1035,10 @@ CELERYBEAT_SCHEDULE = {
     },
     "squash-flowpathcounts": {
         'task': 'squash_flowpathcounts',
+        'schedule': timedelta(seconds=300),
+    },
+    "prune-flowpathrecentsteps": {
+        'task': 'prune_flowpathrecentsteps',
         'schedule': timedelta(seconds=300),
     },
     "squash-channelcounts": {

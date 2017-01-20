@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import json
+import six
 
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
@@ -8,6 +9,7 @@ from smartmin.models import SmartModel
 from temba.orgs.models import Org
 
 
+@six.python_2_unicode_compatible
 class Report(SmartModel):
     TITLE = 'title'
     DESCRIPTION = 'description'
@@ -54,7 +56,7 @@ class Report(SmartModel):
     def as_json(self):
         return dict(text=self.title, id=self.pk, description=self.description, config=self.config, public=self.is_published)
 
-    def __unicode__(self):  # pragma: needs cover
+    def __str__(self):  # pragma: needs cover
         return "%s - %s" % (self.pk, self.title)
 
     class Meta:
