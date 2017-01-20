@@ -1,3 +1,12 @@
+v3.0.13
+----------
+ * New contact field editing UI with Intercooler modals
+
+v3.0.9
+----------
+ * Update RecentMessages view to use new recent messages model
+ * Remove now unused indexes on FlowStep
+
 v3.0.8
 ----------
  * Adds data migration to populate FlowPathRecentStep from existing Flow Steps
