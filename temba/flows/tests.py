@@ -2793,7 +2793,7 @@ class ActionTest(TembaTest):
         self.assertEquals(mail.outbox[2].body, 'Email notification for allo allo')
         self.assertEquals(mail.outbox[2].recipients(), ["steve@apple.com"])
 
-        self.org.add_smtp_config('smtp.example.com', 'support@example.com', 'secret', '465', True, self.admin)
+        self.org.add_smtp_config('smtp.example.com', 'support@example.com', 'secret', '465', 'T', self.admin)
 
         action = EmailAction(["steve@apple.com"], "Subject", "Body")
         action.execute(run, None, msg)
