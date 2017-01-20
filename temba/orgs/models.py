@@ -708,11 +708,9 @@ class Org(SmartModel):
         else:
             return False
 
-    @classmethod
-    def email_action_send(cls, org_id, recipients, subject, message):
-        org = Org.objects.filter(pk=org_id).first()
-        if org and org.has_smtp_config():
-            config = org.config_json()
+    def email_action_send(self, recipients, subject, message):
+        if self.has_smtp_config():
+            config = self.config_json()
             smtp_host = config.get(EMAIL_SMTP_HOST, None)
             smtp_port = config.get(EMAIL_SMTP_PORT, None)
             smtp_username = config.get(EMAIL_SMTP_USERNAME, None)
