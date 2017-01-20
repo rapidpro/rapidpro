@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import json
 import logging
 import regex
+import six
 import traceback
 
 from collections import Counter
@@ -33,13 +34,13 @@ from temba.reports.models import Report
 from temba.flows.models import Flow, FlowRun, FlowRevision, FlowRunCount
 from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, INCOMING, OUTGOING, PENDING
+from temba.msgs.models import Msg, PENDING
 from temba.triggers.models import Trigger
 from temba.utils import analytics, percentage, datetime_to_str, on_transaction_commit
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 from temba.values.models import Value
-from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart
+from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart, FlowPathRecentStep
 
 logger = logging.getLogger(__name__)
 
@@ -357,34 +358,13 @@ class FlowCRUDL(SmartCRUDL):
 
             recent_messages = []
 
-            # noop if we are missing needed parameters
-            if not step_uuid or not next_uuid:
-                return JsonResponse(recent_messages, safe=False)
+            if (step_uuid or rule_uuid) and next_uuid:
+                recent = FlowPathRecentStep.get_recent_messages(rule_uuid or step_uuid, next_uuid, limit=5)
 
-            if rule_uuid:
-                rule_uuids = rule_uuid.split(',')
-                recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
-                                                       next_uuid=next_uuid,
-                                                       rule_uuid__in=rule_uuids).order_by('-left_on')[:20].prefetch_related('messages', 'contact')
-                msg_direction_filter = INCOMING
+                for msg in recent:
+                    recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=org.timezone), text=msg.text))
 
-            else:
-                recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
-                                                       next_uuid=next_uuid,
-                                                       rule_uuid=None).order_by('-left_on')[:20].prefetch_related('messages', 'contact')
-
-                msg_direction_filter = OUTGOING
-
-            # this is slightly goofy for performance reasons, we don't want to do the big join, so instead use the
-            # prefetch related above and do the filtering ourselves
-            for step in recent_steps:
-                if not step.contact.is_test:
-                    for msg in step.messages.all():
-                        if msg.visibility == Msg.VISIBILITY_VISIBLE and msg.direction == msg_direction_filter:
-                            recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=org.timezone),
-                                                        text=msg.text))
-
-            return JsonResponse(recent_messages[:5], safe=False)
+            return JsonResponse(recent_messages, safe=False)
 
     class Revisions(OrgObjPermsMixin, SmartReadView):
 
@@ -795,37 +775,37 @@ class FlowCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             contact_variables = [
-                dict(name='contact', display=unicode(_('Contact Name'))),
-                dict(name='contact.first_name', display=unicode(_('Contact First Name'))),
-                dict(name='contact.groups', display=unicode(_('Contact Groups'))),
-                dict(name='contact.language', display=unicode(_('Contact Language'))),
-                dict(name='contact.mailto', display=unicode(_('Contact Email Address'))),
-                dict(name='contact.name', display=unicode(_('Contact Name'))),
-                dict(name='contact.tel', display=unicode(_('Contact Phone'))),
-                dict(name='contact.tel_e164', display=unicode(_('Contact Phone - E164'))),
-                dict(name='contact.uuid', display=unicode(_("Contact UUID"))),
-                dict(name='new_contact', display=unicode(_('New Contact')))
+                dict(name='contact', display=six.text_type(_('Contact Name'))),
+                dict(name='contact.first_name', display=six.text_type(_('Contact First Name'))),
+                dict(name='contact.groups', display=six.text_type(_('Contact Groups'))),
+                dict(name='contact.language', display=six.text_type(_('Contact Language'))),
+                dict(name='contact.mailto', display=six.text_type(_('Contact Email Address'))),
+                dict(name='contact.name', display=six.text_type(_('Contact Name'))),
+                dict(name='contact.tel', display=six.text_type(_('Contact Phone'))),
+                dict(name='contact.tel_e164', display=six.text_type(_('Contact Phone - E164'))),
+                dict(name='contact.uuid', display=six.text_type(_("Contact UUID"))),
+                dict(name='new_contact', display=six.text_type(_('New Contact')))
             ]
             contact_variables += [dict(name="contact.%s" % field.key, display=field.label) for field in ContactField.objects.filter(org=org, is_active=True)]
 
             date_variables = [
-                dict(name='date', display=unicode(_('Current Date and Time'))),
-                dict(name='date.now', display=unicode(_('Current Date and Time'))),
-                dict(name='date.today', display=unicode(_('Current Date'))),
-                dict(name='date.tomorrow', display=unicode(_("Tomorrow's Date"))),
-                dict(name='date.yesterday', display=unicode(_("Yesterday's Date")))
+                dict(name='date', display=six.text_type(_('Current Date and Time'))),
+                dict(name='date.now', display=six.text_type(_('Current Date and Time'))),
+                dict(name='date.today', display=six.text_type(_('Current Date'))),
+                dict(name='date.tomorrow', display=six.text_type(_("Tomorrow's Date"))),
+                dict(name='date.yesterday', display=six.text_type(_("Yesterday's Date")))
             ]
 
             flow_variables = [
-                dict(name='channel', display=unicode(_('Sent to'))),
-                dict(name='channel.name', display=unicode(_('Sent to'))),
-                dict(name='channel.tel', display=unicode(_('Sent to'))),
-                dict(name='channel.tel_e164', display=unicode(_('Sent to'))),
-                dict(name='step', display=unicode(_('Sent to'))),
-                dict(name='step.value', display=unicode(_('Sent to')))
+                dict(name='channel', display=six.text_type(_('Sent to'))),
+                dict(name='channel.name', display=six.text_type(_('Sent to'))),
+                dict(name='channel.tel', display=six.text_type(_('Sent to'))),
+                dict(name='channel.tel_e164', display=six.text_type(_('Sent to'))),
+                dict(name='step', display=six.text_type(_('Sent to'))),
+                dict(name='step.value', display=six.text_type(_('Sent to')))
             ]
             flow_variables += [dict(name='step.%s' % v['name'], display=v['display']) for v in contact_variables]
-            flow_variables.append(dict(name='flow', display=unicode(_('All flow variables'))))
+            flow_variables.append(dict(name='flow', display=six.text_type(_('All flow variables'))))
 
             flow_id = self.request.GET.get('flow', None)
 

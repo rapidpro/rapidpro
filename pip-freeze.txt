@@ -33,7 +33,6 @@ django-rosetta==0.6.2
 Django-Select2==4.2.2
 django-storages==1.5.1
 django-timezone-field==2.0
--e git+https://github.com/caktus/django-ttag.git@40c97c01325d436f5d04529526fa7468ff778137#egg=django_ttag
 djangorestframework==3.5.1
 djangorestframework-xml==1.2.0
 djorm-ext-core==0.7
@@ -97,7 +96,7 @@ requests-oauthlib==0.4.0
 rsa==3.1.1
 selenium==2.31.0
 simplejson==3.4.1
-six==1.6.1
+six==1.10.0
 smartmin==1.10.2
 sqlparse==0.1.11
 stop-words==2015.2.23.1

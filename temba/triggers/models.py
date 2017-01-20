@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import regex
+import six
 
 from django.db import models
 from django.utils import timezone
@@ -14,6 +15,7 @@ from temba.msgs.models import Msg
 from temba.orgs.models import Org
 
 
+@six.python_2_unicode_compatible
 class Trigger(SmartModel):
     """
     A Trigger is used to start a user in a flow based on an event. For example, triggers might fire
@@ -75,13 +77,13 @@ class Trigger(SmartModel):
     channel = models.ForeignKey(Channel, verbose_name=_("Channel"), null=True, related_name='triggers',
                                 help_text=_("The associated channel"))
 
-    def __unicode__(self):
+    def __str__(self):
         if self.trigger_type == Trigger.TYPE_KEYWORD:
             return self.keyword
         return self.get_trigger_type_display()  # pragma: needs cover
 
     def name(self):  # pragma: needs cover
-        return self.__unicode__()
+        return six.text_type(self)
 
     def as_json(self):
         """

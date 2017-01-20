@@ -7,6 +7,7 @@ import os
 import phonenumbers
 import pytz
 import regex
+import six
 import time
 
 from collections import defaultdict
@@ -177,7 +178,7 @@ class URN(object):
         """
         scheme, path = cls.to_parts(urn)
 
-        norm_path = unicode(path).strip()
+        norm_path = six.text_type(path).strip()
 
         if scheme == TEL_SCHEME:
             norm_path, valid = cls.normalize_number(norm_path, country_code)
@@ -274,6 +275,7 @@ class URN(object):
         return cls.from_parts(VIBER_SCHEME, path)
 
 
+@six.python_2_unicode_compatible
 class ContactField(SmartModel):
     """
     Represents a type of field that can be put on Contacts.
@@ -403,13 +405,14 @@ class ContactField(SmartModel):
     def get_location_field(cls, org, type):
         return cls.objects.filter(is_active=True, org=org, value_type=type).first()
 
-    def __unicode__(self):
+    def __str__(self):
         return "%s" % self.label
 
 
 NEW_CONTACT_VARIABLE = "@new_contact"
 
 
+@six.python_2_unicode_compatible
 class Contact(TembaModel):
     name = models.CharField(verbose_name=_("Name"), max_length=128, blank=True, null=True,
                             help_text=_("The name of this contact"))
@@ -462,7 +465,7 @@ class Contact(TembaModel):
         return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
     def as_json(self):
-        obj = dict(id=self.pk, name=unicode(self), uuid=self.uuid)
+        obj = dict(id=self.pk, name=six.text_type(self), uuid=self.uuid)
 
         if not self.org.is_anon:
             urns = []
@@ -631,7 +634,7 @@ class Contact(TembaModel):
             Value.objects.filter(contact=self, contact_field__pk=field.id).delete()
         else:
             # parse as all value data types
-            str_value = unicode(value)
+            str_value = six.text_type(value)
             dt_value = self.org.parse_date(value)
             dec_value = self.org.parse_decimal(value)
             loc_value = None
@@ -1142,7 +1145,7 @@ class Contact(TembaModel):
 
     @classmethod
     def normalize_value(cls, val):
-        if isinstance(val, str) or isinstance(val, unicode):
+        if isinstance(val, six.string_types):
             return SmartModel.normalize_value(val)
         return val
 
@@ -1181,7 +1184,7 @@ class Contact(TembaModel):
             for cell in row:
                 cell_value = cls.normalize_value(cell)
                 if not isinstance(cell_value, datetime.date) and not isinstance(cell_value, datetime.datetime):
-                    cell_value = unicode(cell_value)
+                    cell_value = six.text_type(cell_value)
                 row_data.append(cell_value)
 
             line_number += 1
@@ -1747,10 +1750,11 @@ class Contact(TembaModel):
 
         return msg
 
-    def __unicode__(self):
+    def __str__(self):
         return self.get_display()
 
 
+@six.python_2_unicode_compatible
 class ContactURN(models.Model):
     """
     A Universal Resource Name used to uniquely identify contacts, e.g. tel:+1234567890 or twitter:example
@@ -1897,7 +1901,7 @@ class ContactURN(models.Model):
 
         return self.path
 
-    def __unicode__(self):  # pragma: no cover
+    def __str__(self):  # pragma: no cover
         return self.urn
 
     class Meta:
@@ -1916,6 +1920,7 @@ class UserContactGroupManager(models.Manager):
                                                                           is_active=True)
 
 
+@six.python_2_unicode_compatible
 class ContactGroup(TembaModel):
     MAX_NAME_LEN = 64
 
@@ -2203,10 +2208,11 @@ class ContactGroup(TembaModel):
         if self.get_member_count() > 0:
             return dict(name=self.name, id=self.pk, count=self.get_member_count())
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
 
+@six.python_2_unicode_compatible
 class ContactGroupCount(models.Model):
     """
     Maintains counts of contact groups. These are calculated via triggers on the database and squashed
@@ -2262,7 +2268,7 @@ class ContactGroupCount(models.Model):
         # insert updated count, returning it
         return ContactGroupCount.objects.create(group=group, count=count)
 
-    def __unicode__(self):  # pragma: needs cover
+    def __str__(self):  # pragma: needs cover
         return "ContactGroupCount[%d:%d]" % (self.group_id, self.count)
 
 
@@ -2385,7 +2391,7 @@ class ExportContactsTask(SmartModel):
                             field_value = ''
 
                         if field_value:
-                            field_value = unicode(clean_string(field_value))
+                            field_value = six.text_type(clean_string(field_value))
 
                         values.append(field_value)
 

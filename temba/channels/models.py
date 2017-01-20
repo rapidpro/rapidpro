@@ -9,6 +9,7 @@ import regex
 import requests
 import telegram
 import re
+import six
 
 from enum import Enum
 from datetime import timedelta
@@ -59,6 +60,7 @@ class Encoding(Enum):
     UNICODE = 3
 
 
+@six.python_2_unicode_compatible
 class Channel(TembaModel):
     TYPE_AFRICAS_TALKING = 'AT'
     TYPE_ANDROID = 'A'
@@ -638,7 +640,7 @@ class Channel(TembaModel):
 
                 # notify Mage so that it activates this channel
                 from .tasks import MageStreamAction, notify_mage_task
-                on_transaction_commit(lambda: notify_mage_task.delay(channel.uuid, MageStreamAction.activate))
+                on_transaction_commit(lambda: notify_mage_task.delay(channel.uuid, MageStreamAction.activate.name))
 
         return channel
 
@@ -855,7 +857,7 @@ class Channel(TembaModel):
         from temba.contacts.models import TEL_SCHEME
 
         address = self.get_address_display()
-        default = address if address else self.__unicode__()
+        default = address if address else six.text_type(self)
 
         # for backwards compatibility
         if self.scheme == TEL_SCHEME:
@@ -1081,7 +1083,7 @@ class Channel(TembaModel):
         if notify_mage and self.channel_type == Channel.TYPE_TWITTER:
             # notify Mage so that it deactivates this channel
             from .tasks import MageStreamAction, notify_mage_task
-            on_transaction_commit(lambda: notify_mage_task.delay(self.uuid, MageStreamAction.deactivate))
+            on_transaction_commit(lambda: notify_mage_task.delay(self.uuid, MageStreamAction.deactivate.name))
 
         from temba.triggers.models import Trigger
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)
@@ -1117,7 +1119,7 @@ class Channel(TembaModel):
     @classmethod
     def build_send_url(cls, url, variables):
         for key in variables.keys():
-            url = url.replace("{{%s}}" % key, quote_plus(unicode(variables[key]).encode('utf-8')))
+            url = url.replace("{{%s}}" % key, quote_plus(six.text_type(variables[key]).encode('utf-8')))
 
         return url
 
@@ -1190,7 +1192,7 @@ class Channel(TembaModel):
         try:
             response = requests.get(channel.config[Channel.CONFIG_SEND_URL], verify=True, params=payload, timeout=15)
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='GET',
                                 url=log_url,
                                 request="",
@@ -1240,7 +1242,7 @@ class Channel(TembaModel):
         try:
             response = requests.post(url, payload, params=params, headers=headers, timeout=15)
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=payload,
@@ -1305,7 +1307,7 @@ class Channel(TembaModel):
             response = requests.post(send_url, data=data, headers=headers)
             content = json.loads(response.content)
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=send_url,
                                 request=data,
@@ -1346,7 +1348,7 @@ class Channel(TembaModel):
         try:
             response = requests.post(url, request_body, headers=headers, timeout=15)
         except Exception as e:  # pragma: no cover
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=request_body,
@@ -1451,7 +1453,7 @@ class Channel(TembaModel):
                 response = requests.get(channel.config[Channel.CONFIG_SEND_URL], verify=False, params=payload, timeout=15)
         except Exception as e:
             payload['password'] = 'x' * len(payload['password'])
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='GET',
                                 url=log_url,
                                 request="",
@@ -1491,7 +1493,7 @@ class Channel(TembaModel):
             response = requests.get(url, headers=TEMBA_HEADERS, timeout=15, verify=False)
 
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='GET',
                                 url=url,
                                 request=log_payload,
@@ -1560,7 +1562,7 @@ class Channel(TembaModel):
                 response = requests.get(url, headers=headers, timeout=5)
 
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method=method,
                                 url=url,
                                 request=log_payload,
@@ -1612,7 +1614,7 @@ class Channel(TembaModel):
         try:
             response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=log_payload,
@@ -1637,7 +1639,7 @@ class Channel(TembaModel):
                     log_payload['secret_key'] = 'x' * len(log_payload['secret_key'])
 
                 except Exception as e:
-                    raise SendException(unicode(e),
+                    raise SendException(six.text_type(e),
                                         method='POST',
                                         url=url,
                                         request=log_payload,
@@ -1680,7 +1682,7 @@ class Channel(TembaModel):
             response = requests.get(url, headers=TEMBA_HEADERS, timeout=30)
             log_payload = urlencode(payload)
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='GET',
                                 url=url,
                                 request=log_payload,
@@ -1730,7 +1732,7 @@ class Channel(TembaModel):
                 external_id = response_json[0].get('id', None)
 
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=log_payload,
@@ -1781,7 +1783,7 @@ class Channel(TembaModel):
                                      auth=(channel.config[Channel.CONFIG_USERNAME], channel.config[Channel.CONFIG_PASSWORD]),
                                      timeout=30)
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=post_body.decode('utf8'),
@@ -1826,7 +1828,7 @@ class Channel(TembaModel):
             response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=30)
 
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=log_payload,
@@ -1886,7 +1888,7 @@ class Channel(TembaModel):
                                     auth=(channel.config['account_key'], channel.config['access_token']))
 
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='PUT',
                                 url=url,
                                 request=payload,
@@ -1941,7 +1943,7 @@ class Channel(TembaModel):
                                      headers=headers,
                                      timeout=5)
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=payload,
@@ -2081,7 +2083,7 @@ class Channel(TembaModel):
                 response = requests.post(url, params=payload, headers=headers, timeout=5)
             except Exception as e:
                 payload['authentication']['password'] = 'x' * len(payload['authentication']['password'])
-                raise SendException(u"Unable to send message: %s" % unicode(e),
+                raise SendException(u"Unable to send message: %s" % six.text_type(e),
                                     url=url,
                                     method='POST',
                                     request=json.dumps(payload),
@@ -2190,7 +2192,7 @@ class Channel(TembaModel):
                     reason = e.message.reason
             except Exception:
                 pass
-            raise SendException(u"Unable to send message: %s" % unicode(reason)[:64],
+            raise SendException(u"Unable to send message: %s" % six.text_type(reason)[:64],
                                 url=masked_url,
                                 method='GET',
                                 request=None,
@@ -2222,7 +2224,7 @@ class Channel(TembaModel):
             response = requests.get(zenvia_url,
                                     params=payload, headers=headers, timeout=5)
         except Exception as e:
-            raise SendException(u"Unable to send message: %s" % unicode(e),
+            raise SendException(u"Unable to send message: %s" % six.text_type(e),
                                 url=zenvia_url,
                                 method='POST',
                                 request=json.dumps(payload),
@@ -2268,7 +2270,7 @@ class Channel(TembaModel):
             response = requests.post(api_url,
                                      data=payload, headers=headers, timeout=5)
         except Exception as e:
-            raise SendException(u"Unable to send message: %s" % unicode(e),
+            raise SendException(u"Unable to send message: %s" % six.text_type(e),
                                 url=api_url,
                                 method='POST',
                                 request=json.dumps(payload),
@@ -2398,7 +2400,7 @@ class Channel(TembaModel):
                 fatal = True
             elif error_code == 403:
                 for err in Channel.TWITTER_FATAL_403S:
-                    if unicode(e).find(err) >= 0:
+                    if six.text_type(e).find(err) >= 0:
                         fatal = True
                         break
 
@@ -2455,7 +2457,7 @@ class Channel(TembaModel):
 
         except Exception as e:
             log_payload = urlencode(payload)
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='GET',
                                 url=url,
                                 request=log_payload,
@@ -2501,7 +2503,7 @@ class Channel(TembaModel):
         try:
             plivo_response_status, plivo_response = client.send_message(params=payload)
         except Exception as e:  # pragma: no cover
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=json.dumps(payload),
@@ -2556,7 +2558,7 @@ class Channel(TembaModel):
             response = requests.get(url, params=payload, headers=TEMBA_HEADERS, timeout=5)
 
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='GET',
                                 url=url,
                                 request=log_payload,
@@ -2614,7 +2616,7 @@ class Channel(TembaModel):
             response = requests.post(url, json=payload, headers=headers, timeout=5)
             response_json = response.json()
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=json.dumps(payload),
@@ -2664,7 +2666,7 @@ class Channel(TembaModel):
             response = requests.post(url, json=payload, headers=headers, timeout=5)
             response_json = response.json()
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=json.dumps(payload),
@@ -2806,7 +2808,7 @@ class Channel(TembaModel):
                 sent_count -= 1
 
             except Exception as e:
-                ChannelLog.log_error(msg, unicode(e))
+                ChannelLog.log_error(msg, six.text_type(e))
 
                 import traceback
                 traceback.print_exc(e)
@@ -2836,7 +2838,7 @@ class Channel(TembaModel):
         url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler') + "?action=callback&id=%d" % sms_id
         return url
 
-    def __unicode__(self):  # pragma: no cover
+    def __str__(self):  # pragma: no cover
         if self.name:
             return self.name
         elif self.device:
@@ -2844,7 +2846,7 @@ class Channel(TembaModel):
         elif self.address:
             return self.address
         else:
-            return unicode(self.pk)
+            return six.text_type(self.pk)
 
     def get_count(self, count_types):
         count = ChannelCount.objects.filter(channel=self, count_type__in=count_types)\
@@ -2917,6 +2919,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_ZENVIA: Channel.send_zenvia_message}
 
 
+@six.python_2_unicode_compatible
 class ChannelCount(models.Model):
     """
     This model is maintained by Postgres triggers and maintains the daily counts of messages and ivr interactions
@@ -2981,7 +2984,7 @@ class ChannelCount(models.Model):
 
         print "Squashed channel counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
 
-    def __unicode__(self):  # pragma: no cover
+    def __str__(self):  # pragma: no cover
         return "ChannelCount(%d) %s %s count: %d" % (self.channel_id, self.count_type, self.day, self.count)
 
     class Meta:
@@ -3111,7 +3114,7 @@ class ChannelLog(models.Model):
         ChannelLog.objects.create(channel_id=msg.channel,
                                   msg_id=msg.id,
                                   is_error=True,
-                                  description=unicode(e.description)[:255],
+                                  description=six.text_type(e.description)[:255],
                                   method=e.method,
                                   url=e.url,
                                   request=e.request,

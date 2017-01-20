@@ -859,10 +859,10 @@ class ContactTest(TembaTest):
         self.assertEqual("8877", mr_long_name.get_urn_display())
         self.assertEqual("", self.billy.get_urn_display())
 
-        self.assertEqual("Joe Blow", self.joe.__unicode__())
-        self.assertEqual("0768 383 383", self.voldemort.__unicode__())
-        self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", mr_long_name.__unicode__())
-        self.assertEqual("Billy Nophone", self.billy.__unicode__())
+        self.assertEqual("Joe Blow", six.text_type(self.joe))
+        self.assertEqual("0768 383 383", six.text_type(self.voldemort))
+        self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", six.text_type(mr_long_name))
+        self.assertEqual("Billy Nophone", six.text_type(self.billy))
 
         with AnonymousOrg(self.org):
             self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, formatted=False))
@@ -879,10 +879,10 @@ class ContactTest(TembaTest):
             self.assertEqual(mr_long_name.anon_identifier, mr_long_name.get_urn_display())
             self.assertEqual(self.billy.anon_identifier, self.billy.get_urn_display())
 
-            self.assertEqual("Joe Blow", self.joe.__unicode__())
-            self.assertEqual("%010d" % self.voldemort.pk, self.voldemort.__unicode__())
-            self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", mr_long_name.__unicode__())
-            self.assertEqual("Billy Nophone", self.billy.__unicode__())
+            self.assertEqual("Joe Blow", six.text_type(self.joe))
+            self.assertEqual("%010d" % self.voldemort.pk, six.text_type(self.voldemort))
+            self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", six.text_type(mr_long_name))
+            self.assertEqual("Billy Nophone", six.text_type(self.billy))
 
     def test_bulk_cache_initialize(self):
         ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N', show_in_table=True)
@@ -1217,8 +1217,11 @@ class ContactTest(TembaTest):
 
         self.create_campaign()
 
+        # add one that is a video
+        self.create_msg(direction='I', contact=self.joe, media="video:http://blah/file.mp4", text="Video caption", created_on=timezone.now())
+
         # create some messages
-        for i in range(100):
+        for i in range(99):
             self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i,
                             created_on=timezone.now() - timedelta(days=(100 - i)))
 
@@ -1244,10 +1247,8 @@ class ContactTest(TembaTest):
                                contact_urn=self.joe.urns.all().first())
 
         # fetch our contact history
-        with self.assertNumQueries(70):
+        with self.assertNumQueries(63):
             response = self.fetch_protected(url, self.admin)
-
-        self.assertTrue(response.context['has_older'])
 
         # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
         activity = response.context['activity']
@@ -1258,12 +1259,14 @@ class ContactTest(TembaTest):
         self.assertEqual(activity[2].direction, 'O')
         self.assertIsInstance(activity[3], FlowRun)
         self.assertIsInstance(activity[4], Msg)
-        self.assertEqual(activity[4].text, "Inbound message 99")
+        self.assertEqual(activity[4].media, "video:http://blah/file.mp4")
+        self.assertIsInstance(activity[5], Msg)
+        self.assertEqual(activity[5].text, "Inbound message 98")
         self.assertIsInstance(activity[8], EventFire)
         self.assertEqual(activity[-1].text, "Inbound message 11")
 
         # fetch next page
-        before = response.context['start_time']
+        before = datetime_to_ms(timezone.now() - timedelta(days=90))
         response = self.fetch_protected(url + '?before=%d' % before, self.admin)
         self.assertFalse(response.context['has_older'])
 
@@ -1309,11 +1312,12 @@ class ContactTest(TembaTest):
         self.assertIsInstance(activity[1], IVRCall)
 
         recent_start = datetime_to_ms(timezone.now() - timedelta(days=1))
-        response = self.fetch_protected(url + "?r=true&rs=%s" % recent_start, self.admin)
+        response = self.fetch_protected(url + "?after=%s" % recent_start, self.admin)
 
         # with our recent flag on, should not see the older messages
         activity = response.context['activity']
-        self.assertEqual(len(activity), 5)
+        self.assertEqual(len(activity), 6)
+        self.assertContains(response, 'file.mp4')
 
         # can't view history of contact in another org
         self.create_secondary_org()
@@ -1486,7 +1490,7 @@ class ContactTest(TembaTest):
                                                                     message='{"base": "Sent %d days after planting date"}' % (i + 10))
 
         now = timezone.now()
-        self.joe.set_field(self.user, 'planting_date', unicode(now + timedelta(days=1)))
+        self.joe.set_field(self.user, 'planting_date', six.text_type(now + timedelta(days=1)))
         EventFire.update_campaign_events(self.campaign)
 
         # should have seven fires, one for each campaign event
@@ -1869,8 +1873,13 @@ class ContactTest(TembaTest):
         self.assertEqual(response.context['form'].initial['name'], "Joe Blow")
         self.assertEqual(response.context['form'].fields['urn__tel__1'].initial, "+250781111111")
 
-        response = self.client.get(reverse('contacts.contact_update_fields', args=[self.joe.id]))
-        self.assertEqual(response.context['form'].fields['__field__state'].initial, "Kigali City")  # parsed name
+        contact_field = ContactField.objects.filter(key='state').first()
+        response = self.client.get('%s?field=%s' % (reverse('contacts.contact_update_fields', args=[self.joe.id]), contact_field.id))
+        self.assertEqual('Home state', response.context['contact_field'].label)
+
+        # grab our input field which is loaded async
+        response = self.client.get('%s?field=%s' % (reverse('contacts.contact_update_fields_input', args=[self.joe.id]), contact_field.id))
+        self.assertContains(response, 'Kigali City')
 
         # update it to something else
         self.joe.set_field(self.user, 'state', "eastern province")
@@ -1884,7 +1893,7 @@ class ContactTest(TembaTest):
         self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), data)
 
         # update the state contact field to something invalid
-        self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]), dict(__field__state='newyork'))
+        self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]), dict(contact_field=contact_field.id, field_value='newyork'))
 
         # check that old URN is detached, new URN is attached, and Joe still exists
         self.joe = Contact.objects.get(pk=self.joe.id)
@@ -1969,12 +1978,13 @@ class ContactTest(TembaTest):
 
         # update our contact with some locations
         state = ContactField.get_or_create(self.org, self.admin, 'state', "Home State", value_type='S')
-        ContactField.get_or_create(self.org, self.admin, 'home', "Home District", value_type='I')
+        district = ContactField.get_or_create(self.org, self.admin, 'home', "Home District", value_type='I')
 
-        self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]),
-                         dict(__field__state='eastern province', __field__home='rwamagana'))
+        self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]), dict(contact_field=state.id, field_value='eastern province'))
+        self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]), dict(contact_field=district.id, field_value='rwamagana'))
 
         response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
+
         self.assertContains(response, 'Eastern Province')
         self.assertContains(response, 'Rwamagana')
 
@@ -2001,15 +2011,13 @@ class ContactTest(TembaTest):
         self.assertContains(response, 'Rwama Category')
 
         # bad field
-        ContactField.objects.create(org=self.org, key='language', label='User Language',
-                                    created_by=self.admin, modified_by=self.admin)
+        contact_field = ContactField.objects.create(org=self.org, key='language', label='User Language',
+                                                    created_by=self.admin, modified_by=self.admin)
 
         response = self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]),
-                                    dict(__field__state='eastern province', __field__home='rwamagana',
-                                         __field__language='Kinyarwanda'))
+                                    dict(contact_field=contact_field.id, field_value='Kinyarwanda'))
 
-        self.assertFormError(response, 'form', None, "Field key language has invalid characters "
-                                                     "or is a reserved field name")
+        self.assertFormError(response, 'form', None, "Field key language has invalid characters or is a reserved field name")
 
         # try to push into a dynamic group
         self.login(self.admin)
@@ -3564,6 +3572,23 @@ class ContactFieldTest(TembaTest):
             self.assertExcelRow(sheet, 4, [contact4.uuid, "Stephen", "", "", ""])
 
             self.assertEqual(len(list(sheet.rows)), 5)  # no other contacts
+
+    def test_contact_field_list(self):
+        url = reverse('contacts.contactfield_list')
+        self.login(self.admin)
+        response = self.client.get(url)
+
+        # label and key
+        self.assertContains(response, 'First')
+        self.assertContains(response, 'first')
+        self.assertContains(response, 'Second')
+        self.assertContains(response, 'second')
+
+        # try a search and make sure we filter out the second one
+        response = self.client.get('%s?search=first' % url)
+        self.assertContains(response, 'First')
+        self.assertContains(response, 'first')
+        self.assertNotContains(response, 'Second')
 
     def test_manage_fields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')

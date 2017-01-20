@@ -1,6 +1,8 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+import six
+
 from datetime import timedelta
 from django.db import models
 from django.db.models import Model
@@ -14,6 +16,7 @@ from temba.utils.models import TembaModel
 from temba.values.models import Value
 
 
+@six.python_2_unicode_compatible
 class Campaign(TembaModel):
     MAX_NAME_LEN = 255
 
@@ -221,10 +224,11 @@ class Campaign(TembaModel):
 
         return sorted(events, key=lambda e: e.relative_to.pk * 100000 + e.minute_offset())
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
 
+@six.python_2_unicode_compatible
 class CampaignEvent(TembaModel):
     """
     An event within a campaign that can send a message to a contact or start them in a flow
@@ -416,10 +420,11 @@ class CampaignEvent(TembaModel):
         date_value = EventFire.parse_relative_to_date(contact, self.relative_to.key)
         return self.calculate_scheduled_fire_for_value(date_value, timezone.now())
 
-    def __unicode__(self):
+    def __str__(self):
         return "%s == %d -> %s" % (self.relative_to, self.offset, self.flow)
 
 
+@six.python_2_unicode_compatible
 class EventFire(Model):
     event = models.ForeignKey('campaigns.CampaignEvent', related_name="event_fires",
                               help_text="The event that will be fired")
@@ -596,7 +601,7 @@ class EventFire(Model):
                 if scheduled and not contact.is_test:
                     EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
 
-    def __unicode__(self):
+    def __str__(self):
         return "%s - %s" % (self.event, self.contact)
 
     class Meta:

@@ -6,6 +6,7 @@ import hashlib
 import json
 import pytz
 import requests
+import six
 import xml.etree.ElementTree as ET
 
 from datetime import datetime
@@ -108,7 +109,7 @@ class TwimlAPIHandler(BaseChannelHandler):
                 response = twiml.Response()
                 response.say('Sorry, there is no channel configured to take this call. Goodbye.')
                 response.hangup()
-                return HttpResponse(unicode(response))
+                return HttpResponse(six.text_type(response))
 
             org = channel.org
 
@@ -140,7 +141,7 @@ class TwimlAPIHandler(BaseChannelHandler):
 
                     FlowRun.create(flow, contact.pk, session=call)
                     response = Flow.handle_call(call, {})
-                    return HttpResponse(unicode(response))
+                    return HttpResponse(six.text_type(response))
                 else:
 
                     # we don't have an inbound trigger to deal with this call.
@@ -156,7 +157,7 @@ class TwimlAPIHandler(BaseChannelHandler):
                     Trigger.catch_triggers(contact, Trigger.TYPE_MISSED_CALL, channel)
 
                     # either way, we need to hangup now
-                    return HttpResponse(unicode(response))
+                    return HttpResponse(six.text_type(response))
 
         action = request.GET.get('action', 'received')
         channel_uuid = kwargs.get('uuid')
@@ -1076,7 +1077,7 @@ class VumiHandler(BaseChannelHandler):
         try:
             body = json.loads(request.body)
         except Exception as e:  # pragma: needs cover
-            return HttpResponse("Invalid JSON: %s" % unicode(e), status=400)
+            return HttpResponse("Invalid JSON: %s" % six.text_type(e), status=400)
 
         # determine if it's a USSD session message or a regular SMS
         is_ussd = "ussd" in body.get('transport_name', '') or body.get('transport_type', '') == 'ussd'
@@ -1957,7 +1958,7 @@ class FacebookHandler(BaseChannelHandler):
                                 # if this isn't an anonymous org, look up their name from the Facebook API
                                 if not channel.org.is_anon:
                                     try:
-                                        response = requests.get('https://graph.facebook.com/v2.5/' + unicode(sender_id),
+                                        response = requests.get('https://graph.facebook.com/v2.5/' + six.text_type(sender_id),
                                                                 params=dict(fields='first_name,last_name',
                                                                             access_token=channel.config_json()[Channel.CONFIG_AUTH_TOKEN]))
 
@@ -2047,7 +2048,7 @@ class GlobeHandler(BaseChannelHandler):
         try:
             body = json.loads(request.body)
         except Exception as e:
-            return HttpResponse("Invalid JSON: %s" % unicode(e), status=400)
+            return HttpResponse("Invalid JSON: %s" % six.text_type(e), status=400)
 
         # needs to contain our message list and inboundSMS message
         if 'inboundSMSMessageList' not in body or 'inboundSMSMessage' not in body['inboundSMSMessageList']:
