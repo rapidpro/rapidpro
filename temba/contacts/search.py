@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import ply.lex as lex
 import pytz
 import re
+import six
 
 from datetime import timedelta
 from decimal import Decimal
@@ -186,7 +187,7 @@ def generate_decimal_field_comparison(field, comparator, value):
     try:
         value = Decimal(value)
     except Exception:
-        raise SearchException("Can't convert '%s' to a decimal" % unicode(value))
+        raise SearchException("Can't convert '%s' to a decimal" % six.text_type(value))
 
     return Q(**{'values__contact_field__id': field.id, 'values__decimal_value__%s' % lookup: value})
 

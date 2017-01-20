@@ -889,7 +889,7 @@ class ChannelCRUDL(SmartCRUDL):
             if obj.channel_type == Channel.TYPE_TWITTER:
                 # notify Mage so that it refreshes this channel
                 from .tasks import MageStreamAction, notify_mage_task
-                on_transaction_commit(lambda: notify_mage_task.delay(obj.uuid, MageStreamAction.refresh))
+                on_transaction_commit(lambda: notify_mage_task.delay(obj.uuid, MageStreamAction.refresh.name))
 
             return obj
 
@@ -898,10 +898,10 @@ class ChannelCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(ChannelCRUDL.Claim, self).get_context_data(**kwargs)
 
-            twilio_countries = [unicode(c[1]) for c in TWILIO_SEARCH_COUNTRIES]
+            twilio_countries = [six.text_type(c[1]) for c in TWILIO_SEARCH_COUNTRIES]
 
             twilio_countries_str = ', '.join(twilio_countries[:-1])
-            twilio_countries_str += ' ' + unicode(_('or')) + ' ' + twilio_countries[-1]
+            twilio_countries_str += ' ' + six.text_type(_('or')) + ' ' + twilio_countries[-1]
 
             context['twilio_countries'] = twilio_countries_str
 
@@ -1102,7 +1102,7 @@ class ChannelCRUDL(SmartCRUDL):
             try:
                 self.object = Channel.add_viber_public_channel(self.request.user.get_org(), self.request.user, data['auth_token'])
             except Exception as e:
-                form._errors['auth_token'] = form.error_class([unicode(e.message)])
+                form._errors['auth_token'] = form.error_class([six.text_type(e.message)])
                 return self.form_invalid(form)
 
             return super(ChannelCRUDL.ClaimViberPublic, self).form_valid(form)
@@ -2251,7 +2251,7 @@ class ChannelCRUDL(SmartCRUDL):
                 import traceback
                 traceback.print_exc(e)
                 if e.message:
-                    form._errors['phone_number'] = form.error_class([unicode(e.message)])
+                    form._errors['phone_number'] = form.error_class([six.text_type(e.message)])
                 else:
                     form._errors['phone_number'] = _("An error occurred connecting your Twilio number, try removing your "
                                                      "Twilio account, reconnecting it and trying again.")

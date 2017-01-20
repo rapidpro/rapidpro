@@ -7,6 +7,7 @@ import os
 import pycountry
 import random
 import regex
+import six
 import stripe
 import traceback
 
@@ -154,6 +155,7 @@ class OrgCache(Enum):
     credits = 2
 
 
+@six.python_2_unicode_compatible
 class Org(SmartModel):
     """
     An Org can have several users and is the main component that holds all Flows, Messages, Contacts, etc. Orgs
@@ -1767,7 +1769,7 @@ class Org(SmartModel):
 
         return getattr(user, '_org', None)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
 
@@ -1866,6 +1868,7 @@ def get_stripe_credentials():
     return (public_key, private_key)
 
 
+@six.python_2_unicode_compatible
 class Language(SmartModel):
     """
     A Language that has been added to the org. In the end and language is just an iso_code and name
@@ -1909,7 +1912,7 @@ class Language(SmartModel):
 
         return default_text
 
-    def __unicode__(self):  # pragma: needs cover
+    def __str__(self):  # pragma: needs cover
         return '%s' % self.name
 
 
@@ -1988,6 +1991,7 @@ class UserSettings(models.Model):
             return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
 
 
+@six.python_2_unicode_compatible
 class TopUp(SmartModel):
     """
     TopUps are used to track usage across the platform. Each TopUp represents a certain number of
@@ -2116,7 +2120,7 @@ class TopUp(SmartModel):
         """
         return self.credits - self.get_used()
 
-    def __unicode__(self):  # pragma: needs cover
+    def __str__(self):  # pragma: needs cover
         return "%s Credits" % self.credits
 
 

@@ -96,7 +96,7 @@ requests-oauthlib==0.4.0
 rsa==3.1.1
 selenium==2.31.0
 simplejson==3.4.1
-six==1.6.1
+six==1.10.0
 smartmin==1.10.2
 sqlparse==0.1.11
 stop-words==2015.2.23.1

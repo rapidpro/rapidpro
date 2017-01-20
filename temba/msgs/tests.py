@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 import json
 import pytz
+import six
 
 from datetime import timedelta
 from django.conf import settings
@@ -286,7 +287,7 @@ class MsgTest(TembaTest):
         msg = Msg.create_incoming(self.channel, "tel:250788382382", "Yes, 3.")
 
         self.assertEqual(msg.text, "Yes, 3.")
-        self.assertEqual(unicode(msg), "Yes, 3.")
+        self.assertEqual(six.text_type(msg), "Yes, 3.")
 
         # assert there are 3 unread msgs for this org
         self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)

@@ -8,6 +8,7 @@ import hashlib
 import hmac
 import json
 import pytz
+import six
 import telegram
 import time
 import urllib2
@@ -4398,10 +4399,10 @@ class VumiTest(TembaTest):
     def test_delivery_reports(self):
 
         msg = self.create_msg(direction='O', text='Outgoing message', contact=self.trey, status=WIRED,
-                              external_id=unicode(uuid.uuid4()),)
+                              external_id=six.text_type(uuid.uuid4()),)
 
         data = dict(event_type='delivery_report',
-                    event_id=unicode(uuid.uuid4()),
+                    event_id=six.text_type(uuid.uuid4()),
                     message_type='event',
                     delivery_status='failed',
                     user_message_id=msg.external_id)
@@ -4473,7 +4474,7 @@ class VumiTest(TembaTest):
 
                 # simulate Vumi calling back to us telling us it failed
                 data = dict(event_type='delivery_report',
-                            event_id=unicode(uuid.uuid4()),
+                            event_id=six.text_type(uuid.uuid4()),
                             message_type='event',
                             delivery_status='failed',
                             user_message_id=msg.external_id)
