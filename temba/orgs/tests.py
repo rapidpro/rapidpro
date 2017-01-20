@@ -1465,6 +1465,20 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertFalse(self.org.has_smtp_config())
 
+        response = self.client.post(add_smtp_config_url, dict(smtp_host=' smtp.example.com  ',
+                                                              smtp_username=' support@example.com ',
+                                                              smtp_password='secret ',
+                                                              smtp_port='465 ',
+                                                              use_tls=True,
+                                                              disconnect='false'), follow=True)
+
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.has_smtp_config())
+        self.assertEquals(self.org.config_json()['EMAIL_SMTP_HOST'], 'smtp.example.com')
+        self.assertEquals(self.org.config_json()['EMAIL_SMTP_USERNAME'], 'support@example.com')
+        self.assertEquals(self.org.config_json()['EMAIL_SMTP_PASSWORD'], 'secret')
+        self.assertEquals(self.org.config_json()['EMAIL_SMTP_PORT'], '465')
+
     def test_connect_nexmo(self):
         self.login(self.admin)
 
