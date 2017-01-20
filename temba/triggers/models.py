@@ -209,7 +209,7 @@ class Trigger(SmartModel):
         return Trigger.objects.filter(org=org, trigger_type=trigger_type, is_active=True, is_archived=False)
 
     @classmethod
-    def catch_triggers(cls, entity, trigger_type, channel):
+    def catch_triggers(cls, entity, trigger_type, channel, referrer_id=None, extra=None):
         if isinstance(entity, Msg):
             contact = entity.contact
             start_msg = entity
@@ -224,8 +224,11 @@ class Trigger(SmartModel):
 
         triggers = Trigger.get_triggers_of_type(entity.org, trigger_type)
 
-        if trigger_type in [Trigger.TYPE_FOLLOW, Trigger.TYPE_NEW_CONVERSATION]:
-            triggers = triggers.filter(channel=channel)
+        if trigger_type in [Trigger.TYPE_FOLLOW, Trigger.TYPE_NEW_CONVERSATION, Trigger.TYPE_REFERRAL]:
+            triggers = triggers.filter(models.Q(channel=channel) | models.Q(channel=None))
+
+        if referrer_id is not None:
+            triggers = triggers.filter(referrer_id=referrer_id)
 
         # is there a match for a group specific trigger?
         group_ids = contact.user_groups.values_list('pk', flat=True)
@@ -241,7 +244,7 @@ class Trigger(SmartModel):
 
         # only fire the first matching trigger
         if triggers:
-            triggers[0].flow.start([], [contact], start_msg=start_msg, restart_participants=True)
+            triggers[0].flow.start([], [contact], start_msg=start_msg, restart_participants=True, extra=extra)
 
         return bool(triggers)
 

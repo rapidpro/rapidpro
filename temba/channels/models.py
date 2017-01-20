@@ -1219,10 +1219,16 @@ class Channel(TembaModel):
     @classmethod
     def send_facebook_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
+        from temba.contacts.models import Contact, ContactURN, URN
 
         # build our payload
         payload = dict()
-        payload['recipient'] = dict(id=msg.urn_path)
+
+        # this is a ref facebook id, temporary just for this message
+        if URN.is_path_fb_ref(msg.urn_path):
+            payload['recipient'] = dict(user_ref=URN.fb_ref_from_path(msg.urn_path))
+        else:
+            payload['recipient'] = dict(id=msg.urn_path)
         payload['message'] = dict(text=text)
         payload = json.dumps(payload)
 
@@ -1259,6 +1265,26 @@ class Channel(TembaModel):
         except Exception as e:  # pragma: no cover
             # if we can't pull out our message id, that's ok, we still sent
             pass
+
+        # if we sent Facebook a user_ref, look up the real Facebook id for this contact, should be in 'recipient_id'
+        if URN.is_path_fb_ref(msg.urn_path):
+            contact = Contact.objects.get(id=msg.contact_id)
+
+            try:
+                real_fb_id = response.json()['recipient_id']
+
+                # associate this contact with our real FB id
+                ContactURN.get_or_create(channel.org, contact, URN.from_facebook(real_fb_id), channel=channel)
+
+                # save our ref_id as an external URN on this contact
+                ContactURN.get_or_create(channel.org, contact, URN.from_external(URN.fb_ref_from_path(msg.urn_path)))
+
+                # finally, disassociate our temp ref URN with this contact
+                ContactURN.objects.filter(id=msg.contact_urn_id).update(contact=None)
+
+            except Exception as e:   # pragma: no cover
+                # if we can't pull out the recipient id, that's ok, msg was sent
+                pass
 
         Channel.success(channel, msg, WIRED, start, 'POST', url, payload, response, external_id)
 

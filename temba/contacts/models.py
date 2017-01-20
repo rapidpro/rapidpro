@@ -54,6 +54,8 @@ TWILIO_SCHEME = 'twilio'
 TWITTER_SCHEME = 'twitter'
 VIBER_SCHEME = 'viber'
 
+FACEBOOK_PATH_REF_PREFIX = 'ref:'
+
 # Scheme, Label, Export/Import Header, Context Key
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (FACEBOOK_SCHEME, _("Facebook identifier"), 'facebook', FACEBOOK_SCHEME),
@@ -139,8 +141,22 @@ class URN(object):
             except ValidationError:
                 return False
 
-        # telegram and facebook uses integer ids
-        elif scheme in (TELEGRAM_SCHEME, FACEBOOK_SCHEME):
+        # facebook uses integer ids or temp ref ids
+        elif scheme == FACEBOOK_SCHEME:
+            # we don't validate facebook refs since they come from the outside
+            if URN.is_path_fb_ref(path):
+                return True
+
+            # otherwise, this should be an int
+            else:
+                try:
+                    int(path)
+                    return True
+                except ValueError:
+                    return False
+
+        # telegram uses integer ids
+        elif scheme == TELEGRAM_SCHEME:
             try:
                 int(path)
                 return True
@@ -210,6 +226,18 @@ class URN(object):
 
         # this must be a local number of some kind, just lowercase and save
         return regex.sub('[^0-9a-z]', '', number.lower(), regex.V0), False
+
+    @classmethod
+    def fb_ref_from_path(cls, path):
+        return path[len(FACEBOOK_PATH_REF_PREFIX):]
+
+    @classmethod
+    def path_from_fb_ref(cls, ref):
+        return FACEBOOK_PATH_REF_PREFIX + ref
+
+    @classmethod
+    def is_path_fb_ref(cls, path):
+        return path.startswith(FACEBOOK_PATH_REF_PREFIX)
 
     # ==================== shortcut constructors ===========================
 

@@ -289,7 +289,7 @@ class ReferralTriggerForm(BaseTriggerForm):
     """
     Form for referral triggers
     """
-    channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("Channel"),
+    channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("Channel"), required=False,
                                      help_text=_("The channel to apply this trigger to, leave blank for all Facebook channels"))
     referrer_id = forms.CharField(max_length=255, required=True, label=_("Referrer Id"),
                                   help_text=_("The referrer id that will trigger us"))
@@ -304,8 +304,11 @@ class ReferralTriggerForm(BaseTriggerForm):
     def get_existing_triggers(self, cleaned_data):
         ref_id = cleaned_data.get('referrer_id', '').strip()
         channel_id = cleaned_data.get('channel_id')
-        existing = Trigger.objects.filter(org=self.org, trigger_type=Trigger.TYPE_REFERRAL,
+        existing = Trigger.objects.filter(org=self.user.get_org(), trigger_type=Trigger.TYPE_REFERRAL,
                                           is_active=True, is_archived=False, referrer_id=ref_id)
+        if self.instance:
+            existing = existing.exclude(pk=self.instance.pk)
+
         if channel_id:
             existing = existing.filter(channel_id=channel_id)
 
@@ -419,6 +422,9 @@ class TriggerCRUDL(SmartCRUDL):
             if ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION.intersection(org_schemes):
                 add_section('trigger-new-conversation', 'triggers.trigger_new_conversation', 'icon-bubbles-2')
 
+            if ContactURN.SCHEMES_SUPPORTING_REFERRALS.intersection(org_schemes):
+                add_section('trigger-referral', 'triggers.trigger_referral', 'icon-exit')
+
             if self.org.get_ussd_channels():
                 add_section('trigger-ussd', 'triggers.trigger_ussd', 'icon-mobile')
             add_section('trigger-catchall', 'triggers.trigger_catchall', 'icon-bubble')
@@ -432,7 +438,8 @@ class TriggerCRUDL(SmartCRUDL):
                          Trigger.TYPE_CATCH_ALL: CatchAllTriggerForm,
                          Trigger.TYPE_FOLLOW: FollowTriggerForm,
                          Trigger.TYPE_NEW_CONVERSATION: NewConversationTriggerForm,
-                         Trigger.TYPE_USSD_PULL: UssdTriggerForm}
+                         Trigger.TYPE_USSD_PULL: UssdTriggerForm,
+                         Trigger.TYPE_REFERRAL: ReferralTriggerForm}
 
         def get_form_class(self):
             trigger_type = self.object.trigger_type
@@ -470,10 +477,6 @@ class TriggerCRUDL(SmartCRUDL):
         def form_valid(self, form):
             trigger = self.object
             trigger_type = trigger.trigger_type
-
-            if trigger_type == Trigger.TYPE_MISSED_CALL or trigger_type == Trigger.TYPE_CATCH_ALL:
-                trigger.flow = form.cleaned_data['flow']
-                trigger.save()
 
             if trigger_type == Trigger.TYPE_SCHEDULE:
                 schedule = trigger.schedule
