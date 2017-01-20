@@ -108,10 +108,16 @@
     %h5
       -trans "Upcoming"
 
+    -if upcoming_events|length > 3
+      :css
+        tbody:nth-child(1) {
+          display: none;
+        }
+
     %table.activity.pending
       -for evt in upcoming_events
-        -if forloop.counter0 == 3
-          %tbody.hidden-upcoming
+        -if forloop.counter0 == upcoming_events|length|add:-3
+          %tbody.next_three
 
         %tr.item{class:"{% if evt.event_type == 'M' %}msg{%else%}non-msg{%endif%}"}
           %td.icon
@@ -148,7 +154,7 @@
 
     -if upcoming_events|length > 3
       %a.pull-right.show-all.upcoming
-        .icon-arrow-down
+        more
 
   %h5
     -trans "Message History"
@@ -217,7 +223,6 @@
           .icon-arrow-down {
             margin-top:2px;
             margin-right: 3px;
-
           }
 
           &:hover {
@@ -227,8 +232,6 @@
         }
 
         table.activity {
-
-
           tr.since {
             border-bottom: none;
             td {
@@ -260,11 +263,6 @@
           border-collapse: collapse;
 
           &.pending {
-
-            tbody:nth-child(3) {
-              display: none;
-            }
-
             color: #ccc;
 
             tr.non-msg {
@@ -537,13 +535,8 @@
     $(document).ready(function() {
 
       $('.show-all.upcoming').live('click', function() {
-        if ($(this).hasClass('expanded')) {
-          $(this).removeClass('expanded');
-          $('table.activity.pending tbody:nth-child(3)').slideUp();
-        } else {
-          $(this).addClass('expanded');
-          $('table.activity.pending tbody:nth-child(3)').slideDown();
-        }
+        $(this).hide();
+        $('table.activity.pending tbody:nth-child(1)').show();
       });
 
       $('.show-all.fields').live('click', function() {
