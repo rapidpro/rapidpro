@@ -76,6 +76,18 @@ def send_custom_stmp_email(recipients, subject, body, smtp_host, smtp_port, smtp
     """
     recipient_list = [recipients] if isinstance(recipients, basestring) else recipients
 
+    if smtp_host is not None:
+        smtp_host = str(smtp_host)
+
+    if smtp_port is not None:
+        smtp_port = str(smtp_port)
+
+    if smtp_username is not None:
+        smtp_username = str(smtp_username)
+
+    if smtp_password is not None:
+        smtp_password = str(smtp_password)
+
     connection = get_smtp_connection(None, fail_silently=False, host=smtp_host, port=smtp_port, username=smtp_username,
                                      password=smtp_password, use_tls=use_tls)
 
