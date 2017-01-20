@@ -17,7 +17,7 @@ from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, F
 def send_email_action_task(org_id, recipients, subject, message):
     org = Org.objects.filter(pk=org_id, is_active=True).first()
     if org:
-        org.email_action_send(org_id, recipients, subject, message)
+        org.email_action_send(recipients, subject, message)
 
 
 @task(track_started=True, name='update_run_expirations_task')  # pragma: no cover
