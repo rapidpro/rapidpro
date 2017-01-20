@@ -34,7 +34,7 @@ from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
 from temba.ivr.models import IVRCall
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
 from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN, NEXMO_UUID
-from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
+from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, AnonymousOrg
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct
 from telegram import User as TelegramUser
@@ -8385,6 +8385,39 @@ class ViberPublicTest(TembaTest):
 
         self.callback_url = reverse('handlers.viber_public_handler', args=[self.channel.uuid])
 
+    def test_receive_on_anon(self):
+        with AnonymousOrg(self.org):
+            data = {
+                "event": "message",
+                "timestamp": 1481142112807,
+                "message_token": 4987381189870374000,
+                "sender": {
+                    "id": "xy5/5y6O81+/kbWHpLhBoA==",
+                    "name": "ET3",
+                },
+                "message": {
+                    "text": "incoming msg",
+                    "type": "text",
+                    "tracking_data": "3055"
+                }
+            }
+
+            response = self.client.post(self.callback_url, json.dumps(data), content_type="application/json",
+                                        HTTP_X_VIBER_CONTENT_SIGNATURE='ab4ea2337c1bb9a49eff53dd182f858817707df97cbc82368769e00c56d38419')
+            self.assertEqual(response.status_code, 200)
+
+            msg = Msg.objects.get()
+            self.assertEqual(response.content, "Msg Accepted: %d" % msg.id)
+
+            self.assertEqual(msg.contact.get_urn(VIBER_SCHEME).path, "xy5/5y6O81+/kbWHpLhBoA==")
+            self.assertEqual(msg.contact.name, None)
+            self.assertEqual(msg.direction, INCOMING)
+            self.assertEqual(msg.org, self.org)
+            self.assertEqual(msg.channel, self.channel)
+            self.assertEqual(msg.text, "incoming msg")
+            self.assertEqual(msg.sent_on.date(), date(day=7, month=12, year=2016))
+            self.assertEqual(msg.external_id, "4987381189870374000")
+
     def test_receive(self):
         # invalid UUID
         response = self.client.post(reverse('handlers.viber_public_handler', args=['00000000-0000-0000-0000-000000000000']))
@@ -8529,6 +8562,27 @@ class ViberPublicTest(TembaTest):
 
         # should not create contacts we don't already know about
         self.assertIsNone(Contact.from_urn(self.org, URN.from_viber("01234567890B=")))
+
+    def test_subscribed_on_anon(self):
+        with AnonymousOrg(self.org):
+            data = {
+                "event": "subscribed",
+                "timestamp": 1457764197627,
+                "user": {
+                    "id": "01234567890A=",
+                    "name": "yarden",
+                    "avatar": "http://avatar_url",
+                    "country": "IL",
+                    "language": "en",
+                    "api_version": 1
+                },
+                "message_token": 4912661846655238145
+            }
+            self.assertSignedRequest(json.dumps(data))
+
+            # check that the contact was created
+            contact = Contact.objects.get(org=self.org, urns__path='01234567890A=', urns__scheme=VIBER_SCHEME)
+            self.assertEqual(contact.name, None)
 
     def test_conversation_started(self):
         # this is a no-op
