@@ -1,5 +1,5 @@
 # coding=utf-8
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, print_function, unicode_literals
 
 import inspect
 import json
@@ -152,13 +152,13 @@ class TembaTest(SmartminTest):
                     details.append(dict(query=query, indexes=indexes))
 
             for stat in details:
-                print
-                print stat['query']
+                print("")
+                print(stat['query'])
                 for table, index in stat['indexes']:
-                    print '  Index Used: %s.%s' % (table, index)
+                    print('  Index Used: %s.%s' % (table, index))
 
                 if not len(stat['indexes']):
-                    print '  No Index Used'
+                    print('  No Index Used')
 
             settings.DEBUG = False
 
@@ -190,7 +190,7 @@ class TembaTest(SmartminTest):
 
         if substitutions:
             for k, v in substitutions.iteritems():
-                print 'Replacing "%s" with "%s"' % (k, v)
+                print('Replacing "%s" with "%s"' % (k, v))
                 data = data.replace(k, str(v))
 
         return data
@@ -685,7 +685,7 @@ class MockTwilioClient(TwilioClient):
             return [MockTwilioClient.MockShortCode(short_code)]
 
         def update(self, sid, **kwargs):
-            print "Updating short code with sid %s" % sid
+            print("Updating short code with sid %s" % sid)
 
     class MockSMS(object):
         def __init__(self, *args):
@@ -731,7 +731,7 @@ class MockTwilioClient(TwilioClient):
             return [MockTwilioClient.MockPhoneNumber(phone_number)]
 
         def update(self, sid, **kwargs):
-            print "Updating phone number with sid %s" % sid
+            print("Updating phone number with sid %s" % sid)
 
     class MockApplications(object):
         def __init__(self, *args):
@@ -748,7 +748,7 @@ class MockTwilioClient(TwilioClient):
             return MockTwilioClient.MockCall(to=to, from_=from_, url=url, status_callback=status_callback)
 
         def hangup(self, external_id):
-            print "Hanging up %s on Twilio" % external_id
+            print("Hanging up %s on Twilio" % external_id)
 
         def update(self, external_id, url):
-            print "Updating call for %s to url %s" % (external_id, url)
+            print("Updating call for %s to url %s" % (external_id, url))

@@ -1,4 +1,4 @@
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, print_function, unicode_literals
 
 import json
 import time
@@ -2713,7 +2713,7 @@ class Channel(TembaModel):
 
         if sent_today or sent_yesterday:
             Msg.mark_sent(r, msg, WIRED, -1)
-            print "!! [%d] prevented duplicate send" % (msg.id)
+            print("!! [%d] prevented duplicate send" % (msg.id))
             return
 
         # channel can be none in the case where the channel has been removed
@@ -2766,7 +2766,7 @@ class Channel(TembaModel):
                 # never send in debug unless overridden
                 if not settings.SEND_MESSAGES:
                     Msg.mark_sent(r, msg, WIRED, -1)
-                    print "FAKED SEND for [%d] - %s" % (msg.id, part)
+                    print("FAKED SEND for [%d] - %s" % (msg.id, part))
                 elif channel_type in SEND_FUNCTIONS:
                     SEND_FUNCTIONS[channel_type](channel, msg, part)
                 else:
@@ -2793,7 +2793,7 @@ class Channel(TembaModel):
             finally:
                 # if we are still in a queued state, mark ourselves as an error
                 if msg.status == QUEUED:
-                    print "!! [%d] marking queued message as error" % msg.id
+                    print("!! [%d] marking queued message as error" % msg.id)
                     Msg.mark_error(r, channel, msg)
                     sent_count -= 1
 
@@ -2956,7 +2956,7 @@ class ChannelCount(models.Model):
         if max_id:
             r.set(ChannelCount.LAST_SQUASH_KEY, max_id.id)
 
-        print "Squashed channel counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
+        print("Squashed channel counts for %d pairs in %0.3fs" % (squash_count, time.time() - start))
 
     def __str__(self):  # pragma: no cover
         return "ChannelCount(%d) %s %s count: %d" % (self.channel_id, self.count_type, self.day, self.count)

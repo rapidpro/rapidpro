@@ -1,4 +1,4 @@
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, print_function, unicode_literals
 
 import re
 
@@ -99,6 +99,6 @@ def send_temba_email(subject, text, html, from_email, recipient_list):
             send_mail(subject, text, from_email, recipient_list)
     else:
         # just print to console if we aren't meant to send emails
-        print "----------- Skipping sending email, SEND_EMAILS to set False -----------"
-        print text
-        print "------------------------------------------------------------------------"
+        print("----------- Skipping sending email, SEND_EMAILS to set False -----------")
+        print(text)
+        print("------------------------------------------------------------------------")

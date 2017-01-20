@@ -1,4 +1,4 @@
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, print_function, unicode_literals
 
 import base64
 import hashlib
@@ -338,8 +338,8 @@ def sync(request, channel_id):
 
         client_updates = json.loads(request.body)
 
-        print "==GOT SYNC"
-        print json.dumps(client_updates, indent=2)
+        print("==GOT SYNC")
+        print(json.dumps(client_updates, indent=2))
 
         if 'cmds' in client_updates:
             cmds = client_updates['cmds']
@@ -436,8 +436,8 @@ def sync(request, channel_id):
         sync_event.outgoing_command_count = len([_ for _ in outgoing_cmds if _['cmd'] != 'ack'])
         sync_event.save()
 
-    print "==RESPONDING WITH:"
-    print json.dumps(result, indent=2)
+    print("==RESPONDING WITH:")
+    print(json.dumps(result, indent=2))
 
     # keep track of how long a sync takes
     analytics.gauge('temba.relayer_sync', time.time() - start)

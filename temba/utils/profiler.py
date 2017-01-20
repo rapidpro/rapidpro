@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import six
 
@@ -59,7 +59,7 @@ class SegmentProfiler(object):  # pragma: no cover
                 self.test.assertEqual(self.num_tx, self.assert_tx)
 
         if not self.test and self.do_profile:
-            print six.text_type(self)
+            print(six.text_type(self))
 
     def __str__(self):
         def format_query(q):

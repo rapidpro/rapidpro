@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function, unicode_literals
 
 import requests
 import six
@@ -140,26 +140,27 @@ class NexmoClient(object):
 
 def __main__():  # pragma: no cover
     n = NexmoClient('foo', 'foo_secret')
-    print "Valid: %s" % n.test_credentials()
-    print "Balance: %s" % n.get_balance()
+    print("Valid: %s" % n.test_credentials())
+    print("Balance: %s" % n.get_balance())
 
     numbers = n.get_numbers()
-    print "Numbers: %s" % numbers
+    print("Numbers: %s" % numbers)
 
-    print "US Numbers: %s" % n.search_numbers('US', None)
+    print("US Numbers: %s" % n.search_numbers('US', None))
 
     seattle_numbers = n.search_numbers('US', '206')
-    print "206 Numbers: %s" % seattle_numbers
+    print("206 Numbers: %s" % seattle_numbers)
 
-    print "CH Numbers: %s" % n.search_numbers('CH', None)
+    print("CH Numbers: %s" % n.search_numbers('CH', None))
 
     # print "Buying %s: %s" % (seattle_numbers[0]['msisdn'], n.buy_number('US', seattle_numbers[0]['msisdn']))
 
     # update the MO for one of our numbers
-    print "Updating Number %s: %s" % (numbers[0]['msisdn'], n.update_number('US', numbers[0]['msisdn'], 'http://rapidpro.io'))
+    print("Updating Number %s: %s"
+          % (numbers[0]['msisdn'], n.update_number('US', numbers[0]['msisdn'], 'http://rapidpro.io')))
 
     # update the MO for our account
-    print "Updating Account: %s" % n.update_account("http://rapidpro.io", "http://rapidpro.io")
+    print("Updating Account: %s" % n.update_account("http://rapidpro.io", "http://rapidpro.io"))
 
     # send a message
-    print "Sending: %s" % n.send_message('250788382382', "250788383383", "test")
+    print("Sending: %s" % n.send_message('250788382382', "250788383383", "test"))

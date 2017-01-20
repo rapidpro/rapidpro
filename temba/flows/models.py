@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import json
 import logging
@@ -1667,13 +1667,13 @@ class Flow(TembaModel):
                 batch_contacts.append(contact_id)
 
                 if len(batch_contacts) >= START_FLOW_BATCH_SIZE:
-                    print "Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts']))
+                    print("Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts'])))
                     push_task(self.org, 'flows', Flow.START_MSG_FLOW_BATCH, task_context)
                     batch_contacts = []
                     task_context['contacts'] = batch_contacts
 
             if batch_contacts:
-                print "Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts']))
+                print("Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts'])))
                 push_task(self.org, 'flows', Flow.START_MSG_FLOW_BATCH, task_context)
 
             return []
@@ -3735,7 +3735,7 @@ class FlowPathCount(models.Model):
 
             squash_count += 1
 
-        print "Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start)
+        print("Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start))
 
     def __str__(self):  # pragma: no cover
         return "FlowPathCount(%d) %s:%s %s count: %d" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count)
@@ -3856,7 +3856,7 @@ class FlowRunCount(models.Model):
         if max_id:
             r.set(FlowRunCount.LAST_SQUASH_KEY, max_id.id)
 
-        print "Squashed run counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
+        print("Squashed run counts for %d pairs in %0.3fs" % (squash_count, time.time() - start))
 
     @classmethod
     def run_count(cls, flow):
@@ -4175,8 +4175,8 @@ class ExportFlowResultsTask(SmartModel):
 
             processed_steps += 1
             if processed_steps % 10000 == 0:  # pragma: needs cover
-                print "Export of %s - %d%% complete in %0.2fs" % \
-                      (flow_names, processed_steps * 100 / total_steps, time.time() - start)
+                print("Export of %s - %d%% complete in %0.2fs" %
+                      (flow_names, processed_steps * 100 / total_steps, time.time() - start))
 
             # skip over test contacts
             if run_step.contact.is_test:  # pragma: needs cover
