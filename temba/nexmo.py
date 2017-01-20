@@ -1,7 +1,6 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import requests
-import six
 
 from django.utils.translation import ugettext_lazy as _
 from temba.utils.gsm7 import is_gsm7
@@ -10,12 +9,7 @@ from django.utils.http import urlencode
 
 
 class NexmoValidationError(Exception):
-
-    def __unicode__(self):  # pragma: no cover
-        return self.message
-
-    def __str__(self):
-        return six.text_type(self.__unicode__())
+    pass
 
 
 class NexmoClient(object):
