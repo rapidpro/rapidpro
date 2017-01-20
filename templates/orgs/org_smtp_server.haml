@@ -30,9 +30,9 @@
       .title
         -trans "Remove SMTP configuration"
       .body
-        -blocktrans
-          Removing your SMTP configuration will prevent to send email using {{ smtp_username }}. Are you sure you want to proceed?
-    %a#remove-smtp-form.posterize{href:'{% url "orgs.org_add_smtp_config" %}?disconnect=true'}
+        -blocktrans with brand=brand.name
+          Removing your SMTP configuration will result in emails being delivered from {{ brand }} that cannot be replied to. Are you sure you want to continue?
+    %a#remove-smtp-form.posterize{href:'{% url "orgs.org_smtp_server" %}?disconnect=true'}
 
 -block extra-script
   :javascript

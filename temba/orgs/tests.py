@@ -1401,42 +1401,42 @@ class OrgTest(TembaTest):
         response = self.client.get(resthook_url)
         self.assertFalse(response.context['current_resthooks'])
 
-    def test_add_smtp_config(self):
+    def test_smtp_server(self):
         self.login(self.admin)
 
-        add_smtp_config_url = reverse('orgs.org_add_smtp_config')
+        smtp_server_url = reverse('orgs.org_smtp_server')
 
         self.org.refresh_from_db()
         self.assertFalse(self.org.has_smtp_config())
 
-        response = self.client.post(add_smtp_config_url, dict(disconnect='false'), follow=True)
+        response = self.client.post(smtp_server_url, dict(disconnect='false'), follow=True)
         self.assertEquals('[{"message": "You must enter the SMTP host", "code": ""}]',
                           response.context['form'].errors['__all__'].as_json())
 
-        response = self.client.post(add_smtp_config_url, dict(smtp_host='smtp.example.com',
-                                                              disconnect='false'), follow=True)
+        response = self.client.post(smtp_server_url, dict(smtp_host='smtp.example.com',
+                                                          disconnect='false'), follow=True)
         self.assertEquals('[{"message": "You must enter the SMTP username", "code": ""}]',
                           response.context['form'].errors['__all__'].as_json())
 
-        response = self.client.post(add_smtp_config_url, dict(smtp_host='smtp.example.com',
-                                                              smtp_username='support@example.com',
-                                                              disconnect='false'), follow=True)
+        response = self.client.post(smtp_server_url, dict(smtp_host='smtp.example.com',
+                                                          smtp_username='support@example.com',
+                                                          disconnect='false'), follow=True)
         self.assertEquals('[{"message": "You must enter the SMTP password", "code": ""}]',
                           response.context['form'].errors['__all__'].as_json())
 
-        response = self.client.post(add_smtp_config_url, dict(smtp_host='smtp.example.com',
-                                                              smtp_username='support@example.com',
-                                                              smtp_password='secret',
-                                                              disconnect='false'), follow=True)
+        response = self.client.post(smtp_server_url, dict(smtp_host='smtp.example.com',
+                                                          smtp_username='support@example.com',
+                                                          smtp_password='secret',
+                                                          disconnect='false'), follow=True)
         self.assertEquals('[{"message": "You must enter the SMTP port", "code": ""}]',
                           response.context['form'].errors['__all__'].as_json())
 
-        response = self.client.post(add_smtp_config_url, dict(smtp_host='smtp.example.com',
-                                                              smtp_username='support@example.com',
-                                                              smtp_password='secret',
-                                                              smtp_port='465',
-                                                              use_tls=True,
-                                                              disconnect='false'), follow=True)
+        response = self.client.post(smtp_server_url, dict(smtp_host='smtp.example.com',
+                                                          smtp_username='support@example.com',
+                                                          smtp_password='secret',
+                                                          smtp_port='465',
+                                                          use_tls=True,
+                                                          disconnect='false'), follow=True)
 
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
@@ -1445,33 +1445,33 @@ class OrgTest(TembaTest):
         self.assertEquals(self.org.config_json()['EMAIL_SMTP_PASSWORD'], 'secret')
         self.assertEquals(self.org.config_json()['EMAIL_SMTP_PORT'], '465')
 
-        response = self.client.get(add_smtp_config_url)
+        response = self.client.get(smtp_server_url)
         self.assertEquals('support@example.com', response.context['smtp_username'])
 
-        self.client.post(add_smtp_config_url, dict(smtp_host='smtp.example.com',
-                                                   smtp_username='support@example.com',
-                                                   smtp_password='secret',
-                                                   smtp_port='465',
-                                                   use_tls=True,
-                                                   name="DO NOT CHANGE ME",
-                                                   disconnect='false'), follow=True)
+        self.client.post(smtp_server_url, dict(smtp_host='smtp.example.com',
+                                               smtp_username='support@example.com',
+                                               smtp_password='secret',
+                                               smtp_port='465',
+                                               use_tls=True,
+                                               name="DO NOT CHANGE ME",
+                                               disconnect='false'), follow=True)
 
         # name shouldn't change
         self.org.refresh_from_db()
         self.assertEquals(self.org.name, "Temba")
         self.assertTrue(self.org.has_smtp_config())
 
-        self.client.post(add_smtp_config_url, dict(disconnect='true'), follow=True)
+        self.client.post(smtp_server_url, dict(disconnect='true'), follow=True)
 
         self.org.refresh_from_db()
         self.assertFalse(self.org.has_smtp_config())
 
-        response = self.client.post(add_smtp_config_url, dict(smtp_host=' smtp.example.com  ',
-                                                              smtp_username=' support@example.com ',
-                                                              smtp_password='secret ',
-                                                              smtp_port='465 ',
-                                                              use_tls=True,
-                                                              disconnect='false'), follow=True)
+        response = self.client.post(smtp_server_url, dict(smtp_host=' smtp.example.com  ',
+                                                          smtp_username=' support@example.com ',
+                                                          smtp_password='secret ',
+                                                          smtp_port='465 ',
+                                                          use_tls=True,
+                                                          disconnect='false'), follow=True)
 
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())

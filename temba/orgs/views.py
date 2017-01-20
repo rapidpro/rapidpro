@@ -426,7 +426,7 @@ class OrgCRUDL(SmartCRUDL):
                'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
                'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect',
                'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'resthooks', 'service', 'surveyor',
-               'transfer_credits', 'transfer_to_account', 'add_smtp_config')
+               'transfer_credits', 'transfer_to_account', 'smtp_server')
 
     model = Org
 
@@ -817,7 +817,7 @@ class OrgCRUDL(SmartCRUDL):
             response['Temba-Success'] = self.get_success_url()
             return response
 
-    class AddSmtpConfig(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class SmtpServer(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         success_message = ""
 
         class SmtpConfig(forms.ModelForm):
@@ -829,7 +829,7 @@ class OrgCRUDL(SmartCRUDL):
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
 
             def clean(self):
-                super(OrgCRUDL.AddSmtpConfig.SmtpConfig, self).clean()
+                super(OrgCRUDL.SmtpServer.SmtpConfig, self).clean()
                 if self.cleaned_data.get('disconnect', 'false') == 'false':
                     smtp_host = self.cleaned_data.get('smtp_host', None)
                     smtp_username = self.cleaned_data.get('smtp_username', None)
@@ -857,7 +857,7 @@ class OrgCRUDL(SmartCRUDL):
         form_class = SmtpConfig
 
         def derive_initial(self):
-            initial = super(OrgCRUDL.AddSmtpConfig, self).derive_initial()
+            initial = super(OrgCRUDL.SmtpServer, self).derive_initial()
             org = self.get_object()
             config = org.config_json()
             initial['smtp_host'] = config.get(EMAIL_SMTP_HOST, '')
@@ -885,10 +885,10 @@ class OrgCRUDL(SmartCRUDL):
                 use_tls = form.cleaned_data['use_tls']
 
                 org.add_smtp_config(smtp_host, smtp_username, smtp_password, smtp_port, use_tls, user)
-                return super(OrgCRUDL.AddSmtpConfig, self).form_valid(form)
+                return super(OrgCRUDL.SmtpServer, self).form_valid(form)
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.AddSmtpConfig, self).get_context_data(**kwargs)
+            context = super(OrgCRUDL.SmtpServer, self).get_context_data(**kwargs)
 
             org = self.get_object()
             if org.has_smtp_config():
@@ -1954,8 +1954,8 @@ class OrgCRUDL(SmartCRUDL):
                 if nexmo_client:  # pragma: needs cover
                     formax.add_section('nexmo', reverse('orgs.org_nexmo_account'), icon='icon-channel-nexmo')
 
-            if self.has_org_perm("orgs.org_add_smtp_config"):
-                formax.add_section('email', reverse('orgs.org_add_smtp_config'), icon='icon-envelop', action='redirect')
+            if self.has_org_perm("orgs.org_smtp_server"):
+                formax.add_section('email', reverse('orgs.org_smtp_server'), icon='icon-envelop', action='redirect')
 
             if self.has_org_perm('orgs.org_profile'):
                 formax.add_section('user', reverse('orgs.user_edit'), icon='icon-user', action='redirect')

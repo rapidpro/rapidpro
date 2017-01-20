@@ -26,7 +26,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction, connection
 from django.db.models import Sum, F, Q
 from django.utils import timezone
-from temba.utils.email import send_simple_email, send_custom_stmp_email
+from temba.utils.email import send_simple_email, send_custom_smtp_email
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
 from django_redis import get_redis_connection
@@ -719,7 +719,7 @@ class Org(SmartModel):
             smtp_password = config.get(EMAIL_SMTP_PASSWORD, None)
             use_tls = config.get(EMAIL_SMTP_USE_TLS, None)
 
-            send_custom_stmp_email(recipients, subject, message, smtp_host, smtp_port, smtp_username, smtp_password,
+            send_custom_smtp_email(recipients, subject, message, smtp_host, smtp_port, smtp_username, smtp_password,
                                    use_tls)
         else:
             send_simple_email(recipients, subject, message)

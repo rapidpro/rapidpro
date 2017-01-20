@@ -61,7 +61,7 @@ def send_simple_email(recipients, subject, body):
     send_temba_email(subject, body, None, from_email, recipient_list)
 
 
-def send_custom_stmp_email(recipients, subject, body, smtp_host, smtp_port, smtp_username, smtp_password, use_tls):
+def send_custom_smtp_email(recipients, subject, body, smtp_host, smtp_port, smtp_username, smtp_password, use_tls):
     """
     Sends a text email to the given recipients using the SMTP configuration
 
