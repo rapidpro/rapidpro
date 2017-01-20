@@ -20,6 +20,10 @@
   -else
     -trans "No SMTP configured"
 
+-block pre-form
+  -trans "SMTP Configuration"
+  %hr
+
 -block post-form
   -if object.has_smtp_config and request.META.HTTP_X_FORMAX
     If you no longer want to use {{ smtp_username }} to send emails, you can
@@ -38,4 +42,17 @@
   :javascript
     function confirmSMTPRemove() {
       removalConfirmation("remove-smtp", "Remove");
+    }
+
+    $(document).ready(function() {
+      $('#id_smtp_encryption').select2({
+        containerCssClass: 'select2-smtp-encryption',
+        minimumResultsForSearch: '-1',
+      });
+    });
+
+-block extra-style
+  :css
+    .select2-smtp-encryption {
+      width: 365px;
     }

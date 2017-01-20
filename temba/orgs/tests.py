@@ -1435,7 +1435,7 @@ class OrgTest(TembaTest):
                                                           smtp_username='support@example.com',
                                                           smtp_password='secret',
                                                           smtp_port='465',
-                                                          use_tls=True,
+                                                          smtp_encryption='',
                                                           disconnect='false'), follow=True)
 
         self.org.refresh_from_db()
@@ -1444,6 +1444,7 @@ class OrgTest(TembaTest):
         self.assertEquals(self.org.config_json()['EMAIL_SMTP_USERNAME'], 'support@example.com')
         self.assertEquals(self.org.config_json()['EMAIL_SMTP_PASSWORD'], 'secret')
         self.assertEquals(self.org.config_json()['EMAIL_SMTP_PORT'], '465')
+        self.assertEquals(self.org.config_json()['EMAIL_SMTP_ENCRYPTION'], '')
 
         response = self.client.get(smtp_server_url)
         self.assertEquals('support@example.com', response.context['smtp_username'])
@@ -1452,7 +1453,7 @@ class OrgTest(TembaTest):
                                                smtp_username='support@example.com',
                                                smtp_password='secret',
                                                smtp_port='465',
-                                               use_tls=True,
+                                               smtp_encryption='T',
                                                name="DO NOT CHANGE ME",
                                                disconnect='false'), follow=True)
 
@@ -1470,7 +1471,7 @@ class OrgTest(TembaTest):
                                                           smtp_username=' support@example.com ',
                                                           smtp_password='secret ',
                                                           smtp_port='465 ',
-                                                          use_tls=True,
+                                                          smtp_encryption='T',
                                                           disconnect='false'), follow=True)
 
         self.org.refresh_from_db()
@@ -1479,6 +1480,7 @@ class OrgTest(TembaTest):
         self.assertEquals(self.org.config_json()['EMAIL_SMTP_USERNAME'], 'support@example.com')
         self.assertEquals(self.org.config_json()['EMAIL_SMTP_PASSWORD'], 'secret')
         self.assertEquals(self.org.config_json()['EMAIL_SMTP_PORT'], '465')
+        self.assertEquals(self.org.config_json()['EMAIL_SMTP_ENCRYPTION'], 'T')
 
     def test_connect_nexmo(self):
         self.login(self.admin)

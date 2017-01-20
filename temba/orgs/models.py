@@ -102,7 +102,7 @@ EMAIL_SMTP_HOST = 'EMAIL_SMTP_HOST'
 EMAIL_SMTP_USERNAME = 'EMAIL_SMTP_USERNAME'
 EMAIL_SMTP_PASSWORD = 'EMAIL_SMTP_PASSWORD'
 EMAIL_SMTP_PORT = 'EMAIL_SMTP_PORT'
-EMAIL_SMTP_USE_TLS = 'EMAIL_SMTP_USE_TLS'
+EMAIL_SMTP_ENCRYPTION = 'EMAIL_SMTP_ENCRYPTION'
 
 ORG_STATUS = 'STATUS'
 SUSPENDED = 'suspended'
@@ -676,9 +676,9 @@ class Org(SmartModel):
                     pending = Channel.get_pending_messages(self)
                     Msg.send_messages(pending)
 
-    def add_smtp_config(self, host, username, password, port, use_tls, user):
+    def add_smtp_config(self, host, username, password, port, encryption, user):
         smtp_config = {EMAIL_SMTP_HOST: host, EMAIL_SMTP_USERNAME: username, EMAIL_SMTP_PASSWORD: password,
-                       EMAIL_SMTP_PORT: port, EMAIL_SMTP_USE_TLS: use_tls}
+                       EMAIL_SMTP_PORT: port, EMAIL_SMTP_ENCRYPTION: encryption}
 
         config = self.config_json()
         config.update(smtp_config)
@@ -693,7 +693,7 @@ class Org(SmartModel):
             config.pop(EMAIL_SMTP_USERNAME)
             config.pop(EMAIL_SMTP_PASSWORD)
             config.pop(EMAIL_SMTP_PORT)
-            config.pop(EMAIL_SMTP_USE_TLS)
+            config.pop(EMAIL_SMTP_ENCRYPTION)
             self.config = json.dumps(config)
             self.modified_by = user
             self.save()
@@ -717,7 +717,7 @@ class Org(SmartModel):
             smtp_port = config.get(EMAIL_SMTP_PORT, None)
             smtp_username = config.get(EMAIL_SMTP_USERNAME, None)
             smtp_password = config.get(EMAIL_SMTP_PASSWORD, None)
-            use_tls = config.get(EMAIL_SMTP_USE_TLS, None)
+            use_tls = config.get(EMAIL_SMTP_ENCRYPTION, None) == 'T' or None
 
             send_custom_smtp_email(recipients, subject, message, smtp_host, smtp_port, smtp_username, smtp_password,
                                    use_tls)

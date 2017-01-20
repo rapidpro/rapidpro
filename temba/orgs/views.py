@@ -42,7 +42,7 @@ from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, ge
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
 from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
 from .models import TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_LOGIN
-from .models import EMAIL_SMTP_HOST, EMAIL_SMTP_USERNAME, EMAIL_SMTP_PASSWORD, EMAIL_SMTP_PORT, EMAIL_SMTP_USE_TLS
+from .models import EMAIL_SMTP_HOST, EMAIL_SMTP_USERNAME, EMAIL_SMTP_PASSWORD, EMAIL_SMTP_PORT, EMAIL_SMTP_ENCRYPTION
 
 
 def check_login(request):
@@ -821,11 +821,13 @@ class OrgCRUDL(SmartCRUDL):
         success_message = ""
 
         class SmtpConfig(forms.ModelForm):
-            smtp_host = forms.CharField(max_length=128, label=_("SMTP Host"), required=False)
-            smtp_username = forms.CharField(max_length=128, label=_("SMTP Username"), required=False)
-            smtp_password = forms.CharField(max_length=128, label=_("SMTP Password"), required=False)
-            smtp_port = forms.CharField(max_length=128, label=_("SMTP Port"), required=False)
-            use_tls = forms.BooleanField(label=_("Use TLS"), required=False)
+            smtp_host = forms.CharField(max_length=128, label=_("Host"), required=False)
+            smtp_username = forms.CharField(max_length=128, label=_("Username"), required=False)
+            smtp_password = forms.CharField(max_length=128, label=_("Password"), required=False)
+            smtp_port = forms.CharField(max_length=128, label=_("Port"), required=False)
+            smtp_encryption = forms.ChoiceField(choices=(('', _("No encryption")),
+                                                         ('T', _("Use TLS"))),
+                                                required=False, label=_("Encryption"))
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
 
             def clean(self):
@@ -852,7 +854,7 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
-                fields = ('smtp_host', 'smtp_username', 'smtp_password', 'smtp_port', 'use_tls', 'disconnect')
+                fields = ('smtp_host', 'smtp_username', 'smtp_password', 'smtp_port', 'smtp_encryption', 'disconnect')
 
         form_class = SmtpConfig
 
@@ -864,7 +866,7 @@ class OrgCRUDL(SmartCRUDL):
             initial['smtp_username'] = config.get(EMAIL_SMTP_USERNAME, '')
             initial['smtp_password'] = config.get(EMAIL_SMTP_PASSWORD, '')
             initial['smtp_port'] = config.get(EMAIL_SMTP_PORT, '')
-            initial['use_tls'] = config.get(EMAIL_SMTP_USE_TLS, False)
+            initial['smtp_encryption'] = config.get(EMAIL_SMTP_ENCRYPTION, '')
 
             initial['disconnect'] = 'false'
             return initial
@@ -882,9 +884,9 @@ class OrgCRUDL(SmartCRUDL):
                 smtp_username = form.cleaned_data['smtp_username']
                 smtp_password = form.cleaned_data['smtp_password']
                 smtp_port = form.cleaned_data['smtp_port']
-                use_tls = form.cleaned_data['use_tls']
+                smtp_encryption = form.cleaned_data['smtp_encryption']
 
-                org.add_smtp_config(smtp_host, smtp_username, smtp_password, smtp_port, use_tls, user)
+                org.add_smtp_config(smtp_host, smtp_username, smtp_password, smtp_port, smtp_encryption, user)
                 return super(OrgCRUDL.SmtpServer, self).form_valid(form)
 
         def get_context_data(self, **kwargs):
