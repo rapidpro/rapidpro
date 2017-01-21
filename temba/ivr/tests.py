@@ -434,6 +434,12 @@ class IVRTests(FlowFileTest):
         IVRCall.hangup_test_call(flow)
         self.assertTrue(IVRCall.objects.filter(pk=call.pk).first())
 
+        msgs = Msg.objects.filter(session=call).order_by('created_on')
+        self.assertEqual(3, msgs.count())
+        self.assertTrue('Would you like me to call you?' in msgs[0].text)
+        self.assertEqual('4', msgs[1].text)
+        self.assertEqual('Press one, two, or three. Thanks.', msgs[2].text)
+
         ActionLog.objects.all().delete()
         IVRCall.objects.all().delete()
         Msg.objects.all().delete()

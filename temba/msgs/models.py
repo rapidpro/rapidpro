@@ -674,6 +674,9 @@ class Msg(models.Model):
     media = models.URLField(null=True, blank=True, max_length=255,
                             help_text=_("The media associated with this message if any"))
 
+    session = models.ForeignKey('channels.ChannelSession', null=True,
+                                help_text=_("The session this message was a part of if any"))
+
     @classmethod
     def send_messages(cls, all_msgs):
         """
@@ -1022,9 +1025,9 @@ class Msg(models.Model):
     def is_media_type_image(self):
         return Msg.MEDIA_IMAGE == self.get_media_type()
 
-    def reply(self, text, user, trigger_send=False, message_context=None):
+    def reply(self, text, user, trigger_send=False, message_context=None, session=None):
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None)
+                                 response_to=self if self.id else None, session=session)
 
     def update(self, cmd):
         """
@@ -1153,7 +1156,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
-                        status=PENDING, media=None, msg_type=None, topup=None, external_id=None):
+                        status=PENDING, media=None, msg_type=None, topup=None, external_id=None, session=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
         if not org and channel:
@@ -1210,7 +1213,8 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         media=media,
                         status=status,
-                        external_id=external_id)
+                        external_id=external_id,
+                        session=session)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
@@ -1281,7 +1285,7 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
-                        media=None, topup_id=None, msg_type=INBOX):
+                        media=None, topup_id=None, msg_type=INBOX, session=None):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
@@ -1382,6 +1386,7 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         priority=priority,
                         media=media,
+                        session=session,
                         has_template_error=len(errors) > 0)
 
         if topup_id is not None:
