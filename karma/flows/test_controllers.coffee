@@ -233,7 +233,7 @@ describe 'Controllers:', ->
       ruleset = flowService.flow.rule_sets[0]
 
       # four rules and our other
-      expect(ruleset.rules.length).toBe(5)
+      expect(ruleset.rules.length).toBe(6)
 
       editRules ruleset, (scope) ->
         scope.formData.hasTimeout = true
@@ -241,7 +241,7 @@ describe 'Controllers:', ->
 
       # now we have four rules, our other, and a timeout
       ruleset = flowService.flow.rule_sets[0]
-      expect(ruleset.rules.length).toBe(6)
+      expect(ruleset.rules.length).toBe(7)
 
       # checkout our timeout rule as the right settings
       lastRule = ruleset.rules[ruleset.rules.length - 1]
