@@ -495,7 +495,7 @@ describe 'Controllers:', ->
 
       # our first ruleset, starts off with five rules
       ruleset = flowService.flow.rule_sets[0]
-      expect(ruleset.rules.length).toBe(5)
+      expect(ruleset.rules.length).toBe(6)
 
       # make our last "true" rule route to the entry node
       ruleset.rules[3].destination = '127f3736-77ce-4006-9ab0-0c07cea88956'
@@ -512,7 +512,7 @@ describe 'Controllers:', ->
 
       # should now have 6 rules to account for the timeout
       ruleset = flowService.flow.rule_sets[0]
-      expect(ruleset.rules.length).toBe(6)
+      expect(ruleset.rules.length).toBe(7)
 
       # but our route should still be there
       expect(ruleset.rules[3].destination).toBe('127f3736-77ce-4006-9ab0-0c07cea88956')
