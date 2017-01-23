@@ -7782,6 +7782,67 @@ class FacebookTest(TembaTest):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, "Ignored")
 
+    def test_referrals(self):
+        # create two triggers for referrals
+        flow = self.get_flow('favorites')
+        join_trigger = Trigger.objects.create(org=self.org, trigger_type=Trigger.TYPE_REFERRAL, referrer_id='join',
+                                              flow=flow, created_by=self.admin, modified_by=self.admin)
+        signup_trigger = Trigger.objects.create(org=self.org, trigger_type=Trigger.TYPE_REFERRAL, referrer_id='signup',
+                                                flow=flow, created_by=self.admin, modified_by=self.admin)
+
+        callback_url = reverse('handlers.facebook_handler', args=[self.channel.uuid])
+
+        optin = """
+        {
+          "sender": { "id": "1122" },
+          "recipient": { "id": "PAGE_ID" },
+          "timestamp": 1234567890,
+          "optin": {
+            "ref": "join"
+          }
+        }
+        """
+        data = json.loads(FacebookTest.TEST_INCOMING)
+        data['entry'][0]['messaging'][0] = json.loads(optin)
+        response = self.client.post(callback_url, json.dumps(data), content_type='application/json')
+        self.assertEqual(200, response.status_code)
+        self.assertEqual('Msg Ignored for recipient id: PAGE_ID', response.content)
+
+        response = self.client.post(callback_url, json.dumps(data).replace('PAGE_ID', '1234'), content_type='application/json')
+        self.assertEqual(200, response.status_code)
+
+        # check that the user started the flow
+        contact1 = Contact.objects.get(org=self.org, urns__path='1122')
+        self.assertEqual("What is your favorite color?", contact1.msgs.all().first().text)
+
+        # ok, use a user_ref optin instead
+        entry = json.loads(optin)
+        del entry['sender']
+        entry['optin']['user_ref'] = 'user_ref2'
+        data = json.loads(FacebookTest.TEST_INCOMING)
+        data['entry'][0]['messaging'][0] = entry
+
+        with override_settings(SEND_MESSAGES=True):
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, '{"recipient_id":"1133", "message_id":"mid.external"}')
+
+                response = self.client.post(callback_url, json.dumps(data).replace('PAGE_ID', '1234'),
+                                            content_type='application/json')
+                self.assertEqual(200, response.status_code)
+
+                contact2 = Contact.objects.get(org=self.org, urns__path='1133')
+                self.assertEqual("What is your favorite color?", contact2.msgs.all().first().text)
+
+                # contact should have two URNs now
+                fb_urn = contact2.urns.get(scheme=FACEBOOK_SCHEME)
+                self.assertEqual(fb_urn.path, '1133')
+                self.assertEqual(fb_urn.channel, self.channel)
+
+                ext_urn = contact2.urns.get(scheme=EXTERNAL_SCHEME)
+                self.assertEqual(ext_urn.path, 'user_ref2')
+                self.assertIsNone(ext_urn.channel)
+
+
     def test_receive(self):
         data = json.loads(FacebookTest.TEST_INCOMING)
         callback_url = reverse('handlers.facebook_handler', args=[self.channel.uuid])

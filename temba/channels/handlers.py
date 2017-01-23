@@ -1864,7 +1864,7 @@ class FacebookHandler(BaseChannelHandler):
                         # check that the recipient is correct for this channel
                         channel_address = str(envelope['recipient']['id'])
                         if channel_address != channel.address:  # pragma: needs cover
-                            return HttpResponse("Msg Ignored for recipient id: %s" % channel.address, status=200)
+                            return HttpResponse("Msg Ignored for recipient id: %s" % channel_address, status=200)
 
                         referrer_id = envelope['optin'].get('ref')
 

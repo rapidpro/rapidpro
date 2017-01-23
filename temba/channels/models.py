@@ -1270,19 +1270,21 @@ class Channel(TembaModel):
 
         # if we sent Facebook a user_ref, look up the real Facebook id for this contact, should be in 'recipient_id'
         if URN.is_path_fb_ref(msg.urn_path):
-            contact = Contact.objects.get(id=msg.contact_id)
+            contact_obj = Contact.objects.get(id=msg.contact)
+            org_obj = Org.objects.get(id=channel.org)
+            channel_obj = Channel.objects.get(id=channel.id)
 
             try:
                 real_fb_id = response.json()['recipient_id']
 
                 # associate this contact with our real FB id
-                ContactURN.get_or_create(channel.org, contact, URN.from_facebook(real_fb_id), channel=channel)
+                ContactURN.get_or_create(org_obj, contact_obj, URN.from_facebook(real_fb_id), channel=channel_obj)
 
                 # save our ref_id as an external URN on this contact
-                ContactURN.get_or_create(channel.org, contact, URN.from_external(URN.fb_ref_from_path(msg.urn_path)))
+                ContactURN.get_or_create(org_obj, contact_obj, URN.from_external(URN.fb_ref_from_path(msg.urn_path)))
 
                 # finally, disassociate our temp ref URN with this contact
-                ContactURN.objects.filter(id=msg.contact_urn_id).update(contact=None)
+                ContactURN.objects.filter(id=msg.contact_urn).update(contact=None)
 
             except Exception as e:   # pragma: no cover
                 # if we can't pull out the recipient id, that's ok, msg was sent
