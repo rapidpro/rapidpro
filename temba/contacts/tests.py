@@ -1078,7 +1078,7 @@ class ContactTest(TembaTest):
 
         def omnibox_request(query):
             response = self.client.get("%s?%s" % (reverse("contacts.contact_omnibox"), query))
-            return json.loads(response.content)['results']
+            return response.json()['results']
 
         self.assertEqual(omnibox_request(""), [
             # all 3 groups A-Z
@@ -3712,7 +3712,7 @@ class ContactFieldTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(contact_field_json_url)
 
-        response_json = json.loads(response.content)
+        response_json = response.json()
 
         self.assertEquals(len(response_json), 42)
         self.assertEquals(response_json[0]['label'], 'Full name')
@@ -3743,7 +3743,7 @@ class ContactFieldTest(TembaTest):
         ContactField.objects.filter(org=self.org, key='key0').update(label='AAAA')
 
         response = self.client.get(contact_field_json_url)
-        response_json = json.loads(response.content)
+        response_json = response.json()
 
         self.assertEquals(response_json[10]['label'], 'AAAA')
         self.assertEquals(response_json[10]['key'], 'key0')

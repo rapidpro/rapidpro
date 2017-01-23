@@ -1279,7 +1279,7 @@ class Channel(TembaModel):
 
         try:
             response = requests.post(send_url, data=data, headers=headers)
-            content = json.loads(response.content)
+            content = response.json()
         except Exception as e:
             raise SendException(six.text_type(e),
                                 method='POST',

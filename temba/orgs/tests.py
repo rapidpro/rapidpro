@@ -302,7 +302,7 @@ class OrgTest(TembaTest):
         def postAPI(url, data):
             response = self.client.post(url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
             if response.content:
-                response.json = json.loads(response.content)
+                response.json = response.json()
             return response
 
         url = reverse('api.v1.broadcasts')
@@ -1388,7 +1388,7 @@ class OrgTest(TembaTest):
 
         # hit our list page used by select2, checking it lists our resthook
         response = self.client.get(reverse('api.resthook_list') + "?_format=select2")
-        results = json.loads(response.content)['results']
+        results = response.json()['results']
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0], dict(text='mother-registration', id='mother-registration'))
 
@@ -2212,12 +2212,12 @@ class LanguageTest(TembaTest):
 
         # search languages
         response = self.client.get('%s?search=fre' % url)
-        results = json.loads(response.content)['results']
+        results = response.json()['results']
         self.assertEqual(len(results), 4)
 
         # initial should do a match on code only
         response = self.client.get('%s?initial=fre' % url)
-        results = json.loads(response.content)['results']
+        results = response.json()['results']
         self.assertEqual(len(results), 1)
 
     def test_language_codes(self):
@@ -2303,7 +2303,7 @@ class BulkExportTest(TembaTest):
         post_data = dict(flows=[parent.pk], campaigns=[])
         response = self.client.post(reverse('orgs.org_export'), post_data)
 
-        exported = json.loads(response.content)
+        exported = response.json()
 
         # shouldn't have any triggers
         self.assertFalse(exported['triggers'])
@@ -2340,11 +2340,11 @@ class BulkExportTest(TembaTest):
         self.login(self.admin)
         post_data = dict(flows=[flow.pk], campaigns=[])
         response = self.client.post(reverse('orgs.org_export'), post_data)
-        exported = json.loads(response.content)
+        exported = response.json()
 
         # try to import the flow
         flow.delete()
-        json.loads(response.content)
+        response.json()
         Flow.import_flows(exported, self.org, self.admin)
 
         # make sure the created flow has the same action set
@@ -2518,7 +2518,7 @@ class BulkExportTest(TembaTest):
                          campaigns=[c.pk for c in Campaign.objects.all()])
 
         response = self.client.post(reverse('orgs.org_export'), post_data)
-        exported = json.loads(response.content)
+        exported = response.json()
         self.assertEquals(CURRENT_EXPORT_VERSION, exported.get('version', 0))
         self.assertEquals('https://app.rapidpro.io', exported.get('site', None))
 

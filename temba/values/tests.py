@@ -137,7 +137,7 @@ class ResultTest(FlowFileTest):
         # fetch our results through the view
         self.login(self.admin)
         response = self.client.get(reverse('flows.ruleset_results', args=[color.pk]))
-        response = json.loads(response.content)
+        response = response.json()
 
         categories = response['results'][0]['categories']
         self.assertEqual('Red', categories[0]['label'])
@@ -324,7 +324,7 @@ class ResultTest(FlowFileTest):
                                    "?_format=json&boundary=" + self.org.country.osm_id)
 
         # response should be valid json
-        response = json.loads(response.content)
+        response = response.json()
 
         # should have breaks
         self.assertTrue('breaks' in response)
@@ -354,7 +354,7 @@ class ResultTest(FlowFileTest):
                                        "?_format=json&boundary=" + self.org.country.osm_id)
 
             # response should be valid json
-            response = json.loads(response.content)
+            response = response.json()
 
             # should have two categories, Blue and Others
             self.assertEquals(2, len(response['categories']))

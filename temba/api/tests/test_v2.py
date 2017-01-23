@@ -74,8 +74,7 @@ class APITest(TembaTest):
         response = self.client.get(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
 
         # this will fail if our response isn't valid json
-        response.json = json.loads(response.content)
-        return response
+        return response.json()
 
     def postJSON(self, url, query, data):
         url += ".json"
@@ -84,7 +83,7 @@ class APITest(TembaTest):
 
         response = self.client.post(url, json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
         if response.content:
-            response.json = json.loads(response.content)
+            response.json = response.json()
         return response
 
     def deleteJSON(self, url, query=None):
@@ -94,7 +93,7 @@ class APITest(TembaTest):
 
         response = self.client.delete(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
         if response.content:
-            response.json = json.loads(response.content)
+            response.json = response.json()
         return response
 
     def assertEndpointAccess(self, url, query=None, fetch_returns=200):
@@ -224,7 +223,7 @@ class APITest(TembaTest):
         def api_request(endpoint, token):
             response = self.client.get(endpoint + '.json', content_type="application/json",
                                        HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % token)
-            response.json = json.loads(response.content)
+            response.json = response.json()
             return response
 
         contacts_url = reverse('api.v2.contacts')
@@ -375,7 +374,7 @@ class APITest(TembaTest):
         # should have created a new token object
         token_obj1 = APIToken.objects.get(user=self.admin, role=admins)
 
-        tokens = json.loads(response.content)['tokens']
+        tokens = response.json()['tokens']
         self.assertEqual(len(tokens), 1)
         self.assertEqual(tokens[0], {'org': {'id': self.org.pk, 'name': "Temba"}, 'token': token_obj1.key})
 
@@ -385,7 +384,7 @@ class APITest(TembaTest):
         # should have created a new token object
         token_obj2 = APIToken.objects.get(user=self.admin, role=surveyors)
 
-        tokens = json.loads(response.content)['tokens']
+        tokens = response.json()['tokens']
         self.assertEqual(len(tokens), 1)
         self.assertEqual(tokens[0], {'org': {'id': self.org.pk, 'name': "Temba"}, 'token': token_obj2.key})
 
@@ -408,12 +407,12 @@ class APITest(TembaTest):
 
         # our surveyor can't login with an admin role
         response = self.client.post(url, {'username': "Surveyor", 'password': "Surveyor", 'role': 'A'})
-        tokens = json.loads(response.content)['tokens']
+        tokens = response.json()['tokens']
         self.assertEqual(len(tokens), 0)
 
         # but they can with a surveyor role
         response = self.client.post(url, {'username': "Surveyor", 'password': "Surveyor", 'role': 'S'})
-        tokens = json.loads(response.content)['tokens']
+        tokens = response.json()['tokens']
         self.assertEqual(len(tokens), 1)
 
         token_obj3 = APIToken.objects.get(user=self.surveyor, role=surveyors)
@@ -1933,7 +1932,7 @@ class APITest(TembaTest):
                 response = self.client.post(url, post_data)
 
                 self.assertEqual(response.status_code, 201)
-                location = json.loads(response.content).get('location', None)
+                location = response.json().get('location', None)
                 self.assertIsNotNone(location)
 
                 starts_with = 'https://%s/%s/%d/media/' % (settings.AWS_BUCKET_DOMAIN, settings.STORAGE_ROOT_DIR, self.org.pk)

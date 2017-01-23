@@ -70,7 +70,7 @@ class APITest(TembaTest):
         response = self.client.get(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
 
         # this will fail if our response isn't valid json
-        response.json = json.loads(response.content)
+        response.json = response.json()
         return response
 
     def fetchXML(self, url, query=None):
@@ -87,7 +87,7 @@ class APITest(TembaTest):
     def postJSON(self, url, data):
         response = self.client.post(url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
         if response.content:
-            response.json = json.loads(response.content)
+            response.json = response.json()
         return response
 
     def deleteJSON(self, url, query=None):
@@ -97,7 +97,7 @@ class APITest(TembaTest):
 
         response = self.client.delete(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
         if response.content:
-            response.json = json.loads(response.content)
+            response.json = response.json()
         return response
 
     def assertResultCount(self, response, count):
@@ -679,14 +679,14 @@ class APITest(TembaTest):
             data['steps'][3]['rule']['media'] = 'video:http://testserver/media/snow.mp4'
             response = self.postJSON(url, data)
             self.assertEqual(400, response.status_code)
-            error = json.loads(response.content)['non_field_errors'][0]
+            error = response.json()['non_field_errors'][0]
             self.assertEqual("Invalid media type 'video': video:http://testserver/media/snow.mp4", error)
 
             # now update the video to an unrecognized type
             data['steps'][3]['rule']['media'] = 'unknown/mp4:http://testserver/media/snow.mp4'
             response = self.postJSON(url, data)
             self.assertEqual(400, response.status_code)
-            error = json.loads(response.content)['non_field_errors'][0]
+            error = response.json()['non_field_errors'][0]
             self.assertEqual("Invalid media type 'unknown': unknown/mp4:http://testserver/media/snow.mp4", error)
 
             # finally do a valid media
@@ -1753,7 +1753,7 @@ class APITest(TembaTest):
 
         # add a naked contact
         response = self.postJSON(url, dict())
-        self.assertIsNotNone(json.loads(response.content)['uuid'])
+        self.assertIsNotNone(response.json()['uuid'])
         self.assertEquals(201, response.status_code)
 
         # create a contact with an email urn
@@ -1767,7 +1767,7 @@ class APITest(TembaTest):
         # find it via the api
         response = self.fetchJSON(url, 'urns=%s' % (urlquote_plus("mailto:snoop@foshizzle.com")))
         self.assertResultCount(response, 1)
-        results = json.loads(response.content)['results']
+        results = response.json()['results']
         self.assertEquals('Snoop Dogg', results[0]['name'])
 
         # add two existing contacts

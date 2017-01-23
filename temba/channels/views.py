@@ -1976,7 +1976,7 @@ class ChannelCRUDL(SmartCRUDL):
                 headers.update(TEMBA_HEADERS)
 
                 response = requests.get('https://api.line.me/v1/oauth/verify', headers=headers)
-                content = json.loads(response.content)
+                content = response.json()
 
                 if response.status_code != 200:
                     raise ValidationError(content.get('error_desciption'))

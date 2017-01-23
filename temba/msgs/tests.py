@@ -1437,7 +1437,7 @@ class BroadcastCRUDLTest(TembaTest):
         response = self.client.post(url + '?_format=json', post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(json.loads(response.content)['status'], 'success')
+        self.assertEqual(response.json()['status'], 'success')
 
         # raw number means a new contact created
         new_urn = ContactURN.objects.get(path='+250780000001')
@@ -1730,7 +1730,7 @@ class LabelCRUDLTest(TembaTest):
         # editors can though
         self.login(self.editor)
         response = self.client.get(reverse('msgs.label_list'))
-        results = json.loads(response.content)
+        results = response.json()
 
         # results should be A-Z and not include folders or labels from other orgs
         self.assertEqual(len(results), 3)
