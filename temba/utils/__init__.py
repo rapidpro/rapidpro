@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import calendar
 import json
@@ -461,10 +461,10 @@ def print_max_mem_usage(msg=None):
         msg = "Max usage: "
 
     locale.setlocale(locale.LC_ALL, '')
-    print
-    print "=" * 80
-    print msg + locale.format("%d", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, grouping=True)
-    print "=" * 80
+    print("")
+    print("=" * 80)
+    print(msg + locale.format("%d", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, grouping=True))
+    print("=" * 80)
 
 
 def get_country_code_by_name(name):

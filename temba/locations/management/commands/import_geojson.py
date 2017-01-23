@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import geojson
 import regex
@@ -44,7 +44,7 @@ class Command(BaseCommand):  # pragma: no cover
                 level = int(match.group(1))
                 is_simplified = True if match.group(2) else False
             elif not match:
-                print "Skipping '%s', doesn't match file pattern." % filename
+                print("Skipping '%s', doesn't match file pattern." % filename)
 
         # for each of our features
         for feature in admin_json['features']:
@@ -106,13 +106,13 @@ class Command(BaseCommand):  # pragma: no cover
 
             # if this is an update, just update with those fields
             if boundary:
-                print " ** updating %s (%s)" % (name, osm_id)
+                print(" ** updating %s (%s)" % (name, osm_id))
                 boundary = boundary.first()
                 boundary.update(**kwargs)
 
             # otherwise, this is new, so create it
             else:
-                print " ** adding %s (%s)" % (name, osm_id)
+                print(" ** adding %s (%s)" % (name, osm_id))
                 AdminBoundary.objects.create(**kwargs)
 
             # keep track of this osm_id
@@ -150,7 +150,7 @@ class Command(BaseCommand):  # pragma: no cover
             # if it ends in json, then it is geojson, try to parse it
             if filename.startswith(prefix) and filename.endswith('json'):
                 # read the file entirely
-                print "=== parsing %s" % filename
+                print("=== parsing %s" % filename)
 
                 # if we are reading from a zipfile, read it from there
                 if zipfile:
