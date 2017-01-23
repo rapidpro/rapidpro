@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import datetime
 import json
@@ -2217,7 +2217,7 @@ class ContactGroupCount(models.Model):
         if max_id:
             r.set(ContactGroupCount.LAST_SQUASH_KEY, max_id.id)
 
-        print "Squashed group counts for %d groups in %0.3fs" % (squash_count, time.time() - start)
+        print("Squashed group counts for %d groups in %0.3fs" % (squash_count, time.time() - start))
 
     @classmethod
     def contact_count(cls, group):
@@ -2375,10 +2375,10 @@ class ExportContactsTask(SmartModel):
                         elapsed = time.time() - start
                         predicted = int(elapsed / (current_contact / (len(contact_ids) * 1.0)))
 
-                        print "Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)" % \
-                            (self.org.name, current_contact * 100 / len(contact_ids),
-                             "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
-                             time.time() - start, predicted)
+                        print("Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)" %
+                              (self.org.name, current_contact * 100 / len(contact_ids),
+                               "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
+                               time.time() - start, predicted))
 
         # save as file asset associated with this task
         from temba.assets.models import AssetType
