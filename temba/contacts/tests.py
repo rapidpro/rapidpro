@@ -1247,7 +1247,7 @@ class ContactTest(TembaTest):
                                contact_urn=self.joe.urns.all().first())
 
         # fetch our contact history
-        with self.assertNumQueries(63):
+        with self.assertNumQueries(64):
             response = self.fetch_protected(url, self.admin)
 
         # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -1335,6 +1335,29 @@ class ContactTest(TembaTest):
         response = self.fetch_protected(reverse('contacts.contact_history', args=[hans.uuid]), self.superuser)
         self.assertEqual(len(response.context['activity']), 0)
 
+        # exit flow runs
+        FlowRun.bulk_exit(self.joe.runs.all(), FlowRun.EXIT_TYPE_COMPLETED)
+
+        # add a new run
+        self.reminder_flow.start([], [self.joe], restart_participants=True)
+        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+        activity = response.context['activity']
+        self.assertEqual(len(activity), 98)
+
+        self.assertIsInstance(activity[0], Msg)
+        self.assertEqual(activity[0].direction, 'O')
+        self.assertIsInstance(activity[1], FlowRun)
+        self.assertEqual(activity[1].exit_type, None)
+        self.assertFalse(hasattr(activity[1], 'run_event_type'))
+        self.assertIsInstance(activity[2], FlowRun)
+        self.assertEqual(activity[2].exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+        self.assertEqual(activity[2].run_event_type, "Exited")
+        self.assertIsInstance(activity[3], Msg)
+        self.assertEqual(activity[3].direction, 'I')
+        self.assertIsInstance(activity[4], IVRCall)
+        self.assertIsInstance(activity[5], ChannelEvent)
+        self.assertIsInstance(activity[6], FlowRun)
+
     def test_event_times(self):
 
         self.create_campaign()
@@ -1402,6 +1425,27 @@ class ContactTest(TembaTest):
 
         msg.status = 'S'
         self.assertEquals('<span class="glyph icon-bullhorn"></span>', activity_icon(msg))
+
+        flow = self.create_flow()
+        flow.start([], [self.joe])
+        run = FlowRun.objects.last()
+
+        self.assertEquals('<span class="glyph icon-tree-2"></span>', activity_icon(run))
+
+        run.run_event_type = 'Invalid'
+        self.assertEquals('<span class="glyph icon-tree-2"></span>', activity_icon(run))
+
+        run.run_event_type = 'Exited'
+        self.assertEquals('<span class="glyph icon-tree-2"></span>', activity_icon(run))
+
+        run.exit_type = FlowRun.EXIT_TYPE_COMPLETED
+        self.assertEquals('<span class="glyph icon-checkmark"></span>', activity_icon(run))
+
+        run.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
+        self.assertEquals('<span class="glyph icon-warning"></span>', activity_icon(run))
+
+        run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
+        self.assertEquals('<span class="glyph icon-clock"></span>', activity_icon(run))
 
     def test_media_tags(self):
 

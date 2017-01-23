@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 from celery.task import task
 from datetime import timedelta
@@ -30,7 +30,7 @@ def deliver_event_task(event_id):  # pragma: no cover
 
 @task(track_started=True, name='retry_events_task')
 def retry_events_task():  # pragma: no cover
-    print "** retrying errored webhook events"
+    print("** retrying errored webhook events")
 
     # get all events that have an error and need to be retried
     now = timezone.now()

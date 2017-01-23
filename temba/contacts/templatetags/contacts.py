@@ -28,7 +28,10 @@ ACTIVITY_ICONS = {
     'Delivered': 'icon-bubble-check',
     'Call': 'icon-phone',
     'IVRCall': 'icon-phone',
-    'DTMF': 'icon-phone'
+    'DTMF': 'icon-phone',
+    'Expired': 'icon-clock',
+    'Interrupted': 'icon-warning',
+    'Completed': 'icon-checkmark'
 }
 
 
@@ -159,6 +162,14 @@ def activity_icon(item):
                     name = 'Failed'
                 elif item.status == 'D':
                     name = 'Delivered'
+    elif name == 'FlowRun':
+        if hasattr(item, 'run_event_type'):
+            if item.exit_type == 'C':
+                name = 'Completed'
+            elif item.exit_type == 'I':
+                name = 'Interrupted'
+            elif item.exit_type == 'E':
+                name = 'Expired'
 
     return mark_safe('<span class="glyph %s"></span>' % (ACTIVITY_ICONS.get(name, '')))
 

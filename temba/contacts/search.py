@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import ply.lex as lex
 import pytz
@@ -326,4 +326,4 @@ def lexer_test(data):  # pragma: no cover
         tok = search_lexer.token()
         if not tok:
             break
-        print tok
+        print(tok)

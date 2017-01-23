@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import json
 import logging
@@ -1397,7 +1397,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # try to save the our flow, if this fails, let's let that bubble up to our logger
             json_dict = json.loads(json_string)
-            print json.dumps(json_dict, indent=2)
+            print(json.dumps(json_dict, indent=2))
 
             try:
                 response_data = self.get_object(self.get_queryset()).update(json_dict, user=self.request.user)
