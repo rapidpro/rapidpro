@@ -97,7 +97,7 @@ class TwimlAPIHandler(BaseChannelHandler):
         from_number = self.get_param('From')
 
         # Twilio sometimes sends un-normalized numbers
-        if not to_number.startswith('+') and to_country:
+        if to_number and not to_number.startswith('+') and to_country:
             to_number, valid = URN.normalize_number(to_number, to_country)
 
         # see if it's a twilio call being initiated
