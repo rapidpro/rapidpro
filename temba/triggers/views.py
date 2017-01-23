@@ -281,6 +281,18 @@ class NewConversationTriggerForm(BaseTriggerForm):
         self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
                                                                  scheme__in=ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION)
 
+    def clean_channel(self):
+        channel = self.cleaned_data['channel']
+        existing = Trigger.objects.filter(org=self.user.get_org(), is_active=True, is_archived=False,
+                                          trigger_type=Trigger.TYPE_NEW_CONVERSATION, channel=channel)
+        if self.instance:
+            existing.exclude(id=self.instance.id)
+
+        if existing:
+            raise forms.ValidationError(_("Trigger with this Channel already exists."))
+
+        return self.cleaned_data['channel']
+
     class Meta(BaseTriggerForm.Meta):
         fields = ('channel', 'flow')
 
@@ -303,20 +315,21 @@ class ReferralTriggerForm(BaseTriggerForm):
 
     def get_existing_triggers(self, cleaned_data):
         ref_id = cleaned_data.get('referrer_id', '').strip()
-        channel_id = cleaned_data.get('channel_id')
+        channel = cleaned_data.get('channel')
         existing = Trigger.objects.filter(org=self.user.get_org(), trigger_type=Trigger.TYPE_REFERRAL,
                                           is_active=True, is_archived=False, referrer_id=ref_id)
         if self.instance:
             existing = existing.exclude(pk=self.instance.pk)
 
-        if channel_id:
-            existing = existing.filter(channel_id=channel_id)
+        if channel:
+            existing = existing.filter(channel=channel)
 
         return existing
 
     def clean(self):
+        ref_id = self.cleaned_data.get('referrer_id', '').strip()
         data = super(ReferralTriggerForm, self).clean()
-        if data['referrer_id'] and self.get_existing_triggers(data):
+        if ref_id and self.get_existing_triggers(data):
             raise forms.ValidationError(_("An active trigger uses this referrer id, referrer ids must be unique"))
         return data
 
@@ -345,17 +358,21 @@ class UssdTriggerForm(BaseTriggerForm):
         if keyword and not regex.match('^[\d\*\#]+$', keyword, flags=regex.UNICODE):
             raise forms.ValidationError(_("USSD code must contain only *,# and numbers"))
 
-        # make sure it is unique on this org
-        org = self.user.get_org()
-        if keyword and org:
-            existing = Trigger.objects.filter(org=org, keyword__iexact=keyword, is_archived=False, is_active=True)
-            if self.instance:
-                existing = existing.exclude(pk=self.instance.pk)
-
-            if existing:
-                raise forms.ValidationError(_("Another active trigger uses this code, code must be unique"))
-
         return keyword
+
+    def clean(self):
+        data = super(UssdTriggerForm, self).clean()
+        keyword = data.get('keyword', '').strip()
+        existing = Trigger.objects.filter(org=self.user.get_org(), keyword__iexact=keyword, is_archived=False, is_active=True)
+        existing = existing.filter(channel=data['channel'])
+
+        if self.instance:
+            existing = existing.exclude(id=self.instance.id)
+
+        if existing:
+            raise forms.ValidationError(dict(keyword=_("An active trigger already uses this keyword on this channel.")))
+
+        return data
 
     class Meta(BaseTriggerForm.Meta):
         fields = ('keyword', 'channel', 'flow')

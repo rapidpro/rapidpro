@@ -1882,8 +1882,6 @@ class FacebookHandler(BaseChannelHandler):
                             # grab our contact
                             urn = URN.from_facebook(envelope['sender']['id'])
                             contact = Contact.from_urn(channel.org, urn)
-                            Trigger.catch_triggers(contact, Trigger.TYPE_REFERRAL, channel,
-                                                   referrer_id=referrer_id, extra=envelope['optin'])
 
                         # This is a checkbox-plugin:
                         #   https://developers.facebook.com/docs/messenger-platform/plugin-reference/checkbox-plugin
@@ -1903,6 +1901,10 @@ class FacebookHandler(BaseChannelHandler):
                         else:
                             status.append("Ignored opt-in, no user_ref or sender")
                             continue
+
+                        if not contact:
+                            contact = Contact.get_or_create(channel.org, channel.created_by,
+                                                            urns=[urn], channel=channel)
 
                         caught = Trigger.catch_triggers(contact, Trigger.TYPE_REFERRAL, channel,
                                                         referrer_id=referrer_id, extra=envelope['optin'])

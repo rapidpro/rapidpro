@@ -47,7 +47,7 @@ class Trigger(SmartModel):
                                help_text=_("The first word in the message text"))
 
     referrer_id = models.CharField(verbose_name=_("Referrer Id"), max_length=255, null=True, blank=True,
-                                   help_text=_("The refferer id that triggers us"))
+                                   help_text=_("The referrer id that triggers us"))
 
     flow = models.ForeignKey(Flow, verbose_name=_("Flow"),
                              help_text=_("Which flow will be started"), related_name="triggers")
