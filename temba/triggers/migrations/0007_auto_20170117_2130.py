@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='trigger',
             name='referrer_id',
-            field=models.CharField(blank=True, help_text='The refferer id that triggers us', max_length=255, null=True, verbose_name='Referrer Id'),
+            field=models.CharField(blank=True, help_text='The referrer id that triggers us', max_length=255, null=True, verbose_name='Referrer Id'),
         ),
         migrations.AlterField(
             model_name='trigger',
