@@ -3754,19 +3754,19 @@ class FlowPathRecentStep(models.Model):
         cls.objects.create(from_uuid=from_uuid, to_uuid=to_uuid, step=step, left_on=step.left_on)
 
     @classmethod
-    def get_recent(cls, from_uuid, to_uuid):
+    def get_recent(cls, from_uuids, to_uuids):
         """
-        Gets the recent step records for the given flow segment
+        Gets the recent step records for the given flow segments
         """
-        recent = cls.objects.filter(from_uuid=from_uuid, to_uuid=to_uuid)
+        recent = cls.objects.filter(from_uuid__in=from_uuids, to_uuid__in=to_uuids)
         return recent.order_by('-left_on').prefetch_related('step')
 
     @classmethod
-    def get_recent_messages(cls, from_uuid, to_uuid, limit=None):
+    def get_recent_messages(cls, from_uuids, to_uuids, limit=None):
         """
         Gets the recent messages for the given flow segment
         """
-        recent = cls.get_recent(from_uuid, to_uuid).prefetch_related('step__messages')
+        recent = cls.get_recent(from_uuids, to_uuids).prefetch_related('step__messages')
 
         messages = []
         for r in recent:
