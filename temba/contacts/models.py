@@ -1563,7 +1563,7 @@ class Contact(TembaModel):
         """
         Gets the highest priority matching URN for this contact. Schemes may be a single scheme or a set/list/tuple
         """
-        if isinstance(schemes, basestring):
+        if isinstance(schemes, six.string_types):
             schemes = (schemes,)
 
         urns = self.get_urns()

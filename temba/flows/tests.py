@@ -3226,7 +3226,7 @@ class ActionTest(TembaTest):
     def test_webhook_action(self, mock_requests_post, mock_timezone_now):
         tz = pytz.timezone("Africa/Kigali")
         mock_requests_post.return_value = MockResponse(200, '{ "coupon": "NEXUS4" }')
-        mock_timezone_now.return_value = tz.localize(datetime.datetime(2015, 10, 27, 16, 07, 30, 6))
+        mock_timezone_now.return_value = tz.localize(datetime.datetime(2015, 10, 27, 16, 7, 30, 6))
 
         action = WebhookAction('http://example.com/callback.php')
 

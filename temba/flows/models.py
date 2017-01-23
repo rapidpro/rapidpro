@@ -4994,7 +4994,7 @@ class AddLabelAction(Action):
                 else:
                     labels.append(Label.get_or_create(org, org.get_user(), label_name))
 
-            elif isinstance(label_data, basestring):
+            elif isinstance(label_data, six.string_types):
                 if label_data and label_data[0] == '@':
                     # label name is a variable substitution
                     labels.append(label_data)
@@ -5207,7 +5207,7 @@ class UssdAction(ReplyAction):
 
     @classmethod
     def from_ruleset(cls, ruleset, run):
-        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, basestring):
+        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, six.string_types):
             # initial message, menu obj
             obj = json.loads(ruleset.config)
             rules = json.loads(ruleset.rules)

@@ -1,6 +1,7 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import re
+import six
 
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives, send_mail
@@ -56,7 +57,7 @@ def send_simple_email(recipients, subject, body):
     :param body: body of the email
     """
     from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'website@rapidpro.io')
-    recipient_list = [recipients] if isinstance(recipients, basestring) else recipients
+    recipient_list = [recipients] if isinstance(recipients, six.string_types) else recipients
 
     send_temba_email(subject, body, None, from_email, recipient_list)
 
@@ -72,7 +73,7 @@ def send_template_email(recipients, subject, template, context, branding):
     :param branding: branding of the host
     """
     from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'website@rapidpro.io')
-    recipient_list = [recipients] if isinstance(recipients, basestring) else recipients
+    recipient_list = [recipients] if isinstance(recipients, six.string_types) else recipients
 
     html_template = loader.get_template(template + ".html")
     text_template = loader.get_template(template + ".txt")

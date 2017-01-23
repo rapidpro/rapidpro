@@ -974,7 +974,7 @@ class Org(SmartModel):
         @returns Iterable of matching boundaries
         """
         # no country? bail
-        if not self.country or not isinstance(location_string, basestring):
+        if not self.country or not isinstance(location_string, six.string_types):
             return []
 
         # now look up the boundary by full name
