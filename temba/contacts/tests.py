@@ -1348,7 +1348,7 @@ class ContactTest(TembaTest):
         self.assertEqual(activity[0].direction, 'O')
         self.assertIsInstance(activity[1], FlowRun)
         self.assertEqual(activity[1].exit_type, None)
-        self.assertIsNone(activity[2].run_event_type)
+        self.assertFalse(hasattr(activity[1], 'run_event_type'))
         self.assertIsInstance(activity[2], FlowRun)
         self.assertEqual(activity[2].exit_type, FlowRun.EXIT_TYPE_COMPLETED)
         self.assertEqual(activity[2].run_event_type, "Exited")
