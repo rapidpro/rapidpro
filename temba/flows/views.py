@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import json
 import logging
@@ -352,14 +352,16 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, request, *args, **kwargs):
             org = self.get_object_org()
 
-            step_uuid = request.GET.get('step', None)
-            next_uuid = request.GET.get('destination', None)
-            rule_uuid = request.GET.get('rule', None)
+            step_uuid = request.GET.get('step')
+            next_uuid = request.GET.get('destination')
+            rule_uuids = request.GET.get('rule')
 
             recent_messages = []
 
-            if (step_uuid or rule_uuid) and next_uuid:
-                recent = FlowPathRecentStep.get_recent_messages(rule_uuid or step_uuid, next_uuid, limit=5)
+            if (step_uuid or rule_uuids) and next_uuid:
+                from_uuids = rule_uuids.split(',') if rule_uuids else [step_uuid]
+                to_uuids = [next_uuid]
+                recent = FlowPathRecentStep.get_recent_messages(from_uuids, to_uuids, limit=5)
 
                 for msg in recent:
                     recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=org.timezone), text=msg.text))
@@ -1395,7 +1397,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # try to save the our flow, if this fails, let's let that bubble up to our logger
             json_dict = json.loads(json_string)
-            print json.dumps(json_dict, indent=2)
+            print(json.dumps(json_dict, indent=2))
 
             try:
                 response_data = self.get_object(self.get_queryset()).update(json_dict, user=self.request.user)

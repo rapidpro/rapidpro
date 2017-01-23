@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import json
 import logging
@@ -762,7 +762,7 @@ class Msg(models.Model):
                     handled = handler.handle(msg)
 
                     if start:  # pragma: no cover
-                        print "[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk or 0)
+                        print("[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk or 0))
 
                     if handled:
                         break
@@ -1615,7 +1615,7 @@ class SystemLabel(models.Model):
         if max_id:
             r.set(SystemLabel.LAST_SQUASH_KEY, max_id.id)
 
-        print "Squashed system label counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
+        print("Squashed system label counts for %d pairs in %0.3fs" % (squash_count, time.time() - start))
 
     @classmethod
     def create_all(cls, org):
@@ -2061,8 +2061,8 @@ class ExportMessagesTask(SmartModel):
             processed += 1
 
             if processed % 10000 == 0:  # pragma: needs cover
-                print "Export of %d msgs for %s - %d%% complete in %0.2fs" % \
-                      (len(all_message_ids), self.org.name, processed * 100 / len(all_message_ids), time.time() - start)
+                print("Export of %d msgs for %s - %d%% complete in %0.2fs" %
+                      (len(all_message_ids), self.org.name, processed * 100 / len(all_message_ids), time.time() - start))
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)

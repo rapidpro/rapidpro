@@ -1,3 +1,8 @@
+v3.0.14
+----------
+ * Allow for the creation of Facebook referral triggers (opt-in on FB)
+ * Allow for whitelisting of domains for Facebook channels
+
 v3.0.13
 ----------
  * New contact field editing UI with Intercooler modals
