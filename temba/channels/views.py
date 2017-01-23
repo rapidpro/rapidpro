@@ -27,7 +27,7 @@ from django.utils.translation import ugettext_lazy as _
 from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
-from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
+from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView, SmartModelActionView
 from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
 from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
@@ -557,7 +557,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
-               'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media')
+               'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'facebook_whitelist')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -614,6 +614,10 @@ class ChannelCRUDL(SmartCRUDL):
                 links.append(dict(title=_('Remove'),
                                   js_class='remove-channel',
                                   href="#"))
+
+            if self.object.channel_type == Channel.TYPE_FACEBOOK and self.has_org_perm('channels.channel_facebook_whitelist'):
+                links.append(dict(title=_("Whitelist Domain"), js_class='facebook-whitelist', href='#'))
+
             return links
 
         def get_context_data(self, **kwargs):
@@ -787,6 +791,35 @@ class ChannelCRUDL(SmartCRUDL):
             context['message_stats_table'] = message_stats_table
 
             return context
+
+    class FacebookWhitelist(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+        class DomainForm(forms.Form):
+            whitelisted_domain = forms.URLField(required=True, initial='https://',
+                                                help_text="The domain to whitelist for Messenger extensions  ex: https://yourdomain.com")
+
+        slug_url_kwarg = 'uuid'
+        success_url = 'uuid@channels.channel_read'
+        form_class = DomainForm
+
+        def get_queryset(self):
+            return Channel.objects.filter(is_active=True, org=self.request.user.get_org())
+
+        def execute_action(self):
+            # curl -X POST -H "Content-Type: application/json" -d '{
+            #  "setting_type" : "domain_whitelisting",
+            #  "whitelisted_domains" : ["https://petersfancyapparel.com"],
+            #  "domain_action_type": "add"
+            # }' "https://graph.facebook.com/v2.6/me/thread_settings?access_token=PAGE_ACCESS_TOKEN"
+            access_token = self.object.config_json()[Channel.CONFIG_AUTH_TOKEN]
+            response = requests.post('https://graph.facebook.com/v2.6/me/thread_settings?access_token=' + access_token,
+                                     json=dict(setting_type='domain_whitelisting',
+                                               whitelisted_domains=[self.form.cleaned_data['whitelisted_domain']],
+                                               domain_action_type='add'))
+
+            if response.status_code != 200:
+                response_json = response.json()
+                default_error = dict(message=_("An error occured contacting the Facebook API"))
+                raise ValidationError(response_json.get('error', default_error)['message'])
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         cancel_url = 'id@channels.channel_read'

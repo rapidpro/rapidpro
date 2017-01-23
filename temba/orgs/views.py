@@ -29,6 +29,7 @@ from django.views.generic import View
 from functools import cmp_to_key
 from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
+from smartmin.views import SmartModelFormView, SmartModelActionView
 from datetime import timedelta
 from temba.api.models import APIToken
 from temba.assets.models import AssetType
@@ -159,13 +160,17 @@ class ModalMixin(SmartFormView):
         return context
 
     def form_valid(self, form):
-
-        self.object = form.save(commit=False)
+        if isinstance(form, forms.ModelForm):
+            self.object = form.save(commit=False)
 
         try:
-            self.object = self.pre_save(self.object)
-            self.save(self.object)
-            self.object = self.post_save(self.object)
+            if isinstance(self, SmartModelFormView):
+                self.object = self.pre_save(self.object)
+                self.save(self.object)
+                self.object = self.post_save(self.object)
+
+            elif isinstance(self, SmartModelActionView):
+                self.execute_action()
 
             messages.success(self.request, self.derive_success_message())
 
@@ -178,10 +183,9 @@ class ModalMixin(SmartFormView):
                 response['Temba-Success'] = self.get_success_url()
                 return response
 
-        except (IntegrityError, ValueError) as e:
-            message = str(e).capitalize()
-            errors = self.form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.utils.ErrorList())
-            errors.append(message)
+        except (IntegrityError, ValueError, ValidationError) as e:
+            message = getattr(e, 'message', str(e).capitalize())
+            self.form.add_error(None, message)
             return self.render_to_response(self.get_context_data(form=form))
 
 

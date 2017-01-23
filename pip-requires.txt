@@ -15,7 +15,7 @@ raven
 celery[redis]
 python-gcm
 pytz
-hamlpy
+django-hamlpy
 django_select2
 django-redis
 redis
