@@ -26,6 +26,7 @@ from django.utils.safestring import mark_safe
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
+from functools import cmp_to_key
 from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
 from datetime import timedelta
@@ -2340,7 +2341,7 @@ class TopUpCRUDL(SmartCRUDL):
                 # if we end up with the same expiration, show the oldest first
                 return topup2.id - topup1.id
 
-            topups.sort(cmp=compare)
+            topups.sort(key=cmp_to_key(compare))
             context['topups'] = topups
             return context
 
