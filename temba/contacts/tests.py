@@ -1426,6 +1426,27 @@ class ContactTest(TembaTest):
         msg.status = 'S'
         self.assertEquals('<span class="glyph icon-bullhorn"></span>', activity_icon(msg))
 
+        flow = self.create_flow()
+        flow.start([], [self.joe])
+        run = FlowRun.objects.last()
+
+        self.assertEquals('<span class="glyph icon-tree-2"></span>', activity_icon(run))
+
+        run.run_event_type = 'Invalid'
+        self.assertEquals('<span class="glyph icon-tree-2"></span>', activity_icon(run))
+
+        run.run_event_type = 'Exited'
+        self.assertEquals('<span class="glyph icon-tree-2"></span>', activity_icon(run))
+
+        run.exit_type = FlowRun.EXIT_TYPE_COMPLETED
+        self.assertEquals('<span class="glyph icon-checkmark"></span>', activity_icon(run))
+
+        run.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
+        self.assertEquals('<span class="glyph icon-warning"></span>', activity_icon(run))
+
+        run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
+        self.assertEquals('<span class="glyph icon-clock"></span>', activity_icon(run))
+
     def test_media_tags(self):
 
         # malformed
