@@ -1,4 +1,4 @@
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, print_function, unicode_literals
 
 import six
 import time
@@ -288,7 +288,8 @@ class Value(models.Model):
             set_contacts = contacts & set_contacts
             unset_contacts = contacts - set_contacts
 
-        print "RulesetSummary [%f]: %s contact_field: %s with filters: %s" % (time.time() - start, ruleset, contact_field, filters)
+        print("RulesetSummary [%f]: %s contact_field: %s with filters: %s"
+              % (time.time() - start, ruleset, contact_field, filters))
 
         if return_contacts:
             return (set_contacts, unset_contacts, categories)

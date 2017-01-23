@@ -143,6 +143,20 @@
             {
               "test": {
                 "test": {
+                  "base": "Navy"
+                },
+                "type": "contains_any"
+              },
+              "category": {
+                "base": "Blue"
+              },
+              "destination": "44471ade-7979-4c94-8028-6cfb68836337",
+              "uuid": "ecaeb59a-d7f1-4c21-a207-b2a29cc2488f",
+              "destination_type": "A"
+            },
+            {
+              "test": {
+                "test": {
                   "base": "Cyan"
                 },
                 "type": "contains_any"

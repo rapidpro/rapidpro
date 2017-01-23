@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import json
 import logging
@@ -1667,13 +1667,13 @@ class Flow(TembaModel):
                 batch_contacts.append(contact_id)
 
                 if len(batch_contacts) >= START_FLOW_BATCH_SIZE:
-                    print "Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts']))
+                    print("Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts'])))
                     push_task(self.org, 'flows', Flow.START_MSG_FLOW_BATCH, task_context)
                     batch_contacts = []
                     task_context['contacts'] = batch_contacts
 
             if batch_contacts:
-                print "Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts']))
+                print("Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts'])))
                 push_task(self.org, 'flows', Flow.START_MSG_FLOW_BATCH, task_context)
 
             return []
@@ -3735,7 +3735,7 @@ class FlowPathCount(models.Model):
 
             squash_count += 1
 
-        print "Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start)
+        print("Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start))
 
     def __str__(self):  # pragma: no cover
         return "FlowPathCount(%d) %s:%s %s count: %d" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count)
@@ -3764,19 +3764,19 @@ class FlowPathRecentStep(models.Model):
         cls.objects.create(from_uuid=from_uuid, to_uuid=to_uuid, step=step, left_on=step.left_on)
 
     @classmethod
-    def get_recent(cls, from_uuid, to_uuid):
+    def get_recent(cls, from_uuids, to_uuids):
         """
-        Gets the recent step records for the given flow segment
+        Gets the recent step records for the given flow segments
         """
-        recent = cls.objects.filter(from_uuid=from_uuid, to_uuid=to_uuid)
+        recent = cls.objects.filter(from_uuid__in=from_uuids, to_uuid__in=to_uuids)
         return recent.order_by('-left_on').prefetch_related('step')
 
     @classmethod
-    def get_recent_messages(cls, from_uuid, to_uuid, limit=None):
+    def get_recent_messages(cls, from_uuids, to_uuids, limit=None):
         """
         Gets the recent messages for the given flow segment
         """
-        recent = cls.get_recent(from_uuid, to_uuid).prefetch_related('step__messages')
+        recent = cls.get_recent(from_uuids, to_uuids).prefetch_related('step__messages')
 
         messages = []
         for r in recent:
@@ -3856,7 +3856,7 @@ class FlowRunCount(models.Model):
         if max_id:
             r.set(FlowRunCount.LAST_SQUASH_KEY, max_id.id)
 
-        print "Squashed run counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
+        print("Squashed run counts for %d pairs in %0.3fs" % (squash_count, time.time() - start))
 
     @classmethod
     def run_count(cls, flow):
@@ -4175,8 +4175,8 @@ class ExportFlowResultsTask(SmartModel):
 
             processed_steps += 1
             if processed_steps % 10000 == 0:  # pragma: needs cover
-                print "Export of %s - %d%% complete in %0.2fs" % \
-                      (flow_names, processed_steps * 100 / total_steps, time.time() - start)
+                print("Export of %s - %d%% complete in %0.2fs" %
+                      (flow_names, processed_steps * 100 / total_steps, time.time() - start))
 
             # skip over test contacts
             if run_step.contact.is_test:  # pragma: needs cover

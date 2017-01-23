@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import requests
 import logging
@@ -138,4 +138,4 @@ def fb_channel_subscribe(channel_id):
                                  params=dict(access_token=page_access_token))
 
         if response.status_code != 200 or not response.json()['success']:
-            print "Unable to subscribe for delivery of events: %s" % response.content
+            print("Unable to subscribe for delivery of events: %s" % response.content)

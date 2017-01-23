@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import calendar
 import six
@@ -131,7 +131,7 @@ class Schedule(SmartModel):
             return True
 
     def unschedule(self):
-        print "Unscheduling %s" % self.pk
+        print("Unscheduling %s" % self.pk)
         self.status = 'U'
         self.save()
 
