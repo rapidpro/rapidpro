@@ -3752,6 +3752,13 @@ class ContactFieldTest(TembaTest):
 
 
 class URNTest(TembaTest):
+
+    def test_fb_urn(self):
+        self.assertEqual('facebook:ref:asdf', URN.from_facebook(URN.path_from_fb_ref('asdf')))
+        self.assertEqual('asdf', URN.fb_ref_from_path(URN.path_from_fb_ref('asdf')))
+        self.assertTrue(URN.validate(URN.from_facebook(URN.path_from_fb_ref('asdf'))))
+
+
     def test_from_parts(self):
         self.assertEqual(URN.from_parts("tel", "12345"), "tel:12345")
         self.assertEqual(URN.from_parts("tel", "+12345"), "tel:+12345")

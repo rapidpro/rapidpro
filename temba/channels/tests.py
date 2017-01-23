@@ -7815,6 +7815,12 @@ class FacebookTest(TembaTest):
         contact1 = Contact.objects.get(org=self.org, urns__path='1122')
         self.assertEqual("What is your favorite color?", contact1.msgs.all().first().text)
 
+        # try an invalid optin (has fields for neither type)
+        del data['entry'][0]['messaging'][0]['sender']
+        response = self.client.post(callback_url, json.dumps(data).replace('PAGE_ID', '1234'), content_type='application/json')
+        self.assertEqual(200, response.status_code)
+        self.assertEqual('{"status": ["Ignored opt-in, no user_ref or sender"]}', response.content)
+
         # ok, use a user_ref optin instead
         entry = json.loads(optin)
         del entry['sender']
