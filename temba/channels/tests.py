@@ -7531,6 +7531,43 @@ class MbloxTest(TembaTest):
                                                                               "referenced before assignment"))
 
 
+class FacebookWhitelistTest(TembaTest):
+
+    def setUp(self):
+        super(FacebookWhitelistTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, None, 'FB', None, '1234',
+                                      config={Channel.CONFIG_AUTH_TOKEN: 'auth'},
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_whitelist(self):
+        whitelist_url = reverse('channels.channel_facebook_whitelist', args=[self.channel.uuid])
+        response = self.client.get(whitelist_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+        response = self.client.get(reverse('channels.channel_read', args=[self.channel.uuid]))
+
+        self.assertContains(response, whitelist_url)
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(400, '{"error": { "message": "FB Error" } }')
+            response = self.client.post(whitelist_url, dict(whitelisted_domain='https://foo.bar'))
+            self.assertFormError(response, 'form', None, 'FB Error')
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{ "ok": "true" }')
+            response = self.client.post(whitelist_url, dict(whitelisted_domain='https://foo.bar'))
+
+            mock.assert_called_once_with('https://graph.facebook.com/v2.6/me/thread_settings?access_token=auth',
+                                         json=dict(setting_type='domain_whitelisting',
+                                                   whitelisted_domains=['https://foo.bar'],
+                                                   domain_action_type='add'))
+
+            self.assertNoFormErrors(response)
+
+
 class FacebookTest(TembaTest):
 
     TEST_INCOMING = """
