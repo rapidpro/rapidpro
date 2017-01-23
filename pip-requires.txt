@@ -19,7 +19,6 @@ hamlpy
 django_select2
 django-redis
 redis
-BeautifulSoup
 xlutils
 phonenumbers
 django-countries
@@ -43,7 +42,7 @@ pycrypto
 numpy
 analytics-python
 django-storages
-boto
+boto3
 google
 ply
 uservoice

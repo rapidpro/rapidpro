@@ -4,10 +4,9 @@ analytics-python==0.4.4
 antlr4-python2-runtime==4.5.2
 anyjson==0.3.3
 backports.ssl-match-hostname==3.4.0.2
-BeautifulSoup==3.2.1
 beautifulsoup4==4.4.1
 billiard==3.3.0.23
-boto==2.45.0
+boto3==1.4.2
 celery==3.1.23
 certifi==14.5.14
 colorama==0.3.1
@@ -30,7 +29,7 @@ django-picklefield==0.3.0
 django-redis==4.5.0
 django-reversion==1.8.0
 django-rosetta==0.6.2
-Django-Select2==4.2.2
+Django-Select2==4.3.2
 django-storages==1.5.1
 django-timezone-field==2.0
 djangorestframework==3.5.1
@@ -38,7 +37,7 @@ djangorestframework-xml==1.2.0
 djorm-ext-core==0.7
 djorm-ext-expressions==0.6
 djorm-ext-hstore==0.5
-enum34==1.0.3
+enum34==1.1.6
 et-xmlfile==1.0.1
 flake8==2.5.4
 future==0.15.2
@@ -69,7 +68,7 @@ oauthlib==0.6.1
 openpyxl==2.4.0
 pep8==1.7.0
 phonenumbers
-Pillow==1.7.8
+Pillow==3.4.2
 pisa==3.0.33
 plivo==0.10.1
 ply==3.4
@@ -93,7 +92,7 @@ redis==2.10.1
 regex==2014.6.28
 requests==2.9.1
 requests-oauthlib==0.4.0
-rsa==3.1.1
+rsa==3.4.2
 selenium==2.31.0
 simplejson==3.4.1
 six==1.10.0
@@ -105,9 +104,9 @@ tornado==4.0
 twilio==3.6.8
 twython==3.1.2
 Unidecode==0.4.14
-unittest2==0.5.1
+unittest2==1.1.0
 uservoice==0.0.19
-xlutils==1.7.1
+xlutils==2.0.0
 django-excel==0.0.5
 pyexcel==0.2.5
 pyexcel-io==0.2.3
