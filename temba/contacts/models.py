@@ -846,7 +846,7 @@ class Contact(TembaModel):
             urn_objects = existing_orphan_urns.copy()
 
             # add all new URNs
-            for raw, normalized in urns_to_create.iteritems():
+            for raw, normalized in six.iteritems(urns_to_create):
                 urn = ContactURN.get_or_create(org, contact, normalized, channel=channel)
                 urn_objects[raw] = urn
 

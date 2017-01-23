@@ -248,7 +248,7 @@ def migrate_to_version_8(json_flow, flow=None):
             for n in range(len(node)):
                 node[n] = migrate_node(node[n])
         if isinstance(node, dict):
-            for key, val in node.iteritems():
+            for key, val in six.iteritems(node):
                 node[key] = migrate_node(val)
         return node
 
