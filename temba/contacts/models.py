@@ -504,7 +504,14 @@ class Contact(TembaModel):
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
         runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
+        exited_runs = runs.exclude(exit_type=None)
+
         runs = runs.select_related('flow')
+        exited_runs = exited_runs.select_related('flow')
+
+        for exit_run in exited_runs:
+            exit_run.created_on = exit_run.exited_on
+            exit_run.run_event_type = 'Exited'
 
         channel_events = self.channel_events.filter(created_on__gte=after, created_on__lt=before)
         channel_events = channel_events.select_related('channel')
@@ -523,7 +530,7 @@ class Contact(TembaModel):
         error_calls = error_calls.select_related('channel')
 
         # chain them all together in the same list and sort by time
-        activity = chain(msgs, broadcasts, runs, event_fires, channel_events, error_calls)
+        activity = chain(msgs, broadcasts, runs, exited_runs, event_fires, channel_events, error_calls)
         return sorted(activity, key=lambda i: i.created_on, reverse=True)
 
     def get_field(self, key):

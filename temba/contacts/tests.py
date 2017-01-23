@@ -1247,7 +1247,7 @@ class ContactTest(TembaTest):
                                contact_urn=self.joe.urns.all().first())
 
         # fetch our contact history
-        with self.assertNumQueries(63):
+        with self.assertNumQueries(64):
             response = self.fetch_protected(url, self.admin)
 
         # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -1334,6 +1334,29 @@ class ContactTest(TembaTest):
         self.assertEqual(len(response.context['activity']), 95)
         response = self.fetch_protected(reverse('contacts.contact_history', args=[hans.uuid]), self.superuser)
         self.assertEqual(len(response.context['activity']), 0)
+
+        # exit flow runs
+        FlowRun.bulk_exit(self.joe.runs.all(), FlowRun.EXIT_TYPE_COMPLETED)
+
+        # add a new run
+        self.reminder_flow.start([], [self.joe], restart_participants=True)
+        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+        activity = response.context['activity']
+        self.assertEqual(len(activity), 98)
+
+        self.assertIsInstance(activity[0], Msg)
+        self.assertEqual(activity[0].direction, 'O')
+        self.assertIsInstance(activity[1], FlowRun)
+        self.assertEqual(activity[1].exit_type, None)
+        self.assertIsNone(activity[2].run_event_type)
+        self.assertIsInstance(activity[2], FlowRun)
+        self.assertEqual(activity[2].exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+        self.assertEqual(activity[2].run_event_type, "Exited")
+        self.assertIsInstance(activity[3], Msg)
+        self.assertEqual(activity[3].direction, 'I')
+        self.assertIsInstance(activity[4], IVRCall)
+        self.assertIsInstance(activity[5], ChannelEvent)
+        self.assertIsInstance(activity[6], FlowRun)
 
     def test_event_times(self):
 
