@@ -7785,10 +7785,10 @@ class FacebookTest(TembaTest):
     def test_referrals(self):
         # create two triggers for referrals
         flow = self.get_flow('favorites')
-        join_trigger = Trigger.objects.create(org=self.org, trigger_type=Trigger.TYPE_REFERRAL, referrer_id='join',
-                                              flow=flow, created_by=self.admin, modified_by=self.admin)
-        signup_trigger = Trigger.objects.create(org=self.org, trigger_type=Trigger.TYPE_REFERRAL, referrer_id='signup',
-                                                flow=flow, created_by=self.admin, modified_by=self.admin)
+        Trigger.objects.create(org=self.org, trigger_type=Trigger.TYPE_REFERRAL, referrer_id='join',
+                               flow=flow, created_by=self.admin, modified_by=self.admin)
+        Trigger.objects.create(org=self.org, trigger_type=Trigger.TYPE_REFERRAL, referrer_id='signup',
+                               flow=flow, created_by=self.admin, modified_by=self.admin)
 
         callback_url = reverse('handlers.facebook_handler', args=[self.channel.uuid])
 
@@ -7841,7 +7841,6 @@ class FacebookTest(TembaTest):
                 ext_urn = contact2.urns.get(scheme=EXTERNAL_SCHEME)
                 self.assertEqual(ext_urn.path, 'user_ref2')
                 self.assertIsNone(ext_urn.channel)
-
 
     def test_receive(self):
         data = json.loads(FacebookTest.TEST_INCOMING)
