@@ -2399,7 +2399,7 @@ class BulkExportTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse('orgs.org_export'))
 
-        from BeautifulSoup import BeautifulSoup
+        from bs4 import BeautifulSoup
         soup = BeautifulSoup(response.content)
         group = str(soup.findAll("div", {"class": "exportables bucket"})[0])
 

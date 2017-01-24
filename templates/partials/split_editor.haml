@@ -67,7 +67,7 @@
     .random{ng-if:'formData.rulesetConfig.type == "random"'}><
       #split-on
         -trans "Split them randomly into"
-        %input.split-buckets{type:"text", min:"2", max:"20", ng-change:'updateRandomBuckets()', ng-model:"formData.buckets", ng-required:"true", type:"number"}
+        %input.split-buckets{min:"2", max:"20", ng-change:'updateRandomBuckets()', ng-model:"formData.buckets", ng-required:"true", type:"number"}
         -trans "even buckets"
 
         .buckets
@@ -90,7 +90,7 @@
         .country-config{ng-repeat:"option in formData.airtimeAmountConfig"}
           .country
             [[option.name]] ([[option.currency_code]])
-          %input.airtime-amount{type:"text", ng-model:"option.amount", ng-required:"true", type:"number"}
+          %input.airtime-amount{ng-model:"option.amount", ng-required:"true", type:"number"}
 
     .resthook{ng-if:'formData.rulesetConfig.type == "resthook"'}><
       .split-margin

@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import time
 
@@ -107,7 +107,8 @@ def start_msg_flow_batch_task():
     finally:
         complete_task(Flow.START_MSG_FLOW_BATCH, org_id)
 
-    print "Started batch of %d contacts in flow %d [%d] in %0.3fs" % (len(contacts), flow.id, flow.org_id, time.time() - start)
+    print("Started batch of %d contacts in flow %d [%d] in %0.3fs"
+          % (len(contacts), flow.id, flow.org_id, time.time() - start))
 
 
 @task(track_started=True, name="check_flow_stats_accuracy_task")

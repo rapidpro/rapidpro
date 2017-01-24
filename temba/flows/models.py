@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import json
 import logging
@@ -1117,7 +1117,7 @@ class Flow(TembaModel):
                 if 'recording' in action:
                     # if its a localized
                     if isinstance(action['recording'], dict):
-                        for lang, url in action['recording'].iteritems():
+                        for lang, url in six.iteritems(action['recording']):
                             path = copy_recording(url, 'recordings/%d/%d/steps/%s.wav' % (self.org.pk, self.pk, action['uuid']))
                             action['recording'][lang] = path
                     else:
@@ -1667,13 +1667,13 @@ class Flow(TembaModel):
                 batch_contacts.append(contact_id)
 
                 if len(batch_contacts) >= START_FLOW_BATCH_SIZE:
-                    print "Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts']))
+                    print("Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts'])))
                     push_task(self.org, 'flows', Flow.START_MSG_FLOW_BATCH, task_context)
                     batch_contacts = []
                     task_context['contacts'] = batch_contacts
 
             if batch_contacts:
-                print "Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts']))
+                print("Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts'])))
                 push_task(self.org, 'flows', Flow.START_MSG_FLOW_BATCH, task_context)
 
             return []
@@ -2635,7 +2635,7 @@ class FlowRun(models.Model):
             runs_by_flow[run['flow_id']].append(run['id'])
 
         # for each flow, remove activity for all runs
-        for flow_id, run_ids in runs_by_flow.iteritems():
+        for flow_id, run_ids in six.iteritems(runs_by_flow):
             flow = Flow.objects.filter(id=flow_id).first()
 
             if flow:
@@ -3708,25 +3708,15 @@ class FlowPathCount(models.Model):
     to_uuid = models.UUIDField(null=True, help_text=_("Which flow node they went to"))
     period = models.DateTimeField(help_text=_("When the activity occured with hourly precision"))
     count = models.IntegerField(default=0)
+    is_squashed = models.BooleanField(default=False, help_text=_("Whether this row was created by squashing"))
 
     @classmethod
     def squash_counts(cls):
-        # get the id of the last count we squashed
-        r = get_redis_connection()
-        last_squash = r.get(FlowPathCount.LAST_SQUASH_KEY)
-        if not last_squash:
-            last_squash = 0
-
-        # insert our new top squashed id
-        max_id = FlowPathCount.objects.all().order_by('-id').first()
-        if max_id:
-            r.set(FlowPathCount.LAST_SQUASH_KEY, max_id.id)
-
         # get the unique ids for all new ones
         start = time.time()
         squash_count = 0
 
-        for count in FlowPathCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'from_uuid', 'to_uuid', 'period')\
+        for count in cls.objects.filter(is_squashed=False).order_by('flow_id', 'from_uuid', 'to_uuid', 'period')\
                 .distinct('flow_id', 'from_uuid', 'to_uuid', 'period'):
 
             # perform our atomic squash in SQL by calling our squash method
@@ -3735,7 +3725,7 @@ class FlowPathCount(models.Model):
 
             squash_count += 1
 
-        print "Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start)
+        print("Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start))
 
     def __str__(self):  # pragma: no cover
         return "FlowPathCount(%d) %s:%s %s count: %d" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count)
@@ -3764,19 +3754,19 @@ class FlowPathRecentStep(models.Model):
         cls.objects.create(from_uuid=from_uuid, to_uuid=to_uuid, step=step, left_on=step.left_on)
 
     @classmethod
-    def get_recent(cls, from_uuid, to_uuid):
+    def get_recent(cls, from_uuids, to_uuids):
         """
-        Gets the recent step records for the given flow segment
+        Gets the recent step records for the given flow segments
         """
-        recent = cls.objects.filter(from_uuid=from_uuid, to_uuid=to_uuid)
+        recent = cls.objects.filter(from_uuid__in=from_uuids, to_uuid__in=to_uuids)
         return recent.order_by('-left_on').prefetch_related('step')
 
     @classmethod
-    def get_recent_messages(cls, from_uuid, to_uuid, limit=None):
+    def get_recent_messages(cls, from_uuids, to_uuids, limit=None):
         """
         Gets the recent messages for the given flow segment
         """
-        recent = cls.get_recent(from_uuid, to_uuid).prefetch_related('step__messages')
+        recent = cls.get_recent(from_uuids, to_uuids).prefetch_related('step__messages')
 
         messages = []
         for r in recent:
@@ -3830,33 +3820,21 @@ class FlowRunCount(models.Model):
     flow = models.ForeignKey(Flow, related_name='counts')
     exit_type = models.CharField(null=True, max_length=1, choices=FlowRun.EXIT_TYPE_CHOICES)
     count = models.IntegerField(default=0)
-
-    LAST_SQUASH_KEY = 'last_flowruncount_squash'
+    is_squashed = models.BooleanField(default=False, help_text=_("Whether this row was created by squashing"))
 
     @classmethod
     def squash_counts(cls):
-        # get the id of the last count we squashed
-        r = get_redis_connection()
-        last_squash = r.get(FlowRunCount.LAST_SQUASH_KEY)
-        if not last_squash:
-            last_squash = 0
-
         # get the unique flow ids for all new ones
         start = time.time()
         squash_count = 0
-        for count in FlowRunCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'exit_type').distinct('flow_id', 'exit_type'):
+        for count in cls.objects.filter(is_squashed=False).order_by('flow_id', 'exit_type').distinct('flow_id', 'exit_type'):
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
                 c.execute("SELECT temba_squash_flowruncount(%s, %s);", (count.flow_id, count.exit_type))
 
             squash_count += 1
 
-        # insert our new top squashed id
-        max_id = FlowRunCount.objects.all().order_by('-id').first()
-        if max_id:
-            r.set(FlowRunCount.LAST_SQUASH_KEY, max_id.id)
-
-        print "Squashed run counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
+        print("Squashed run counts for %d pairs in %0.3fs" % (squash_count, time.time() - start))
 
     @classmethod
     def run_count(cls, flow):
@@ -4175,8 +4153,8 @@ class ExportFlowResultsTask(SmartModel):
 
             processed_steps += 1
             if processed_steps % 10000 == 0:  # pragma: needs cover
-                print "Export of %s - %d%% complete in %0.2fs" % \
-                      (flow_names, processed_steps * 100 / total_steps, time.time() - start)
+                print("Export of %s - %d%% complete in %0.2fs" %
+                      (flow_names, processed_steps * 100 / total_steps, time.time() - start))
 
             # skip over test contacts
             if run_step.contact.is_test:  # pragma: needs cover
@@ -4994,7 +4972,7 @@ class AddLabelAction(Action):
                 else:
                     labels.append(Label.get_or_create(org, org.get_user(), label_name))
 
-            elif isinstance(label_data, basestring):
+            elif isinstance(label_data, six.string_types):
                 if label_data and label_data[0] == '@':
                     # label name is a variable substitution
                     labels.append(label_data)
@@ -5207,7 +5185,7 @@ class UssdAction(ReplyAction):
 
     @classmethod
     def from_ruleset(cls, ruleset, run):
-        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, basestring):
+        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, six.string_types):
             # initial message, menu obj
             obj = json.loads(ruleset.config)
             rules = json.loads(ruleset.rules)
@@ -5246,13 +5224,13 @@ class UssdAction(ReplyAction):
 
     def add_menu_to_msg(self, rules):
         # start with a new line
-        self.msg = {language: localised_msg + '\n' for language, localised_msg in self.msg.iteritems()}
+        self.msg = {language: localised_msg + '\n' for language, localised_msg in six.iteritems(self.msg)}
 
         # add menu to the msg
         for rule in rules:
             if rule.get('label'):  # filter "other" and "interrupted"
                 self.msg = {language: localised_msg + ": ".join(
-                    (str(rule['test']['test']), self.get_menu_label(rule['label'], language),)) + '\n' for language, localised_msg in self.msg.iteritems()}
+                    (str(rule['test']['test']), self.get_menu_label(rule['label'], language),)) + '\n' for language, localised_msg in six.iteritems(self.msg)}
 
 
 class VariableContactAction(Action):

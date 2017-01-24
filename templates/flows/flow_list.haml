@@ -41,7 +41,7 @@
                   -trans "Flows"
                 - for folder in folders
                   %li{'class':"{% if folder.url == request_url %}active{% endif %}" }
-                    %a{'href':'={folder.url}'}
+                    %a{'href':'{{folder.url}}'}
                       {{ folder.label }} ({{ folder.count }})
 
                 -if labels
@@ -152,12 +152,12 @@
                                     - blocktrans count counter=new_responses
                                       1 New Response
                                       - plural
-                                      ={counter} New Responses
+                                      {{counter}} New Responses
 
                                 - for label in object.labels.all
                                   %span.label.label-info.lbl{ data-id: '{{label.id}}' }
                                     %a{href:"{% url 'flows.flow_filter' label.pk%}"}
-                                      ={label.name}
+                                      {{label.name}}
 
                         -if not object.get_total_runs
                           %td.value-status

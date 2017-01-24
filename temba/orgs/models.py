@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import calendar
 import json
@@ -1029,7 +1029,7 @@ class Org(SmartModel):
         @returns Iterable of matching boundaries
         """
         # no country? bail
-        if not self.country or not isinstance(location_string, basestring):
+        if not self.country or not isinstance(location_string, six.string_types):
             return []
 
         # now look up the boundary by full name
@@ -1423,7 +1423,7 @@ class Org(SmartModel):
                     break
 
             # update items in the database with their new topups
-            for topup, items in new_topup_items.iteritems():
+            for topup, items in six.iteritems(new_topup_items):
                 Msg.objects.filter(id__in=[item.pk for item in items if isinstance(item, Msg)]).update(topup=topup)
 
         # deactive all our credit alerts
@@ -2227,7 +2227,7 @@ class CreditAlert(SmartModel):
         if CreditAlert.objects.filter(is_active=True, org=org, alert_type=alert_type):  # pragma: needs cover
             return None
 
-        print "triggering %s credits alert type for %s" % (alert_type, org.name)
+        print("triggering %s credits alert type for %s" % (alert_type, org.name))
 
         admin = org.get_org_admins().first()
 

@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import ply.lex as lex
 import pytz
@@ -10,6 +10,7 @@ from decimal import Decimal
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from ply import yacc
+from temba.locations.models import AdminBoundary
 from temba.utils import str_to_datetime
 from temba.values.models import Value
 
@@ -228,9 +229,9 @@ def generate_location_field_comparison(field, comparator, value):
     if not lookup:
         raise SearchException("Unsupported comparator %s for location field" % comparator)
 
-    return Q(**{
-        'values__contact_field__id': field.id,
-        'values__location_value__name__%s' % lookup: value})
+    locations = list(AdminBoundary.objects.filter(Q(**{'name__%s' % lookup: value})).values_list('id', flat=True))
+
+    return Q(**{'values__contact_field__id': field.id, 'values__location_value__id__in': locations})
 
 
 # ================================== Lexer definition ==================================
@@ -326,4 +327,4 @@ def lexer_test(data):  # pragma: no cover
         tok = search_lexer.token()
         if not tok:
             break
-        print tok
+        print(tok)

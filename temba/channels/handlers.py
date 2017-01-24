@@ -1860,7 +1860,61 @@ class FacebookHandler(BaseChannelHandler):
                 status = []
 
                 for envelope in entry['messaging']:
-                    if 'message' in envelope or 'postback' in envelope:
+                    if 'optin' in envelope:
+                        # check that the recipient is correct for this channel
+                        channel_address = str(envelope['recipient']['id'])
+                        if channel_address != channel.address:  # pragma: needs cover
+                            return HttpResponse("Msg Ignored for recipient id: %s" % channel_address, status=200)
+
+                        referrer_id = envelope['optin'].get('ref')
+
+                        # This is a standard opt in, we know the sender id:
+                        #   https://developers.facebook.com/docs/messenger-platform/webhook-reference/optins
+                        # {
+                        #   "sender": { "id": "USER_ID" },
+                        #   "recipient": { "id": "PAGE_ID" },
+                        #   "timestamp": 1234567890,
+                        #   "optin": {
+                        #     "ref": "PASS_THROUGH_PARAM"
+                        #   }
+                        # }
+                        if 'sender' in envelope:
+                            # grab our contact
+                            urn = URN.from_facebook(envelope['sender']['id'])
+                            contact = Contact.from_urn(channel.org, urn)
+
+                        # This is a checkbox-plugin:
+                        #   https://developers.facebook.com/docs/messenger-platform/plugin-reference/checkbox-plugin
+                        # {
+                        #   "recipient": { "id": "PAGE_ID" },
+                        #   "timestamp": 1234567890,
+                        #   "optin": {
+                        #      "ref": "PASS_THROUGH_PARAM",
+                        #      "user_ref": "UNIQUE_REF_PARAM"
+                        #   }
+                        # }
+                        elif 'user_ref' in envelope['optin']:
+                            urn = URN.from_facebook(URN.path_from_fb_ref(envelope['optin']['user_ref']))
+                            contact = Contact.from_urn(channel.org, urn)
+
+                        # no idea what this is, ignore
+                        else:
+                            status.append("Ignored opt-in, no user_ref or sender")
+                            continue
+
+                        if not contact:
+                            contact = Contact.get_or_create(channel.org, channel.created_by,
+                                                            urns=[urn], channel=channel)
+
+                        caught = Trigger.catch_triggers(contact, Trigger.TYPE_REFERRAL, channel,
+                                                        referrer_id=referrer_id, extra=envelope['optin'])
+
+                        if caught:
+                            status.append("Triggered flow for ref: %s" % referrer_id)
+                        else:
+                            status.append("Ignored opt-in, no trigger for ref: %s" % referrer_id)
+
+                    elif 'message' in envelope or 'postback' in envelope:
                         # ignore echos
                         if 'message' in envelope and envelope['message'].get('is_echo'):
                             status.append("Echo Ignored")
@@ -2211,7 +2265,8 @@ class ViberPublicHandler(BaseChannelHandler):
             #    "message_token": 4912661846655238145
             # }
             viber_id = body['user']['id']
-            contact = Contact.get_or_create(channel.org, channel.created_by, body['user'].get('name'), urns=[URN.from_viber(viber_id)])
+            contact_name = None if channel.org.is_anon else body['user'].get('name')
+            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[URN.from_viber(viber_id)])
             Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
             return HttpResponse("Subscription for contact: %s handled" % viber_id)
 
@@ -2337,8 +2392,9 @@ class ViberPublicHandler(BaseChannelHandler):
 
             # get or create our contact with any name sent in
             urn = URN.from_viber(body['sender']['id'])
-            contact = Contact.get_or_create(channel.org, channel.created_by,
-                                            body['sender'].get('name'), urns=[urn])
+
+            contact_name = None if channel.org.is_anon else body['sender'].get('name')
+            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
 
             # add our caption first if it is present
             if caption:  # pragma: needs cover
