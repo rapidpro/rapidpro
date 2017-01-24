@@ -1,3 +1,7 @@
+v3.0.19
+----------
+ * Improve performance of contact searches by location by fetching locations in separate query
+
 v3.0.18
 ----------
  * Update pyparsing to 2.1.10
