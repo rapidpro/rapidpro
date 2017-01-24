@@ -255,7 +255,7 @@ describe 'Controllers:', ->
         scope.formData.hasTimeout = true
         scope.formData.timeout = scope.formData.timeoutOptions[5]
 
-      # no shoudl have 2 rules; All responses and the timeout
+      # now should have 2 rules; All responses and the timeout
       ruleset = flowService.flow.rule_sets[0]
       expect(ruleset.rules.length).toBe(2)
 
