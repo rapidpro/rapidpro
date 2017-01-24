@@ -644,6 +644,7 @@ class IVRTests(FlowFileTest):
 
         call = IVRCall.objects.all().first()
         self.assertEquals('+250788382382', call.contact_urn.path)
+        self.assertEquals('CallSid', call.external_id)
 
         from temba.orgs.models import CURRENT_EXPORT_VERSION
         flow.refresh_from_db()

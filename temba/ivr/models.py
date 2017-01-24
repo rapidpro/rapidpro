@@ -29,10 +29,10 @@ class IVRCall(ChannelSession):
                                       created_by=user, modified_by=user)
 
     @classmethod
-    def create_incoming(cls, channel, contact, contact_urn, flow, user):
+    def create_incoming(cls, channel, contact, contact_urn, flow, user, external_id):
         return IVRCall.objects.create(channel=channel, contact=contact, contact_urn=contact_urn, flow=flow,
                                       direction=IVRCall.INCOMING, org=channel.org, created_by=user,
-                                      modified_by=user)
+                                      modified_by=user, external_id=external_id)
 
     @classmethod
     def hangup_test_call(cls, flow):
