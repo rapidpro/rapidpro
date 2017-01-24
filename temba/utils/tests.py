@@ -4,11 +4,13 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import pytz
+import six
 
 from celery.app.task import Task
 from datetime import datetime, time
 from decimal import Decimal
 from django.conf import settings
+from django.core.urlresolvers import reverse
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django_redis import get_redis_connection
@@ -936,7 +938,7 @@ class ChunkTest(TembaTest):
 
     def test_chunking(self):
         curr = 0
-        for chunk in chunk_list(xrange(100), 7):
+        for chunk in chunk_list(six.moves.xrange(100), 7):
             batch_curr = curr
             for item in chunk:
                 self.assertEqual(item, curr)
@@ -1048,3 +1050,20 @@ class CurrencyTest(TembaTest):
         self.assertEqual(currency_for_country('DE').letter, 'EUR')
         self.assertEqual(currency_for_country('YE').letter, 'YER')
         self.assertEqual(currency_for_country('AF').letter, 'AFN')
+
+
+class MiddlewareTest(TembaTest):
+
+    def test_orgheader(self):
+        response = self.client.get(reverse('public.public_index'))
+        self.assertFalse(response.has_header('X-Temba-Org'))
+
+        self.login(self.superuser)
+
+        response = self.client.get(reverse('public.public_index'))
+        self.assertFalse(response.has_header('X-Temba-Org'))
+
+        self.login(self.admin)
+
+        response = self.client.get(reverse('public.public_index'))
+        self.assertEqual(response['X-Temba-Org'], six.text_type(self.org.id))

@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import json
 import os
@@ -304,7 +304,7 @@ class IVRTests(FlowFileTest):
         # flow goes: passive -> recording -> msg
         flow = self.get_flow('non_blocking_rule_ivr')
 
-        print json.dumps(flow.as_json(), indent=2)
+        print(json.dumps(flow.as_json(), indent=2))
 
         # start marshall in the flow
         eminem = self.create_contact('Eminem', '+12345')
