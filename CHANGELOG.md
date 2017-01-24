@@ -1,3 +1,7 @@
+v3.0.16
+----------
+ * Fix HAML error triggered by new HAMLpy
+
 v3.0.15
 ----------
  * Update pyparsing to 2.1.10
