@@ -22,6 +22,7 @@ from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
+from functools import cmp_to_key
 from itertools import chain
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartListView, SmartUpdateView
 from smartmin.views import SmartDeleteView, SmartTemplateView, SmartFormView
@@ -1220,7 +1221,7 @@ class FlowCRUDL(SmartCRUDL):
                 action_logs = list(ActionLog.objects.filter(run__flow=flow, run__contact__is_test=True).order_by('created_on'))
 
                 messages_and_logs = chain(messages, action_logs)
-                messages_and_logs = sorted(messages_and_logs, cmp=msg_log_cmp)
+                messages_and_logs = sorted(messages_and_logs, key=cmp_to_key(msg_log_cmp))
 
                 messages_json = []
                 if messages_and_logs:
@@ -1340,7 +1341,7 @@ class FlowCRUDL(SmartCRUDL):
             action_logs = ActionLog.objects.filter(run__contact=test_contact).order_by('pk', 'created_on')
 
             messages_and_logs = chain(messages, action_logs)
-            messages_and_logs = sorted(messages_and_logs, cmp=msg_log_cmp)
+            messages_and_logs = sorted(messages_and_logs, key=cmp_to_key(msg_log_cmp))
 
             messages_json = []
             if messages_and_logs:

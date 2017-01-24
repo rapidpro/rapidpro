@@ -624,7 +624,7 @@ class Channel(TembaModel):
 
     @classmethod
     def add_twitter_channel(cls, org, user, screen_name, handle_id, oauth_token, oauth_token_secret):
-        config = dict(handle_id=long(handle_id),
+        config = dict(handle_id=int(handle_id),
                       oauth_token=oauth_token,
                       oauth_token_secret=oauth_token_secret)
 

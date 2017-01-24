@@ -189,7 +189,7 @@ class TembaTest(SmartminTest):
         handle.close()
 
         if substitutions:
-            for k, v in substitutions.iteritems():
+            for k, v in six.iteritems(substitutions):
                 print('Replacing "%s" with "%s"' % (k, v))
                 data = data.replace(k, str(v))
 

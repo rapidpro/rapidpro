@@ -1117,7 +1117,7 @@ class Flow(TembaModel):
                 if 'recording' in action:
                     # if its a localized
                     if isinstance(action['recording'], dict):
-                        for lang, url in action['recording'].iteritems():
+                        for lang, url in six.iteritems(action['recording']):
                             path = copy_recording(url, 'recordings/%d/%d/steps/%s.wav' % (self.org.pk, self.pk, action['uuid']))
                             action['recording'][lang] = path
                     else:
@@ -2635,7 +2635,7 @@ class FlowRun(models.Model):
             runs_by_flow[run['flow_id']].append(run['id'])
 
         # for each flow, remove activity for all runs
-        for flow_id, run_ids in runs_by_flow.iteritems():
+        for flow_id, run_ids in six.iteritems(runs_by_flow):
             flow = Flow.objects.filter(id=flow_id).first()
 
             if flow:
@@ -4994,7 +4994,7 @@ class AddLabelAction(Action):
                 else:
                     labels.append(Label.get_or_create(org, org.get_user(), label_name))
 
-            elif isinstance(label_data, basestring):
+            elif isinstance(label_data, six.string_types):
                 if label_data and label_data[0] == '@':
                     # label name is a variable substitution
                     labels.append(label_data)
@@ -5207,7 +5207,7 @@ class UssdAction(ReplyAction):
 
     @classmethod
     def from_ruleset(cls, ruleset, run):
-        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, basestring):
+        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, six.string_types):
             # initial message, menu obj
             obj = json.loads(ruleset.config)
             rules = json.loads(ruleset.rules)
@@ -5246,13 +5246,13 @@ class UssdAction(ReplyAction):
 
     def add_menu_to_msg(self, rules):
         # start with a new line
-        self.msg = {language: localised_msg + '\n' for language, localised_msg in self.msg.iteritems()}
+        self.msg = {language: localised_msg + '\n' for language, localised_msg in six.iteritems(self.msg)}
 
         # add menu to the msg
         for rule in rules:
             if rule.get('label'):  # filter "other" and "interrupted"
                 self.msg = {language: localised_msg + ": ".join(
-                    (str(rule['test']['test']), self.get_menu_label(rule['label'], language),)) + '\n' for language, localised_msg in self.msg.iteritems()}
+                    (str(rule['test']['test']), self.get_menu_label(rule['label'], language),)) + '\n' for language, localised_msg in six.iteritems(self.msg)}
 
 
 class VariableContactAction(Action):

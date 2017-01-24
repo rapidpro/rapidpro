@@ -344,7 +344,7 @@ def datetime_decoder(d):
         pairs = d.items()
     result = []
     for k, v in pairs:
-        if isinstance(v, basestring):
+        if isinstance(v, six.string_types):
             try:
                 # The %f format code is only supported in Python >= 2.6.
                 # For Python <= 2.5 strip off microseconds

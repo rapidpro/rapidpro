@@ -271,7 +271,7 @@ class ContactForm(forms.ModelForm):
                 return False
 
         # validate URN fields
-        for field_key, value in self.data.iteritems():
+        for field_key, value in six.iteritems(self.data):
             if field_key.startswith('urn__') and value:
                 scheme = field_key.split('__')[1]
                 validate_urn(field_key, scheme, value)
@@ -958,7 +958,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def save(self, obj):
             urns = []
-            for field_key, value in self.form.cleaned_data.iteritems():
+            for field_key, value in six.iteritems(self.form.cleaned_data):
                 if field_key.startswith('urn__') and value:
                     scheme = field_key.split('__')[1]
                     urns.append(URN.from_parts(scheme, value))
@@ -1016,7 +1016,7 @@ class ContactCRUDL(SmartCRUDL):
             if not self.org.is_anon:
                 urns = []
 
-                for field_key, value in self.form.data.iteritems():
+                for field_key, value in six.iteritems(self.form.data):
                     if field_key.startswith('urn__') and value:
                         parts = field_key.split('__')
                         scheme = parts[1]
