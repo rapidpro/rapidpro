@@ -2265,7 +2265,8 @@ class ViberPublicHandler(BaseChannelHandler):
             #    "message_token": 4912661846655238145
             # }
             viber_id = body['user']['id']
-            contact = Contact.get_or_create(channel.org, channel.created_by, body['user'].get('name'), urns=[URN.from_viber(viber_id)])
+            contact_name = None if channel.org.is_anon else body['user'].get('name')
+            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[URN.from_viber(viber_id)])
             Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
             return HttpResponse("Subscription for contact: %s handled" % viber_id)
 
@@ -2391,8 +2392,9 @@ class ViberPublicHandler(BaseChannelHandler):
 
             # get or create our contact with any name sent in
             urn = URN.from_viber(body['sender']['id'])
-            contact = Contact.get_or_create(channel.org, channel.created_by,
-                                            body['sender'].get('name'), urns=[urn])
+
+            contact_name = None if channel.org.is_anon else body['sender'].get('name')
+            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
 
             # add our caption first if it is present
             if caption:  # pragma: needs cover
