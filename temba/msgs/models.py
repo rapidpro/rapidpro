@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import json
 import logging
@@ -762,7 +762,7 @@ class Msg(models.Model):
                     handled = handler.handle(msg)
 
                     if start:  # pragma: no cover
-                        print "[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk or 0)
+                        print("[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk or 0))
 
                     if handled:
                         break
@@ -1414,7 +1414,7 @@ class Msg(models.Model):
             if recipient.scheme in resolved_schemes:
                 contact = recipient.contact
                 contact_urn = recipient
-        elif isinstance(recipient, basestring):
+        elif isinstance(recipient, six.string_types):
             scheme, path = URN.to_parts(recipient)
             if scheme in resolved_schemes:
                 contact = Contact.get_or_create(org, user, urns=[recipient])
@@ -1615,7 +1615,7 @@ class SystemLabel(models.Model):
         if max_id:
             r.set(SystemLabel.LAST_SQUASH_KEY, max_id.id)
 
-        print "Squashed system label counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
+        print("Squashed system label counts for %d pairs in %0.3fs" % (squash_count, time.time() - start))
 
     @classmethod
     def create_all(cls, org):
@@ -1877,7 +1877,7 @@ class MsgIterator(object):
         self.max_obj_num = max_obj_num
 
     def _setup(self):
-        for i in xrange(0, len(self._ids), self.max_obj_num):
+        for i in six.moves.xrange(0, len(self._ids), self.max_obj_num):
             chunk_queryset = Msg.objects.filter(id__in=self._ids[i:i + self.max_obj_num])
 
             if self._order_by:
@@ -1896,7 +1896,7 @@ class MsgIterator(object):
         return self
 
     def next(self):
-        return self._generator.next()
+        return next(self._generator)
 
 
 class ExportMessagesTask(SmartModel):
@@ -2061,8 +2061,8 @@ class ExportMessagesTask(SmartModel):
             processed += 1
 
             if processed % 10000 == 0:  # pragma: needs cover
-                print "Export of %d msgs for %s - %d%% complete in %0.2fs" % \
-                      (len(all_message_ids), self.org.name, processed * 100 / len(all_message_ids), time.time() - start)
+                print("Export of %d msgs for %s - %d%% complete in %0.2fs" %
+                      (len(all_message_ids), self.org.name, processed * 100 / len(all_message_ids), time.time() - start))
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)

@@ -281,7 +281,7 @@ class APITest(TembaTest):
         # login as administrator
         self.login(self.admin)
         token = self.admin.api_token  # generates token for the user
-        self.assertIsInstance(token, basestring)
+        self.assertIsInstance(token, six.string_types)
         self.assertEqual(len(token), 40)
 
         with self.assertNumQueries(0):  # subsequent lookup of token comes from cache

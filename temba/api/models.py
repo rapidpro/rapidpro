@@ -698,7 +698,7 @@ class APIToken(models.Model):
 
         if group:
             role_names = []
-            for role_name, granted_to in cls.ROLE_GRANTED_TO.iteritems():
+            for role_name, granted_to in six.iteritems(cls.ROLE_GRANTED_TO):
                 if group.name in granted_to:
                     role_names.append(role_name)
 

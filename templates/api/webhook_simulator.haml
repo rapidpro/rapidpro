@@ -78,7 +78,7 @@
 
 
       .request-buttons
-        %a{ href: '{% url "api.webhook" %}#{{ endpoint.event }}' }
+        %a{ href: '{% url "api.webhook" %}\#{{ endpoint.event }}' }
           %i View Full Documentation
 
         -if request.user.is_authenticated

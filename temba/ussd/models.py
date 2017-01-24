@@ -1,5 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
+import six
+
 from django.db import models
 from temba.channels.models import ChannelSession
 from temba.contacts.models import Contact, URN
@@ -79,7 +81,7 @@ class USSDSession(ChannelSession):
             session, created = cls.objects.update_or_create(external_id=external_id, defaults=defaults)
         else:
             defaults.update(dict(external_id=external_id))
-            for key, value in defaults.iteritems():
+            for key, value in six.iteritems(defaults):
                 setattr(session, key, value)
             session.save()
             created = None
