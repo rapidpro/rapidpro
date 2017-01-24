@@ -464,7 +464,7 @@ class FlowTest(TembaTest):
         self.assertEquals(activity['messages'], [])
 
         # check activity with IVR test call
-        IVRCall.create_incoming(self.channel, test_contact, test_contact.get_urn(), self.flow, self.admin)
+        IVRCall.create_incoming(self.channel, test_contact, test_contact.get_urn(), self.flow, self.admin, 'CallSid')
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
         self.assertEquals(2, activity['visited']["%s:%s" % (uuid(1), uuid(5))])
         self.assertEquals(2, activity['activity'][uuid(5)])
