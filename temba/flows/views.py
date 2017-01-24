@@ -169,7 +169,7 @@ class RuleCRUDL(SmartCRUDL):
             return dict(id=ruleset.pk, label=ruleset.label, results=results)
 
         def render_to_response(self, context, **response_kwargs):
-            response = HttpResponse(json.dumps(context), content_type='application/javascript')
+            response = HttpResponse(json.dumps(context), content_type='application/json')
             return response
 
     class Choropleth(OrgPermsMixin, SmartReadView):
@@ -1489,7 +1489,7 @@ class PreprocessTest(FormView):  # pragma: no cover
 
     def post(self, request, *args, **kwargs):
         return HttpResponse(json.dumps(dict(text='Norbert', extra=dict(occupation='hoopster', skillz=7.9))),
-                            content_type='application/javascript')
+                            content_type='application/json')
 
 
 class FlowLabelForm(forms.ModelForm):

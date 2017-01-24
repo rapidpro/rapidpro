@@ -20,7 +20,7 @@ from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.db.models import Count, Sum
-from django.http import Http404, HttpResponse, HttpResponseRedirect
+from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -298,7 +298,7 @@ def sync(request, channel_id):
     commands = []
     channel = Channel.objects.filter(pk=channel_id, is_active=True)
     if not channel:
-        return HttpResponse(json.dumps(dict(cmds=[dict(cmd='rel', relayer_id=channel_id)])), content_type='application/javascript')
+        return JsonResponse(dict(cmds=[dict(cmd='rel', relayer_id=channel_id)]))
 
     channel = channel[0]
 
@@ -306,7 +306,7 @@ def sync(request, channel_id):
     request_signature = request.GET.get('signature', '')
 
     if not channel.secret or not channel.org:
-        return HttpResponse(json.dumps(dict(cmds=[channel.build_registration_command()])), content_type='application/javascript')
+        return JsonResponse(dict(cmds=[channel.build_registration_command()]))
 
     # print "\n\nSECRET: '%s'" % channel.secret
     # print "TS: %s" % request_time
@@ -315,7 +315,7 @@ def sync(request, channel_id):
     # check that the request isn't too old (15 mins)
     now = time.time()
     if abs(now - int(request_time)) > 60 * 15:
-        return HttpResponse(status=401, content='{ "error_id": 3, "error": "Old Request", "cmds":[] }')
+        return JsonResponse({"error_id": 3, "error": "Old Request", "cmds": []}, status=401)
 
     # sign the request
     signature = hmac.new(key=str(channel.secret + request_time), msg=bytes(request.body), digestmod=hashlib.sha256).digest()
@@ -324,8 +324,8 @@ def sync(request, channel_id):
     signature = base64.urlsafe_b64encode(signature).strip()
 
     if request_signature != signature:
-        return HttpResponse(status=401,
-                            content='{ "error_id": 1, "error": "Invalid signature: \'%(request)s\'", "cmds":[] }' % {'request': request_signature})
+        return JsonResponse({"error_id": 1, "error": "Invalid signature: \'%(request)s\'"
+                                                     % {'request': request_signature}, "cmds": []}, status=401)
 
     # update our last seen on our channel
     channel.last_seen = timezone.now()
@@ -442,7 +442,7 @@ def sync(request, channel_id):
     # keep track of how long a sync takes
     analytics.gauge('temba.relayer_sync', time.time() - start)
 
-    return HttpResponse(json.dumps(result), content_type='application/javascript')
+    return JsonResponse(result)
 
 
 @disable_middleware
@@ -460,8 +460,7 @@ def register(request):
     channel = Channel.get_or_create_android(cmds[0], cmds[1])
     cmd = channel.build_registration_command()
 
-    result = dict(cmds=[cmd])
-    return HttpResponse(json.dumps(result), content_type='application/javascript')
+    return JsonResponse(dict(cmds=[cmd]))
 
 
 class ClaimAndroidForm(forms.Form):
@@ -2100,7 +2099,7 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = SearchNumbersForm
 
         def form_invalid(self, *args, **kwargs):  # pragma: needs cover
-            return HttpResponse(json.dumps([]))
+            return JsonResponse([])
 
         def search_available_numbers(self, client, **kwargs):  # pragma: needs cover
             available_numbers = []
@@ -2138,7 +2137,7 @@ class ChannelCRUDL(SmartCRUDL):
                 numbers.append(phonenumbers.format_number(phonenumbers.parse(number.phone_number, None),
                                                           phonenumbers.PhoneNumberFormat.INTERNATIONAL))
 
-            return HttpResponse(json.dumps(numbers))
+            return JsonResponse(numbers)
 
     class BaseClaimNumber(OrgPermsMixin, SmartFormView):
         class ClaimNumberForm(forms.Form):
@@ -2451,9 +2450,9 @@ class ChannelCRUDL(SmartCRUDL):
                     numbers.append(phonenumbers.format_number(phonenumbers.parse(number['msisdn'], data['country']),
                                                               phonenumbers.PhoneNumberFormat.INTERNATIONAL))
 
-                return HttpResponse(json.dumps(numbers))
+                return JsonResponse(numbers)
             except Exception as e:
-                return HttpResponse(json.dumps(error=str(e)))
+                return JsonResponse(dict(error=str(e)))
 
     class ClaimPlivo(BaseClaimNumber):
         class ClaimPlivoForm(forms.Form):
@@ -2607,9 +2606,9 @@ class ChannelCRUDL(SmartCRUDL):
                 for number in results_numbers:
                     numbers.append(phonenumbers.format_number(phonenumbers.parse(number, None),
                                                               phonenumbers.PhoneNumberFormat.INTERNATIONAL))
-                return HttpResponse(json.dumps(numbers))
+                return JsonResponse(numbers)
             except Exception as e:
-                return HttpResponse(json.dumps(dict(error=str(e))))
+                return JsonResponse(dict(error=str(e)))
 
 
 class ChannelEventCRUDL(SmartCRUDL):
