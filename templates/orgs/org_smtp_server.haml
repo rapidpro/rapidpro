@@ -25,9 +25,8 @@
 
   -if object.has_smtp_config and request.META.HTTP_X_FORMAX
     %p
-      If you no longer want to use {{ from_email }} to send emails, you can
-      %a{href:'javascript:confirmSMTPRemove();'}
-        remove your SMTP configuration
+      -blocktrans with from_email=from_email
+        If you no longer want to use {{ from_email }} to send emails, you can <a href='javascript:confirmSMTPRemove();'>remove your SMTP configuration</a>.
 
     .remove-smtp.hide
       .title
