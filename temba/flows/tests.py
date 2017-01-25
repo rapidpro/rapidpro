@@ -33,7 +33,8 @@ from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, str_to_datetime
 from temba.values.models import Value
 from uuid import uuid4
-from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7
+from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7, migrate_to_version_11, \
+    migrate_to_version_10
 from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate_export_to_version_9
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
 from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user
@@ -5642,6 +5643,15 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEquals(5, len(flow_json['action_sets']))
         self.assertEquals(1, len(flow_json['rule_sets']))
 
+    def test_migrate_to_11(self):
+        flow_json = self.get_flow_json('open_ended_and_no_response')
+
+        # migrate to the version right before us first
+        flow_json = migrate_to_version_10(flow_json)
+        flow_json = migrate_to_version_11(flow_json)
+
+        self.assertEqual(flow_json['rule_sets'][0]['rules'][0]['category']['eng'], "All Responses")
+
     @override_settings(SEND_WEBHOOKS=True)
     def test_migrate_to_10(self):
         # this is really just testing our rewriting of webhook rulesets
@@ -5796,7 +5806,8 @@ class FlowMigrationTest(FlowFileTest):
         flow_json = migrate_to_version_7(flow_json)
         flow_json = migrate_to_version_8(flow_json)
 
-        self.assertEqual(flow_json['action_sets'][0]['actions'][0]['msg']['eng'], "Hi @(UPPER(contact.name)). Today is @(date.now)")
+        self.assertEqual(flow_json['action_sets'][0]['actions'][0]['msg']['eng'],
+                         "Hi @(UPPER(contact.name)). Today is @(date.now)")
         self.assertEqual(flow_json['action_sets'][1]['actions'][0]['groups'][0], "@flow.response_1.category")
         self.assertEqual(flow_json['action_sets'][1]['actions'][1]['msg']['eng'], "Was @(PROPER(LOWER(contact.name))).")
         self.assertEqual(flow_json['action_sets'][1]['actions'][1]['variables'][0]['id'], "@flow.response_1.category")

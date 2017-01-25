@@ -1,0 +1,104 @@
+{
+  "campaigns": [], 
+  "version": 11, 
+  "site": "https://app.rapidpro.io", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": "67764611-0387-4ea4-95d2-467ac686d32c", 
+          "uuid": "9d69f946-0782-44be-bd0a-3156425c0674", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "What do you think?"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 363, 
+          "x": 62, 
+          "destination": null, 
+          "uuid": "2981dab1-60a2-4f8b-a826-381121305b0e", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Thanks, see you."
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 321, 
+          "x": 324, 
+          "destination": null, 
+          "uuid": "29b0a384-8f23-4662-8b13-4b8548e336c0", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Goodbye"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 11, 
+      "flow_type": "F", 
+      "entry": "9d69f946-0782-44be-bd0a-3156425c0674", 
+      "rule_sets": [
+        {
+          "uuid": "67764611-0387-4ea4-95d2-467ac686d32c", 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "2981dab1-60a2-4f8b-a826-381121305b0e", 
+              "uuid": "6db87672-b799-4d3b-9a78-c8d9f4579696", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "type": "timeout", 
+                "minutes": 5
+              }, 
+              "category": {
+                "eng": "No Response"
+              }, 
+              "destination": "29b0a384-8f23-4662-8b13-4b8548e336c0", 
+              "uuid": "21a450a6-ca74-41d7-ae93-2715e75ca84d", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Response 1", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 220, 
+          "x": 129, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 7, 
+        "uuid": "61a9a8de-54fb-4d4a-a791-4baa176e4992", 
+        "name": "open-ended-no-response", 
+        "saved_on": "2017-01-25T13:14:47.772525Z"
+      }
+    }
+  ], 
+  "triggers": []
+}
