@@ -168,6 +168,7 @@ class TwimlAPIHandler(BaseChannelHandler):
                 call = IVRCall.objects.filter(external_id=call_sid).first()
                 if call:
                     call.update_status(request.POST.get('CallStatus', None), request.POST.get('CallDuration', None))
+                    call.save()
                     return HttpResponse("Call status updated")
             return HttpResponse("No call found")
 
