@@ -3449,9 +3449,6 @@ class ChannelSession(SmartModel):
     duration = models.IntegerField(default=0, null=True,
                                    help_text="The length of this session in seconds")
 
-    parent = models.ForeignKey('ChannelSession', verbose_name=_("Parent Session"), related_name='child_sessions', null=True,
-                               help_text=_("The session that triggered this one"))
-
     def is_done(self):
         return self.status in self.DONE
 

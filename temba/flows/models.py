@@ -1592,7 +1592,10 @@ class Flow(TembaModel):
                 run.update_fields(extra)
 
             # create our call objects
-            call = IVRCall.create_outgoing(channel, contact, contact_urn, self, self.created_by)
+            if parent_run and parent_run.session:
+                call = parent_run.session
+            else:
+                call = IVRCall.create_outgoing(channel, contact, contact_urn, self, self.created_by)
 
             # save away our created call
             run.session = call
