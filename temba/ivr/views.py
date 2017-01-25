@@ -41,12 +41,6 @@ class CallHandler(View):
             status = request.POST.get('CallStatus', None)
             duration = request.POST.get('CallDuration', None)
             call.update_status(status, duration)
-
-            # update any calls we have spawned with the same
-            for child in call.child_sessions.all():
-                child.update_status(status, duration)
-                child.save()
-
             call.save()
 
             # figure out if this is a callback due to an empty gather
