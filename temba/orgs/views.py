@@ -37,7 +37,7 @@ from temba.assets.models import AssetType
 from temba.channels.models import Channel
 from temba.formax import FormaxMixin
 from temba.nexmo import NexmoClient, NexmoValidationError
-from temba.utils import analytics, languages
+from temba.utils import analytics, languages, email
 from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import TimeZoneFormField
 from twilio.rest import TwilioRestClient
@@ -851,7 +851,7 @@ class OrgCRUDL(SmartCRUDL):
                         raise ValidationError(_("You must enter a from email"))
 
                     parsed = parseaddr(smtp_from_email)
-                    if not parsed[1]:
+                    if email.is_valid_address(parsed[1]):
                         raise ValidationError(_("Please enter a valid email address"))
 
                     if not smtp_host:

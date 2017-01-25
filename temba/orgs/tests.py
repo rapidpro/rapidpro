@@ -1413,6 +1413,11 @@ class OrgTest(TembaTest):
         self.assertEquals('[{"message": "You must enter a from email", "code": ""}]',
                           response.context['form'].errors['__all__'].as_json())
 
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foobar.com',
+                                                          disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "Please enter a valid email address", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
         response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
                                                           disconnect='false'), follow=True)
         self.assertEquals('[{"message": "You must enter the SMTP host", "code": ""}]',
