@@ -2927,7 +2927,7 @@ class ChannelCount(SquashableModel):
     on each day. This allows for fast visualizations of activity on the channel read page as well as summaries
     of message usage over the course of time.
     """
-    SQUASH_OVER = ('channel_id', 'count_type', 'day')
+    SQUASH_OVER = ('channel', 'count_type', 'day')
 
     INCOMING_MSG_TYPE = 'IM'  # Incoming message
     OUTGOING_MSG_TYPE = 'OM'  # Outgoing message

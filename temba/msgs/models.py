@@ -1565,7 +1565,7 @@ class SystemLabel(SquashableModel):
     """
     Counts of messages/broadcasts/calls maintained by database level triggers
     """
-    SQUASH_OVER = ('org_id', 'label_type')
+    SQUASH_OVER = ('org', 'label_type')
 
     TYPE_INBOX = 'I'
     TYPE_FLOWS = 'W'

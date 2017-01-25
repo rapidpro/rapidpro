@@ -336,7 +336,7 @@ def purge_broadcasts_task():
 
         print("[PURGE] Purged %d of %d broadcasts (%d messages deleted)" % (bcasts_purged, len(purge_ids), msgs_deleted))
 
-    Debit.squash_purge_debits()
+    Debit.squash()
 
     print("[PURGE] Finished purging %d broadcasts older than %s, deleting %d messages" % (len(purge_ids), purge_before, msgs_deleted))
 

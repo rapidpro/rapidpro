@@ -3700,7 +3700,7 @@ class FlowPathCount(SquashableModel):
     """
     Maintains hourly counts of flow paths
     """
-    SQUASH_OVER = ('flow_id', 'from_uuid', 'to_uuid', 'period')
+    SQUASH_OVER = ('flow', 'from_uuid', 'to_uuid', 'period')
 
     flow = models.ForeignKey(Flow, related_name='activity', help_text=_("The flow where the activity occurred"))
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
@@ -3804,7 +3804,7 @@ class FlowRunCount(SquashableModel):
     Maintains counts of different states of exit types of flow runs on a flow. These are calculated
     via triggers on the database.
     """
-    SQUASH_OVER = ('flow_id', 'exit_type')
+    SQUASH_OVER = ('flow', 'exit_type')
 
     flow = models.ForeignKey(Flow, related_name='counts')
     exit_type = models.CharField(null=True, max_length=1, choices=FlowRun.EXIT_TYPE_CHOICES)
