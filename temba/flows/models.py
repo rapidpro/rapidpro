@@ -402,8 +402,8 @@ class Flow(TembaModel):
         if not user_response:
             user_response = {}
 
-        flow = call.flow
-        run = FlowRun.objects.filter(session=call).first()
+        run = FlowRun.objects.filter(session=call, is_active=True).order_by('-created_on').first()
+        flow = run.flow
 
         # make sure we have the latest version
         flow.ensure_current_version()
@@ -1595,7 +1595,7 @@ class Flow(TembaModel):
             if parent_run and parent_run.session:
                 call = parent_run.session
             else:
-                call = IVRCall.create_outgoing(channel, contact, contact_urn, self, self.created_by)
+                call = IVRCall.create_outgoing(channel, contact, contact_urn, self.created_by)
 
             # save away our created call
             run.session = call

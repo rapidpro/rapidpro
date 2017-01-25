@@ -29,4 +29,8 @@ class Migration(migrations.Migration):
             model_name='channelsession',
             name='parent',
         ),
+        migrations.RemoveField(
+            model_name='channelsession',
+            name='flow',
+        ),
     ]

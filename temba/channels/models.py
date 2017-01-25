@@ -3436,8 +3436,6 @@ class ChannelSession(SmartModel):
 
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES,
                                  help_text="The direction of this session, either incoming or outgoing")
-    flow = models.ForeignKey('flows.Flow', null=True,
-                             help_text="The flow this session was part of")
     started_on = models.DateTimeField(null=True, blank=True,
                                       help_text="When this session was connected and started")
     ended_on = models.DateTimeField(null=True, blank=True,
