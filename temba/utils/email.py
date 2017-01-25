@@ -4,7 +4,7 @@ import re
 import six
 
 from django.core.exceptions import ValidationError
-from django.core.mail import EmailMultiAlternatives, send_mail
+from django.core.mail import EmailMultiAlternatives, send_mail, get_connection as get_smtp_connection
 from django.core.validators import EmailValidator
 from django.template import loader, Context
 from django.conf import settings
@@ -62,6 +62,30 @@ def send_simple_email(recipients, subject, body):
     send_temba_email(subject, body, None, from_email, recipient_list)
 
 
+def send_custom_smtp_email(recipients, subject, body, smtp_host, smtp_port, smtp_username, smtp_password, use_tls):
+    """
+    Sends a text email to the given recipients using the SMTP configuration
+
+    :param recipients: address or list of addresses to send the mail to
+    :param subject: subject of the email
+    :param body: body of the email
+    :param smtp_host: SMTP server
+    :param smtp_port: SMTP port
+    :param smtp_username: SMTP username
+    :param smtp_password: SMTP password
+    :param use_tls: Whether to use TLS
+    """
+    recipient_list = [recipients] if isinstance(recipients, basestring) else recipients
+
+    if smtp_port is not None:
+        smtp_port = int(smtp_port)
+
+    connection = get_smtp_connection(None, fail_silently=False, host=smtp_host, port=smtp_port, username=smtp_username,
+                                     password=smtp_password, use_tls=use_tls)
+
+    send_temba_email(subject, body, None, smtp_username, recipient_list, connection=connection)
+
+
 def send_template_email(recipients, subject, template, context, branding):
     """
     Sends a multi-part email rendered from templates for the text and html parts
@@ -87,17 +111,17 @@ def send_template_email(recipients, subject, template, context, branding):
     send_temba_email(subject, text, html, from_email, recipient_list)
 
 
-def send_temba_email(subject, text, html, from_email, recipient_list):
+def send_temba_email(subject, text, html, from_email, recipient_list, connection=None):
     """
     Actually sends the email. Having this as separate function makes testing multi-part emails easier
     """
     if settings.SEND_EMAILS:
         if html is not None:
-            message = EmailMultiAlternatives(subject, text, from_email, recipient_list)
+            message = EmailMultiAlternatives(subject, text, from_email, recipient_list, connection=connection)
             message.attach_alternative(html, "text/html")
             message.send()
         else:
-            send_mail(subject, text, from_email, recipient_list)
+            send_mail(subject, text, from_email, recipient_list, connection=connection)
     else:
         # just print to console if we aren't meant to send emails
         print("----------- Skipping sending email, SEND_EMAILS to set False -----------")

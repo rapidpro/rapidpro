@@ -1,0 +1,58 @@
+-extends "smartmin/form.html"
+
+-load compress temba smartmin i18n
+
+-block title-icon
+  .title-icon
+    %span.glyph.icon-email
+
+-block form-span
+
+-block title-text
+  .title-text
+    %h1
+      -trans "Remove SMTP configuration"
+
+-block summary
+  -if object.has_smtp_config
+    -trans "Configured SMTP server to send with "
+    <span class='attn'>{{ smtp_username }}</span>
+  -else
+    -trans "No SMTP configured"
+
+-block pre-form
+  -trans "SMTP Configuration"
+  %hr
+
+-block post-form
+  -if object.has_smtp_config and request.META.HTTP_X_FORMAX
+    If you no longer want to use {{ smtp_username }} to send emails, you can
+    %a{href:'javascript:confirmSMTPRemove();'}
+      remove your SMTP configuration
+
+    .remove-smtp.hide
+      .title
+        -trans "Remove SMTP configuration"
+      .body
+        -blocktrans with brand=brand.name
+          Removing your SMTP configuration will result in emails being delivered from {{ brand }} that cannot be replied to. Are you sure you want to continue?
+    %a#remove-smtp-form.posterize{href:'{% url "orgs.org_smtp_server" %}?disconnect=true'}
+
+-block extra-script
+  :javascript
+    function confirmSMTPRemove() {
+      removalConfirmation("remove-smtp", "Remove");
+    }
+
+    $(document).ready(function() {
+      $('#id_smtp_encryption').select2({
+        containerCssClass: 'select2-smtp-encryption',
+        minimumResultsForSearch: '-1',
+      });
+    });
+
+-block extra-style
+  :css
+    .select2-smtp-encryption {
+      width: 365px;
+    }

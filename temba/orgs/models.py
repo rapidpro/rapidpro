@@ -26,6 +26,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction, connection
 from django.db.models import Sum, F, Q
 from django.utils import timezone
+from temba.utils.email import send_simple_email, send_custom_smtp_email
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
 from django_redis import get_redis_connection
@@ -96,6 +97,12 @@ NEXMO_UUID = 'NEXMO_UUID'
 
 TRANSFERTO_ACCOUNT_LOGIN = 'TRANSFERTO_ACCOUNT_LOGIN'
 TRANSFERTO_AIRTIME_API_TOKEN = 'TRANSFERTO_AIRTIME_API_TOKEN'
+
+EMAIL_SMTP_HOST = 'EMAIL_SMTP_HOST'
+EMAIL_SMTP_USERNAME = 'EMAIL_SMTP_USERNAME'
+EMAIL_SMTP_PASSWORD = 'EMAIL_SMTP_PASSWORD'
+EMAIL_SMTP_PORT = 'EMAIL_SMTP_PORT'
+EMAIL_SMTP_ENCRYPTION = 'EMAIL_SMTP_ENCRYPTION'
 
 ORG_STATUS = 'STATUS'
 SUSPENDED = 'suspended'
@@ -668,6 +675,54 @@ class Org(SmartModel):
                 with r.lock(key, timeout=900):
                     pending = Channel.get_pending_messages(self)
                     Msg.send_messages(pending)
+
+    def add_smtp_config(self, host, username, password, port, encryption, user):
+        smtp_config = {EMAIL_SMTP_HOST: host, EMAIL_SMTP_USERNAME: username, EMAIL_SMTP_PASSWORD: password,
+                       EMAIL_SMTP_PORT: port, EMAIL_SMTP_ENCRYPTION: encryption}
+
+        config = self.config_json()
+        config.update(smtp_config)
+        self.config = json.dumps(config)
+        self.modified_by = user
+        self.save()
+
+    def remove_smtp_config(self, user):
+        if self.config:
+            config = self.config_json()
+            config.pop(EMAIL_SMTP_HOST)
+            config.pop(EMAIL_SMTP_USERNAME)
+            config.pop(EMAIL_SMTP_PASSWORD)
+            config.pop(EMAIL_SMTP_PORT)
+            config.pop(EMAIL_SMTP_ENCRYPTION)
+            self.config = json.dumps(config)
+            self.modified_by = user
+            self.save()
+
+    def has_smtp_config(self):
+        if self.config:
+            config = self.config_json()
+            smtp_host = config.get(EMAIL_SMTP_HOST, None)
+            smtp_username = config.get(EMAIL_SMTP_USERNAME, None)
+            smtp_password = config.get(EMAIL_SMTP_PASSWORD, None)
+            smtp_port = config.get(EMAIL_SMTP_PORT, None)
+
+            return smtp_host and smtp_username and smtp_password and smtp_port
+        else:
+            return False
+
+    def email_action_send(self, recipients, subject, message):
+        if self.has_smtp_config():
+            config = self.config_json()
+            smtp_host = config.get(EMAIL_SMTP_HOST, None)
+            smtp_port = config.get(EMAIL_SMTP_PORT, None)
+            smtp_username = config.get(EMAIL_SMTP_USERNAME, None)
+            smtp_password = config.get(EMAIL_SMTP_PASSWORD, None)
+            use_tls = config.get(EMAIL_SMTP_ENCRYPTION, None) == 'T' or None
+
+            send_custom_smtp_email(recipients, subject, message, smtp_host, smtp_port, smtp_username, smtp_password,
+                                   use_tls)
+        else:
+            send_simple_email(recipients, subject, message)
 
     def has_airtime_transfers(self):
         from temba.airtime.models import AirtimeTransfer
