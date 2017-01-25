@@ -36,7 +36,7 @@
 -block form-buttons
   .form-actions
     -if config.ACCOUNT_SID and config.ACCOUNT_TOKEN
-      %input.btn.btn-danger{type:"submit", value:"={ submit_button_name }"}
+      %input.btn.btn-danger{type:"submit", value:"{{ submit_button_name }}"}
     -else
       %a.btn.btn-primary{href:"{% url 'orgs.org_twilio_connect'%}"}
         Connect Twilio

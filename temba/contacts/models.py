@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import datetime
 import json
@@ -54,6 +54,8 @@ TELEGRAM_SCHEME = 'telegram'
 TWILIO_SCHEME = 'twilio'
 TWITTER_SCHEME = 'twitter'
 VIBER_SCHEME = 'viber'
+
+FACEBOOK_PATH_REF_PREFIX = 'ref:'
 
 # Scheme, Label, Export/Import Header, Context Key
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
@@ -140,8 +142,22 @@ class URN(object):
             except ValidationError:
                 return False
 
-        # telegram and facebook uses integer ids
-        elif scheme in (TELEGRAM_SCHEME, FACEBOOK_SCHEME):
+        # facebook uses integer ids or temp ref ids
+        elif scheme == FACEBOOK_SCHEME:
+            # we don't validate facebook refs since they come from the outside
+            if URN.is_path_fb_ref(path):
+                return True
+
+            # otherwise, this should be an int
+            else:
+                try:
+                    int(path)
+                    return True
+                except ValueError:
+                    return False
+
+        # telegram uses integer ids
+        elif scheme == TELEGRAM_SCHEME:
             try:
                 int(path)
                 return True
@@ -211,6 +227,18 @@ class URN(object):
 
         # this must be a local number of some kind, just lowercase and save
         return regex.sub('[^0-9a-z]', '', number.lower(), regex.V0), False
+
+    @classmethod
+    def fb_ref_from_path(cls, path):
+        return path[len(FACEBOOK_PATH_REF_PREFIX):]
+
+    @classmethod
+    def path_from_fb_ref(cls, ref):
+        return FACEBOOK_PATH_REF_PREFIX + ref
+
+    @classmethod
+    def is_path_fb_ref(cls, path):
+        return path.startswith(FACEBOOK_PATH_REF_PREFIX)
 
     # ==================== shortcut constructors ===========================
 
@@ -504,7 +532,14 @@ class Contact(TembaModel):
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
         runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
+        exited_runs = runs.exclude(exit_type=None)
+
         runs = runs.select_related('flow')
+        exited_runs = exited_runs.select_related('flow')
+
+        for exit_run in exited_runs:
+            exit_run.created_on = exit_run.exited_on
+            exit_run.run_event_type = 'Exited'
 
         channel_events = self.channel_events.filter(created_on__gte=after, created_on__lt=before)
         channel_events = channel_events.select_related('channel')
@@ -523,7 +558,7 @@ class Contact(TembaModel):
         error_calls = error_calls.select_related('channel')
 
         # chain them all together in the same list and sort by time
-        activity = chain(msgs, broadcasts, runs, event_fires, channel_events, error_calls)
+        activity = chain(msgs, broadcasts, runs, exited_runs, event_fires, channel_events, error_calls)
         return sorted(activity, key=lambda i: i.created_on, reverse=True)
 
     def get_field(self, key):
@@ -846,7 +881,7 @@ class Contact(TembaModel):
             urn_objects = existing_orphan_urns.copy()
 
             # add all new URNs
-            for raw, normalized in urns_to_create.iteritems():
+            for raw, normalized in six.iteritems(urns_to_create):
                 urn = ContactURN.get_or_create(org, contact, normalized, channel=channel)
                 urn_objects[raw] = urn
 
@@ -1563,7 +1598,7 @@ class Contact(TembaModel):
         """
         Gets the highest priority matching URN for this contact. Schemes may be a single scheme or a set/list/tuple
         """
-        if isinstance(schemes, basestring):
+        if isinstance(schemes, six.string_types):
             schemes = (schemes,)
 
         urns = self.get_urns()
@@ -1739,6 +1774,7 @@ class ContactURN(models.Model):
 
     SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME}  # schemes that support "follow" triggers
     SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME}  # schemes that support "new conversation" triggers
+    SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
     EXPORT_FIELDS = {
         TEL_SCHEME: dict(label="Phone", key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
@@ -2217,7 +2253,7 @@ class ContactGroupCount(models.Model):
         if max_id:
             r.set(ContactGroupCount.LAST_SQUASH_KEY, max_id.id)
 
-        print "Squashed group counts for %d groups in %0.3fs" % (squash_count, time.time() - start)
+        print("Squashed group counts for %d groups in %0.3fs" % (squash_count, time.time() - start))
 
     @classmethod
     def contact_count(cls, group):
@@ -2375,10 +2411,10 @@ class ExportContactsTask(SmartModel):
                         elapsed = time.time() - start
                         predicted = int(elapsed / (current_contact / (len(contact_ids) * 1.0)))
 
-                        print "Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)" % \
-                            (self.org.name, current_contact * 100 / len(contact_ids),
-                             "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
-                             time.time() - start, predicted)
+                        print("Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)" %
+                              (self.org.name, current_contact * 100 / len(contact_ids),
+                               "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
+                               time.time() - start, predicted))
 
         # save as file asset associated with this task
         from temba.assets.models import AssetType

@@ -34,15 +34,15 @@
                 -trans "Contacts"
               - for folder in folders
                 %li{'class':'{% if request.path == folder.url %}active{% endif %}'}
-                  %a{'href':'={folder.url}'}
-                    ={folder.label} ({{ folder.count | intcomma }})
+                  %a{'href':'{{folder.url}}'}
+                    {{folder.label}} ({{ folder.count | intcomma }})
 
               %li.nav-header
                 -trans "Groups"
               - for group in groups
                 %li{'class':'{% if current_group.id == group.pk %}active{% endif %}'}
                   %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
-                    ={group.label} ({{ group.count | intcomma }})
+                    {{group.label}} ({{ group.count | intcomma }})
 
           %div{style:"margin-top: 10px"}
             - if org_perms.contacts.contact_create
@@ -183,7 +183,7 @@
                             - for group in object.user_groups.all
                               %span.label.label-info.lbl{ data-id: '{{group.id}}'}
                                 %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
-                                  ={group.name}
+                                  {{group.name}}
 
                   -empty
                     %tr

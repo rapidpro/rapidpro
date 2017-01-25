@@ -1,3 +1,25 @@
+v3.0.19
+----------
+ * Improve performance of contact searches by location by fetching locations in separate query
+
+v3.0.18
+----------
+ * Update pyparsing to 2.1.10
+ * Update to new django-hamlpy
+ * Display flow runs exits on the contact timeline
+ * Fix Travis settings file for Python 3
+ * Fix more Python 3 syntax issues
+ * Fix RecentMessages no longer supporting requests with multiple rules, and add tests for that
+ * Use print as function rather than statement for future Python 3 compatibility
+ * Do not populate contact name for anon orgs from Viber
+ * Add is_squashed to FlowPathCount and FlowRunCount
+ * Updates to using boto3, if using AWS for storing imports or exports you'll need to change your settings file: `DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'`
+
+v3.0.14
+----------
+ * Allow for the creation of Facebook referral triggers (opt-in on FB)
+ * Allow for whitelisting of domains for Facebook channels
+
 v3.0.13
 ----------
  * New contact field editing UI with Intercooler modals
