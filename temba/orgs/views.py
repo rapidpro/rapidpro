@@ -505,7 +505,7 @@ class OrgCRUDL(SmartCRUDL):
             triggers = dependencies['triggers']
 
             export = self.get_object().export_definitions(request.branding['link'], flows, campaigns, triggers)
-            response = HttpResponse(json.dumps(export, indent=2), content_type='application/javascript')
+            response = JsonResponse(export, json_dumps_params=dict(indent=2))
             response['Content-Disposition'] = 'attachment; filename=%s.json' % slugify(self.get_object().name)
             return response
 
