@@ -202,6 +202,9 @@ class TwimlAPIHandler(BaseChannelHandler):
             return HttpResponse("", status=200)
 
         elif action == 'received':
+            if not to_number:
+                return HttpResponse("Must provide To number for received messages", status=400)
+
             channel = self.get_receive_channel(channel_uuid=channel_uuid, to_number=to_number)
             if not channel:
                 return HttpResponse("No active channel found for number: %s" % to_number, status=400)

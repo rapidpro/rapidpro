@@ -5396,6 +5396,16 @@ class TwilioTest(TembaTest):
                                               APPLICATION_SID: self.application_sid})
         self.channel.org.save()
 
+    def signed_request(self, url, data, validator=None):
+        """
+        Makes a post to the Twilio handler with a computed signature
+        """
+        if not validator:
+            validator = RequestValidator(self.org.get_twilio_client().auth[1])
+
+        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + url, data)
+        return self.client.post(url, data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
@@ -5495,10 +5505,8 @@ class TwilioTest(TembaTest):
 
         self.channel.org.save()
 
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
-        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
-
-        self.assertEquals(201, response.status_code)
+        response = self.signed_request(twilio_url, post_data)
+        self.assertEqual(response.status_code, 201)
 
         # and we should have a new message
         msg1 = Msg.objects.get()
@@ -5508,12 +5516,17 @@ class TwilioTest(TembaTest):
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("Hello World", msg1.text)
 
+        # try without including number, but with country
+        del post_data['To']
+        post_data['ToCountry'] = 'RW'
+        response = self.signed_request(twilio_url, post_data)
+        self.assertEqual(response.status_code, 400)
+
         # try with non-normalized number
         post_data['To'] = '0785551212'
         post_data['ToCountry'] = 'RW'
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
-        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
-        self.assertEquals(201, response.status_code)
+        response = self.signed_request(twilio_url, post_data)
+        self.assertEqual(response.status_code, 201)
 
         # and we should have another new message
         msg2 = Msg.objects.exclude(pk=msg1.pk).get()
@@ -5527,29 +5540,24 @@ class TwilioTest(TembaTest):
         msg = Msg.objects.get()
 
         # now update the status via a callback
-        twilio_url = reverse('handlers.twilio_handler') + "?action=callback&id=%d" % msg.id
         post_data['SmsStatus'] = 'sent'
+        validator = RequestValidator(self.org.get_twilio_client().auth[1])
 
         # remove twilio connection
         self.channel.org.config = json.dumps({})
         self.channel.org.save()
 
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
-        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
-
-        self.assertEquals(400, response.status_code)
+        response = self.signed_request(twilio_url + "?action=callback&id=%d" % msg.id, post_data, validator)
+        self.assertEqual(response.status_code, 400)
 
         # connect twilio again
         self.channel.org.config = json.dumps({ACCOUNT_SID: self.account_sid,
                                               ACCOUNT_TOKEN: self.account_token,
                                               APPLICATION_SID: self.application_sid})
-
         self.channel.org.save()
 
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
-        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
-
-        self.assertEquals(200, response.status_code)
+        response = self.signed_request(twilio_url + "?action=callback&id=%d" % msg.id, post_data)
+        self.assertEqual(response.status_code, 200)
 
         msg = Msg.objects.get()
         self.assertEquals(SENT, msg.status)
@@ -5559,35 +5567,32 @@ class TwilioTest(TembaTest):
         contact.send("outgoing message", self.admin)
         msg = Msg.objects.get()
 
-        # now update the status via a callback (also test old api/v1 URL)
-        twilio_url = reverse('handlers.twilio_handler') + "?action=callback&id=%d" % msg.id
+        # now update the status via a callback
         post_data['SmsStatus'] = 'failed'
 
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
-        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+        response = self.signed_request(twilio_url + "?action=callback&id=%d" % msg.id, post_data)
+        self.assertEqual(response.status_code, 200)
 
-        self.assertEquals(200, response.status_code)
         msg = Msg.objects.get()
         self.assertEquals(FAILED, msg.status)
 
         # no message with id
         Msg.objects.all().delete()
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
-        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
-        self.assertEquals(400, response.status_code)
+        response = self.signed_request(twilio_url + "?action=callback&id=%d" % msg.id, post_data)
+        self.assertEqual(response.status_code, 400)
 
-        Msg.objects.all().delete()
+        # test TwiML Handler...
 
-        # Test TwiML Handler right now
         self.channel.delete()
-
         post_data = dict(To=self.channel.address, From='+250788383300', Body="Hello World")
+
+        # try without signing
         twiml_api_url = reverse('handlers.twiml_api_handler', args=['1234-1234-1234-12345'])
         response = self.client.post(twiml_api_url, post_data)
-        self.assertEquals(400, response.status_code)
+        self.assertEqual(response.status_code, 400)
 
-        # Create new channel
+        # create new channel
         self.channel = Channel.create(self.org, self.user, 'RW', 'TW', None, '+250785551212',
                                       uuid='00000000-0000-0000-0000-000000001234')
 
