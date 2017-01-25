@@ -919,7 +919,7 @@ class OrgCRUDL(SmartCRUDL):
                 from_email = settings.FLOW_FROM_EMAIL
 
             # populate our context with the from email (just the address)
-            context['from_email'] = parseaddr(from_email)[1]
+            context['flow_from_email'] = parseaddr(from_email)[1]
 
             return context
 

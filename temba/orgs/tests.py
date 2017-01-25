@@ -1449,7 +1449,7 @@ class OrgTest(TembaTest):
 
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
-        self.assertEquals(self.org.config_json()['SMTP_FROM_EMAIL'], 'support@example.com')
+        self.assertEquals(self.org.config_json()['SMTP_FROM_EMAIL'], 'foo@bar.com')
         self.assertEquals(self.org.config_json()['SMTP_HOST'], 'smtp.example.com')
         self.assertEquals(self.org.config_json()['SMTP_USERNAME'], 'support@example.com')
         self.assertEquals(self.org.config_json()['SMTP_PASSWORD'], 'secret')
@@ -1457,7 +1457,7 @@ class OrgTest(TembaTest):
         self.assertEquals(self.org.config_json()['SMTP_ENCRYPTION'], '')
 
         response = self.client.get(smtp_server_url)
-        self.assertEquals('support@example.com', response.context['smtp_username'])
+        self.assertEquals('foo@bar.com', response.context['flow_from_email'])
 
         self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
                                                smtp_host='smtp.example.com',
