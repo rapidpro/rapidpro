@@ -47,7 +47,7 @@ from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromG
 from .models import VariableContactAction, UssdAction
 from .views import FlowCRUDL
 from .flow_migrations import map_actions
-from .tasks import update_run_expirations_task, prune_flowpathrecentsteps
+from .tasks import update_run_expirations_task, prune_flowpathrecentsteps, squash_flowruncounts, squash_flowpathcounts
 
 
 class FlowTest(TembaTest):
@@ -4155,7 +4155,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(FlowRunCount.run_count(flow), 12)
 
         # squash our counts
-        FlowRunCount.squash_counts()
+        squash_flowruncounts()
         self.assertEqual(FlowRunCount.run_count_for_type(flow, 'I'), 6)
         self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 6)
         self.assertEqual(FlowRunCount.run_count(flow), 12)
@@ -4167,8 +4167,6 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(FlowRunCount.run_count(flow), 12)
 
     def test_squash_run_counts(self):
-        from temba.flows.tasks import squash_flowruncounts
-
         flow = self.get_flow('favorites')
         flow2 = self.get_flow('pick_a_number')
 
@@ -4372,7 +4370,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual([m.text for m in recent], ["burnt sienna"])
 
         # try the same thing after squashing
-        FlowPathCount.squash_counts()
+        squash_flowpathcounts()
         visited = flow.get_activity()[1]
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, visited[other_rule_to_msg])
@@ -4431,7 +4429,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(2, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
 
         # squash our counts and make sure they are still the same
-        FlowPathCount.squash_counts()
+        squash_flowpathcounts()
         self.assertEqual(2, flow.get_visit_counts()[cyan_to_nothing])
 
         # but now we have a single count

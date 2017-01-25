@@ -18,7 +18,6 @@ from django.db import models, connection
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
-from django_redis import get_redis_connection
 from guardian.utils import get_anonymous_user
 from itertools import chain
 from smartmin.models import SmartModel, SmartImportRowError
@@ -27,7 +26,7 @@ from temba.channels.models import Channel
 from temba.orgs.models import Org, OrgLock
 from temba.utils.email import send_template_email
 from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
-from temba.utils.models import TembaModel
+from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.exporter import TableExporter
 from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value
@@ -2220,40 +2219,20 @@ class ContactGroup(TembaModel):
 
 
 @six.python_2_unicode_compatible
-class ContactGroupCount(models.Model):
+class ContactGroupCount(SquashableModel):
     """
     Maintains counts of contact groups. These are calculated via triggers on the database and squashed
-    by a reocurring task.
+    by a reoccurring task.
     """
+    SQUASH_OVER = ('group_id',)
+
     group = models.ForeignKey(ContactGroup, related_name='counts', db_index=True)
     count = models.IntegerField(default=0)
 
-    LAST_SQUASH_KEY = 'last_contactgroupcount_squash'
-
     @classmethod
-    def squash_counts(cls):
-        # get the id of the last count we squashed
-        r = get_redis_connection()
-        last_squash = r.get(ContactGroupCount.LAST_SQUASH_KEY)
-        if not last_squash:
-            last_squash = 0
-
-        # get the unique group ids for all new ones
-        start = time.time()
-        squash_count = 0
-        for count in ContactGroupCount.objects.filter(id__gt=last_squash).order_by('group_id').distinct('group_id'):
-            # perform our atomic squash in SQL by calling our squash method
-            with connection.cursor() as c:
-                c.execute("SELECT temba_squash_contactgroupcounts(%s);", (count.group_id,))
-
-            squash_count += 1
-
-        # insert our new top squashed id
-        max_id = ContactGroupCount.objects.all().order_by('-id').first()
-        if max_id:
-            r.set(ContactGroupCount.LAST_SQUASH_KEY, max_id.id)
-
-        print("Squashed group counts for %d groups in %0.3fs" % (squash_count, time.time() - start))
+    def squash_distinct(cls, distinct_set):
+        with connection.cursor() as c:
+            c.execute("SELECT temba_squash_contactgroupcounts(%s);", (distinct_set.group_id,))
 
     @classmethod
     def contact_count(cls, group):

@@ -142,8 +142,8 @@ def calculate_flow_stats_task(flow_id):
 
 
 @nonoverlapping_task(track_started=True, name="squash_flowpathcounts", lock_key='squash_flowpathcounts')
-def squash_flowpathcounts():  # pragma: needs cover
-    FlowPathCount.squash_counts()
+def squash_flowpathcounts():
+    FlowPathCount.squash()
 
 
 @nonoverlapping_task(track_started=True, name="prune_flowpathrecentsteps")
@@ -153,7 +153,7 @@ def prune_flowpathrecentsteps():
 
 @nonoverlapping_task(track_started=True, name="squash_flowruncounts", lock_key='squash_flowruncounts')
 def squash_flowruncounts():
-    FlowRunCount.squash_counts()
+    FlowRunCount.squash()
 
 
 @task(track_started=True, name="delete_flow_results_task")

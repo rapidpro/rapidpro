@@ -123,7 +123,7 @@ def notify_mage_task(channel_uuid, action):
 
 @nonoverlapping_task(track_started=True, name="squash_channelcounts", lock_key='squash_channelcounts')
 def squash_channelcounts():
-    ChannelCount.squash_counts()
+    ChannelCount.squash()
 
 
 @task(track_started=True, name="fb_channel_subscribe")

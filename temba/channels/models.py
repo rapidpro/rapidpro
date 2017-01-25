@@ -32,15 +32,14 @@ from phonenumbers import NumberParseException
 from smartmin.models import SmartModel
 from temba.nexmo import NexmoClient
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID
-from temba.utils.email import send_template_email
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit
+from temba.utils.email import send_template_email
+from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
+from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from time import sleep
-
 from twilio import TwilioRestException
 from twilio.rest import TwilioRestClient
 from twython import Twython
-from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
-from temba.utils.models import TembaModel, generate_uuid
 from urllib import quote_plus
 from xml.sax.saxutils import quoteattr, escape
 
@@ -2922,13 +2921,13 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
 
 
 @six.python_2_unicode_compatible
-class ChannelCount(models.Model):
+class ChannelCount(SquashableModel):
     """
     This model is maintained by Postgres triggers and maintains the daily counts of messages and ivr interactions
     on each day. This allows for fast visualizations of activity on the channel read page as well as summaries
     of message usage over the course of time.
     """
-    LAST_SQUASH_KEY = 'last_channelcount_squash'
+    SQUASH_OVER = ('channel_id', 'count_type', 'day')
 
     INCOMING_MSG_TYPE = 'IM'  # Incoming message
     OUTGOING_MSG_TYPE = 'OM'  # Outgoing message
@@ -2960,31 +2959,10 @@ class ChannelCount(models.Model):
         return count['count_sum'] if count['count_sum'] is not None else 0
 
     @classmethod
-    def squash_counts(cls):
-        # get the id of the last count we squashed
-        r = get_redis_connection()
-        last_squash = r.get(ChannelCount.LAST_SQUASH_KEY)
-        if not last_squash:
-            last_squash = 0
-
-        # get the unique ids for all new ones
-        start = time.time()
-        squash_count = 0
-        for count in ChannelCount.objects.filter(id__gt=last_squash).order_by('channel_id', 'count_type', 'day')\
-                                                                    .distinct('channel_id', 'count_type', 'day'):
-
-            # perform our atomic squash in SQL by calling our squash method
-            with connection.cursor() as c:
-                c.execute("SELECT temba_squash_channelcount(%s, %s, %s);", (count.channel_id, count.count_type, count.day))
-
-            squash_count += 1
-
-        # insert our new top squashed id
-        max_id = ChannelCount.objects.all().order_by('-id').first()
-        if max_id:
-            r.set(ChannelCount.LAST_SQUASH_KEY, max_id.id)
-
-        print("Squashed channel counts for %d pairs in %0.3fs" % (squash_count, time.time() - start))
+    def squash_distinct(cls, distinct_set):
+        with connection.cursor() as c:
+            c.execute("SELECT temba_squash_channelcount(%s, %s, %s);",
+                      (distinct_set.channel_id, distinct_set.count_type, distinct_set.day))
 
     def __str__(self):  # pragma: no cover
         return "ChannelCount(%d) %s %s count: %d" % (self.channel_id, self.count_type, self.day, self.count)

@@ -39,7 +39,7 @@ from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VE
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils import chunk_list, clean_string, on_transaction_commit
 from temba.utils.email import send_template_email, is_valid_address
-from temba.utils.models import TembaModel, ChunkIterator, generate_uuid
+from temba.utils.models import SquashableModel, TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
 from temba.values.models import Value
@@ -3696,36 +3696,23 @@ class FlowRevision(SmartModel):
 
 
 @six.python_2_unicode_compatible
-class FlowPathCount(models.Model):
+class FlowPathCount(SquashableModel):
     """
     Maintains hourly counts of flow paths
     """
-
-    LAST_SQUASH_KEY = 'last_flowpathcount_squash'
+    SQUASH_OVER = ('flow_id', 'from_uuid', 'to_uuid', 'period')
 
     flow = models.ForeignKey(Flow, related_name='activity', help_text=_("The flow where the activity occurred"))
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(null=True, help_text=_("Which flow node they went to"))
     period = models.DateTimeField(help_text=_("When the activity occured with hourly precision"))
     count = models.IntegerField(default=0)
-    is_squashed = models.BooleanField(default=False, help_text=_("Whether this row was created by squashing"))
 
     @classmethod
-    def squash_counts(cls):
-        # get the unique ids for all new ones
-        start = time.time()
-        squash_count = 0
-
-        for count in cls.objects.filter(is_squashed=False).order_by('flow_id', 'from_uuid', 'to_uuid', 'period')\
-                .distinct('flow_id', 'from_uuid', 'to_uuid', 'period'):
-
-            # perform our atomic squash in SQL by calling our squash method
-            with connection.cursor() as c:
-                c.execute("SELECT temba_squash_flowpathcount(%s, uuid(%s), uuid(%s), %s);", (count.flow_id, count.from_uuid, count.to_uuid, count.period))
-
-            squash_count += 1
-
-        print("Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start))
+    def squash_distinct(cls, distinct_set):
+        with connection.cursor() as c:
+            c.execute("SELECT temba_squash_flowpathcount(%s, uuid(%s), uuid(%s), %s);",
+                      (distinct_set.flow_id, distinct_set.from_uuid, distinct_set.to_uuid, distinct_set.period))
 
     def __str__(self):  # pragma: no cover
         return "FlowPathCount(%d) %s:%s %s count: %d" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count)
@@ -3812,29 +3799,21 @@ class FlowPathRecentStep(models.Model):
 
 
 @six.python_2_unicode_compatible
-class FlowRunCount(models.Model):
+class FlowRunCount(SquashableModel):
     """
     Maintains counts of different states of exit types of flow runs on a flow. These are calculated
     via triggers on the database.
     """
+    SQUASH_OVER = ('flow_id', 'exit_type')
+
     flow = models.ForeignKey(Flow, related_name='counts')
     exit_type = models.CharField(null=True, max_length=1, choices=FlowRun.EXIT_TYPE_CHOICES)
     count = models.IntegerField(default=0)
-    is_squashed = models.BooleanField(default=False, help_text=_("Whether this row was created by squashing"))
 
     @classmethod
-    def squash_counts(cls):
-        # get the unique flow ids for all new ones
-        start = time.time()
-        squash_count = 0
-        for count in cls.objects.filter(is_squashed=False).order_by('flow_id', 'exit_type').distinct('flow_id', 'exit_type'):
-            # perform our atomic squash in SQL by calling our squash method
-            with connection.cursor() as c:
-                c.execute("SELECT temba_squash_flowruncount(%s, %s);", (count.flow_id, count.exit_type))
-
-            squash_count += 1
-
-        print("Squashed run counts for %d pairs in %0.3fs" % (squash_count, time.time() - start))
+    def squash_distinct(cls, distinct_set):
+        with connection.cursor() as c:
+            c.execute("SELECT temba_squash_flowruncount(%s, %s);", (distinct_set.flow_id, distinct_set.exit_type))
 
     @classmethod
     def run_count(cls, flow):

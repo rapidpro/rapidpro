@@ -343,7 +343,7 @@ def purge_broadcasts_task():
 
 @nonoverlapping_task(track_started=True, name="squash_systemlabels")
 def squash_systemlabels():
-    SystemLabel.squash_counts()
+    SystemLabel.squash()
 
 
 @nonoverlapping_task(track_started=True, name='clear_old_msg_external_ids', time_limit=60 * 60 * 36)
