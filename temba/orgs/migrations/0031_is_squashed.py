@@ -23,5 +23,13 @@ class Migration(migrations.Migration):
             name='is_squashed',
             field=models.BooleanField(default=False, help_text='Whether this row was created by squashing'),
         ),
+        migrations.RunSQL(
+            "CREATE INDEX orgs_debit_unsquashed_purged "
+            "ON orgs_debit(topup_id) WHERE NOT is_squashed AND debit_type = 'P'"
+        ),
+        migrations.RunSQL(
+            'CREATE INDEX orgs_topupcredits_unsquashed '
+            'ON orgs_topupcredits(topup_id) WHERE NOT is_squashed'
+        ),
         InstallSQL('0031_orgs')
     ]

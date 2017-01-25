@@ -18,5 +18,9 @@ class Migration(migrations.Migration):
             name='is_squashed',
             field=models.BooleanField(default=False, help_text='Whether this row was created by squashing'),
         ),
+        migrations.RunSQL(
+            'CREATE INDEX msgs_systemlabel_unsquashed '
+            'ON msgs_systemlabel(org_id, label_type) WHERE NOT is_squashed'
+        ),
         InstallSQL('0078_msgs')
     ]

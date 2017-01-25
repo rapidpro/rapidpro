@@ -18,5 +18,9 @@ class Migration(migrations.Migration):
             name='is_squashed',
             field=models.BooleanField(default=False, help_text='Whether this row was created by squashing'),
         ),
+        migrations.RunSQL(
+            'CREATE INDEX contacts_contactgroupcount_unsquashed '
+            'ON contacts_contactgroupcount(group_id) WHERE NOT is_squashed'
+        ),
         InstallSQL('0050_contacts')
     ]

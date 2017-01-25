@@ -18,5 +18,9 @@ class Migration(migrations.Migration):
             name='is_squashed',
             field=models.BooleanField(default=False, help_text='Whether this row was created by squashing'),
         ),
+        migrations.RunSQL(
+            'CREATE INDEX channels_channelcount_unsquashed '
+            'ON channels_channelcount(channel_id, count_type, day) WHERE NOT is_squashed'
+        ),
         InstallSQL('0056_channels')
     ]
