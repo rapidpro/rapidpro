@@ -1,3 +1,7 @@
+v3.0.19
+----------
+ * Improve performance of contact searches by location by fetching locations in separate query
+
 v3.0.18
 ----------
  * Update pyparsing to 2.1.10
@@ -9,6 +13,7 @@ v3.0.18
  * Use print as function rather than statement for future Python 3 compatibility
  * Do not populate contact name for anon orgs from Viber
  * Add is_squashed to FlowPathCount and FlowRunCount
+ * Updates to using boto3, if using AWS for storing imports or exports you'll need to change your settings file: `DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'`
 
 v3.0.14
 ----------

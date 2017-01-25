@@ -31,7 +31,7 @@ django-redis==4.5.0
 django-reversion==1.8.0
 django-rosetta==0.6.2
 Django-Select2==4.3.2
-django-storages==1.5.1
+django-storages==1.5.2
 django-timezone-field==2.0
 djangorestframework==3.5.1
 djangorestframework-xml==1.2.0
