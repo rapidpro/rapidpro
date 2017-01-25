@@ -1410,28 +1410,37 @@ class OrgTest(TembaTest):
         self.assertFalse(self.org.has_smtp_config())
 
         response = self.client.post(smtp_server_url, dict(disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "You must enter a from email", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
+                                                          disconnect='false'), follow=True)
         self.assertEquals('[{"message": "You must enter the SMTP host", "code": ""}]',
                           response.context['form'].errors['__all__'].as_json())
 
-        response = self.client.post(smtp_server_url, dict(smtp_host='smtp.example.com',
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
+                                                          smtp_host='smtp.example.com',
                                                           disconnect='false'), follow=True)
         self.assertEquals('[{"message": "You must enter the SMTP username", "code": ""}]',
                           response.context['form'].errors['__all__'].as_json())
 
-        response = self.client.post(smtp_server_url, dict(smtp_host='smtp.example.com',
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
+                                                          smtp_host='smtp.example.com',
                                                           smtp_username='support@example.com',
                                                           disconnect='false'), follow=True)
         self.assertEquals('[{"message": "You must enter the SMTP password", "code": ""}]',
                           response.context['form'].errors['__all__'].as_json())
 
-        response = self.client.post(smtp_server_url, dict(smtp_host='smtp.example.com',
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
+                                                          smtp_host='smtp.example.com',
                                                           smtp_username='support@example.com',
                                                           smtp_password='secret',
                                                           disconnect='false'), follow=True)
         self.assertEquals('[{"message": "You must enter the SMTP port", "code": ""}]',
                           response.context['form'].errors['__all__'].as_json())
 
-        response = self.client.post(smtp_server_url, dict(smtp_host='smtp.example.com',
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
+                                                          smtp_host='smtp.example.com',
                                                           smtp_username='support@example.com',
                                                           smtp_password='secret',
                                                           smtp_port='465',
@@ -1440,16 +1449,18 @@ class OrgTest(TembaTest):
 
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
-        self.assertEquals(self.org.config_json()['EMAIL_SMTP_HOST'], 'smtp.example.com')
-        self.assertEquals(self.org.config_json()['EMAIL_SMTP_USERNAME'], 'support@example.com')
-        self.assertEquals(self.org.config_json()['EMAIL_SMTP_PASSWORD'], 'secret')
-        self.assertEquals(self.org.config_json()['EMAIL_SMTP_PORT'], '465')
-        self.assertEquals(self.org.config_json()['EMAIL_SMTP_ENCRYPTION'], '')
+        self.assertEquals(self.org.config_json()['SMTP_FROM_EMAIL'], 'support@example.com')
+        self.assertEquals(self.org.config_json()['SMTP_HOST'], 'smtp.example.com')
+        self.assertEquals(self.org.config_json()['SMTP_USERNAME'], 'support@example.com')
+        self.assertEquals(self.org.config_json()['SMTP_PASSWORD'], 'secret')
+        self.assertEquals(self.org.config_json()['SMTP_PORT'], '465')
+        self.assertEquals(self.org.config_json()['SMTP_ENCRYPTION'], '')
 
         response = self.client.get(smtp_server_url)
         self.assertEquals('support@example.com', response.context['smtp_username'])
 
-        self.client.post(smtp_server_url, dict(smtp_host='smtp.example.com',
+        self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
+                                               smtp_host='smtp.example.com',
                                                smtp_username='support@example.com',
                                                smtp_password='secret',
                                                smtp_port='465',
@@ -1467,7 +1478,8 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertFalse(self.org.has_smtp_config())
 
-        response = self.client.post(smtp_server_url, dict(smtp_host=' smtp.example.com  ',
+        response = self.client.post(smtp_server_url, dict(smtp_from_email=' support@example.com',
+                                                          smtp_host=' smtp.example.com  ',
                                                           smtp_username=' support@example.com ',
                                                           smtp_password='secret ',
                                                           smtp_port='465 ',
@@ -1476,11 +1488,12 @@ class OrgTest(TembaTest):
 
         self.org.refresh_from_db()
         self.assertTrue(self.org.has_smtp_config())
-        self.assertEquals(self.org.config_json()['EMAIL_SMTP_HOST'], 'smtp.example.com')
-        self.assertEquals(self.org.config_json()['EMAIL_SMTP_USERNAME'], 'support@example.com')
-        self.assertEquals(self.org.config_json()['EMAIL_SMTP_PASSWORD'], 'secret')
-        self.assertEquals(self.org.config_json()['EMAIL_SMTP_PORT'], '465')
-        self.assertEquals(self.org.config_json()['EMAIL_SMTP_ENCRYPTION'], 'T')
+        self.assertEquals(self.org.config_json()['SMTP_FROM_EMAIL'], 'support@example.com')
+        self.assertEquals(self.org.config_json()['SMTP_HOST'], 'smtp.example.com')
+        self.assertEquals(self.org.config_json()['SMTP_USERNAME'], 'support@example.com')
+        self.assertEquals(self.org.config_json()['SMTP_PASSWORD'], 'secret')
+        self.assertEquals(self.org.config_json()['SMTP_PORT'], '465')
+        self.assertEquals(self.org.config_json()['SMTP_ENCRYPTION'], 'T')
 
     def test_connect_nexmo(self):
         self.login(self.admin)

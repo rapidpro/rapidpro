@@ -98,11 +98,12 @@ NEXMO_UUID = 'NEXMO_UUID'
 TRANSFERTO_ACCOUNT_LOGIN = 'TRANSFERTO_ACCOUNT_LOGIN'
 TRANSFERTO_AIRTIME_API_TOKEN = 'TRANSFERTO_AIRTIME_API_TOKEN'
 
-EMAIL_SMTP_HOST = 'EMAIL_SMTP_HOST'
-EMAIL_SMTP_USERNAME = 'EMAIL_SMTP_USERNAME'
-EMAIL_SMTP_PASSWORD = 'EMAIL_SMTP_PASSWORD'
-EMAIL_SMTP_PORT = 'EMAIL_SMTP_PORT'
-EMAIL_SMTP_ENCRYPTION = 'EMAIL_SMTP_ENCRYPTION'
+SMTP_FROM_EMAIL = 'SMTP_FROM_EMAIL'
+SMTP_HOST = 'SMTP_HOST'
+SMTP_USERNAME = 'SMTP_USERNAME'
+SMTP_PASSWORD = 'SMTP_PASSWORD'
+SMTP_PORT = 'SMTP_PORT'
+SMTP_ENCRYPTION = 'SMTP_ENCRYPTION'
 
 ORG_STATUS = 'STATUS'
 SUSPENDED = 'suspended'
@@ -676,9 +677,10 @@ class Org(SmartModel):
                     pending = Channel.get_pending_messages(self)
                     Msg.send_messages(pending)
 
-    def add_smtp_config(self, host, username, password, port, encryption, user):
-        smtp_config = {EMAIL_SMTP_HOST: host, EMAIL_SMTP_USERNAME: username, EMAIL_SMTP_PASSWORD: password,
-                       EMAIL_SMTP_PORT: port, EMAIL_SMTP_ENCRYPTION: encryption}
+    def add_smtp_config(self, from_email, host, username, password, port, encryption, user):
+        smtp_config = {SMTP_FROM_EMAIL: from_email.strip(),
+                       SMTP_HOST: host, SMTP_USERNAME: username, SMTP_PASSWORD: password,
+                       SMTP_PORT: port, SMTP_ENCRYPTION: encryption}
 
         config = self.config_json()
         config.update(smtp_config)
@@ -689,11 +691,12 @@ class Org(SmartModel):
     def remove_smtp_config(self, user):
         if self.config:
             config = self.config_json()
-            config.pop(EMAIL_SMTP_HOST)
-            config.pop(EMAIL_SMTP_USERNAME)
-            config.pop(EMAIL_SMTP_PASSWORD)
-            config.pop(EMAIL_SMTP_PORT)
-            config.pop(EMAIL_SMTP_ENCRYPTION)
+            config.pop(SMTP_FROM_EMAIL)
+            config.pop(SMTP_HOST)
+            config.pop(SMTP_USERNAME)
+            config.pop(SMTP_PASSWORD)
+            config.pop(SMTP_PORT)
+            config.pop(SMTP_ENCRYPTION)
             self.config = json.dumps(config)
             self.modified_by = user
             self.save()
@@ -701,28 +704,31 @@ class Org(SmartModel):
     def has_smtp_config(self):
         if self.config:
             config = self.config_json()
-            smtp_host = config.get(EMAIL_SMTP_HOST, None)
-            smtp_username = config.get(EMAIL_SMTP_USERNAME, None)
-            smtp_password = config.get(EMAIL_SMTP_PASSWORD, None)
-            smtp_port = config.get(EMAIL_SMTP_PORT, None)
+            smtp_from_email = config.get(SMTP_FROM_EMAIL, None)
+            smtp_host = config.get(SMTP_HOST, None)
+            smtp_username = config.get(SMTP_USERNAME, None)
+            smtp_password = config.get(SMTP_PASSWORD, None)
+            smtp_port = config.get(SMTP_PORT, None)
 
-            return smtp_host and smtp_username and smtp_password and smtp_port
+            return smtp_from_email and smtp_host and smtp_username and smtp_password and smtp_port
         else:
             return False
 
-    def email_action_send(self, recipients, subject, message):
+    def email_action_send(self, recipients, subject, body):
         if self.has_smtp_config():
             config = self.config_json()
-            smtp_host = config.get(EMAIL_SMTP_HOST, None)
-            smtp_port = config.get(EMAIL_SMTP_PORT, None)
-            smtp_username = config.get(EMAIL_SMTP_USERNAME, None)
-            smtp_password = config.get(EMAIL_SMTP_PASSWORD, None)
-            use_tls = config.get(EMAIL_SMTP_ENCRYPTION, None) == 'T' or None
+            smtp_from_email = config.get(SMTP_FROM_EMAIL, None)
+            smtp_host = config.get(SMTP_HOST, None)
+            smtp_port = config.get(SMTP_PORT, None)
+            smtp_username = config.get(SMTP_USERNAME, None)
+            smtp_password = config.get(SMTP_PASSWORD, None)
+            use_tls = config.get(SMTP_ENCRYPTION, None) == 'T' or None
 
-            send_custom_smtp_email(recipients, subject, message, smtp_host, smtp_port, smtp_username, smtp_password,
+            send_custom_smtp_email(recipients, subject, body, smtp_from_email,
+                                   smtp_host, smtp_port, smtp_username, smtp_password,
                                    use_tls)
         else:
-            send_simple_email(recipients, subject, message)
+            send_simple_email(recipients, subject, body, from_email=settings.FLOW_FROM_EMAIL)
 
     def has_airtime_transfers(self):
         from temba.airtime.models import AirtimeTransfer
