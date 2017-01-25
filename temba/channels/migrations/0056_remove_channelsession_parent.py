@@ -24,13 +24,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(reassign_child_sessions),
-        migrations.RemoveField(
-            model_name='channelsession',
-            name='parent',
-        ),
-        migrations.RemoveField(
-            model_name='channelsession',
-            name='flow',
-        ),
+        migrations.RunPython(reassign_child_sessions)
     ]
