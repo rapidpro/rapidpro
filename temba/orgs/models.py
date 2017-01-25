@@ -2073,7 +2073,7 @@ class Debit(SquashableModel):
     """
     Transactional history of credits allocated to other topups or chunks of archived messages
     """
-    SQUASH_OVER = ('topup',)
+    SQUASH_OVER = ('topup_id',)
 
     TYPE_ALLOCATION = 'A'
     TYPE_PURGE = 'P'
@@ -2118,7 +2118,7 @@ class TopUpCredits(SquashableModel):
     """
     Used to track number of credits used on a topup, mostly maintained by triggers on Msg insertion.
     """
-    SQUASH_OVER = ('topup',)
+    SQUASH_OVER = ('topup_id',)
 
     topup = models.ForeignKey(TopUp,
                               help_text=_("The topup these credits are being used against"))

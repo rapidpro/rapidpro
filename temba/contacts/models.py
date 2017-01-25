@@ -2224,7 +2224,7 @@ class ContactGroupCount(SquashableModel):
     Maintains counts of contact groups. These are calculated via triggers on the database and squashed
     by a reoccurring task.
     """
-    SQUASH_OVER = ('group',)
+    SQUASH_OVER = ('group_id',)
 
     group = models.ForeignKey(ContactGroup, related_name='counts', db_index=True)
     count = models.IntegerField(default=0)
