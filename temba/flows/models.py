@@ -1527,7 +1527,7 @@ class Flow(TembaModel):
                 channel = self.org.get_send_channel(contact_urn=contact_urn)
 
                 session = USSDSession.objects.create(channel=channel, contact=contact, contact_urn=contact_urn,
-                                                     org=self.org, direction=USSDSession.USSD_PUSH, flow=self,
+                                                     org=self.org, direction=USSDSession.USSD_PUSH,
                                                      started_on=timezone.now(), status=USSDSession.INITIATED)
 
             run.session = session

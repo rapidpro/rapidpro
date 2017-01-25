@@ -1215,7 +1215,7 @@ class FlowCRUDL(SmartCRUDL):
             from temba.ivr.models import IVRCall
 
             messages = []
-            call = IVRCall.objects.filter(contact__is_test=True, flow=flow).first()
+            call = IVRCall.objects.filter(contact__is_test=True).first()
             if call:
                 messages = Msg.objects.filter(contact=Contact.get_test_contact(self.request.user)).order_by('created_on')
                 action_logs = list(ActionLog.objects.filter(run__flow=flow, run__contact__is_test=True).order_by('created_on'))
