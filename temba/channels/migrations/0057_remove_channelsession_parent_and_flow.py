@@ -8,7 +8,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0056_remove_channelsession_parent'),
+        ('channels', '0056_remove_child_sessions'),
     ]
 
     operations = [

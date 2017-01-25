@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 from django.db import migrations
 
 
-def reassign_child_sessions(apps, schema_editor):
+def remove_child_sessions(apps, schema_editor):
     ChannelSession = apps.get_model('channels', 'ChannelSession')
     FlowRun = apps.get_model('flows', 'FlowRun')
 
@@ -24,5 +24,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(reassign_child_sessions)
+        migrations.RunPython(remove_child_sessions)
     ]
