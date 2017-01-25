@@ -134,7 +134,7 @@ class TwimlAPIHandler(BaseChannelHandler):
                 flow = Trigger.find_flow_for_inbound_call(contact)
 
                 if flow:
-                    call = IVRCall.create_incoming(channel, contact, urn_obj, flow, channel.created_by)
+                    call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by)
                     call.update_status(request.POST.get('CallStatus', None),
                                        request.POST.get('CallDuration', None))
                     call.save()
