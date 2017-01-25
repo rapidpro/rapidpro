@@ -274,12 +274,19 @@ LOGGING = {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
             'formatter': 'verbose'
-        }
+        },
+        'null': {
+            'class': 'logging.NullHandler',
+        },
     },
     'loggers': {
         'pycountry': {
             'level': 'ERROR',
             'handlers': ['console'],
+            'propagate': False,
+        },
+        'django.security.DisallowedHost': {
+            'handlers': ['null'],
             'propagate': False,
         },
         'django.db.backends': {
@@ -423,6 +430,7 @@ PERMISSIONS = {
                          'claim_blackmyna',
                          'claim_chikka',
                          'claim_clickatell',
+                         'claim_dart_media',
                          'claim_external',
                          'claim_facebook',
                          'claim_globe',
@@ -658,6 +666,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_blackmyna',
         'channels.channel_claim_chikka',
         'channels.channel_claim_clickatell',
+        'channels.channel_claim_dart_media',
         'channels.channel_claim_external',
         'channels.channel_claim_facebook',
         'channels.channel_claim_globe',
@@ -796,6 +805,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_blackmyna',
         'channels.channel_claim_chikka',
         'channels.channel_claim_clickatell',
+        'channels.channel_claim_dart_media',
         'channels.channel_claim_external',
         'channels.channel_claim_facebook',
         'channels.channel_claim_globe',
@@ -1127,15 +1137,6 @@ REST_FRAMEWORK = {
     'UNICODE_JSON': False
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
-
-
-# -----------------------------------------------------------------------------------
-# Aggregator settings
-# -----------------------------------------------------------------------------------
-
-# Hub9 is an aggregator in Indonesia, set this to the endpoint for your service
-# and make sure you send from a whitelisted IP Address
-HUB9_ENDPOINT = 'http://175.103.48.29:28078/testing/smsmt.php'
 
 # -----------------------------------------------------------------------------------
 # Django Compressor configuration
