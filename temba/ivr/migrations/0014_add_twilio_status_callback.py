@@ -20,31 +20,34 @@ def get_twilio_client(org):
 
 
 def fix_twilio_twiml_apps(Org):
-    twilio_orgs = Org.objects.filter(config__icontains='APPLICATION_SID').order_by('created_on')
-    if twilio_orgs:
-        print 'Updating %s orgs with twilio connections..' % len(twilio_orgs)
 
-    for idx, twilio_org in enumerate(twilio_orgs):
-        print '%d: Updating %s (%d)' % ((idx + 1), twilio_org.name, twilio_org.id)
-        client = get_twilio_client(twilio_org)
+    # only run this for production environments
+    if settings.IS_PROD:
+        twilio_orgs = Org.objects.filter(config__icontains='APPLICATION_SID').order_by('created_on')
+        if twilio_orgs:
+            print 'Updating %s orgs with twilio connections..' % len(twilio_orgs)
 
-        if client:
-            app_name = "%s/%d" % (settings.TEMBA_HOST.lower(), twilio_org.pk)
-            app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler')
+        for idx, twilio_org in enumerate(twilio_orgs):
+            print '%d: Updating %s (%d)' % ((idx + 1), twilio_org.name, twilio_org.id)
+            client = get_twilio_client(twilio_org)
 
-            try:
-                apps = client.applications.list(friendly_name=app_name)
+            if client:
+                app_name = "%s/%d" % (settings.TEMBA_HOST.lower(), twilio_org.pk)
+                app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler')
 
-                if apps:
-                    for app in apps:
-                        print '     Updating %s (Last: %s, Voice: %s Callback: %s)' % (app.friendly_name, app.date_updated, app.voice_url, app.status_callback)
-                        app.update(voice_url=app_url, sms_url=app_url, status_callback=app_url, status_callback_method='POST')
-                else:
-                    print '     No apps found for %s' % twilio_org.name
-            except TwilioException:
-                print '     Connection failed for %s, skipping..' % twilio_org.name
-        else:
-            print "     Couldn't get TwilioClient for %s" % twilio_org.name
+                try:
+                    apps = client.applications.list(friendly_name=app_name)
+
+                    if apps:
+                        for app in apps:
+                            print '     Updating %s (Last: %s, Voice: %s Callback: %s)' % (app.friendly_name, app.date_updated, app.voice_url, app.status_callback)
+                            app.update(voice_url=app_url, sms_url=app_url, status_callback=app_url, status_callback_method='POST')
+                    else:
+                        print '     No apps found for %s' % twilio_org.name
+                except TwilioException:
+                    print '     Connection failed for %s, skipping..' % twilio_org.name
+            else:
+                print "     Couldn't get TwilioClient for %s" % twilio_org.name
 
 
 def apply_as_migration(apps, schema_editor):
