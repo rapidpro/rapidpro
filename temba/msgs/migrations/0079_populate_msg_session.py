@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
 from __future__ import unicode_literals
 
 from django.db import migrations
@@ -13,7 +14,7 @@ def fix_open_sessions(ChannelSession):
     # update our erroneously open sessions
     open_sessions = ChannelSession.objects.filter(status__in=done, ended_on=None).exclude(started_on=None)
     updated = open_sessions.update(ended_on=F('modified_on'))
-    print 'Updated %d open sessions' % updated
+    print('Updated %d open sessions' % updated)
 
 
 def do_populate(ChannelSession, Msg):
