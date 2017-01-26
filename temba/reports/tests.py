@@ -1,7 +1,5 @@
 from __future__ import unicode_literals
 
-import json
-
 from django.core.urlresolvers import reverse
 from models import Report
 from temba.tests import TembaTest
@@ -22,15 +20,15 @@ class ReportTest(TembaTest):
         self.assertEquals(response.request['PATH_INFO'], reverse('flows.ruleset_analytics'))
 
         response = self.client.post(create_url, {"title": "first report", "description": "some description", "config": "{}"})
-        self.assertEquals(json.loads(response.content)['status'], "error")
-        self.assertFalse('report' in json.loads(response.content))
+        self.assertEquals(response.json()['status'], "error")
+        self.assertFalse('report' in response.json())
 
         response = self.client.post(create_url, data='{"title":"first report", "description":"some description", "config":""}', content_type='application/json')
-        self.assertEquals(json.loads(response.content)['status'], "success")
-        self.assertTrue('report' in json.loads(response.content))
-        self.assertTrue('id' in json.loads(response.content)['report'])
+        self.assertEquals(response.json()['status'], "success")
+        self.assertTrue('report' in response.json())
+        self.assertTrue('id' in response.json()['report'])
         report = Report.objects.get()
-        self.assertEquals(report.pk, json.loads(response.content)['report']['id'])
+        self.assertEquals(report.pk, response.json()['report']['id'])
 
     def test_report_model(self):
         Report.create_report(self.org, self.admin, dict(title="first", description="blah blah text",
