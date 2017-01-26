@@ -36,7 +36,7 @@ BEGIN
 
   -- Table being cleared, reset all counts
   ELSIF TG_OP = 'TRUNCATE' THEN
-    DELETE FROM channels_channel WHERE count_type IN ('LE', 'LS');
+    DELETE FROM channels_channelcount WHERE count_type IN ('LE', 'LS');
   END IF;
 
   RETURN NULL;
