@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
 from __future__ import unicode_literals
 
 from django.db import migrations
@@ -25,10 +26,10 @@ def fix_twilio_twiml_apps(Org):
     if settings.IS_PROD:
         twilio_orgs = Org.objects.filter(config__icontains='APPLICATION_SID').order_by('created_on')
         if twilio_orgs:
-            print 'Updating %s orgs with twilio connections..' % len(twilio_orgs)
+            print('Updating %s orgs with twilio connections..' % len(twilio_orgs))
 
         for idx, twilio_org in enumerate(twilio_orgs):
-            print '%d: Updating %s (%d)' % ((idx + 1), twilio_org.name, twilio_org.id)
+            print('%d: Updating %s (%d)' % ((idx + 1), twilio_org.name, twilio_org.id))
             client = get_twilio_client(twilio_org)
 
             if client:
@@ -40,14 +41,14 @@ def fix_twilio_twiml_apps(Org):
 
                     if apps:
                         for app in apps:
-                            print '     Updating %s (Last: %s, Voice: %s Callback: %s)' % (app.friendly_name, app.date_updated, app.voice_url, app.status_callback)
+                            print('     Updating %s (Last: %s, Voice: %s Callback: %s)' % (app.friendly_name, app.date_updated, app.voice_url, app.status_callback))
                             app.update(voice_url=app_url, sms_url=app_url, status_callback=app_url, status_callback_method='POST')
                     else:
-                        print '     No apps found for %s' % twilio_org.name
+                        print('     No apps found for %s' % twilio_org.name)
                 except TwilioException:
-                    print '     Connection failed for %s, skipping..' % twilio_org.name
+                    print('     Connection failed for %s, skipping..' % twilio_org.name)
             else:
-                print "     Couldn't get TwilioClient for %s" % twilio_org.name
+                print("     Couldn't get TwilioClient for %s" % twilio_org.name)
 
 
 def apply_as_migration(apps, schema_editor):
