@@ -17,7 +17,6 @@ install:
 - pip install -r pip-freeze.txt --upgrade
 - pip install setuptools==33.1.1  # Recent version breaks packaging.requirements, this is a temp fix: https://github.com/pypa/setuptools/issues/942
 - pip install coveralls
-- pip install pytest pytest-django pytest-cov
 - npm install
 before_script:
 - psql -U postgres -c "CREATE USER temba WITH PASSWORD 'temba';"
@@ -33,7 +32,7 @@ script:
 - python manage.py collectstatic --noinput
 - (! python manage.py compress --extension=".haml" --settings=temba.settings_travis | grep 'Error') || exit 1
 - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
-- py.test --cov=temba
+- coverage run manage.py test --noinput --verbosity=2
 after_success:
 - coveralls --rcfile .coveragerc_failcheck
 - coverage report -i --rcfile .coveragerc
