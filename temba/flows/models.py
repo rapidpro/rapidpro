@@ -3071,7 +3071,7 @@ class FlowStep(models.Model):
         broadcasts = list(self.broadcasts.all())
         if broadcasts:  # pragma: needs cover
             run = run or self.run
-            return broadcasts[0].get_translated_text(run.contact, base_language=run.flow.base_language, org=run.org)
+            return broadcasts[0].get_translated_text(run.contact, org=run.org)
 
         return None
 
