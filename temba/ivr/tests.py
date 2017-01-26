@@ -244,21 +244,14 @@ class IVRTests(FlowFileTest):
         self.client.post(reverse('ivr.ivrcall_handle', args=[calls[0].pk]), post_data)
 
         calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING).order_by('created_on')
-        self.assertEqual(2, calls.count())
-        (first_call, second_call) = calls
+        self.assertEqual(1, calls.count())
+        call = calls[0]
 
-        # our second call should have the first call as a parent
-        self.assertEqual(first_call, second_call.parent)
-
-        # completing the first call should complete the second one too
+        # complete the call
         post_data = dict(CallSid='CallSid', CallStatus='completed', CallDuration=30)
-        self.client.post(reverse('ivr.ivrcall_handle', args=[first_call.pk]), post_data)
-
-        first_call.refresh_from_db()
-        second_call.refresh_from_db()
-
-        self.assertEquals(IVRCall.COMPLETED, first_call.status)
-        self.assertEquals(IVRCall.COMPLETED, second_call.status)
+        self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+        call.refresh_from_db()
+        self.assertEquals(IVRCall.COMPLETED, call.status)
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)

@@ -23,23 +23,24 @@ class IVRCall(ChannelSession):
         proxy = True
 
     @classmethod
-    def create_outgoing(cls, channel, contact, contact_urn, flow, user):
-        return IVRCall.objects.create(channel=channel, contact=contact, contact_urn=contact_urn, flow=flow,
+    def create_outgoing(cls, channel, contact, contact_urn, user):
+        return IVRCall.objects.create(channel=channel, contact=contact, contact_urn=contact_urn,
                                       direction=IVRCall.OUTGOING, org=channel.org,
                                       created_by=user, modified_by=user)
 
     @classmethod
-    def create_incoming(cls, channel, contact, contact_urn, flow, user, external_id):
-        return IVRCall.objects.create(channel=channel, contact=contact, contact_urn=contact_urn, flow=flow,
+    def create_incoming(cls, channel, contact, contact_urn, user, external_id):
+        return IVRCall.objects.create(channel=channel, contact=contact, contact_urn=contact_urn,
                                       direction=IVRCall.INCOMING, org=channel.org, created_by=user,
                                       modified_by=user, external_id=external_id)
 
     @classmethod
     def hangup_test_call(cls, flow):
         # if we have an active call, hang it up
-        test_call = IVRCall.objects.filter(contact__is_test=True, flow=flow)
-        if test_call:
-            test_call = test_call[0]
+        from temba.flows.models import FlowRun
+        runs = FlowRun.objects.filter(flow=flow, contact__is_test=True).exclude(session=None)
+        for run in runs:
+            test_call = IVRCall.objects.filter(id=run.session.id).first()
             if not test_call.is_done():
                 test_call.hangup()
 
