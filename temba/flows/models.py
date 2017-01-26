@@ -403,6 +403,8 @@ class Flow(TembaModel):
             user_response = {}
 
         flow = call.flow
+
+        # get the most recent active run for our session
         run = FlowRun.objects.filter(session=call).first()
 
         # make sure we have the latest version

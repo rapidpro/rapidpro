@@ -125,7 +125,6 @@ class TwimlAPIHandler(BaseChannelHandler):
 
             if validator.validate(url, request.POST, signature):
                 from temba.ivr.models import IVRCall
-
                 # find a contact for the one initiating us
                 urn = URN.from_tel(from_number)
                 contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], channel=channel)
@@ -134,7 +133,7 @@ class TwimlAPIHandler(BaseChannelHandler):
                 flow = Trigger.find_flow_for_inbound_call(contact)
 
                 if flow:
-                    call = IVRCall.create_incoming(channel, contact, urn_obj, flow, channel.created_by)
+                    call = IVRCall.create_incoming(channel, contact, urn_obj, flow, channel.created_by, call_sid)
                     call.update_status(request.POST.get('CallStatus', None),
                                        request.POST.get('CallDuration', None))
                     call.save()
@@ -162,8 +161,19 @@ class TwimlAPIHandler(BaseChannelHandler):
         action = request.GET.get('action', 'received')
         channel_uuid = kwargs.get('uuid')
 
+        # check for call progress events, these include post-call hangup notifications
+        if request.POST.get('CallbackSource', None) == 'call-progress-events':
+            if call_sid:
+                from temba.ivr.models import IVRCall
+                call = IVRCall.objects.filter(external_id=call_sid).first()
+                if call:
+                    call.update_status(request.POST.get('CallStatus', None), request.POST.get('CallDuration', None))
+                    call.save()
+                    return HttpResponse("Call status updated")
+            return HttpResponse("No call found")
+
         # this is a callback for a message we sent
-        if action == 'callback':
+        elif action == 'callback':
             smsId = request.GET.get('id', None)
             status = request.POST.get('SmsStatus', None)
 

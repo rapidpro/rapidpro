@@ -644,6 +644,20 @@ class IVRTests(FlowFileTest):
 
         call = IVRCall.objects.all().first()
         self.assertEquals('+250788382382', call.contact_urn.path)
+        self.assertEquals('CallSid', call.external_id)
+
+        status_callback = dict(CallSid='CallSid', CallbackSource='call-progress-events',
+                               CallStatus='completed', Direction='inbound',
+                               From='+250788382382', To=self.channel.address)
+        response = self.client.post(reverse('handlers.twilio_handler'), status_callback)
+        call.refresh_from_db()
+        self.assertEqual('D', call.status)
+
+        status_callback = dict(CallSid='NoCallMatches', CallbackSource='call-progress-events',
+                               CallStatus='completed', Direction='inbound',
+                               From='+250788382382', To=self.channel.address)
+        response = self.client.post(reverse('handlers.twilio_handler'), status_callback)
+        self.assertContains(response, 'No call found')
 
         from temba.orgs.models import CURRENT_EXPORT_VERSION
         flow.refresh_from_db()
