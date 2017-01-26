@@ -14,21 +14,19 @@
       -trans "Remove SMTP configuration"
 
 -block summary
-  -if object.has_smtp_config
-    -trans "Configured SMTP server to send with "
-    <span class='attn'>{{ smtp_username }}</span>
-  -else
-    -trans "No SMTP configured"
+    -blocktrans with from_email=flow_from_email
+      Emails sent from flows will come from <b>{{from_email}}</b>.
 
 -block pre-form
-  -trans "SMTP Configuration"
-  %hr
+  %p
+    -blocktrans with brand=brand.name
+      You can configure {{ brand }} to send emails generated within flows from an email address of your choosing. <br/>
+      This will let you receive replies from your recipients.
 
--block post-form
   -if object.has_smtp_config and request.META.HTTP_X_FORMAX
-    If you no longer want to use {{ smtp_username }} to send emails, you can
-    %a{href:'javascript:confirmSMTPRemove();'}
-      remove your SMTP configuration
+    %p
+      -blocktrans with from_email=flow_from_email
+        If you no longer want to use {{ from_email }} to send emails, you can <a href='javascript:confirmSMTPRemove();'>remove your SMTP configuration</a>.
 
     .remove-smtp.hide
       .title
@@ -37,6 +35,8 @@
         -blocktrans with brand=brand.name
           Removing your SMTP configuration will result in emails being delivered from {{ brand }} that cannot be replied to. Are you sure you want to continue?
     %a#remove-smtp-form.posterize{href:'{% url "orgs.org_smtp_server" %}?disconnect=true'}
+
+  %hr
 
 -block extra-script
   :javascript

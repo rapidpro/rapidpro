@@ -48,7 +48,7 @@ def link_components(request=None, user=None):
     return {'protocol': protocol, 'hostname': hostname}
 
 
-def send_simple_email(recipients, subject, body):
+def send_simple_email(recipients, subject, body, from_email=None):
     """
     Sends a simple text email to the given recipients
 
@@ -56,19 +56,22 @@ def send_simple_email(recipients, subject, body):
     :param subject: subject of the email
     :param body: body of the email
     """
-    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'website@rapidpro.io')
+    if from_email is None:
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'website@rapidpro.io')
+
     recipient_list = [recipients] if isinstance(recipients, six.string_types) else recipients
 
     send_temba_email(subject, body, None, from_email, recipient_list)
 
 
-def send_custom_smtp_email(recipients, subject, body, smtp_host, smtp_port, smtp_username, smtp_password, use_tls):
+def send_custom_smtp_email(recipients, subject, body, from_email, smtp_host, smtp_port, smtp_username, smtp_password, use_tls):
     """
     Sends a text email to the given recipients using the SMTP configuration
 
     :param recipients: address or list of addresses to send the mail to
     :param subject: subject of the email
     :param body: body of the email
+    :param from_email: the email address we wills end from
     :param smtp_host: SMTP server
     :param smtp_port: SMTP port
     :param smtp_username: SMTP username
@@ -83,7 +86,7 @@ def send_custom_smtp_email(recipients, subject, body, smtp_host, smtp_port, smtp
     connection = get_smtp_connection(None, fail_silently=False, host=smtp_host, port=smtp_port, username=smtp_username,
                                      password=smtp_password, use_tls=use_tls)
 
-    send_temba_email(subject, body, None, smtp_username, recipient_list, connection=connection)
+    send_temba_email(subject, body, None, from_email, recipient_list, connection=connection)
 
 
 def send_template_email(recipients, subject, template, context, branding):

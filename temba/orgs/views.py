@@ -26,6 +26,7 @@ from django.utils.safestring import mark_safe
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
+from email.utils import parseaddr
 from functools import cmp_to_key
 from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
@@ -39,12 +40,14 @@ from temba.nexmo import NexmoClient, NexmoValidationError
 from temba.utils import analytics, languages
 from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import TimeZoneFormField
+from temba.utils.email import is_valid_address
 from twilio.rest import TwilioRestClient
+
 from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
 from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
-from .models import TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_LOGIN
-from .models import EMAIL_SMTP_HOST, EMAIL_SMTP_USERNAME, EMAIL_SMTP_PASSWORD, EMAIL_SMTP_PORT, EMAIL_SMTP_ENCRYPTION
+from .models import TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_LOGIN, SMTP_FROM_EMAIL
+from .models import SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_PORT, SMTP_ENCRYPTION
 
 
 def check_login(request):
@@ -826,7 +829,9 @@ class OrgCRUDL(SmartCRUDL):
         success_message = ""
 
         class SmtpConfig(forms.ModelForm):
-            smtp_host = forms.CharField(max_length=128, label=_("Host"), required=False)
+            smtp_from_email = forms.CharField(max_length=128, label=_("Email Address"), required=False,
+                                              help_text=_("The from email address, can contain a name: ex: Jane Doe <jane@example.org>"))
+            smtp_host = forms.CharField(max_length=128, label=_("SMTP Host"), required=False)
             smtp_username = forms.CharField(max_length=128, label=_("Username"), required=False)
             smtp_password = forms.CharField(max_length=128, label=_("Password"), required=False)
             smtp_port = forms.CharField(max_length=128, label=_("Port"), required=False)
@@ -838,10 +843,18 @@ class OrgCRUDL(SmartCRUDL):
             def clean(self):
                 super(OrgCRUDL.SmtpServer.SmtpConfig, self).clean()
                 if self.cleaned_data.get('disconnect', 'false') == 'false':
+                    smtp_from_email = self.cleaned_data.get('smtp_from_email', None)
                     smtp_host = self.cleaned_data.get('smtp_host', None)
                     smtp_username = self.cleaned_data.get('smtp_username', None)
                     smtp_password = self.cleaned_data.get('smtp_password', None)
                     smtp_port = self.cleaned_data.get('smtp_port', None)
+
+                    if not smtp_from_email:
+                        raise ValidationError(_("You must enter a from email"))
+
+                    parsed = parseaddr(smtp_from_email)
+                    if not is_valid_address(parsed[1]):
+                        raise ValidationError(_("Please enter a valid email address"))
 
                     if not smtp_host:
                         raise ValidationError(_("You must enter the SMTP host"))
@@ -859,7 +872,7 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
-                fields = ('smtp_host', 'smtp_username', 'smtp_password', 'smtp_port', 'smtp_encryption', 'disconnect')
+                fields = ('smtp_from_email', 'smtp_host', 'smtp_username', 'smtp_password', 'smtp_port', 'smtp_encryption', 'disconnect')
 
         form_class = SmtpConfig
 
@@ -867,11 +880,12 @@ class OrgCRUDL(SmartCRUDL):
             initial = super(OrgCRUDL.SmtpServer, self).derive_initial()
             org = self.get_object()
             config = org.config_json()
-            initial['smtp_host'] = config.get(EMAIL_SMTP_HOST, '')
-            initial['smtp_username'] = config.get(EMAIL_SMTP_USERNAME, '')
-            initial['smtp_password'] = config.get(EMAIL_SMTP_PASSWORD, '')
-            initial['smtp_port'] = config.get(EMAIL_SMTP_PORT, '')
-            initial['smtp_encryption'] = config.get(EMAIL_SMTP_ENCRYPTION, '')
+            initial['smtp_from_email'] = config.get(SMTP_FROM_EMAIL, '')
+            initial['smtp_host'] = config.get(SMTP_HOST, '')
+            initial['smtp_username'] = config.get(SMTP_USERNAME, '')
+            initial['smtp_password'] = config.get(SMTP_PASSWORD, '')
+            initial['smtp_port'] = config.get(SMTP_PORT, '')
+            initial['smtp_encryption'] = config.get(SMTP_ENCRYPTION, '')
 
             initial['disconnect'] = 'false'
             return initial
@@ -885,14 +899,16 @@ class OrgCRUDL(SmartCRUDL):
                 org.remove_smtp_config(user)
                 return HttpResponseRedirect(reverse('orgs.org_home'))
             else:
+                smtp_from_email = form.cleaned_data['smtp_from_email']
                 smtp_host = form.cleaned_data['smtp_host']
                 smtp_username = form.cleaned_data['smtp_username']
                 smtp_password = form.cleaned_data['smtp_password']
                 smtp_port = form.cleaned_data['smtp_port']
                 smtp_encryption = form.cleaned_data['smtp_encryption']
 
-                org.add_smtp_config(smtp_host, smtp_username, smtp_password, smtp_port, smtp_encryption, user)
-                return super(OrgCRUDL.SmtpServer, self).form_valid(form)
+                org.add_smtp_config(smtp_from_email, smtp_host, smtp_username, smtp_password, smtp_port, smtp_encryption, user)
+
+            return super(OrgCRUDL.SmtpServer, self).form_valid(form)
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.SmtpServer, self).get_context_data(**kwargs)
@@ -900,7 +916,12 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             if org.has_smtp_config():
                 config = org.config_json()
-                context['smtp_username'] = config.get(EMAIL_SMTP_USERNAME, '--')
+                from_email = config.get(SMTP_FROM_EMAIL)
+            else:
+                from_email = settings.FLOW_FROM_EMAIL
+
+            # populate our context with the from email (just the address)
+            context['flow_from_email'] = parseaddr(from_email)[1]
 
             return context
 
@@ -1961,9 +1982,6 @@ class OrgCRUDL(SmartCRUDL):
                 if nexmo_client:  # pragma: needs cover
                     formax.add_section('nexmo', reverse('orgs.org_nexmo_account'), icon='icon-channel-nexmo')
 
-            if self.has_org_perm("orgs.org_smtp_server"):
-                formax.add_section('email', reverse('orgs.org_smtp_server'), icon='icon-envelop', action='redirect')
-
             if self.has_org_perm('orgs.org_profile'):
                 formax.add_section('user', reverse('orgs.user_edit'), icon='icon-user', action='redirect')
 
@@ -1975,6 +1993,9 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm('orgs.org_country'):
                 formax.add_section('country', reverse('orgs.org_country'), icon='icon-location2')
+
+            if self.has_org_perm("orgs.org_smtp_server"):
+                formax.add_section('email', reverse('orgs.org_smtp_server'), icon='icon-envelop')
 
             if self.has_org_perm('orgs.org_transfer_to_account'):
                 if not self.object.is_connected_to_transferto():
