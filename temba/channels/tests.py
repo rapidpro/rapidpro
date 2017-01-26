@@ -7352,6 +7352,7 @@ class JasminTest(TembaTest):
             self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
                                                                               "referenced before assignment"))
 
+
 class JunebugTest(TembaTest):
 
     def setUp(self):
@@ -7479,7 +7480,6 @@ class JunebugTest(TembaTest):
         msg = joe.send("événement", self.admin, trigger_send=False)
 
         settings.SEND_MESSAGES = True
-
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(499, 'Error')
