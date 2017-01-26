@@ -1,3 +1,7 @@
+v3.0.21
+----------
+ * Various tweaks to wording and presentation around custom SMTP email config
+
 v3.0.20
 ----------
  * Allow orgs to set their own SMTP server for outgoing emails
