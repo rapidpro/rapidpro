@@ -465,9 +465,9 @@ class WebHookEvent(SmartModel):
         # create our post parameters
         post_data = json.loads(self.data)
         post_data['event'] = self.event
-        post_data['relayer'] = self.channel.pk
-        post_data['channel'] = self.channel.pk
-        post_data['relayer_phone'] = self.channel.address
+        post_data['relayer'] = self.channel.pk if self.channel else ''
+        post_data['channel'] = self.channel.pk if self.channel else ''
+        post_data['relayer_phone'] = self.channel.address if self.channel else ''
 
         # look up the endpoint for this channel
         result = dict(url=self.org.get_webhook_url(), data=urlencode(post_data, doseq=True))

@@ -748,7 +748,7 @@ class LabelCRUDL(SmartCRUDL):
 
         def render_to_response(self, context, **response_kwargs):
             results = [dict(id=l.uuid, text=l.name) for l in context['object_list']]
-            return HttpResponse(json.dumps(results), content_type='application/javascript')
+            return HttpResponse(json.dumps(results), content_type='application/json')
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ('name', 'folder', 'messages')
