@@ -11,23 +11,7 @@ from temba.utils.expressions import migrate_template
 from uuid import uuid4
 
 
-def migrate_to_version_11(json_flow, flow=None):
-    base_lang = json_flow.get('base_language', 'base')
-    if 'rule_sets' in json_flow:
-        rulesets = []
-        for ruleset in json_flow['rule_sets']:
-            if len(ruleset['rules']) == 2:
-                if ruleset['rules'][0]['test']['type'] == 'true' and ruleset['rules'][1]['test']['type'] == 'timeout':
-                    ruleset['rules'][0]['category'][base_lang] = 'All Responses'
-
-            rulesets.append(ruleset)
-
-        json_flow['rule_sets'] = rulesets
-
-    return json_flow
-
-
-def migrate_to_version_10(json_flow, flow=None):
+def migrate_to_version_10(json_flow, flow):
     """
     Looks for webhook ruleset_types, adding success and failure cases and moving
     webhook_action and webhook to config
