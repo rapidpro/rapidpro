@@ -1,3 +1,8 @@
+v3.0.23
+----------
+ * Remove flow from ChannelSession, sessions can span many runs/flows
+ * Remove superfluous channelsession.parent
+
 v3.0.22
 ----------
  * Migration to update existing twiml apps with a status_callback, remove api/v1 references
