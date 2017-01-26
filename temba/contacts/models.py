@@ -2222,7 +2222,7 @@ class ContactGroup(TembaModel):
 class ContactGroupCount(SquashableModel):
     """
     Maintains counts of contact groups. These are calculated via triggers on the database and squashed
-    by a reoccurring task.
+    by a recurring task.
     """
     SQUASH_OVER = ('group_id',)
 
