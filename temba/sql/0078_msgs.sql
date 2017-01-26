@@ -385,17 +385,3 @@ DROP TRIGGER IF EXISTS temba_msg_on_truncate_trg ON msgs_msg;
 CREATE TRIGGER temba_msg_on_truncate_trg
   AFTER TRUNCATE ON msgs_msg
   EXECUTE PROCEDURE temba_msg_on_change();
-
-----------------------------------------------------------------------------------
--- Squash the label by gathering the counts into a single row
-----------------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION temba_squash_systemlabel(_org_id INTEGER, _label_type CHAR(1))
-RETURNS VOID AS $$
-BEGIN
-  WITH deleted as (DELETE FROM msgs_systemlabel
-    WHERE "org_id" = _org_id AND "label_type" = _label_type
-    RETURNING "count")
-    INSERT INTO msgs_systemlabel("org_id", "label_type", "count", "is_squashed")
-    VALUES (_org_id, _label_type, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
-END;
-$$ LANGUAGE plpgsql;

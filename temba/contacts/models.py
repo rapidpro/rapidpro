@@ -2232,7 +2232,15 @@ class ContactGroupCount(SquashableModel):
     @classmethod
     def squash_distinct(cls, distinct_set):
         with connection.cursor() as c:
-            c.execute("SELECT temba_squash_contactgroupcounts(%s);", (distinct_set.group_id,))
+            sql = """
+            WITH deleted as (
+                DELETE FROM %(table)s WHERE "group_id" = %%s RETURNING "count"
+            )
+            INSERT INTO %(table)s("group_id", "count", "is_squashed")
+            VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+            """ % {'table': cls._meta.db_table}
+
+            c.execute(sql, (distinct_set.group_id,) * 2)
 
     @classmethod
     def contact_count(cls, group):

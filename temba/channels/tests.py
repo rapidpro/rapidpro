@@ -3107,7 +3107,7 @@ class ChannelClaimTest(TembaTest):
         self.assertTrue(len(mail.outbox) == 2)
 
 
-class CountTest(TembaTest):
+class ChannelCountTest(TembaTest):
 
     def assertDailyCount(self, channel, assert_count, count_type, day):
         calculated_count = ChannelCount.get_day_count(channel, count_type, day)

@@ -200,16 +200,3 @@ DROP TRIGGER IF EXISTS contact_check_update_trg ON contacts_contact;
 CREATE TRIGGER contact_check_update_trg
    BEFORE UPDATE OF is_test, is_blocked, is_stopped ON contacts_contact
    FOR EACH ROW EXECUTE PROCEDURE contact_check_update();
-
-----------------------------------------------------------------------------------
--- Squash the group counts by gathering the counts into a single row
-----------------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION temba_squash_contactgroupcounts(_group_id INTEGER)
-RETURNS VOID AS $$
-BEGIN
-  WITH deleted as (DELETE FROM contacts_contactgroupcount
-    WHERE "group_id" = _group_id RETURNING "count")
-    INSERT INTO contacts_contactgroupcount("group_id", "count", "is_squashed")
-    VALUES (_group_id, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
-END;
-$$ LANGUAGE plpgsql;

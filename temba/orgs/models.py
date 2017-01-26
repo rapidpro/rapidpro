@@ -2167,12 +2167,13 @@ class Debit(SquashableModel):
         with connection.cursor() as cursor:
             sql = """
             WITH removed as (
-                DELETE FROM orgs_debit WHERE "topup_id" = %s AND debit_type = 'P' RETURNING "amount"
+                DELETE FROM %(table)s WHERE "topup_id" = %%s AND debit_type = 'P' RETURNING "amount"
             )
-            INSERT INTO orgs_debit("topup_id", "amount", "debit_type", "created_on", "is_squashed")
-            VALUES (%s, GREATEST(0, (SELECT SUM("amount") FROM removed)), 'P', %s, TRUE);"""
+            INSERT INTO %(table)s("topup_id", "amount", "debit_type", "created_on", "is_squashed")
+            VALUES (%%s, GREATEST(0, (SELECT SUM("amount") FROM removed)), 'P', %%s, TRUE);
+            """ % {'table': cls._meta.db_table}
 
-            cursor.execute(sql, [distinct_set.topup_id, distinct_set.topup_id, timezone.now()])
+            cursor.execute(sql, (distinct_set.topup_id, distinct_set.topup_id, timezone.now()))
 
 
 class TopUpCredits(SquashableModel):
@@ -2188,7 +2189,15 @@ class TopUpCredits(SquashableModel):
     @classmethod
     def squash_distinct(cls, distinct_set):
         with connection.cursor() as c:
-            c.execute("SELECT temba_squash_topupcredits(%s);", (distinct_set.topup_id,))
+            sql = """
+            WITH deleted as (
+                DELETE FROM %(table)s WHERE "topup_id" = %%s RETURNING "used"
+            )
+            INSERT INTO %(table)s("topup_id", "used", "is_squashed")
+            VALUES (%%s, GREATEST(0, (SELECT SUM("used") FROM deleted)), TRUE);
+            """ % {'table': cls._meta.db_table}
+
+            c.execute(sql, (distinct_set.topup_id,) * 2)
 
 
 class CreditAlert(SmartModel):

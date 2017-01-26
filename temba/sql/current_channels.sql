@@ -16,27 +16,6 @@ CREATE OR REPLACE FUNCTION temba_insert_channelcount(_channel_id INTEGER, _count
 $$ LANGUAGE plpgsql;
 
 ----------------------------------------------------------------------
--- Squashes all the existing channel counts with the passed in values into a single row
-----------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION temba_squash_channelcount(_channel_id INTEGER, _count_type VARCHAR(2), _count_day DATE) RETURNS VOID AS $$
-  BEGIN
-    IF _count_day IS NULL THEN
-      WITH removed as (DELETE FROM channels_channelcount
-        WHERE "channel_id" = _channel_id AND "count_type" = _count_type AND "day" IS NULL
-        RETURNING "count")
-        INSERT INTO channels_channelcount("channel_id", "count_type", "count", "is_squashed")
-        VALUES (_channel_id, _count_type, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-    ELSE
-      WITH removed as (DELETE FROM channels_channelcount
-        WHERE "channel_id" = _channel_id AND "count_type" = _count_type AND "day" = _count_day
-        RETURNING "count")
-        INSERT INTO channels_channelcount("channel_id", "count_type", "day", "count", "is_squashed")
-        VALUES (_channel_id, _count_type, _count_day, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-    END IF;
-  END;
-$$ LANGUAGE plpgsql;
-
-----------------------------------------------------------------------
 -- Manages keeping track of the # of messages in our channel log
 ----------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION temba_update_channellog_count() RETURNS TRIGGER AS $$

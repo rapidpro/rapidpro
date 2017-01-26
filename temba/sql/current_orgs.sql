@@ -7,20 +7,6 @@ DROP TRIGGER IF EXISTS when_msgs_update_then_update_topup_trg on msgs_msg;
 DROP TRIGGER IF EXISTS when_msgs_truncate_then_update_topup_trg on msgs_msg;
 DROP TRIGGER IF EXISTS temba_when_msgs_truncate_then_update_topupcredits on msgs_msg;
 
-----------------------------------------------------------------------------------
--- Squashes the topup credits for a single topup into a single row
-----------------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION temba_squash_topupcredits(_topup_id INTEGER)
-RETURNS VOID AS $$
-BEGIN
-  WITH deleted as (DELETE FROM orgs_topupcredits
-    WHERE "topup_id" = _topup_id
-    RETURNING "used")
-    INSERT INTO orgs_topupcredits("topup_id", "used", "is_squashed")
-    VALUES (_topup_id, GREATEST(0, (SELECT SUM("used") FROM deleted)), TRUE);
-END;
-$$ LANGUAGE plpgsql;
-
 ---------------------------------------------------------------------------------
 -- Increment or decrement the credits used on a topup
 ---------------------------------------------------------------------------------
