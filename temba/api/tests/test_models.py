@@ -359,6 +359,31 @@ class WebHookTest(TembaTest):
             WebHookResult.objects.all().delete()
 
         with patch('requests.Session.send') as mock:
+            mock.side_effect = [MockResponse(500, "I am error")]
+
+            # trigger an event
+            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            event = WebHookEvent.objects.all().first()
+
+            self.assertEquals('E', event.status)
+            self.assertEquals(1, event.try_count)
+            self.assertTrue(event.next_attempt)
+
+            mock.return_value = MockResponse(200, "Hello World")
+            # simulate missing channel
+            event.channel = None
+            event.save()
+
+            # no exception should raised
+            event.deliver()
+
+            self.assertTrue(mock.called)
+            self.assertEquals(mock.call_count, 2)
+
+            WebHookEvent.objects.all().delete()
+            WebHookResult.objects.all().delete()
+
+        with patch('requests.Session.send') as mock:
             # valid json, but not our format
             bad_json = '{ "thrift_shops": ["Goodwill", "Value Village"] }'
             mock.return_value = MockResponse(200, bad_json)

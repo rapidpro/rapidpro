@@ -7,15 +7,17 @@ from django.utils import timezone
 from django_redis import get_redis_connection
 from temba.flows.models import FlowStatsCache
 from temba.msgs.models import Broadcast, Msg, TIMEOUT_EVENT, HANDLER_QUEUE, HANDLE_EVENT_TASK
-from temba.utils.email import send_simple_email
+from temba.orgs.models import Org
 from temba.utils.queues import start_task, complete_task
 from temba.utils.queues import push_task, nonoverlapping_task
 from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount, FlowPathCount, FlowPathRecentStep
 
 
 @task(track_started=True, name='send_email_action_task')
-def send_email_action_task(recipients, subject, message):
-    send_simple_email(recipients, subject, message)
+def send_email_action_task(org_id, recipients, subject, message):
+    org = Org.objects.filter(pk=org_id, is_active=True).first()
+    if org:
+        org.email_action_send(recipients, subject, message)
 
 
 @task(track_started=True, name='update_run_expirations_task')  # pragma: no cover

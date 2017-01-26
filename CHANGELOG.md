@@ -1,3 +1,20 @@
+v3.0.22
+----------
+ * Migration to update existing twiml apps with a status_callback, remove api/v1 references
+
+v3.0.21
+----------
+ * Various tweaks to wording and presentation around custom SMTP email config
+
+v3.0.20
+----------
+ * Allow orgs to set their own SMTP server for outgoing emails
+ * Return better error message when To number not passed to Twilio handler
+ * Exclude Flow webhook events from retries (we try once and forget)
+ * Don't pass channel in webhook events if we don't know it
+ * Use JsonResponse and response.json() consistently
+ * Replace json.loads(response.content) with response.json() which properly decodes on Python 3
+
 v3.0.19
 ----------
  * Improve performance of contact searches by location by fetching locations in separate query
