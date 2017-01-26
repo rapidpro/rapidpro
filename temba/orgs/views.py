@@ -37,10 +37,12 @@ from temba.assets.models import AssetType
 from temba.channels.models import Channel
 from temba.formax import FormaxMixin
 from temba.nexmo import NexmoClient, NexmoValidationError
-from temba.utils import analytics, languages, email
+from temba.utils import analytics, languages
 from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import TimeZoneFormField
+from temba.utils.email import is_valid_address
 from twilio.rest import TwilioRestClient
+
 from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
 from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
@@ -851,7 +853,7 @@ class OrgCRUDL(SmartCRUDL):
                         raise ValidationError(_("You must enter a from email"))
 
                     parsed = parseaddr(smtp_from_email)
-                    if email.is_valid_address(parsed[1]):
+                    if not is_valid_address(parsed[1]):
                         raise ValidationError(_("Please enter a valid email address"))
 
                     if not smtp_host:
