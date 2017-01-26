@@ -1602,10 +1602,7 @@ class Flow(TembaModel):
             run.save(update_fields=['session'])
 
             # if we were started by other call, save that off
-            if parent_run and parent_run.session:
-                call.parent = parent_run.session
-                call.save()
-            else:
+            if not parent_run or parent_run.session:
                 # trigger the call to start (in the background)
                 call.start_call()
 
