@@ -1352,7 +1352,7 @@ class ChannelCRUDL(SmartCRUDL):
             number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
                                      help_text=("The shortcoe or phone number you are connecting."))
             url = forms.URLField(label=_("URL"),
-                                 help_text=_("The URL for the Junebug server. ex: https://junebug.praekelt.org/"))
+                                 help_text=_("The URL for the Junebug channel. ex: https://junebug.praekelt.org/jb/channels/3853bb51-d38a-4bca-b332-8a57c00f2a48"))
             username = forms.CharField(label=_("Username"),
                                        help_text=_("The username to be used to authenticate to Junebug"),
                                        required=False)
