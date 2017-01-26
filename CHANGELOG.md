@@ -1,3 +1,7 @@
+v3.0.22
+----------
+ * Migration to update existing twiml apps with a status_callback, remove api/v1 references
+
 v3.0.21
 ----------
  * Various tweaks to wording and presentation around custom SMTP email config
