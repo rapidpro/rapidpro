@@ -13,9 +13,9 @@ matrix:
   fast_finish: true
 install:
 - pip install --upgrade pip
-- pip install setuptools==33.1.1  # Recent version breaks packaging.requirements, this is a temp fix
 - pip --version
 - pip install -r pip-freeze.txt --upgrade
+- pip install setuptools==33.1.1  # Recent version breaks packaging.requirements, this is a temp fix: https://github.com/pypa/setuptools/issues/942
 - pip install coveralls
 - npm install
 before_script:
