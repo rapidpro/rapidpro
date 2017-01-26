@@ -586,23 +586,23 @@
     %code
       https://{{ domain }}{% url 'handlers.jasmin_handler' 'receive' object.uuid %}
 
-    -elif object.channel_type == 'JN'
-      %h4
-        -blocktrans
-          As a last step you'll need to configure Junebug to call the following URL for MO (incoming) messages.
+  -elif object.channel_type == 'JN'
+    %h4
+      -blocktrans
+        As a last step you'll need to configure Junebug to call the following URL for MO (incoming) messages.
 
-      %hr
+    %hr
 
-      %h4
-        -trans "Push Message URL"
+    %h4
+      -trans "Push Message URL"
 
-      %p
-        -blocktrans
-          This endpoint will be called by Junebug when new messages are received to your number, it must be configured
-          to be called as a POST
+    %p
+      -blocktrans
+        This endpoint will be called by Junebug when new messages are received to your number, it must be configured
+        to be called as a POST
 
-      %code
-        https://{{ domain }}{% url 'handlers.junebug_handler' 'inbound' object.uuid %}
+    %code
+      https://{{ domain }}{% url 'handlers.junebug_handler' 'inbound' object.uuid %}
 
   -elif object.channel_type == 'MB'
     %h4

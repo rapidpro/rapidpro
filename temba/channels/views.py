@@ -1350,7 +1350,7 @@ class ChannelCRUDL(SmartCRUDL):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
                                         help_text=_("The country this phone number is used in"))
             number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
-                                     help_text=("The shortcoe or phone number you are connecting."))
+                                     help_text=("The shortcode or phone number you are connecting."))
             url = forms.URLField(label=_("URL"),
                                  help_text=_("The URL for the Junebug channel. ex: https://junebug.praekelt.org/jb/channels/3853bb51-d38a-4bca-b332-8a57c00f2a48"))
             username = forms.CharField(label=_("Username"),
@@ -1359,10 +1359,11 @@ class ChannelCRUDL(SmartCRUDL):
             password = forms.CharField(label=_("Password"),
                                        help_text=_("The password to be used to authenticate to Junebug"),
                                        required=False)
+
         title = _("Connect Junebug")
         channel_type = Channel.TYPE_JUNEBUG
         form_class = JunebugForm
-        field = ('country', 'number', 'url', 'username', 'password')
+        fields = ('country', 'number', 'url', 'username', 'password')
 
     class ClaimMblox(ClaimAuthenticatedExternal):
         class MBloxForm(forms.Form):
