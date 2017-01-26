@@ -26,6 +26,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction, connection
 from django.db.models import Sum, F, Q
 from django.utils import timezone
+from temba.utils.email import send_simple_email, send_custom_smtp_email
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
 from django_redis import get_redis_connection
@@ -96,6 +97,13 @@ NEXMO_UUID = 'NEXMO_UUID'
 
 TRANSFERTO_ACCOUNT_LOGIN = 'TRANSFERTO_ACCOUNT_LOGIN'
 TRANSFERTO_AIRTIME_API_TOKEN = 'TRANSFERTO_AIRTIME_API_TOKEN'
+
+SMTP_FROM_EMAIL = 'SMTP_FROM_EMAIL'
+SMTP_HOST = 'SMTP_HOST'
+SMTP_USERNAME = 'SMTP_USERNAME'
+SMTP_PASSWORD = 'SMTP_PASSWORD'
+SMTP_PORT = 'SMTP_PORT'
+SMTP_ENCRYPTION = 'SMTP_ENCRYPTION'
 
 ORG_STATUS = 'STATUS'
 SUSPENDED = 'suspended'
@@ -669,6 +677,59 @@ class Org(SmartModel):
                     pending = Channel.get_pending_messages(self)
                     Msg.send_messages(pending)
 
+    def add_smtp_config(self, from_email, host, username, password, port, encryption, user):
+        smtp_config = {SMTP_FROM_EMAIL: from_email.strip(),
+                       SMTP_HOST: host, SMTP_USERNAME: username, SMTP_PASSWORD: password,
+                       SMTP_PORT: port, SMTP_ENCRYPTION: encryption}
+
+        config = self.config_json()
+        config.update(smtp_config)
+        self.config = json.dumps(config)
+        self.modified_by = user
+        self.save()
+
+    def remove_smtp_config(self, user):
+        if self.config:
+            config = self.config_json()
+            config.pop(SMTP_FROM_EMAIL)
+            config.pop(SMTP_HOST)
+            config.pop(SMTP_USERNAME)
+            config.pop(SMTP_PASSWORD)
+            config.pop(SMTP_PORT)
+            config.pop(SMTP_ENCRYPTION)
+            self.config = json.dumps(config)
+            self.modified_by = user
+            self.save()
+
+    def has_smtp_config(self):
+        if self.config:
+            config = self.config_json()
+            smtp_from_email = config.get(SMTP_FROM_EMAIL, None)
+            smtp_host = config.get(SMTP_HOST, None)
+            smtp_username = config.get(SMTP_USERNAME, None)
+            smtp_password = config.get(SMTP_PASSWORD, None)
+            smtp_port = config.get(SMTP_PORT, None)
+
+            return smtp_from_email and smtp_host and smtp_username and smtp_password and smtp_port
+        else:
+            return False
+
+    def email_action_send(self, recipients, subject, body):
+        if self.has_smtp_config():
+            config = self.config_json()
+            smtp_from_email = config.get(SMTP_FROM_EMAIL, None)
+            smtp_host = config.get(SMTP_HOST, None)
+            smtp_port = config.get(SMTP_PORT, None)
+            smtp_username = config.get(SMTP_USERNAME, None)
+            smtp_password = config.get(SMTP_PASSWORD, None)
+            use_tls = config.get(SMTP_ENCRYPTION, None) == 'T' or None
+
+            send_custom_smtp_email(recipients, subject, body, smtp_from_email,
+                                   smtp_host, smtp_port, smtp_username, smtp_password,
+                                   use_tls)
+        else:
+            send_simple_email(recipients, subject, body, from_email=settings.FLOW_FROM_EMAIL)
+
     def has_airtime_transfers(self):
         from temba.airtime.models import AirtimeTransfer
         return AirtimeTransfer.objects.filter(org=self).exists()
@@ -735,6 +796,8 @@ class Org(SmartModel):
                                                    voice_url=app_url,
                                                    voice_fallback_url=fallback_url,
                                                    voice_fallback_method='GET',
+                                                   status_callback=app_url,
+                                                   status_callback_method='POST',
                                                    sms_url=app_url,
                                                    sms_method="POST")
 
