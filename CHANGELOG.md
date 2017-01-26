@@ -1,3 +1,7 @@
+v3.0.24
+----------
+ * Fix bug in starting calls from sessions
+
 v3.0.23
 ----------
  * Remove flow from ChannelSession, sessions can span many runs/flows
