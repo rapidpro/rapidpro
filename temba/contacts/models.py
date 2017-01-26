@@ -14,7 +14,7 @@ from collections import defaultdict
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.validators import validate_email
-from django.db import models, connection
+from django.db import models
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -2230,17 +2230,16 @@ class ContactGroupCount(SquashableModel):
     count = models.IntegerField(default=0)
 
     @classmethod
-    def squash_distinct(cls, distinct_set):
-        with connection.cursor() as c:
-            sql = """
-            WITH deleted as (
-                DELETE FROM %(table)s WHERE "group_id" = %%s RETURNING "count"
-            )
-            INSERT INTO %(table)s("group_id", "count", "is_squashed")
-            VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
-            """ % {'table': cls._meta.db_table}
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH deleted as (
+            DELETE FROM %(table)s WHERE "group_id" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("group_id", "count", "is_squashed")
+        VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+        """ % {'table': cls._meta.db_table}
 
-            c.execute(sql, (distinct_set.group_id,) * 2)
+        return sql, (distinct_set.group_id,) * 2
 
     @classmethod
     def contact_count(cls, group):

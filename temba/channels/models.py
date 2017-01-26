@@ -16,7 +16,7 @@ from datetime import timedelta
 from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
 from django.core.validators import URLValidator
-from django.db import models, connection
+from django.db import models
 from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
 from django.conf import settings
@@ -2959,30 +2959,29 @@ class ChannelCount(SquashableModel):
         return count['count_sum'] if count['count_sum'] is not None else 0
 
     @classmethod
-    def squash_distinct(cls, distinct_set):
-        with connection.cursor() as c:
-            if distinct_set.day:
-                sql = """
-                WITH removed as (
-                    DELETE FROM %(table)s WHERE "channel_id" = %%s AND "count_type" = %%s AND "day" = %%s RETURNING "count"
-                )
-                INSERT INTO %(table)s("channel_id", "count_type", "day", "count", "is_squashed")
-                VALUES (%%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-                """ % {'table': cls._meta.db_table}
+    def get_squash_query(cls, distinct_set):
+        if distinct_set.day:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "channel_id" = %%s AND "count_type" = %%s AND "day" = %%s RETURNING "count"
+            )
+            INSERT INTO %(table)s("channel_id", "count_type", "day", "count", "is_squashed")
+            VALUES (%%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {'table': cls._meta.db_table}
 
-                params = (distinct_set.channel_id, distinct_set.count_type, distinct_set.day) * 2
-            else:
-                sql = """
-                WITH removed as (
-                    DELETE FROM %(table)s WHERE "channel_id" = %%s AND "count_type" = %%s AND "day" IS NULL RETURNING "count"
-                )
-                INSERT INTO %(table)s("channel_id", "count_type", "day", "count", "is_squashed")
-                VALUES (%%s, %%s, NULL, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-                """ % {'table': cls._meta.db_table}
+            params = (distinct_set.channel_id, distinct_set.count_type, distinct_set.day) * 2
+        else:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "channel_id" = %%s AND "count_type" = %%s AND "day" IS NULL RETURNING "count"
+            )
+            INSERT INTO %(table)s("channel_id", "count_type", "day", "count", "is_squashed")
+            VALUES (%%s, %%s, NULL, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {'table': cls._meta.db_table}
 
-                params = (distinct_set.channel_id, distinct_set.count_type) * 2
+            params = (distinct_set.channel_id, distinct_set.count_type) * 2
 
-            c.execute(sql, params)
+        return sql, params
 
     def __str__(self):  # pragma: no cover
         return "ChannelCount(%d) %s %s count: %d" % (self.channel_id, self.count_type, self.day, self.count)

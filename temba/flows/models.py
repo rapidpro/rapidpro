@@ -3709,30 +3709,29 @@ class FlowPathCount(SquashableModel):
     count = models.IntegerField(default=0)
 
     @classmethod
-    def squash_distinct(cls, distinct_set):
-        with connection.cursor() as c:
-            if distinct_set.to_uuid:
-                sql = """
-                WITH removed as (
-                    DELETE FROM %(table)s WHERE "flow_id" = %%s AND "from_uuid" = %%s AND "to_uuid" = %%s AND "period" = date_trunc('hour', %%s) RETURNING "count"
-                )
-                INSERT INTO %(table)s("flow_id", "from_uuid", "to_uuid", "period", "count", "is_squashed")
-                VALUES (%%s, %%s, %%s, date_trunc('hour', %%s), GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-                """ % {'table': cls._meta.db_table}
+    def get_squash_query(cls, distinct_set):
+        if distinct_set.to_uuid:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "from_uuid" = %%s AND "to_uuid" = %%s AND "period" = date_trunc('hour', %%s) RETURNING "count"
+            )
+            INSERT INTO %(table)s("flow_id", "from_uuid", "to_uuid", "period", "count", "is_squashed")
+            VALUES (%%s, %%s, %%s, date_trunc('hour', %%s), GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {'table': cls._meta.db_table}
 
-                params = (distinct_set.flow_id, distinct_set.from_uuid, distinct_set.to_uuid, distinct_set.period) * 2
-            else:
-                sql = """
-                WITH removed as (
-                    DELETE FROM %(table)s WHERE "flow_id" = %%s AND "from_uuid" = %%s AND "to_uuid" IS NULL AND "period" = date_trunc('hour', %%s) RETURNING "count"
-                )
-                INSERT INTO %(table)s("flow_id", "from_uuid", "to_uuid", "period", "count", "is_squashed")
-                VALUES (%%s, %%s, NULL, date_trunc('hour', %%s), GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-                """ % {'table': cls._meta.db_table}
+            params = (distinct_set.flow_id, distinct_set.from_uuid, distinct_set.to_uuid, distinct_set.period) * 2
+        else:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "from_uuid" = %%s AND "to_uuid" IS NULL AND "period" = date_trunc('hour', %%s) RETURNING "count"
+            )
+            INSERT INTO %(table)s("flow_id", "from_uuid", "to_uuid", "period", "count", "is_squashed")
+            VALUES (%%s, %%s, NULL, date_trunc('hour', %%s), GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {'table': cls._meta.db_table}
 
-                params = (distinct_set.flow_id, distinct_set.from_uuid, distinct_set.period) * 2
+            params = (distinct_set.flow_id, distinct_set.from_uuid, distinct_set.period) * 2
 
-            c.execute(sql, params)
+        return sql, params
 
     def __str__(self):  # pragma: no cover
         return "FlowPathCount(%d) %s:%s %s count: %d" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count)
@@ -3831,30 +3830,29 @@ class FlowRunCount(SquashableModel):
     count = models.IntegerField(default=0)
 
     @classmethod
-    def squash_distinct(cls, distinct_set):
-        with connection.cursor() as c:
-            if distinct_set.exit_type:
-                sql = """
-                WITH removed as (
-                    DELETE FROM %(table)s WHERE "flow_id" = %%s AND "exit_type" = %%s RETURNING "count"
-                )
-                INSERT INTO %(table)s("flow_id", "exit_type", "count", "is_squashed")
-                VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-                """ % {'table': cls._meta.db_table}
+    def get_squash_query(cls, distinct_set):
+        if distinct_set.exit_type:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "exit_type" = %%s RETURNING "count"
+            )
+            INSERT INTO %(table)s("flow_id", "exit_type", "count", "is_squashed")
+            VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {'table': cls._meta.db_table}
 
-                params = (distinct_set.flow_id, distinct_set.exit_type) * 2
-            else:
-                sql = """
-                WITH removed as (
-                    DELETE FROM %(table)s WHERE "flow_id" = %%s AND "exit_type" IS NULL RETURNING "count"
-                )
-                INSERT INTO %(table)s("flow_id", "exit_type", "count", "is_squashed")
-                VALUES (%%s, NULL, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-                """ % {'table': cls._meta.db_table}
+            params = (distinct_set.flow_id, distinct_set.exit_type) * 2
+        else:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "exit_type" IS NULL RETURNING "count"
+            )
+            INSERT INTO %(table)s("flow_id", "exit_type", "count", "is_squashed")
+            VALUES (%%s, NULL, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {'table': cls._meta.db_table}
 
-                params = (distinct_set.flow_id,) * 2
+            params = (distinct_set.flow_id,) * 2
 
-            c.execute(sql, params)
+        return sql, params
 
     @classmethod
     def run_count(cls, flow):

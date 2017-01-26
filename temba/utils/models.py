@@ -4,7 +4,7 @@ import six
 import time
 
 from collections import defaultdict
-from django.db import models
+from django.db import models, connection
 from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
 from uuid import uuid4
@@ -40,7 +40,10 @@ class SquashableModel(models.Model):
         start = time.time()
         num_sets = 0
         for distinct_set in cls.get_unsquashed().order_by(*cls.SQUASH_OVER).distinct(*cls.SQUASH_OVER):
-            cls.squash_distinct(distinct_set)
+            with connection.cursor() as cursor:
+                sql, params = cls.get_squash_query(distinct_set)
+
+                cursor.execute(sql, params)
 
             num_sets += 1
 

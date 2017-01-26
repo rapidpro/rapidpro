@@ -22,7 +22,7 @@ from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models, transaction, connection
+from django.db import models, transaction
 from django.db.models import Sum, F, Q
 from django.utils import timezone
 from temba.utils.email import send_simple_email, send_custom_smtp_email
@@ -2163,17 +2163,16 @@ class Debit(SquashableModel):
         return super(Debit, cls).get_unsquashed().filter(debit_type=cls.TYPE_PURGE)
 
     @classmethod
-    def squash_distinct(cls, distinct_set):
-        with connection.cursor() as cursor:
-            sql = """
+    def get_squash_query(cls, distinct_set):
+        sql = """
             WITH removed as (
                 DELETE FROM %(table)s WHERE "topup_id" = %%s AND debit_type = 'P' RETURNING "amount"
             )
             INSERT INTO %(table)s("topup_id", "amount", "debit_type", "created_on", "is_squashed")
             VALUES (%%s, GREATEST(0, (SELECT SUM("amount") FROM removed)), 'P', %%s, TRUE);
-            """ % {'table': cls._meta.db_table}
+        """ % {'table': cls._meta.db_table}
 
-            cursor.execute(sql, (distinct_set.topup_id, distinct_set.topup_id, timezone.now()))
+        return sql, (distinct_set.topup_id, distinct_set.topup_id, timezone.now())
 
 
 class TopUpCredits(SquashableModel):
@@ -2187,17 +2186,16 @@ class TopUpCredits(SquashableModel):
     used = models.IntegerField(help_text=_("How many credits were used, can be negative"))
 
     @classmethod
-    def squash_distinct(cls, distinct_set):
-        with connection.cursor() as c:
-            sql = """
-            WITH deleted as (
-                DELETE FROM %(table)s WHERE "topup_id" = %%s RETURNING "used"
-            )
-            INSERT INTO %(table)s("topup_id", "used", "is_squashed")
-            VALUES (%%s, GREATEST(0, (SELECT SUM("used") FROM deleted)), TRUE);
-            """ % {'table': cls._meta.db_table}
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH deleted as (
+            DELETE FROM %(table)s WHERE "topup_id" = %%s RETURNING "used"
+        )
+        INSERT INTO %(table)s("topup_id", "used", "is_squashed")
+        VALUES (%%s, GREATEST(0, (SELECT SUM("used") FROM deleted)), TRUE);
+        """ % {'table': cls._meta.db_table}
 
-            c.execute(sql, (distinct_set.topup_id,) * 2)
+        return sql, (distinct_set.topup_id,) * 2
 
 
 class CreditAlert(SmartModel):

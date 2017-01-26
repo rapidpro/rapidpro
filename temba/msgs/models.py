@@ -14,7 +14,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models, transaction, connection
+from django.db import models, transaction
 from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
@@ -1592,17 +1592,16 @@ class SystemLabel(SquashableModel):
     count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
 
     @classmethod
-    def squash_distinct(cls, distinct_set):
-        with connection.cursor() as c:
-            sql = """
-            WITH deleted as (
-                DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s RETURNING "count"
-            )
-            INSERT INTO %(table)s("org_id", "label_type", "count", "is_squashed")
-            VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
-            """ % {'table': cls._meta.db_table}
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH deleted as (
+            DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("org_id", "label_type", "count", "is_squashed")
+        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+        """ % {'table': cls._meta.db_table}
 
-            c.execute(sql, (distinct_set.org_id, distinct_set.label_type) * 2)
+        return sql, (distinct_set.org_id, distinct_set.label_type) * 2
 
     @classmethod
     def create_all(cls, org):
