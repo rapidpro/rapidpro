@@ -1602,7 +1602,7 @@ class Flow(TembaModel):
             run.save(update_fields=['session'])
 
             # if we were started by other call, save that off
-            if not parent_run or parent_run.session:
+            if not parent_run or not parent_run.session:
                 # trigger the call to start (in the background)
                 IVRCall.objects.get(id=call.id).start_call()
 
