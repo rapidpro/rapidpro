@@ -3478,6 +3478,10 @@ class ChannelSession(SmartModel):
         elif status == 'canceled':
             self.status = self.CANCELED
 
+        # if we are done, mark our ended time
+        if self.status in ChannelSession.DONE:
+            self.ended_on = timezone.now()
+
         self.duration = duration
 
     def get_duration(self):
