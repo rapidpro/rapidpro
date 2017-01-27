@@ -1,3 +1,16 @@
+v3.0.24
+----------
+ * Fix bug in starting calls from sessions
+
+v3.0.23
+----------
+ * Remove flow from ChannelSession, sessions can span many runs/flows
+ * Remove superfluous channelsession.parent
+
+v3.0.22
+----------
+ * Migration to update existing twiml apps with a status_callback, remove api/v1 references
+
 v3.0.21
 ----------
  * Various tweaks to wording and presentation around custom SMTP email config

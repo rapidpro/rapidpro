@@ -796,6 +796,8 @@ class Org(SmartModel):
                                                    voice_url=app_url,
                                                    voice_fallback_url=fallback_url,
                                                    voice_fallback_method='GET',
+                                                   status_callback=app_url,
+                                                   status_callback_method='POST',
                                                    sms_url=app_url,
                                                    sms_method="POST")
 
