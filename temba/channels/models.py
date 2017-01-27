@@ -3482,7 +3482,8 @@ class ChannelSession(SmartModel):
         if self.status in ChannelSession.DONE:
             self.ended_on = timezone.now()
 
-        self.duration = duration
+        if duration:
+            self.duration = duration
 
     def get_duration(self):
         """

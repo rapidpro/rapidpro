@@ -54,7 +54,7 @@ class CallHandler(View):
 
             hangup = 'hangup' == user_response.get('Digits', None)
 
-            if call.status in [IVRCall.IN_PROGRESS, IVRCall.RINGING] or hangup:
+            if call.status not in IVRCall.DONE or hangup:
                 response = Flow.handle_call(call, user_response, hangup=hangup, resume=resume)
                 return HttpResponse(six.text_type(response))
             else:
@@ -63,7 +63,8 @@ class CallHandler(View):
                     run = FlowRun.objects.filter(session=call).first()
                     if run:
                         run.set_completed()
-                return JsonResponse(dict(message="Updated call status"))
+                return JsonResponse(dict(message="Updated call status",
+                                         call=dict(status=call.get_status_display(), duration=call.duration)))
 
         else:  # pragma: no cover
             # raise an exception that things weren't properly signed

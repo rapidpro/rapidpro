@@ -403,11 +403,6 @@ class Flow(TembaModel):
             user_response = {}
 
         run = FlowRun.objects.filter(session=call, is_active=True).order_by('-created_on').first()
-
-        # if we have no run issue a hangup response
-        if not run:
-            return twiml.Response().hangup()
-
         flow = run.flow
 
         # make sure we have the latest version
