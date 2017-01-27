@@ -398,11 +398,16 @@ class Flow(TembaModel):
             return ActionSet.get(flow, uuid)
 
     @classmethod
-    def handle_call(cls, call, user_response=None, hangup=False):
+    def handle_call(cls, call, user_response=None, hangup=False, resume=False):
         if not user_response:
             user_response = {}
 
         run = FlowRun.objects.filter(session=call, is_active=True).order_by('-created_on').first()
+
+        # if we have no run issue a hangup response
+        if not run:
+            return twiml.Response().hangup()
+
         flow = run.flow
 
         # make sure we have the latest version
@@ -453,7 +458,7 @@ class Flow(TembaModel):
 
         # go and actually handle wherever we are in the flow
         destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
-        (handled, msgs) = Flow.handle_destination(destination, step, run, msg, user_input=text is not None)
+        (handled, msgs) = Flow.handle_destination(destination, step, run, msg, user_input=text is not None, resume_parent_run=resume)
 
         # if we stopped needing user input (likely), then wrap our response accordingly
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
@@ -487,6 +492,8 @@ class Flow(TembaModel):
             # recordings have to be tacked on last
             if destination.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
                 voice_response.record(action=callback)
+            elif destination.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                voice_response.append(twiml.Redirect(url=callback))
             elif gather:
                 # nest all of our previous verbs in our gather
                 for verb in voice_response.verbs:
@@ -1601,10 +1608,9 @@ class Flow(TembaModel):
             run.session = call
             run.save(update_fields=['session'])
 
-            # if we were started by other call, save that off
-            if not parent_run or parent_run.session:
+            if not parent_run or not parent_run.session:
                 # trigger the call to start (in the background)
-                call.start_call()
+                IVRCall.objects.get(id=call.id).start_call()
 
             # no start msgs in call flows but we want the variable there
             run.start_msgs = []
@@ -2779,8 +2785,12 @@ class FlowRun(models.Model):
         else:
             from .tasks import continue_parent_flows
 
-            # we delay this by a second to allow current flow execution to complete (and msgs to be sent)
-            on_transaction_commit(lambda: continue_parent_flows.apply_async(args=[[self.id]], countdown=1))
+            if hasattr(self, 'voice_response') and self.parent and self.parent.is_active:
+                callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.session.pk]))
+                self.voice_response.append(twiml.Redirect(url=callback + '?resume=1'))
+            else:
+                # we delay this by a second to allow current flow execution to complete (and msgs to be sent)
+                on_transaction_commit(lambda: continue_parent_flows.apply_async(args=[[self.id]], countdown=1))
 
     def set_interrupted(self, final_step=None):
         """
@@ -3295,6 +3305,8 @@ class RuleSet(models.Model):
 
         # recordings aren't wrapped input they get tacked on at the end
         if self.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
+            return voice_response
+        elif self.ruleset_type == RuleSet.TYPE_SUBFLOW:
             return voice_response
         elif self.ruleset_type == RuleSet.TYPE_WAIT_DIGITS:
             return voice_response.gather(finishOnKey=self.finished_key, timeout=60, action=action)

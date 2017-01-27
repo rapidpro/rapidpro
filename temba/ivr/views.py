@@ -45,6 +45,7 @@ class CallHandler(View):
 
             # figure out if this is a callback due to an empty gather
             is_empty = '1' == request.GET.get('empty', '0')
+            resume = request.GET.get('resume', 0)
             user_response = request.POST.copy()
 
             # if the user pressed pound, then record no digits as the input
@@ -54,7 +55,7 @@ class CallHandler(View):
             hangup = 'hangup' == user_response.get('Digits', None)
 
             if call.status in [IVRCall.IN_PROGRESS, IVRCall.RINGING] or hangup:
-                response = Flow.handle_call(call, user_response, hangup=hangup)
+                response = Flow.handle_call(call, user_response, hangup=hangup, resume=resume)
                 return HttpResponse(six.text_type(response))
             else:
                 if call.status == IVRCall.COMPLETED:
