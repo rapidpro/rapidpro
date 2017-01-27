@@ -475,7 +475,7 @@ class IVRTests(FlowFileTest):
 
         # force a duration calculation
         call.duration = None
-        self.assertNotNone(call.get_duration())
+        self.assertIsNotNone(call.get_duration())
 
         # simulate a button press and that our message is handled
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=4))
