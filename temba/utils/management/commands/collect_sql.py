@@ -1,7 +1,7 @@
 from __future__ import print_function, unicode_literals
 
-import regex
 import six
+import sqlparse
 
 from collections import OrderedDict
 from django.core.management.base import BaseCommand
@@ -9,42 +9,65 @@ from django.db.migrations import RunSQL
 from django.db.migrations.executor import MigrationExecutor
 from django.utils.timezone import now
 from enum import Enum
-from temba.sql import InstallSQL
+from six.moves import filter
+from sqlparse import sql
+from sqlparse import tokens as sql_tokens
 from temba.utils import truncate
+
+
+class InvalidSQLException(Exception):
+    def __init__(self, s):
+        super(InvalidSQLException, self).__init__("Invalid SQL: %s" % s)
 
 
 class SqlType(Enum):
     """
     The different SQL types that we can extract from migrations
     """
-    INDEX = (
-        r'CREATE\s+INDEX\s+(?P<name>\w+)',
-        r'DROP\s+INDEX\s+(IF\s+EXISTS)?\s+(?P<name>\w+)'
-    )
-    FUNCTION = (
-        'CREATE\s+(OR\s+REPLACE)?\s+FUNCTION\s+(?P<name>\w+)',
-        'DROP\s+FUNCTION\s+(IF\s+EXISTS)?\s+(?P<name>\w+)'
-    )
-    TRIGGER = (
-        'CREATE\s+TRIGGER\s+(?P<name>\w+)',
-        'DROP\s+TRIGGER\s+(IF\s+EXISTS)?\s+(?P<name>\w+)'
-    )
-
-    def __init__(self, create_pattern, drop_pattern):
-        self.create_pattern = create_pattern
-        self.drop_pattern = drop_pattern
+    INDEX = 1
+    FUNCTION = 2
+    TRIGGER = 3
 
     @classmethod
     def match(cls, statement):
         """
         Checks a SQL statement to see if it's creating or dropping a known type
         """
-        for sql_type in cls.__members__.values():
-            for (pattern, is_create) in ((sql_type.create_pattern, True), (sql_type.drop_pattern, False)):
-                m = regex.match(pattern, statement, flags=regex.IGNORECASE)
-                if m:
-                    return sql_type, m.groupdict()['name'], is_create
-        return None
+        # get non-whitespace non-comment tokens
+        tokens = [t for t in statement.tokens if not t.is_whitespace and not isinstance(t, sql.Comment)]
+        if len(tokens) < 3:
+            return None
+
+        # check statement is of form "CREATE|DROP TYPE ..."
+        if tokens[0].ttype != sql_tokens.DDL or tokens[1].ttype != sql_tokens.Keyword:
+            return None
+
+        if tokens[0].value.upper() in ('CREATE', 'CREATE OR REPLACE'):
+            is_create = True
+        elif tokens[0].value.upper() in ('DROP',):
+            is_create = False
+        else:
+            return None
+
+        try:
+            sql_type = cls[tokens[1].value.upper()]
+        except KeyError:
+            return None
+
+        if sql_type == cls.FUNCTION:
+            function = next(filter(lambda t: isinstance(t, sql.Function), tokens), None)
+            if not function:
+                raise InvalidSQLException(statement.value)
+
+            name = function.get_name()
+        else:
+            identifier = next(filter(lambda t: isinstance(t, sql.Identifier), tokens), None)
+            if not identifier:
+                raise InvalidSQLException(statement.value)
+
+            name = identifier.value
+
+        return sql_type, name, is_create
 
 
 @six.python_2_unicode_compatible
@@ -113,14 +136,13 @@ class Command(BaseCommand):  # pragma: no cover
 
         for migration in migrations:
             for operation in migration.operations:
-                if isinstance(operation, RunSQL) and not isinstance(operation, InstallSQL):
-                    statements = operation.sql.split(';')
+                if isinstance(operation, RunSQL):
+                    statements = sqlparse.parse(operation.sql)
 
                     for statement in statements:
-                        s = statement.strip() + ';'
-                        match = SqlType.match(s)
+                        match = SqlType.match(statement)
                         if match:
-                            operation = SqlObjectOperation(s, *match)
+                            operation = SqlObjectOperation(statement.value, *match)
                             operations.append(operation)
 
                             if self.verbosity >= 2:
@@ -144,7 +166,7 @@ class Command(BaseCommand):  # pragma: no cover
 
             if operation.is_create:
                 normalized[operation.obj_name] = operation
-            else:
+            elif self.verbosity >= 2:
                 self.stdout.write(" < %s" % operation)
 
         return normalized.values()
