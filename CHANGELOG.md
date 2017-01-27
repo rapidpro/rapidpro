@@ -1,3 +1,7 @@
+v3.0.26
+----------
+ * Adds more substitutions from accented characters to gsm7 plain characters
+
 v3.0.25
 ----------
  * Populate ended_on for ivr calls
