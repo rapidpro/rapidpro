@@ -41,6 +41,7 @@ djorm-ext-hstore==0.5
 enum34==1.1.6
 et-xmlfile==1.0.1
 flake8==2.5.4
+flake8-print==2.0.2
 future==0.15.2
 geojson==1.0.7
 gnureadline==6.3.3
