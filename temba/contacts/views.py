@@ -1265,7 +1265,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             sorted_results.insert(0, dict(key='name', label='Full name'))
 
-            return HttpResponse(json.dumps(sorted_results), content_type='application/javascript')
+            return HttpResponse(json.dumps(sorted_results), content_type='application/json')
 
     class Managefields(ModalMixin, OrgPermsMixin, SmartFormView):
         title = _("Manage Contact Fields")

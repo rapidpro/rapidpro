@@ -187,15 +187,15 @@ class FlowTest(TembaTest):
         # should be back to one valid flow
         self.login(self.admin)
         response = self.client.get(reverse('flows.flow_revisions', args=[self.flow.pk]))
-        self.assertEqual(1, len(json.loads(response.content)))
+        self.assertEqual(1, len(response.json()))
 
         # fetch that revision
-        revision_id = json.loads(response.content)[0]['id']
+        revision_id = response.json()[0]['id']
         response = self.client.get('%s?definition=%s' % (reverse('flows.flow_revisions', args=[self.flow.pk]),
                                                          revision_id))
 
         # make sure we can read the definition
-        definition = json.loads(response.content)
+        definition = response.json()
         self.assertEqual('base', definition['base_language'])
 
         # make the last revision even more invalid (missing ruleset)
@@ -207,7 +207,7 @@ class FlowTest(TembaTest):
 
         # no valid revisions (but we didn't throw!)
         response = self.client.get(reverse('flows.flow_revisions', args=[self.flow.pk]))
-        self.assertEquals(0, len(json.loads(response.content)))
+        self.assertEquals(0, len(response.json()))
 
     def test_get_localized_text(self):
 
@@ -464,7 +464,7 @@ class FlowTest(TembaTest):
         self.assertEquals(activity['messages'], [])
 
         # check activity with IVR test call
-        IVRCall.create_incoming(self.channel, test_contact, test_contact.get_urn(), self.admin)
+        IVRCall.create_incoming(self.channel, test_contact, test_contact.get_urn(), self.admin, 'CallSid')
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
         self.assertEquals(2, activity['visited']["%s:%s" % (uuid(1), uuid(5))])
         self.assertEquals(2, activity['activity'][uuid(5)])
@@ -473,7 +473,7 @@ class FlowTest(TembaTest):
         # if we try to get contacts at this step for our compose we should have two contacts
         self.login(self.admin)
         response = self.client.get(reverse('contacts.contact_omnibox') + "?s=%s" % contact1_steps[1].step_uuid)
-        contact_json = json.loads(response.content)
+        contact_json = response.json()
         self.assertEquals(2, len(contact_json['results']))
         self.client.logout()
 
@@ -1996,11 +1996,11 @@ class FlowTest(TembaTest):
 
         # test getting the json
         response = self.client.get(reverse('flows.flow_json', args=[flow.pk]))
-        self.assertTrue('channels' in json.loads(response.content))
-        self.assertTrue('languages' in json.loads(response.content))
-        self.assertTrue('channel_countries' in json.loads(response.content))
+        self.assertTrue('channels' in response.json())
+        self.assertTrue('languages' in response.json())
+        self.assertTrue('channel_countries' in response.json())
 
-        json_dict = json.loads(response.content)['flow']
+        json_dict = response.json()['flow']
 
         # test setting the json
         json_dict['action_sets'] = [dict(uuid=uuid(1), x=1, y=1, destination=None,
@@ -2031,7 +2031,7 @@ class FlowTest(TembaTest):
         # should still have the original one, nothing changed
         response = self.client.get(reverse('flows.flow_json', args=[flow.pk]))
         self.assertEquals(200, response.status_code)
-        json_dict = json.loads(response.content)
+        json_dict = response.json()
 
         # can't save against the other org's flow
         response = self.client.post(reverse('flows.flow_json', args=[other_flow.pk]), json.dumps(json_dict), content_type="application/json")
@@ -2057,7 +2057,7 @@ class FlowTest(TembaTest):
         post_data['has_refresh'] = True
 
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-        json_dict = json.loads(response.content)
+        json_dict = response.json()
 
         self.assertFalse(group in test_contact.all_groups.all())
         self.assertFalse(test_contact.values.all())
@@ -2077,7 +2077,7 @@ class FlowTest(TembaTest):
 
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         self.assertEquals(200, response.status_code)
-        json_dict = json.loads(response.content)
+        json_dict = response.json()
 
         self.assertTrue(group in test_contact.all_groups.all())
         self.assertTrue(test_contact.values.all())
@@ -2096,7 +2096,7 @@ class FlowTest(TembaTest):
 
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         self.assertEquals(200, response.status_code)
-        json_dict = json.loads(response.content)
+        json_dict = response.json()
 
         self.assertEquals(len(json_dict.keys()), 5)
         self.assertTrue('status' in json_dict.keys())
@@ -2320,7 +2320,7 @@ class FlowTest(TembaTest):
                                     content_type="application/json")
 
         self.assertEquals(400, response.status_code)
-        self.assertEquals('Invalid label name: @badlabel', json.loads(response.content)['description'])
+        self.assertEquals('Invalid label name: @badlabel', response.json()['description'])
 
     def test_flow_start_with_start_msg(self):
         # set our flow
@@ -2792,6 +2792,17 @@ class ActionTest(TembaTest):
         self.assertEquals(mail.outbox[2].subject, 'Allo allo message')
         self.assertEquals(mail.outbox[2].body, 'Email notification for allo allo')
         self.assertEquals(mail.outbox[2].recipients(), ["steve@apple.com"])
+
+        self.org.add_smtp_config('support@example.com', 'smtp.example.com', 'support@example.com', 'secret', '465', 'T', self.admin)
+
+        action = EmailAction(["steve@apple.com"], "Subject", "Body")
+        action.execute(run, None, msg)
+
+        self.assertEquals(len(mail.outbox), 4)
+        self.assertEquals(mail.outbox[3].from_email, 'support@example.com')
+        self.assertEquals(mail.outbox[3].subject, 'Subject')
+        self.assertEquals(mail.outbox[3].body, 'Body')
+        self.assertEquals(mail.outbox[3].recipients(), ["steve@apple.com"])
 
     def test_save_to_contact_action(self):
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="batman")
@@ -3768,7 +3779,7 @@ class SimulationTest(FlowFileTest):
 
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-        json_dict = json.loads(response.content)
+        json_dict = response.json()
 
         self.assertEquals(len(json_dict.keys()), 6)
         self.assertEquals(len(json_dict['messages']), 2)
@@ -3780,7 +3791,7 @@ class SimulationTest(FlowFileTest):
 
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         self.assertEquals(200, response.status_code)
-        json_dict = json.loads(response.content)
+        json_dict = response.json()
 
         self.assertEquals(len(json_dict['messages']), 6)
         self.assertEquals("3", json_dict['messages'][2]['text'])
@@ -4076,7 +4087,7 @@ class FlowsTest(FlowFileTest):
         self.login(self.admin)
 
         response = self.client.get('%s?flow=%d' % (reverse('flows.flow_completion'), flow.pk))
-        response = json.loads(response.content)
+        response = response.json()
 
         def assert_in_response(response, data_key, key):
             found = False

@@ -90,7 +90,7 @@ class ChannelTest(TembaTest):
 
     def assertHasCommand(self, cmd_name, response):
         self.assertEquals(200, response.status_code)
-        data = json.loads(response.content)
+        data = response.json()
 
         for cmd in data['cmds']:
             if cmd['cmd'] == cmd_name:
@@ -827,13 +827,13 @@ class ChannelTest(TembaTest):
         # Unknown channel
         response = self.client.post("%s?signature=sig&ts=123" % (reverse('sync', args=[999])), content_type='application/json')
         self.assertEquals(200, response.status_code)
-        self.assertEquals('rel', json.loads(response.content)['cmds'][0]['cmd'])
+        self.assertEquals('rel', response.json()['cmds'][0]['cmd'])
 
         # too old
         ts = int(time.time()) - 60 * 16
         response = self.client.post("%s?signature=sig&ts=%d" % (reverse('sync', args=[self.tel_channel.pk]), ts), content_type='application/json')
         self.assertEquals(401, response.status_code)
-        self.assertEquals(3, json.loads(response.content)['error_id'])
+        self.assertEquals(3, response.json()['error_id'])
 
     def test_is_ussd_channel(self):
         Channel.objects.all().delete()
@@ -910,7 +910,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(android1.created_by.username, settings.ANONYMOUS_USER_NAME)
 
         # check channel JSON in response
-        response_json = json.loads(response.content)
+        response_json = response.json()
         self.assertEqual(response_json, dict(cmds=[dict(cmd='reg',
                                                         relayer_claim_code=android1.claim_code,
                                                         relayer_secret=android1.secret,
@@ -921,7 +921,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         android1 = Channel.objects.get()
-        response_json = json.loads(response.content)
+        response_json = response.json()
 
         self.assertEqual(response_json, dict(cmds=[dict(cmd='reg',
                                                         relayer_claim_code=android1.claim_code,
@@ -1011,7 +1011,7 @@ class ChannelTest(TembaTest):
         android1.release()
 
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
-        claim_code = json.loads(response.content)['cmds'][0]['relayer_claim_code']
+        claim_code = response.json()['cmds'][0]['relayer_claim_code']
         self.assertEqual(response.status_code, 200)
         response = self.client.post(reverse('channels.channel_claim_android'),
                                     dict(claim_code=claim_code, phone_number="+250788123124"))
@@ -1103,7 +1103,7 @@ class ChannelTest(TembaTest):
                               dict(cmd='status', cc='US', dev="Nexus 6P")])
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
 
-        claim_code = json.loads(response.content)['cmds'][0]['relayer_claim_code']
+        claim_code = response.json()['cmds'][0]['relayer_claim_code']
 
         # try to claim it...
         self.client.post(reverse('channels.channel_claim_android'), dict(claim_code=claim_code, phone_number="12065551212"))
@@ -1145,7 +1145,7 @@ class ChannelTest(TembaTest):
         reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM555", uuid='uuid5'),
                               dict(cmd='status', cc='RW', dev="Nexus 5")])
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
-        claim_code = json.loads(response.content)['cmds'][0]['relayer_claim_code']
+        claim_code = response.json()['cmds'][0]['relayer_claim_code']
 
         # try to claim it with number taken by other Android channel
         response = self.client.post(reverse('channels.channel_claim_android'),
@@ -1954,7 +1954,7 @@ class ChannelTest(TembaTest):
     def test_unclaimed(self):
         response = self.sync(self.released_channel)
         self.assertEquals(200, response.status_code)
-        response = json.loads(response.content)
+        response = response.json()
 
         # should be a registration command containing a new claim code
         self.assertEquals(response['cmds'][0]['cmd'], 'reg')
@@ -1973,7 +1973,7 @@ class ChannelTest(TembaTest):
         self.released_channel.save()
 
         response = self.sync(self.released_channel, post_data=post_data)
-        response = json.loads(response.content)
+        response = response.json()
 
         # registration command
         self.assertEquals(response['cmds'][0]['cmd'], 'reg')
@@ -1992,7 +1992,7 @@ class ChannelTest(TembaTest):
                                     retry=[])])
 
         response = self.sync(self.released_channel, post_data=post_data)
-        response = json.loads(response.content)
+        response = response.json()
 
         # should now be a claim command in return
         self.assertEquals(response['cmds'][0]['cmd'], 'claim')
@@ -2001,7 +2001,7 @@ class ChannelTest(TembaTest):
         post_data = dict(cmds=[dict(cmd="reset", p_id=1)])
 
         response = self.sync(self.released_channel, post_data=post_data)
-        response = json.loads(response.content)
+        response = response.json()
 
         # channel should be released now
         channel = Channel.objects.get(pk=self.released_channel.pk)
@@ -2022,7 +2022,7 @@ class ChannelTest(TembaTest):
 
         response = self.sync(self.tel_channel)
         self.assertEquals(200, response.status_code)
-        response = json.loads(response.content)
+        response = response.json()
         self.assertEqual(1, len(response['cmds']))
 
         self.assertEquals(9, self.org.get_credits_remaining())
@@ -2035,7 +2035,7 @@ class ChannelTest(TembaTest):
         # should get the 10 messages we are allotted back, not the 11 that exist
         response = self.sync(self.tel_channel)
         self.assertEquals(200, response.status_code)
-        response = json.loads(response.content)
+        response = response.json()
         self.assertEqual(10, len(response['cmds']))
 
     def test_sync(self):
@@ -2061,7 +2061,7 @@ class ChannelTest(TembaTest):
         # Check our sync point has all three messages queued for delivery
         response = self.sync(self.tel_channel)
         self.assertEquals(200, response.status_code)
-        response = json.loads(response.content)
+        response = response.json()
         cmds = response['cmds']
         self.assertEqual(4, len(cmds))
 
@@ -2121,7 +2121,7 @@ class ChannelTest(TembaTest):
         response = self.sync(self.tel_channel, post_data)
 
         # new batch, our ack and our claim command for new org
-        self.assertEquals(4, len(json.loads(response.content)['cmds']))
+        self.assertEquals(4, len(response.json()['cmds']))
         self.assertContains(response, "Hello, we heard from you.")
         self.assertContains(response, "mt_bcast")
 
@@ -2300,7 +2300,7 @@ class ChannelTest(TembaTest):
         response = self.sync(self.tel_channel, post_data)
         self.assertEquals(200, response.status_code)
 
-        responses = json.loads(response.content)
+        responses = response.json()
         cmds = responses['cmds']
 
         # check the server gave us responses for our messages
@@ -5396,6 +5396,16 @@ class TwilioTest(TembaTest):
                                               APPLICATION_SID: self.application_sid})
         self.channel.org.save()
 
+    def signed_request(self, url, data, validator=None):
+        """
+        Makes a post to the Twilio handler with a computed signature
+        """
+        if not validator:
+            validator = RequestValidator(self.org.get_twilio_client().auth[1])
+
+        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + url, data)
+        return self.client.post(url, data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
@@ -5495,10 +5505,8 @@ class TwilioTest(TembaTest):
 
         self.channel.org.save()
 
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
-        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
-
-        self.assertEquals(201, response.status_code)
+        response = self.signed_request(twilio_url, post_data)
+        self.assertEqual(response.status_code, 201)
 
         # and we should have a new message
         msg1 = Msg.objects.get()
@@ -5508,12 +5516,17 @@ class TwilioTest(TembaTest):
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("Hello World", msg1.text)
 
+        # try without including number, but with country
+        del post_data['To']
+        post_data['ToCountry'] = 'RW'
+        response = self.signed_request(twilio_url, post_data)
+        self.assertEqual(response.status_code, 400)
+
         # try with non-normalized number
         post_data['To'] = '0785551212'
         post_data['ToCountry'] = 'RW'
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
-        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
-        self.assertEquals(201, response.status_code)
+        response = self.signed_request(twilio_url, post_data)
+        self.assertEqual(response.status_code, 201)
 
         # and we should have another new message
         msg2 = Msg.objects.exclude(pk=msg1.pk).get()
@@ -5527,29 +5540,24 @@ class TwilioTest(TembaTest):
         msg = Msg.objects.get()
 
         # now update the status via a callback
-        twilio_url = reverse('handlers.twilio_handler') + "?action=callback&id=%d" % msg.id
         post_data['SmsStatus'] = 'sent'
+        validator = RequestValidator(self.org.get_twilio_client().auth[1])
 
         # remove twilio connection
         self.channel.org.config = json.dumps({})
         self.channel.org.save()
 
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
-        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
-
-        self.assertEquals(400, response.status_code)
+        response = self.signed_request(twilio_url + "?action=callback&id=%d" % msg.id, post_data, validator)
+        self.assertEqual(response.status_code, 400)
 
         # connect twilio again
         self.channel.org.config = json.dumps({ACCOUNT_SID: self.account_sid,
                                               ACCOUNT_TOKEN: self.account_token,
                                               APPLICATION_SID: self.application_sid})
-
         self.channel.org.save()
 
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
-        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
-
-        self.assertEquals(200, response.status_code)
+        response = self.signed_request(twilio_url + "?action=callback&id=%d" % msg.id, post_data)
+        self.assertEqual(response.status_code, 200)
 
         msg = Msg.objects.get()
         self.assertEquals(SENT, msg.status)
@@ -5559,35 +5567,32 @@ class TwilioTest(TembaTest):
         contact.send("outgoing message", self.admin)
         msg = Msg.objects.get()
 
-        # now update the status via a callback (also test old api/v1 URL)
-        twilio_url = reverse('handlers.twilio_handler') + "?action=callback&id=%d" % msg.id
+        # now update the status via a callback
         post_data['SmsStatus'] = 'failed'
 
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
-        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+        response = self.signed_request(twilio_url + "?action=callback&id=%d" % msg.id, post_data)
+        self.assertEqual(response.status_code, 200)
 
-        self.assertEquals(200, response.status_code)
         msg = Msg.objects.get()
         self.assertEquals(FAILED, msg.status)
 
         # no message with id
         Msg.objects.all().delete()
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
-        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
-        self.assertEquals(400, response.status_code)
+        response = self.signed_request(twilio_url + "?action=callback&id=%d" % msg.id, post_data)
+        self.assertEqual(response.status_code, 400)
 
-        Msg.objects.all().delete()
+        # test TwiML Handler...
 
-        # Test TwiML Handler right now
         self.channel.delete()
-
         post_data = dict(To=self.channel.address, From='+250788383300', Body="Hello World")
+
+        # try without signing
         twiml_api_url = reverse('handlers.twiml_api_handler', args=['1234-1234-1234-12345'])
         response = self.client.post(twiml_api_url, post_data)
-        self.assertEquals(400, response.status_code)
+        self.assertEqual(response.status_code, 400)
 
-        # Create new channel
+        # create new channel
         self.channel = Channel.create(self.org, self.user, 'RW', 'TW', None, '+250785551212',
                                       uuid='00000000-0000-0000-0000-000000001234')
 

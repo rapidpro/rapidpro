@@ -1602,12 +1602,9 @@ class Flow(TembaModel):
             run.save(update_fields=['session'])
 
             # if we were started by other call, save that off
-            if parent_run and parent_run.session:
-                call.parent = parent_run.session
-                call.save()
-            else:
+            if not parent_run or not parent_run.session:
                 # trigger the call to start (in the background)
-                call.start_call()
+                IVRCall.objects.get(id=call.id).start_call()
 
             # no start msgs in call flows but we want the variable there
             run.start_msgs = []
@@ -4755,7 +4752,7 @@ class EmailAction(Action):
 
         if not run.contact.is_test:
             if valid_addresses:
-                on_transaction_commit(lambda: send_email_action_task.delay(valid_addresses, subject, message))
+                on_transaction_commit(lambda: send_email_action_task.delay(run.flow.org.id, valid_addresses, subject, message))
         else:
             if valid_addresses:
                 valid_addresses = ['"%s"' % elt for elt in valid_addresses]
