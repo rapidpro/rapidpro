@@ -3488,7 +3488,7 @@ class ChannelSession(SmartModel):
     def get_duration(self):
         """
         Either gets the set duration as reported by twilio, or tries to calculate
-        it from the aproximate time it was started
+        it from the approximate time it was started
         """
         duration = self.duration
         if not duration and self.status == 'I' and self.started_on:

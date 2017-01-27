@@ -470,6 +470,12 @@ class IVRTests(FlowFileTest):
         # our twilio callback on pickup
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+        call.refresh_from_db()
+        self.assertEqual(20, call.get_duration())
+
+        # force a duration calculation
+        call.duration = None
+        self.assertNotNone(call.get_duration())
 
         # simulate a button press and that our message is handled
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=4))
