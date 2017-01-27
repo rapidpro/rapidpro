@@ -12,22 +12,36 @@ def fix_ruleset_categories_open_ended(RuleSet):
     if not rulesets:
         return
 
-    affected_flows = []
+    affected_flow_ids = set()
 
     for ruleset in rulesets:
-        base_lang = ruleset.flow.base_language
         rules_json = json.loads(ruleset.rules)
         if len(rules_json) == 2 and rules_json[1]['test']['type'] == 'timeout':
-            rules_json[0]['category'][base_lang] = 'All Responses'
+            affected_flow_ids.add(ruleset.flow.pk)
+            print("Found affected flow %d" % ruleset.flow.id)
 
-            ruleset.rules = json.dumps(rules_json)
-            ruleset.save()
+    from temba.flows.models import Flow
+    affected_flows = Flow.objects.filter(pk__in=list(affected_flow_ids))
+    for flow in affected_flows:
+        flow.ensure_current_version()
 
-            if ruleset.flow.pk not in affected_flows:
-                affected_flows.append(ruleset.flow.pk)
-                print("Adjusted ruleset %d from flow %d" % (ruleset.id, ruleset.flow.id))
+        json_flow = flow.as_json()
 
-    print("Update oped ended categories with timeout on %d flows" % len(affected_flows))
+        base_lang = json_flow.get('base_language', 'base')
+        if 'rule_sets' in json_flow:
+            rulesets = []
+            for ruleset in json_flow['rule_sets']:
+                if len(ruleset['rules']) == 2:
+                    if ruleset['rules'][0]['test']['type'] == 'true' and ruleset['rules'][1]['test']['type'] == 'timeout':
+                        ruleset['rules'][0]['category'][base_lang] = 'All Responses'
+
+                rulesets.append(ruleset)
+
+            json_flow['rule_sets'] = rulesets
+
+        flow.update(json_flow, force=True)
+
+    print("Update oped ended categories with timeout on %d flows" % len(affected_flow_ids))
 
 
 def apply_as_migration(apps, schema_editor):
@@ -42,6 +56,10 @@ def apply_manual():
     fix_ruleset_categories_open_ended(RuleSet)
 
 
+def noop(apps, schema_editor):
+    pass
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -49,5 +67,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(apply_as_migration)
+        migrations.RunPython(apply_as_migration, noop)
     ]
