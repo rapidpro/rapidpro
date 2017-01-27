@@ -1213,6 +1213,19 @@ class ChannelTest(TembaTest):
             self.assertTrue('account_trial' in response.context)
             self.assertTrue(response.context['account_trial'])
 
+        with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.search') as mock_search:
+            mock_search.return_value = [MockTwilioClient.MockPhoneNumber('+12062345678')]
+
+            search_url = reverse('channels.channel_search_numbers')
+
+            # try making empty request
+            response = self.client.post(search_url, {})
+            self.assertEqual(response.json(), [])
+
+            # try searching for US number
+            response = self.client.post(search_url, {'country': 'US', 'area_code': '206'})
+            self.assertEqual(response.json(), ['+1 206-234-5678', '+1 206-234-5678'])
+
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
             mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber('+12062345678')]
 

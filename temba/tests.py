@@ -730,6 +730,9 @@ class MockTwilioClient(TwilioClient):
         def list(self, phone_number=None):
             return [MockTwilioClient.MockPhoneNumber(phone_number)]
 
+        def search(self, **kwargs):
+            return []
+
         def update(self, sid, **kwargs):
             print("Updating phone number with sid %s" % sid)
 

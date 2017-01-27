@@ -2098,10 +2098,10 @@ class ChannelCRUDL(SmartCRUDL):
 
         form_class = SearchNumbersForm
 
-        def form_invalid(self, *args, **kwargs):  # pragma: needs cover
-            return JsonResponse([])
+        def form_invalid(self, *args, **kwargs):
+            return JsonResponse([], safe=False)
 
-        def search_available_numbers(self, client, **kwargs):  # pragma: needs cover
+        def search_available_numbers(self, client, **kwargs):
             available_numbers = []
 
             kwargs['type'] = 'local'
@@ -2118,7 +2118,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             return available_numbers
 
-        def form_valid(self, form, *args, **kwargs):  # pragma: needs cover
+        def form_valid(self, form, *args, **kwargs):
             org = self.request.user.get_org()
             client = org.get_twilio_client()
             data = form.cleaned_data
@@ -2137,7 +2137,7 @@ class ChannelCRUDL(SmartCRUDL):
                 numbers.append(phonenumbers.format_number(phonenumbers.parse(number.phone_number, None),
                                                           phonenumbers.PhoneNumberFormat.INTERNATIONAL))
 
-            return JsonResponse(numbers)
+            return JsonResponse(numbers, safe=False)
 
     class BaseClaimNumber(OrgPermsMixin, SmartFormView):
         class ClaimNumberForm(forms.Form):
