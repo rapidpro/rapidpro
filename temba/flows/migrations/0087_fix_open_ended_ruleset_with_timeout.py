@@ -41,7 +41,7 @@ def fix_ruleset_categories_open_ended(RuleSet):
 
         flow.update(json_flow, force=True)
 
-    print("Update oped ended categories with timeout on %d flows" % len(affected_flow_ids))
+    print("Update open ended categories with timeout on %d flows" % len(affected_flow_ids))
 
 
 def apply_as_migration(apps, schema_editor):
