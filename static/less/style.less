@@ -1,7 +1,3 @@
-@refresh-css: 2;
-
-@import "variables";
-
 // if you are looking for a style that is not here,
 // it might be in the legacy file. Please read the
 // warning in the file, we don't want to add to that
@@ -90,34 +86,26 @@
   &:hover {
     background: @color-hovered;
     color: @color-hovered-font;
-//text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
     text-shadow: none;
     margin-right: -15px;
   }
 }
 
 .nav-list {
-
   .active {
     > a {
       background: @color-selected;
-      color: @flat-darkblue;
+      color: @color-selected-font;
       text-shadow: none;
 
       &:hover {
         background: @color-selected;
-        color: @flat-darkblue;
+        color: @color-selected-font;
         text-shadow: none;
       }
     }
-
   }
 }
-
-//.nav > li > a:hover {
-//  margin-right:-15px;
-//}
-
 
 .nav-list.level2 a {
   margin-right: -30px;
@@ -1446,10 +1434,13 @@ input[type='text'].search-query {
 
 #sidebar-nav {
   border: 1px solid #e6e6e6;
-  .nav { li { a {
-    font-size: 13px;
-  }
-  }
+
+  .nav.nav-list {
+    li {
+      a {
+        font-size: 13px;
+      }
+    }
   }
 }
 
