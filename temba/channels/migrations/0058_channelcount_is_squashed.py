@@ -9,7 +9,7 @@ from temba.sql import InstallSQL
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0055_install_indexes'),
+        ('channels', '0057_remove_channelsession_parent_and_flow'),
     ]
 
     operations = [
@@ -22,5 +22,5 @@ class Migration(migrations.Migration):
             'CREATE INDEX channels_channelcount_unsquashed '
             'ON channels_channelcount(channel_id, count_type, day) WHERE NOT is_squashed'
         ),
-        InstallSQL('0056_channels')
+        InstallSQL('0058_channels')
     ]
