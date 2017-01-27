@@ -28,13 +28,19 @@ class SqlType(Enum):
     FUNCTION = 2
     TRIGGER = 3
 
+
+@six.python_2_unicode_compatible
+class SqlObjectOperation(object):
+    def __init__(self, statement, sql_type, obj_name, is_create):
+        self.statement = statement
+        self.sql_type = sql_type
+        self.obj_name = obj_name
+        self.is_create = is_create
+
     @classmethod
-    def match(cls, statement):
-        """
-        Checks a SQL statement to see if it's creating or dropping a known type
-        """
+    def parse(cls, raw):
         # get non-whitespace non-comment tokens
-        tokens = [t for t in statement.tokens if not t.is_whitespace and not isinstance(t, sql.Comment)]
+        tokens = [t for t in raw.tokens if not t.is_whitespace and not isinstance(t, sql.Comment)]
         if len(tokens) < 3:
             return None
 
@@ -50,40 +56,31 @@ class SqlType(Enum):
             return None
 
         try:
-            sql_type = cls[tokens[1].value.upper()]
+            sql_type = SqlType[tokens[1].value.upper()]
         except KeyError:
             return None
 
-        if sql_type == cls.FUNCTION:
+        if sql_type == SqlType.FUNCTION:
             function = next(filter(lambda t: isinstance(t, sql.Function), tokens), None)
             if not function:
-                raise InvalidSQLException(statement.value)
+                raise InvalidSQLException(raw.value)
 
             name = function.get_name()
         else:
             identifier = next(filter(lambda t: isinstance(t, sql.Identifier), tokens), None)
             if not identifier:
-                raise InvalidSQLException(statement.value)
+                raise InvalidSQLException(raw.value)
 
             name = identifier.value
 
-        return sql_type, name, is_create
-
-
-@six.python_2_unicode_compatible
-class SqlObjectOperation(object):
-    def __init__(self, statement, sql_type, obj_name, is_create):
-        self.statement = statement
-        self.sql_type = sql_type
-        self.obj_name = obj_name
-        self.is_create = is_create
+        return cls(raw.value.strip(), sql_type, name, is_create)
 
     def __str__(self):
         return truncate(self.statement, 79).replace('\n', ' ')
 
 
 class Command(BaseCommand):  # pragma: no cover
-    help = "Collects SQL statements from migrations to compile a list of indexes, functions and triggers"
+    help = """Collects SQL statements from migrations to compile lists of indexes, functions and triggers"""
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -140,9 +137,8 @@ class Command(BaseCommand):  # pragma: no cover
                     statements = sqlparse.parse(operation.sql)
 
                     for statement in statements:
-                        match = SqlType.match(statement)
-                        if match:
-                            operation = SqlObjectOperation(statement.value, *match)
+                        operation = SqlObjectOperation.parse(statement)
+                        if operation:
                             operations.append(operation)
 
                             if self.verbosity >= 2:
@@ -164,6 +160,7 @@ class Command(BaseCommand):  # pragma: no cover
 
                 del normalized[operation.obj_name]
 
+            # don't add DROP operations for objects not previously created
             if operation.is_create:
                 normalized[operation.obj_name] = operation
             elif self.verbosity >= 2:
