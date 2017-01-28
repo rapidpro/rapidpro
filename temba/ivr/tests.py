@@ -427,6 +427,12 @@ class IVRTests(FlowFileTest):
         IVRCall.hangup_test_call(flow)
         self.assertTrue(IVRCall.objects.filter(pk=call.pk).first())
 
+        msgs = Msg.objects.filter(session=call).order_by('created_on')
+        self.assertEqual(3, msgs.count())
+        self.assertTrue('Would you like me to call you?' in msgs[0].text)
+        self.assertEqual('4', msgs[1].text)
+        self.assertEqual('Press one, two, or three. Thanks.', msgs[2].text)
+
         ActionLog.objects.all().delete()
         IVRCall.objects.all().delete()
         Msg.objects.all().delete()
@@ -494,6 +500,7 @@ class IVRTests(FlowFileTest):
         call = IVRCall.objects.get(pk=call.pk)
         self.assertEquals(IVRCall.COMPLETED, call.status)
         self.assertFalse(FlowRun.objects.filter(session=call).first().is_active)
+        self.assertIsNotNone(call.ended_on)
 
         # simulation gets flipped off by middleware, and this unhandled message doesn't flip it back on
         self.assertFalse(Contact.get_simulation())
@@ -511,9 +518,16 @@ class IVRTests(FlowFileTest):
 
         # test other our call status mappings with twilio
         def test_status_update(call_to_update, twilio_status, temba_status):
+            call_to_update.ended_on = None
             call_to_update.update_status(twilio_status, 0)
             call_to_update.save()
+            call_to_update.refresh_from_db()
             self.assertEquals(temba_status, IVRCall.objects.get(pk=call_to_update.pk).status)
+
+            if temba_status in IVRCall.DONE:
+                self.assertIsNotNone(call_to_update.ended_on)
+            else:
+                self.assertIsNone(call_to_update.ended_on)
 
         test_status_update(call, 'queued', IVRCall.QUEUED)
         test_status_update(call, 'ringing', IVRCall.RINGING)
