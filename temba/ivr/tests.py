@@ -194,7 +194,63 @@ class IVRTests(FlowFileTest):
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
-    def test_ivr_child_flow(self):
+    def test_ivr_subflow(self):
+
+        with patch('temba.ivr.models.IVRCall.start_call') as start_call:
+            self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+            self.org.save()
+
+            self.get_flow('ivr_subflow')
+            parent_flow = Flow.objects.filter(name='Parent Flow').first()
+
+            ben = self.create_contact('Ben', '+12345')
+            parent_flow.start(groups=[], contacts=[ben])
+            call = IVRCall.objects.get(direction=IVRCall.OUTGOING)
+
+            post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
+            response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+
+            # should have two runs, but still one call
+            self.assertEqual(1, IVRCall.objects.all().count())
+            self.assertEqual(2, FlowRun.objects.filter(is_active=True).count())
+            self.assertEqual(2, FlowStep.objects.all().count())
+
+            # should give us a redirect, but without the empty flag
+            self.assertContains(response, 'Redirect')
+            self.assertNotContains(response, 'empty=1')
+
+            # they should call back to us
+            response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+
+            # which should result in two more messages and a gather
+            self.assertContains(response, 'Gather')
+            self.assertContains(response, 'This is a child flow')
+            self.assertContains(response, 'What is your favorite color?')
+
+            self.assertEqual(3, Msg.objects.all().count())
+            self.assertEqual(4, FlowStep.objects.all().count())
+
+            # answer back with red
+            response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=1))
+
+            self.assertContains(response, 'Thanks, returning to the parent flow now.')
+            self.assertContains(response, 'Redirect')
+            self.assertContains(response, 'resume=1')
+
+            # back down to our original run
+            self.assertEqual(1, FlowRun.objects.filter(is_active=True).count())
+
+            response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]) + '?resume=1', post_data)
+            self.assertContains(response, 'In the child flow you picked Red.')
+            self.assertNotContains(response, 'Redirect')
+
+            # make sure we only called to start the call once
+            self.assertEqual(1, start_call.call_count)
+
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_ivr_start_flow(self):
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
         self.org.save()
 
@@ -414,6 +470,12 @@ class IVRTests(FlowFileTest):
         # our twilio callback on pickup
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+        call.refresh_from_db()
+        self.assertEqual(20, call.get_duration())
+
+        # force a duration calculation
+        call.duration = None
+        self.assertIsNotNone(call.get_duration())
 
         # simulate a button press and that our message is handled
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=4))
