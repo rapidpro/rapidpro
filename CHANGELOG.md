@@ -1,3 +1,12 @@
+v3.0.26
+----------
+ * Adds more substitutions from accented characters to gsm7 plain characters
+
+v3.0.25
+----------
+ * Populate ended_on for ivr calls
+ * Add session foreign key to Msg model
+
 v3.0.24
 ----------
  * Fix bug in starting calls from sessions
