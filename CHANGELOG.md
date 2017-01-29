@@ -1,3 +1,8 @@
+v3.0.27
+----------
+ * Fix searching for Twilio numbers, add unit tests
+ * Fix API v1 run serialization when step messages are purged
+
 v3.0.26
 ----------
  * Adds more substitutions from accented characters to gsm7 plain characters
