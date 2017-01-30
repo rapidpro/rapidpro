@@ -1735,7 +1735,7 @@ class JunebugHandler(BaseChannelHandler):
     url = r'^junebug/(?P<action>event|inbound)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.junebug_handler'
 
-    def get(self, request, *args, **kwargs):  # pragma: needs cover
+    def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=400)
 
     def post(self, request, *args, **kwargs):
@@ -1771,7 +1771,7 @@ class JunebugHandler(BaseChannelHandler):
             message = Msg.objects.filter(
                 channel=channel, external_id=message_id
             ).select_related('channel')
-            if not message:  # pragma: needs cover
+            if not message:
                 return HttpResponse(
                     "Message with external id of '%s' not found" % message_id,
                     status=400)
@@ -1812,9 +1812,6 @@ class JunebugHandler(BaseChannelHandler):
             Msg.objects.filter(pk=message.id).update(
                 external_id=data['message_id'])
             return HttpResponse('OK')
-
-        else:  # pragma: needs cover
-            return HttpResponse("Not handled, unknown action", status=400)
 
 
 class MbloxHandler(BaseChannelHandler):
