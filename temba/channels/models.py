@@ -1243,13 +1243,11 @@ class Channel(TembaModel):
         start = time.time()
 
         try:
-            print 'calling requests.post', requests.post
             response = requests.post(
                 channel.config[Channel.CONFIG_SEND_URL], verify=True,
                 json=payload, timeout=15,
                 auth=(channel.config[Channel.CONFIG_USERNAME],
                       channel.config[Channel.CONFIG_PASSWORD]))
-            print 'got response', response.status_code
         except Exception as e:
             raise SendException(unicode(e),
                                 method='POST',
@@ -1259,7 +1257,6 @@ class Channel(TembaModel):
                                 response_status=503,
                                 start=start)
 
-        print 'response.status_code', response.status_code
         if not (200 <= response.status_code < 300):
             raise SendException(
                 "Received a non 200 response %d from Junebug" % (
