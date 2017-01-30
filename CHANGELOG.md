@@ -1,3 +1,7 @@
+v3.0.31
+----------
+ * fix less brand override to not be reference
+
 v3.0.30
 ----------
  * Make styling variables uniform across branding
