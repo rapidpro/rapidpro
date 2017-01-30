@@ -2,10 +2,6 @@ v3.0.30
 ----------
  * Make styling variables uniform across branding
 
-v3.0.29
-----------
- * Make styling variables uniform across branding
-
 v3.0.28
 ----------
  * Add support for subflows over IVR
