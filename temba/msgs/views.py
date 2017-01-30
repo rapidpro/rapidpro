@@ -19,7 +19,7 @@ from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartFormView, SmartListView, SmartReadView, SmartUpdateView
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
-from temba.contacts.models import ContactGroup, URN
+from temba.contacts.models import ContactGroup, URN, ContactURN, TEL_SCHEME
 from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils import analytics, on_transaction_commit
@@ -54,6 +54,10 @@ def send_message_auto_complete_processor(request):
         completions.append(dict(name="date.today", display=six.text_type(_("Current Date"))))
         completions.append(dict(name="date.tomorrow", display=six.text_type(_("Tomorrow's Date"))))
         completions.append(dict(name="date.yesterday", display=six.text_type(_("Yesterday's Date"))))
+
+        for scheme, label in ContactURN.SCHEME_CHOICES:
+            if scheme != TEL_SCHEME and scheme in org.get_schemes(Channel.ROLE_SEND):
+                completions.append(dict(name="contact.%s" % scheme, display="Contact %s" % label))
 
         for field in org.contactfields.filter(is_active=True).order_by('label'):
             display = six.text_type(_("Contact Field: %(label)s")) % {'label': field.label}

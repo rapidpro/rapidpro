@@ -26,8 +26,9 @@ from functools import cmp_to_key
 from itertools import chain
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartListView, SmartUpdateView
 from smartmin.views import SmartDeleteView, SmartTemplateView, SmartFormView
+from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
-from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME, ContactURN
 from temba.ivr.models import IVRCall
 from temba.ussd.models import USSDSession
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
@@ -789,7 +790,12 @@ class FlowCRUDL(SmartCRUDL):
                 dict(name='contact.uuid', display=six.text_type(_("Contact UUID"))),
                 dict(name='new_contact', display=six.text_type(_('New Contact')))
             ]
-            contact_variables += [dict(name="contact.%s" % field.key, display=field.label) for field in ContactField.objects.filter(org=org, is_active=True)]
+
+            contact_variables += [dict(name="contact.%s" % scheme, display="Contact %s" % label) for scheme, label in
+                                  ContactURN.SCHEME_CHOICES if scheme != TEL_SCHEME and scheme in org.get_schemes(Channel.ROLE_SEND)]
+
+            contact_variables += [dict(name="contact.%s" % field.key, display=field.label) for field in
+                                  ContactField.objects.filter(org=org, is_active=True)]
 
             date_variables = [
                 dict(name='date', display=six.text_type(_('Current Date and Time'))),
