@@ -1129,6 +1129,14 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 0)
 
+        # check when all broadcasts have been purged
+        Broadcast.objects.all().update(purged=True)
+        Msg.objects.filter(direction='O').delete()
+
+        response = self.fetchJSON(url, "")
+        self.assertResultCount(response, 10)
+        self.assertEqual(response.json()['results'][0]['steps'][0]['text'], "What is your favorite color?")
+
     def test_api_channels(self):
         url = reverse('api.v1.channels')
 
