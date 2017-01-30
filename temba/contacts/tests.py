@@ -878,6 +878,7 @@ class ContactTest(TembaTest):
             self.assertEqual(self.voldemort.anon_identifier, self.voldemort.get_urn_display())
             self.assertEqual(mr_long_name.anon_identifier, mr_long_name.get_urn_display())
             self.assertEqual(self.billy.anon_identifier, self.billy.get_urn_display())
+            self.assertEqual('', self.billy.get_urn_display(scheme=TEL_SCHEME))
 
             self.assertEqual("Joe Blow", six.text_type(self.joe))
             self.assertEqual("%010d" % self.voldemort.pk, six.text_type(self.voldemort))
