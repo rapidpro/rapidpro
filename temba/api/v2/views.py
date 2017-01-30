@@ -95,6 +95,9 @@ class RootView(views.APIView):
     will get response with status code 429. The response will also include a header called 'Retry-After' which will
     specify the number of seconds that you should wait for before making further requests.
 
+    Currently the limit for all endpoints is 2500 requests per hour, but this may change in future so it is important
+    to check for 429 responses.
+
     ## Date Values
 
     Many endpoints either return datetime values or can take datatime parameters. The values returned will always be in
