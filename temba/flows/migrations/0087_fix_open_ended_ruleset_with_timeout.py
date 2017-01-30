@@ -7,7 +7,7 @@ import json
 from django.db import migrations
 
 
-def fix_ruleset_categories_open_ended(RuleSet, Value):
+def fix_ruleset_categories_open_ended(RuleSet):
     rulesets = list(RuleSet.objects.filter(rules__contains='timeout'))
     if not rulesets:
         return
@@ -21,6 +21,7 @@ def fix_ruleset_categories_open_ended(RuleSet, Value):
             print("Found affected flow %d" % ruleset.flow.id)
 
     from temba.flows.models import Flow
+    from temba.values.models import Value
     affected_flows = Flow.objects.filter(pk__in=list(affected_flow_ids))
     for flow in affected_flows:
         flow.ensure_current_version()
@@ -49,16 +50,14 @@ def fix_ruleset_categories_open_ended(RuleSet, Value):
 
 def apply_as_migration(apps, schema_editor):
     RuleSet = apps.get_model('flows', 'RuleSet')
-    Value = apps.get_model('values', 'Value')
 
-    fix_ruleset_categories_open_ended(RuleSet, Value)
+    fix_ruleset_categories_open_ended(RuleSet)
 
 
 def apply_manual():
     from temba.flows.models import RuleSet
-    from temba.values.models import Value
 
-    fix_ruleset_categories_open_ended(RuleSet, Value)
+    fix_ruleset_categories_open_ended(RuleSet)
 
 
 def noop(apps, schema_editor):
