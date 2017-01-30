@@ -8,7 +8,7 @@ from django.db import migrations
 
 
 def fix_ruleset_categories_open_ended(RuleSet):
-    rulesets = list(RuleSet.objects.all())
+    rulesets = list(RuleSet.objects.filter(rules__contains='timeout'))
     if not rulesets:
         return
 
