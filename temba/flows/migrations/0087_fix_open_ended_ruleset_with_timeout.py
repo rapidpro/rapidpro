@@ -7,7 +7,7 @@ import json
 from django.db import migrations
 
 
-def fix_ruleset_categories_open_ended(RuleSet):
+def fix_ruleset_categories_open_ended(RuleSet, Value):
     rulesets = list(RuleSet.objects.filter(rules__contains='timeout'))
     if not rulesets:
         return
@@ -35,6 +35,9 @@ def fix_ruleset_categories_open_ended(RuleSet):
                     if ruleset['rules'][0]['test']['type'] == 'true' and ruleset['rules'][1]['test']['type'] == 'timeout':
                         ruleset['rules'][0]['category'][base_lang] = 'All Responses'
 
+                        # update values category too
+                        Value.objects.filter(ruleset__uuid=ruleset['uuid'], category='Other').update(category='All Responses')
+
                 rulesets.append(ruleset)
 
             json_flow['rule_sets'] = rulesets
@@ -46,14 +49,16 @@ def fix_ruleset_categories_open_ended(RuleSet):
 
 def apply_as_migration(apps, schema_editor):
     RuleSet = apps.get_model('flows', 'RuleSet')
+    Value = apps.get_model('values', 'Value')
 
-    fix_ruleset_categories_open_ended(RuleSet)
+    fix_ruleset_categories_open_ended(RuleSet, Value)
 
 
 def apply_manual():
     from temba.flows.models import RuleSet
+    from temba.values.models import Value
 
-    fix_ruleset_categories_open_ended(RuleSet)
+    fix_ruleset_categories_open_ended(RuleSet, Value)
 
 
 def noop(apps, schema_editor):
