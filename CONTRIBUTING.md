@@ -107,7 +107,7 @@ license is conditioned upon compliance with Section 2.3.
 ### 2.3 Outbound License
 
 As a condition on the grant of rights in Sections 2.1 and 2.2, We
-agree to license the Contribution only under the terms of the license
+agree to continue to license the Contribution under the terms of the license
 or licenses which We are using on the Submission Date for the Material
 (including any rights to adopt any future version of a license if
 permitted).
