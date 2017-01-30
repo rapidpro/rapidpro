@@ -150,8 +150,8 @@
             @import "style.less";
 
             // any brand styling tweaks
-            @import "../brands/style.less";
-            @import "../brands/{{brand.slug}}/less/style.less";
+            @import (reference) "../brands/style.less";
+            @import (optional, reference) "../brands/{{brand.slug}}/less/style.less";
 
         {% endlessblock %}
 
