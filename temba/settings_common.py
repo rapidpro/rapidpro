@@ -214,13 +214,8 @@ INSTALLED_APPS = (
 
     # smartmin
     'smartmin',
-
-    # import tasks
     'smartmin.csv_imports',
-
-    # smartmin users
     'smartmin.users',
-    'modeltranslation',
 
     # django-timezone-field
     'timezone_field',
