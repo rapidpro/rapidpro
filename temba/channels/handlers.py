@@ -6,6 +6,7 @@ import hashlib
 import json
 import pytz
 import requests
+import six
 import xml.etree.ElementTree as ET
 
 from datetime import datetime
@@ -96,7 +97,7 @@ class TwimlAPIHandler(BaseChannelHandler):
         from_number = self.get_param('From')
 
         # Twilio sometimes sends un-normalized numbers
-        if not to_number.startswith('+') and to_country:
+        if to_number and not to_number.startswith('+') and to_country:
             to_number, valid = URN.normalize_number(to_number, to_country)
 
         # see if it's a twilio call being initiated
@@ -108,7 +109,7 @@ class TwimlAPIHandler(BaseChannelHandler):
                 response = twiml.Response()
                 response.say('Sorry, there is no channel configured to take this call. Goodbye.')
                 response.hangup()
-                return HttpResponse(unicode(response))
+                return HttpResponse(six.text_type(response))
 
             org = channel.org
 
@@ -124,7 +125,6 @@ class TwimlAPIHandler(BaseChannelHandler):
 
             if validator.validate(url, request.POST, signature):
                 from temba.ivr.models import IVRCall
-
                 # find a contact for the one initiating us
                 urn = URN.from_tel(from_number)
                 contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], channel=channel)
@@ -133,7 +133,8 @@ class TwimlAPIHandler(BaseChannelHandler):
                 flow = Trigger.find_flow_for_inbound_call(contact)
 
                 if flow:
-                    call = IVRCall.create_incoming(channel, contact, urn_obj, flow, channel.created_by)
+                    call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, call_sid)
+
                     call.update_status(request.POST.get('CallStatus', None),
                                        request.POST.get('CallDuration', None),
                                        Channel.TYPE_TWILIO)
@@ -141,7 +142,8 @@ class TwimlAPIHandler(BaseChannelHandler):
 
                     FlowRun.create(flow, contact.pk, session=call)
                     response = Flow.handle_call(call)
-                    return HttpResponse(unicode(response))
+                    return HttpResponse(six.text_type(response))
+
                 else:
 
                     # we don't have an inbound trigger to deal with this call.
@@ -157,13 +159,25 @@ class TwimlAPIHandler(BaseChannelHandler):
                     Trigger.catch_triggers(contact, Trigger.TYPE_MISSED_CALL, channel)
 
                     # either way, we need to hangup now
-                    return HttpResponse(unicode(response))
+                    return HttpResponse(six.text_type(response))
 
         action = request.GET.get('action', 'received')
         channel_uuid = kwargs.get('uuid')
 
+        # check for call progress events, these include post-call hangup notifications
+        if request.POST.get('CallbackSource', None) == 'call-progress-events':
+            if call_sid:
+                from temba.ivr.models import IVRCall
+                call = IVRCall.objects.filter(external_id=call_sid).first()
+                if call:
+                    call.update_status(request.POST.get('CallStatus', None), request.POST.get('CallDuration', None),
+                                       Channel.TYPE_TWIML)
+                    call.save()
+                    return HttpResponse("Call status updated")
+            return HttpResponse("No call found")
+
         # this is a callback for a message we sent
-        if action == 'callback':
+        elif action == 'callback':
             smsId = request.GET.get('id', None)
             status = request.POST.get('SmsStatus', None)
 
@@ -202,6 +216,9 @@ class TwimlAPIHandler(BaseChannelHandler):
             return HttpResponse("", status=200)
 
         elif action == 'received':
+            if not to_number:
+                return HttpResponse("Must provide To number for received messages", status=400)
+
             channel = self.get_receive_channel(channel_uuid=channel_uuid, to_number=to_number)
             if not channel:
                 return HttpResponse("No active channel found for number: %s" % to_number, status=400)
@@ -996,9 +1013,7 @@ class NexmoCallHandler(BaseChannelHandler):
             flow = Trigger.find_flow_for_inbound_call(contact)
 
             if flow:
-                call = IVRCall.create_incoming(channel, contact, urn_obj, flow, channel.created_by)
-                call.external_id = external_id
-                call.save()
+                call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, external_id)
 
                 FlowRun.create(flow, contact.pk, session=call)
                 response = Flow.handle_call(call)
@@ -1141,7 +1156,7 @@ class VumiHandler(BaseChannelHandler):
         try:
             body = json.loads(request.body)
         except Exception as e:  # pragma: needs cover
-            return HttpResponse("Invalid JSON: %s" % unicode(e), status=400)
+            return HttpResponse("Invalid JSON: %s" % six.text_type(e), status=400)
 
         # determine if it's a USSD session message or a regular SMS
         is_ussd = "ussd" in body.get('transport_name', '') or body.get('transport_type', '') == 'ussd'
@@ -1924,7 +1939,61 @@ class FacebookHandler(BaseChannelHandler):
                 status = []
 
                 for envelope in entry['messaging']:
-                    if 'message' in envelope or 'postback' in envelope:
+                    if 'optin' in envelope:
+                        # check that the recipient is correct for this channel
+                        channel_address = str(envelope['recipient']['id'])
+                        if channel_address != channel.address:  # pragma: needs cover
+                            return HttpResponse("Msg Ignored for recipient id: %s" % channel_address, status=200)
+
+                        referrer_id = envelope['optin'].get('ref')
+
+                        # This is a standard opt in, we know the sender id:
+                        #   https://developers.facebook.com/docs/messenger-platform/webhook-reference/optins
+                        # {
+                        #   "sender": { "id": "USER_ID" },
+                        #   "recipient": { "id": "PAGE_ID" },
+                        #   "timestamp": 1234567890,
+                        #   "optin": {
+                        #     "ref": "PASS_THROUGH_PARAM"
+                        #   }
+                        # }
+                        if 'sender' in envelope:
+                            # grab our contact
+                            urn = URN.from_facebook(envelope['sender']['id'])
+                            contact = Contact.from_urn(channel.org, urn)
+
+                        # This is a checkbox-plugin:
+                        #   https://developers.facebook.com/docs/messenger-platform/plugin-reference/checkbox-plugin
+                        # {
+                        #   "recipient": { "id": "PAGE_ID" },
+                        #   "timestamp": 1234567890,
+                        #   "optin": {
+                        #      "ref": "PASS_THROUGH_PARAM",
+                        #      "user_ref": "UNIQUE_REF_PARAM"
+                        #   }
+                        # }
+                        elif 'user_ref' in envelope['optin']:
+                            urn = URN.from_facebook(URN.path_from_fb_ref(envelope['optin']['user_ref']))
+                            contact = Contact.from_urn(channel.org, urn)
+
+                        # no idea what this is, ignore
+                        else:
+                            status.append("Ignored opt-in, no user_ref or sender")
+                            continue
+
+                        if not contact:
+                            contact = Contact.get_or_create(channel.org, channel.created_by,
+                                                            urns=[urn], channel=channel)
+
+                        caught = Trigger.catch_triggers(contact, Trigger.TYPE_REFERRAL, channel,
+                                                        referrer_id=referrer_id, extra=envelope['optin'])
+
+                        if caught:
+                            status.append("Triggered flow for ref: %s" % referrer_id)
+                        else:
+                            status.append("Ignored opt-in, no trigger for ref: %s" % referrer_id)
+
+                    elif 'message' in envelope or 'postback' in envelope:
                         # ignore echos
                         if 'message' in envelope and envelope['message'].get('is_echo'):
                             status.append("Echo Ignored")
@@ -1970,7 +2039,7 @@ class FacebookHandler(BaseChannelHandler):
                                 # if this isn't an anonymous org, look up their name from the Facebook API
                                 if not channel.org.is_anon:
                                     try:
-                                        response = requests.get('https://graph.facebook.com/v2.5/' + unicode(sender_id),
+                                        response = requests.get('https://graph.facebook.com/v2.5/' + six.text_type(sender_id),
                                                                 params=dict(fields='first_name,last_name',
                                                                             access_token=channel.config_json()[Channel.CONFIG_AUTH_TOKEN]))
 
@@ -2060,7 +2129,7 @@ class GlobeHandler(BaseChannelHandler):
         try:
             body = json.loads(request.body)
         except Exception as e:
-            return HttpResponse("Invalid JSON: %s" % unicode(e), status=400)
+            return HttpResponse("Invalid JSON: %s" % six.text_type(e), status=400)
 
         # needs to contain our message list and inboundSMS message
         if 'inboundSMSMessageList' not in body or 'inboundSMSMessage' not in body['inboundSMSMessageList']:
@@ -2275,7 +2344,8 @@ class ViberPublicHandler(BaseChannelHandler):
             #    "message_token": 4912661846655238145
             # }
             viber_id = body['user']['id']
-            contact = Contact.get_or_create(channel.org, channel.created_by, body['user'].get('name'), urns=[URN.from_viber(viber_id)])
+            contact_name = None if channel.org.is_anon else body['user'].get('name')
+            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[URN.from_viber(viber_id)])
             Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
             return HttpResponse("Subscription for contact: %s handled" % viber_id)
 
@@ -2401,8 +2471,9 @@ class ViberPublicHandler(BaseChannelHandler):
 
             # get or create our contact with any name sent in
             urn = URN.from_viber(body['sender']['id'])
-            contact = Contact.get_or_create(channel.org, channel.created_by,
-                                            body['sender'].get('name'), urns=[urn])
+
+            contact_name = None if channel.org.is_anon else body['sender'].get('name')
+            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
 
             # add our caption first if it is present
             if caption:  # pragma: needs cover

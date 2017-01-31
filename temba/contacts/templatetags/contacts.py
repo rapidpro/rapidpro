@@ -28,7 +28,10 @@ ACTIVITY_ICONS = {
     'Delivered': 'icon-bubble-check',
     'Call': 'icon-phone',
     'IVRCall': 'icon-phone',
-    'DTMF': 'icon-phone'
+    'DTMF': 'icon-phone',
+    'Expired': 'icon-clock',
+    'Interrupted': 'icon-warning',
+    'Completed': 'icon-checkmark'
 }
 
 
@@ -159,8 +162,31 @@ def activity_icon(item):
                     name = 'Failed'
                 elif item.status == 'D':
                     name = 'Delivered'
+    elif name == 'FlowRun':
+        if hasattr(item, 'run_event_type'):
+            if item.exit_type == 'C':
+                name = 'Completed'
+            elif item.exit_type == 'I':
+                name = 'Interrupted'
+            elif item.exit_type == 'E':
+                name = 'Expired'
 
     return mark_safe('<span class="glyph %s"></span>' % (ACTIVITY_ICONS.get(name, '')))
+
+
+@register.filter
+def history_class(item):
+    css = ''
+    from temba.msgs.models import Msg
+    if isinstance(item, Msg):
+        if item.media and item.media[:6] == 'video:':
+            css = '%s %s' % (css, 'video')
+        if item.direction or item.recipient_count:
+            css = '%s %s' % (css, 'msg')
+    else:
+        css = '%s %s' % (css, 'non-msg')
+
+    return css
 
 
 @register.filter

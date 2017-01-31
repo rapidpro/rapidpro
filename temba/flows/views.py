@@ -1,8 +1,9 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import json
 import logging
 import regex
+import six
 import traceback
 
 from collections import Counter
@@ -21,6 +22,7 @@ from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
+from functools import cmp_to_key
 from itertools import chain
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartListView, SmartUpdateView
 from smartmin.views import SmartDeleteView, SmartTemplateView, SmartFormView
@@ -33,13 +35,13 @@ from temba.reports.models import Report
 from temba.flows.models import Flow, FlowRun, FlowRevision, FlowRunCount
 from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, INCOMING, OUTGOING, PENDING
+from temba.msgs.models import Msg, PENDING
 from temba.triggers.models import Trigger
 from temba.utils import analytics, percentage, datetime_to_str, on_transaction_commit
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 from temba.values.models import Value
-from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart
+from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart, FlowPathRecentStep
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +169,7 @@ class RuleCRUDL(SmartCRUDL):
             return dict(id=ruleset.pk, label=ruleset.label, results=results)
 
         def render_to_response(self, context, **response_kwargs):
-            response = HttpResponse(json.dumps(context), content_type='application/javascript')
+            response = HttpResponse(json.dumps(context), content_type='application/json')
             return response
 
     class Choropleth(OrgPermsMixin, SmartReadView):
@@ -351,40 +353,21 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, request, *args, **kwargs):
             org = self.get_object_org()
 
-            step_uuid = request.GET.get('step', None)
-            next_uuid = request.GET.get('destination', None)
-            rule_uuid = request.GET.get('rule', None)
+            step_uuid = request.GET.get('step')
+            next_uuid = request.GET.get('destination')
+            rule_uuids = request.GET.get('rule')
 
             recent_messages = []
 
-            # noop if we are missing needed parameters
-            if not step_uuid or not next_uuid:
-                return JsonResponse(recent_messages, safe=False)
+            if (step_uuid or rule_uuids) and next_uuid:
+                from_uuids = rule_uuids.split(',') if rule_uuids else [step_uuid]
+                to_uuids = [next_uuid]
+                recent = FlowPathRecentStep.get_recent_messages(from_uuids, to_uuids, limit=5)
 
-            if rule_uuid:
-                rule_uuids = rule_uuid.split(',')
-                recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
-                                                       next_uuid=next_uuid,
-                                                       rule_uuid__in=rule_uuids).order_by('-left_on')[:20].prefetch_related('messages', 'contact')
-                msg_direction_filter = INCOMING
+                for msg in recent:
+                    recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=org.timezone), text=msg.text))
 
-            else:
-                recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
-                                                       next_uuid=next_uuid,
-                                                       rule_uuid=None).order_by('-left_on')[:20].prefetch_related('messages', 'contact')
-
-                msg_direction_filter = OUTGOING
-
-            # this is slightly goofy for performance reasons, we don't want to do the big join, so instead use the
-            # prefetch related above and do the filtering ourselves
-            for step in recent_steps:
-                if not step.contact.is_test:
-                    for msg in step.messages.all():
-                        if msg.visibility == Msg.VISIBILITY_VISIBLE and msg.direction == msg_direction_filter:
-                            recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=org.timezone),
-                                                        text=msg.text))
-
-            return JsonResponse(recent_messages[:5], safe=False)
+            return JsonResponse(recent_messages, safe=False)
 
     class Revisions(OrgObjPermsMixin, SmartReadView):
 
@@ -795,37 +778,37 @@ class FlowCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             contact_variables = [
-                dict(name='contact', display=unicode(_('Contact Name'))),
-                dict(name='contact.first_name', display=unicode(_('Contact First Name'))),
-                dict(name='contact.groups', display=unicode(_('Contact Groups'))),
-                dict(name='contact.language', display=unicode(_('Contact Language'))),
-                dict(name='contact.mailto', display=unicode(_('Contact Email Address'))),
-                dict(name='contact.name', display=unicode(_('Contact Name'))),
-                dict(name='contact.tel', display=unicode(_('Contact Phone'))),
-                dict(name='contact.tel_e164', display=unicode(_('Contact Phone - E164'))),
-                dict(name='contact.uuid', display=unicode(_("Contact UUID"))),
-                dict(name='new_contact', display=unicode(_('New Contact')))
+                dict(name='contact', display=six.text_type(_('Contact Name'))),
+                dict(name='contact.first_name', display=six.text_type(_('Contact First Name'))),
+                dict(name='contact.groups', display=six.text_type(_('Contact Groups'))),
+                dict(name='contact.language', display=six.text_type(_('Contact Language'))),
+                dict(name='contact.mailto', display=six.text_type(_('Contact Email Address'))),
+                dict(name='contact.name', display=six.text_type(_('Contact Name'))),
+                dict(name='contact.tel', display=six.text_type(_('Contact Phone'))),
+                dict(name='contact.tel_e164', display=six.text_type(_('Contact Phone - E164'))),
+                dict(name='contact.uuid', display=six.text_type(_("Contact UUID"))),
+                dict(name='new_contact', display=six.text_type(_('New Contact')))
             ]
             contact_variables += [dict(name="contact.%s" % field.key, display=field.label) for field in ContactField.objects.filter(org=org, is_active=True)]
 
             date_variables = [
-                dict(name='date', display=unicode(_('Current Date and Time'))),
-                dict(name='date.now', display=unicode(_('Current Date and Time'))),
-                dict(name='date.today', display=unicode(_('Current Date'))),
-                dict(name='date.tomorrow', display=unicode(_("Tomorrow's Date"))),
-                dict(name='date.yesterday', display=unicode(_("Yesterday's Date")))
+                dict(name='date', display=six.text_type(_('Current Date and Time'))),
+                dict(name='date.now', display=six.text_type(_('Current Date and Time'))),
+                dict(name='date.today', display=six.text_type(_('Current Date'))),
+                dict(name='date.tomorrow', display=six.text_type(_("Tomorrow's Date"))),
+                dict(name='date.yesterday', display=six.text_type(_("Yesterday's Date")))
             ]
 
             flow_variables = [
-                dict(name='channel', display=unicode(_('Sent to'))),
-                dict(name='channel.name', display=unicode(_('Sent to'))),
-                dict(name='channel.tel', display=unicode(_('Sent to'))),
-                dict(name='channel.tel_e164', display=unicode(_('Sent to'))),
-                dict(name='step', display=unicode(_('Sent to'))),
-                dict(name='step.value', display=unicode(_('Sent to')))
+                dict(name='channel', display=six.text_type(_('Sent to'))),
+                dict(name='channel.name', display=six.text_type(_('Sent to'))),
+                dict(name='channel.tel', display=six.text_type(_('Sent to'))),
+                dict(name='channel.tel_e164', display=six.text_type(_('Sent to'))),
+                dict(name='step', display=six.text_type(_('Sent to'))),
+                dict(name='step.value', display=six.text_type(_('Sent to')))
             ]
             flow_variables += [dict(name='step.%s' % v['name'], display=v['display']) for v in contact_variables]
-            flow_variables.append(dict(name='flow', display=unicode(_('All flow variables'))))
+            flow_variables.append(dict(name='flow', display=six.text_type(_('All flow variables'))))
 
             flow_id = self.request.GET.get('flow', None)
 
@@ -1232,13 +1215,13 @@ class FlowCRUDL(SmartCRUDL):
             from temba.ivr.models import IVRCall
 
             messages = []
-            call = IVRCall.objects.filter(contact__is_test=True, flow=flow).first()
+            call = IVRCall.objects.filter(contact__is_test=True).first()
             if call:
                 messages = Msg.objects.filter(contact=Contact.get_test_contact(self.request.user)).order_by('created_on')
                 action_logs = list(ActionLog.objects.filter(run__flow=flow, run__contact__is_test=True).order_by('created_on'))
 
                 messages_and_logs = chain(messages, action_logs)
-                messages_and_logs = sorted(messages_and_logs, cmp=msg_log_cmp)
+                messages_and_logs = sorted(messages_and_logs, key=cmp_to_key(msg_log_cmp))
 
                 messages_json = []
                 if messages_and_logs:
@@ -1358,7 +1341,7 @@ class FlowCRUDL(SmartCRUDL):
             action_logs = ActionLog.objects.filter(run__contact=test_contact).order_by('pk', 'created_on')
 
             messages_and_logs = chain(messages, action_logs)
-            messages_and_logs = sorted(messages_and_logs, cmp=msg_log_cmp)
+            messages_and_logs = sorted(messages_and_logs, key=cmp_to_key(msg_log_cmp))
 
             messages_json = []
             if messages_and_logs:
@@ -1415,7 +1398,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # try to save the our flow, if this fails, let's let that bubble up to our logger
             json_dict = json.loads(json_string)
-            print json.dumps(json_dict, indent=2)
+            print(json.dumps(json_dict, indent=2))
 
             try:
                 response_data = self.get_object(self.get_queryset()).update(json_dict, user=self.request.user)
@@ -1506,7 +1489,7 @@ class PreprocessTest(FormView):  # pragma: no cover
 
     def post(self, request, *args, **kwargs):
         return HttpResponse(json.dumps(dict(text='Norbert', extra=dict(occupation='hoopster', skillz=7.9))),
-                            content_type='application/javascript')
+                            content_type='application/json')
 
 
 class FlowLabelForm(forms.ModelForm):

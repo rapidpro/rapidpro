@@ -1,7 +1,8 @@
 from __future__ import unicode_literals
 
-from collections import defaultdict
+import six
 
+from collections import defaultdict
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
@@ -9,7 +10,7 @@ from uuid import uuid4
 
 
 def generate_uuid():
-    return unicode(uuid4())
+    return six.text_type(uuid4())
 
 
 class TembaModel(SmartModel):
@@ -39,7 +40,7 @@ class ChunkIterator(object):
     def _setup(self):
         from temba.values.models import Value
 
-        for i in xrange(0, len(self._ids), self.max_obj_num):
+        for i in six.moves.xrange(0, len(self._ids), self.max_obj_num):
             chunk_queryset = self._model.objects.filter(id__in=self._ids[i:i + self.max_obj_num])
 
             if self._order_by:

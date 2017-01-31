@@ -1,6 +1,7 @@
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
-from settings import *  # noqa
+from .settings import STATIC_URL
+from .settings import *  # noqa
 
 COMPRESS_ENABLED = True
 COMPRESS_OFFLINE = True

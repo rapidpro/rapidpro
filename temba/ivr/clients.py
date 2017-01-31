@@ -2,9 +2,9 @@ from __future__ import unicode_literals
 
 import json
 import mimetypes
-
 import re
 import requests
+import six
 import time
 import nexmo
 
@@ -48,11 +48,10 @@ class NexmoClient(NexmoCli):
         params['event_method'] = "POST"
 
         try:
-            if call.parent is None:
-                response = self.create_call(params=params)
-                conversation_uuid = response.get('conversation_uuid')
-                call.external_id = unicode(conversation_uuid)
-                call.save()
+            response = self.create_call(params=params)
+            conversation_uuid = response.get('conversation_uuid')
+            call.external_id = unicode(conversation_uuid)
+            call.save()
         except nexmo.Error as e:
             raise IVRException(_("Nexmo call failed, with error %s") % e.message)
 
@@ -112,7 +111,7 @@ class TwilioClient(TwilioRestClient):
                                             from_=call.channel.address,
                                             url=status_callback,
                                             status_callback=status_callback)
-            call.external_id = unicode(twilio_call.sid)
+            call.external_id = six.text_type(twilio_call.sid)
             call.save()
         except TwilioRestException as twilio_error:
             message = 'Twilio Error: %s' % twilio_error.msg

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, print_function, unicode_literals
 
 import base64
 import hashlib
@@ -21,14 +21,14 @@ from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.db.models import Count, Sum
-from django.http import Http404, HttpResponse, HttpResponseRedirect
+from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
-from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
+from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView, SmartModelActionView
 from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
 from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
@@ -621,7 +621,7 @@ def sync(request, channel_id):
     commands = []
     channel = Channel.objects.filter(pk=channel_id, is_active=True)
     if not channel:
-        return HttpResponse(json.dumps(dict(cmds=[dict(cmd='rel', relayer_id=channel_id)])), content_type='application/javascript')
+        return JsonResponse(dict(cmds=[dict(cmd='rel', relayer_id=channel_id)]))
 
     channel = channel[0]
 
@@ -629,7 +629,7 @@ def sync(request, channel_id):
     request_signature = request.GET.get('signature', '')
 
     if not channel.secret or not channel.org:
-        return HttpResponse(json.dumps(dict(cmds=[channel.build_registration_command()])), content_type='application/javascript')
+        return JsonResponse(dict(cmds=[channel.build_registration_command()]))
 
     # print "\n\nSECRET: '%s'" % channel.secret
     # print "TS: %s" % request_time
@@ -638,7 +638,7 @@ def sync(request, channel_id):
     # check that the request isn't too old (15 mins)
     now = time.time()
     if abs(now - int(request_time)) > 60 * 15:
-        return HttpResponse(status=401, content='{ "error_id": 3, "error": "Old Request", "cmds":[] }')
+        return JsonResponse({"error_id": 3, "error": "Old Request", "cmds": []}, status=401)
 
     # sign the request
     signature = hmac.new(key=str(channel.secret + request_time), msg=bytes(request.body), digestmod=hashlib.sha256).digest()
@@ -647,8 +647,8 @@ def sync(request, channel_id):
     signature = base64.urlsafe_b64encode(signature).strip()
 
     if request_signature != signature:
-        return HttpResponse(status=401,
-                            content='{ "error_id": 1, "error": "Invalid signature: \'%(request)s\'", "cmds":[] }' % {'request': request_signature})
+        return JsonResponse({"error_id": 1, "error": "Invalid signature: \'%(request)s\'"
+                                                     % {'request': request_signature}, "cmds": []}, status=401)
 
     # update our last seen on our channel
     channel.last_seen = timezone.now()
@@ -661,8 +661,8 @@ def sync(request, channel_id):
 
         client_updates = json.loads(request.body)
 
-        print "==GOT SYNC"
-        print json.dumps(client_updates, indent=2)
+        print("==GOT SYNC")
+        print(json.dumps(client_updates, indent=2))
 
         if 'cmds' in client_updates:
             cmds = client_updates['cmds']
@@ -759,13 +759,13 @@ def sync(request, channel_id):
         sync_event.outgoing_command_count = len([_ for _ in outgoing_cmds if _['cmd'] != 'ack'])
         sync_event.save()
 
-    print "==RESPONDING WITH:"
-    print json.dumps(result, indent=2)
+    print("==RESPONDING WITH:")
+    print(json.dumps(result, indent=2))
 
     # keep track of how long a sync takes
     analytics.gauge('temba.relayer_sync', time.time() - start)
 
-    return HttpResponse(json.dumps(result), content_type='application/javascript')
+    return JsonResponse(result)
 
 
 @disable_middleware
@@ -783,8 +783,7 @@ def register(request):
     channel = Channel.get_or_create_android(cmds[0], cmds[1])
     cmd = channel.build_registration_command()
 
-    result = dict(cmds=[cmd])
-    return HttpResponse(json.dumps(result), content_type='application/javascript')
+    return JsonResponse(dict(cmds=[cmd]))
 
 
 class ClaimAndroidForm(forms.Form):
@@ -880,7 +879,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
-               'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media')
+               'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'facebook_whitelist')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -937,6 +936,10 @@ class ChannelCRUDL(SmartCRUDL):
                 links.append(dict(title=_('Remove'),
                                   js_class='remove-channel',
                                   href="#"))
+
+            if self.object.channel_type == Channel.TYPE_FACEBOOK and self.has_org_perm('channels.channel_facebook_whitelist'):
+                links.append(dict(title=_("Whitelist Domain"), js_class='facebook-whitelist', href='#'))
+
             return links
 
         def get_context_data(self, **kwargs):
@@ -1111,6 +1114,35 @@ class ChannelCRUDL(SmartCRUDL):
 
             return context
 
+    class FacebookWhitelist(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+        class DomainForm(forms.Form):
+            whitelisted_domain = forms.URLField(required=True, initial='https://',
+                                                help_text="The domain to whitelist for Messenger extensions  ex: https://yourdomain.com")
+
+        slug_url_kwarg = 'uuid'
+        success_url = 'uuid@channels.channel_read'
+        form_class = DomainForm
+
+        def get_queryset(self):
+            return Channel.objects.filter(is_active=True, org=self.request.user.get_org())
+
+        def execute_action(self):
+            # curl -X POST -H "Content-Type: application/json" -d '{
+            #  "setting_type" : "domain_whitelisting",
+            #  "whitelisted_domains" : ["https://petersfancyapparel.com"],
+            #  "domain_action_type": "add"
+            # }' "https://graph.facebook.com/v2.6/me/thread_settings?access_token=PAGE_ACCESS_TOKEN"
+            access_token = self.object.config_json()[Channel.CONFIG_AUTH_TOKEN]
+            response = requests.post('https://graph.facebook.com/v2.6/me/thread_settings?access_token=' + access_token,
+                                     json=dict(setting_type='domain_whitelisting',
+                                               whitelisted_domains=[self.form.cleaned_data['whitelisted_domain']],
+                                               domain_action_type='add'))
+
+            if response.status_code != 200:
+                response_json = response.json()
+                default_error = dict(message=_("An error occured contacting the Facebook API"))
+                raise ValidationError(response_json.get('error', default_error)['message'])
+
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         cancel_url = 'id@channels.channel_read'
         title = _("Remove Android")
@@ -1212,7 +1244,7 @@ class ChannelCRUDL(SmartCRUDL):
             if obj.channel_type == Channel.TYPE_TWITTER:
                 # notify Mage so that it refreshes this channel
                 from .tasks import MageStreamAction, notify_mage_task
-                on_transaction_commit(lambda: notify_mage_task.delay(obj.uuid, MageStreamAction.refresh))
+                on_transaction_commit(lambda: notify_mage_task.delay(obj.uuid, MageStreamAction.refresh.name))
 
             return obj
 
@@ -1221,10 +1253,10 @@ class ChannelCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(ChannelCRUDL.Claim, self).get_context_data(**kwargs)
 
-            twilio_countries = [unicode(c[1]) for c in TWILIO_SEARCH_COUNTRIES]
+            twilio_countries = [six.text_type(c[1]) for c in TWILIO_SEARCH_COUNTRIES]
 
             twilio_countries_str = ', '.join(twilio_countries[:-1])
-            twilio_countries_str += ' ' + unicode(_('or')) + ' ' + twilio_countries[-1]
+            twilio_countries_str += ' ' + six.text_type(_('or')) + ' ' + twilio_countries[-1]
 
             context['twilio_countries'] = twilio_countries_str
 
@@ -1425,7 +1457,7 @@ class ChannelCRUDL(SmartCRUDL):
             try:
                 self.object = Channel.add_viber_public_channel(self.request.user.get_org(), self.request.user, data['auth_token'])
             except Exception as e:
-                form._errors['auth_token'] = form.error_class([unicode(e.message)])
+                form._errors['auth_token'] = form.error_class([six.text_type(e.message)])
                 return self.form_invalid(form)
 
             return super(ChannelCRUDL.ClaimViberPublic, self).form_valid(form)
@@ -2299,7 +2331,7 @@ class ChannelCRUDL(SmartCRUDL):
                 headers.update(TEMBA_HEADERS)
 
                 response = requests.get('https://api.line.me/v1/oauth/verify', headers=headers)
-                content = json.loads(response.content)
+                content = response.json()
 
                 if response.status_code != 200:
                     raise ValidationError(content.get('error_desciption'))
@@ -2389,27 +2421,27 @@ class ChannelCRUDL(SmartCRUDL):
 
         form_class = SearchNumbersForm
 
-        def form_invalid(self, *args, **kwargs):  # pragma: needs cover
-            return HttpResponse(json.dumps([]))
+        def form_invalid(self, *args, **kwargs):
+            return JsonResponse([], safe=False)
 
-        def search_available_numbers(self, client, **kwargs):  # pragma: needs cover
+        def search_available_numbers(self, client, **kwargs):
             available_numbers = []
 
             kwargs['type'] = 'local'
             try:
                 available_numbers += client.phone_numbers.search(**kwargs)
-            except TwilioRestException:
+            except TwilioRestException:  # pragma: no cover
                 pass
 
             kwargs['type'] = 'mobile'
             try:
                 available_numbers += client.phone_numbers.search(**kwargs)
-            except TwilioRestException:
+            except TwilioRestException:  # pragma: no cover
                 pass
 
             return available_numbers
 
-        def form_valid(self, form, *args, **kwargs):  # pragma: needs cover
+        def form_valid(self, form, *args, **kwargs):
             org = self.request.user.get_org()
             client = org.get_twilio_client()
             data = form.cleaned_data
@@ -2436,7 +2468,7 @@ class ChannelCRUDL(SmartCRUDL):
                     return HttpResponse(json.dumps(dict(error=str(_("Sorry, no numbers found, "
                                                                     "please enter another pattern and try again.")))))
 
-            return HttpResponse(json.dumps(numbers))
+            return JsonResponse(numbers, safe=False)
 
     class BaseClaimNumber(OrgPermsMixin, SmartFormView):
         class ClaimNumberForm(forms.Form):
@@ -2582,7 +2614,7 @@ class ChannelCRUDL(SmartCRUDL):
                 import traceback
                 traceback.print_exc(e)
                 if e.message:
-                    form._errors['phone_number'] = form.error_class([unicode(e.message)])
+                    form._errors['phone_number'] = form.error_class([six.text_type(e.message)])
                 else:
                     form._errors['phone_number'] = _("An error occurred connecting your Twilio number, try removing your "
                                                      "Twilio account, reconnecting it and trying again.")
@@ -2748,9 +2780,9 @@ class ChannelCRUDL(SmartCRUDL):
                     numbers.append(phonenumbers.format_number(phonenumbers.parse(number['msisdn'], data['country']),
                                                               phonenumbers.PhoneNumberFormat.INTERNATIONAL))
 
-                return HttpResponse(json.dumps(numbers))
+                return JsonResponse(numbers)
             except Exception as e:
-                return HttpResponse(json.dumps(dict(error=str(e))))
+                return JsonResponse(dict(error=str(e)))
 
     class ClaimPlivo(BaseClaimNumber):
         class ClaimPlivoForm(forms.Form):
@@ -2904,9 +2936,9 @@ class ChannelCRUDL(SmartCRUDL):
                 for number in results_numbers:
                     numbers.append(phonenumbers.format_number(phonenumbers.parse(number, None),
                                                               phonenumbers.PhoneNumberFormat.INTERNATIONAL))
-                return HttpResponse(json.dumps(numbers))
+                return JsonResponse(numbers)
             except Exception as e:
-                return HttpResponse(json.dumps(dict(error=str(e))))
+                return JsonResponse(dict(error=str(e)))
 
 
 class ChannelEventCRUDL(SmartCRUDL):

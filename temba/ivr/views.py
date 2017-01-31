@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import json
+import six
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
@@ -31,8 +32,8 @@ class CallHandler(View):
         channel_type = channel.channel_type
         client = channel.get_ivr_client()
 
-        print "\n\n\n"
-        print request.body
+        print("\n\n\n")
+        print(request.body)
 
         request_method = request.method
         request_path = request.get_full_path()
@@ -63,15 +64,10 @@ class CallHandler(View):
                 if input_redirect:
                     status = 'answered'
 
-            call.update_status(status, duration, channel_type)
-
-            # update any calls we have spawned with the same
-            for child in call.child_sessions.all():
-                child.update_status(status, duration, channel_type)
-                child.save()
-
+            call.update_status(status, duration, channel_type)  # update any calls we have spawned with the same
             call.save()
 
+            resume = request.GET.get('resume', 0)
             user_response = request.POST.copy()
 
             hangup = False
@@ -113,7 +109,7 @@ class CallHandler(View):
 
                 has_event = '1' == request.GET.get('has_event', '0')
                 if has_event:
-                    return HttpResponse(unicode(''))
+                    return HttpResponse(six.text_type(''))
 
                 save_media = '1' == request.GET.get('save_media', '0')
                 if media_url:
@@ -122,26 +118,26 @@ class CallHandler(View):
                         cache.delete('last_call:media_url:%d' % call.pk)
                     else:
                         response_msg = 'media URL saved'
-                        ChannelLog.log_ivr_interaction(call, "Saved media URL", request.body, unicode(response_msg),
+                        ChannelLog.log_ivr_interaction(call, "Saved media URL", request.body, six.text_type(response_msg),
                                                        request_path, request_method)
-                        return HttpResponse(unicode(response_msg))
+                        return HttpResponse(six.text_type(response_msg))
 
-            if call.status in [IVRCall.IN_PROGRESS, IVRCall.RINGING] or hangup:
+            if call.status not in IVRCall.DONE or hangup:
                 if call.is_ivr():
-                    response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup)
+                    response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup, resume=resume)
                     if channel_type in Channel.NCCO_CHANNELS:
-                        print "\n\n\n"
-                        print "=" * 80
-                        print unicode(response)
-                        print "=" * 80
+                        print("\n\n\n")
+                        print("=" * 80)
+                        print(six.text_type(response))
+                        print("=" * 80)
 
-                        ChannelLog.log_ivr_interaction(call, "Returned response", request.body, unicode(response),
+                        ChannelLog.log_ivr_interaction(call, "Returned response", request.body, six.text_type(response),
                                                        request_path, request_method)
-                        return JsonResponse(json.loads(unicode(response)), safe=False)
+                        return JsonResponse(json.loads(six.text_type(response)), safe=False)
 
-                    ChannelLog.log_ivr_interaction(call, "Returned response", request.body, unicode(response),
+                    ChannelLog.log_ivr_interaction(call, "Returned response", request.body, six.text_type(response),
                                                    request_path, request_method)
-                    return HttpResponse(unicode(response))
+                    return HttpResponse(six.text_type(response))
             else:
                 if call.status == IVRCall.COMPLETED:
                     # if our call is completed, hangup
@@ -149,7 +145,8 @@ class CallHandler(View):
                     if run:
                         run.set_completed()
 
-                response = dict(message="Updated call status")
+                response = dict(message="Updated call status",
+                                call=dict(status=call.get_status_display(), duration=call.duration))
                 ChannelLog.log_ivr_interaction(call, "Updated call status: %s" % call.get_status_display(),
                                                request.body, json.dumps(response), request_path, request_method)
                 return JsonResponse(response)

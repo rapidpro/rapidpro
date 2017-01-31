@@ -26,7 +26,7 @@
           -block country-select
             %select#country{ name:"country" }
               - for country in search_countries
-                %option{ value:"={country.key}" }
+                %option{ value:"{{country.key}}" }
                   {{country.label}}
 
         .area-code
@@ -60,7 +60,7 @@
           .numbers-title
             Add an existing supported number to your account
           -for number in account_numbers
-            .{class:"{% if number.country in supported_country_iso_codes or number.number|length <= 6 %}phone-number{% else %}unsupported-phone-number{% endif %}", data-number:"={ number.number}", data-country:"={ number.country}" }
+            .{class:"{% if number.country in supported_country_iso_codes or number.number|length <= 6 %}phone-number{% else %}unsupported-phone-number{% endif %}", data-number:"{{ number.number}}", data-country:"{{ number.country}}" }
               %span.number
                 {{ number.number }}
               (<span class="country">{{ number.country }}</span>)
