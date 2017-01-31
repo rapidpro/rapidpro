@@ -1006,7 +1006,7 @@ class FlowTest(TembaTest):
 
             self.flow.start([], [self.contact])
 
-            self.assertTrue(self.flow.steps())
+            self.assertTrue(self.flow.get_steps())
             self.assertTrue(Msg.objects.all())
             msg = Msg.objects.all()[0]
             self.assertFalse("@extra.coupon" in msg.text)

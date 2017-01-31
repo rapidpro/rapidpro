@@ -1166,7 +1166,7 @@ class Flow(TembaModel):
         action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=message_dict)])]
         self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language=self.base_language))
 
-    def steps(self):
+    def get_steps(self):
         return FlowStep.objects.filter(run__flow=self)
 
     def get_run_stats(self):
@@ -1842,8 +1842,8 @@ class Flow(TembaModel):
 
         if not is_start:
             # mark any other states for this contact as evaluated, contacts can only be in one place at time
-            self.steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid,
-                                                              rule_uuid=rule, rule_category=category)
+            self.get_steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid,
+                                                                  rule_uuid=rule, rule_category=category)
 
         # then add our new step and associate it with our message
         step = FlowStep.objects.create(run=run, contact=run.contact, step_type=node.get_step_type(),
