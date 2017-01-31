@@ -139,17 +139,28 @@
 
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
-        %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/style.less', media:'all'}
-        %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/formax.less', media:'all'}
         %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/print.less', media:'print'}
 
-        // custom branding
+      -compress css
+
+        {% lessblock %}
+          :plain
+
+            @import "formax.less";
+            @import "style.less";
+
+            // any brand styling tweaks
+            @import (reference) "../brands/style.less";
+            @import (optional) "../brands/{{brand.slug}}/less/style.less";
+
+        {% endlessblock %}
+
+        // any additional brand styling such as fonts, etc
         -for style in brand.styles
           -if 'less' in style
             %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}{{style}}', media:'all'}
           -else
             %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}{{style}}", media:'all'}
-
 
       -block extra-less
       -block extra-style
