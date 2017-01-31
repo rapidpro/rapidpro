@@ -1232,10 +1232,20 @@ class ChannelTest(TembaTest):
             response = self.client.post(search_url, {'country': 'US', 'area_code': ''})
             self.assertEqual(response.json(), ['+1 206-234-5678', '+1 206-234-5678'])
 
+            mock_search.return_value = []
+            response = self.client.post(search_url, {'country': 'US', 'area_code': ''})
+            self.assertEquals(response.json()['error'],
+                              "Sorry, no numbers found, please enter another area code and try again.")
+
             # try searching for non-US number
             mock_search.return_value = [MockTwilioClient.MockPhoneNumber('+442812345678')]
             response = self.client.post(search_url, {'country': 'GB', 'area_code': '028'})
             self.assertEqual(response.json(), ['+44 28 1234 5678', '+44 28 1234 5678'])
+
+            mock_search.return_value = []
+            response = self.client.post(search_url, {'country': 'GB', 'area_code': ''})
+            self.assertEquals(response.json()['error'],
+                              "Sorry, no numbers found, please enter another pattern and try again.")
 
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
             mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber('+12062345678')]

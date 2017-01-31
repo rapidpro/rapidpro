@@ -435,11 +435,6 @@ class Flow(TembaModel):
         # find out where we last left off
         step = run.steps.all().order_by('-arrived_on').first()
 
-        # a seen step then hangup to prevent loops
-        if step and step.left_on is not None:
-            voice_response.hangup()
-            return voice_response
-
         # if we are just starting the flow, create our first step
         if not step:
             # lookup our entry node
