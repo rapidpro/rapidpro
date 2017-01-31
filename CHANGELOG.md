@@ -1,3 +1,7 @@
+v3.0.32
+----------
+ * Make brand styling optional
+
 v3.0.31
 ----------
  * fix less brand override to not be reference
