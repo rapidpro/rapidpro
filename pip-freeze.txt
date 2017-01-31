@@ -86,12 +86,8 @@ pycparser==2.14
 pycrypto==2.6.1
 pyflakes==1.0.0
 Pygments==1.6
-<<<<<<< HEAD
 PyJWT==1.4.2
-pyparsing==2.0.1
-=======
 pyparsing==2.1.10
->>>>>>> ae9f999ac445214d5d2cb7f175cd3ce98cbe5952
 python-dateutil==2.2
 python-gcm==0.1.5
 python-telegram-bot==3.3b1
