@@ -434,6 +434,8 @@ class Contact(TembaModel):
 
     simulation = False
 
+    HIDDEN_URN_MASK = "*" * 10
+
     NAME = 'name'
     FIRST_NAME = 'first_name'
     LANGUAGE = 'language'
@@ -1742,6 +1744,8 @@ class Contact(TembaModel):
             return ''
 
         if org.is_anon:
+            if scheme is not None:
+                return Contact.HIDDEN_URN_MASK
             return self.anon_identifier
 
         urn = self.get_urn(scheme)
