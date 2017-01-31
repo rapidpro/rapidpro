@@ -78,11 +78,11 @@ $ source env/bin/activate
 ## Sync your database
 
 You should now be able to run all the migrations and initialize your development
-server. This takes a little while on RapidPro as syncdb also creates and
+server. This takes a little while on RapidPro as migrate also creates and
 initializes all the user groups and permissions.
 
 {% highlight bash %}
-$ python manage.py syncdb
+$ python manage.py migrate
 {% endhighlight %}
 
 ## Install bower scripts
