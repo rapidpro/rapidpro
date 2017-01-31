@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 from celery.task import task
 from django_redis import get_redis_connection
@@ -35,7 +35,7 @@ def check_schedule_task(sched_id=None):
                         broadcast = sched.get_broadcast()
                         trigger = sched.get_trigger()
 
-                        print "Firing %d" % sched.pk
+                        print("Firing %d" % sched.pk)
 
                         if broadcast:
                             broadcast.fire()
@@ -44,7 +44,7 @@ def check_schedule_task(sched_id=None):
                             trigger.fire()
 
                         else:
-                            print "Schedule had nothing interesting to fire"
+                            print("Schedule had nothing interesting to fire")
 
                         # if its one time, delete our schedule
                         if sched.repeat_period == 'O':

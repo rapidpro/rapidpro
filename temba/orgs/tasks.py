@@ -1,4 +1,4 @@
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, print_function, unicode_literals
 
 import time
 
@@ -39,7 +39,7 @@ def calculate_credit_caches():  # pragma: needs cover
     for org in Org.objects.filter(msgs__created_on__gte=last_week).distinct('pk'):
         start = time.time()
         org._calculate_credit_caches()
-        print " -- recalculated credits for %s in %0.2f seconds" % (org.name, time.time() - start)
+        print(" -- recalculated credits for %s in %0.2f seconds" % (org.name, time.time() - start))
 
 
 @task(track_started=True, name="squash_topupcredits")

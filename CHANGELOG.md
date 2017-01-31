@@ -1,3 +1,104 @@
+v3.0.31
+----------
+ * fix less brand override to not be reference
+
+v3.0.30
+----------
+ * Make styling variables uniform across branding
+
+v3.0.28
+----------
+ * Add support for subflows over IVR
+
+v3.0.27
+----------
+ * Fix searching for Twilio numbers, add unit tests
+ * Fix API v1 run serialization when step messages are purged
+
+v3.0.26
+----------
+ * Adds more substitutions from accented characters to gsm7 plain characters
+
+v3.0.25
+----------
+ * Populate ended_on for ivr calls
+ * Add session foreign key to Msg model
+
+v3.0.24
+----------
+ * Fix bug in starting calls from sessions
+
+v3.0.23
+----------
+ * Remove flow from ChannelSession, sessions can span many runs/flows
+ * Remove superfluous channelsession.parent
+
+v3.0.22
+----------
+ * Migration to update existing twiml apps with a status_callback, remove api/v1 references
+
+v3.0.21
+----------
+ * Various tweaks to wording and presentation around custom SMTP email config
+
+v3.0.20
+----------
+ * Allow orgs to set their own SMTP server for outgoing emails
+ * Return better error message when To number not passed to Twilio handler
+ * Exclude Flow webhook events from retries (we try once and forget)
+ * Don't pass channel in webhook events if we don't know it
+ * Use JsonResponse and response.json() consistently
+ * Replace json.loads(response.content) with response.json() which properly decodes on Python 3
+
+v3.0.19
+----------
+ * Improve performance of contact searches by location by fetching locations in separate query
+
+v3.0.18
+----------
+ * Update pyparsing to 2.1.10
+ * Update to new django-hamlpy
+ * Display flow runs exits on the contact timeline
+ * Fix Travis settings file for Python 3
+ * Fix more Python 3 syntax issues
+ * Fix RecentMessages no longer supporting requests with multiple rules, and add tests for that
+ * Use print as function rather than statement for future Python 3 compatibility
+ * Do not populate contact name for anon orgs from Viber
+ * Add is_squashed to FlowPathCount and FlowRunCount
+ * Updates to using boto3, if using AWS for storing imports or exports you'll need to change your settings file: `DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'`
+
+v3.0.14
+----------
+ * Allow for the creation of Facebook referral triggers (opt-in on FB)
+ * Allow for whitelisting of domains for Facebook channels
+
+v3.0.13
+----------
+ * New contact field editing UI with Intercooler modals
+
+v3.0.9
+----------
+ * Update RecentMessages view to use new recent messages model
+ * Remove now unused indexes on FlowStep
+
+v3.0.8
+----------
+ * Adds data migration to populate FlowPathRecentStep from existing Flow Steps
+
+v3.0.7
+----------
+ * Introduce new model, FlowPathRecentStep that tracks recent steps from one flow node to another. This will replace the rather expensive index used to show recent flow activity on a flow path.
+
+v3.0.10
+----------
+ * Log any exceptions encountered in Celery tasks to Raven
+ * Tell user to get pages_messaging_subscriptions permission for their FB app
+
+v3.0.6
+----------
+ * Replace unicode non breaking spaces with a normal space for GSM7 encoding (Kannel only)
+ * Add migrations for custom indexes (existing installs before v3 should fake these)
+
 v3.0.5
 ----------
  * fix styling on loader ball animation

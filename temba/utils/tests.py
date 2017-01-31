@@ -4,12 +4,16 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import pytz
+import six
 
 from celery.app.task import Task
 from datetime import datetime, time
 from decimal import Decimal
 from django.conf import settings
+from django.core import mail
+from django.core.urlresolvers import reverse
 from django.core.paginator import Paginator
+from django.test import override_settings
 from django.utils import timezone
 from django_redis import get_redis_connection
 from mock import patch, PropertyMock
@@ -27,6 +31,7 @@ from .expressions import migrate_template, evaluate_template, evaluate_template_
 from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents
 
+from .email import send_simple_email
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .currencies import currency_for_country
@@ -317,6 +322,22 @@ class CacheTest(TembaTest):
 
 
 class EmailTest(TembaTest):
+
+    @override_settings(SEND_EMAILS=True)
+    def test_send_simple_email(self):
+        send_simple_email(['recipient@bar.com'], "Test Subject", "Test Body")
+        self.assertEquals(len(mail.outbox), 1)
+        self.assertEquals(mail.outbox[0].from_email, settings.DEFAULT_FROM_EMAIL)
+        self.assertEquals(mail.outbox[0].subject, "Test Subject")
+        self.assertEquals(mail.outbox[0].body, "Test Body")
+        self.assertEquals(mail.outbox[0].recipients(), ['recipient@bar.com'])
+
+        send_simple_email(['recipient@bar.com'], "Test Subject", "Test Body", from_email='no-reply@foo.com')
+        self.assertEquals(len(mail.outbox), 2)
+        self.assertEquals(mail.outbox[1].from_email, 'no-reply@foo.com')
+        self.assertEquals(mail.outbox[1].subject, "Test Subject")
+        self.assertEquals(mail.outbox[1].body, "Test Body")
+        self.assertEquals(mail.outbox[1].recipients(), ["recipient@bar.com"])
 
     def test_is_valid_address(self):
 
@@ -929,12 +950,17 @@ class GSM7Test(TembaTest):
         self.assertEquals('No crazy "word" quotes.', replaced)
         self.assertTrue(is_gsm7(replaced))
 
+        # non breaking space
+        replaced = replace_non_gsm7_accents("Pour chercher du boulot, comment fais-tu ?")
+        self.assertEquals('Pour chercher du boulot, comment fais-tu ?', replaced)
+        self.assertTrue(is_gsm7(replaced))
+
 
 class ChunkTest(TembaTest):
 
     def test_chunking(self):
         curr = 0
-        for chunk in chunk_list(xrange(100), 7):
+        for chunk in chunk_list(six.moves.xrange(100), 7):
             batch_curr = curr
             for item in chunk:
                 self.assertEqual(item, curr)
@@ -1357,3 +1383,20 @@ class NCCOTest(TembaTest):
                                                          dict(action='input', maxDigits=1, timeOut=1,
                                                               eventUrl=["%s?save_media=1" % "http://example.com"])
                                                          ])
+
+
+class MiddlewareTest(TembaTest):
+
+    def test_orgheader(self):
+        response = self.client.get(reverse('public.public_index'))
+        self.assertFalse(response.has_header('X-Temba-Org'))
+
+        self.login(self.superuser)
+
+        response = self.client.get(reverse('public.public_index'))
+        self.assertFalse(response.has_header('X-Temba-Org'))
+
+        self.login(self.admin)
+
+        response = self.client.get(reverse('public.public_index'))
+        self.assertEqual(response['X-Temba-Org'], six.text_type(self.org.id))

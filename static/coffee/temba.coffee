@@ -163,9 +163,34 @@ findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
   if selected
     ele.data('select2').data(selected)
 
+@select2field = (ele) ->
+
+  url = ele.attr('url')
+  placeholder = ele.attr('placeholder')
+
+  select2 = ele.removeClass("loading").select2
+    placeholder: placeholder
+    allowClear: false
+    selectOnBlur: false
+    minimumInputLength: 0
+    multiple: false
+    initSelection: (ele, callback) ->
+      id = ele.val()
+      text = ele.attr('text')
+      callback({id:id, text:text})
+    ajax:
+      url: url
+      dataType: "json"
+      data: (term, page, context) ->
+        q = term
+        search: term
+        page: page
+      results: (response, page, context) ->
+        return response
+  id = ele.val()
+  $(ele).select2('val', id, true)
+
 ###
-
-
 @initAtMessageText = (selector, completions=null) ->
   completions = window.message_completions unless completions
 
@@ -405,6 +430,7 @@ class @Modax extends @ConfirmationModal
             modal.listeners.onFormLoaded()
 
           prepareOmnibox()
+          select2field($('.select2_field'))
       )
 
     submit: ->

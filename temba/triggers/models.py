@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import regex
+import six
 
 from django.db import models
 from django.utils import timezone
@@ -14,19 +15,21 @@ from temba.msgs.models import Msg
 from temba.orgs.models import Org
 
 
+@six.python_2_unicode_compatible
 class Trigger(SmartModel):
     """
     A Trigger is used to start a user in a flow based on an event. For example, triggers might fire
     for missed calls, inboud sms messages starting with a keyword, or on a repeating schedule.
     """
-    TYPE_KEYWORD = 'K'
-    TYPE_SCHEDULE = 'S'
-    TYPE_MISSED_CALL = 'M'
-    TYPE_INBOUND_CALL = 'V'
     TYPE_CATCH_ALL = 'C'
     TYPE_FOLLOW = 'F'
+    TYPE_KEYWORD = 'K'
+    TYPE_MISSED_CALL = 'M'
     TYPE_NEW_CONVERSATION = 'N'
+    TYPE_REFERRAL = 'R'
+    TYPE_SCHEDULE = 'S'
     TYPE_USSD_PULL = 'U'
+    TYPE_INBOUND_CALL = 'V'
 
     TRIGGER_TYPES = ((TYPE_KEYWORD, _("Keyword Trigger")),
                      (TYPE_SCHEDULE, _("Schedule Trigger")),
@@ -35,12 +38,16 @@ class Trigger(SmartModel):
                      (TYPE_CATCH_ALL, _("Catch All Trigger")),
                      (TYPE_FOLLOW, _("Follow Account Trigger")),
                      (TYPE_NEW_CONVERSATION, _("New Conversation Trigger")),
-                     (TYPE_USSD_PULL, _("USSD Pull Session Trigger")))
+                     (TYPE_USSD_PULL, _("USSD Pull Session Trigger")),
+                     (TYPE_REFERRAL, _("Referral Trigger")))
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The organization this trigger belongs to"))
 
     keyword = models.CharField(verbose_name=_("Keyword"), max_length=16, null=True, blank=True,
                                help_text=_("The first word in the message text"))
+
+    referrer_id = models.CharField(verbose_name=_("Referrer Id"), max_length=255, null=True, blank=True,
+                                   help_text=_("The referrer id that triggers us"))
 
     flow = models.ForeignKey(Flow, verbose_name=_("Flow"),
                              help_text=_("Which flow will be started"), related_name="triggers")
@@ -67,15 +74,16 @@ class Trigger(SmartModel):
     trigger_type = models.CharField(max_length=1, choices=TRIGGER_TYPES, default=TYPE_KEYWORD,
                                     verbose_name=_("Trigger Type"), help_text=_('The type of this trigger'))
 
-    channel = models.OneToOneField(Channel, verbose_name=_("Channel"), null=True, help_text=_("The associated channel"))
+    channel = models.ForeignKey(Channel, verbose_name=_("Channel"), null=True, related_name='triggers',
+                                help_text=_("The associated channel"))
 
-    def __unicode__(self):
+    def __str__(self):
         if self.trigger_type == Trigger.TYPE_KEYWORD:
             return self.keyword
         return self.get_trigger_type_display()  # pragma: needs cover
 
     def name(self):  # pragma: needs cover
-        return self.__unicode__()
+        return six.text_type(self)
 
     def as_json(self):
         """
@@ -203,7 +211,7 @@ class Trigger(SmartModel):
         return Trigger.objects.filter(org=org, trigger_type=trigger_type, is_active=True, is_archived=False)
 
     @classmethod
-    def catch_triggers(cls, entity, trigger_type, channel):
+    def catch_triggers(cls, entity, trigger_type, channel, referrer_id=None, extra=None):
         if isinstance(entity, Msg):
             contact = entity.contact
             start_msg = entity
@@ -218,8 +226,11 @@ class Trigger(SmartModel):
 
         triggers = Trigger.get_triggers_of_type(entity.org, trigger_type)
 
-        if trigger_type in [Trigger.TYPE_FOLLOW, Trigger.TYPE_NEW_CONVERSATION]:
-            triggers = triggers.filter(channel=channel)
+        if trigger_type in [Trigger.TYPE_FOLLOW, Trigger.TYPE_NEW_CONVERSATION, Trigger.TYPE_REFERRAL]:
+            triggers = triggers.filter(models.Q(channel=channel) | models.Q(channel=None))
+
+        if referrer_id is not None:
+            triggers = triggers.filter(referrer_id=referrer_id)
 
         # is there a match for a group specific trigger?
         group_ids = contact.user_groups.values_list('pk', flat=True)
@@ -235,7 +246,7 @@ class Trigger(SmartModel):
 
         # only fire the first matching trigger
         if triggers:
-            triggers[0].flow.start([], [contact], start_msg=start_msg, restart_participants=True)
+            triggers[0].flow.start([], [contact], start_msg=start_msg, restart_participants=True, extra=extra)
 
         return bool(triggers)
 

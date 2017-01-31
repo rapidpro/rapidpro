@@ -11,7 +11,8 @@ from django.template import TemplateDoesNotExist
 from django.template.base import Origin
 from django.template.loaders import filesystem, app_directories
 
-from hamlpy import hamlpy
+from hamlpy import HAML_EXTENSIONS
+from hamlpy.compiler import Compiler
 from hamlpy.template.utils import get_django_template_loaders
 
 
@@ -26,7 +27,7 @@ def get_haml_loader(loader):
             name, _extension = os.path.splitext(origin.name)
             template_name, _extension = os.path.splitext(origin.template_name)
 
-            for extension in hamlpy.VALID_EXTENSIONS:
+            for extension in HAML_EXTENSIONS:
                 try_name = self._generate_template_name(name, extension)
                 try_template_name = self._generate_template_name(template_name, extension)
                 try_origin = Origin(try_name, try_template_name, origin.loader)
@@ -35,7 +36,7 @@ def get_haml_loader(loader):
                 except TemplateDoesNotExist:
                     pass
                 else:
-                    haml_parser = hamlpy.Compiler()
+                    haml_parser = Compiler()
                     return haml_parser.process(haml_source)
 
             raise TemplateDoesNotExist(origin.template_name)
