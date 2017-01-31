@@ -57,7 +57,7 @@ def send_message_auto_complete_processor(request):
 
         for scheme, label in ContactURN.SCHEME_CHOICES:
             if scheme != TEL_SCHEME and scheme in org.get_schemes(Channel.ROLE_SEND):
-                completions.append(dict(name="contact.%s" % scheme, display="Contact %s" % label))
+                completions.append(dict(name="contact.%s" % scheme, display=six.text_type(_("Contact %s" % label))))
 
         for field in org.contactfields.filter(is_active=True).order_by('label'):
             display = six.text_type(_("Contact Field: %(label)s")) % {'label': field.label}

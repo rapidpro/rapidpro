@@ -791,8 +791,9 @@ class FlowCRUDL(SmartCRUDL):
                 dict(name='new_contact', display=six.text_type(_('New Contact')))
             ]
 
-            contact_variables += [dict(name="contact.%s" % scheme, display="Contact %s" % label) for scheme, label in
-                                  ContactURN.SCHEME_CHOICES if scheme != TEL_SCHEME and scheme in org.get_schemes(Channel.ROLE_SEND)]
+            contact_variables += [dict(name="contact.%s" % scheme, display=six.text_type(_("Contact %s" % label)))
+                                  for scheme, label in ContactURN.SCHEME_CHOICES if scheme != TEL_SCHEME and scheme in
+                                  org.get_schemes(Channel.ROLE_SEND)]
 
             contact_variables += [dict(name="contact.%s" % field.key, display=field.label) for field in
                                   ContactField.objects.filter(org=org, is_active=True)]
