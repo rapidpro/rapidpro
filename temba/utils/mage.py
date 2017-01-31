@@ -2,20 +2,19 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import requests
+import six
 
 from temba.utils import analytics
 
 
+@six.python_2_unicode_compatible
 class MageError(Exception):  # pragma: needs cover
     def __init__(self, caused_by=None, error_code=None):
         self.caused_by = caused_by
         self.error_code = error_code
 
-    def __unicode__(self):
-        return 'Caused by %s' % unicode(self.caused_by) if self.caused_by else 'Status code %d' % self.error_code
-
     def __str__(self):
-        return str(unicode(self))
+        return 'Caused by %s' % six.text_type(self.caused_by) if self.caused_by else 'Status code %d' % self.error_code
 
 
 class MageClient(object):  # pragma: needs cover

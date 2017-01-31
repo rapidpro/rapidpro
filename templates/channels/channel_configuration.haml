@@ -432,6 +432,18 @@
     %code
       https://{{ domain }}{% url 'handlers.hub9_handler' 'delivered' object.uuid %}
 
+    %hr
+
+    %h4
+      -trans "IP Addresses"
+
+    %p
+      Contact your sales agent to make sure the following IPs are whitelisted
+
+    -for ip_address in ip_addresses
+      %code= ip_address
+
+
   -elif object.channel_type == 'DA'
     %h4
       -blocktrans
@@ -473,6 +485,17 @@
 
     %code
       https://{{ domain }}{% url 'handlers.dartmedia_handler' 'delivered' object.uuid %}
+
+    %hr
+
+    %h4
+      -trans "IP Addresses"
+
+    %p
+      Contact your sales agent to make sure the following IPs are whitelisted
+
+    -for ip_address in ip_addresses
+      %code= ip_address
 
 
   -elif object.channel_type == 'VM' or object.channel_type == 'VMU'
@@ -561,7 +584,7 @@
           keyword = default
           allowed-receiver-prefix = {{channel.address}}
           max-messages = 0
-          post-url = "https://{{domain}}{% url 'handlers.kannel_handler' 'receive' object.uuid %}/?backend=%i&sender=%p&message=%b&ts=%T&id=%I"
+          post-url = "https://{{domain}}{% url 'handlers.kannel_handler' 'receive' object.uuid %}/?backend=%i&sender=%p&message=%b&ts=%T&id=%I&to=%P"
           concatenation = true
           assume-plain-text = true
           accept-x-kannel-headers = true
@@ -629,6 +652,11 @@
           It may take up to ten minutes for a new webhook to take effect after being set on your Facebook application. Remember,
           until your Facebook application is approved by Facebook you will only be able to send and receive messages
           with administrators of your application.
+
+      %p
+        -blocktrans
+          When submitting your application for approval, make sure to include the <code>pages_messaging</code>
+          and <code>pages_messaging_subscriptions</code> permissions so that you are able to initiate conversations with your contacts.
 
     %hr
 

@@ -1,14 +1,14 @@
 from __future__ import unicode_literals
 
 import json
+import six
 
 from django.core.exceptions import ValidationError
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
 from temba.ivr.models import IVRCall
-from temba.utils import build_json_response
 from temba.flows.models import Flow, FlowRun
 
 
@@ -41,16 +41,11 @@ class CallHandler(View):
             status = request.POST.get('CallStatus', None)
             duration = request.POST.get('CallDuration', None)
             call.update_status(status, duration)
-
-            # update any calls we have spawned with the same
-            for child in call.child_sessions.all():
-                child.update_status(status, duration)
-                child.save()
-
             call.save()
 
             # figure out if this is a callback due to an empty gather
             is_empty = '1' == request.GET.get('empty', '0')
+            resume = request.GET.get('resume', 0)
             user_response = request.POST.copy()
 
             # if the user pressed pound, then record no digits as the input
@@ -59,19 +54,20 @@ class CallHandler(View):
 
             hangup = 'hangup' == user_response.get('Digits', None)
 
-            if call.status in [IVRCall.IN_PROGRESS, IVRCall.RINGING] or hangup:
-                response = Flow.handle_call(call, user_response, hangup=hangup)
-                return HttpResponse(unicode(response))
+            if call.status not in IVRCall.DONE or hangup:
+                response = Flow.handle_call(call, user_response, hangup=hangup, resume=resume)
+                return HttpResponse(six.text_type(response))
             else:
                 if call.status == IVRCall.COMPLETED:
                     # if our call is completed, hangup
                     run = FlowRun.objects.filter(session=call).first()
                     if run:
                         run.set_completed()
-                return build_json_response(dict(message="Updated call status"))
+                return JsonResponse(dict(message="Updated call status",
+                                         call=dict(status=call.get_status_display(), duration=call.duration)))
 
         else:  # pragma: no cover
             # raise an exception that things weren't properly signed
             raise ValidationError("Invalid request signature")
 
-        return build_json_response(dict(message="Unhandled"))  # pragma: no cover
+        return JsonResponse(dict(message="Unhandled"))  # pragma: no cover

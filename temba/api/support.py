@@ -1,6 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 import logging
+import six
 
 from django.conf import settings
 from django.http import HttpResponseServerError
@@ -109,7 +110,7 @@ def temba_exception_handler(exc, context):
         return response
     else:
         # ensure exception still goes to Sentry
-        logger.error('Exception in API request: %s' % unicode(exc), exc_info=True)
+        logger.error('Exception in API request: %s' % six.text_type(exc), exc_info=True)
 
         # respond with simple message
         return HttpResponseServerError("Server Error. Site administrators have been notified.")

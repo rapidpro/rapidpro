@@ -2,12 +2,13 @@ from __future__ import unicode_literals
 
 import copy
 import json
+import regex
+import six
 
 from temba.flows.models import ContainsTest, StartsWithTest, ContainsAnyTest, RegexTest, ReplyAction
 from temba.flows.models import SayAction, SendAction, RuleSet
 from temba.utils.expressions import migrate_template
 from uuid import uuid4
-import regex
 
 
 def migrate_to_version_10(json_flow, flow):
@@ -40,7 +41,7 @@ def migrate_to_version_10(json_flow, flow):
         rules = []
         for status in ['success', 'failure']:
             # maintain our rule uuid for the success case
-            rule_uuid = old_rule_uuid if status == 'success' else unicode(uuid4())
+            rule_uuid = old_rule_uuid if status == 'success' else six.text_type(uuid4())
             new_rule = dict(test=dict(status=status, type='webhook_status'),
                             category={base_lang: status.capitalize()},
                             uuid=rule_uuid)
@@ -105,13 +106,13 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     def get_uuid(id_map, obj_id):
         uuid = id_map.get(obj_id, None)
         if not uuid:
-            uuid = unicode(uuid4())
+            uuid = six.text_type(uuid4())
             id_map[obj_id] = uuid
         return uuid
 
     def replace_with_uuid(ele, manager, id_map, nested_name=None, obj=None, create_dict=False):
         # deal with case of having only a string and no name
-        if isinstance(ele, basestring) and create_dict:
+        if isinstance(ele, six.string_types) and create_dict:
             # variable references should just stay put
             if len(ele) > 0 and ele[0] == '@':
                 return ele
@@ -241,13 +242,13 @@ def migrate_to_version_8(json_flow, flow=None):
     Migrates any expressions found in the flow definition to use the new @(...) syntax
     """
     def migrate_node(node):
-        if isinstance(node, basestring):
+        if isinstance(node, six.string_types):
             return migrate_template(node)
         if isinstance(node, list):
             for n in range(len(node)):
                 node[n] = migrate_node(node[n])
         if isinstance(node, dict):
-            for key, val in node.iteritems():
+            for key, val in six.iteritems(node):
                 node[key] = migrate_node(val)
         return node
 
@@ -528,7 +529,7 @@ def insert_node(flow, node, _next):
 
     # make sure we have a fresh uuid
     node['uuid'] = _next['uuid']
-    _next['uuid'] = unicode(uuid4())
+    _next['uuid'] = six.text_type(uuid4())
     update_destination(node, _next['uuid'])
 
     # bump everybody down

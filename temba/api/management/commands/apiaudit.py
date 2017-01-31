@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import six
 import time
 
 from colorama import init as colorama_init, Fore, Style
@@ -90,7 +91,7 @@ class Command(BaseCommand):  # pragma: no cover
 
         time_result = colored("%.3f" % time_taken, Fore.GREEN if time_taken < MAX_REQUEST_TIME else Fore.RED) + " secs"
 
-        used_indexes = [i for i, scans in pre_index_scans.iteritems() if post_index_scans.get(i) > scans]
+        used_indexes = [i for i, scans in six.iteritems(pre_index_scans) if post_index_scans.get(i) > scans]
         index_result = ",".join(used_indexes)
 
         self.stdout.write("GET %s %s / %s / %s" % (url, access_result, time_result, index_result))
@@ -108,8 +109,8 @@ class Command(BaseCommand):  # pragma: no cover
 
 
 def colored(text, color):
-    return color + unicode(text) + Fore.RESET
+    return color + six.text_type(text) + Fore.RESET
 
 
 def styled(text, style):
-    return style + unicode(text) + Style.RESET_ALL
+    return style + six.text_type(text) + Style.RESET_ALL
