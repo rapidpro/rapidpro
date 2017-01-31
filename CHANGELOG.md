@@ -1,3 +1,10 @@
+v3.0.33
+----------
+ * Change ansible command run on vagrant up from syncdb to migrate
+ * Remove no longer needed django-modeltranslation
+ * Keep up to 256 extra keys from webhooks instead of 128
+ * Add documentation of API rate limiting
+
 v3.0.32
 ----------
  * Make styling variables uniform across branding
