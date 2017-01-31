@@ -159,7 +159,7 @@
                                     %a{href:"{% url 'flows.flow_filter' label.pk%}"}
                                       {{label.name}}
 
-                        -if not object.get_total_runs
+                        -if not object.run_stats.total
                           %td.value-status
                           %td.value-status
                             -trans "No runs"
