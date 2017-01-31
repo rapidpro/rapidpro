@@ -1747,11 +1747,11 @@ class Contact(TembaModel):
         if tel:
             return tel.path
 
-    def send(self, text, user, trigger_send=True, response_to=None, message_context=None):
+    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None):
         from temba.msgs.models import Msg
 
         msg = Msg.create_outgoing(self.org, user, self, text, priority=Msg.PRIORITY_HIGH,
-                                  response_to=response_to, message_context=message_context)
+                                  response_to=response_to, message_context=message_context, session=session)
         if trigger_send:
             self.org.trigger_send([msg])
 
