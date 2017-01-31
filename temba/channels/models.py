@@ -3524,6 +3524,10 @@ class ChannelSession(SmartModel):
             elif status == 'completed':
                 self.status = self.COMPLETED
 
+        # if we are done, mark our ended time
+        if self.status in ChannelSession.DONE:
+            self.ended_on = timezone.now()
+
         if duration is not None:
             self.duration = duration
 
