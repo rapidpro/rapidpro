@@ -48,11 +48,10 @@ class NexmoClient(NexmoCli):
         params['event_method'] = "POST"
 
         try:
-            if call.parent is None:
-                response = self.create_call(params=params)
-                conversation_uuid = response.get('conversation_uuid')
-                call.external_id = unicode(conversation_uuid)
-                call.save()
+            response = self.create_call(params=params)
+            conversation_uuid = response.get('conversation_uuid')
+            call.external_id = unicode(conversation_uuid)
+            call.save()
         except nexmo.Error as e:
             raise IVRException(_("Nexmo call failed, with error %s") % e.message)
 

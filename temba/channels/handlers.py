@@ -170,7 +170,8 @@ class TwimlAPIHandler(BaseChannelHandler):
                 from temba.ivr.models import IVRCall
                 call = IVRCall.objects.filter(external_id=call_sid).first()
                 if call:
-                    call.update_status(request.POST.get('CallStatus', None), request.POST.get('CallDuration', None))
+                    call.update_status(request.POST.get('CallStatus', None), request.POST.get('CallDuration', None),
+                                       Channel.TYPE_TWIML)
                     call.save()
                     return HttpResponse("Call status updated")
             return HttpResponse("No call found")
@@ -1012,9 +1013,7 @@ class NexmoCallHandler(BaseChannelHandler):
             flow = Trigger.find_flow_for_inbound_call(contact)
 
             if flow:
-                call = IVRCall.create_incoming(channel, contact, urn_obj, flow, channel.created_by)
-                call.external_id = external_id
-                call.save()
+                call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, external_id)
 
                 FlowRun.create(flow, contact.pk, session=call)
                 response = Flow.handle_call(call)

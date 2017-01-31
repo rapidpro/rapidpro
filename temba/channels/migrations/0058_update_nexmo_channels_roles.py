@@ -3,14 +3,14 @@ from __future__ import unicode_literals
 
 from django.core.urlresolvers import reverse
 from django.conf import settings
-from django.db import migrations, models
+from django.db import migrations
 from temba.orgs.models import Org, NEXMO_UUID, NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0054_install_triggers'),
+        ('channels', '0057_remove_channelsession_parent_and_flow'),
     ]
 
     def update_nexmo_channels_roles(apps, schema_editor):

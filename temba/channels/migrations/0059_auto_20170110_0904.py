@@ -9,7 +9,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0055_update_nexmo_channels_roles'),
+        ('channels', '0058_update_nexmo_channels_roles'),
     ]
 
     operations = [
