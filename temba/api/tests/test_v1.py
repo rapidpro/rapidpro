@@ -610,8 +610,8 @@ class APITest(TembaTest):
         self.assertEqual(steps[0].next_uuid, None)
 
         # check flow stats
-        self.assertEqual(flow.get_total_runs(), 1)
-        self.assertEqual(flow.get_completed_runs(), 0)
+        self.assertEqual(flow.get_run_stats(),
+                         {'active': 1, 'total': 1, 'exit_type': {'C': 0, 'E': 0, 'I': 0}, 'completion': 0})
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({flow.entry_uuid: 1}, {}))
@@ -790,8 +790,8 @@ class APITest(TembaTest):
         self.assertEqual(out_msgs[0].created_on, datetime(2015, 8, 25, 11, 9, 30, 88000, pytz.UTC))
 
         # check flow stats
-        self.assertEqual(flow.get_total_runs(), 1)
-        self.assertEqual(flow.get_completed_runs(), 0)
+        self.assertEqual(flow.get_run_stats(),
+                         {'active': 1, 'total': 1, 'exit_type': {'C': 0, 'E': 0, 'I': 0}, 'completion': 0})
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({u'00000000-0000-0000-0000-000000000001': 1}, {}))
@@ -890,8 +890,8 @@ class APITest(TembaTest):
         self.assertEqual(out_msgs[1].response_to, step1_msgs[0])
 
         # check flow stats
-        self.assertEqual(flow.get_total_runs(), 1)
-        self.assertEqual(flow.get_completed_runs(), 1)
+        self.assertEqual(flow.get_run_stats(),
+                         {'active': 0, 'total': 1, 'exit_type': {'C': 1, 'E': 0, 'I': 0}, 'completion': 100})
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({},

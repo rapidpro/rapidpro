@@ -995,13 +995,13 @@ class FlowReadSerializer(ReadSerializer):
     flow = serializers.ReadOnlyField(source='id')  # deprecated, use uuid
 
     def get_runs(self, obj):
-        return obj.get_total_runs()
+        return obj.get_run_stats()['total']
 
     def get_labels(self, obj):
         return [l.name for l in obj.labels.all()]
 
     def get_completed_runs(self, obj):
-        return obj.get_completed_runs()
+        return obj.get_run_stats()['exit_type'][FlowRun.EXIT_TYPE_COMPLETED]
 
     def get_participants(self, obj):
         return None
