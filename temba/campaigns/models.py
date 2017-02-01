@@ -136,7 +136,7 @@ class Campaign(TembaModel):
                                                                    event_spec['unit'],
                                                                    message,
                                                                    event_spec['delivery_hour'],
-                                                                   base_language=event_spec['base_language'])
+                                                                   base_language=event_spec.get('base_language'))
                         event.update_flow_name()
                     else:
                         flow = Flow.objects.filter(org=org, is_active=True, uuid=event_spec['flow']['uuid']).first()
