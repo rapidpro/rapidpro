@@ -135,7 +135,8 @@ class Campaign(TembaModel):
                                                                    event_spec['offset'],
                                                                    event_spec['unit'],
                                                                    message,
-                                                                   event_spec['delivery_hour'])
+                                                                   event_spec['delivery_hour'],
+                                                                   base_language=event_spec.get('base_language'))
                         event.update_flow_name()
                     else:
                         flow = Flow.objects.filter(org=org, is_active=True, uuid=event_spec['flow']['uuid']).first()
@@ -189,13 +190,22 @@ class Campaign(TembaModel):
                 except:  # pragma: needs cover
                     message = dict(base=message)
 
-            events.append(dict(uuid=event.uuid, offset=event.offset,
-                               unit=event.unit,
-                               event_type=event.event_type,
-                               delivery_hour=event.delivery_hour,
-                               message=message,
-                               flow=dict(uuid=event.flow.uuid, name=event.flow.name),
-                               relative_to=dict(label=event.relative_to.label, key=event.relative_to.key)))
+            event_definition = dict(uuid=event.uuid, offset=event.offset,
+                                    unit=event.unit,
+                                    event_type=event.event_type,
+                                    delivery_hour=event.delivery_hour,
+                                    message=message,
+                                    relative_to=dict(label=event.relative_to.label, key=event.relative_to.key))
+
+            # only include the flow definition for standalone flows
+            if event.event_type == CampaignEvent.TYPE_FLOW:
+                event_definition['flow'] = dict(uuid=event.flow.uuid, name=event.flow.name)
+
+            # include the flow base language for message flows
+            elif event.event_type == CampaignEvent.TYPE_MESSAGE:
+                event_definition['base_language'] = event.flow.base_language
+
+            events.append(event_definition)
 
         definition['events'] = events
         return definition
@@ -274,11 +284,11 @@ class CampaignEvent(TembaModel):
     delivery_hour = models.IntegerField(default=-1, help_text="The hour to send the message or flow at.")
 
     @classmethod
-    def create_message_event(cls, org, user, campaign, relative_to, offset, unit, message, delivery_hour=-1):
+    def create_message_event(cls, org, user, campaign, relative_to, offset, unit, message, delivery_hour=-1, base_language=None):
         if campaign.org != org:  # pragma: no cover
             raise ValueError("Org mismatch")
 
-        flow = Flow.create_single_message(org, user, message)
+        flow = Flow.create_single_message(org, user, message, base_language)
 
         if isinstance(message, dict):
             message = json.dumps(message)

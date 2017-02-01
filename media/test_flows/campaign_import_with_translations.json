@@ -3,35 +3,32 @@
     {
       "events": [
         {
-          "event_type": "M", 
+          "event_type": "M",
           "relative_to": {
-            "key": "enrolled", 
+            "key": "enrolled",
             "label": "enrolled"
-          }, 
-          "flow": {
-            "name": "Single Message", 
-            "uuid": "9d17c6e1-c0af-4cfb-b5f9-0a5e11241a2b"
-          }, 
-          "offset": 15, 
-          "delivery_hour": -1, 
+          },
+          "offset": 15,
+          "delivery_hour": -1,
           "message": {
-            "swa": "hello", 
+            "swa": "hello",
             "eng": "Hey"
-          }, 
-          "unit": "D", 
+          },
+          "base_language": "swa",
+          "unit": "D",
           "uuid": "baf793c2-f020-4af9-b916-85ccbaa9d427"
         }
-      ], 
+      ],
       "group": {
-        "name": "Group Chat", 
+        "name": "Group Chat",
         "uuid": "2ebabf9e-5974-4958-a34b-7e91769e80e9"
-      }, 
-      "uuid": "444092b5-93db-4ff0-b916-01055142849f", 
+      },
+      "uuid": "444092b5-93db-4ff0-b916-01055142849f",
       "name": "When"
     }
-  ], 
-  "version": 10, 
-  "site": "https://app.rapidpro.io", 
-  "flows": [], 
+  ],
+  "version": 10,
+  "site": "https://app.rapidpro.io",
+  "flows": [],
   "triggers": []
 }
