@@ -62,13 +62,17 @@ def name_or_urn(contact, org):
 @register.filter
 def format_urn(urn, org):
     urn_val = urn.get_display(org=org, international=True)
-    return urn_val if urn_val != ContactURN.ANON_MASK else '\u2022' * 8  # replace *'s with prettier HTML entity
+    if urn_val == ContactURN.ANON_MASK:
+        return '\u2022' * 8  # replace *'s with prettier HTML entity
+    return urn_val
 
 
 @register.filter
 def format_contact(contact, org):
     display = contact.get_display(org=org)
-    return display if display != ContactURN.ANON_MASK else '\u2022' * 8  # replace *'s with prettier HTML entity
+    if display == ContactURN.ANON_MASK:
+        return '\u2022' * 8  # replace *'s with prettier HTML entity
+    return display
 
 
 @register.filter
