@@ -1755,7 +1755,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
 
         GET /api/v2/flows.json
 
-    Response containing the groups for your organization:
+    Response containing the flows for your organization:
 
         {
             "next": null,
@@ -1769,6 +1769,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
                     "expires": 600,
                     "created_on": "2016-01-06T15:33:00.813162Z",
                     "runs": {
+                        "active": 47,
                         "completed": 123,
                         "interrupted": 2,
                         "expired": 34
