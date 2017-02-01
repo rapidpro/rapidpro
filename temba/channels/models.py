@@ -3478,12 +3478,17 @@ class ChannelSession(SmartModel):
         elif status == 'canceled':
             self.status = self.CANCELED
 
-        self.duration = duration
+        # if we are done, mark our ended time
+        if self.status in ChannelSession.DONE:
+            self.ended_on = timezone.now()
+
+        if duration:
+            self.duration = duration
 
     def get_duration(self):
         """
         Either gets the set duration as reported by twilio, or tries to calculate
-        it from the aproximate time it was started
+        it from the approximate time it was started
         """
         duration = self.duration
         if not duration and self.status == 'I' and self.started_on:

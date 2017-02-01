@@ -1,3 +1,33 @@
+v3.0.33
+----------
+ * Change ansible command run on vagrant up from syncdb to migrate
+ * Remove no longer needed django-modeltranslation
+ * Keep up to 256 extra keys from webhooks instead of 128
+ * Add documentation of API rate limiting
+
+v3.0.32
+----------
+ * Make styling variables uniform across branding
+ * Make brand styling optional
+
+v3.0.28
+----------
+ * Add support for subflows over IVR
+
+v3.0.27
+----------
+ * Fix searching for Twilio numbers, add unit tests
+ * Fix API v1 run serialization when step messages are purged
+
+v3.0.26
+----------
+ * Adds more substitutions from accented characters to gsm7 plain characters
+
+v3.0.25
+----------
+ * Populate ended_on for ivr calls
+ * Add session foreign key to Msg model
+
 v3.0.24
 ----------
  * Fix bug in starting calls from sessions

@@ -398,7 +398,7 @@ class Flow(TembaModel):
             return ActionSet.get(flow, uuid)
 
     @classmethod
-    def handle_call(cls, call, user_response=None, hangup=False):
+    def handle_call(cls, call, user_response=None, hangup=False, resume=False):
         if not user_response:
             user_response = {}
 
@@ -433,7 +433,7 @@ class Flow(TembaModel):
                 text = media_url.partition(':')[2]
 
             msg = Msg.create_incoming(call.channel, call.contact_urn.urn,
-                                      text, status=PENDING, msg_type=IVR, media=media_url)
+                                      text, status=PENDING, msg_type=IVR, media=media_url, session=run.session)
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
@@ -453,7 +453,7 @@ class Flow(TembaModel):
 
         # go and actually handle wherever we are in the flow
         destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
-        (handled, msgs) = Flow.handle_destination(destination, step, run, msg, user_input=text is not None)
+        (handled, msgs) = Flow.handle_destination(destination, step, run, msg, user_input=text is not None, resume_parent_run=resume)
 
         # if we stopped needing user input (likely), then wrap our response accordingly
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
@@ -487,6 +487,8 @@ class Flow(TembaModel):
             # recordings have to be tacked on last
             if destination.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
                 voice_response.record(action=callback)
+            elif destination.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                voice_response.append(twiml.Redirect(url=callback))
             elif gather:
                 # nest all of our previous verbs in our gather
                 for verb in voice_response.verbs:
@@ -1601,7 +1603,6 @@ class Flow(TembaModel):
             run.session = call
             run.save(update_fields=['session'])
 
-            # if we were started by other call, save that off
             if not parent_run or not parent_run.session:
                 # trigger the call to start (in the background)
                 IVRCall.objects.get(id=call.id).start_call()
@@ -2584,7 +2585,7 @@ class FlowRun(models.Model):
         return FlowRun.INVALID_EXTRA_KEY_CHARS.sub('_', key)[:255]
 
     @classmethod
-    def normalize_fields(cls, fields, max_values=128, count=-1):
+    def normalize_fields(cls, fields, max_values=256, count=-1):
         """
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
@@ -2779,8 +2780,12 @@ class FlowRun(models.Model):
         else:
             from .tasks import continue_parent_flows
 
-            # we delay this by a second to allow current flow execution to complete (and msgs to be sent)
-            on_transaction_commit(lambda: continue_parent_flows.apply_async(args=[[self.id]], countdown=1))
+            if hasattr(self, 'voice_response') and self.parent and self.parent.is_active:
+                callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.session.pk]))
+                self.voice_response.append(twiml.Redirect(url=callback + '?resume=1'))
+            else:
+                # we delay this by a second to allow current flow execution to complete (and msgs to be sent)
+                on_transaction_commit(lambda: continue_parent_flows.apply_async(args=[[self.id]], countdown=1))
 
     def set_interrupted(self, final_step=None):
         """
@@ -2868,7 +2873,7 @@ class FlowRun(models.Model):
     def is_interrupted(self):
         return self.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED
 
-    def create_outgoing_ivr(self, text, recording_url, response_to=None):
+    def create_outgoing_ivr(self, text, recording_url, session, response_to=None):
 
         # create a Msg object to track what happened
         from temba.msgs.models import DELIVERED, IVR
@@ -2879,7 +2884,7 @@ class FlowRun(models.Model):
 
         msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.session.channel,
                                   response_to=response_to, media=media,
-                                  status=DELIVERED, msg_type=IVR)
+                                  status=DELIVERED, msg_type=IVR, session=session)
 
         # play a recording or read some text
         if msg:
@@ -3071,7 +3076,7 @@ class FlowStep(models.Model):
         broadcasts = list(self.broadcasts.all())
         if broadcasts:  # pragma: needs cover
             run = run or self.run
-            return broadcasts[0].get_translated_text(run.contact, base_language=run.flow.base_language, org=run.org)
+            return broadcasts[0].get_translated_text(run.contact, org=run.org)
 
         return None
 
@@ -3295,6 +3300,8 @@ class RuleSet(models.Model):
 
         # recordings aren't wrapped input they get tacked on at the end
         if self.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
+            return voice_response
+        elif self.ruleset_type == RuleSet.TYPE_SUBFLOW:
             return voice_response
         elif self.ruleset_type == RuleSet.TYPE_WAIT_DIGITS:
             return voice_response.gather(finishOnKey=self.finished_key, timeout=60, action=action)
@@ -5063,7 +5070,7 @@ class SayAction(Action):
         message = run.flow.get_localized_text(self.msg, run.contact)
         (message, errors) = Msg.substitute_variables(message, run.contact, run.flow.build_message_context(run.contact, event))
 
-        msg = run.create_outgoing_ivr(message, media_url)
+        msg = run.create_outgoing_ivr(message, media_url, run.session)
 
         if msg:
             if run.contact.is_test:
@@ -5100,7 +5107,7 @@ class PlayAction(Action):
     def execute(self, run, actionset_uuid, event, offline_on=None):
 
         (media, errors) = Msg.substitute_variables(self.url, run.contact, run.flow.build_message_context(run.contact, event))
-        msg = run.create_outgoing_ivr(_('Played contact recording'), media)
+        msg = run.create_outgoing_ivr(_('Played contact recording'), media, run.session)
 
         if msg:
             if run.contact.is_test:  # pragma: needs cover
@@ -5155,9 +5162,9 @@ class ReplyAction(Action):
                 context = run.flow.build_message_context(run.contact, msg)
                 try:
                     if msg:
-                        reply = msg.reply(text, user, trigger_send=False, message_context=context)
+                        reply = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session)
                     else:
-                        reply = run.contact.send(text, user, trigger_send=False, message_context=context)
+                        reply = run.contact.send(text, user, trigger_send=False, message_context=context, session=run.session)
                 except UnreachableException:
                     pass
 
