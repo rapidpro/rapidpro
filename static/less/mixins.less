@@ -1,8 +1,3 @@
-[class^="icon-"], [class*=" icon-"] {
-  transition: transform 400ms;
-  -webkit-transition: -webkit-transform 400ms;
-}
-
 .placeholder-text(@placeholder-color, @font-weight:400) {
   ::-webkit-input-placeholder { color:@placeholder-color; font-weight: @font-weight; }
   ::-moz-placeholder { color:@placeholder-color; font-weight: @font-weight;  } /* firefox 19+ */
@@ -79,72 +74,4 @@
   background-image: -webkit-linear-gradient(bottom, @bottom @stop1, @top @stop2);
   background-image: -ms-linear-gradient(bottom, @bottom @stop1, @top @stop2);
   background-image: linear-gradient(bottom, @bottom @stop1, @top @stop2);
-}
-
-.greyed {
-  color: @color-font-lightgrey;
-}
-
-.box-sizing {
-    -webkit-box-sizing: border-box; /* Safari/Chrome, other WebKit */
-    -moz-box-sizing: border-box;    /* Firefox, other Gecko */
-    box-sizing: border-box          /* Opera/IE 8+ */
-}
-
-/* Message Bubble Colors */
-.queued {
-  color: @color-status-queued
-}
-.queued_instantly {
-  color: @color-status-queued-instantly
-}
-.pending {
-  color: @color-status-pending
-}
-.pending_instantly{
-  color: @color-status-pending-instantly
-}
-.sent {
-  color: @color-status-sent
-}
-.delivered {
-  color: @color-status-delivered
-}
-.handled {
-  color: @color-status-handled
-}
-.errored {
-  color: @color-status-errored
-}
-.failed {
-  color: @color-status-failed
-}
-
-/* SMS Table stylings */
-.glyph {
-
-  &.green {
-    color: @color-status-green;
-  }
-
-  &.orange {
-    color: @color-status-orange;
-  }
-
-  &.red {
-    color: @color-status-red;
-  }
-
-  &.grey {
-    color: @color-status-grey;
-  }
-
-  &.blue {
-    color: @color-status-blue;
-  }
-
-  &.primary {
-    color: @color-primary;
-  }
-
 }

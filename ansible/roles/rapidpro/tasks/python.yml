@@ -16,5 +16,5 @@
 - name: Django | Syncdb
   become: no
   command: |
-    {{ project_path }}/.venv/bin/python manage.py syncdb
+    {{ project_path }}/.venv/bin/python manage.py migrate
     chdir={{ project_path }}
