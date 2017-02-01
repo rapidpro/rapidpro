@@ -2585,7 +2585,7 @@ class FlowRun(models.Model):
         return FlowRun.INVALID_EXTRA_KEY_CHARS.sub('_', key)[:255]
 
     @classmethod
-    def normalize_fields(cls, fields, max_values=128, count=-1):
+    def normalize_fields(cls, fields, max_values=256, count=-1):
         """
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
