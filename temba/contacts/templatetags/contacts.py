@@ -66,8 +66,7 @@ def format_urn(urn_or_contact, org):
         return urn_val if urn_val != ContactURN.ANON_MASK else '\u2022' * 8  # replace *'s with prettier HTML entity
     elif isinstance(urn_or_contact, Contact):
         # will render contact's highest priority URN
-        urn = urn_or_contact.get_urn()
-        urn_val = urn.get_display(org=org, international=True) if urn else ""
+        urn_val = urn_or_contact.get_display(org=org)
         return urn_val if urn_val != ContactURN.ANON_MASK else '\u2022' * 8  # replace *'s with prettier HTML entity
     else:  # pragma: no cover
         raise ValueError('Must be a URN or contact')
