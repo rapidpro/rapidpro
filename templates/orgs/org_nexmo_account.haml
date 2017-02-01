@@ -38,7 +38,7 @@
 -block form-buttons
   .form-actions
     -if config.NEXMO_KEY and config.NEXMO_SECRET
-      %input.btn.btn-danger{type:"submit", value:"={ submit_button_name }"}
+      %input.btn.btn-danger{type:"submit", value:"{{ submit_button_name }}"}
     -else
       %a.btn.btn-primary{href:"{% url 'orgs.org_nexmo_connect'%}"}
         -trans "Connect Nexmo"

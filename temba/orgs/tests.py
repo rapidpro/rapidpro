@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import json
 import pytz
+import six
 
 from context_processors import GroupPermWrapper
 from datetime import timedelta
@@ -184,7 +185,7 @@ class OrgTest(TembaTest):
 
         # assert it has changed
         org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual("Rwanda", unicode(org.country))
+        self.assertEqual("Rwanda", six.text_type(org.country))
         self.assertEqual("RW", org.get_country_code())
 
         # set our admin boundary name to something invalid
@@ -301,7 +302,7 @@ class OrgTest(TembaTest):
         def postAPI(url, data):
             response = self.client.post(url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
             if response.content:
-                response.json = json.loads(response.content)
+                response.json = response.json()
             return response
 
         url = reverse('api.v1.broadcasts')
@@ -389,14 +390,27 @@ class OrgTest(TembaTest):
         response = self.client.get(update_url)
         self.assertEquals(200, response.status_code)
 
-        post_data = response.context['form'].initial
-        post_data['plan'] = 'TRIAL'
-        post_data['language'] = ''
-        post_data['country'] = ''
-        post_data['primary_language'] = ''
-        post_data['parent'] = ''
-
         # change to the trial plan
+        post_data = {
+            'name': 'Temba',
+            'brand': 'rapidpro.io',
+            'plan': 'TRIAL',
+            'language': '',
+            'country': '',
+            'primary_language': '',
+            'timezone': pytz.timezone("Africa/Kigali"),
+            'config': '{}',
+            'date_format': 'D',
+            'webhook': None,
+            'webhook_events': 0,
+            'parent': '',
+            'viewers': [self.user.id],
+            'editors': [self.editor.id],
+            'administrators': [self.admin.id],
+            'surveyors': [self.surveyor.id],
+            'surveyor_password': None
+        }
+
         response = self.client.post(update_url, post_data)
         self.assertEquals(302, response.status_code)
 
@@ -1374,7 +1388,7 @@ class OrgTest(TembaTest):
 
         # hit our list page used by select2, checking it lists our resthook
         response = self.client.get(reverse('api.resthook_list') + "?_format=select2")
-        results = json.loads(response.content)['results']
+        results = response.json()['results']
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0], dict(text='mother-registration', id='mother-registration'))
 
@@ -1386,6 +1400,105 @@ class OrgTest(TembaTest):
         # no more resthooks!
         response = self.client.get(resthook_url)
         self.assertFalse(response.context['current_resthooks'])
+
+    def test_smtp_server(self):
+        self.login(self.admin)
+
+        smtp_server_url = reverse('orgs.org_smtp_server')
+
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.has_smtp_config())
+
+        response = self.client.post(smtp_server_url, dict(disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "You must enter a from email", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foobar.com',
+                                                          disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "Please enter a valid email address", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
+                                                          disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "You must enter the SMTP host", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
+                                                          smtp_host='smtp.example.com',
+                                                          disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "You must enter the SMTP username", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
+                                                          smtp_host='smtp.example.com',
+                                                          smtp_username='support@example.com',
+                                                          disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "You must enter the SMTP password", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
+                                                          smtp_host='smtp.example.com',
+                                                          smtp_username='support@example.com',
+                                                          smtp_password='secret',
+                                                          disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "You must enter the SMTP port", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
+                                                          smtp_host='smtp.example.com',
+                                                          smtp_username='support@example.com',
+                                                          smtp_password='secret',
+                                                          smtp_port='465',
+                                                          smtp_encryption='',
+                                                          disconnect='false'), follow=True)
+
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.has_smtp_config())
+        self.assertEquals(self.org.config_json()['SMTP_FROM_EMAIL'], 'foo@bar.com')
+        self.assertEquals(self.org.config_json()['SMTP_HOST'], 'smtp.example.com')
+        self.assertEquals(self.org.config_json()['SMTP_USERNAME'], 'support@example.com')
+        self.assertEquals(self.org.config_json()['SMTP_PASSWORD'], 'secret')
+        self.assertEquals(self.org.config_json()['SMTP_PORT'], '465')
+        self.assertEquals(self.org.config_json()['SMTP_ENCRYPTION'], '')
+
+        response = self.client.get(smtp_server_url)
+        self.assertEquals('foo@bar.com', response.context['flow_from_email'])
+
+        self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
+                                               smtp_host='smtp.example.com',
+                                               smtp_username='support@example.com',
+                                               smtp_password='secret',
+                                               smtp_port='465',
+                                               smtp_encryption='T',
+                                               name="DO NOT CHANGE ME",
+                                               disconnect='false'), follow=True)
+
+        # name shouldn't change
+        self.org.refresh_from_db()
+        self.assertEquals(self.org.name, "Temba")
+        self.assertTrue(self.org.has_smtp_config())
+
+        self.client.post(smtp_server_url, dict(disconnect='true'), follow=True)
+
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.has_smtp_config())
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email=' support@example.com',
+                                                          smtp_host=' smtp.example.com  ',
+                                                          smtp_username=' support@example.com ',
+                                                          smtp_password='secret ',
+                                                          smtp_port='465 ',
+                                                          smtp_encryption='T',
+                                                          disconnect='false'), follow=True)
+
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.has_smtp_config())
+        self.assertEquals(self.org.config_json()['SMTP_FROM_EMAIL'], 'support@example.com')
+        self.assertEquals(self.org.config_json()['SMTP_HOST'], 'smtp.example.com')
+        self.assertEquals(self.org.config_json()['SMTP_USERNAME'], 'support@example.com')
+        self.assertEquals(self.org.config_json()['SMTP_PASSWORD'], 'secret')
+        self.assertEquals(self.org.config_json()['SMTP_PORT'], '465')
+        self.assertEquals(self.org.config_json()['SMTP_ENCRYPTION'], 'T')
 
     def test_connect_nexmo(self):
         self.login(self.admin)
@@ -2198,12 +2311,12 @@ class LanguageTest(TembaTest):
 
         # search languages
         response = self.client.get('%s?search=fre' % url)
-        results = json.loads(response.content)['results']
+        results = response.json()['results']
         self.assertEqual(len(results), 4)
 
         # initial should do a match on code only
         response = self.client.get('%s?initial=fre' % url)
-        results = json.loads(response.content)['results']
+        results = response.json()['results']
         self.assertEqual(len(results), 1)
 
     def test_language_codes(self):
@@ -2289,7 +2402,7 @@ class BulkExportTest(TembaTest):
         post_data = dict(flows=[parent.pk], campaigns=[])
         response = self.client.post(reverse('orgs.org_export'), post_data)
 
-        exported = json.loads(response.content)
+        exported = response.json()
 
         # shouldn't have any triggers
         self.assertFalse(exported['triggers'])
@@ -2304,7 +2417,7 @@ class BulkExportTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse('orgs.org_export'))
 
-        from BeautifulSoup import BeautifulSoup
+        from bs4 import BeautifulSoup
         soup = BeautifulSoup(response.content)
         group = str(soup.findAll("div", {"class": "exportables bucket"})[0])
 
@@ -2326,11 +2439,11 @@ class BulkExportTest(TembaTest):
         self.login(self.admin)
         post_data = dict(flows=[flow.pk], campaigns=[])
         response = self.client.post(reverse('orgs.org_export'), post_data)
-        exported = json.loads(response.content)
+        exported = response.json()
 
         # try to import the flow
         flow.delete()
-        json.loads(response.content)
+        response.json()
         Flow.import_flows(exported, self.org, self.admin)
 
         # make sure the created flow has the same action set
@@ -2504,7 +2617,7 @@ class BulkExportTest(TembaTest):
                          campaigns=[c.pk for c in Campaign.objects.all()])
 
         response = self.client.post(reverse('orgs.org_export'), post_data)
-        exported = json.loads(response.content)
+        exported = response.json()
         self.assertEquals(CURRENT_EXPORT_VERSION, exported.get('version', 0))
         self.assertEquals('https://app.rapidpro.io', exported.get('site', None))
 

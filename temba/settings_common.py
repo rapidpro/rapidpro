@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import djcelery
 import iptools
 import os
 import sys
@@ -40,6 +39,10 @@ EMAIL_HOST_USER = 'server@temba.io'
 DEFAULT_FROM_EMAIL = 'server@temba.io'
 EMAIL_HOST_PASSWORD = 'mypassword'
 EMAIL_USE_TLS = True
+
+# Used when sending email from within a flow and the user hasn't configured
+# their own SMTP server.
+FLOW_FROM_EMAIL = 'no-reply@temba.io'
 
 # where recordings and exports are stored
 AWS_STORAGE_BUCKET_NAME = 'dl-temba-io'
@@ -130,12 +133,12 @@ TEMPLATES = [
         'OPTIONS': {
             'context_processors': [
                 'django.contrib.auth.context_processors.auth',
-                'django.core.context_processors.debug',
-                'django.core.context_processors.i18n',
-                'django.core.context_processors.media',
-                'django.core.context_processors.static',
+                'django.template.context_processors.debug',
+                'django.template.context_processors.i18n',
+                'django.template.context_processors.media',
+                'django.template.context_processors.static',
                 'django.contrib.messages.context_processors.messages',
-                'django.core.context_processors.request',
+                'django.template.context_processors.request',
                 'temba.context_processors.branding',
                 'temba.orgs.context_processors.user_group_perms_processor',
                 'temba.orgs.context_processors.unread_count_processor',
@@ -171,6 +174,7 @@ MIDDLEWARE_CLASSES = (
     'temba.middleware.FlowSimulationMiddleware',
     'temba.middleware.ActivateLanguageMiddleware',
     'temba.middleware.NonAtomicGetsMiddleware',
+    'temba.utils.middleware.OrgHeaderMiddleware',
 )
 
 ROOT_URLCONF = 'temba.urls'
@@ -217,9 +221,6 @@ INSTALLED_APPS = (
     # smartmin users
     'smartmin.users',
     'modeltranslation',
-
-    # async tasks,
-    'djcelery',
 
     # django-timezone-field
     'timezone_field',
@@ -359,7 +360,8 @@ PERMISSIONS = {
                          'omnibox',
                          'unblock',
                          'unstop',
-                         'update_fields'
+                         'update_fields',
+                         'update_fields_input'
                          ),
 
     'contacts.contactfield': ('api',
@@ -376,6 +378,7 @@ PERMISSIONS = {
                                 'geometry'),
 
     'orgs.org': ('accounts',
+                 'smtp_server',
                  'api',
                  'country',
                  'clear_cache',
@@ -457,6 +460,7 @@ PERMISSIONS = {
                          'create_bulk_sender',
                          'create_caller',
                          'errors',
+                         'facebook_whitelist',
                          'search_nexmo',
                          'search_numbers',
                          ),
@@ -530,6 +534,7 @@ PERMISSIONS = {
                          'keyword',
                          'missed_call',
                          'new_conversation',
+                         'referral',
                          'register',
                          'schedule',
                          'ussd',
@@ -607,6 +612,7 @@ GROUP_PERMISSIONS = {
         'contacts.contact_unstop',
         'contacts.contact_update',
         'contacts.contact_update_fields',
+        'contacts.contact_update_fields_input',
         'contacts.contactfield.*',
         'contacts.contactgroup.*',
 
@@ -621,6 +627,7 @@ GROUP_PERMISSIONS = {
         'locations.adminboundary_geometry',
 
         'orgs.org_accounts',
+        'orgs.org_smtp_server',
         'orgs.org_api',
         'orgs.org_country',
         'orgs.org_create_sub_org',
@@ -693,6 +700,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_create',
         'channels.channel_create_bulk_sender',
         'channels.channel_create_caller',
+        'channels.channel_facebook_whitelist',
         'channels.channel_delete',
         'channels.channel_list',
         'channels.channel_read',
@@ -765,6 +773,7 @@ GROUP_PERMISSIONS = {
         'contacts.contact_unstop',
         'contacts.contact_update',
         'contacts.contact_update_fields',
+        'contacts.contact_update_fields_input',
         'contacts.contactfield.*',
         'contacts.contactgroup.*',
 
@@ -1038,6 +1047,10 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_flowpathcounts',
         'schedule': timedelta(seconds=300),
     },
+    "prune-flowpathrecentsteps": {
+        'task': 'prune_flowpathrecentsteps',
+        'schedule': timedelta(seconds=300),
+    },
     "squash-channelcounts": {
         'task': 'squash_channelcounts',
         'schedule': timedelta(seconds=300),
@@ -1064,10 +1077,8 @@ CELERY_TASK_MAP = {
 }
 
 # -----------------------------------------------------------------------------------
-# Async tasks with django-celery
+# Async tasks with celery
 # -----------------------------------------------------------------------------------
-djcelery.setup_loader()
-
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
 
@@ -1079,7 +1090,9 @@ BROKER_URL = 'redis://%s:%d/%d' % (REDIS_HOST, REDIS_PORT, REDIS_DB)
 # by default, celery doesn't have any timeout on our redis connections, this fixes that
 BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 5}
 
-CELERY_RESULT_BACKEND = BROKER_URL
+CELERY_RESULT_BACKEND = None
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
 
 IS_PROD = False
 HOSTNAME = "localhost"

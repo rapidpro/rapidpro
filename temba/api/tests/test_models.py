@@ -2,6 +2,7 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+import six
 
 from datetime import timedelta
 from django.conf import settings
@@ -36,7 +37,7 @@ class APITokenTest(TembaTest):
         self.assertEqual(token1.user, self.admin)
         self.assertEqual(token1.role, self.admins_group)
         self.assertTrue(token1.key)
-        self.assertEqual(unicode(token1), token1.key)
+        self.assertEqual(six.text_type(token1), token1.key)
 
         # tokens for different roles with same user should differ
         token2 = APIToken.get_or_create(self.org, self.admin, self.admins_group)
@@ -156,7 +157,7 @@ class WebHookTest(TembaTest):
 
             data = parse_qs(prepared_request.body)
             self.assertEquals('+250788123123', data['phone'][0])
-            self.assertEquals(unicode(self.joe.get_urn(TEL_SCHEME)), data['urn'][0])
+            self.assertEquals(six.text_type(self.joe.get_urn(TEL_SCHEME)), data['urn'][0])
             self.assertEquals(self.joe.uuid, data['contact'][0])
             self.assertEquals(self.joe.name, data['contact_name'][0])
             self.assertEquals(call.pk, int(data['call'][0]))
@@ -269,7 +270,7 @@ class WebHookTest(TembaTest):
             self.assertEquals(flow.pk, int(data['flow'][0]))
             self.assertEquals(self.joe.uuid, data['contact'][0])
             self.assertEquals(self.joe.name, data['contact_name'][0])
-            self.assertEquals(unicode(self.joe.get_urn('tel')), data['urn'][0])
+            self.assertEquals(six.text_type(self.joe.get_urn('tel')), data['urn'][0])
 
             values = json.loads(data['values'][0])
 
@@ -358,6 +359,31 @@ class WebHookTest(TembaTest):
             WebHookResult.objects.all().delete()
 
         with patch('requests.Session.send') as mock:
+            mock.side_effect = [MockResponse(500, "I am error")]
+
+            # trigger an event
+            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            event = WebHookEvent.objects.all().first()
+
+            self.assertEquals('E', event.status)
+            self.assertEquals(1, event.try_count)
+            self.assertTrue(event.next_attempt)
+
+            mock.return_value = MockResponse(200, "Hello World")
+            # simulate missing channel
+            event.channel = None
+            event.save()
+
+            # no exception should raised
+            event.deliver()
+
+            self.assertTrue(mock.called)
+            self.assertEquals(mock.call_count, 2)
+
+            WebHookEvent.objects.all().delete()
+            WebHookResult.objects.all().delete()
+
+        with patch('requests.Session.send') as mock:
             # valid json, but not our format
             bad_json = '{ "thrift_shops": ["Goodwill", "Value Village"] }'
             mock.return_value = MockResponse(200, bad_json)
@@ -407,7 +433,7 @@ class WebHookTest(TembaTest):
 
             data = parse_qs(prepared_request.body)
             self.assertEquals(self.joe.get_urn(TEL_SCHEME).path, data['phone'][0])
-            self.assertEquals(unicode(self.joe.get_urn(TEL_SCHEME)), data['urn'][0])
+            self.assertEquals(six.text_type(self.joe.get_urn(TEL_SCHEME)), data['urn'][0])
             self.assertEquals(self.joe.uuid, data['contact'][0])
             self.assertEquals(self.joe.name, data['contact_name'][0])
             self.assertEquals(sms.pk, int(data['sms'][0]))

@@ -35,7 +35,7 @@ class LocationTest(TembaTest):
             reverse('locations.adminboundary_geometry', args=[self.country.osm_id]))
 
         # should be json
-        response_json = json.loads(response.content)
+        response_json = response.json()
 
         # should have features in it
         self.assertTrue('features' in response_json)
@@ -46,7 +46,7 @@ class LocationTest(TembaTest):
         # now get it for one of the sub areas
         response = self.client.get(
             reverse('locations.adminboundary_geometry', args=[self.district1.osm_id]))
-        response_json = json.loads(response.content)
+        response_json = response.json()
 
         # should have features in it
         self.assertTrue('features' in response_json)
@@ -57,7 +57,7 @@ class LocationTest(TembaTest):
         # now grab our aliases
         response = self.client.get(
             reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]))
-        response_json = json.loads(response.content)
+        response_json = response.json()
 
         # should just be kigali, without any aliases
         self.assertEquals(2, len(response_json))
@@ -76,7 +76,7 @@ class LocationTest(TembaTest):
         # fetch our aliases again
         response = self.client.get(
             reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]))
-        response_json = json.loads(response.content)
+        response_json = response.json()
 
         # now have kigs as an alias
         self.assertEquals("Kigali City", response_json[1]['name'])
@@ -128,7 +128,7 @@ class LocationTest(TembaTest):
         # fetch aliases again
         response = self.client.get(
             reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]))
-        response_json = json.loads(response.content)
+        response_json = response.json()
         self.assertEquals(response_json[0].get('name'), self.state2.name)
         self.assertEquals(response_json[0].get('aliases'), 'Eastern P')
         self.assertTrue('Kageyo Gat' in response_json[0].get('match'))
@@ -138,7 +138,7 @@ class LocationTest(TembaTest):
                                     """{"data":"foo \r\n bar"}""",
                                     content_type='application/json')
 
-        response_json = json.loads(response.content)
+        response_json = response.json()
         self.assertEquals(400, response.status_code)
         self.assertEquals(response_json.get('status'), 'error')
 
@@ -146,5 +146,5 @@ class LocationTest(TembaTest):
         response = self.client.get(
             reverse('locations.adminboundary_geometry', args=[self.ward3.osm_id]))
         self.assertEquals(200, response.status_code)
-        response_json = json.loads(response.content)
+        response_json = response.json()
         self.assertEquals(len(response_json.get('features')), 1)

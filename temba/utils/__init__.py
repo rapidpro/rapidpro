@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import calendar
 import json
@@ -8,6 +8,7 @@ import pytz
 import random
 import regex
 import resource
+import six
 
 from dateutil.parser import parse
 from decimal import Decimal
@@ -16,7 +17,6 @@ from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.timezone import is_aware
-from django.http import HttpResponse
 from django_countries import countries
 from itertools import islice
 
@@ -181,13 +181,6 @@ def str_to_bool(text):
     return text and text.lower() in ['true', 'y', 'yes', '1']
 
 
-def build_json_response(json_dict, status=200):
-    """
-    Helper function to build JSON responses form dictionaries.
-    """
-    return HttpResponse(json.dumps(json_dict), status=status, content_type='application/json')
-
-
 def percentage(numerator, denominator):
     """
     Returns an integer percentage as an integer for the passed in numerator and denominator.
@@ -207,7 +200,7 @@ def format_decimal(val):
     elif val == 0:
         return '0'
 
-    val = unicode(val)
+    val = six.text_type(val)
 
     if '.' in val:
         val = val.rstrip('0').rstrip('.')  # e.g. 12.3000 -> 12.3
@@ -251,6 +244,7 @@ def get_dict_from_cursor(cursor):
     ]
 
 
+@six.python_2_unicode_compatible
 class DictStruct(object):
     """
     Wraps a dictionary turning it into a structure looking object. This is useful to 'mock' dictionaries
@@ -284,7 +278,7 @@ class DictStruct(object):
 
         self._values[item] = value
 
-    def __unicode__(self):
+    def __str__(self):
         return "%s [%s]" % (self._classname, self._values)
 
 
@@ -350,7 +344,7 @@ def datetime_decoder(d):
         pairs = d.items()
     result = []
     for k, v in pairs:
-        if isinstance(v, basestring):
+        if isinstance(v, six.string_types):
             try:
                 # The %f format code is only supported in Python >= 2.6.
                 # For Python <= 2.5 strip off microseconds
@@ -467,10 +461,10 @@ def print_max_mem_usage(msg=None):
         msg = "Max usage: "
 
     locale.setlocale(locale.LC_ALL, '')
-    print
-    print "=" * 80
-    print msg + locale.format("%d", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, grouping=True)
-    print "=" * 80
+    print("")
+    print("=" * 80)
+    print(msg + locale.format("%d", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, grouping=True))
+    print("=" * 80)
 
 
 def get_country_code_by_name(name):

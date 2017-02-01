@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import json
 import logging
@@ -9,11 +9,13 @@ import regex
 import time
 import urllib2
 import re
+import six
 
 from collections import OrderedDict, defaultdict
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
+from django.core.cache import cache
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
@@ -133,6 +135,7 @@ def edit_distance(s1, s2):  # pragma: no cover
     return d[lenstr1 - 1, lenstr2 - 1]
 
 
+@six.python_2_unicode_compatible
 class Flow(TembaModel):
     UUID = 'uuid'
     ENTRY = 'entry'
@@ -243,7 +246,7 @@ class Flow(TembaModel):
         """
         Creates a special 'single message' flow
         """
-        name = 'Single Message (%s)' % unicode(uuid4())
+        name = 'Single Message (%s)' % six.text_type(uuid4())
 
         base_language = 'base'
         if org.primary_language:  # pragma: needs cover
@@ -267,7 +270,7 @@ class Flow(TembaModel):
         name = Flow.get_unique_name(org, 'Join %s' % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
 
-        uuid = unicode(uuid4())
+        uuid = six.text_type(uuid4())
         actions = [dict(type='add_group', group=dict(uuid=group.uuid, name=group.name)),
                    dict(type='save', field='name', label='Contact Name', value='@(PROPER(REMOVE_FIRST_WORD(step.value)))')]
 
@@ -395,12 +398,12 @@ class Flow(TembaModel):
             return ActionSet.get(flow, uuid)
 
     @classmethod
-    def handle_call(cls, call, user_response=None, hangup=False):
+    def handle_call(cls, call, user_response=None, hangup=False, resume=False):
         if not user_response:
             user_response = {}
 
-        flow = call.flow
-        run = FlowRun.objects.filter(session=call).first()
+        run = FlowRun.objects.filter(session=call, is_active=True).order_by('-created_on').first()
+        flow = run.flow
 
         # make sure we have the latest version
         flow.ensure_current_version()
@@ -430,7 +433,7 @@ class Flow(TembaModel):
                 text = media_url.partition(':')[2]
 
             msg = Msg.create_incoming(call.channel, call.contact_urn.urn,
-                                      text, status=PENDING, msg_type=IVR, media=media_url)
+                                      text, status=PENDING, msg_type=IVR, media=media_url, session=run.session)
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
@@ -450,7 +453,7 @@ class Flow(TembaModel):
 
         # go and actually handle wherever we are in the flow
         destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
-        (handled, msgs) = Flow.handle_destination(destination, step, run, msg, user_input=text is not None)
+        (handled, msgs) = Flow.handle_destination(destination, step, run, msg, user_input=text is not None, resume_parent_run=resume)
 
         # if we stopped needing user input (likely), then wrap our response accordingly
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
@@ -484,6 +487,8 @@ class Flow(TembaModel):
             # recordings have to be tacked on last
             if destination.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
                 voice_response.record(action=callback)
+            elif destination.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                voice_response.append(twiml.Redirect(url=callback))
             elif gather:
                 # nest all of our previous verbs in our gather
                 for verb in voice_response.verbs:
@@ -655,12 +660,7 @@ class Flow(TembaModel):
         # and onto the destination
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
         if destination:
-            arrived_on = timezone.now()
-            step.left_on = arrived_on
-            step.next_uuid = destination.uuid
-            step.save(update_fields=['left_on', 'next_uuid'])
-
-            step = run.flow.add_step(run, destination, previous_step=step, arrived_on=arrived_on)
+            step = run.flow.add_step(run, destination, previous_step=step)
         else:
             run.set_completed(final_step=step)
             step = None
@@ -738,10 +738,6 @@ class Flow(TembaModel):
         # Create the step for our destination
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
         if destination:
-            arrived_on = timezone.now()
-            step.left_on = arrived_on
-            step.next_uuid = rule.destination
-            step.save(update_fields=['left_on', 'next_uuid'])
             step = flow.add_step(run, destination, rule=rule.uuid, category=rule.category, previous_step=step)
 
         return dict(handled=True, destination=destination, step=step)
@@ -799,8 +795,8 @@ class Flow(TembaModel):
             values = dict(text=value['text'],
                           time=datetime_to_str(value['time'], format=date_format, tz=tz),
                           category=flow.get_localized_text(value['category'], contact),
-                          value=unicode(value['rule_value']))
-            values['__default__'] = unicode(value['rule_value'])
+                          value=six.text_type(value['rule_value']))
+            values['__default__'] = six.text_type(value['rule_value'])
             return values
 
         flow_context = {}
@@ -1123,7 +1119,7 @@ class Flow(TembaModel):
                 if 'recording' in action:
                     # if its a localized
                     if isinstance(action['recording'], dict):
-                        for lang, url in action['recording'].iteritems():
+                        for lang, url in six.iteritems(action['recording']):
                             path = copy_recording(url, 'recordings/%d/%d/steps/%s.wav' % (self.org.pk, self.pk, action['uuid']))
                             action['recording'][lang] = path
                     else:
@@ -1533,7 +1529,7 @@ class Flow(TembaModel):
                 channel = self.org.get_send_channel(contact_urn=contact_urn)
 
                 session = USSDSession.objects.create(channel=channel, contact=contact, contact_urn=contact_urn,
-                                                     org=self.org, direction=USSDSession.USSD_PUSH, flow=self,
+                                                     org=self.org, direction=USSDSession.USSD_PUSH,
                                                      started_on=timezone.now(), status=USSDSession.INITIATED)
 
             run.session = session
@@ -1598,19 +1594,18 @@ class Flow(TembaModel):
                 run.update_fields(extra)
 
             # create our call objects
-            call = IVRCall.create_outgoing(channel, contact, contact_urn, self, self.created_by)
+            if parent_run and parent_run.session:
+                call = parent_run.session
+            else:
+                call = IVRCall.create_outgoing(channel, contact, contact_urn, self.created_by)
 
             # save away our created call
             run.session = call
             run.save(update_fields=['session'])
 
-            # if we were started by other call, save that off
-            if parent_run and parent_run.session:
-                call.parent = parent_run.session
-                call.save()
-            else:
+            if not parent_run or not parent_run.session:
                 # trigger the call to start (in the background)
-                call.start_call()
+                IVRCall.objects.get(id=call.id).start_call()
 
             # no start msgs in call flows but we want the variable there
             run.start_msgs = []
@@ -1673,13 +1668,13 @@ class Flow(TembaModel):
                 batch_contacts.append(contact_id)
 
                 if len(batch_contacts) >= START_FLOW_BATCH_SIZE:
-                    print "Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts']))
+                    print("Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts'])))
                     push_task(self.org, 'flows', Flow.START_MSG_FLOW_BATCH, task_context)
                     batch_contacts = []
                     task_context['contacts'] = batch_contacts
 
             if batch_contacts:
-                print "Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts']))
+                print("Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts'])))
                 push_task(self.org, 'flows', Flow.START_MSG_FLOW_BATCH, task_context)
 
             return []
@@ -1783,7 +1778,7 @@ class Flow(TembaModel):
                                                 entry_actions.destination,
                                                 entry_actions.destination_type)
 
-                    next_step = self.add_step(run, destination, previous_step=step, arrived_on=timezone.now())
+                    next_step = self.add_step(run, destination, previous_step=step)
 
                     msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
                     handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
@@ -1840,6 +1835,14 @@ class Flow(TembaModel):
 
         if not arrived_on:
             arrived_on = timezone.now()
+
+        if previous_step:
+            previous_step.left_on = arrived_on
+            previous_step.next_uuid = node.uuid
+            previous_step.save(update_fields=('left_on', 'next_uuid'))
+
+            if not previous_step.contact.is_test:
+                FlowPathRecentStep.record_step(previous_step)
 
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
@@ -1969,7 +1972,7 @@ class Flow(TembaModel):
                     flows.add(action.flow)
                 if hasattr(action, 'groups'):
                     for group in action.groups:
-                        if not isinstance(group, unicode):
+                        if not isinstance(group, six.string_types):
                             groups.add(group)
 
         for ruleset in self.rule_sets.all():
@@ -2493,12 +2496,12 @@ class Flow(TembaModel):
             # note that badness happened
             import logging
             logger = logging.getLogger(__name__)
-            logger.exception(unicode(e))
+            logger.exception(six.text_type(e))
             import traceback
             traceback.print_exc(e)
             raise e
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
     class Meta:
@@ -2586,7 +2589,7 @@ class FlowRun(models.Model):
         """
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
-        if isinstance(fields, (str, unicode)):
+        if isinstance(fields, six.string_types):
             return fields[:640], count + 1
 
         elif isinstance(fields, numbers.Number):
@@ -2615,7 +2618,7 @@ class FlowRun(models.Model):
             return list_dict, count
 
         else:
-            return unicode(fields), count + 1
+            return six.text_type(fields), count + 1
 
     @classmethod
     def bulk_exit(cls, runs, exit_type):
@@ -2633,7 +2636,7 @@ class FlowRun(models.Model):
             runs_by_flow[run['flow_id']].append(run['id'])
 
         # for each flow, remove activity for all runs
-        for flow_id, run_ids in runs_by_flow.iteritems():
+        for flow_id, run_ids in six.iteritems(runs_by_flow):
             flow = Flow.objects.filter(id=flow_id).first()
 
             if flow:
@@ -2777,8 +2780,12 @@ class FlowRun(models.Model):
         else:
             from .tasks import continue_parent_flows
 
-            # we delay this by a second to allow current flow execution to complete (and msgs to be sent)
-            on_transaction_commit(lambda: continue_parent_flows.apply_async(args=[[self.id]], countdown=1))
+            if hasattr(self, 'voice_response') and self.parent and self.parent.is_active:
+                callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.session.pk]))
+                self.voice_response.append(twiml.Redirect(url=callback + '?resume=1'))
+            else:
+                # we delay this by a second to allow current flow execution to complete (and msgs to be sent)
+                on_transaction_commit(lambda: continue_parent_flows.apply_async(args=[[self.id]], countdown=1))
 
     def set_interrupted(self, final_step=None):
         """
@@ -2866,7 +2873,7 @@ class FlowRun(models.Model):
     def is_interrupted(self):
         return self.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED
 
-    def create_outgoing_ivr(self, text, recording_url, response_to=None):
+    def create_outgoing_ivr(self, text, recording_url, session, response_to=None):
 
         # create a Msg object to track what happened
         from temba.msgs.models import DELIVERED, IVR
@@ -2877,7 +2884,7 @@ class FlowRun(models.Model):
 
         msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.session.channel,
                                   response_to=response_to, media=media,
-                                  status=DELIVERED, msg_type=IVR)
+                                  status=DELIVERED, msg_type=IVR, session=session)
 
         # play a recording or read some text
         if msg:
@@ -2889,6 +2896,7 @@ class FlowRun(models.Model):
         return msg
 
 
+@six.python_2_unicode_compatible
 class FlowStep(models.Model):
     """
     A contact's visit to a node in a flow (rule set or action set)
@@ -2939,12 +2947,8 @@ class FlowStep(models.Model):
         node = json_obj['node']
         arrived_on = json_date_to_datetime(json_obj['arrived_on'])
 
-        # find and update the previous step
+        # find the previous step
         prev_step = FlowStep.objects.filter(run=run).order_by('-left_on').first()
-        if prev_step:
-            prev_step.left_on = arrived_on
-            prev_step.next_uuid = node.uuid
-            prev_step.save(update_fields=('left_on', 'next_uuid'))
 
         # generate the messages for this step
         msgs = []
@@ -3051,7 +3055,7 @@ class FlowStep(models.Model):
 
         if value is None:
             value = ''
-        self.rule_value = unicode(value)[:640]
+        self.rule_value = six.text_type(value)[:640]
 
         if isinstance(value, Decimal):
             self.rule_decimal_value = value
@@ -3072,7 +3076,7 @@ class FlowStep(models.Model):
         broadcasts = list(self.broadcasts.all())
         if broadcasts:  # pragma: needs cover
             run = run or self.run
-            return broadcasts[0].get_translated_text(run.contact, base_language=run.flow.base_language, org=run.org)
+            return broadcasts[0].get_translated_text(run.contact, org=run.org)
 
         return None
 
@@ -3109,13 +3113,11 @@ class FlowStep(models.Model):
         else:  # pragma: needs cover
             return ActionSet.objects.filter(uuid=self.step_uuid).first()
 
-    def __unicode__(self):
+    def __str__(self):
         return "%s - %s:%s" % (self.run.contact, self.step_type, self.step_uuid)
 
-    class Meta:
-        index_together = ['step_uuid', 'next_uuid', 'rule_uuid', 'left_on']
 
-
+@six.python_2_unicode_compatible
 class RuleSet(models.Model):
     TYPE_WAIT_MESSAGE = 'wait_message'
 
@@ -3243,7 +3245,7 @@ class RuleSet(models.Model):
         unique_categories = set()
 
         for rule in self.get_rules():
-            label = rule.get_category_name(flow_language) if rule.category else unicode(_("Valid"))
+            label = rule.get_category_name(flow_language) if rule.category else six.text_type(_("Valid"))
 
             # ignore "Other" labels
             if label == "Other":
@@ -3298,6 +3300,8 @@ class RuleSet(models.Model):
 
         # recordings aren't wrapped input they get tacked on at the end
         if self.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
+            return voice_response
+        elif self.ruleset_type == RuleSet.TYPE_SUBFLOW:
             return voice_response
         elif self.ruleset_type == RuleSet.TYPE_WAIT_DIGITS:
             return voice_response.gather(finishOnKey=self.finished_key, timeout=60, action=action)
@@ -3454,7 +3458,7 @@ class RuleSet(models.Model):
         return None, None
 
     def save_run_value(self, run, rule, value):
-        value = unicode(value)[:640]
+        value = six.text_type(value)[:640]
         location_value = None
         dec_value = None
         dt_value = None
@@ -3516,13 +3520,14 @@ class RuleSet(models.Model):
 
         return ruleset_def
 
-    def __unicode__(self):
+    def __str__(self):
         if self.label:
             return "RuleSet: %s - %s" % (self.uuid, self.label)
         else:
             return "RuleSet: %s" % (self.uuid, )
 
 
+@six.python_2_unicode_compatible
 class ActionSet(models.Model):
     uuid = models.CharField(max_length=36, unique=True)
     flow = models.ForeignKey(Flow, related_name='action_sets')
@@ -3589,7 +3594,7 @@ class ActionSet(models.Model):
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination, actions=self.get_actions_dict())
 
-    def __unicode__(self):  # pragma: no cover
+    def __str__(self):  # pragma: no cover
         return "ActionSet: %s" % (self.uuid, )
 
 
@@ -3697,6 +3702,7 @@ class FlowRevision(SmartModel):
                     revision=self.revision)
 
 
+@six.python_2_unicode_compatible
 class FlowPathCount(models.Model):
     """
     Maintains hourly counts of flow paths
@@ -3709,25 +3715,15 @@ class FlowPathCount(models.Model):
     to_uuid = models.UUIDField(null=True, help_text=_("Which flow node they went to"))
     period = models.DateTimeField(help_text=_("When the activity occured with hourly precision"))
     count = models.IntegerField(default=0)
+    is_squashed = models.BooleanField(default=False, help_text=_("Whether this row was created by squashing"))
 
     @classmethod
     def squash_counts(cls):
-        # get the id of the last count we squashed
-        r = get_redis_connection()
-        last_squash = r.get(FlowPathCount.LAST_SQUASH_KEY)
-        if not last_squash:
-            last_squash = 0
-
-        # insert our new top squashed id
-        max_id = FlowPathCount.objects.all().order_by('-id').first()
-        if max_id:
-            r.set(FlowPathCount.LAST_SQUASH_KEY, max_id.id)
-
         # get the unique ids for all new ones
         start = time.time()
         squash_count = 0
 
-        for count in FlowPathCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'from_uuid', 'to_uuid', 'period')\
+        for count in cls.objects.filter(is_squashed=False).order_by('flow_id', 'from_uuid', 'to_uuid', 'period')\
                 .distinct('flow_id', 'from_uuid', 'to_uuid', 'period'):
 
             # perform our atomic squash in SQL by calling our squash method
@@ -3736,15 +3732,93 @@ class FlowPathCount(models.Model):
 
             squash_count += 1
 
-        print "Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start)
+        print("Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start))
 
-    def __unicode__(self):  # pragma: no cover
+    def __str__(self):  # pragma: no cover
         return "FlowPathCount(%d) %s:%s %s count: %d" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count)
 
     class Meta:
         index_together = ['flow', 'from_uuid', 'to_uuid', 'period']
 
 
+class FlowPathRecentStep(models.Model):
+    """
+    Maintains recent messages for a flow path segment
+    """
+    PRUNE_TO = 10
+    LAST_PRUNED_KEY = 'last_flowpathrecentstep_pruned'
+
+    from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
+    to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
+    step = models.ForeignKey(FlowStep, related_name='recent_segments')
+    left_on = models.DateTimeField(help_text=_("When they left the first node"))
+
+    @classmethod
+    def record_step(cls, step):
+        from_uuid = step.rule_uuid or step.step_uuid
+        to_uuid = step.next_uuid
+
+        cls.objects.create(from_uuid=from_uuid, to_uuid=to_uuid, step=step, left_on=step.left_on)
+
+    @classmethod
+    def get_recent(cls, from_uuids, to_uuids):
+        """
+        Gets the recent step records for the given flow segments
+        """
+        recent = cls.objects.filter(from_uuid__in=from_uuids, to_uuid__in=to_uuids)
+        return recent.order_by('-left_on').prefetch_related('step')
+
+    @classmethod
+    def get_recent_messages(cls, from_uuids, to_uuids, limit=None):
+        """
+        Gets the recent messages for the given flow segment
+        """
+        recent = cls.get_recent(from_uuids, to_uuids).prefetch_related('step__messages')
+
+        messages = []
+        for r in recent:
+            for msg in r.step.messages.all():
+                if msg.visibility == Msg.VISIBILITY_VISIBLE:
+                    messages.append(msg)
+
+                    if limit is not None and len(messages) >= limit:
+                        return messages
+
+        return messages
+
+    @classmethod
+    def prune(cls):
+        """
+        Removes old steps leaving only PRUNE_TO most recent for each segment
+        """
+        last_id = cache.get(cls.LAST_PRUNED_KEY, -1)
+
+        newest = cls.objects.order_by('-id').values('id').first()
+        newest_id = newest['id'] if newest else -1
+
+        sql = """
+        DELETE FROM %(table)s WHERE id IN (
+          SELECT id FROM (
+              SELECT
+                r.id,
+                dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY left_on DESC) AS pos
+              FROM %(table)s r
+              WHERE (from_uuid, to_uuid) IN (
+                -- get the unique segments added to since last prune
+                SELECT DISTINCT from_uuid, to_uuid FROM %(table)s WHERE id > %(last_id)d
+              )
+          ) s WHERE s.pos > %(limit)d
+        )""" % {'table': cls._meta.db_table, 'last_id': last_id, 'limit': cls.PRUNE_TO}
+
+        cursor = connection.cursor()
+        cursor.execute(sql)
+
+        cache.set(cls.LAST_PRUNED_KEY, newest_id)
+
+        return cursor.rowcount  # number of deleted entries
+
+
+@six.python_2_unicode_compatible
 class FlowRunCount(models.Model):
     """
     Maintains counts of different states of exit types of flow runs on a flow. These are calculated
@@ -3753,33 +3827,21 @@ class FlowRunCount(models.Model):
     flow = models.ForeignKey(Flow, related_name='counts')
     exit_type = models.CharField(null=True, max_length=1, choices=FlowRun.EXIT_TYPE_CHOICES)
     count = models.IntegerField(default=0)
-
-    LAST_SQUASH_KEY = 'last_flowruncount_squash'
+    is_squashed = models.BooleanField(default=False, help_text=_("Whether this row was created by squashing"))
 
     @classmethod
     def squash_counts(cls):
-        # get the id of the last count we squashed
-        r = get_redis_connection()
-        last_squash = r.get(FlowRunCount.LAST_SQUASH_KEY)
-        if not last_squash:
-            last_squash = 0
-
         # get the unique flow ids for all new ones
         start = time.time()
         squash_count = 0
-        for count in FlowRunCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'exit_type').distinct('flow_id', 'exit_type'):
+        for count in cls.objects.filter(is_squashed=False).order_by('flow_id', 'exit_type').distinct('flow_id', 'exit_type'):
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
                 c.execute("SELECT temba_squash_flowruncount(%s, %s);", (count.flow_id, count.exit_type))
 
             squash_count += 1
 
-        # insert our new top squashed id
-        max_id = FlowRunCount.objects.all().order_by('-id').first()
-        if max_id:
-            r.set(FlowRunCount.LAST_SQUASH_KEY, max_id.id)
-
-        print "Squashed run counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
+        print("Squashed run counts for %d pairs in %0.3fs" % (squash_count, time.time() - start))
 
     @classmethod
     def run_count(cls, flow):
@@ -3810,7 +3872,7 @@ class FlowRunCount(models.Model):
             if count['count'] > 0:
                 FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], count=count['count'])
 
-    def __unicode__(self):  # pragma: needs cover
+    def __str__(self):  # pragma: needs cover
         return "RunCount[%d:%s:%d]" % (self.flow_id, self.exit_type, self.count)
 
     class Meta:
@@ -4028,13 +4090,13 @@ class ExportFlowResultsTask(SmartModel):
 
             for col in range(len(columns)):
                 ruleset = columns[col]
-                cell = WriteOnlyCell(sheet, value="%s (Category) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                cell = WriteOnlyCell(sheet, value="%s (Category) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
                 sheet.column_dimensions[get_column_letter(index)].width = small_width
                 sheet_row.append(cell)
-                cell = WriteOnlyCell(sheet, value="%s (Value) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                cell = WriteOnlyCell(sheet, value="%s (Value) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
                 sheet.column_dimensions[get_column_letter(index)].width = small_width
                 sheet_row.append(cell)
-                cell = WriteOnlyCell(sheet, value="%s (Text) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                cell = WriteOnlyCell(sheet, value="%s (Text) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
                 sheet.column_dimensions[get_column_letter(index)].width = small_width
                 sheet_row.append(cell)
 
@@ -4098,8 +4160,8 @@ class ExportFlowResultsTask(SmartModel):
 
             processed_steps += 1
             if processed_steps % 10000 == 0:  # pragma: needs cover
-                print "Export of %s - %d%% complete in %0.2fs" % \
-                      (flow_names, processed_steps * 100 / total_steps, time.time() - start)
+                print("Export of %s - %d%% complete in %0.2fs" %
+                      (flow_names, processed_steps * 100 / total_steps, time.time() - start))
 
             # skip over test contacts
             if run_step.contact.is_test:  # pragma: needs cover
@@ -4196,7 +4258,7 @@ class ExportFlowResultsTask(SmartModel):
                         if field_value is None:
                             field_value = ''
 
-                        field_value = unicode(field_value)
+                        field_value = six.text_type(field_value)
 
                         cell = WriteOnlyCell(merged_runs, value=field_value)
                         merged_sheet_row[padding + 4 + cf_padding] = cell
@@ -4362,6 +4424,7 @@ class ExportFlowResultsTask(SmartModel):
         send_template_email(self.created_by.username, subject, template, dict(flows=flows, link=download_url), branding)
 
 
+@six.python_2_unicode_compatible
 class ActionLog(models.Model):
     """
     Log of an event that occurred whilst executing a flow in the simulator
@@ -4414,10 +4477,11 @@ class ActionLog(models.Model):
     def simulator_json(self):
         return self.as_json()
 
-    def __unicode__(self):  # pragma: needs cover
+    def __str__(self):  # pragma: needs cover
         return self.text
 
 
+@six.python_2_unicode_compatible
 class FlowStart(SmartModel):
     STATUS_PENDING = 'P'
     STATUS_STARTING = 'S'
@@ -4498,10 +4562,11 @@ class FlowStart(SmartModel):
             self.status = FlowStart.STATUS_COMPLETE
             self.save(update_fields=['status'])
 
-    def __unicode__(self):  # pragma: no cover
+    def __str__(self):  # pragma: no cover
         return "FlowStart %d (Flow %d)" % (self.id, self.flow_id)
 
 
+@six.python_2_unicode_compatible
 class FlowLabel(models.Model):
     org = models.ForeignKey(Org)
 
@@ -4561,7 +4626,7 @@ class FlowLabel(models.Model):
 
         return changed
 
-    def __unicode__(self):
+    def __str__(self):
         if self.parent:
             return "%s > %s" % (self.parent, self.name)
         return self.name
@@ -4571,6 +4636,11 @@ class FlowLabel(models.Model):
 
 
 __flow_user = None
+
+
+def clear_flow_user():
+    global __flow_user
+    __flow_user = None
 
 
 def get_flow_user():
@@ -4689,7 +4759,7 @@ class EmailAction(Action):
 
         if not run.contact.is_test:
             if valid_addresses:
-                on_transaction_commit(lambda: send_email_action_task.delay(valid_addresses, subject, message))
+                on_transaction_commit(lambda: send_email_action_task.delay(run.flow.org.id, valid_addresses, subject, message))
         else:
             if valid_addresses:
                 valid_addresses = ['"%s"' % elt for elt in valid_addresses]
@@ -4909,7 +4979,7 @@ class AddLabelAction(Action):
                 else:
                     labels.append(Label.get_or_create(org, org.get_user(), label_name))
 
-            elif isinstance(label_data, basestring):
+            elif isinstance(label_data, six.string_types):
                 if label_data and label_data[0] == '@':
                     # label name is a variable substitution
                     labels.append(label_data)
@@ -5000,7 +5070,7 @@ class SayAction(Action):
         message = run.flow.get_localized_text(self.msg, run.contact)
         (message, errors) = Msg.substitute_variables(message, run.contact, run.flow.build_message_context(run.contact, event))
 
-        msg = run.create_outgoing_ivr(message, media_url)
+        msg = run.create_outgoing_ivr(message, media_url, run.session)
 
         if msg:
             if run.contact.is_test:
@@ -5037,7 +5107,7 @@ class PlayAction(Action):
     def execute(self, run, actionset_uuid, event, offline_on=None):
 
         (media, errors) = Msg.substitute_variables(self.url, run.contact, run.flow.build_message_context(run.contact, event))
-        msg = run.create_outgoing_ivr(_('Played contact recording'), media)
+        msg = run.create_outgoing_ivr(_('Played contact recording'), media, run.session)
 
         if msg:
             if run.contact.is_test:  # pragma: needs cover
@@ -5092,9 +5162,9 @@ class ReplyAction(Action):
                 context = run.flow.build_message_context(run.contact, msg)
                 try:
                     if msg:
-                        reply = msg.reply(text, user, trigger_send=False, message_context=context)
+                        reply = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session)
                     else:
-                        reply = run.contact.send(text, user, trigger_send=False, message_context=context)
+                        reply = run.contact.send(text, user, trigger_send=False, message_context=context, session=run.session)
                 except UnreachableException:
                     pass
 
@@ -5122,7 +5192,7 @@ class UssdAction(ReplyAction):
 
     @classmethod
     def from_ruleset(cls, ruleset, run):
-        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, basestring):
+        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, six.string_types):
             # initial message, menu obj
             obj = json.loads(ruleset.config)
             rules = json.loads(ruleset.rules)
@@ -5161,13 +5231,13 @@ class UssdAction(ReplyAction):
 
     def add_menu_to_msg(self, rules):
         # start with a new line
-        self.msg = {language: localised_msg + '\n' for language, localised_msg in self.msg.iteritems()}
+        self.msg = {language: localised_msg + '\n' for language, localised_msg in six.iteritems(self.msg)}
 
         # add menu to the msg
         for rule in rules:
             if rule.get('label'):  # filter "other" and "interrupted"
                 self.msg = {language: localised_msg + ": ".join(
-                    (str(rule['test']['test']), self.get_menu_label(rule['label'], language),)) + '\n' for language, localised_msg in self.msg.iteritems()}
+                    (str(rule['test']['test']), self.get_menu_label(rule['label'], language),)) + '\n' for language, localised_msg in six.iteritems(self.msg)}
 
 
 class VariableContactAction(Action):
@@ -5469,7 +5539,7 @@ class SaveToContactAction(Action):
         elif field == 'tel_e164':
             label = 'Phone Number'
         elif field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
-            label = unicode(ContactURN.CONTEXT_KEYS_TO_LABEL[field])
+            label = six.text_type(ContactURN.CONTEXT_KEYS_TO_LABEL[field])
         else:
             contact_field = ContactField.objects.filter(org=org, key=field).first()
             if contact_field:
@@ -5755,7 +5825,7 @@ class Rule(object):
             if isinstance(category, dict):
                 # prune all of our translations to 36
                 for k, v in category.items():
-                    if isinstance(v, unicode):
+                    if isinstance(v, six.string_types):
                         category[k] = v[:36]
             elif category:
                 category = category[:36]
