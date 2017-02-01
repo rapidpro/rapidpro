@@ -1738,7 +1738,7 @@ class Contact(TembaModel):
 
         urn = self.get_urn(scheme)
 
-        if not urn and scheme is not None:
+        if not urn:
             return ''
 
         if org.is_anon:

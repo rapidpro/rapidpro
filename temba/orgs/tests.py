@@ -2418,7 +2418,7 @@ class BulkExportTest(TembaTest):
         response = self.client.get(reverse('orgs.org_export'))
 
         from bs4 import BeautifulSoup
-        soup = BeautifulSoup(response.content)
+        soup = BeautifulSoup(response.content, "html.parser")
         group = str(soup.findAll("div", {"class": "exportables bucket"})[0])
 
         self.assertIn('Parent Flow', group)
