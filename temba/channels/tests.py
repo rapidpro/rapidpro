@@ -7471,6 +7471,14 @@ class JunebugTest(TembaTest):
                     args=['event', self.channel.uuid]))
         self.assertEquals(response.status_code, 400)
 
+    def test_status_with_invalid_event(self):
+        delivery_url = reverse('handlers.junebug_handler',
+                               args=['event', self.channel.uuid])
+        response = self.client.post(delivery_url, data=json.dumps({}),
+                                    content_type='application/json')
+        self.assertEquals(400, response.status_code)
+        self.assertTrue('Missing one of' in response.content)
+
     def test_status(self):
         # ok, what happens with an invalid uuid?
         data = self.mk_event()
@@ -7525,6 +7533,14 @@ class JunebugTest(TembaTest):
             response.content,
             "Message with external id of '%s' not found" % (
                 data['message_id'],))
+
+    def test_receive_with_invalid_message(self):
+        callback_url = reverse('handlers.junebug_handler',
+                               args=['inbound', self.channel.uuid])
+        response = self.client.post(callback_url, json.dumps({}),
+                                    content_type='application/json')
+        self.assertEquals(400, response.status_code)
+        self.assertTrue('Missing one of' in response.content)
 
     def test_receive(self):
         data = self.mk_msg(content="événement")
