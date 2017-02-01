@@ -1479,9 +1479,10 @@ class Channel(TembaModel):
         # figure out if we should send encoding or do any of our own substitution
         desired_encoding = channel.config.get(Channel.CONFIG_ENCODING, Channel.ENCODING_DEFAULT)
 
-        # they want unicde, they get unicode!
+        # they want unicode, they get unicode!
         if desired_encoding == Channel.ENCODING_UNICODE:
             payload['coding'] = '2'
+            payload['charset'] = 'utf8'
 
         # otherwise, if this is smart encoding, try to derive it
         elif desired_encoding == Channel.ENCODING_SMART:
@@ -1491,6 +1492,7 @@ class Channel(TembaModel):
 
             if encoding == Encoding.UNICODE:
                 payload['coding'] = '2'
+                payload['charset'] = 'utf8'
 
         log_payload = payload.copy()
         log_payload['password'] = 'x' * len(log_payload['password'])
