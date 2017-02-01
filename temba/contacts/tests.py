@@ -873,12 +873,11 @@ class ContactTest(TembaTest):
             self.assertEqual("Wolfeschlegelstei...", mr_long_name.get_display(short=True))
             self.assertEqual("Billy Nophone", self.billy.get_display())
 
-            self.assertEqual(self.joe.anon_identifier, self.joe.get_urn_display(org=self.org, formatted=False))
-            self.assertEqual(self.joe.anon_identifier, self.joe.get_urn_display())
-            self.assertEqual(self.voldemort.anon_identifier, self.voldemort.get_urn_display())
-            self.assertEqual(Contact.HIDDEN_URN_MASK, self.voldemort.get_urn_display(scheme=TEL_SCHEME))
-            self.assertEqual(mr_long_name.anon_identifier, mr_long_name.get_urn_display())
-            self.assertEqual(self.billy.anon_identifier, self.billy.get_urn_display())
+            self.assertEqual(ContactURN.ANON_MASK, self.joe.get_urn_display(org=self.org, formatted=False))
+            self.assertEqual(ContactURN.ANON_MASK, self.joe.get_urn_display())
+            self.assertEqual(ContactURN.ANON_MASK, self.voldemort.get_urn_display())
+            self.assertEqual(ContactURN.ANON_MASK, mr_long_name.get_urn_display())
+            self.assertEqual(ContactURN.ANON_MASK, self.billy.get_urn_display())
             self.assertEqual('', self.billy.get_urn_display(scheme=TEL_SCHEME))
 
             self.assertEqual("Joe Blow", six.text_type(self.joe))
