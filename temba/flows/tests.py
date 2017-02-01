@@ -391,14 +391,14 @@ class FlowTest(TembaTest):
 
         # how many people in the flow?
         self.assertEqual(self.flow.get_run_stats(),
-                         {'active': 0, 'total': 0, 'exit_type': {'C': 0, 'E': 0, 'I': 0}, 'completion': 0})
+                         {'total': 0, 'active': 0, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # start the flow
         self.flow.start([], [self.contact, self.contact2])
 
         # test our stats again
         self.assertEqual(self.flow.get_run_stats(),
-                         {'active': 2, 'total': 2, 'exit_type': {'C': 0, 'E': 0, 'I': 0}, 'completion': 0})
+                         {'total': 2, 'active': 2, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # should have created a single broadcast
         broadcast = Broadcast.objects.get()
@@ -583,7 +583,7 @@ class FlowTest(TembaTest):
 
         # check our completion percentages
         self.assertEqual(self.flow.get_run_stats(),
-                         {'active': 1, 'total': 2, 'exit_type': {'C': 1, 'E': 0, 'I': 0}, 'completion': 50})
+                         {'total': 2, 'active': 1, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 50})
 
         # at this point there are no more steps to take in the flow, so we shouldn't match anymore
         extra = self.create_msg(direction=INCOMING, contact=self.contact, text="Hello ther")
@@ -4211,7 +4211,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEqual(flow.get_run_stats(),
-                         {'active': 1, 'total': 1, 'exit_type': {'C': 0, 'E': 0, 'I': 0}, 'completion': 0})
+                         {'total': 1, 'active': 1, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # another unknown color, that'll route us right back again
         # the active stats will look the same, but there should be one more journey on the path
@@ -4252,7 +4252,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(3, visited[other_rule_to_msg])
         self.assertEquals(3, visited[msg_to_color_step])
         self.assertEqual(flow.get_run_stats(),
-                         {'active': 2, 'total': 2, 'exit_type': {'C': 0, 'E': 0, 'I': 0}, 'completion': 0})
+                         {'total': 2, 'active': 2, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # now let's have them land in the same place
         self.send_message(flow, 'blue', contact=ryan)
@@ -4268,7 +4268,7 @@ class FlowsTest(FlowFileTest):
 
         # half of our flows are now complete
         self.assertEqual(flow.get_run_stats(),
-                         {'active': 1, 'total': 2, 'exit_type': {'C': 1, 'E': 0, 'I': 0}, 'completion': 50})
+                         {'total': 2, 'active': 1, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 50})
 
         # rebuild our flow stats and make sure they are the same
         flow.do_calculate_flow_stats()
@@ -4276,7 +4276,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, len(active))
         self.assertEquals(3, visited[other_rule_to_msg])
         self.assertEqual(flow.get_run_stats(),
-                         {'active': 1, 'total': 2, 'exit_type': {'C': 1, 'E': 0, 'I': 0}, 'completion': 50})
+                         {'total': 2, 'active': 1, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 50})
 
         # we are going to expire, but we want runs across two different flows
         # to make sure that our optimization for expiration is working properly
@@ -4301,7 +4301,7 @@ class FlowsTest(FlowFileTest):
 
         # no completed runs but one expired run
         self.assertEqual(flow.get_run_stats(),
-                         {'active': 1, 'total': 2, 'exit_type': {'C': 0, 'E': 1, 'I': 0}, 'completion': 0})
+                         {'total': 2, 'active': 1, 'completed': 0, 'expired': 1, 'interrupted': 0, 'completion': 0})
 
         # check that we have the right number of steps and runs
         self.assertEquals(17, FlowStep.objects.filter(run__flow=flow).count())
@@ -4317,7 +4317,7 @@ class FlowsTest(FlowFileTest):
 
         # he was also accounting for our completion rate, back to nothing
         self.assertEqual(flow.get_run_stats(),
-                         {'active': 1, 'total': 1, 'exit_type': {'C': 0, 'E': 0, 'I': 0}, 'completion': 0})
+                         {'total': 1, 'active': 1, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # advance ryan to the end to make sure our percentage accounts for one less contact
         self.send_message(flow, 'Turbo King', contact=ryan)
@@ -4325,7 +4325,7 @@ class FlowsTest(FlowFileTest):
         (active, visited) = flow.get_activity()
         self.assertEquals(0, len(active))
         self.assertEqual(flow.get_run_stats(),
-                         {'active': 0, 'total': 1, 'exit_type': {'C': 1, 'E': 0, 'I': 0}, 'completion': 100})
+                         {'total': 1, 'active': 0, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 100})
 
         # messages to/from deleted contacts shouldn't appear in the recent messages
         recent = FlowPathRecentStep.get_recent_messages([color_other_uuid], [other_action.uuid])
@@ -4347,7 +4347,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEqual(flow.get_run_stats(),
-                         {'active': 0, 'total': 1, 'exit_type': {'C': 1, 'E': 0, 'I': 0}, 'completion': 100})
+                         {'total': 1, 'active': 0, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 100})
 
         # and no recent message entries for this test contact
         recent = FlowPathRecentStep.get_recent_messages([color_other_uuid], [other_action.uuid])
@@ -4373,7 +4373,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(0, visited[other_rule_to_msg])
 
         self.assertEqual(flow.get_run_stats(),
-                         {'active': 0, 'total': 0, 'exit_type': {'C': 0, 'E': 0, 'I': 0}, 'completion': 0})
+                         {'total': 0, 'active': 0, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # runs and steps all gone too
         self.assertEquals(0, FlowStep.objects.filter(run__flow=flow, contact__is_test=False).count())
@@ -4388,7 +4388,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEqual(flow.get_run_stats(),
-                         {'active': 1, 'total': 1, 'exit_type': {'C': 0, 'E': 0, 'I': 0}, 'completion': 0})
+                         {'total': 1, 'active': 1, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # set the run to be ready for expiration
         run = tupac.runs.first()
@@ -4401,7 +4401,7 @@ class FlowsTest(FlowFileTest):
         (active, visited) = flow.get_activity()
         self.assertEquals(0, len(active))
         self.assertEqual(flow.get_run_stats(),
-                         {'active': 0, 'total': 1, 'exit_type': {'C': 0, 'E': 1, 'I': 0}, 'completion': 0})
+                         {'total': 1, 'active': 0, 'completed': 0, 'expired': 1, 'interrupted': 0, 'completion': 0})
 
         # choose a rule that is not wired up (end of flow)
         jimmy = self.create_contact('Jimmy Graham', '+12065558888')

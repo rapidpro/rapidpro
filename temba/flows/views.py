@@ -1461,7 +1461,7 @@ class FlowCRUDL(SmartCRUDL):
 
             run_stats = self.object.get_run_stats()
             context['run_count'] = run_stats['total']
-            context['complete_count'] = run_stats['exit_type'][FlowRun.EXIT_TYPE_COMPLETED]
+            context['complete_count'] = run_stats['completed']
             return context
 
         def get_form_kwargs(self):

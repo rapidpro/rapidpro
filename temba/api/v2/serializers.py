@@ -610,9 +610,9 @@ class FlowReadSerializer(ReadSerializer):
         stats = obj.get_run_stats()
         return {
             'active': stats['active'],
-            'completed': stats['exit_type'][FlowRun.EXIT_TYPE_COMPLETED],
-            'interrupted': stats['exit_type'][FlowRun.EXIT_TYPE_INTERRUPTED],
-            'expired': stats['exit_type'][FlowRun.EXIT_TYPE_EXPIRED]
+            'completed': stats['completed'],
+            'interrupted': stats['interrupted'],
+            'expired': stats['expired']
         }
 
     class Meta:

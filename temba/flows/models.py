@@ -1174,13 +1174,11 @@ class Flow(TembaModel):
         total_runs = sum(totals_by_exit.values())
 
         return {
-            'active': totals_by_exit[None],
             'total': total_runs,
-            'exit_type': {
-                FlowRun.EXIT_TYPE_COMPLETED: totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED],
-                FlowRun.EXIT_TYPE_EXPIRED: totals_by_exit[FlowRun.EXIT_TYPE_EXPIRED],
-                FlowRun.EXIT_TYPE_INTERRUPTED: totals_by_exit[FlowRun.EXIT_TYPE_INTERRUPTED],
-            },
+            'active': totals_by_exit[None],
+            'completed': totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED],
+            'expired': totals_by_exit[FlowRun.EXIT_TYPE_EXPIRED],
+            'interrupted': totals_by_exit[FlowRun.EXIT_TYPE_INTERRUPTED],
             'completion': int(totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED] * 100 / total_runs) if total_runs else 0
         }
 

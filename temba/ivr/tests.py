@@ -569,7 +569,7 @@ class IVRTests(FlowFileTest):
 
         # also shouldn't have any ActionLogs for non-test users
         self.assertEqual(0, ActionLog.objects.all().count())
-        self.assertEqual(flow.get_run_stats()['exit_type']['C'], 1)
+        self.assertEqual(flow.get_run_stats()['completed'], 1)
 
         # should still have no active runs
         self.assertEquals(0, FlowRun.objects.filter(is_active=True).count())

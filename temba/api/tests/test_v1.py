@@ -611,7 +611,7 @@ class APITest(TembaTest):
 
         # check flow stats
         self.assertEqual(flow.get_run_stats(),
-                         {'active': 1, 'total': 1, 'exit_type': {'C': 0, 'E': 0, 'I': 0}, 'completion': 0})
+                         {'total': 1, 'active': 1, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({flow.entry_uuid: 1}, {}))
@@ -791,7 +791,7 @@ class APITest(TembaTest):
 
         # check flow stats
         self.assertEqual(flow.get_run_stats(),
-                         {'active': 1, 'total': 1, 'exit_type': {'C': 0, 'E': 0, 'I': 0}, 'completion': 0})
+                         {'total': 1, 'active': 1, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({u'00000000-0000-0000-0000-000000000001': 1}, {}))
@@ -891,7 +891,7 @@ class APITest(TembaTest):
 
         # check flow stats
         self.assertEqual(flow.get_run_stats(),
-                         {'active': 0, 'total': 1, 'exit_type': {'C': 1, 'E': 0, 'I': 0}, 'completion': 100})
+                         {'total': 1, 'active': 0, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 100})
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({},

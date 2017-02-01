@@ -1001,7 +1001,7 @@ class FlowReadSerializer(ReadSerializer):
         return [l.name for l in obj.labels.all()]
 
     def get_completed_runs(self, obj):
-        return obj.get_run_stats()['exit_type'][FlowRun.EXIT_TYPE_COMPLETED]
+        return obj.get_run_stats()['completed']
 
     def get_participants(self, obj):
         return None
