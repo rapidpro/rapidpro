@@ -1,0 +1,58 @@
+-extends "smartmin/form.html"
+
+-load compress temba smartmin i18n
+
+-block title-icon
+  .title-icon
+    %span.glyph.icon-email
+
+-block form-span
+
+-block title-text
+  .title-text
+    %h1
+      -trans "Remove SMTP configuration"
+
+-block summary
+    -blocktrans with from_email=flow_from_email
+      Emails sent from flows will come from <b>{{from_email}}</b>.
+
+-block pre-form
+  %p
+    -blocktrans with brand=brand.name
+      You can configure {{ brand }} to send emails generated within flows from an email address of your choosing. <br/>
+      This will let you receive replies from your recipients.
+
+  -if object.has_smtp_config and request.META.HTTP_X_FORMAX
+    %p
+      -blocktrans with from_email=flow_from_email
+        If you no longer want to use {{ from_email }} to send emails, you can <a href='javascript:confirmSMTPRemove();'>remove your SMTP configuration</a>.
+
+    .remove-smtp.hide
+      .title
+        -trans "Remove SMTP configuration"
+      .body
+        -blocktrans with brand=brand.name
+          Removing your SMTP configuration will result in emails being delivered from {{ brand }} that cannot be replied to. Are you sure you want to continue?
+    %a#remove-smtp-form.posterize{href:'{% url "orgs.org_smtp_server" %}?disconnect=true'}
+
+  %hr
+
+-block extra-script
+  :javascript
+    function confirmSMTPRemove() {
+      removalConfirmation("remove-smtp", "Remove");
+    }
+
+    $(document).ready(function() {
+      $('#id_smtp_encryption').select2({
+        containerCssClass: 'select2-smtp-encryption',
+        minimumResultsForSearch: '-1',
+      });
+    });
+
+-block extra-style
+  :css
+    .select2-smtp-encryption {
+      width: 365px;
+    }

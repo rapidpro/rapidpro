@@ -8,6 +8,8 @@ from django.conf.urls import include, url
 from django.contrib.auth.models import User, AnonymousUser
 from django.conf import settings
 from temba.channels.views import register, sync
+from django.views.i18n import javascript_catalog
+from django.conf.urls.static import static
 
 # javascript translation packages
 js_info_dict = {
@@ -34,12 +36,11 @@ urlpatterns = [
     url(r'^users/', include('smartmin.users.urls')),
     url(r'^imports/', include('smartmin.csv_imports.urls')),
     url(r'^assets/', include('temba.assets.urls')),
-    url(r'^jsi18n/$', 'django.views.i18n.javascript_catalog', js_info_dict)
+    url(r'^jsi18n/$', javascript_catalog, js_info_dict, name='django.views.i18n.javascript_catalog'),
 ]
 
 if settings.DEBUG:
-    urlpatterns.append(url(r'^media/(?P<path>.*)$', 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT, }))
-
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # import any additional urls
 for app in settings.APP_URLS:  # pragma: needs cover
