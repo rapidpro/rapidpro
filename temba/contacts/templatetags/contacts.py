@@ -69,10 +69,7 @@ def format_urn(urn, org):
 
 @register.filter
 def format_contact(contact, org):
-    display = contact.get_display(org=org)
-    if display == ContactURN.ANON_MASK:
-        return '\u2022' * 8  # replace *'s with prettier HTML entity
-    return display
+    return contact.get_display(org=org)
 
 
 @register.filter
