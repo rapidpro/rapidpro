@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0049_auto_20170106_0910'),
+        ('channels', '0057_remove_channelsession_parent_and_flow'),
     ]
 
     operations = [
