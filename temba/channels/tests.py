@@ -4094,6 +4094,7 @@ class KannelTest(TembaTest):
                 # assert verify was set to true
                 self.assertEquals("Unicode. ☺", mock.call_args[1]['params']['text'])
                 self.assertEquals('2', mock.call_args[1]['params']['coding'])
+                self.assertEquals('utf8', mock.call_args[1]['params']['charset'])
 
                 self.clear_cache()
 
@@ -4114,6 +4115,7 @@ class KannelTest(TembaTest):
                 # assert verify was set to true
                 self.assertEquals("Normal", mock.call_args[1]['params']['text'])
                 self.assertFalse('coding' in mock.call_args[1]['params'])
+                self.assertFalse('charset' in mock.call_args[1]['params'])
 
                 self.clear_cache()
 
@@ -4136,6 +4138,7 @@ class KannelTest(TembaTest):
                 # assert verify was set to true
                 self.assertEquals("Normal", mock.call_args[1]['params']['text'])
                 self.assertEquals('2', mock.call_args[1]['params']['coding'])
+                self.assertEquals('utf8', mock.call_args[1]['params']['charset'])
 
                 self.clear_cache()
 
