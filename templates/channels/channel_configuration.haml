@@ -179,10 +179,6 @@
         The callback URL is called by Nexmo when you receive an incoming call
 
     %code
-      -blocktrans
-        Choose "Forward to VoiceXML" in Forward to field and add the following URL to the Script URL field
-
-    %code
       https://{{ domain }}{% url 'handlers.nexmo_call_handler' 'answer' object.uuid %}
 
 
