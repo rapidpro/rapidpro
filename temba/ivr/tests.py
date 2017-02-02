@@ -749,7 +749,7 @@ class IVRTests(FlowFileTest):
 
         msgs = Msg.objects.filter(session=call).order_by('created_on')
         self.assertEqual(3, msgs.count())
-        self.assertTrue('Would you like me to call you?' in msgs[0].text)
+        self.assertIn('Would you like me to call you?', msgs[0].text)
         self.assertEqual('4', msgs[1].text)
         self.assertEqual('Press one, two, or three. Thanks.', msgs[2].text)
 
@@ -826,8 +826,8 @@ class IVRTests(FlowFileTest):
         self.assertFalse(Contact.get_simulation())
 
         # also shouldn't have any ActionLogs for non-test users
-        self.assertEquals(0, ActionLog.objects.all().count())
-        self.assertEquals(1, flow.get_completed_runs())
+        self.assertEqual(0, ActionLog.objects.all().count())
+        self.assertEqual(flow.get_run_stats()['completed'], 1)
 
         # should still have no active runs
         self.assertEquals(0, FlowRun.objects.filter(is_active=True).count())

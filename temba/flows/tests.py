@@ -390,15 +390,15 @@ class FlowTest(TembaTest):
         entry = ActionSet.objects.filter(uuid=self.flow.entry_uuid)[0]
 
         # how many people in the flow?
-        self.assertEquals(0, self.flow.get_total_runs())
-        self.assertEquals(0, self.flow.get_completed_percentage())
+        self.assertEqual(self.flow.get_run_stats(),
+                         {'total': 0, 'active': 0, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # start the flow
         self.flow.start([], [self.contact, self.contact2])
 
         # test our stats again
-        self.assertEquals(2, self.flow.get_total_runs())
-        self.assertEquals(0, self.flow.get_completed_percentage())
+        self.assertEqual(self.flow.get_run_stats(),
+                         {'total': 2, 'active': 2, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # should have created a single broadcast
         broadcast = Broadcast.objects.get()
@@ -582,8 +582,8 @@ class FlowTest(TembaTest):
         self.assertFalse(step.next_uuid)
 
         # check our completion percentages
-        self.assertEquals(2, self.flow.get_total_runs())
-        self.assertEquals(50, self.flow.get_completed_percentage())
+        self.assertEqual(self.flow.get_run_stats(),
+                         {'total': 2, 'active': 1, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 50})
 
         # at this point there are no more steps to take in the flow, so we shouldn't match anymore
         extra = self.create_msg(direction=INCOMING, contact=self.contact, text="Hello ther")
@@ -936,8 +936,7 @@ class FlowTest(TembaTest):
     def test_export_results_with_no_responses(self):
         self.flow.update(self.definition)
 
-        self.assertEqual(self.flow.get_total_runs(), 0)
-        self.assertEqual(self.flow.get_completed_percentage(), 0)
+        self.assertEqual(self.flow.get_run_stats()['total'], 0)
 
         workbook = self.export_flow_results(self.flow)
 
@@ -1007,7 +1006,7 @@ class FlowTest(TembaTest):
 
             self.flow.start([], [self.contact])
 
-            self.assertTrue(self.flow.steps())
+            self.assertTrue(self.flow.get_steps())
             self.assertTrue(Msg.objects.all())
             msg = Msg.objects.all()[0]
             self.assertFalse("@extra.coupon" in msg.text)
@@ -3651,7 +3650,7 @@ class WebhookTest(TembaTest):
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "text": "Valid", "order_number": "PX1002" }')
 
-            (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
+            webhook.find_matching_rule(webhook_step, run, incoming)
             (match, value) = rules.find_matching_rule(rule_step, run, incoming)
             self.assertEquals(uuid(12), match.uuid)
             self.assertEquals("Valid", value)
@@ -3675,11 +3674,29 @@ class WebhookTest(TembaTest):
             self.assertEqual(message_context['extra'], {'0': 'zero', '1': 'one', '2': 'two'})
 
         with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, json.dumps(range(300)))
+            rule_step.run.fields = None
+            rule_step.run.save()
+
+            webhook.find_matching_rule(webhook_step, run, incoming)
+            (match, value) = rules.find_matching_rule(rule_step, run, incoming)
+            self.assertIsNone(match)
+            self.assertIsNone(value)
+            self.assertEquals("1001", incoming.text)
+
+            message_context = self.flow.build_message_context(self.contact, incoming)
+            extra = message_context['extra']
+
+            # should only keep first 256 values
+            self.assertEqual(256, len(extra))
+            self.assertFalse('256' in extra)
+
+        with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, "asdfasdfasdf")
             rule_step.run.fields = None
             rule_step.run.save()
 
-            (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
+            webhook.find_matching_rule(webhook_step, run, incoming)
             (match, value) = rules.find_matching_rule(rule_step, run, incoming)
             self.assertIsNone(match)
             self.assertIsNone(value)
@@ -3693,7 +3710,7 @@ class WebhookTest(TembaTest):
             rule_step.run.fields = None
             rule_step.run.save()
 
-            (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
+            webhook.find_matching_rule(webhook_step, run, incoming)
             (match, value) = rules.find_matching_rule(rule_step, run, incoming)
             self.assertIsNone(match)
             self.assertIsNone(value)
@@ -3707,7 +3724,7 @@ class WebhookTest(TembaTest):
             rule_step.run.fields = None
             rule_step.run.save()
 
-            (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
+            webhook.find_matching_rule(webhook_step, run, incoming)
             (match, value) = rules.find_matching_rule(rule_step, run, incoming)
             self.assertIsNone(match)
             self.assertIsNone(value)
@@ -4130,60 +4147,40 @@ class FlowsTest(FlowFileTest):
 
         # should have six active flowruns
         (active, visited) = flow.get_activity()
-        self.assertEquals(6, FlowRun.objects.filter(is_active=True).count())
-        self.assertEquals(0, FlowRun.objects.filter(is_active=False).count())
-        self.assertEquals(6, flow.get_total_runs())
-        self.assertEquals(6, active[color.uuid])
+        self.assertEqual(FlowRun.objects.filter(is_active=True).count(), 6)
+        self.assertEqual(FlowRun.objects.filter(is_active=False).count(), 0)
+        self.assertEqual(active[color.uuid], 6)
 
-        self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 6)
-
-        # rebuild our flow run counts
-        FlowRunCount.populate_for_flow(flow)
-
-        # same result
-        self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 6)
+        self.assertEqual(FlowRunCount.get_totals(flow), {'A': 6, 'C': 0, 'E': 0, 'I': 0})
 
         # expire them all
         FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_EXPIRED)
 
         # should all be expired
         (active, visited) = flow.get_activity()
-        self.assertEquals(0, FlowRun.objects.filter(is_active=True).count())
-        self.assertEquals(6, FlowRun.objects.filter(is_active=False, exit_type='E').exclude(exited_on=None).count())
-        self.assertEquals(6, flow.get_total_runs())
-        self.assertEquals(0, len(active))
+        self.assertEquals(FlowRun.objects.filter(is_active=True).count(), 0)
+        self.assertEquals(FlowRun.objects.filter(is_active=False, exit_type='E').exclude(exited_on=None).count(), 6)
+        self.assertEquals(len(active), 0)
 
         # assert our flowrun counts
-        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 6)
-        self.assertEqual(FlowRunCount.run_count(flow), 6)
+        self.assertEqual(FlowRunCount.get_totals(flow), {'A': 0, 'C': 0, 'E': 6, 'I': 0})
 
         # start all contacts in the flow again
         for contact in contacts:
             self.send_message(flow, 'chartreuse', contact=contact, restart_participants=True)
 
         self.assertEqual(6, FlowRun.objects.filter(is_active=True).count())
-        self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 6)
-        self.assertEqual(FlowRunCount.run_count(flow), 12)
+        self.assertEqual(FlowRunCount.get_totals(flow), {'A': 6, 'C': 0, 'E': 6, 'I': 0})
 
         # stop them all
         FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
 
-        self.assertEqual(6, FlowRun.objects.filter(is_active=False, exit_type='I').exclude(exited_on=None).count())
-        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'I'), 6)
-        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 6)
-        self.assertEqual(FlowRunCount.run_count(flow), 12)
+        self.assertEqual(FlowRun.objects.filter(is_active=False, exit_type='I').exclude(exited_on=None).count(), 6)
+        self.assertEqual(FlowRunCount.get_totals(flow), {'A': 0, 'C': 0, 'E': 6, 'I': 6})
 
         # squash our counts
         FlowRunCount.squash_counts()
-        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'I'), 6)
-        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 6)
-        self.assertEqual(FlowRunCount.run_count(flow), 12)
-
-        # recalculate from scratch, same
-        FlowRunCount.populate_for_flow(flow)
-        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'I'), 6)
-        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 6)
-        self.assertEqual(FlowRunCount.run_count(flow), 12)
+        self.assertEqual(FlowRunCount.get_totals(flow), {'A': 0, 'C': 0, 'E': 6, 'I': 6})
 
     def test_squash_run_counts(self):
         from temba.flows.tasks import squash_flowruncounts
@@ -4199,12 +4196,8 @@ class FlowsTest(FlowFileTest):
 
         squash_flowruncounts()
         self.assertEqual(FlowRunCount.objects.all().count(), 3)
-        self.assertEqual(FlowRunCount.run_count_for_type(flow2, 'I'), 9)
-        self.assertEqual(FlowRunCount.run_count(flow2), 9)
-
-        self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 3)
-        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 3)
-        self.assertEqual(FlowRunCount.run_count(flow), 6)
+        self.assertEqual(FlowRunCount.get_totals(flow2), {'A': 0, 'C': 0, 'E': 0, 'I': 9})
+        self.assertEqual(FlowRunCount.get_totals(flow), {'A': 3, 'C': 0, 'E': 3, 'I': 0})
 
         max_id = FlowRunCount.objects.all().order_by('-id').first().id
 
@@ -4243,9 +4236,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, active[color.uuid])
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, visited[msg_to_color_step])
-        self.assertEquals(1, flow.get_total_runs())
-        self.assertEquals(0, flow.get_completed_runs())
-        self.assertEquals(0, flow.get_completed_percentage())
+        self.assertEqual(flow.get_run_stats(),
+                         {'total': 1, 'active': 1, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # another unknown color, that'll route us right back again
         # the active stats will look the same, but there should be one more journey on the path
@@ -4285,7 +4277,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, active[beer.uuid])
         self.assertEquals(3, visited[other_rule_to_msg])
         self.assertEquals(3, visited[msg_to_color_step])
-        self.assertEquals(2, flow.get_total_runs())
+        self.assertEqual(flow.get_run_stats(),
+                         {'total': 2, 'active': 2, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # now let's have them land in the same place
         self.send_message(flow, 'blue', contact=ryan)
@@ -4300,16 +4293,16 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, len(active))
 
         # half of our flows are now complete
-        self.assertEquals(1, flow.get_completed_runs())
-        self.assertEquals(50, flow.get_completed_percentage())
+        self.assertEqual(flow.get_run_stats(),
+                         {'total': 2, 'active': 1, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 50})
 
         # rebuild our flow stats and make sure they are the same
         flow.do_calculate_flow_stats()
         (active, visited) = flow.get_activity()
         self.assertEquals(1, len(active))
         self.assertEquals(3, visited[other_rule_to_msg])
-        self.assertEquals(1, flow.get_completed_runs())
-        self.assertEquals(50, flow.get_completed_percentage())
+        self.assertEqual(flow.get_run_stats(),
+                         {'total': 2, 'active': 1, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 50})
 
         # we are going to expire, but we want runs across two different flows
         # to make sure that our optimization for expiration is working properly
@@ -4333,10 +4326,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(3, visited[other_rule_to_msg])
 
         # no completed runs but one expired run
-        self.assertEquals(2, flow.get_total_runs())
-        self.assertEquals(0, flow.get_completed_runs())
-        self.assertEquals(0, flow.get_completed_percentage())
-        self.assertEquals(1, flow.get_expired_runs())
+        self.assertEqual(flow.get_run_stats(),
+                         {'total': 2, 'active': 1, 'completed': 0, 'expired': 1, 'interrupted': 0, 'completion': 0})
 
         # check that we have the right number of steps and runs
         self.assertEquals(17, FlowStep.objects.filter(run__flow=flow).count())
@@ -4349,19 +4340,18 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, len(active))
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, visited[other_rule_to_msg])
-        self.assertEquals(1, flow.get_total_runs())
 
         # he was also accounting for our completion rate, back to nothing
-        self.assertEquals(0, flow.get_completed_runs())
-        self.assertEquals(0, flow.get_completed_percentage())
+        self.assertEqual(flow.get_run_stats(),
+                         {'total': 1, 'active': 1, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # advance ryan to the end to make sure our percentage accounts for one less contact
         self.send_message(flow, 'Turbo King', contact=ryan)
         self.send_message(flow, 'Ryan Lewis', contact=ryan)
         (active, visited) = flow.get_activity()
         self.assertEquals(0, len(active))
-        self.assertEquals(1, flow.get_completed_runs())
-        self.assertEquals(100, flow.get_completed_percentage())
+        self.assertEqual(flow.get_run_stats(),
+                         {'total': 1, 'active': 0, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 100})
 
         # messages to/from deleted contacts shouldn't appear in the recent messages
         recent = FlowPathRecentStep.get_recent_messages([color_other_uuid], [other_action.uuid])
@@ -4382,9 +4372,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(0, len(active))
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, visited[other_rule_to_msg])
-        self.assertEquals(1, flow.get_total_runs())
-        self.assertEquals(1, flow.get_completed_runs())
-        self.assertEquals(100, flow.get_completed_percentage())
+        self.assertEqual(flow.get_run_stats(),
+                         {'total': 1, 'active': 0, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 100})
 
         # and no recent message entries for this test contact
         recent = FlowPathRecentStep.get_recent_messages([color_other_uuid], [other_action.uuid])
@@ -4408,9 +4397,9 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(0, len(active))
         self.assertEquals(0, visited[msg_to_color_step])
         self.assertEquals(0, visited[other_rule_to_msg])
-        self.assertEquals(0, flow.get_total_runs())
-        self.assertEquals(0, flow.get_completed_runs())
-        self.assertEquals(0, flow.get_completed_percentage())
+
+        self.assertEqual(flow.get_run_stats(),
+                         {'total': 0, 'active': 0, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # runs and steps all gone too
         self.assertEquals(0, FlowStep.objects.filter(run__flow=flow, contact__is_test=False).count())
@@ -4424,7 +4413,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, active[color.uuid])
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, visited[msg_to_color_step])
-        self.assertEquals(1, flow.get_total_runs())
+        self.assertEqual(flow.get_run_stats(),
+                         {'total': 1, 'active': 1, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # set the run to be ready for expiration
         run = tupac.runs.first()
@@ -4436,7 +4426,8 @@ class FlowsTest(FlowFileTest):
         check_flows_task()
         (active, visited) = flow.get_activity()
         self.assertEquals(0, len(active))
-        self.assertEquals(1, flow.get_total_runs())
+        self.assertEqual(flow.get_run_stats(),
+                         {'total': 1, 'active': 0, 'completed': 0, 'expired': 1, 'interrupted': 0, 'completion': 0})
 
         # choose a rule that is not wired up (end of flow)
         jimmy = self.create_contact('Jimmy Graham', '+12065558888')

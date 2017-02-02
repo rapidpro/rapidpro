@@ -285,7 +285,7 @@ class RuleCRUDL(SmartCRUDL):
                     current_flow = dict(id=flow.id,
                                         text=flow.name,
                                         rules=[],
-                                        stats=dict(runs=flow.get_total_runs(),
+                                        stats=dict(runs=flow.get_run_stats()['total'],
                                                    created_on=flow.created_on))
 
                 current_flow['rules'].append(dict(text=rule.label, id=rule.pk, flow=current_flow['id'],
@@ -643,6 +643,11 @@ class FlowCRUDL(SmartCRUDL):
             context['campaigns'] = self.get_campaigns()
             context['request_url'] = self.request.path
             context['actions'] = self.actions
+
+            # decorate flow objects with their run activity stats
+            for flow in context['object_list']:
+                flow.run_stats = flow.get_run_stats()
+
             return context
 
         def derive_queryset(self, *args, **kwargs):
@@ -1460,8 +1465,10 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Broadcast, self).get_context_data(*args, **kwargs)
-            context['run_count'] = self.object.get_total_runs()
-            context['complete_count'] = self.object.get_completed_runs()
+
+            run_stats = self.object.get_run_stats()
+            context['run_count'] = run_stats['total']
+            context['complete_count'] = run_stats['completed']
             return context
 
         def get_form_kwargs(self):
