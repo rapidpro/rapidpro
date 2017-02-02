@@ -873,11 +873,12 @@ class ContactTest(TembaTest):
             self.assertEqual("Wolfeschlegelstei...", mr_long_name.get_display(short=True))
             self.assertEqual("Billy Nophone", self.billy.get_display())
 
-            self.assertEqual(self.joe.anon_identifier, self.joe.get_urn_display(org=self.org, formatted=False))
-            self.assertEqual(self.joe.anon_identifier, self.joe.get_urn_display())
-            self.assertEqual(self.voldemort.anon_identifier, self.voldemort.get_urn_display())
-            self.assertEqual(mr_long_name.anon_identifier, mr_long_name.get_urn_display())
-            self.assertEqual(self.billy.anon_identifier, self.billy.get_urn_display())
+            self.assertEqual(ContactURN.ANON_MASK, self.joe.get_urn_display(org=self.org, formatted=False))
+            self.assertEqual(ContactURN.ANON_MASK, self.joe.get_urn_display())
+            self.assertEqual(ContactURN.ANON_MASK, self.voldemort.get_urn_display())
+            self.assertEqual(ContactURN.ANON_MASK, mr_long_name.get_urn_display())
+            self.assertEqual('', self.billy.get_urn_display())
+            self.assertEqual('', self.billy.get_urn_display(scheme=TEL_SCHEME))
 
             self.assertEqual("Joe Blow", six.text_type(self.joe))
             self.assertEqual("%010d" % self.voldemort.pk, six.text_type(self.voldemort))
@@ -1247,7 +1248,7 @@ class ContactTest(TembaTest):
                                contact_urn=self.joe.urns.all().first())
 
         # fetch our contact history
-        with self.assertNumQueries(64):
+        with self.assertNumQueries(65):
             response = self.fetch_protected(url, self.admin)
 
         # activity should include all messages in the last 90 days, the channel event, the call, and the flow run

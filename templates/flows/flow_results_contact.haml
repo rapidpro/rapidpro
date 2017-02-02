@@ -36,8 +36,12 @@
 -block extra-less
   <link rel="stylesheet" type="text/css" href="{{STATIC_URL}}bower/DataTables/media/css/jquery.dataTables.css">
   -load compress
+
   -compress css
-    %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/simulator.less', media:'all'}
+    {% lessblock %}
+      :plain
+        @import "simulator.less";
+    {% endlessblock %}
 
   -compress css inline
     {% lessblock %}

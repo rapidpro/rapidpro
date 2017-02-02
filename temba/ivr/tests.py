@@ -491,7 +491,7 @@ class IVRTests(FlowFileTest):
 
         msgs = Msg.objects.filter(session=call).order_by('created_on')
         self.assertEqual(3, msgs.count())
-        self.assertTrue('Would you like me to call you?' in msgs[0].text)
+        self.assertIn('Would you like me to call you?', msgs[0].text)
         self.assertEqual('4', msgs[1].text)
         self.assertEqual('Press one, two, or three. Thanks.', msgs[2].text)
 

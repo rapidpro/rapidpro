@@ -1735,10 +1735,14 @@ class Contact(TembaModel):
         if not org:
             org = self.org
 
-        if org.is_anon:
-            return self.anon_identifier
-
         urn = self.get_urn(scheme)
+
+        if not urn:
+            return ''
+
+        if org.is_anon:
+            return ContactURN.ANON_MASK
+
         return urn.get_display(org=org, formatted=formatted, international=international) if urn else ''
 
     def raw_tel(self):
