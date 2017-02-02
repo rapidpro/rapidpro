@@ -3651,7 +3651,7 @@ class WebhookTest(TembaTest):
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "text": "Valid", "order_number": "PX1002" }')
 
-            (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
+            webhook.find_matching_rule(webhook_step, run, incoming)
             (match, value) = rules.find_matching_rule(rule_step, run, incoming)
             self.assertEquals(uuid(12), match.uuid)
             self.assertEquals("Valid", value)
@@ -3675,11 +3675,29 @@ class WebhookTest(TembaTest):
             self.assertEqual(message_context['extra'], {'0': 'zero', '1': 'one', '2': 'two'})
 
         with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, json.dumps(range(300)))
+            rule_step.run.fields = None
+            rule_step.run.save()
+
+            webhook.find_matching_rule(webhook_step, run, incoming)
+            (match, value) = rules.find_matching_rule(rule_step, run, incoming)
+            self.assertIsNone(match)
+            self.assertIsNone(value)
+            self.assertEquals("1001", incoming.text)
+
+            message_context = self.flow.build_message_context(self.contact, incoming)
+            extra = message_context['extra']
+
+            # should only keep first 256 values
+            self.assertEqual(256, len(extra))
+            self.assertFalse('256' in extra)
+
+        with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, "asdfasdfasdf")
             rule_step.run.fields = None
             rule_step.run.save()
 
-            (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
+            webhook.find_matching_rule(webhook_step, run, incoming)
             (match, value) = rules.find_matching_rule(rule_step, run, incoming)
             self.assertIsNone(match)
             self.assertIsNone(value)
@@ -3693,7 +3711,7 @@ class WebhookTest(TembaTest):
             rule_step.run.fields = None
             rule_step.run.save()
 
-            (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
+            webhook.find_matching_rule(webhook_step, run, incoming)
             (match, value) = rules.find_matching_rule(rule_step, run, incoming)
             self.assertIsNone(match)
             self.assertIsNone(value)
@@ -3707,7 +3725,7 @@ class WebhookTest(TembaTest):
             rule_step.run.fields = None
             rule_step.run.save()
 
-            (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
+            webhook.find_matching_rule(webhook_step, run, incoming)
             (match, value) = rules.find_matching_rule(rule_step, run, incoming)
             self.assertIsNone(match)
             self.assertIsNone(value)

@@ -2,10 +2,12 @@ from __future__ import absolute_import, unicode_literals
 
 import hmac
 import json
+
 import requests
 import six
 import uuid
 
+from collections import OrderedDict
 from datetime import timedelta
 from django.db.models import Q
 from django.conf import settings
@@ -302,7 +304,7 @@ class WebHookEvent(SmartModel):
 
             if response.status_code == 200 or response.status_code == 201:
                 try:
-                    response_json = json.loads(response_text)
+                    response_json = json.loads(response_text, object_pairs_hook=OrderedDict)
 
                     # only update if we got a valid JSON dictionary or list
                     if not isinstance(response_json, dict) and not isinstance(response_json, list):
