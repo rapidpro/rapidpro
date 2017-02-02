@@ -2436,7 +2436,7 @@ class BulkExportTest(TembaTest):
         response = self.client.get(reverse('orgs.org_export'))
 
         from bs4 import BeautifulSoup
-        soup = BeautifulSoup(response.content)
+        soup = BeautifulSoup(response.content, "html.parser")
         group = str(soup.findAll("div", {"class": "exportables bucket"})[0])
 
         self.assertIn('Parent Flow', group)
@@ -2529,8 +2529,6 @@ class BulkExportTest(TembaTest):
             self.assertIsNone(Flow.objects.filter(org=self.org, name='New Mother').first())
 
     def test_import_campaign_with_translations(self):
-
-        # import all our bits
         self.import_file('campaign_import_with_translations')
 
         campaign = Campaign.objects.all().first()
@@ -2542,11 +2540,14 @@ class BulkExportTest(TembaTest):
 
         event_msg = json.loads(event.message)
 
-        self.assertEquals(event_msg['swa'], 'hello')
-        self.assertEquals(event_msg['eng'], 'Hey')
+        self.assertEqual(event_msg['swa'], 'hello')
+        self.assertEqual(event_msg['eng'], 'Hey')
 
-        self.assertEquals(action_msg['swa'], 'hello')
-        self.assertEquals(action_msg['eng'], 'Hey')
+        # base language for this flow is 'swa' despite our org languages being unset
+        self.assertEqual(event.flow.base_language, 'swa')
+
+        self.assertEqual(action_msg['swa'], 'hello')
+        self.assertEqual(action_msg['eng'], 'Hey')
 
     def test_export_import(self):
 
@@ -2583,7 +2584,7 @@ class BulkExportTest(TembaTest):
         trigger.flow = confirm_appointment
         trigger.save()
 
-        message_flow = Flow.objects.filter(flow_type='M').order_by('pk').first()
+        message_flow = Flow.objects.filter(flow_type='M', campaignevent__offset=-1).order_by('pk').first()
         action_set = message_flow.action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
         self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
@@ -2608,7 +2609,7 @@ class BulkExportTest(TembaTest):
         self.assertTrue(Flow.objects.filter(pk=message_flow.pk, is_active=False))
 
         # find our new message flow, and see that the original message is there
-        message_flow = Flow.objects.filter(flow_type='M', is_active=True).order_by('pk').first()
+        message_flow = Flow.objects.filter(flow_type='M', campaignevent__offset=-1, is_active=True).order_by('pk').first()
         action_set = Flow.objects.get(pk=message_flow.pk).action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
         self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
@@ -2643,9 +2644,17 @@ class BulkExportTest(TembaTest):
         self.assertEquals(4, len(exported.get('triggers', [])))
         self.assertEquals(1, len(exported.get('campaigns', [])))
 
+        # set our org language to english
+        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
+
         # finally let's try importing our exported file
         self.org.import_app(exported, self.admin, site='http://app.rapidpro.io')
         assert_object_counts()
+
+        message_flow = Flow.objects.filter(flow_type='M', campaignevent__offset=-1, is_active=True).order_by('pk').first()
+
+        # make sure the base language is set to 'base', not 'eng'
+        self.assertEqual(message_flow.base_language, 'base')
 
         # let's rename a flow and import our export again
         flow = Flow.objects.get(name='Confirm Appointment')

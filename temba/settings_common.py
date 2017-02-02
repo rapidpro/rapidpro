@@ -214,13 +214,8 @@ INSTALLED_APPS = (
 
     # smartmin
     'smartmin',
-
-    # import tasks
     'smartmin.csv_imports',
-
-    # smartmin users
     'smartmin.users',
-    'modeltranslation',
 
     # django-timezone-field
     'timezone_field',
@@ -433,6 +428,7 @@ PERMISSIONS = {
                          'claim_hub9',
                          'claim_infobip',
                          'claim_jasmin',
+                         'claim_junebug',
                          'claim_kannel',
                          'claim_line',
                          'claim_m3tech',
@@ -673,6 +669,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
         'channels.channel_claim_jasmin',
+        'channels.channel_claim_junebug',
         'channels.channel_claim_kannel',
         'channels.channel_claim_line',
         'channels.channel_claim_mblox',
@@ -814,6 +811,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
         'channels.channel_claim_jasmin',
+        'channels.channel_claim_junebug',
         'channels.channel_claim_kannel',
         'channels.channel_claim_line',
         'channels.channel_claim_mblox',

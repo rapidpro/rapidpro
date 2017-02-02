@@ -1819,6 +1819,90 @@ class JasminHandler(BaseChannelHandler):
             return HttpResponse("Not handled, unknown action", status=400)
 
 
+class JunebugHandler(BaseChannelHandler):
+
+    url = r'^junebug/(?P<action>event|inbound)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.junebug_handler'
+
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("Must be called as a POST", status=400)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+
+        action = kwargs['action'].lower()
+        request_uuid = kwargs['uuid']
+
+        # look up the channel
+        channel = Channel.objects.filter(
+            uuid=request_uuid,
+            is_active=True,
+            channel_type=Channel.TYPE_JUNEBUG).exclude(org=None).first()
+
+        if not channel:
+            return HttpResponse(
+                "Channel not found for id: %s" % request_uuid, status=400)
+
+        data = json.load(request)
+
+        # Junebug is sending an event
+        if action == 'event':
+            expected_keys = ["event_type", "message_id", "timestamp"]
+            if not set(expected_keys).issubset(data.keys()):
+                return HttpResponse(
+                    "Missing one of %s in request parameters." % (
+                        ', '.join(expected_keys)), status=400)
+
+            message_id = data['message_id']
+            event_type = data["event_type"]
+
+            # look up the message
+            message = Msg.objects.filter(
+                channel=channel, external_id=message_id
+            ).select_related('channel')
+            if not message:
+                return HttpResponse(
+                    "Message with external id of '%s' not found" % message_id,
+                    status=400)
+
+            if event_type == 'submitted':
+                for message_obj in message:
+                    message_obj.status_sent()
+            if event_type == 'delivery_succeeded':
+                for message_obj in message:
+                    message_obj.status_delivered()
+            elif event_type in ['delivery_failed', 'rejected']:
+                for message_obj in message:
+                    message_obj.status_fail()
+
+            # Let Junebug know we're happy
+            return HttpResponse('OK')
+
+        # Handle an inbound message
+        elif action == 'inbound':
+            expected_keys = [
+                'channel_data',
+                'from',
+                'channel_id',
+                'timestamp',
+                'content',
+                'to',
+                'reply_to',
+                'message_id',
+            ]
+            if not set(expected_keys).issubset(data.keys()):
+                return HttpResponse(
+                    "Missing one of %s in request parameters." % (
+                        ', '.join(expected_keys)), status=400)
+
+            content = data['content']
+            message = Msg.create_incoming(
+                channel, URN.from_tel(data['from']), content)
+            Msg.objects.filter(pk=message.id).update(
+                external_id=data['message_id'])
+            return HttpResponse('OK')
+
+
 class MbloxHandler(BaseChannelHandler):
 
     url = r'^mblox/(?P<uuid>[a-z0-9\-]+)/?$'

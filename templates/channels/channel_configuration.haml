@@ -49,7 +49,7 @@
 
     %hr
 
-    %h4 
+    %h4
       -trans "Delivery URL"
 
     %p
@@ -625,6 +625,24 @@
     %code
       https://{{ domain }}{% url 'handlers.jasmin_handler' 'receive' object.uuid %}
 
+  -elif object.channel_type == 'JN'
+    %h4
+      -blocktrans
+        As a last step you'll need to configure Junebug to call the following URL for MO (incoming) messages.
+
+    %hr
+
+    %h4
+      -trans "Push Message URL"
+
+    %p
+      -blocktrans
+        This endpoint will be called by Junebug when new messages are received to your number, it must be configured
+        to be called as a POST
+
+    %code
+      https://{{ domain }}{% url 'handlers.junebug_handler' 'inbound' object.uuid %}
+
   -elif object.channel_type == 'MB'
     %h4
       -blocktrans
@@ -660,7 +678,7 @@
       -blocktrans
         To finish configuring your Facebook connection, you'll need to enter the following webhook URL and token on your application's
         Messenger settings page. Make sure to check all boxes within the 'Webhooks' section to subscribe to all incoming Facebook events
-        and, within the same section, select the page whose events you'd like the webhook to subscribe to. 
+        and, within the same section, select the page whose events you'd like the webhook to subscribe to.
 
     .important
       %p

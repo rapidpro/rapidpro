@@ -879,7 +879,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
-               'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'facebook_whitelist')
+               'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1698,6 +1698,26 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Connect Jasmin")
         channel_type = Channel.TYPE_JASMIN
         form_class = JasminForm
+        fields = ('country', 'number', 'url', 'username', 'password')
+
+    class ClaimJunebug(ClaimAuthenticatedExternal):
+        class JunebugForm(forms.Form):
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+                                        help_text=_("The country this phone number is used in"))
+            number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
+                                     help_text=("The shortcode or phone number you are connecting."))
+            url = forms.URLField(label=_("URL"),
+                                 help_text=_("The URL for the Junebug channel. ex: https://junebug.praekelt.org/jb/channels/3853bb51-d38a-4bca-b332-8a57c00f2a48"))
+            username = forms.CharField(label=_("Username"),
+                                       help_text=_("The username to be used to authenticate to Junebug"),
+                                       required=False)
+            password = forms.CharField(label=_("Password"),
+                                       help_text=_("The password to be used to authenticate to Junebug"),
+                                       required=False)
+
+        title = _("Connect Junebug")
+        channel_type = Channel.TYPE_JUNEBUG
+        form_class = JunebugForm
         fields = ('country', 'number', 'url', 'username', 'password')
 
     class ClaimMblox(ClaimAuthenticatedExternal):
