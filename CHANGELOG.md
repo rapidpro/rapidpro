@@ -1,3 +1,7 @@
+v3.0.35
+----------
+ * Offline context per brand
+
 v3.0.34
 ----------
  * Add Junebug channel type
