@@ -1175,7 +1175,7 @@ class Flow(TembaModel):
 
         return {
             'total': total_runs,
-            'active': totals_by_exit[None],
+            'active': totals_by_exit[FlowRun.STATE_ACTIVE],
             'completed': totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED],
             'expired': totals_by_exit[FlowRun.EXIT_TYPE_EXPIRED],
             'interrupted': totals_by_exit[FlowRun.EXIT_TYPE_INTERRUPTED],
@@ -2499,6 +2499,8 @@ class Flow(TembaModel):
 
 
 class FlowRun(models.Model):
+    STATE_ACTIVE = 'A'
+
     EXIT_TYPE_COMPLETED = 'C'
     EXIT_TYPE_INTERRUPTED = 'I'
     EXIT_TYPE_EXPIRED = 'E'
@@ -3840,7 +3842,13 @@ class FlowRunCount(models.Model):
 
         # for convenience, ensure dict contains all possible states
         all_states = (None, FlowRun.EXIT_TYPE_COMPLETED, FlowRun.EXIT_TYPE_EXPIRED, FlowRun.EXIT_TYPE_INTERRUPTED)
-        return {s: totals.get(s, 0) for s in all_states}
+        totals = {s: totals.get(s, 0) for s in all_states}
+
+        # we record active runs as exit_type=None but replace with actual constant for clarity
+        totals[FlowRun.STATE_ACTIVE] = totals[None]
+        del totals[None]
+
+        return totals
 
     def __str__(self):  # pragma: needs cover
         return "RunCount[%d:%s:%d]" % (self.flow_id, self.exit_type, self.count)

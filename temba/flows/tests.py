@@ -4125,7 +4125,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(FlowRun.objects.filter(is_active=False).count(), 0)
         self.assertEqual(active[color.uuid], 6)
 
-        self.assertEqual(FlowRunCount.get_totals(flow), {None: 6, 'C': 0, 'E': 0, 'I': 0})
+        self.assertEqual(FlowRunCount.get_totals(flow), {'A': 6, 'C': 0, 'E': 0, 'I': 0})
 
         # expire them all
         FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_EXPIRED)
@@ -4137,24 +4137,24 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(len(active), 0)
 
         # assert our flowrun counts
-        self.assertEqual(FlowRunCount.get_totals(flow), {None: 0, 'C': 0, 'E': 6, 'I': 0})
+        self.assertEqual(FlowRunCount.get_totals(flow), {'A': 0, 'C': 0, 'E': 6, 'I': 0})
 
         # start all contacts in the flow again
         for contact in contacts:
             self.send_message(flow, 'chartreuse', contact=contact, restart_participants=True)
 
         self.assertEqual(6, FlowRun.objects.filter(is_active=True).count())
-        self.assertEqual(FlowRunCount.get_totals(flow), {None: 6, 'C': 0, 'E': 6, 'I': 0})
+        self.assertEqual(FlowRunCount.get_totals(flow), {'A': 6, 'C': 0, 'E': 6, 'I': 0})
 
         # stop them all
         FlowRun.bulk_exit(FlowRun.objects.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
 
         self.assertEqual(FlowRun.objects.filter(is_active=False, exit_type='I').exclude(exited_on=None).count(), 6)
-        self.assertEqual(FlowRunCount.get_totals(flow), {None: 0, 'C': 0, 'E': 6, 'I': 6})
+        self.assertEqual(FlowRunCount.get_totals(flow), {'A': 0, 'C': 0, 'E': 6, 'I': 6})
 
         # squash our counts
         FlowRunCount.squash_counts()
-        self.assertEqual(FlowRunCount.get_totals(flow), {None: 0, 'C': 0, 'E': 6, 'I': 6})
+        self.assertEqual(FlowRunCount.get_totals(flow), {'A': 0, 'C': 0, 'E': 6, 'I': 6})
 
     def test_squash_run_counts(self):
         from temba.flows.tasks import squash_flowruncounts
@@ -4170,8 +4170,8 @@ class FlowsTest(FlowFileTest):
 
         squash_flowruncounts()
         self.assertEqual(FlowRunCount.objects.all().count(), 3)
-        self.assertEqual(FlowRunCount.get_totals(flow2), {None: 0, 'C': 0, 'E': 0, 'I': 9})
-        self.assertEqual(FlowRunCount.get_totals(flow), {None: 3, 'C': 0, 'E': 3, 'I': 0})
+        self.assertEqual(FlowRunCount.get_totals(flow2), {'A': 0, 'C': 0, 'E': 0, 'I': 9})
+        self.assertEqual(FlowRunCount.get_totals(flow), {'A': 3, 'C': 0, 'E': 3, 'I': 0})
 
         max_id = FlowRunCount.objects.all().order_by('-id').first().id
 
