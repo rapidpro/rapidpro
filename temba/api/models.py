@@ -2,7 +2,6 @@ from __future__ import absolute_import, unicode_literals
 
 import hmac
 import json
-
 import requests
 import six
 import uuid
