@@ -9,7 +9,7 @@ from temba.sql import InstallSQL
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0077_install_indexes'),
+        ('msgs', '0079_populate_msg_session'),
     ]
 
     operations = [
@@ -22,5 +22,5 @@ class Migration(migrations.Migration):
             'CREATE INDEX msgs_systemlabel_unsquashed '
             'ON msgs_systemlabel(org_id, label_type) WHERE NOT is_squashed'
         ),
-        InstallSQL('0078_msgs')
+        InstallSQL('0080_msgs')
     ]
