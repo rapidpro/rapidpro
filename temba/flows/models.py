@@ -2596,7 +2596,7 @@ class FlowRun(models.Model):
 
         elif isinstance(fields, dict):
             count += 1
-            field_dict = dict()
+            field_dict = OrderedDict()
             for (k, v) in fields.items():
                 (field_dict[FlowRun.normalize_field_key(k)], count) = FlowRun.normalize_fields(v, max_values, count)
 
@@ -2607,7 +2607,7 @@ class FlowRun(models.Model):
 
         elif isinstance(fields, list):
             count += 1
-            list_dict = dict()
+            list_dict = OrderedDict()
             for (i, v) in enumerate(fields):
                 (list_dict[str(i)], count) = FlowRun.normalize_fields(v, max_values, count)
 
@@ -2850,21 +2850,21 @@ class FlowRun(models.Model):
         contact_runs = cls.objects.filter(is_active=True, contact__in=contacts)
         cls.bulk_exit(contact_runs, exit_type)
 
-    def update_fields(self, field_map, max_values=128):
+    def update_fields(self, field_map, max_values=256):
         # validate our field
         (field_map, count) = FlowRun.normalize_fields(field_map, max_values)
 
         if not self.fields:
             self.fields = json.dumps(field_map)
         else:
-            existing_map = json.loads(self.fields)
+            existing_map = json.loads(self.fields, object_pairs_hook=OrderedDict)
             existing_map.update(field_map)
             self.fields = json.dumps(existing_map)
 
         self.save(update_fields=['fields'])
 
     def field_dict(self):
-        return json.loads(self.fields) if self.fields else {}
+        return json.loads(self.fields, object_pairs_hook=OrderedDict) if self.fields else {}
 
     def is_completed(self):
         return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
