@@ -1,3 +1,9 @@
+v3.0.36
+----------
+ * Add 256 keys to @extra, also enforce ordering so it is predictible which are included
+ * Make fetching flow run stats more efficient and expose number of active runs on flow run endpoint
+ * Migration to populate session on msg and ended_on where it is missing
+
 v3.0.35
 ----------
  * Offline context per brand
