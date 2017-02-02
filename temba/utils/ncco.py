@@ -1,5 +1,7 @@
 import json
 
+import six
+
 
 class NCCOException(Exception):
     pass
@@ -62,7 +64,7 @@ class Response(object):
 
     def redirect(self, url=None, **kwargs):
         result = dict(action='input', maxDigits=1, timeOut=1,
-                      eventUrl=["%s?input_redirect=1" % url])
+                      eventUrl=["%s%sinput_redirect=1" % (url, "?" if '?' not in url else "&&")])
 
         self.document.append(result)
         return self
@@ -98,7 +100,7 @@ class Response(object):
         result = dict(format='wav', endOnSilence='4', endOnKey='#', beepStart=True, action='record')
 
         if kwargs.get('maxLength', False):
-            result['timeOut'] = str(kwargs.get('maxLength'))
+            result['timeOut'] = six.text_type(kwargs.get('maxLength'))
 
         if kwargs.get('action', False):
             method = kwargs.get('method', 'post')
@@ -107,7 +109,8 @@ class Response(object):
 
         self.document.append(result)
         result = dict(action='input', maxDigits=1, timeOut=1,
-                      eventUrl=["%s?save_media=1" % kwargs.get('action')])
+                      eventUrl=["%s%ssave_media=1" % (kwargs.get('action'),
+                                                      "?" if '?' not in six.text_type(kwargs.get('action')) else "&&")])
 
         self.document.append(result)
 
