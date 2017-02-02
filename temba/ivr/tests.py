@@ -606,7 +606,7 @@ class IVRTests(FlowFileTest):
 
     @patch('nexmo.Client.create_application')
     @patch('nexmo.Client.create_call')
-    def test_ivr_subflows(self, mock_create_call, mock_create_application):
+    def test_ivr_subflow_with_nexmo(self, mock_create_call, mock_create_application):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
         mock_create_call.return_value = dict(conversation_uuid='12345')
 
@@ -617,7 +617,7 @@ class IVRTests(FlowFileTest):
         self.channel.save()
 
         # import an ivr flow
-        self.import_file('ivr_subflows')
+        self.import_file('ivr_subflow')
 
         parent_flow = Flow.objects.filter(name='Parent Flow').first()
         # child_flow = Flow.objects.filter(name='Child Flow').first()
@@ -635,13 +635,13 @@ class IVRTests(FlowFileTest):
         response_json = json.loads(response.content)
         callback_url = response_json[1]['eventUrl'][0]
 
-        self.assertTrue(dict(action='talk', bargeIn=True, text="Hi there! This is the parent flow.") in response_json)
+        self.assertTrue(dict(action='talk', bargeIn=True, text="Hi there! This is my voice flow.") in response_json)
 
         response = self.client.post(callback_url, content_type='application/json',
                                     data=json.dumps(dict(status='ringing', duration=0)))
 
         response_json = json.loads(response.content)
-        callback_url = response_json[1]['eventUrl'][0]
+        callback_url = response_json[2]['eventUrl'][0]
 
         self.assertTrue(dict(action='talk', bargeIn=True,
                              text="What is your favorite color? 1 for Red, 2 for green or 3 for blue.")
@@ -661,8 +661,7 @@ class IVRTests(FlowFileTest):
         response_json = json.loads(response.content)
 
         self.assertTrue(dict(action='talk', bargeIn=False,
-                             text="In the child flow you picked Red. "
-                                  "I think that is a fine choice.\n\nGoodbye.")
+                             text="In the child flow you picked Red. I think that is a fine choice.")
                         in response_json)
 
         response = self.client.post(callback_url, content_type='application/json',
