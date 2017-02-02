@@ -290,7 +290,6 @@ LOGGING = {
 # -----------------------------------------------------------------------------------
 BRANDING = {
     'rapidpro.io': {
-        'host': 'rapidpro.ngrok.com',
         'slug': 'rapidpro',
         'name': 'RapidPro',
         'org': 'UNICEF',
