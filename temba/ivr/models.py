@@ -3,6 +3,8 @@ from __future__ import absolute_import, unicode_literals
 from django.db import models
 from django.conf import settings
 from django.core.urlresolvers import reverse
+from django.utils import timezone
+from django.utils.translation import ugettext_lazy as _
 from temba.channels.models import ChannelSession, Channel
 from temba.utils import on_transaction_commit
 
@@ -99,3 +101,62 @@ class IVRCall(ChannelSession):
     def start_call(self):
         from temba.ivr.tasks import start_call_task
         on_transaction_commit(lambda: start_call_task.delay(self.pk))
+
+    def update_status(self, status, duration, channel_type):
+        """
+        Updates our status from a provide call status string
+
+        """
+        from temba.flows.models import FlowRun, ActionLog
+        if channel_type in Channel.TWIML_CHANNELS:
+            if status == 'queued':
+                self.status = self.QUEUED
+            elif status == 'ringing':
+                self.status = self.RINGING
+            elif status == 'no-answer':
+                self.status = self.NO_ANSWER
+            elif status == 'in-progress':
+                if self.status != self.IN_PROGRESS:
+                    self.started_on = timezone.now()
+                self.status = self.IN_PROGRESS
+            elif status == 'completed':
+                if self.contact.is_test:
+                    run = FlowRun.objects.filter(session=self)
+                    if run:
+                        ActionLog.create(run[0], _("Call ended."))
+                self.status = self.COMPLETED
+            elif status == 'busy':
+                self.status = self.BUSY
+            elif status == 'failed':
+                self.status = self.FAILED
+            elif status == 'canceled':
+                self.status = self.CANCELED
+
+        elif channel_type in Channel.NCCO_CHANNELS:
+            if status == 'ringing':
+                self.status = self.RINGING
+            elif status == 'answered':
+                self.status = self.IN_PROGRESS
+            elif status == 'completed':
+                self.status = self.COMPLETED
+
+        # if we are done, mark our ended time
+        if self.status in ChannelSession.DONE:
+            self.ended_on = timezone.now()
+
+        if duration is not None:
+            self.duration = duration
+
+    def get_duration(self):
+        """
+        Either gets the set duration as reported by provider, or tries to calculate
+        it from the approximate time it was started
+        """
+        duration = self.duration
+        if not duration and self.status == 'I' and self.started_on:
+            duration = (timezone.now() - self.started_on).seconds
+
+        if not duration:
+            duration = 0
+
+        return duration
