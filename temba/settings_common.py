@@ -117,7 +117,7 @@ FIXTURE_DIRS = (os.path.join(PROJECT_DIR, '../fixtures'),)
 TESTFILES_DIR = os.path.join(PROJECT_DIR, '../testfiles')
 STATICFILES_DIRS = (os.path.join(PROJECT_DIR, '../static'), os.path.join(PROJECT_DIR, '../media'), )
 STATIC_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
-STATIC_URL = '/static/'
+STATIC_URL = '/sitestatic/'
 COMPRESS_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
 MEDIA_ROOT = os.path.join(PROJECT_DIR, '../media')
 MEDIA_URL = "/media/"
@@ -1155,12 +1155,11 @@ else:
 
 COMPRESS_ENABLED = False
 COMPRESS_OFFLINE = False
-COMPRESS_URL = '/sitestatic/'
 
 # build up our offline compression context based on available brands
 COMPRESS_OFFLINE_CONTEXT = []
 for brand in BRANDING.values():
-    context = dict(STATIC_URL=COMPRESS_URL, base_template='frame.html', debug=False, testing=False)
+    context = dict(STATIC_URL=STATIC_URL, base_template='frame.html', debug=False, testing=False)
     context['brand'] = dict(slug=brand['slug'], styles=brand['styles'])
     COMPRESS_OFFLINE_CONTEXT.append(context)
 
