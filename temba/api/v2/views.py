@@ -79,14 +79,24 @@ class RootView(views.APIView):
 
     The success or failure of requests is represented by status codes as well as a message in the response body:
 
-     * **200**: A list or update request was successful
-     * **201**: A resource was successfully created (only returned for `POST` requests)
+     * **200**: A list or update request was successful.
+     * **201**: A resource was successfully created (only returned for `POST` requests).
      * **204**: An empty response - used for both successful `DELETE` requests and `POST` requests that update multiple
                 resources.
      * **400**: The request failed due to invalid parameters. Do not retry with the same values, and the body of the
                 response will contain details.
-     * **403**: You do not have permission to access this resource
-     * **404**: The resource was not found (returned by `POST` and `DELETE` methods)
+     * **403**: You do not have permission to access this resource.
+     * **404**: The resource was not found (returned by `POST` and `DELETE` methods).
+     * **429**: You have exceeded the rate limit for this endpoint (see below).
+
+    ## Rate Limiting
+
+    All endpoints are subject to rate limiting. If you exceed the number of allowed requests in a given time window, you
+    will get a response with status code 429. The response will also include a header called 'Retry-After' which will
+    specify the number of seconds that you should wait for before making further requests.
+
+    The rate limit for all endpoints is 2,500 requests per hour. It is important to honor the Retry-After header when
+    encountering 429 responses as the limit is subject to change without notice.
 
     ## Date Values
 

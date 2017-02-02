@@ -12,7 +12,7 @@
           -if run.contact.name
             {{run.contact.name|truncatechars:100}}
           -else
-            {{ run.contact|format_urn:user_org }}
+            {{ run.contact|format_contact:user_org }}
 
     -for value in run.value_list
       %td

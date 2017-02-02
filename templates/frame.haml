@@ -145,12 +145,11 @@
 
         {% lessblock %}
           :plain
-
             @import "formax.less";
             @import "style.less";
 
             // any brand styling tweaks
-            @import (reference) "../brands/style.less";
+            @import (optional, reference) "../brands/style.less";
             @import (optional) "../brands/{{brand.slug}}/less/style.less";
 
         {% endlessblock %}
