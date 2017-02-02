@@ -1,3 +1,8 @@
+v3.0.37
+----------
+ * Fix to make label of open ended response be All Response even if there is timeout on the ruleset
+ * Data migration to rename category for old Values collected with timeouts
+
 v3.0.36
 ----------
  * Add 256 keys to @extra, also enforce ordering so it is predictible which are included
