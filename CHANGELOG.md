@@ -1,3 +1,12 @@
+v3.0.34
+----------
+ * Add Junebug channel type
+ * Better base styling for dev project
+ * Pass charset parameter to Kannel when sending unicode
+ * Zero out minutes, seconds, ms for campaign events with set delivery horus
+ * Add other URN types to contact context, return '' if missing, '*' mask for anon orgs
+ * Make sure Campaigns export base_language for simple message events, honor on import
+
 v3.0.33
 ----------
  * Change ansible command run on vagrant up from syncdb to migrate

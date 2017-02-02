@@ -197,7 +197,7 @@
             -if contact.name
               {{contact.name}}
             -else
-              {{contact|format_urn:user_org}}
+              {{contact|format_contact:user_org}}
           %p
             -trans "Once they are deleted, they will be gone forever. There is no way to undo this operation."
 
