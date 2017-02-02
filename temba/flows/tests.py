@@ -3345,16 +3345,16 @@ class FlowRunTest(TembaTest):
         self.assertTrue('field' + ("_" * 250) in normalized)
 
         # too many fields
-        for i in range(129):
+        for i in range(259):
             fields['field%d' % i] = 'value %d' % i
         (normalized, count) = FlowRun.normalize_fields(fields)
-        self.assertEqual(count, 128)
-        self.assertEqual(len(normalized), 128)
+        self.assertEqual(count, 256)
+        self.assertEqual(len(normalized), 256)
 
         # can manually keep more values
-        (normalized, count) = FlowRun.normalize_fields(fields, 200)
-        self.assertEqual(count, 132)
-        self.assertEqual(len(normalized), 132)
+        (normalized, count) = FlowRun.normalize_fields(fields, 500)
+        self.assertEqual(count, 262)
+        self.assertEqual(len(normalized), 262)
 
         fields = dict(numbers=["zero", "one", "two", "three"])
         (normalized, count) = FlowRun.normalize_fields(fields)
@@ -4108,6 +4108,14 @@ class FlowsTest(FlowFileTest):
         assert_in_response(response, 'function_completions', 'SUM')
         assert_in_response(response, 'function_completions', 'ABS')
         assert_in_response(response, 'function_completions', 'YEAR')
+
+        # a Twitter channel
+        Channel.create(self.org, self.user, None, 'TT')
+
+        response = self.client.get('%s?flow=%d' % (reverse('flows.flow_completion'), flow.pk))
+        response = response.json()
+
+        assert_in_response(response, 'message_completions', 'contact.twitter')
 
     def test_bulk_exit(self):
         flow = self.get_flow('favorites')

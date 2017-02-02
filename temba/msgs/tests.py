@@ -210,6 +210,14 @@ class MsgTest(TembaTest):
         # contact fields are included at the end in alphabetical order
         self.assertEquals(response.context['completions'], json.dumps(completions))
 
+        # a Twitter channel
+        Channel.create(self.org, self.user, None, 'TT')
+        completions.insert(-2, dict(name="contact.%s" % 'twitter', display="Contact %s" % "Twitter handle"))
+
+        response = self.client.get(outbox_url)
+        # the Twitter URN scheme is included
+        self.assertEquals(response.context['completions'], json.dumps(completions))
+
     def test_create_outgoing(self):
         tel_urn = "tel:250788382382"
         tel_contact = Contact.get_or_create(self.org, self.user, urns=[tel_urn])
