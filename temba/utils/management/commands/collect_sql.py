@@ -84,8 +84,8 @@ class Command(BaseCommand):  # pragma: no cover
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '--sort-objects', action='store', dest='sort_objects', default=True,
-            help='Whether to sort operations by object name rather than leave in order found in migrations.',
+            '--preserve-order', action='store_true', dest='preserve_order', default=False,
+            help='Whether to preserve order of operations rather than sorting by object name.',
         )
         parser.add_argument(
             '--output-dir', action='store', dest='output_dir', default='temba/sql',
@@ -93,7 +93,7 @@ class Command(BaseCommand):  # pragma: no cover
         )
 
     def handle(self, *args, **options):
-        sort_objects = options.get('sort_objects')
+        preserve_order = options.get('preserve_order')
         output_dir = options.get('output_dir')
 
         self.verbosity = options.get('verbosity')
@@ -114,7 +114,7 @@ class Command(BaseCommand):  # pragma: no cover
 
         self.stdout.write("Removed %s redundant operations" % self.style.SUCCESS(len(operations) - len(normalized)))
 
-        self.write_type_dumps(normalized, sort_objects, output_dir)
+        self.write_type_dumps(normalized, preserve_order, output_dir)
 
     def load_migrations(self):
         """
@@ -174,7 +174,7 @@ class Command(BaseCommand):  # pragma: no cover
 
         return normalized.values()
 
-    def write_type_dumps(self, operations, sort_objects, output_dir):
+    def write_type_dumps(self, operations, preserve_order, output_dir):
         """
         Splits the list of SQL operations by type and dumps these to separate files
         """
@@ -183,7 +183,7 @@ class Command(BaseCommand):  # pragma: no cover
             by_type[operation.sql_type].append(operation)
 
         # optionally sort each operation list by the object name
-        if sort_objects:
+        if not preserve_order:
             for obj_type, ops in by_type.items():
                 by_type[obj_type] = sorted(ops, key=lambda o: o.obj_name)
 
