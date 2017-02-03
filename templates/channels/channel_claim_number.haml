@@ -32,7 +32,8 @@
         .area-code
           .area-label
             -trans "Pattern"
-          %input#area-code{ type:"text", maxlength:"3", name:"area_code" }
+          -block search-pattern
+            %input#area-code{ type:"text", maxlength:"3", name:"area_code" }
           %input.btn.btn-primary{ type:"submit", value:"{% trans 'Search' %}" }
 
       .twilio-numbers-title
@@ -115,7 +116,7 @@
             $(".error").text(data['error']);
             $(".error").show();
           } else {
-            $(".error").text("{% trans 'Sorry, no numbers found, please enter another area code and try again.' %}");
+            $(".error").text("{% trans 'Sorry, no numbers found, please enter another pattern and try again.' %}");
             $(".error").show();
           }
         },
@@ -167,7 +168,7 @@
         }
 
         #area-code {
-          width: 50px;
+          width: 75px;
           margin-bottom: 0px;
           text-align: center;
           margin-right:15px;

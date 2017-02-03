@@ -55,6 +55,7 @@ enum34
 plivo
 rapidpro-expressions
 python-telegram-bot
+nexmo
 librato_bg
 django-mptt
 openpyxl
