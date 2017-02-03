@@ -20,4 +20,4 @@ def squash_contactgroupcounts():
     """
     Squashes our ContactGroupCounts into single rows per ContactGroup
     """
-    ContactGroupCount.squash_counts()
+    ContactGroupCount.squash()
