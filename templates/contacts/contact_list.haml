@@ -161,7 +161,7 @@
                           .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
 
                       %td.value-text.field_text
-                        {{ object.name|default:"--" }}
+                        {{ object|name:user_org }}
 
                       %td.value-phone.field_phone
                         %nobr

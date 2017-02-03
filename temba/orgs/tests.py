@@ -1883,6 +1883,8 @@ class AnonOrgTest(TembaTest):
         self.org.save()
 
     def test_contacts(self):
+        from temba.contacts.models import ContactURN
+
         # are there real phone numbers on the contact list page?
         contact = self.create_contact(None, "+250788123123")
         self.login(self.admin)
@@ -1896,6 +1898,7 @@ class AnonOrgTest(TembaTest):
 
         # but the id is
         self.assertContains(response, masked)
+        self.assertContains(response, ContactURN.ANON_MASK_HTML)
 
         # can't search for it
         response = self.client.get(reverse('contacts.contact_list') + "?search=788")

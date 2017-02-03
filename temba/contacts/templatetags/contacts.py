@@ -60,10 +60,20 @@ def name_or_urn(contact, org):
 
 
 @register.filter
+def name(contact, org):
+    if contact.name:
+        return contact.name
+    elif org.is_anon:
+        return contact.anon_identifier
+    else:
+        return "--"
+
+
+@register.filter
 def format_urn(urn, org):
     urn_val = urn.get_display(org=org, international=True)
     if urn_val == ContactURN.ANON_MASK:
-        return '\u2022' * 8  # replace *'s with prettier HTML entity
+        return ContactURN.ANON_MASK_HTML
     return urn_val
 
 

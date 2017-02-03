@@ -1795,7 +1795,8 @@ class ContactURN(models.Model):
 
     PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90, FACEBOOK_SCHEME: 90, TELEGRAM_SCHEME: 90, VIBER_SCHEME: 90}
 
-    ANON_MASK = '*' * 8  # returned instead of URN values for anon orgs
+    ANON_MASK = '*' * 8            # Returned instead of URN values for anon orgs
+    ANON_MASK_HTML = '\u2022' * 8  # Pretty HTML version of anon mask
 
     contact = models.ForeignKey(Contact, null=True, blank=True, related_name='urns',
                                 help_text="The contact that this URN is for, can be null")
