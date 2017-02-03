@@ -35,7 +35,7 @@
               %a{ href:'{% url "channels.channellog_read" obj.pk %}' }
                 -if obj.msg
                   {{obj.msg.contact|tel:user_org}}
-                -else
+                -elif obj.session
                   {{obj.session.contact|tel:user_org}}
             %td.clickable
               %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.description
