@@ -142,6 +142,7 @@
                   %tr.contacts
                     - if org_perms.contacts.contact_update
                       %th
+
                     %th
                     %th
                     -for field in contact_fields
@@ -161,11 +162,11 @@
                             .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
 
                         %td.value-text.field_name
-                          {{ object.name|default:"--" }}
+                          {{ object|name:user_org }}
 
                         %td.value-phone.field_phone
                           %nobr
-                            {{ object|format_contact:user_org }}
+                            {{ object|urn:user_org }}
 
                         -for field in contact_fields
                           -if field.show_in_table
