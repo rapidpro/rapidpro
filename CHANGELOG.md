@@ -1,3 +1,8 @@
+v3.0.40
+----------
+ * Add support for Nexmo IVR
+ * Log IVR interactions in Channel Log
+
 v3.0.37
 ----------
  * Fix to make label of open ended response be All Response even if there is timeout on the ruleset

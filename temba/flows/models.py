@@ -44,8 +44,8 @@ from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
 from temba.values.models import Value
 from temba_expressions.utils import tokenize
-from twilio import twiml
 from uuid import uuid4
+
 
 logger = logging.getLogger(__name__)
 
@@ -397,42 +397,37 @@ class Flow(TembaModel):
             return ActionSet.get(flow, uuid)
 
     @classmethod
-    def handle_call(cls, call, user_response=None, hangup=False, resume=False):
-        if not user_response:
-            user_response = {}
-
+    def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
         run = FlowRun.objects.filter(session=call, is_active=True).order_by('-created_on').first()
+
+        # what we will send back
+        voice_response = call.channel.generate_ivr_response()
+
+        if run is None:
+            voice_response.hangup()
+            return voice_response
+
         flow = run.flow
 
         # make sure we have the latest version
         flow.ensure_current_version()
 
-        # what we will send back
-        voice_response = twiml.Response()
         run.voice_response = voice_response
 
         # make sure our test contact is handled by simulation
         if call.contact.is_test:
             Contact.set_simulation(True)
 
-        # parse the user response
-        text = user_response.get('Digits', None)
-        media_url = user_response.get('RecordingUrl', None)
-
-        # if we've been sent a recording, go grab it
-        if media_url:
-            media_url = call.channel.get_ivr_client().download_media(media_url)
-
         # create a message to hold our inbound message
         from temba.msgs.models import IVR
-        if text is not None or media_url:
+        if text is not None or saved_media_url:
 
             # we don't have text for media, so lets use the media value there too
-            if media_url and ':' in media_url:
-                text = media_url.partition(':')[2]
+            if saved_media_url and ':' in saved_media_url:
+                text = saved_media_url.partition(':')[2]
 
             msg = Msg.create_incoming(call.channel, call.contact_urn.urn,
-                                      text, status=PENDING, msg_type=IVR, media=media_url, session=run.session)
+                                      text, status=PENDING, msg_type=IVR, media=saved_media_url, session=run.session)
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
@@ -479,16 +474,23 @@ class Flow(TembaModel):
         step = run.steps.all().order_by('-pk').first()
         destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
         if isinstance(destination, RuleSet):
-            response = twiml.Response()
+            response = call.channel.generate_ivr_response()
             callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
             gather = destination.get_voice_input(response, action=callback)
 
             # recordings have to be tacked on last
             if destination.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
                 voice_response.record(action=callback)
+
             elif destination.ruleset_type == RuleSet.TYPE_SUBFLOW:
-                voice_response.append(twiml.Redirect(url=callback))
-            elif gather:
+                voice_response.redirect(url=callback)
+
+            elif gather and hasattr(gather, 'document'):  # voicexml case
+                gather.join(voice_response)
+
+                voice_response = response
+
+            elif gather:  # TwiML case
                 # nest all of our previous verbs in our gather
                 for verb in voice_response.verbs:
                     gather.append(verb)
@@ -496,7 +498,7 @@ class Flow(TembaModel):
                 voice_response = response
 
                 # append a redirect at the end in case the user sends #
-                voice_response.append(twiml.Redirect(url=callback + "?empty=1"))
+                voice_response.redirect(url=callback + "?empty=1")
 
         return voice_response
 
@@ -690,8 +692,9 @@ class Flow(TembaModel):
                         run.update_expiration(timezone.now())
 
                     if flow:
-                        child_runs = flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
-                                                extra=extra, parent_run=run, interrupt=False)
+                        child_runs = flow.start([], [run.contact], started_flows=started_flows,
+                                                restart_participants=True, extra=extra,
+                                                parent_run=run, interrupt=False)
 
                         msgs = []
                         for run in child_runs:
@@ -709,7 +712,7 @@ class Flow(TembaModel):
             step.add_message(msg)
             run.update_expiration(timezone.now())
 
-        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA:
+        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg.media is not None:
             # store the media path as the value
             value = msg.media.split(':', 1)[1]
 
@@ -2773,7 +2776,7 @@ class FlowRun(models.Model):
 
             if hasattr(self, 'voice_response') and self.parent and self.parent.is_active:
                 callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.session.pk]))
-                self.voice_response.append(twiml.Redirect(url=callback + '?resume=1'))
+                self.voice_response.redirect(url=callback + '?resume=1')
             else:
                 # we delay this by a second to allow current flow execution to complete (and msgs to be sent)
                 on_transaction_commit(lambda: continue_parent_flows.apply_async(args=[[self.id]], countdown=1))
@@ -3290,9 +3293,7 @@ class RuleSet(models.Model):
     def get_voice_input(self, voice_response, action=None):
 
         # recordings aren't wrapped input they get tacked on at the end
-        if self.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
-            return voice_response
-        elif self.ruleset_type == RuleSet.TYPE_SUBFLOW:
+        if self.ruleset_type in [RuleSet.TYPE_WAIT_RECORDING, RuleSet.TYPE_SUBFLOW]:
             return voice_response
         elif self.ruleset_type == RuleSet.TYPE_WAIT_DIGITS:
             return voice_response.gather(finishOnKey=self.finished_key, timeout=60, action=action)

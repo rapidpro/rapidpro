@@ -34,7 +34,7 @@ from requests import Session
 from smartmin.models import SmartModel
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.nexmo import NexmoClient
+
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
 from temba.utils import languages
 from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
@@ -94,6 +94,8 @@ ACCOUNT_TOKEN = 'ACCOUNT_TOKEN'
 NEXMO_KEY = 'NEXMO_KEY'
 NEXMO_SECRET = 'NEXMO_SECRET'
 NEXMO_UUID = 'NEXMO_UUID'
+NEXMO_APP_ID = 'NEXMO_APP_ID'
+NEXMO_APP_PRIVATE_KEY = 'NEXMO_APP_PRIVATE_KEY'
 
 TRANSFERTO_ACCOUNT_LOGIN = 'TRANSFERTO_ACCOUNT_LOGIN'
 TRANSFERTO_AIRTIME_API_TOKEN = 'TRANSFERTO_AIRTIME_API_TOKEN'
@@ -764,8 +766,26 @@ class Org(SmartModel):
             self.save()
 
     def connect_nexmo(self, api_key, api_secret, user):
+        from nexmo import Client as NexmoClient
+
         nexmo_uuid = str(uuid4())
         nexmo_config = {NEXMO_KEY: api_key.strip(), NEXMO_SECRET: api_secret.strip(), NEXMO_UUID: nexmo_uuid}
+        client = NexmoClient(key=nexmo_config[NEXMO_KEY], secret=nexmo_config[NEXMO_SECRET])
+        app_name = "%s/%s" % (settings.TEMBA_HOST.lower(), nexmo_uuid)
+
+        answer_url = reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid])
+
+        event_url = reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid])
+
+        params = dict(name=app_name, type='voice', answer_url=answer_url, answer_method='POST',
+                      event_url=event_url, event_method='POST')
+
+        response = client.create_application(params=params)
+        app_id = response.get('id', None)
+        private_key = response.get("keys", dict()).get("private_key", None)
+
+        nexmo_config[NEXMO_APP_ID] = app_id
+        nexmo_config[NEXMO_APP_PRIVATE_KEY] = private_key
 
         config = self.config_json()
         config.update(nexmo_config)
@@ -892,11 +912,15 @@ class Org(SmartModel):
 
     def get_nexmo_client(self):
         config = self.config_json()
+        from temba.ivr.clients import NexmoClient
+
         if config:
             api_key = config.get(NEXMO_KEY, None)
             api_secret = config.get(NEXMO_SECRET, None)
+            app_id = config.get(NEXMO_APP_ID, None)
+            app_private_key = config.get(NEXMO_APP_PRIVATE_KEY, None)
             if api_key and api_secret:
-                return NexmoClient(api_key, api_secret)
+                return NexmoClient(api_key, api_secret, app_id, app_private_key, org=self)
 
         return None
 

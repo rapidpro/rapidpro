@@ -33,7 +33,8 @@ from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERE
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
 from temba.ivr.models import IVRCall
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
-from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN, NEXMO_UUID
+from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN, NEXMO_UUID, \
+    NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, AnonymousOrg
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct
@@ -1047,10 +1048,12 @@ class ChannelTest(TembaTest):
         self.assertFalse(self.org.is_connected_to_nexmo())
 
         # now connect to nexmo
-        with patch('temba.nexmo.NexmoClient.update_account') as connect:
+        with patch('temba.utils.nexmo.NexmoClient.update_account') as connect:
             connect.return_value = True
-            self.org.connect_nexmo('123', '456', self.admin)
-            self.org.save()
+            with patch('nexmo.Client.create_application') as create_app:
+                create_app.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+                self.org.connect_nexmo('123', '456', self.admin)
+                self.org.save()
         self.assertTrue(self.org.is_connected_to_nexmo())
 
         # now adding Nexmo bulk sender should work
@@ -1229,10 +1232,20 @@ class ChannelTest(TembaTest):
             response = self.client.post(search_url, {'country': 'US', 'area_code': ''})
             self.assertEqual(response.json(), ['+1 206-234-5678', '+1 206-234-5678'])
 
+            mock_search.return_value = []
+            response = self.client.post(search_url, {'country': 'US', 'area_code': ''})
+            self.assertEquals(json.loads(response.content)['error'],
+                              "Sorry, no numbers found, please enter another area code and try again.")
+
             # try searching for non-US number
             mock_search.return_value = [MockTwilioClient.MockPhoneNumber('+442812345678')]
             response = self.client.post(search_url, {'country': 'GB', 'area_code': '028'})
             self.assertEqual(response.json(), ['+44 28 1234 5678', '+44 28 1234 5678'])
+
+            mock_search.return_value = []
+            response = self.client.post(search_url, {'country': 'GB', 'area_code': ''})
+            self.assertEquals(json.loads(response.content)['error'],
+                              "Sorry, no numbers found, please enter another pattern and try again.")
 
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
             mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber('+12062345678')]
@@ -1576,7 +1589,8 @@ class ChannelTest(TembaTest):
         self.assertContains(response, "Nexmo")
         self.assertContains(response, reverse('orgs.org_nexmo_connect'))
 
-        nexmo_config = dict(NEXMO_KEY='nexmo-key', NEXMO_SECRET='nexmo-secret', NEXMO_UUID='nexmo-uuid')
+        nexmo_config = dict(NEXMO_KEY='nexmo-key', NEXMO_SECRET='nexmo-secret', NEXMO_UUID='nexmo-uuid',
+                            NEXMO_APP_ID='nexmo-app-id', NEXMO_APP_PRIVATE_KEY='nexmo-app-private-key')
         self.org.config = json.dumps(nexmo_config)
         self.org.save()
 
@@ -1590,10 +1604,20 @@ class ChannelTest(TembaTest):
             with patch('requests.post') as nexmo_post:
                 nexmo_get.side_effect = [
                     MockResponse(200, '{"count":0,"numbers":[] }'),
-                    MockResponse(200, '{"count":1,"numbers":[{"type":"mobile-lvn","country":"US","msisdn":"8080"}] }'),
+                    MockResponse(200,
+                                 '{"count":1,"numbers":[{"features": ["SMS"], "type":"mobile-lvn",'
+                                 '"country":"US","msisdn":"8080"}] }'),
+                    MockResponse(200,
+                                 '{"count":1,"numbers":[{"features": ["SMS"], "type":"mobile-lvn",'
+                                 '"country":"US","msisdn":"8080"}] }'),
                 ]
                 response = self.client.post(claim_nexmo, dict(country='US', phone_number='8080'))
                 self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+                channel = Channel.objects.filter(address='8080').first()
+                self.assertTrue(Channel.ROLE_SEND in channel.role)
+                self.assertTrue(Channel.ROLE_RECEIVE in channel.role)
+                self.assertFalse(Channel.ROLE_ANSWER in channel.role)
+                self.assertFalse(Channel.ROLE_CALL in channel.role)
                 Channel.objects.all().delete()
 
         # try buying a number not on the account
@@ -1602,16 +1626,40 @@ class ChannelTest(TembaTest):
                 nexmo_get.side_effect = [
                     MockResponse(200, '{"count":0,"numbers":[] }'),
                     MockResponse(200, '{"count":0,"numbers":[] }'),
+                    MockResponse(200,
+                                 '{"count":1,"numbers":[{"features": ["sms", "voice"], "type":"mobile",'
+                                 '"country":"US","msisdn":"+12065551212"}] }'),
                 ]
                 nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
                 response = self.client.post(claim_nexmo, dict(country='US', phone_number='+12065551212'))
                 self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+                channel = Channel.objects.filter(address='+12065551212').first()
+                self.assertTrue(Channel.ROLE_SEND in channel.role)
+                self.assertTrue(Channel.ROLE_RECEIVE in channel.role)
+                self.assertTrue(Channel.ROLE_ANSWER in channel.role)
+                self.assertTrue(Channel.ROLE_CALL in channel.role)
+                Channel.objects.all().delete()
+
+        # try failing to buy a number not on the account
+        with patch('requests.get') as nexmo_get:
+            with patch('requests.post') as nexmo_post:
+                nexmo_get.side_effect = [
+                    MockResponse(200, '{"count":0,"numbers":[] }'),
+                    MockResponse(200, '{"count":0,"numbers":[] }'),
+                ]
+                nexmo_post.side_effect = Exception('Error')
+                response = self.client.post(claim_nexmo, dict(country='US', phone_number='+12065551212'))
+                self.assertTrue(response.context['form'].errors)
+                self.assertContains(response, "There was a problem claiming that number, "
+                                              "please check the balance on your account. "
+                                              "Note that you can only claim numbers after "
+                                              "adding credit to your Nexmo account.")
                 Channel.objects.all().delete()
 
         # let's add a number already connected to the account
         with patch('requests.get') as nexmo_get:
             with patch('requests.post') as nexmo_post:
-                nexmo_get.return_value = MockResponse(200, '{"count":1,"numbers":[{"type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }')
+                nexmo_get.return_value = MockResponse(200, '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], "type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }')
                 nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
 
                 # make sure our number appears on the claim page
@@ -1625,7 +1673,10 @@ class ChannelTest(TembaTest):
 
                 # make sure it is actually connected
                 channel = Channel.objects.get(channel_type='NX', org=self.org)
-                self.assertEqual(channel.role, Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
+                self.assertTrue(Channel.ROLE_SEND in channel.role)
+                self.assertTrue(Channel.ROLE_RECEIVE in channel.role)
+                self.assertTrue(Channel.ROLE_ANSWER in channel.role)
+                self.assertTrue(Channel.ROLE_CALL in channel.role)
 
                 # test the update page for nexmo
                 update_url = reverse('channels.channel_update', args=[channel.pk])
@@ -1642,7 +1693,7 @@ class ChannelTest(TembaTest):
                 self.assertEquals('MTN', channel.address)
 
                 # add a canada number
-                nexmo_get.return_value = MockResponse(200, '{"count":1,"numbers":[{"type":"mobile-lvn","country":"CA","msisdn":"15797884540"}] }')
+                nexmo_get.return_value = MockResponse(200, '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], "type":"mobile-lvn","country":"CA","msisdn":"15797884540"}] }')
                 nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
 
                 # make sure our number appears on the claim page
@@ -1659,6 +1710,20 @@ class ChannelTest(TembaTest):
 
                 # as is our old one
                 self.assertTrue(Channel.objects.filter(channel_type='NX', org=self.org, address='MTN').first())
+
+                config_url = reverse('channels.channel_configuration', args=[channel.pk])
+                response = self.client.get(config_url)
+                self.assertEquals(200, response.status_code)
+
+                self.assertContains(response, reverse('handlers.nexmo_handler', args=['receive', channel.org.nexmo_uuid()]))
+                self.assertContains(response, reverse('handlers.nexmo_handler', args=['status', channel.org.nexmo_uuid()]))
+                self.assertContains(response, reverse('handlers.nexmo_call_handler', args=['answer', channel.uuid]))
+
+                call_handler_event_url = reverse('handlers.nexmo_call_handler', args=['event', channel.uuid])
+                response = self.client.get(call_handler_event_url)
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.content, "")
 
     def test_claim_plivo(self):
         self.login(self.admin)
@@ -1950,10 +2015,12 @@ class ChannelTest(TembaTest):
         android.refresh_from_db()
 
         # connect org to Nexmo and add bulk sender
-        with patch('temba.nexmo.NexmoClient.update_account') as connect:
+        with patch('temba.utils.nexmo.NexmoClient.update_account') as connect:
             connect.return_value = True
-            self.org.connect_nexmo('123', '456', self.admin)
-            self.org.save()
+            with patch('nexmo.Client.create_application') as create_app:
+                create_app.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+                self.org.connect_nexmo('123', '456', self.admin)
+                self.org.save()
 
         claim_nexmo_url = reverse('channels.channel_create_bulk_sender') + "?connection=NX&channel=%d" % android.pk
         self.client.post(claim_nexmo_url, dict(connection='NX', channel=android.pk))
@@ -4197,7 +4264,8 @@ class NexmoTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000001234')
 
         self.nexmo_uuid = str(uuid.uuid4())
-        nexmo_config = {NEXMO_KEY: '1234', NEXMO_SECRET: '1234', NEXMO_UUID: self.nexmo_uuid}
+        nexmo_config = {NEXMO_KEY: '1234', NEXMO_SECRET: '1234', NEXMO_UUID: self.nexmo_uuid,
+                        NEXMO_APP_ID: 'nexmo-app-id', NEXMO_APP_PRIVATE_KEY: 'nexmo-private-key'}
 
         org = self.channel.org
 
@@ -4257,11 +4325,14 @@ class NexmoTest(TembaTest):
         self.assertEquals('external1', msg.external_id)
 
     def test_send(self):
-        from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET
+        from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
         org_config = self.org.config_json()
         org_config[NEXMO_KEY] = 'nexmo_key'
         org_config[NEXMO_SECRET] = 'nexmo_secret'
+        org_config[NEXMO_APP_ID] = 'nexmo-app-id'
+        org_config[NEXMO_APP_PRIVATE_KEY] = 'nexmo-private-key'
         self.org.config = json.dumps(org_config)
+        self.org.clear_channel_caches()
 
         self.channel.channel_type = Channel.TYPE_NEXMO
         self.channel.save()

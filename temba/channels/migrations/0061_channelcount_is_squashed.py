@@ -28,7 +28,7 @@ $$ LANGUAGE plpgsql;
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0058_add_junebug_channel_type'),
+        ('channels', '0060_auto_20170110_0904'),
     ]
 
     operations = [
