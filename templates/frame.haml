@@ -85,6 +85,7 @@
       %script{src:"{{ STATIC_URL }}bower/video.js/dist/video.js"}
       %script{src:"{{ STATIC_URL }}bower/videojs-vjsdownload/dist/videojs-vjsdownload.js"}
       %script{src:"{{ STATIC_URL }}bower/xregexp/xregexp-all.js"}
+      %script{src:"{{ STATIC_URL }}bower/sticky-kit/jquery.sticky-kit.js"}
 
 
       // Non-bower packages
@@ -170,7 +171,7 @@
 
 -load smartmin
 {% block body %}
-%body#pageBody{style:'width:100%'}
+%body#pageBody
   <!-- Header -->
   #print-header
     %span.logo.icon-logo
@@ -206,10 +207,10 @@
   -block post-header
   <!-- Content -->
   -block page-container
-    #page-container.container
-      .divPanel.page-content
+    #page-container.container-fluid
+      .page-content
         -block page-top
-          .row
+          .row-fluid
             .span9
               -block title
                 -block title-icon
