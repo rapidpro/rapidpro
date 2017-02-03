@@ -1481,7 +1481,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     rules = for rule in rules when Flow.isRuleAllowed($scope.ruleset.ruleset_type, rule.test.type) then rule
 
     # if there's only one rule, make our other be 'All Responses'
-    if rules.length == 1
+    if rules.length == 1 or (rules.length == 2 and rules[1].test.type == 'timeout')
       otherCategory[Flow.flow.base_language] = 'All Responses'
 
     # add interrupted rule for USSD ruleset

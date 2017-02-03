@@ -568,8 +568,8 @@ class IVRTests(FlowFileTest):
         self.assertFalse(Contact.get_simulation())
 
         # also shouldn't have any ActionLogs for non-test users
-        self.assertEquals(0, ActionLog.objects.all().count())
-        self.assertEquals(1, flow.get_completed_runs())
+        self.assertEqual(0, ActionLog.objects.all().count())
+        self.assertEqual(flow.get_run_stats()['completed'], 1)
 
         # should still have no active runs
         self.assertEquals(0, FlowRun.objects.filter(is_active=True).count())

@@ -1037,9 +1037,6 @@ class Flow(TembaModel):
 
         return (active, visited)
 
-    def get_total_runs(self):
-        return FlowRunCount.run_count(self)
-
     def get_base_text(self, language_dict, default=''):
         if not isinstance(language_dict, dict):  # pragma: no cover
             return language_dict
@@ -1168,28 +1165,21 @@ class Flow(TembaModel):
         action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=message_dict)])]
         self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language=self.base_language))
 
-    def extract_first_message(self):  # pragma: needs cover
-        ActionSet.objects.filter(flow=self, )
-
-    def steps(self):
+    def get_steps(self):
         return FlowStep.objects.filter(run__flow=self)
 
-    def get_completed_runs(self):
-        return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_COMPLETED)
+    def get_run_stats(self):
+        totals_by_exit = FlowRunCount.get_totals(self)
+        total_runs = sum(totals_by_exit.values())
 
-    def get_interrupted_runs(self):
-        return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_INTERRUPTED)
-
-    def get_expired_runs(self):
-        return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_EXPIRED)
-
-    def get_completed_percentage(self):
-        total_runs = FlowRunCount.run_count(self)
-
-        if not total_runs:
-            return 0
-        else:
-            return int(self.get_completed_runs() * 100 / total_runs)
+        return {
+            'total': total_runs,
+            'active': totals_by_exit[FlowRun.STATE_ACTIVE],
+            'completed': totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED],
+            'expired': totals_by_exit[FlowRun.EXIT_TYPE_EXPIRED],
+            'interrupted': totals_by_exit[FlowRun.EXIT_TYPE_INTERRUPTED],
+            'completion': int(totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED] * 100 / total_runs) if total_runs else 0
+        }
 
     def get_and_clear_unread_responses(self):
         """
@@ -1849,8 +1839,8 @@ class Flow(TembaModel):
 
         if not is_start:
             # mark any other states for this contact as evaluated, contacts can only be in one place at time
-            self.steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid,
-                                                              rule_uuid=rule, rule_category=category)
+            self.get_steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid,
+                                                                  rule_uuid=rule, rule_category=category)
 
         # then add our new step and associate it with our message
         step = FlowStep.objects.create(run=run, contact=run.contact, step_type=node.get_step_type(),
@@ -2508,6 +2498,8 @@ class Flow(TembaModel):
 
 
 class FlowRun(models.Model):
+    STATE_ACTIVE = 'A'
+
     EXIT_TYPE_COMPLETED = 'C'
     EXIT_TYPE_INTERRUPTED = 'I'
     EXIT_TYPE_EXPIRED = 'E'
@@ -2596,7 +2588,7 @@ class FlowRun(models.Model):
 
         elif isinstance(fields, dict):
             count += 1
-            field_dict = dict()
+            field_dict = OrderedDict()
             for (k, v) in fields.items():
                 (field_dict[FlowRun.normalize_field_key(k)], count) = FlowRun.normalize_fields(v, max_values, count)
 
@@ -2607,7 +2599,7 @@ class FlowRun(models.Model):
 
         elif isinstance(fields, list):
             count += 1
-            list_dict = dict()
+            list_dict = OrderedDict()
             for (i, v) in enumerate(fields):
                 (list_dict[str(i)], count) = FlowRun.normalize_fields(v, max_values, count)
 
@@ -2850,21 +2842,21 @@ class FlowRun(models.Model):
         contact_runs = cls.objects.filter(is_active=True, contact__in=contacts)
         cls.bulk_exit(contact_runs, exit_type)
 
-    def update_fields(self, field_map, max_values=128):
+    def update_fields(self, field_map, max_values=256):
         # validate our field
         (field_map, count) = FlowRun.normalize_fields(field_map, max_values)
 
         if not self.fields:
             self.fields = json.dumps(field_map)
         else:
-            existing_map = json.loads(self.fields)
+            existing_map = json.loads(self.fields, object_pairs_hook=OrderedDict)
             existing_map.update(field_map)
             self.fields = json.dumps(existing_map)
 
         self.save(update_fields=['fields'])
 
     def field_dict(self):
-        return json.loads(self.fields) if self.fields else {}
+        return json.loads(self.fields, object_pairs_hook=OrderedDict) if self.fields else {}
 
     def is_completed(self):
         return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
@@ -3861,33 +3853,19 @@ class FlowRunCount(SquashableModel):
         return sql, params
 
     @classmethod
-    def run_count(cls, flow):
-        count = FlowRunCount.objects.filter(flow=flow)
-        count = count.aggregate(Sum('count')).get('count__sum', 0)
-        return 0 if count is None else count
+    def get_totals(cls, flow):
+        totals = list(cls.objects.filter(flow=flow).values_list('exit_type').annotate(replies=Sum('count')))
+        totals = {t[0]: t[1] for t in totals}
 
-    @classmethod
-    def run_count_for_type(cls, flow, exit_type=None):
-        count = FlowRunCount.objects.filter(flow=flow).filter(exit_type=exit_type)
-        count = count.aggregate(Sum('count')).get('count__sum', 0)
-        return 0 if count is None else count
+        # for convenience, ensure dict contains all possible states
+        all_states = (None, FlowRun.EXIT_TYPE_COMPLETED, FlowRun.EXIT_TYPE_EXPIRED, FlowRun.EXIT_TYPE_INTERRUPTED)
+        totals = {s: totals.get(s, 0) for s in all_states}
 
-    @classmethod
-    def populate_for_flow(cls, flow):
-        # remove old ones
-        FlowRunCount.objects.filter(flow=flow).delete()
+        # we record active runs as exit_type=None but replace with actual constant for clarity
+        totals[FlowRun.STATE_ACTIVE] = totals[None]
+        del totals[None]
 
-        # get test contacts on this org
-        test_contacts = Contact.objects.filter(org=flow.org, is_test=True).values('id')
-
-        # calculate our count for each exit type
-        counts = FlowRun.objects.filter(flow=flow).exclude(contact__in=test_contacts)\
-                                .values('exit_type').annotate(count=Count('pk'))
-
-        # insert updated counts for each
-        for count in counts:
-            if count['count'] > 0:
-                FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], count=count['count'])
+        return totals
 
     def __str__(self):  # pragma: needs cover
         return "RunCount[%d:%s:%d]" % (self.flow_id, self.exit_type, self.count)

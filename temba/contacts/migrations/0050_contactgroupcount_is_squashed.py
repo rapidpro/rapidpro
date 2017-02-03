@@ -3,7 +3,51 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
-from temba.sql import InstallSQL
+
+
+SQL = """
+-- index for fast fetching of unsquashed rows
+CREATE INDEX contacts_contactgroupcount_unsquashed
+ON contacts_contactgroupcount(group_id) WHERE NOT is_squashed;
+
+-- this is performed in Python-land now
+DROP FUNCTION temba_squash_contactgroupcounts(INTEGER);
+
+----------------------------------------------------------------------
+-- Trigger procedure to update group count
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION update_group_count() RETURNS TRIGGER AS $$
+DECLARE
+  is_test BOOLEAN;
+BEGIN
+  -- contact being added to group
+  IF TG_OP = 'INSERT' THEN
+    -- is this a test contact
+    SELECT contacts_contact.is_test INTO STRICT is_test FROM contacts_contact WHERE id = NEW.contact_id;
+
+    IF NOT is_test THEN
+      INSERT INTO contacts_contactgroupcount("group_id", "count", "is_squashed")
+      VALUES(NEW.contactgroup_id, 1, FALSE);
+    END IF;
+
+  -- contact being removed from a group
+  ELSIF TG_OP = 'DELETE' THEN
+    -- is this a test contact
+    SELECT contacts_contact.is_test INTO STRICT is_test FROM contacts_contact WHERE id = OLD.contact_id;
+
+    IF NOT is_test THEN
+      INSERT INTO contacts_contactgroupcount("group_id", "count", "is_squashed")
+      VALUES(OLD.contactgroup_id, -1, FALSE);
+    END IF;
+
+  -- table being cleared, clear our counts
+  ELSIF TG_OP = 'TRUNCATE' THEN
+    TRUNCATE contacts_contactgroupcount;
+  END IF;
+
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;"""
 
 
 class Migration(migrations.Migration):
@@ -18,9 +62,5 @@ class Migration(migrations.Migration):
             name='is_squashed',
             field=models.BooleanField(default=False, help_text='Whether this row was created by squashing'),
         ),
-        migrations.RunSQL(
-            'CREATE INDEX contacts_contactgroupcount_unsquashed '
-            'ON contacts_contactgroupcount(group_id) WHERE NOT is_squashed'
-        ),
-        InstallSQL('0050_contacts')
+        migrations.RunSQL(SQL),
     ]

@@ -3,7 +3,27 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
-from temba.sql import InstallSQL
+
+
+SQL = """
+-- index for fast fetching of unsquashed rows
+CREATE INDEX msgs_systemlabel_unsquashed
+ON msgs_systemlabel(org_id, label_type) WHERE NOT is_squashed;
+
+-- this is performed in Python-land now
+DROP FUNCTION temba_squash_systemlabel(INTEGER, CHAR(1));
+
+---------------------------------------------------------------------------------
+-- Increment or decrement a system label
+---------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION
+  temba_insert_system_label(_org_id INT, _label_type CHAR(1), _count INT)
+RETURNS VOID AS $$
+BEGIN
+  INSERT INTO msgs_systemlabel("org_id", "label_type", "count", "is_squashed") VALUES(_org_id, _label_type, _count, FALSE);
+END;
+$$ LANGUAGE plpgsql;
+"""
 
 
 class Migration(migrations.Migration):
@@ -18,9 +38,5 @@ class Migration(migrations.Migration):
             name='is_squashed',
             field=models.BooleanField(default=False, help_text='Whether this row was created by squashing'),
         ),
-        migrations.RunSQL(
-            'CREATE INDEX msgs_systemlabel_unsquashed '
-            'ON msgs_systemlabel(org_id, label_type) WHERE NOT is_squashed'
-        ),
-        InstallSQL('0080_msgs')
+        migrations.RunSQL(SQL),
     ]
