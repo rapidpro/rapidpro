@@ -14,12 +14,11 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models, transaction, connection
+from django.db import models, transaction
 from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
-from django_redis import get_redis_connection
 from smartmin.models import SmartModel
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
@@ -30,7 +29,7 @@ from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_l
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.email import send_template_email
 from temba.utils.expressions import evaluate_template
-from temba.utils.models import TembaModel
+from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from uuid import uuid4
 from .handler import MessageHandler
@@ -1567,10 +1566,12 @@ STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,
              'who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
-class SystemLabel(models.Model):
+class SystemLabel(SquashableModel):
     """
     Counts of messages/broadcasts/calls maintained by database level triggers
     """
+    SQUASH_OVER = ('org_id', 'label_type')
+
     TYPE_INBOX = 'I'
     TYPE_FLOWS = 'W'
     TYPE_ARCHIVED = 'A'
@@ -1579,8 +1580,6 @@ class SystemLabel(models.Model):
     TYPE_FAILED = 'X'
     TYPE_SCHEDULED = 'E'
     TYPE_CALLS = 'C'
-
-    LAST_SQUASH_KEY = 'last_systemlabel_squash'
 
     TYPE_CHOICES = ((TYPE_INBOX, "Inbox"),
                     (TYPE_FLOWS, "Flows"),
@@ -1598,29 +1597,16 @@ class SystemLabel(models.Model):
     count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
 
     @classmethod
-    def squash_counts(cls):
-        # get the id of the last count we squashed
-        r = get_redis_connection()
-        last_squash = r.get(SystemLabel.LAST_SQUASH_KEY)
-        if not last_squash:
-            last_squash = 0
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH deleted as (
+            DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("org_id", "label_type", "count", "is_squashed")
+        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+        """ % {'table': cls._meta.db_table}
 
-        # get the unique systemlabel ids for all new ones
-        start = time.time()
-        squash_count = 0
-        for count in SystemLabel.objects.filter(id__gt=last_squash).order_by('org_id', 'label_type').distinct('org_id', 'label_type'):
-            # perform our atomic squash in SQL by calling our squash method
-            with connection.cursor() as c:
-                c.execute("SELECT temba_squash_systemlabel(%s, %s);", (count.org_id, count.label_type))
-
-            squash_count += 1
-
-        # insert our new top squashed id
-        max_id = SystemLabel.objects.all().order_by('-id').first()
-        if max_id:
-            r.set(SystemLabel.LAST_SQUASH_KEY, max_id.id)
-
-        print("Squashed system label counts for %d pairs in %0.3fs" % (squash_count, time.time() - start))
+        return sql, (distinct_set.org_id, distinct_set.label_type) * 2
 
     @classmethod
     def create_all(cls, org):

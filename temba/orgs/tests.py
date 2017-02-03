@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 
 import json
+
+import nexmo
 import pytz
 import six
 
@@ -27,7 +29,6 @@ from temba.flows.models import Flow, ActionSet
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Label, Msg, INCOMING
-from temba.nexmo import NexmoValidationError
 from temba.orgs.models import UserSettings, NEXMO_SECRET, NEXMO_KEY
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
 from temba.triggers.models import Trigger
@@ -117,6 +118,13 @@ class OrgTest(TembaTest):
 
         Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
                        address="billy_bob", role="SR", scheme='twitter')
+
+        self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
+                                                                 currency_code='RWF'),
+                                                            dict(code='US', name='United States',
+                                                                 currency_name='US Dollar', currency_code='USD')])
+
+        Channel.create(self.org, self.user, 'US', 'A', None, "+12001113333", gcm_id="qwer", secret="qwer")
 
         self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
                                                                  currency_code='RWF'),
@@ -1500,7 +1508,9 @@ class OrgTest(TembaTest):
         self.assertEquals(self.org.config_json()['SMTP_PORT'], '465')
         self.assertEquals(self.org.config_json()['SMTP_ENCRYPTION'], 'T')
 
-    def test_connect_nexmo(self):
+    @patch('nexmo.Client.create_application')
+    def test_connect_nexmo(self, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
         self.login(self.admin)
 
         # connect nexmo
@@ -1556,6 +1566,18 @@ class OrgTest(TembaTest):
                 self.org.refresh_from_db()
                 self.assertEquals(self.org.name, "Temba")
 
+                # should change nexmo config
+                with patch('nexmo.Client.get_balance') as mock_get_balance:
+                    mock_get_balance.return_value = 120
+                    self.client.post(nexmo_account_url, dict(api_key='other_key',
+                                                             api_secret='secret-too',
+                                                             disconnect='false'), follow=True)
+
+                    self.org.refresh_from_db()
+                    config = self.org.config_json()
+                    self.assertEquals('other_key', config[NEXMO_KEY])
+                    self.assertEquals('secret-too', config[NEXMO_SECRET])
+
                 self.assertTrue(self.org.is_connected_to_nexmo())
                 self.client.post(nexmo_account_url, dict(disconnect='true'), follow=True)
 
@@ -1568,7 +1590,10 @@ class OrgTest(TembaTest):
         self.assertFalse(self.org.config_json()['NEXMO_KEY'])
         self.assertFalse(self.org.config_json()['NEXMO_SECRET'])
 
-    def test_nexmo_configuration(self):
+    @patch('nexmo.Client.create_application')
+    def test_nexmo_configuration(self, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+
         self.login(self.admin)
 
         nexmo_configuration_url = reverse('orgs.org_nexmo_configuration')
@@ -1583,7 +1608,7 @@ class OrgTest(TembaTest):
 
         self.org.connect_nexmo('key', 'secret', self.admin)
 
-        with patch('temba.nexmo.NexmoClient.update_account') as mock_update_account:
+        with patch('temba.utils.nexmo.NexmoClient.update_account') as mock_update_account:
             # try automatic nexmo settings update
             mock_update_account.return_value = True
 
@@ -1593,8 +1618,8 @@ class OrgTest(TembaTest):
             response = self.client.get(nexmo_configuration_url, follow=True)
             self.assertEqual(response.request['PATH_INFO'], reverse('channels.channel_claim_nexmo'))
 
-        with patch('temba.nexmo.NexmoClient.update_account') as mock_update_account:
-            mock_update_account.side_effect = [NexmoValidationError, NexmoValidationError]
+        with patch('temba.utils.nexmo.NexmoClient.update_account') as mock_update_account:
+            mock_update_account.side_effect = [nexmo.Error, nexmo.Error]
 
             response = self.client.get(nexmo_configuration_url)
             self.assertEqual(response.status_code, 200)
