@@ -480,6 +480,15 @@ class Channel(TembaModel):
 
         channel_uuid = generate_uuid()
 
+        nexmo_phones = client.get_numbers(phone_number)
+        features = [elt.upper() for elt in nexmo_phones[0]['features']]
+        role = ''
+        if 'SMS' in features:
+            role += Channel.ROLE_SEND + Channel.ROLE_RECEIVE
+
+        if 'VOICE' in features:
+            role += Channel.ROLE_ANSWER + Channel.ROLE_CALL
+
         # update the delivery URLs for it
         from temba.settings import TEMBA_HOST
         try:
@@ -501,8 +510,7 @@ class Channel(TembaModel):
             # nexmo ships numbers around as E164 without the leading +
             nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
 
-        return Channel.create(org, user, country, Channel.TYPE_NEXMO, name=phone, address=phone_number,
-                              role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE + Channel.ROLE_CALL + Channel.ROLE_ANSWER,
+        return Channel.create(org, user, country, Channel.TYPE_NEXMO, name=phone, address=phone_number, role=role,
                               bod=nexmo_phone_number, uuid=channel_uuid)
 
     @classmethod

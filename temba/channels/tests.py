@@ -1604,10 +1604,20 @@ class ChannelTest(TembaTest):
             with patch('requests.post') as nexmo_post:
                 nexmo_get.side_effect = [
                     MockResponse(200, '{"count":0,"numbers":[] }'),
-                    MockResponse(200, '{"count":1,"numbers":[{"type":"mobile-lvn","country":"US","msisdn":"8080"}] }'),
+                    MockResponse(200,
+                                 '{"count":1,"numbers":[{"features": ["SMS"], "type":"mobile-lvn",'
+                                 '"country":"US","msisdn":"8080"}] }'),
+                    MockResponse(200,
+                                 '{"count":1,"numbers":[{"features": ["SMS"], "type":"mobile-lvn",'
+                                 '"country":"US","msisdn":"8080"}] }'),
                 ]
                 response = self.client.post(claim_nexmo, dict(country='US', phone_number='8080'))
                 self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+                channel = Channel.objects.filter(address='8080').first()
+                self.assertTrue(Channel.ROLE_SEND in channel.role)
+                self.assertTrue(Channel.ROLE_RECEIVE in channel.role)
+                self.assertFalse(Channel.ROLE_ANSWER in channel.role)
+                self.assertFalse(Channel.ROLE_CALL in channel.role)
                 Channel.objects.all().delete()
 
         # try buying a number not on the account
@@ -1616,10 +1626,18 @@ class ChannelTest(TembaTest):
                 nexmo_get.side_effect = [
                     MockResponse(200, '{"count":0,"numbers":[] }'),
                     MockResponse(200, '{"count":0,"numbers":[] }'),
+                    MockResponse(200,
+                                 '{"count":1,"numbers":[{"features": ["sms", "voice"], "type":"mobile",'
+                                 '"country":"US","msisdn":"+12065551212"}] }'),
                 ]
                 nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
                 response = self.client.post(claim_nexmo, dict(country='US', phone_number='+12065551212'))
                 self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+                channel = Channel.objects.filter(address='+12065551212').first()
+                self.assertTrue(Channel.ROLE_SEND in channel.role)
+                self.assertTrue(Channel.ROLE_RECEIVE in channel.role)
+                self.assertTrue(Channel.ROLE_ANSWER in channel.role)
+                self.assertTrue(Channel.ROLE_CALL in channel.role)
                 Channel.objects.all().delete()
 
         # try failing to buy a number not on the account
@@ -1641,7 +1659,7 @@ class ChannelTest(TembaTest):
         # let's add a number already connected to the account
         with patch('requests.get') as nexmo_get:
             with patch('requests.post') as nexmo_post:
-                nexmo_get.return_value = MockResponse(200, '{"count":1,"numbers":[{"type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }')
+                nexmo_get.return_value = MockResponse(200, '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], "type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }')
                 nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
 
                 # make sure our number appears on the claim page
@@ -1655,8 +1673,10 @@ class ChannelTest(TembaTest):
 
                 # make sure it is actually connected
                 channel = Channel.objects.get(channel_type='NX', org=self.org)
-                self.assertEqual(channel.role,
-                                 Channel.ROLE_SEND + Channel.ROLE_RECEIVE + Channel.ROLE_CALL + Channel.ROLE_ANSWER)
+                self.assertTrue(Channel.ROLE_SEND in channel.role)
+                self.assertTrue(Channel.ROLE_RECEIVE in channel.role)
+                self.assertTrue(Channel.ROLE_ANSWER in channel.role)
+                self.assertTrue(Channel.ROLE_CALL in channel.role)
 
                 # test the update page for nexmo
                 update_url = reverse('channels.channel_update', args=[channel.pk])
@@ -1673,7 +1693,7 @@ class ChannelTest(TembaTest):
                 self.assertEquals('MTN', channel.address)
 
                 # add a canada number
-                nexmo_get.return_value = MockResponse(200, '{"count":1,"numbers":[{"type":"mobile-lvn","country":"CA","msisdn":"15797884540"}] }')
+                nexmo_get.return_value = MockResponse(200, '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], "type":"mobile-lvn","country":"CA","msisdn":"15797884540"}] }')
                 nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
 
                 # make sure our number appears on the claim page
