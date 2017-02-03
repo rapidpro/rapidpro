@@ -5,7 +5,7 @@ import uuid
 
 import jwt
 import requests
-import nexmo
+import nexmo as nx
 
 from temba.utils.gsm7 import is_gsm7
 from django.utils.http import urlencode
@@ -15,7 +15,7 @@ class NexmoValidationError(Exception):
     pass
 
 
-class NexmoClient(nexmo.Client):
+class NexmoClient(nx.Client):
     """
     Simple implementation of Nexmo API
     """
@@ -27,10 +27,10 @@ class NexmoClient(nexmo.Client):
         kwargs['secret'] = api_secret.strip()
         kwargs['application_id'] = app_id.strip()
         kwargs['private_key'] = app_private_key.strip()
-        nexmo.Client.__init__(self, **kwargs)
+        nx.Client.__init__(self, **kwargs)
 
     def update_account(self, mo_url, dr_url):  # pragma: needs cover
-        nexmo.Client.update_settings(self, moCallBackUrl=mo_url, drCallBackUrl=dr_url)
+        nx.Client.update_settings(self, moCallBackUrl=mo_url, drCallBackUrl=dr_url)
 
     def get_numbers(self, pattern=None, size=10):
         params = dict()
@@ -38,7 +38,7 @@ class NexmoClient(nexmo.Client):
             params['pattern'] = str(pattern).strip('+')
         params['size'] = size
 
-        response = nexmo.Client.get_account_numbers(self, params=params)
+        response = nx.Client.get_account_numbers(self, params=params)
 
         if int(response.get('count', 0)):
             return response['numbers']
@@ -86,14 +86,14 @@ class NexmoClient(nexmo.Client):
             return messages[0]['message-id'], response
 
     def search_numbers(self, country, pattern):  # pragma: needs cover
-        response = nexmo.Client.get_available_numbers(self, pattern=pattern, search_pattern=1,
-                                                      features='SMS', country=country)
+        response = nx.Client.get_available_numbers(self, pattern=pattern, search_pattern=1,
+                                                   features='SMS', country=country)
         numbers = []
         if int(response.get('count', 0)):
             numbers += response['numbers']
 
-        response = nexmo.Client.get_available_numbers(self, pattern=pattern, search_pattern=1,
-                                                      features='VOICE', country=country)
+        response = nx.Client.get_available_numbers(self, pattern=pattern, search_pattern=1,
+                                                   features='VOICE', country=country)
         if int(response.get('count', 0)):
             numbers += response['numbers']
 
@@ -102,13 +102,13 @@ class NexmoClient(nexmo.Client):
     def buy_nexmo_number(self, country, number):
         number = number.lstrip('+')
         params = dict(msisdn=number, country=country)
-        nexmo.Client.buy_number(self, params=params)
+        nx.Client.buy_number(self, params=params)
 
     def update_nexmo_number(self, country, number, moURL, app_id):
         number = number.lstrip('+')
         params = dict(moHttpUrl=moURL, msisdn=number, country=country, voiceCallbackType='app',
                       voiceCallbackValue=app_id)
-        nexmo.Client.update_number(self, params=params)
+        nx.Client.update_number(self, params=params)
 
     def test_credentials(self):  # pragma: needs cover
         try:

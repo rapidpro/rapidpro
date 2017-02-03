@@ -264,7 +264,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, "")
 
-        with patch('temba.temba_nexmo.NexmoClient.download_recording') as mock_download_recording:
+        with patch('temba.utils.nexmo.NexmoClient.download_recording') as mock_download_recording:
             mock_download_recording.return_value = MockResponse(200, "SOUND_BITS",
                                                                 headers={"Content-Type": "audio/x-wav"})
 
@@ -1238,7 +1238,7 @@ class IVRTests(FlowFileTest):
                 self.assertIsInstance(mock_save_media.call_args_list[0][0][0], File)
                 self.assertEqual(mock_save_media.call_args_list[0][0][1], 'vcf')
 
-    @patch('temba.temba_nexmo.NexmoClient.download_recording')
+    @patch('temba.utils.nexmo.NexmoClient.download_recording')
     @patch('nexmo.Client.create_application')
     @patch('nexmo.Client.create_call')
     def test_download_media_nexmo(self, mock_create_call, mock_create_application, mock_download_recording):
@@ -1294,7 +1294,7 @@ class IVRTests(FlowFileTest):
 
     @patch('jwt.encode')
     @patch('nexmo.Client.create_application')
-    def test_temba_nexmo_methods(self, mock_create_application, mock_jwt_encode):
+    def test_temba_utils_nexmo_methods(self, mock_create_application, mock_jwt_encode):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
         mock_jwt_encode.return_value = 'TOKEN'
 

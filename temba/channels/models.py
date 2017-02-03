@@ -30,7 +30,7 @@ from django_redis import get_redis_connection
 from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from smartmin.models import SmartModel
-from temba.temba_nexmo import NexmoClient
+from temba.utils.nexmo import NexmoClient
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID, NEXMO_APP_ID
 from temba.utils.email import send_template_email
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, ncco, on_transaction_commit

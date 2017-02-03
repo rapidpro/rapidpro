@@ -1601,7 +1601,7 @@ class OrgTest(TembaTest):
 
         self.org.connect_nexmo('key', 'secret', self.admin)
 
-        with patch('temba.temba_nexmo.NexmoClient.update_account') as mock_update_account:
+        with patch('temba.utils.nexmo.NexmoClient.update_account') as mock_update_account:
             # try automatic nexmo settings update
             mock_update_account.return_value = True
 
@@ -1611,7 +1611,7 @@ class OrgTest(TembaTest):
             response = self.client.get(nexmo_configuration_url, follow=True)
             self.assertEqual(response.request['PATH_INFO'], reverse('channels.channel_claim_nexmo'))
 
-        with patch('temba.temba_nexmo.NexmoClient.update_account') as mock_update_account:
+        with patch('temba.utils.nexmo.NexmoClient.update_account') as mock_update_account:
             mock_update_account.side_effect = [nexmo.Error, nexmo.Error]
 
             response = self.client.get(nexmo_configuration_url)

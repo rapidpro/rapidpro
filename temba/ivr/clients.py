@@ -17,7 +17,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow
 from temba.ivr.models import IVRCall
-from temba.temba_nexmo import NexmoClient as NexmoCli
+from temba.utils.nexmo import NexmoClient as NexmoCli
 from twilio import TwilioRestException
 from twilio.rest import TwilioRestClient
 from twilio.util import RequestValidator
