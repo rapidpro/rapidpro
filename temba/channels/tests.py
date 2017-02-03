@@ -1578,6 +1578,43 @@ class ChannelTest(TembaTest):
 
             self.assertEqual(mock.call_args[0][0], 'https://chatapi.viber.com/pa/set_webhook')
 
+    def test_search_nexmo(self):
+        self.login(self.admin)
+        self.org.channels.update(is_active=False, org=None)
+        self.channel = Channel.create(self.org, self.user, 'RW', 'NX', None, '+250788123123',
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+        self.nexmo_uuid = str(uuid.uuid4())
+        nexmo_config = {NEXMO_KEY: '1234', NEXMO_SECRET: '1234', NEXMO_UUID: self.nexmo_uuid,
+                        NEXMO_APP_ID: 'nexmo-app-id', NEXMO_APP_PRIVATE_KEY: 'nexmo-private-key'}
+
+        org = self.channel.org
+
+        config = org.config_json()
+        config.update(nexmo_config)
+        org.config = json.dumps(config)
+        org.save()
+
+        search_nexmo_url = reverse('channels.channel_search_nexmo')
+
+        response = self.client.get(search_nexmo_url)
+        self.assertTrue('area_code' in response.context['form'].fields)
+        self.assertTrue('country' in response.context['form'].fields)
+
+        with patch('requests.get') as nexmo_get:
+            nexmo_get.side_effect = [MockResponse(200,
+                                                  '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
+                                                  '"type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }'),
+                                     MockResponse(200,
+                                                  '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
+                                                  '"type":"mobile-lvn","country":"US","msisdn":"13607884550"}] }'),
+                                     ]
+
+            post_data = dict(country='US', area_code='360')
+            response = self.client.post(search_nexmo_url, post_data, follow=True)
+
+            self.assertEquals(response.json(), ['+1 360-788-4540', '+1 360-788-4550'])
+
     def test_claim_nexmo(self):
         self.login(self.admin)
 
@@ -1659,7 +1696,9 @@ class ChannelTest(TembaTest):
         # let's add a number already connected to the account
         with patch('requests.get') as nexmo_get:
             with patch('requests.post') as nexmo_post:
-                nexmo_get.return_value = MockResponse(200, '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], "type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }')
+                nexmo_get.return_value = MockResponse(200,
+                                                      '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
+                                                      '"type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }')
                 nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
 
                 # make sure our number appears on the claim page

@@ -2800,7 +2800,7 @@ class ChannelCRUDL(SmartCRUDL):
                     numbers.append(phonenumbers.format_number(phonenumbers.parse(number['msisdn'], data['country']),
                                                               phonenumbers.PhoneNumberFormat.INTERNATIONAL))
 
-                return JsonResponse(numbers)
+                return JsonResponse(numbers, safe=False)
             except Exception as e:
                 return JsonResponse(dict(error=str(e)))
 
