@@ -32,9 +32,6 @@ class CallHandler(View):
         channel_type = channel.channel_type
         client = channel.get_ivr_client()
 
-        print("\n\n\n")
-        print(request.body)
-
         request_method = request.method
         request_path = request.get_full_path()
 
@@ -126,10 +123,6 @@ class CallHandler(View):
                 if call.is_ivr():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup, resume=resume)
                     if channel_type in Channel.NCCO_CHANNELS:
-                        print("\n\n\n")
-                        print("=" * 80)
-                        print(six.text_type(response))
-                        print("=" * 80)
 
                         ChannelLog.log_ivr_interaction(call, "Returned response", request.body, six.text_type(response),
                                                        request_path, request_method)

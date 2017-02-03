@@ -3,7 +3,7 @@ class VoiceXMLException(Exception):
     pass
 
 
-class Response(object):
+class VXMLResponse(object):
     DOC_START = '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
 
     def __init__(self, **kwargs):

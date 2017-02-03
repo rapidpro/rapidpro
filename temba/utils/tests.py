@@ -20,8 +20,8 @@ from mock import patch, PropertyMock
 from openpyxl import load_workbook
 from temba.contacts.models import Contact
 from temba.tests import TembaTest
-from temba.utils import voicexml, ncco
-from temba.utils.ncco import NCCOException
+from temba.utils import voicexml
+from temba.utils.nexmo import NCCOException, NCCOResponse
 from temba.utils.voicexml import VoiceXMLException
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
@@ -1077,12 +1077,12 @@ class CurrencyTest(TembaTest):
 class VoiceXMLTest(TembaTest):
 
     def test_context_managers(self):
-        response = voicexml.Response()
+        response = voicexml.VXMLResponse()
         self.assertEqual(response, response.__enter__())
         self.assertFalse(response.__exit__(None, None, None))
 
     def test_response(self):
-        response = voicexml.Response()
+        response = voicexml.VXMLResponse()
         self.assertEqual(response.document, '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>')
         self.assertEqual(six.text_type(response),
                          '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form></form></vxml>')
@@ -1092,8 +1092,8 @@ class VoiceXMLTest(TembaTest):
                          '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form></form></vxml>')
 
     def test_join(self):
-        response1 = voicexml.Response()
-        response2 = voicexml.Response()
+        response1 = voicexml.VXMLResponse()
+        response2 = voicexml.VXMLResponse()
 
         response1.document += 'Allo '
         response2.document += 'Hey '
@@ -1103,7 +1103,7 @@ class VoiceXMLTest(TembaTest):
                          '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>Hey Allo </form></vxml>')
 
     def test_say(self):
-        response = voicexml.Response()
+        response = voicexml.VXMLResponse()
         response.say('Hello')
 
         self.assertEqual(six.text_type(response),
@@ -1111,7 +1111,7 @@ class VoiceXMLTest(TembaTest):
                          '<block><prompt>Hello</prompt></block></form></vxml>')
 
     def test_play(self):
-        response = voicexml.Response()
+        response = voicexml.VXMLResponse()
 
         with self.assertRaises(VoiceXMLException):
             response.play()
@@ -1121,7 +1121,7 @@ class VoiceXMLTest(TembaTest):
                          '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
                          '<block><prompt>123</prompt></block></form></vxml>')
 
-        response = voicexml.Response()
+        response = voicexml.VXMLResponse()
         response.play(url='http://example.com/audio.wav')
 
         self.assertEqual(six.text_type(response),
@@ -1129,14 +1129,14 @@ class VoiceXMLTest(TembaTest):
                          '<block><prompt><audio src="http://example.com/audio.wav" /></prompt></block></form></vxml>')
 
     def test_pause(self):
-        response = voicexml.Response()
+        response = voicexml.VXMLResponse()
 
         response.pause()
         self.assertEqual(six.text_type(response),
                          '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
                          '<block><prompt><break /></prompt></block></form></vxml>')
 
-        response = voicexml.Response()
+        response = voicexml.VXMLResponse()
 
         response.pause(length=40)
         self.assertEqual(six.text_type(response),
@@ -1144,7 +1144,7 @@ class VoiceXMLTest(TembaTest):
                          '<block><prompt><break time="40s"/></prompt></block></form></vxml>')
 
     def test_redirect(self):
-        response = voicexml.Response()
+        response = voicexml.VXMLResponse()
         response.redirect('http://example.com/')
 
         self.assertEqual(six.text_type(response),
@@ -1152,21 +1152,21 @@ class VoiceXMLTest(TembaTest):
                          '<subdialog src="http://example.com/" ></subdialog></form></vxml>')
 
     def test_hangup(self):
-        response = voicexml.Response()
+        response = voicexml.VXMLResponse()
         response.hangup()
 
         self.assertEqual(six.text_type(response),
                          '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form><exit /></form></vxml>')
 
     def test_reject(self):
-        response = voicexml.Response()
+        response = voicexml.VXMLResponse()
         response.reject(reason='some')
 
         self.assertEqual(six.text_type(response),
                          '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form><exit /></form></vxml>')
 
     def test_gather(self):
-        response = voicexml.Response()
+        response = voicexml.VXMLResponse()
         response.gather()
 
         self.assertEqual(six.text_type(response),
@@ -1174,7 +1174,7 @@ class VoiceXMLTest(TembaTest):
                          '<field name="Digits"><grammar termchar="#" src="builtin:dtmf/digits" />'
                          '</field></form></vxml>')
 
-        response = voicexml.Response()
+        response = voicexml.VXMLResponse()
         response.gather(action='http://example.com')
 
         self.assertEqual(six.text_type(response),
@@ -1183,7 +1183,7 @@ class VoiceXMLTest(TembaTest):
                          '<nomatch><submit next="http://example.com?empty=1" method="post" /></nomatch></field>'
                          '<filled><submit next="http://example.com" method="post" /></filled></form></vxml>')
 
-        response = voicexml.Response()
+        response = voicexml.VXMLResponse()
         response.gather(action='http://example.com', numDigits=1, timeout=45, finishOnKey='*')
 
         self.assertEqual(six.text_type(response),
@@ -1194,7 +1194,7 @@ class VoiceXMLTest(TembaTest):
                          '<filled><submit next="http://example.com" method="post" /></filled></form></vxml>')
 
     def test_record(self):
-        response = voicexml.Response()
+        response = voicexml.VXMLResponse()
         response.record()
 
         self.assertEqual(six.text_type(response),
@@ -1202,7 +1202,7 @@ class VoiceXMLTest(TembaTest):
                          '<record name="UserRecording" beep="true" finalsilence="4000ms" '
                          'dtmfterm="true" type="audio/x-wav"></record></form></vxml>')
 
-        response = voicexml.Response()
+        response = voicexml.VXMLResponse()
         response.record(action="http://example.com", method="post", maxLength=60)
 
         self.assertEqual(six.text_type(response),
@@ -1216,18 +1216,18 @@ class VoiceXMLTest(TembaTest):
 class NCCOTest(TembaTest):
 
     def test_context_managers(self):
-        response = ncco.Response()
+        response = NCCOResponse()
         self.assertEqual(response, response.__enter__())
         self.assertFalse(response.__exit__(None, None, None))
 
     def test_response(self):
-        response = ncco.Response()
+        response = NCCOResponse()
         self.assertEqual(response.document, [])
         self.assertEqual(json.loads(six.text_type(response)), [])
 
     def test_join(self):
-        response1 = ncco.Response()
-        response2 = ncco.Response()
+        response1 = NCCOResponse()
+        response2 = NCCOResponse()
 
         response1.document.append(dict(action='foo'))
         response2.document.append(dict(action='bar'))
@@ -1236,13 +1236,13 @@ class NCCOTest(TembaTest):
         self.assertEqual(json.loads(six.text_type(response1.join(response2))), [dict(action='bar'), dict(action='foo')])
 
     def test_say(self):
-        response = ncco.Response()
+        response = NCCOResponse()
         response.say('Hello')
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(action='talk', text='Hello', bargeIn=False)])
 
     def test_play(self):
-        response = ncco.Response()
+        response = NCCOResponse()
 
         with self.assertRaises(NCCOException):
             response.play()
@@ -1250,20 +1250,20 @@ class NCCOTest(TembaTest):
         response.play(digits='123')
         self.assertEqual(json.loads(six.text_type(response)), [dict(action='talk', text='123', bargeIn=False)])
 
-        response = ncco.Response()
+        response = NCCOResponse()
         response.play(url='http://example.com/audio.wav')
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(action='stream', bargeIn=False,
                                                                     streamUrl=['http://example.com/audio.wav'])])
 
-        response = ncco.Response()
+        response = NCCOResponse()
         response.play(url='http://example.com/audio.wav', digits='123')
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(action='stream', bargeIn=False,
                                                                     streamUrl=['http://example.com/audio.wav'])])
 
     def test_bargeIn(self):
-        response = ncco.Response()
+        response = NCCOResponse()
         response.say('Hello')
         response.redirect('http://example.com/')
 
@@ -1273,7 +1273,7 @@ class NCCOTest(TembaTest):
                                                                         "%s?input_redirect=1" % 'http://example.com/'
                                                                     ])])
 
-        response = ncco.Response()
+        response = NCCOResponse()
         response.say('Hello')
         response.redirect('http://example.com/')
         response.say('Goodbye')
@@ -1284,7 +1284,7 @@ class NCCOTest(TembaTest):
                                                                         "%s?input_redirect=1" % 'http://example.com/']),
                                                                dict(action='talk', text='Goodbye', bargeIn=False)])
 
-        response = ncco.Response()
+        response = NCCOResponse()
         response.say('Hello')
         response.redirect('http://example.com/')
         response.say('Please make a recording')
@@ -1316,7 +1316,7 @@ class NCCOTest(TembaTest):
                                                                         "%s?input_redirect=1" % 'http://example.com/']),
                                                                dict(action='talk', text='Bye', bargeIn=False)])
 
-        response = ncco.Response()
+        response = NCCOResponse()
         response.play(url='http://example.com/audio.wav')
         response.redirect('http://example.com/')
         response.say('Goodbye')
@@ -1329,11 +1329,11 @@ class NCCOTest(TembaTest):
                                                                dict(action='talk', text='Goodbye', bargeIn=False)])
 
     def test_pause(self):
-        response = ncco.Response()
+        response = NCCOResponse()
         response.pause()
 
     def test_redirect(self):
-        response = ncco.Response()
+        response = NCCOResponse()
         response.redirect('http://example.com/')
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(action='input', maxDigits=1, timeOut=1,
@@ -1341,7 +1341,7 @@ class NCCOTest(TembaTest):
                                                                         "%s?input_redirect=1" % 'http://example.com/'
                                                                     ])])
 
-        response = ncco.Response()
+        response = NCCOResponse()
         response.redirect('http://example.com/?param=12')
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(action='input', maxDigits=1, timeOut=1,
@@ -1350,27 +1350,27 @@ class NCCOTest(TembaTest):
                                                                     ])])
 
     def test_hangup(self):
-        response = ncco.Response()
+        response = NCCOResponse()
         response.hangup()
 
     def test_reject(self):
-        response = ncco.Response()
+        response = NCCOResponse()
         response.reject()
 
     def test_gather(self):
-        response = ncco.Response()
+        response = NCCOResponse()
         response.gather()
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(action='input', submitOnHash=True)])
 
-        response = ncco.Response()
+        response = NCCOResponse()
         response.gather(action='http://example.com')
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(eventMethod='post', action='input',
                                                                     submitOnHash=True,
                                                                     eventUrl=['http://example.com'])])
 
-        response = ncco.Response()
+        response = NCCOResponse()
         response.gather(action='http://example.com', numDigits=1, timeout=45, finishOnKey='*')
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(maxDigits='1', eventMethod='post', action='input',
@@ -1379,7 +1379,7 @@ class NCCOTest(TembaTest):
                                                                     timeOut='45')])
 
     def test_record(self):
-        response = ncco.Response()
+        response = NCCOResponse()
         response.record()
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(format='wav', endOnSilence='4', beepStart=True,
@@ -1388,7 +1388,7 @@ class NCCOTest(TembaTest):
                                                                     eventUrl=["None?save_media=1"])
                                                                ])
 
-        response = ncco.Response()
+        response = NCCOResponse()
         response.record(action="http://example.com", method="post", maxLength=60)
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(format='wav', eventMethod='post',
@@ -1398,7 +1398,7 @@ class NCCOTest(TembaTest):
                                                                dict(action='input', maxDigits=1, timeOut=1,
                                                                     eventUrl=["%s?save_media=1" % "http://example.com"])
                                                                ])
-        response = ncco.Response()
+        response = NCCOResponse()
         response.record(action="http://example.com?param=12", method="post", maxLength=60)
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(format='wav', eventMethod='post',

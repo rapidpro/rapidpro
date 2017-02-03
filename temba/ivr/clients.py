@@ -50,7 +50,7 @@ class NexmoClient(NexmoCli):
         try:
             response = self.create_call(params=params)
             conversation_uuid = response.get('conversation_uuid')
-            call.external_id = unicode(conversation_uuid)
+            call.external_id = six.text_type(conversation_uuid)
             call.save()
         except nexmo.Error as e:
             raise IVRException(_("Nexmo call failed, with error %s") % e.message)
@@ -192,7 +192,7 @@ class VerboiceClient:  # pragma: needs cover
         Contact.get_or_create(channel.org, channel.created_by, urns=[URN.from_tel(to)])
 
         # Verboice differs from Twilio in that they expect the first block of twiml up front
-        payload = unicode(Flow.handle_call(call))
+        payload = six.text_type(Flow.handle_call(call))
 
         # now we can post that to verboice
         url = "%s?%s" % (self.endpoint, urlencode(dict(channel=self.verboice_channel, address=to)))

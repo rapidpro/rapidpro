@@ -30,10 +30,10 @@ from django_redis import get_redis_connection
 from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from smartmin.models import SmartModel
-from temba.utils.nexmo import NexmoClient
+from temba.utils.nexmo import NexmoClient, NCCOResponse
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID, NEXMO_APP_ID
 from temba.utils.email import send_template_email
-from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, ncco, on_transaction_commit
+from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit
 from time import sleep
 
 from twilio import twiml, TwilioRestException
@@ -808,7 +808,7 @@ class Channel(TembaModel):
         if self.channel_type in Channel.TWIML_CHANNELS:
             return twiml.Response()
         if self.channel_type in Channel.NCCO_CHANNELS:
-            return ncco.Response()
+            return NCCOResponse()
 
     def get_ivr_client(self):
         if self.channel_type == Channel.TYPE_TWILIO:
