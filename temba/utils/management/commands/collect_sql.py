@@ -84,12 +84,18 @@ class Command(BaseCommand):  # pragma: no cover
 
     def add_arguments(self, parser):
         parser.add_argument(
+            '--sort-objects', action='store', dest='sort_objects', default=True,
+            help='Whether to sort operations by object name rather than leave in order found in migrations.',
+        )
+        parser.add_argument(
             '--output-dir', action='store', dest='output_dir', default='temba/sql',
             help='The output directory for generated SQL files.',
         )
 
     def handle(self, *args, **options):
+        sort_objects = options.get('sort_objects')
         output_dir = options.get('output_dir')
+
         self.verbosity = options.get('verbosity')
 
         self.stdout.write("Loading migrations...")
@@ -108,7 +114,7 @@ class Command(BaseCommand):  # pragma: no cover
 
         self.stdout.write("Removed %s redundant operations" % self.style.SUCCESS(len(operations) - len(normalized)))
 
-        self.write_type_dumps(normalized, output_dir)
+        self.write_type_dumps(normalized, sort_objects, output_dir)
 
     def load_migrations(self):
         """
@@ -168,13 +174,18 @@ class Command(BaseCommand):  # pragma: no cover
 
         return normalized.values()
 
-    def write_type_dumps(self, operations, output_dir):
+    def write_type_dumps(self, operations, sort_objects, output_dir):
         """
         Splits the list of SQL operations by type and dumps these to separate files
         """
         by_type = {SqlType.INDEX: [], SqlType.FUNCTION: [], SqlType.TRIGGER: []}
         for operation in operations:
             by_type[operation.sql_type].append(operation)
+
+        # optionally sort each operation list by the object name
+        if sort_objects:
+            for obj_type, ops in by_type.items():
+                by_type[obj_type] = sorted(ops, key=lambda o: o.obj_name)
 
         if by_type[SqlType.INDEX]:
             self.write_dump('indexes', by_type[SqlType.INDEX], output_dir)
