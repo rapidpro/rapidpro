@@ -1,3 +1,9 @@
+v3.0.42
+----------
+ * Widen pages to browser width so more can fit
+ * Fix the display of URNs on contact list page
+ * Fix searching of Nexmo number on connected accounts
+
 v3.0.41
 ----------
  * Fix channel countries being duplicated for airtime configuration
