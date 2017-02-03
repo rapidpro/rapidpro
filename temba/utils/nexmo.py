@@ -87,7 +87,7 @@ class NexmoClient(nx.Client):
         else:
             return messages[0]['message-id'], response
 
-    def search_numbers(self, country, pattern):  # pragma: needs cover
+    def search_numbers(self, country, pattern):
         response = nx.Client.get_available_numbers(self, country_code=country, pattern=pattern, search_pattern=1,
                                                    features='SMS', country=country)
         numbers = []
