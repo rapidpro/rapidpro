@@ -629,7 +629,7 @@ class Org(SmartModel):
             return channel_countries
 
         channel_country_codes = self.channels.filter(is_active=True).exclude(country=None)
-        channel_country_codes = channel_country_codes.values_list('country', flat=True).distinct()
+        channel_country_codes = set(channel_country_codes.values_list('country', flat=True))
 
         for country_code in channel_country_codes:
             country_obj = pycountry.countries.get(alpha2=country_code)
