@@ -32,6 +32,7 @@ class CallHandler(View):
         channel_type = channel.channel_type
         client = channel.get_ivr_client()
 
+        request_body = request.body
         request_method = request.method
         request_path = request.get_full_path()
 
@@ -52,8 +53,8 @@ class CallHandler(View):
                 status = request.POST.get('CallStatus', None)
                 duration = request.POST.get('CallDuration', None)
             elif channel_type in Channel.NCCO_CHANNELS:
-                if request.body:
-                    body_json = json.loads(request.body)
+                if request_body:
+                    body_json = json.loads(request_body)
                     status = body_json.get('status', None)
                     duration = body_json.get('duration', None)
 
@@ -92,8 +93,8 @@ class CallHandler(View):
                 text = user_response.get('Digits', None)
 
             elif channel_type in Channel.NCCO_CHANNELS:
-                if request.body:
-                    body_json = json.loads(request.body)
+                if request_body:
+                    body_json = json.loads(request_body)
                     media_url = body_json.get('recording_url', None)
 
                     if media_url:
@@ -115,7 +116,7 @@ class CallHandler(View):
                         cache.delete('last_call:media_url:%d' % call.pk)
                     else:
                         response_msg = 'media URL saved'
-                        ChannelLog.log_ivr_interaction(call, "Saved media URL", request.body, six.text_type(response_msg),
+                        ChannelLog.log_ivr_interaction(call, "Saved media URL", request_body, six.text_type(response_msg),
                                                        request_path, request_method)
                         return HttpResponse(six.text_type(response_msg))
 
@@ -124,11 +125,11 @@ class CallHandler(View):
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup, resume=resume)
                     if channel_type in Channel.NCCO_CHANNELS:
 
-                        ChannelLog.log_ivr_interaction(call, "Returned response", request.body, six.text_type(response),
+                        ChannelLog.log_ivr_interaction(call, "Returned response", request_body, six.text_type(response),
                                                        request_path, request_method)
                         return JsonResponse(json.loads(six.text_type(response)), safe=False)
 
-                    ChannelLog.log_ivr_interaction(call, "Returned response", request.body, six.text_type(response),
+                    ChannelLog.log_ivr_interaction(call, "Returned response", request_body, six.text_type(response),
                                                    request_path, request_method)
                     return HttpResponse(six.text_type(response))
             else:
@@ -141,13 +142,13 @@ class CallHandler(View):
                 response = dict(message="Updated call status",
                                 call=dict(status=call.get_status_display(), duration=call.duration))
                 ChannelLog.log_ivr_interaction(call, "Updated call status: %s" % call.get_status_display(),
-                                               request.body, json.dumps(response), request_path, request_method)
+                                               request_body, json.dumps(response), request_path, request_method)
                 return JsonResponse(response)
 
         else:  # pragma: no cover
 
             error_message = "Invalid request signature"
-            ChannelLog.log_ivr_interaction(call, error_message, request.body, error_message,
+            ChannelLog.log_ivr_interaction(call, error_message, request_body, error_message,
                                            request_path, request_method, is_error=True)
             # raise an exception that things weren't properly signed
             raise ValidationError(error_message)
