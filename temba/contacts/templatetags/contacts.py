@@ -68,6 +68,15 @@ def format_urn(urn, org):
 
 
 @register.filter
+def urn(contact, org):
+    urn = contact.get_urn()
+    if urn:
+        return format_urn(urn, org)
+    else:
+        return ""
+
+
+@register.filter
 def format_contact(contact, org):
     return contact.get_display(org=org)
 

@@ -165,7 +165,7 @@
 
                       %td.value-phone.field_phone
                         %nobr
-                          {{ object|format_contact:user_org }}
+                          {{ object|urn:user_org }}
 
                       -for field in contact_fields
                         -if field.show_in_table
