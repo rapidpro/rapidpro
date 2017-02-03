@@ -1,10 +1,38 @@
-v3.0.31
+v3.0.37
 ----------
- * fix less brand override to not be reference
+ * Fix to make label of open ended response be All Response even if there is timeout on the ruleset
+ * Data migration to rename category for old Values collected with timeouts
 
-v3.0.30
+v3.0.36
+----------
+ * Add 256 keys to @extra, also enforce ordering so it is predictible which are included
+ * Make fetching flow run stats more efficient and expose number of active runs on flow run endpoint
+ * Migration to populate session on msg and ended_on where it is missing
+
+v3.0.35
+----------
+ * Offline context per brand
+
+v3.0.34
+----------
+ * Add Junebug channel type
+ * Better base styling for dev project
+ * Pass charset parameter to Kannel when sending unicode
+ * Zero out minutes, seconds, ms for campaign events with set delivery horus
+ * Add other URN types to contact context, return '' if missing, '*' mask for anon orgs
+ * Make sure Campaigns export base_language for simple message events, honor on import
+
+v3.0.33
+----------
+ * Change ansible command run on vagrant up from syncdb to migrate
+ * Remove no longer needed django-modeltranslation
+ * Keep up to 256 extra keys from webhooks instead of 128
+ * Add documentation of API rate limiting
+
+v3.0.32
 ----------
  * Make styling variables uniform across branding
+ * Make brand styling optional
 
 v3.0.28
 ----------

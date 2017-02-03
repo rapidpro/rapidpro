@@ -232,14 +232,14 @@ describe 'Controllers:', ->
       loadFavoritesFlow()
       ruleset = flowService.flow.rule_sets[0]
 
-      # four rules and our other
+      # five rules and our other
       expect(ruleset.rules.length).toBe(6)
 
       editRules ruleset, (scope) ->
         scope.formData.hasTimeout = true
         scope.formData.timeout = scope.formData.timeoutOptions[5]
 
-      # now we have four rules, our other, and a timeout
+      # now we have five rules, our other, and a timeout
       ruleset = flowService.flow.rule_sets[0]
       expect(ruleset.rules.length).toBe(7)
 
@@ -247,6 +247,25 @@ describe 'Controllers:', ->
       lastRule = ruleset.rules[ruleset.rules.length - 1]
       expect(lastRule['test']['type']).toBe('timeout')
       expect(lastRule['test']['minutes']).toBe(10)
+
+      # simulate open ended questions with timeout
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'wait_message'
+        scope.ruleset.rules = []
+        scope.formData.hasTimeout = true
+        scope.formData.timeout = scope.formData.timeoutOptions[5]
+
+      # now should have 2 rules; All responses and the timeout
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.rules.length).toBe(2)
+
+      allResponseRule = ruleset.rules[0]
+      timeoutRule = ruleset.rules[1]
+
+      expect(allResponseRule['test']['type']).toBe('true')
+      expect(allResponseRule.category.base).toBe('All Responses')
+      expect(timeoutRule['test']['type']).toBe('timeout')
+      expect(timeoutRule['test']['minutes']).toBe(10)
 
     it 'should save group split rulesets', ->
       loadFavoritesFlow()

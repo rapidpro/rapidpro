@@ -26,8 +26,9 @@ from functools import cmp_to_key
 from itertools import chain
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartListView, SmartUpdateView
 from smartmin.views import SmartDeleteView, SmartTemplateView, SmartFormView
+from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
-from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME, ContactURN
 from temba.ivr.models import IVRCall
 from temba.ussd.models import USSDSession
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
@@ -284,7 +285,7 @@ class RuleCRUDL(SmartCRUDL):
                     current_flow = dict(id=flow.id,
                                         text=flow.name,
                                         rules=[],
-                                        stats=dict(runs=flow.get_total_runs(),
+                                        stats=dict(runs=flow.get_run_stats()['total'],
                                                    created_on=flow.created_on))
 
                 current_flow['rules'].append(dict(text=rule.label, id=rule.pk, flow=current_flow['id'],
@@ -642,6 +643,11 @@ class FlowCRUDL(SmartCRUDL):
             context['campaigns'] = self.get_campaigns()
             context['request_url'] = self.request.path
             context['actions'] = self.actions
+
+            # decorate flow objects with their run activity stats
+            for flow in context['object_list']:
+                flow.run_stats = flow.get_run_stats()
+
             return context
 
         def derive_queryset(self, *args, **kwargs):
@@ -789,7 +795,13 @@ class FlowCRUDL(SmartCRUDL):
                 dict(name='contact.uuid', display=six.text_type(_("Contact UUID"))),
                 dict(name='new_contact', display=six.text_type(_('New Contact')))
             ]
-            contact_variables += [dict(name="contact.%s" % field.key, display=field.label) for field in ContactField.objects.filter(org=org, is_active=True)]
+
+            contact_variables += [dict(name="contact.%s" % scheme, display=six.text_type(_("Contact %s" % label)))
+                                  for scheme, label in ContactURN.SCHEME_CHOICES if scheme != TEL_SCHEME and scheme in
+                                  org.get_schemes(Channel.ROLE_SEND)]
+
+            contact_variables += [dict(name="contact.%s" % field.key, display=field.label) for field in
+                                  ContactField.objects.filter(org=org, is_active=True)]
 
             date_variables = [
                 dict(name='date', display=six.text_type(_('Current Date and Time'))),
@@ -1453,8 +1465,10 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Broadcast, self).get_context_data(*args, **kwargs)
-            context['run_count'] = self.object.get_total_runs()
-            context['complete_count'] = self.object.get_completed_runs()
+
+            run_stats = self.object.get_run_stats()
+            context['run_count'] = run_stats['total']
+            context['complete_count'] = run_stats['completed']
             return context
 
         def get_form_kwargs(self):

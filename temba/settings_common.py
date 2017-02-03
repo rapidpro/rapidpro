@@ -117,7 +117,7 @@ FIXTURE_DIRS = (os.path.join(PROJECT_DIR, '../fixtures'),)
 TESTFILES_DIR = os.path.join(PROJECT_DIR, '../testfiles')
 STATICFILES_DIRS = (os.path.join(PROJECT_DIR, '../static'), os.path.join(PROJECT_DIR, '../media'), )
 STATIC_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
-STATIC_URL = '/static/'
+STATIC_URL = '/sitestatic/'
 COMPRESS_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
 MEDIA_ROOT = os.path.join(PROJECT_DIR, '../media')
 MEDIA_URL = "/media/"
@@ -214,13 +214,8 @@ INSTALLED_APPS = (
 
     # smartmin
     'smartmin',
-
-    # import tasks
     'smartmin.csv_imports',
-
-    # smartmin users
     'smartmin.users',
-    'modeltranslation',
 
     # django-timezone-field
     'timezone_field',
@@ -299,7 +294,7 @@ BRANDING = {
         'name': 'RapidPro',
         'org': 'UNICEF',
         'colors': dict(primary='#0c6596'),
-        'styles': ['brands/rapidpro/font/style.css', 'brands/rapidpro/less/style.less'],
+        'styles': ['brands/rapidpro/font/style.css'],
         'welcome_topup': 1000,
         'email': 'join@rapidpro.io',
         'support_email': 'support@rapidpro.io',
@@ -315,7 +310,7 @@ BRANDING = {
         'bundles': [],
         'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         'description': _("Visually build nationally scalable mobile applications from anywhere in the world."),
-        'credits': _("Copyright &copy; 2012-2015 UNICEF, Nyaruka. All Rights Reserved.")
+        'credits': _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved.")
     }
 }
 DEFAULT_BRAND = 'rapidpro.io'
@@ -433,6 +428,7 @@ PERMISSIONS = {
                          'claim_hub9',
                          'claim_infobip',
                          'claim_jasmin',
+                         'claim_junebug',
                          'claim_kannel',
                          'claim_line',
                          'claim_m3tech',
@@ -673,6 +669,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
         'channels.channel_claim_jasmin',
+        'channels.channel_claim_junebug',
         'channels.channel_claim_kannel',
         'channels.channel_claim_line',
         'channels.channel_claim_mblox',
@@ -814,6 +811,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
         'channels.channel_claim_jasmin',
+        'channels.channel_claim_junebug',
         'channels.channel_claim_kannel',
         'channels.channel_claim_line',
         'channels.channel_claim_mblox',
@@ -1154,11 +1152,16 @@ else:
         ('text/less', 'lessc --include-path="%s" {infile} {outfile}' % os.path.join(PROJECT_DIR, '../static', 'less')),
         ('text/coffeescript', 'coffee --compile --stdio')
     )
-    COMPRESS_OFFLINE_CONTEXT = dict(STATIC_URL=STATIC_URL, base_template='frame.html')
 
 COMPRESS_ENABLED = False
 COMPRESS_OFFLINE = False
-COMPRESS_URL = '/sitestatic/'
+
+# build up our offline compression context based on available brands
+COMPRESS_OFFLINE_CONTEXT = []
+for brand in BRANDING.values():
+    context = dict(STATIC_URL=STATIC_URL, base_template='frame.html', debug=False, testing=False)
+    context['brand'] = dict(slug=brand['slug'], styles=brand['styles'])
+    COMPRESS_OFFLINE_CONTEXT.append(context)
 
 MAGE_API_URL = 'http://localhost:8026/api/v1'
 MAGE_AUTH_TOKEN = '___MAGE_TOKEN_YOU_PICK__'
