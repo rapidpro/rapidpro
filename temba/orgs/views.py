@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import json
 import logging
 import plivo
+import nexmo
 import six
 
 from collections import OrderedDict
@@ -36,7 +37,6 @@ from temba.api.models import APIToken
 from temba.assets.models import AssetType
 from temba.channels.models import Channel
 from temba.formax import FormaxMixin
-from temba.nexmo import NexmoClient, NexmoValidationError
 from temba.utils import analytics, languages
 from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import TimeZoneFormField
@@ -648,7 +648,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 return HttpResponseRedirect(reverse("channels.channel_claim_nexmo"))
 
-            except NexmoValidationError:
+            except nexmo.Error:
                 return super(OrgCRUDL.NexmoConfiguration, self).get(request, *args, **kwargs)
 
         def get_context_data(self, **kwargs):
@@ -689,8 +689,9 @@ class OrgCRUDL(SmartCRUDL):
                         raise ValidationError(_("You must enter your Nexmo Account API Secret"))
 
                     try:
-                        client = NexmoClient(api_key, api_secret)
-                        client.get_numbers()
+                        from nexmo import Client as NexmoClient
+                        client = NexmoClient(key=api_key, secret=api_secret)
+                        client.get_balance()
                     except Exception:  # pragma: needs cover
                         raise ValidationError(_("Your Nexmo API key and secret seem invalid. Please check them again and retry."))
 
@@ -750,8 +751,10 @@ class OrgCRUDL(SmartCRUDL):
                 api_secret = self.cleaned_data.get('api_secret', None)
 
                 try:
-                    client = NexmoClient(api_key, api_secret)
-                    client.get_numbers()
+                    from nexmo import Client as NexmoClient
+
+                    client = NexmoClient(key=api_key, secret=api_secret)
+                    client.get_balance()
                 except Exception:
                     raise ValidationError(_("Your Nexmo API key and secret seem invalid. Please check them again and retry."))
 
