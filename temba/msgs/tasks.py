@@ -336,14 +336,14 @@ def purge_broadcasts_task():
 
         print("[PURGE] Purged %d of %d broadcasts (%d messages deleted)" % (bcasts_purged, len(purge_ids), msgs_deleted))
 
-    Debit.squash_purge_debits()
+    Debit.squash()
 
     print("[PURGE] Finished purging %d broadcasts older than %s, deleting %d messages" % (len(purge_ids), purge_before, msgs_deleted))
 
 
 @nonoverlapping_task(track_started=True, name="squash_systemlabels")
 def squash_systemlabels():
-    SystemLabel.squash_counts()
+    SystemLabel.squash()
 
 
 @nonoverlapping_task(track_started=True, name='clear_old_msg_external_ids', time_limit=60 * 60 * 36)

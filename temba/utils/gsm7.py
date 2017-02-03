@@ -73,6 +73,7 @@ def replace_non_gsm7_accents(text):
     """
     return ''.join([GSM7_REPLACEMENTS.get(c, c) for c in text])
 
+
 # Coding table from:
 # http://snoops.roy202.org/testerman/browser/trunk/plugins/codecs/gsm0338.py
 
