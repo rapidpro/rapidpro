@@ -17,13 +17,12 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.contrib.auth.models import User, Group
-from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models, transaction, connection
+from django.db import models, transaction
 from django.db.models import Sum, F, Q
 from django.utils import timezone
 from temba.utils.email import send_simple_email, send_custom_smtp_email
@@ -39,8 +38,9 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
 from temba.utils import languages
 from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
-from temba.utils.email import send_template_email
 from temba.utils.currencies import currency_for_country
+from temba.utils.email import send_template_email
+from temba.utils.models import SquashableModel
 from temba.utils.timezones import timezone_to_country_code
 from timezone_field import TimeZoneField
 from twilio.rest import TwilioRestClient
@@ -2156,18 +2156,17 @@ class TopUp(SmartModel):
         return "%s Credits" % self.credits
 
 
-class Debit(models.Model):
+class Debit(SquashableModel):
     """
     Transactional history of credits allocated to other topups or chunks of archived messages
     """
+    SQUASH_OVER = ('topup_id',)
 
     TYPE_ALLOCATION = 'A'
     TYPE_PURGE = 'P'
 
     DEBIT_TYPES = ((TYPE_ALLOCATION, 'Allocation'),
                    (TYPE_PURGE, 'Purge'))
-
-    LAST_SQUASH_KEY = 'last_debit_squash'
 
     topup = models.ForeignKey(TopUp, related_name="debits", help_text=_("The topup these credits are applied against"))
 
@@ -2186,58 +2185,43 @@ class Debit(models.Model):
                                       help_text="When this item was originally created")
 
     @classmethod
-    def squash_purge_debits(cls):
-        last_squash_id = cache.get(cls.LAST_SQUASH_KEY, 0)
-        unsquashed_topups = cls.objects.filter(pk__gt=last_squash_id, debit_type=cls.TYPE_PURGE)
-        unsquashed_topups = unsquashed_topups.values_list('topup', flat=True).distinct('topup')
+    def get_unsquashed(cls):
+        return super(Debit, cls).get_unsquashed().filter(debit_type=cls.TYPE_PURGE)
 
-        for topup_id in unsquashed_topups:
-            with connection.cursor() as cursor:
-                sql = """
-                WITH removed as (
-                    DELETE FROM orgs_debit WHERE "topup_id" = %s AND debit_type = 'P' RETURNING "amount"
-                )
-                INSERT INTO orgs_debit("topup_id", "amount", "debit_type", "created_on")
-                VALUES (%s, GREATEST(0, (SELECT SUM("amount") FROM removed)), 'P', %s);"""
+    @classmethod
+    def get_squash_query(cls, distinct_set):
+        sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "topup_id" = %%s AND debit_type = 'P' RETURNING "amount"
+            )
+            INSERT INTO %(table)s("topup_id", "amount", "debit_type", "created_on", "is_squashed")
+            VALUES (%%s, GREATEST(0, (SELECT SUM("amount") FROM removed)), 'P', %%s, TRUE);
+        """ % {'table': cls._meta.db_table}
 
-                cursor.execute(sql, [topup_id, topup_id, timezone.now()])
-
-        max_id = cls.objects.filter(debit_type=Debit.TYPE_PURGE).order_by('-id').values_list('id', flat=True).first()
-        if max_id:
-            cache.set(cls.LAST_SQUASH_KEY, max_id)
+        return sql, (distinct_set.topup_id, distinct_set.topup_id, timezone.now())
 
 
-class TopUpCredits(models.Model):
+class TopUpCredits(SquashableModel):
     """
     Used to track number of credits used on a topup, mostly maintained by triggers on Msg insertion.
     """
+    SQUASH_OVER = ('topup_id',)
+
     topup = models.ForeignKey(TopUp,
                               help_text=_("The topup these credits are being used against"))
     used = models.IntegerField(help_text=_("How many credits were used, can be negative"))
 
-    LAST_SQUASH_KEY = 'last_topupcredits_squash'
-
     @classmethod
-    def squash_credits(cls):
-        # get the id of the last count we squashed
-        r = get_redis_connection()
-        last_squash = r.get(TopUpCredits.LAST_SQUASH_KEY)
-        if not last_squash:
-            last_squash = 0
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH deleted as (
+            DELETE FROM %(table)s WHERE "topup_id" = %%s RETURNING "used"
+        )
+        INSERT INTO %(table)s("topup_id", "used", "is_squashed")
+        VALUES (%%s, GREATEST(0, (SELECT SUM("used") FROM deleted)), TRUE);
+        """ % {'table': cls._meta.db_table}
 
-        # get the unique flow ids for all new ones
-        squash_count = 0
-        for credits in TopUpCredits.objects.filter(id__gt=last_squash).order_by('topup_id').distinct('topup_id'):
-            # perform our atomic squash in SQL by calling our squash method
-            with connection.cursor() as c:
-                c.execute("SELECT temba_squash_topupcredits(%s);", (credits.topup_id,))
-
-            squash_count += 1
-
-        # insert our new top squashed id
-        max_id = TopUpCredits.objects.all().order_by('-id').first()
-        if max_id:
-            r.set(TopUpCredits.LAST_SQUASH_KEY, max_id.id)
+        return sql, (distinct_set.topup_id,) * 2
 
 
 class CreditAlert(SmartModel):
