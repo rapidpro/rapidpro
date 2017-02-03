@@ -1,3 +1,9 @@
+v3.0.41
+----------
+ * Fix channel countries being duplicated for airtime configuration
+ * Add make_sql command to generate SQL files for an app, reorganize current SQL reference files
+ * Added SquashableModel and use it for all squashable count classes
+
 v3.0.40
 ----------
  * Add support for Nexmo IVR
