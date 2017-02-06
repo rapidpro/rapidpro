@@ -27,10 +27,7 @@ def update_nexmo_config(Org):
                 config = json.loads(org.config) if org.config else {}
                 nexmo_api_key = config.get(NEXMO_KEY, None)
                 nexmo_secret = config.get(NEXMO_SECRET, None)
-                nexmo_uuid = config.get(NEXMO_UUID, None)
-
-                if not nexmo_uuid:
-                    nexmo_uuid = str(uuid4())
+                nexmo_uuid = str(uuid4())
 
                 nx_client = nx.Client(key=nexmo_api_key, secret=nexmo_secret)
 
@@ -48,6 +45,7 @@ def update_nexmo_config(Org):
 
                 config[NEXMO_APP_ID] = app_id
                 config[NEXMO_APP_PRIVATE_KEY] = private_key
+                config[NEXMO_UUID] = nexmo_uuid
 
                 org.config = json.dumps(config)
                 org.save()
