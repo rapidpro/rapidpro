@@ -29,7 +29,7 @@ from temba.flows.models import Flow, ActionSet
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Label, Msg, INCOMING
-from temba.orgs.models import UserSettings, NEXMO_SECRET, NEXMO_KEY
+from temba.orgs.models import UserSettings, NEXMO_SECRET, NEXMO_KEY, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY, NEXMO_UUID
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
 from temba.triggers.models import Trigger
 from temba.utils.email import link_components
@@ -1507,6 +1507,36 @@ class OrgTest(TembaTest):
         self.assertEquals(self.org.config_json()['SMTP_PASSWORD'], 'secret')
         self.assertEquals(self.org.config_json()['SMTP_PORT'], '465')
         self.assertEquals(self.org.config_json()['SMTP_ENCRYPTION'], 'T')
+
+    def test_get_nexmo_client(self):
+
+        client = self.org.get_nexmo_client()
+        self.assertIsNone(client)
+
+        config = {'RANDOM_CONFIG': 'foo'}
+        self.org.config = json.dumps(config)
+        self.org.save()
+        self.org.refresh_from_db()
+
+        client = self.org.get_nexmo_client()
+        self.assertIsNone(client)
+
+        config = {NEXMO_KEY: 'nexmo-key', NEXMO_SECRET: 'secret'}
+        self.org.config = json.dumps(config)
+        self.org.save()
+        self.org.refresh_from_db()
+
+        client = self.org.get_nexmo_client()
+        self.assertTrue(client)
+
+        config = {NEXMO_KEY: 'nexmo-key', NEXMO_SECRET: 'secret', NEXMO_APP_ID: 'app-id',
+                  NEXMO_APP_PRIVATE_KEY: 'private-key', NEXMO_UUID: 'nexmo-uuid'}
+        self.org.config = json.dumps(config)
+        self.org.save()
+        self.org.refresh_from_db()
+
+        client = self.org.get_nexmo_client()
+        self.assertTrue(client)
 
     @patch('nexmo.Client.create_application')
     def test_connect_nexmo(self, mock_create_application):

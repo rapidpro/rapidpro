@@ -25,10 +25,10 @@ class NexmoClient(nx.Client):
     SEND_URL = 'https://rest.nexmo.com/sms/json'
 
     def __init__(self, api_key, api_secret, app_id, app_private_key, **kwargs):
-        kwargs['key'] = api_key.strip()
-        kwargs['secret'] = api_secret.strip()
-        kwargs['application_id'] = app_id.strip()
-        kwargs['private_key'] = app_private_key.strip()
+        kwargs['key'] = api_key.strip() if api_key else None
+        kwargs['secret'] = api_secret.strip() if api_secret else None
+        kwargs['application_id'] = app_id.strip() if app_id else None
+        kwargs['private_key'] = app_private_key.strip() if app_private_key else None
         nx.Client.__init__(self, **kwargs)
 
     def update_account(self, mo_url, dr_url):  # pragma: needs cover
