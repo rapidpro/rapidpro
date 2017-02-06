@@ -65,7 +65,7 @@ def update_nexmo_config(Org):
                     mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
 
                     nexmo_client.update_nexmo_number(channel.country, channel.address,
-                                                     'http://%s%s' % (settings.TEMBA_HOST, mo_path),
+                                                     'https://%s%s' % (settings.TEMBA_HOST, mo_path),
                                                      app_id)
 
                     nexmo_phones = nexmo_client.get_numbers(channel.address)
