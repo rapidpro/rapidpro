@@ -1,3 +1,7 @@
+v3.0.43
+----------
+ * Add Malawi as a country for Africa's Talking
+
 v3.0.42
 ----------
  * Widen pages to browser width so more can fit
