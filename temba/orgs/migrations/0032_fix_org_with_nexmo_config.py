@@ -6,6 +6,7 @@ import json
 from uuid import uuid4
 
 import nexmo as nx
+import six
 
 from django.conf import settings
 from django.core.cache import cache
@@ -64,7 +65,7 @@ def update_nexmo_config(Org):
                 for channel in org_nexmo_channels:
                     mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
 
-                    nexmo_client.update_nexmo_number(channel.country, channel.address,
+                    nexmo_client.update_nexmo_number(six.text_type(channel.country), channel.address,
                                                      'https://%s%s' % (settings.TEMBA_HOST, mo_path),
                                                      app_id)
 
@@ -89,8 +90,8 @@ def update_nexmo_config(Org):
 
         print("Migrations finished updating nexmo config UPDATED: %d orgs , FAILED: %d orgs" % (len(updated_orgs), len(failed_orgs)))
         print("=" * 80)
-        print("Updated orgs: %s" % ", ".join(list(updated_orgs)))
-        print("Failed orgs: %s" % ", ".join(list(failed_orgs)))
+        print("Updated orgs: %s" % updated_orgs)
+        print("Failed orgs: %s" % failed_orgs)
 
 
 def apply_as_migration(apps, schema_editor):
