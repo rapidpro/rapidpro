@@ -1,9 +1,5 @@
 v3.0.45
 ----------
- * Fix Nexmo data Migration
-
-v3.0.44
-----------
  * Fix absolute positioning for account creation form
  * Add Line channel icon in fonts
  * Add data migrations to update org config to connect to Nexmo
