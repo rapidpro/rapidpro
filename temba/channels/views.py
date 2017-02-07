@@ -2048,7 +2048,7 @@ class ChannelCRUDL(SmartCRUDL):
         class ATClaimForm(forms.Form):
             shortcode = forms.CharField(max_length=6, min_length=1,
                                         help_text=_("Your short code on Africa's Talking"))
-            country = forms.ChoiceField(choices=(('KE', _("Kenya")), ('UG', _("Uganda"))))
+            country = forms.ChoiceField(choices=(('KE', _("Kenya")), ('UG', _("Uganda")), ('MW', _("Malawi"))))
             is_shared = forms.BooleanField(initial=False, required=False,
                                            help_text=_("Whether this short code is shared with others"))
             username = forms.CharField(max_length=32,

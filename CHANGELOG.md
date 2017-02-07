@@ -1,3 +1,13 @@
+v3.0.45
+----------
+ * Fix absolute positioning for account creation form
+ * Add Line channel icon in fonts
+ * Add data migrations to update org config to connect to Nexmo
+
+v3.0.43
+----------
+ * Add Malawi as a country for Africa's Talking
+
 v3.0.42
 ----------
  * Widen pages to browser width so more can fit
