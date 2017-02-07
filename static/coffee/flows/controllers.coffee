@@ -183,7 +183,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
     # make sure its an audio file
     file = $files[0]
-    if file.type != 'audio/wav' and file.type != 'audio/x-wav'
+    if action.type == 'say' and file.type != 'audio/wav' and file.type != 'audio/x-wav'
       showDialog('Wrong File Type', 'Audio files need to in the WAV format. Please choose a WAV file and try again.')
       return
 
