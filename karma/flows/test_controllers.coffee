@@ -232,21 +232,40 @@ describe 'Controllers:', ->
       loadFavoritesFlow()
       ruleset = flowService.flow.rule_sets[0]
 
-      # four rules and our other
-      expect(ruleset.rules.length).toBe(5)
+      # five rules and our other
+      expect(ruleset.rules.length).toBe(6)
 
       editRules ruleset, (scope) ->
         scope.formData.hasTimeout = true
         scope.formData.timeout = scope.formData.timeoutOptions[5]
 
-      # now we have four rules, our other, and a timeout
+      # now we have five rules, our other, and a timeout
       ruleset = flowService.flow.rule_sets[0]
-      expect(ruleset.rules.length).toBe(6)
+      expect(ruleset.rules.length).toBe(7)
 
       # checkout our timeout rule as the right settings
       lastRule = ruleset.rules[ruleset.rules.length - 1]
       expect(lastRule['test']['type']).toBe('timeout')
       expect(lastRule['test']['minutes']).toBe(10)
+
+      # simulate open ended questions with timeout
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'wait_message'
+        scope.ruleset.rules = []
+        scope.formData.hasTimeout = true
+        scope.formData.timeout = scope.formData.timeoutOptions[5]
+
+      # now should have 2 rules; All responses and the timeout
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.rules.length).toBe(2)
+
+      allResponseRule = ruleset.rules[0]
+      timeoutRule = ruleset.rules[1]
+
+      expect(allResponseRule['test']['type']).toBe('true')
+      expect(allResponseRule.category.base).toBe('All Responses')
+      expect(timeoutRule['test']['type']).toBe('timeout')
+      expect(timeoutRule['test']['minutes']).toBe(10)
 
     it 'should save group split rulesets', ->
       loadFavoritesFlow()
@@ -495,27 +514,27 @@ describe 'Controllers:', ->
 
       # our first ruleset, starts off with five rules
       ruleset = flowService.flow.rule_sets[0]
-      expect(ruleset.rules.length).toBe(5)
+      expect(ruleset.rules.length).toBe(6)
 
       # make our last "true" rule route to the entry node
-      ruleset.rules[3].destination = '127f3736-77ce-4006-9ab0-0c07cea88956'
+      ruleset.rules[4].destination = '127f3736-77ce-4006-9ab0-0c07cea88956'
 
       # click on the ruleset and then ok
       editRules(ruleset, (scope) -> scope.ruleset.ruleset_type = 'wait_message')
 
       # our route should still be there
       ruleset = flowService.flow.rule_sets[0]
-      expect(ruleset.rules[3].destination).toBe('127f3736-77ce-4006-9ab0-0c07cea88956')
+      expect(ruleset.rules[4].destination).toBe('127f3736-77ce-4006-9ab0-0c07cea88956')
 
       # click on ruleset, then check timeout option
       editRules(ruleset, (scope) -> scope.formData.hasTimeout = true)
 
       # should now have 6 rules to account for the timeout
       ruleset = flowService.flow.rule_sets[0]
-      expect(ruleset.rules.length).toBe(6)
+      expect(ruleset.rules.length).toBe(7)
 
       # but our route should still be there
-      expect(ruleset.rules[3].destination).toBe('127f3736-77ce-4006-9ab0-0c07cea88956')
+      expect(ruleset.rules[4].destination).toBe('127f3736-77ce-4006-9ab0-0c07cea88956')
 
     it 'should maintain connections on prescribed rulesets', ->
 

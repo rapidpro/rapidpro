@@ -1,9 +1,10 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import json
 import logging
 import pytz
 import regex
+import six
 import time
 import traceback
 
@@ -13,12 +14,11 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models, transaction, connection
+from django.db import models, transaction
 from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
-from django_redis import get_redis_connection
 from smartmin.models import SmartModel
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
@@ -29,7 +29,7 @@ from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_l
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.email import send_template_email
 from temba.utils.expressions import evaluate_template
-from temba.utils.models import TembaModel
+from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from uuid import uuid4
 from .handler import MessageHandler
@@ -155,6 +155,7 @@ class BroadcastRecipient(models.Model):
         db_table = 'msgs_broadcast_recipients'
 
 
+@six.python_2_unicode_compatible
 class Broadcast(models.Model):
     """
     A broadcast is a message that is sent out to more than one recipient, such
@@ -545,10 +546,11 @@ class Broadcast(models.Model):
 
         self.save(update_fields=['status'])
 
-    def __unicode__(self):
+    def __str__(self):
         return "%s (%s)" % (self.org.name, self.pk)
 
 
+@six.python_2_unicode_compatible
 class Msg(models.Model):
     """
     Messages are the main building blocks of a RapidPro application. Channels send and receive
@@ -674,6 +676,9 @@ class Msg(models.Model):
     media = models.URLField(null=True, blank=True, max_length=255,
                             help_text=_("The media associated with this message if any"))
 
+    session = models.ForeignKey('channels.ChannelSession', null=True,
+                                help_text=_("The session this message was a part of if any"))
+
     @classmethod
     def send_messages(cls, all_msgs):
         """
@@ -759,7 +764,7 @@ class Msg(models.Model):
                     handled = handler.handle(msg)
 
                     if start:  # pragma: no cover
-                        print "[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk or 0)
+                        print("[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk or 0))
 
                     if handled:
                         break
@@ -1022,9 +1027,9 @@ class Msg(models.Model):
     def is_media_type_image(self):
         return Msg.MEDIA_IMAGE == self.get_media_type()
 
-    def reply(self, text, user, trigger_send=False, message_context=None):
+    def reply(self, text, user, trigger_send=False, message_context=None, session=None):
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None)
+                                 response_to=self if self.id else None, session=session)
 
     def update(self, cmd):
         """
@@ -1148,12 +1153,12 @@ class Msg(models.Model):
                     sent_on=self.sent_on, queued_on=self.queued_on,
                     created_on=self.created_on, modified_on=self.modified_on)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.text
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
-                        status=PENDING, media=None, msg_type=None, topup=None, external_id=None):
+                        status=PENDING, media=None, msg_type=None, topup=None, external_id=None, session=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
         if not org and channel:
@@ -1210,7 +1215,8 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         media=media,
                         status=status,
-                        external_id=external_id)
+                        external_id=external_id,
+                        session=session)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
@@ -1281,7 +1287,7 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
-                        media=None, topup_id=None, msg_type=INBOX):
+                        media=None, topup_id=None, msg_type=INBOX, session=None):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
@@ -1382,6 +1388,7 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         priority=priority,
                         media=media,
+                        session=session,
                         has_template_error=len(errors) > 0)
 
         if topup_id is not None:
@@ -1411,7 +1418,7 @@ class Msg(models.Model):
             if recipient.scheme in resolved_schemes:
                 contact = recipient.contact
                 contact_urn = recipient
-        elif isinstance(recipient, basestring):
+        elif isinstance(recipient, six.string_types):
             scheme, path = URN.to_parts(recipient)
             if scheme in resolved_schemes:
                 contact = Contact.get_or_create(org, user, urns=[recipient])
@@ -1559,10 +1566,12 @@ STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,
              'who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
-class SystemLabel(models.Model):
+class SystemLabel(SquashableModel):
     """
     Counts of messages/broadcasts/calls maintained by database level triggers
     """
+    SQUASH_OVER = ('org_id', 'label_type')
+
     TYPE_INBOX = 'I'
     TYPE_FLOWS = 'W'
     TYPE_ARCHIVED = 'A'
@@ -1571,8 +1580,6 @@ class SystemLabel(models.Model):
     TYPE_FAILED = 'X'
     TYPE_SCHEDULED = 'E'
     TYPE_CALLS = 'C'
-
-    LAST_SQUASH_KEY = 'last_systemlabel_squash'
 
     TYPE_CHOICES = ((TYPE_INBOX, "Inbox"),
                     (TYPE_FLOWS, "Flows"),
@@ -1590,29 +1597,16 @@ class SystemLabel(models.Model):
     count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
 
     @classmethod
-    def squash_counts(cls):
-        # get the id of the last count we squashed
-        r = get_redis_connection()
-        last_squash = r.get(SystemLabel.LAST_SQUASH_KEY)
-        if not last_squash:
-            last_squash = 0
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH deleted as (
+            DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("org_id", "label_type", "count", "is_squashed")
+        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+        """ % {'table': cls._meta.db_table}
 
-        # get the unique systemlabel ids for all new ones
-        start = time.time()
-        squash_count = 0
-        for count in SystemLabel.objects.filter(id__gt=last_squash).order_by('org_id', 'label_type').distinct('org_id', 'label_type'):
-            # perform our atomic squash in SQL by calling our squash method
-            with connection.cursor() as c:
-                c.execute("SELECT temba_squash_systemlabel(%s, %s);", (count.org_id, count.label_type))
-
-            squash_count += 1
-
-        # insert our new top squashed id
-        max_id = SystemLabel.objects.all().order_by('-id').first()
-        if max_id:
-            r.set(SystemLabel.LAST_SQUASH_KEY, max_id.id)
-
-        print "Squashed system label counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
+        return sql, (distinct_set.org_id, distinct_set.label_type) * 2
 
     @classmethod
     def create_all(cls, org):
@@ -1710,6 +1704,7 @@ class UserLabelManager(models.Manager):
         return super(UserLabelManager, self).get_queryset().filter(label_type=Label.TYPE_LABEL)
 
 
+@six.python_2_unicode_compatible
 class Label(TembaModel):
     """
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
@@ -1747,7 +1742,7 @@ class Label(TembaModel):
             raise ValueError("Invalid label name: %s" % name)
 
         if folder and not folder.is_folder():  # pragma: needs cover
-            raise ValueError("%s is not a label folder" % unicode(folder))
+            raise ValueError("%s is not a label folder" % six.text_type(folder))
 
         label = cls.label_objects.filter(org=org, name__iexact=name).first()
         if label:
@@ -1851,9 +1846,9 @@ class Label(TembaModel):
     def release(self):
         self.delete()
 
-    def __unicode__(self):
+    def __str__(self):
         if self.folder:
-            return "%s > %s" % (unicode(self.folder), self.name)
+            return "%s > %s" % (six.text_type(self.folder), self.name)
         return self.name
 
     class Meta:
@@ -1873,7 +1868,7 @@ class MsgIterator(object):
         self.max_obj_num = max_obj_num
 
     def _setup(self):
-        for i in xrange(0, len(self._ids), self.max_obj_num):
+        for i in six.moves.xrange(0, len(self._ids), self.max_obj_num):
             chunk_queryset = Msg.objects.filter(id__in=self._ids[i:i + self.max_obj_num])
 
             if self._order_by:
@@ -1892,7 +1887,7 @@ class MsgIterator(object):
         return self
 
     def next(self):
-        return self._generator.next()
+        return next(self._generator)
 
 
 class ExportMessagesTask(SmartModel):
@@ -1979,12 +1974,12 @@ class ExportMessagesTask(SmartModel):
 
         messages_sheet_number = 1
 
-        current_messages_sheet = book.create_sheet(unicode(_("Messages %d" % messages_sheet_number)))
+        current_messages_sheet = book.create_sheet(six.text_type(_("Messages %d" % messages_sheet_number)))
         sheet_row = []
         for col in range(1, len(fields) + 1):
             index = col - 1
             field = fields[index]
-            cell = WriteOnlyCell(current_messages_sheet, value=unicode(field))
+            cell = WriteOnlyCell(current_messages_sheet, value=six.text_type(field))
             sheet_row.append(cell)
             current_messages_sheet.column_dimensions[get_column_letter(col)].width = fields_col_width[index]
 
@@ -2003,11 +1998,11 @@ class ExportMessagesTask(SmartModel):
 
             if row >= max_rows:  # pragma: needs cover
                 messages_sheet_number += 1
-                current_messages_sheet = book.create_sheet(unicode(_("Messages %d" % messages_sheet_number)))
+                current_messages_sheet = book.create_sheet(six.text_type(_("Messages %d" % messages_sheet_number)))
                 sheet_row = []
                 for col in range(len(fields)):
                     field = fields[col]
-                    cell = WriteOnlyCell(current_messages_sheet, value=unicode(field))
+                    cell = WriteOnlyCell(current_messages_sheet, value=six.text_type(field))
                     sheet_row.append(cell)
 
                 current_messages_sheet.append(sheet_row)
@@ -2057,8 +2052,8 @@ class ExportMessagesTask(SmartModel):
             processed += 1
 
             if processed % 10000 == 0:  # pragma: needs cover
-                print "Export of %d msgs for %s - %d%% complete in %0.2fs" % \
-                      (len(all_message_ids), self.org.name, processed * 100 / len(all_message_ids), time.time() - start)
+                print("Export of %d msgs for %s - %d%% complete in %0.2fs" %
+                      (len(all_message_ids), self.org.name, processed * 100 / len(all_message_ids), time.time() - start))
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)

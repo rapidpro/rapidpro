@@ -98,7 +98,7 @@
             "name": "Single Message",
             "id": 2815
           }, 
-          "offset": -1, 
+          "offset": 1, 
           "delivery_hour": -1, 
           "message": "This is a second campaign message", 
           "id": 9960, 

@@ -1,11 +1,11 @@
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, print_function, unicode_literals
 
 import time
 
+from celery.task import task
 from datetime import timedelta
-from djcelery_transactions import task
 from django.utils import timezone
-from django_redis import get_redis_connection
+from temba.utils.queues import nonoverlapping_task
 from .models import CreditAlert, Invitation, Org, TopUpCredits
 
 
@@ -39,14 +39,9 @@ def calculate_credit_caches():  # pragma: needs cover
     for org in Org.objects.filter(msgs__created_on__gte=last_week).distinct('pk'):
         start = time.time()
         org._calculate_credit_caches()
-        print " -- recalculated credits for %s in %0.2f seconds" % (org.name, time.time() - start)
+        print(" -- recalculated credits for %s in %0.2f seconds" % (org.name, time.time() - start))
 
 
-@task(track_started=True, name="squash_topupcredits")
+@nonoverlapping_task(track_started=True, name="squash_topupcredits", lock_key='squash_topupcredits')
 def squash_topupcredits():
-    r = get_redis_connection()
-
-    key = 'squash_topupcredits'
-    if not r.get(key):
-        with r.lock(key, timeout=900):
-            TopUpCredits.squash_credits()
+    TopUpCredits.squash()

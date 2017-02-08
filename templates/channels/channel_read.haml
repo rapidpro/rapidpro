@@ -490,6 +490,15 @@
 
   {% endif %}
 
+  {% if org_perms.channels.channel_facebook_whitelist %}
+    $(".facebook-whitelist").live('click', function(){
+      var modal = new Modax('{% trans "Whitelist Domain" %}','{% url "channels.channel_facebook_whitelist" object.uuid %}');
+      modal.setIcon('icon-facebook-official');
+      modal.setRedirectOnSuccess(true);
+      modal.show();
+    });
+  {% endif %}
+
   {% if start_date %}
 
     $(function () {

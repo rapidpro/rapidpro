@@ -66,7 +66,7 @@ class Command(BaseCommand):  # pragma: no cover
         if record and not plan:
             raise CommandError("Migration %s has already been applied" % migration)
 
-        emit_pre_migrate_signal([], self.verbosity, interactive, connection.alias)
+        emit_pre_migrate_signal(self.verbosity, interactive, connection.alias)
 
         self.stdout.write(self.style.MIGRATE_HEADING("Operations to perform:"))
         self.stdout.write("  Manually apply migration %s" % migration)
@@ -80,7 +80,7 @@ class Command(BaseCommand):  # pragma: no cover
             self.record_migration(migration, executor)
 
         # send the post_migrate signal, so individual apps can do whatever they need to do at this point.
-        emit_post_migrate_signal([], self.verbosity, interactive, connection.alias)
+        emit_post_migrate_signal(self.verbosity, interactive, connection.alias)
 
     def apply_migration(self, migration, apply_function):
         compute_time = self.verbosity > 1
@@ -94,7 +94,7 @@ class Command(BaseCommand):  # pragma: no cover
 
         elapsed = " (%.3fs)" % (time.time() - start) if compute_time else ""
 
-        self.stdout.write(self.style.MIGRATE_SUCCESS("OK" + elapsed))
+        self.stdout.write(self.style.SUCCESS("OK" + elapsed))
 
     def record_migration(self, migration, executor):
         self.stdout.write("  Recording %s... " % migration, ending="")
@@ -102,4 +102,4 @@ class Command(BaseCommand):  # pragma: no cover
 
         executor.recorder.record_applied(migration.app_label, migration.name)
 
-        self.stdout.write(self.style.MIGRATE_SUCCESS("DONE"))
+        self.stdout.write(self.style.SUCCESS("DONE"))

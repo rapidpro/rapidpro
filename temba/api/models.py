@@ -1,11 +1,12 @@
-
 from __future__ import absolute_import, unicode_literals
 
 import hmac
 import json
 import requests
+import six
 import uuid
 
+from collections import OrderedDict
 from datetime import timedelta
 from django.db.models import Q
 from django.conf import settings
@@ -100,6 +101,7 @@ class SSLPermission(BasePermission):  # pragma: no cover
             return True
 
 
+@six.python_2_unicode_compatible
 class Resthook(SmartModel):
     """
     Represents a hook that a user creates on an organization. Outside apps can integrate by subscribing
@@ -152,8 +154,8 @@ class Resthook(SmartModel):
     def as_select2(self):
         return dict(text=self.slug, id=self.slug)
 
-    def __unicode__(self):  # pragma: needs cover
-        return unicode(self.slug)
+    def __str__(self):  # pragma: needs cover
+        return six.text_type(self.slug)
 
 
 class ResthookSubscriber(SmartModel):
@@ -219,7 +221,7 @@ class WebHookEvent(SmartModel):
             values = results[0]['values']
             for value in values:
                 value['time'] = datetime_to_str(value['time'])
-                value['value'] = unicode(value['value'])
+                value['value'] = six.text_type(value['value'])
 
         # if the action is on the first node
         # we might not have an sms (or channel) yet
@@ -253,11 +255,11 @@ class WebHookEvent(SmartModel):
                     flow_base_language=flow.base_language,
                     run=run.id,
                     text=text,
-                    step=unicode(node_uuid),
+                    step=six.text_type(node_uuid),
                     phone=contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=contact.uuid,
                     contact_name=contact.name,
-                    urn=unicode(contact_urn),
+                    urn=six.text_type(contact_urn),
                     values=json.dumps(values),
                     steps=json.dumps(steps),
                     time=json_time)
@@ -301,7 +303,7 @@ class WebHookEvent(SmartModel):
 
             if response.status_code == 200 or response.status_code == 201:
                 try:
-                    response_json = json.loads(response_text)
+                    response_json = json.loads(response_text, object_pairs_hook=OrderedDict)
 
                     # only update if we got a valid JSON dictionary or list
                     if not isinstance(response_json, dict) and not isinstance(response_json, list):
@@ -323,7 +325,7 @@ class WebHookEvent(SmartModel):
             traceback.print_exc()
 
             webhook_event.status = FAILED
-            message = "Error calling webhook: %s" % unicode(e)
+            message = "Error calling webhook: %s" % six.text_type(e)
 
         finally:
             webhook_event.save()
@@ -371,7 +373,7 @@ class WebHookEvent(SmartModel):
                     phone=msg.contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=msg.contact.uuid,
                     contact_name=msg.contact.name,
-                    urn=unicode(msg.contact_urn),
+                    urn=six.text_type(msg.contact_urn),
                     text=msg.text,
                     time=json_time,
                     status=msg.status,
@@ -413,7 +415,7 @@ class WebHookEvent(SmartModel):
                     phone=call.contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=call.contact.uuid,
                     contact_name=call.contact.name,
-                    urn=unicode(call.contact_urn),
+                    urn=six.text_type(call.contact_urn),
                     duration=call.duration,
                     time=json_time)
         hook_event = WebHookEvent.objects.create(org=org,
@@ -464,9 +466,9 @@ class WebHookEvent(SmartModel):
         # create our post parameters
         post_data = json.loads(self.data)
         post_data['event'] = self.event
-        post_data['relayer'] = self.channel.pk
-        post_data['channel'] = self.channel.pk
-        post_data['relayer_phone'] = self.channel.address
+        post_data['relayer'] = self.channel.pk if self.channel else ''
+        post_data['channel'] = self.channel.pk if self.channel else ''
+        post_data['relayer_phone'] = self.channel.address if self.channel else ''
 
         # look up the endpoint for this channel
         result = dict(url=self.org.get_webhook_url(), data=urlencode(post_data, doseq=True))
@@ -535,12 +537,12 @@ class WebHookEvent(SmartModel):
                 except Exception as e:
                     # we were unable to make anything of the body, that's ok though because
                     # get a 200, so just save our error for posterity
-                    result['message'] = "Event delivered successfully, ignoring response body, not JSON: %s" % unicode(e)
+                    result['message'] = "Event delivered successfully, ignoring response body, not JSON: %s" % six.text_type(e)
 
         except Exception as e:
             # we had an error, log it
             self.status = ERRORED
-            result['message'] = "Error when delivering event - %s" % unicode(e)
+            result['message'] = "Error when delivering event - %s" % six.text_type(e)
 
         # if we had an error of some kind, schedule a retry for five minutes from now
         self.try_count += 1
@@ -556,7 +558,7 @@ class WebHookEvent(SmartModel):
 
         return result
 
-    def __unicode__(self):  # pragma: needs cover
+    def __str__(self):  # pragma: needs cover
         return "WebHookEvent[%s:%d] %s" % (self.event, self.pk, self.data)
 
 
@@ -614,6 +616,7 @@ class WebHookResult(SmartModel):
             old_event.delete()
 
 
+@six.python_2_unicode_compatible
 class APIToken(models.Model):
     """
     Our API token, ties in orgs
@@ -645,7 +648,7 @@ class APIToken(models.Model):
             role = cls.get_default_role(org, user)
 
         if not role:
-            raise ValueError("User '%s' has no suitable role for API usage" % unicode(user))
+            raise ValueError("User '%s' has no suitable role for API usage" % six.text_type(user))
         elif role.name not in cls.ROLE_GRANTED_TO:
             raise ValueError("Role %s is not valid for API usage" % role.name)
 
@@ -696,7 +699,7 @@ class APIToken(models.Model):
 
         if group:
             role_names = []
-            for role_name, granted_to in cls.ROLE_GRANTED_TO.iteritems():
+            for role_name, granted_to in six.iteritems(cls.ROLE_GRANTED_TO):
                 if group.name in granted_to:
                     role_names.append(role_name)
 
@@ -722,7 +725,7 @@ class APIToken(models.Model):
         self.is_active = False
         self.save()
 
-    def __unicode__(self):
+    def __str__(self):
         return self.key
 
 

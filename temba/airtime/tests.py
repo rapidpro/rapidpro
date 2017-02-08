@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 from django.core.urlresolvers import reverse
 from mock import patch
 from temba.airtime.models import AirtimeTransfer

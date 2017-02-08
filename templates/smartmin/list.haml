@@ -16,33 +16,33 @@
             %a.btn.btn-primary.pull-right{ href:"./create/" } Add
   {% block pjax %}
   #pjax
-    .row
+    .row-fluid
       .span12
         - block pre-table
 
         - block table
-          %table{ class:'{% get_list_class object_list %} list-table table table-striped', cellspacing:'0'}
-            %thead
-              %tr
-                - for field in fields
-                  %th{ class:'header-{{field}} {% if view|field_orderable:field %}header {% if field == order %}{% if order_asc %}headerSortUp{% else %}headerSortDown{% endif %}{% endif %}{% endif %}', id:'header-{{field}}' }
-                    {% get_label field %}
+          .scroll-x
+            %table{ class:'{% get_list_class object_list %} list-table table table-striped', cellspacing:'0'}
+              %thead
+                %tr
+                  - for field in fields
+                    %th{ class:'header-{{field}} {% if view|field_orderable:field %}header {% if field == order %}{% if order_asc %}headerSortUp{% else %}headerSortDown{% endif %}{% endif %}{% endif %}', id:'header-{{field}}' }
+                      {% get_label field %}
 
-              %tbody
-                - for obj in object_list
-                  %tr{ class:'{% cycle "row2" "row1" %} {% if not obj.is_active and obj|is_smartobject %}inactive{% endif %}'}
-                    -for field in fields
-                      %td{ class:'value-{{field}} {% get_class field obj %}{% if field in link_fields %} clickable{% endif %}'}
-                        - if field in link_fields
-                          <a {% if pjax %}data-pjax='{{ pjax }}'{% endif %} href="{% get_field_link field obj %}">
+                %tbody
+                  - for obj in object_list
+                    %tr{ class:'{% cycle "row2" "row1" %} {% if not obj.is_active and obj|is_smartobject %}inactive{% endif %}'}
+                      -for field in fields
+                        %td{ class:'value-{{field}} {% get_class field obj %}{% if field in link_fields %} clickable{% endif %}'}
+                          - if field in link_fields
+                            <a {% if pjax %}data-pjax='{{ pjax }}'{% endif %} href="{% get_field_link field obj %}">{% get_value obj field %}</a>
+                          - else
                             {% get_value obj field %}
-                        - else
-                          {% get_value obj field %}
 
-                - empty
-                  %tr.empty_list
-                    - for field in fields
-                      %td
+                  - empty
+                    %tr.empty_list
+                      - for field in fields
+                        %td
 
           - block extra-rows
 

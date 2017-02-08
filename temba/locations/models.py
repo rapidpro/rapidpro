@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import geojson
 import logging
+import six
 
 from django.contrib.gis.db import models
 from mptt.models import MPTTModel, TreeForeignKey
@@ -15,6 +16,7 @@ DISTRICT_LEVEL = 2
 WARD_LEVEL = 3
 
 
+@six.python_2_unicode_compatible
 class AdminBoundary(MPTTModel, models.Model):
     """
     Represents a single administrative boundary (like a country, state or district)
@@ -82,7 +84,7 @@ class AdminBoundary(MPTTModel, models.Model):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    def __unicode__(self):
+    def __str__(self):
         return "%s" % self.name
 
 

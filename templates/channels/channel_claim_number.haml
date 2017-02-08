@@ -26,13 +26,14 @@
           -block country-select
             %select#country{ name:"country" }
               - for country in search_countries
-                %option{ value:"={country.key}" }
+                %option{ value:"{{country.key}}" }
                   {{country.label}}
 
         .area-code
           .area-label
             -trans "Pattern"
-          %input#area-code{ type:"text", maxlength:"3", name:"area_code" }
+          -block search-pattern
+            %input#area-code{ type:"text", maxlength:"3", name:"area_code" }
           %input.btn.btn-primary{ type:"submit", value:"{% trans 'Search' %}" }
 
       .twilio-numbers-title
@@ -59,7 +60,7 @@
           .numbers-title
             Add an existing supported number to your account
           -for number in account_numbers
-            .{class:"{% if number.country in supported_country_iso_codes or number.number|length <= 6 %}phone-number{% else %}unsupported-phone-number{% endif %}", data-number:"={ number.number}", data-country:"={ number.country}" }
+            .{class:"{% if number.country in supported_country_iso_codes or number.number|length <= 6 %}phone-number{% else %}unsupported-phone-number{% endif %}", data-number:"{{ number.number}}", data-country:"{{ number.country}}" }
               %span.number
                 {{ number.number }}
               (<span class="country">{{ number.country }}</span>)
@@ -115,7 +116,7 @@
             $(".error").text(data['error']);
             $(".error").show();
           } else {
-            $(".error").text("{% trans 'Sorry, no numbers found, please enter another area code and try again.' %}");
+            $(".error").text("{% trans 'Sorry, no numbers found, please enter another pattern and try again.' %}");
             $(".error").show();
           }
         },
@@ -167,7 +168,7 @@
         }
 
         #area-code {
-          width: 50px;
+          width: 75px;
           margin-bottom: 0px;
           text-align: center;
           margin-right:15px;

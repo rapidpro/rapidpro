@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 
-from djcelery_transactions import task
+from celery.task import task
 from temba.utils.queues import nonoverlapping_task
 from .models import ExportContactsTask, ContactGroupCount
 
@@ -20,4 +20,4 @@ def squash_contactgroupcounts():
     """
     Squashes our ContactGroupCounts into single rows per ContactGroup
     """
-    ContactGroupCount.squash_counts()
+    ContactGroupCount.squash()

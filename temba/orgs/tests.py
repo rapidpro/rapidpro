@@ -1,7 +1,10 @@
 from __future__ import unicode_literals
 
 import json
+
+import nexmo
 import pytz
+import six
 
 from context_processors import GroupPermWrapper
 from datetime import timedelta
@@ -26,7 +29,6 @@ from temba.flows.models import Flow, ActionSet
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Label, Msg, INCOMING
-from temba.nexmo import NexmoValidationError
 from temba.orgs.models import UserSettings, NEXMO_SECRET, NEXMO_KEY
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
 from temba.triggers.models import Trigger
@@ -122,6 +124,13 @@ class OrgTest(TembaTest):
                                                             dict(code='US', name='United States',
                                                                  currency_name='US Dollar', currency_code='USD')])
 
+        Channel.create(self.org, self.user, 'US', 'A', None, "+12001113333", gcm_id="qwer", secret="qwer")
+
+        self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
+                                                                 currency_code='RWF'),
+                                                            dict(code='US', name='United States',
+                                                                 currency_name='US Dollar', currency_code='USD')])
+
     def test_edit(self):
         # use a manager now
         self.login(self.admin)
@@ -184,7 +193,7 @@ class OrgTest(TembaTest):
 
         # assert it has changed
         org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual("Rwanda", unicode(org.country))
+        self.assertEqual("Rwanda", six.text_type(org.country))
         self.assertEqual("RW", org.get_country_code())
 
         # set our admin boundary name to something invalid
@@ -301,7 +310,7 @@ class OrgTest(TembaTest):
         def postAPI(url, data):
             response = self.client.post(url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
             if response.content:
-                response.json = json.loads(response.content)
+                response.json = response.json()
             return response
 
         url = reverse('api.v1.broadcasts')
@@ -389,14 +398,27 @@ class OrgTest(TembaTest):
         response = self.client.get(update_url)
         self.assertEquals(200, response.status_code)
 
-        post_data = response.context['form'].initial
-        post_data['plan'] = 'TRIAL'
-        post_data['language'] = ''
-        post_data['country'] = ''
-        post_data['primary_language'] = ''
-        post_data['parent'] = ''
-
         # change to the trial plan
+        post_data = {
+            'name': 'Temba',
+            'brand': 'rapidpro.io',
+            'plan': 'TRIAL',
+            'language': '',
+            'country': '',
+            'primary_language': '',
+            'timezone': pytz.timezone("Africa/Kigali"),
+            'config': '{}',
+            'date_format': 'D',
+            'webhook': None,
+            'webhook_events': 0,
+            'parent': '',
+            'viewers': [self.user.id],
+            'editors': [self.editor.id],
+            'administrators': [self.admin.id],
+            'surveyors': [self.surveyor.id],
+            'surveyor_password': None
+        }
+
         response = self.client.post(update_url, post_data)
         self.assertEquals(302, response.status_code)
 
@@ -1374,7 +1396,7 @@ class OrgTest(TembaTest):
 
         # hit our list page used by select2, checking it lists our resthook
         response = self.client.get(reverse('api.resthook_list') + "?_format=select2")
-        results = json.loads(response.content)['results']
+        results = response.json()['results']
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0], dict(text='mother-registration', id='mother-registration'))
 
@@ -1387,7 +1409,108 @@ class OrgTest(TembaTest):
         response = self.client.get(resthook_url)
         self.assertFalse(response.context['current_resthooks'])
 
-    def test_connect_nexmo(self):
+    def test_smtp_server(self):
+        self.login(self.admin)
+
+        smtp_server_url = reverse('orgs.org_smtp_server')
+
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.has_smtp_config())
+
+        response = self.client.post(smtp_server_url, dict(disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "You must enter a from email", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foobar.com',
+                                                          disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "Please enter a valid email address", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
+                                                          disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "You must enter the SMTP host", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
+                                                          smtp_host='smtp.example.com',
+                                                          disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "You must enter the SMTP username", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
+                                                          smtp_host='smtp.example.com',
+                                                          smtp_username='support@example.com',
+                                                          disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "You must enter the SMTP password", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
+                                                          smtp_host='smtp.example.com',
+                                                          smtp_username='support@example.com',
+                                                          smtp_password='secret',
+                                                          disconnect='false'), follow=True)
+        self.assertEquals('[{"message": "You must enter the SMTP port", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='foo@bar.com',
+                                                          smtp_host='smtp.example.com',
+                                                          smtp_username='support@example.com',
+                                                          smtp_password='secret',
+                                                          smtp_port='465',
+                                                          smtp_encryption='',
+                                                          disconnect='false'), follow=True)
+
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.has_smtp_config())
+        self.assertEquals(self.org.config_json()['SMTP_FROM_EMAIL'], 'foo@bar.com')
+        self.assertEquals(self.org.config_json()['SMTP_HOST'], 'smtp.example.com')
+        self.assertEquals(self.org.config_json()['SMTP_USERNAME'], 'support@example.com')
+        self.assertEquals(self.org.config_json()['SMTP_PASSWORD'], 'secret')
+        self.assertEquals(self.org.config_json()['SMTP_PORT'], '465')
+        self.assertEquals(self.org.config_json()['SMTP_ENCRYPTION'], '')
+
+        response = self.client.get(smtp_server_url)
+        self.assertEquals('foo@bar.com', response.context['flow_from_email'])
+
+        self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
+                                               smtp_host='smtp.example.com',
+                                               smtp_username='support@example.com',
+                                               smtp_password='secret',
+                                               smtp_port='465',
+                                               smtp_encryption='T',
+                                               name="DO NOT CHANGE ME",
+                                               disconnect='false'), follow=True)
+
+        # name shouldn't change
+        self.org.refresh_from_db()
+        self.assertEquals(self.org.name, "Temba")
+        self.assertTrue(self.org.has_smtp_config())
+
+        self.client.post(smtp_server_url, dict(disconnect='true'), follow=True)
+
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.has_smtp_config())
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email=' support@example.com',
+                                                          smtp_host=' smtp.example.com  ',
+                                                          smtp_username=' support@example.com ',
+                                                          smtp_password='secret ',
+                                                          smtp_port='465 ',
+                                                          smtp_encryption='T',
+                                                          disconnect='false'), follow=True)
+
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.has_smtp_config())
+        self.assertEquals(self.org.config_json()['SMTP_FROM_EMAIL'], 'support@example.com')
+        self.assertEquals(self.org.config_json()['SMTP_HOST'], 'smtp.example.com')
+        self.assertEquals(self.org.config_json()['SMTP_USERNAME'], 'support@example.com')
+        self.assertEquals(self.org.config_json()['SMTP_PASSWORD'], 'secret')
+        self.assertEquals(self.org.config_json()['SMTP_PORT'], '465')
+        self.assertEquals(self.org.config_json()['SMTP_ENCRYPTION'], 'T')
+
+    @patch('nexmo.Client.create_application')
+    def test_connect_nexmo(self, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
         self.login(self.admin)
 
         # connect nexmo
@@ -1443,6 +1566,18 @@ class OrgTest(TembaTest):
                 self.org.refresh_from_db()
                 self.assertEquals(self.org.name, "Temba")
 
+                # should change nexmo config
+                with patch('nexmo.Client.get_balance') as mock_get_balance:
+                    mock_get_balance.return_value = 120
+                    self.client.post(nexmo_account_url, dict(api_key='other_key',
+                                                             api_secret='secret-too',
+                                                             disconnect='false'), follow=True)
+
+                    self.org.refresh_from_db()
+                    config = self.org.config_json()
+                    self.assertEquals('other_key', config[NEXMO_KEY])
+                    self.assertEquals('secret-too', config[NEXMO_SECRET])
+
                 self.assertTrue(self.org.is_connected_to_nexmo())
                 self.client.post(nexmo_account_url, dict(disconnect='true'), follow=True)
 
@@ -1455,7 +1590,10 @@ class OrgTest(TembaTest):
         self.assertFalse(self.org.config_json()['NEXMO_KEY'])
         self.assertFalse(self.org.config_json()['NEXMO_SECRET'])
 
-    def test_nexmo_configuration(self):
+    @patch('nexmo.Client.create_application')
+    def test_nexmo_configuration(self, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+
         self.login(self.admin)
 
         nexmo_configuration_url = reverse('orgs.org_nexmo_configuration')
@@ -1470,7 +1608,7 @@ class OrgTest(TembaTest):
 
         self.org.connect_nexmo('key', 'secret', self.admin)
 
-        with patch('temba.nexmo.NexmoClient.update_account') as mock_update_account:
+        with patch('temba.utils.nexmo.NexmoClient.update_account') as mock_update_account:
             # try automatic nexmo settings update
             mock_update_account.return_value = True
 
@@ -1480,8 +1618,8 @@ class OrgTest(TembaTest):
             response = self.client.get(nexmo_configuration_url, follow=True)
             self.assertEqual(response.request['PATH_INFO'], reverse('channels.channel_claim_nexmo'))
 
-        with patch('temba.nexmo.NexmoClient.update_account') as mock_update_account:
-            mock_update_account.side_effect = [NexmoValidationError, NexmoValidationError]
+        with patch('temba.utils.nexmo.NexmoClient.update_account') as mock_update_account:
+            mock_update_account.side_effect = [nexmo.Error, nexmo.Error]
 
             response = self.client.get(nexmo_configuration_url)
             self.assertEqual(response.status_code, 200)
@@ -1745,6 +1883,8 @@ class AnonOrgTest(TembaTest):
         self.org.save()
 
     def test_contacts(self):
+        from temba.contacts.models import ContactURN
+
         # are there real phone numbers on the contact list page?
         contact = self.create_contact(None, "+250788123123")
         self.login(self.admin)
@@ -1758,6 +1898,7 @@ class AnonOrgTest(TembaTest):
 
         # but the id is
         self.assertContains(response, masked)
+        self.assertContains(response, ContactURN.ANON_MASK_HTML)
 
         # can't search for it
         response = self.client.get(reverse('contacts.contact_list') + "?search=788")
@@ -2198,12 +2339,12 @@ class LanguageTest(TembaTest):
 
         # search languages
         response = self.client.get('%s?search=fre' % url)
-        results = json.loads(response.content)['results']
+        results = response.json()['results']
         self.assertEqual(len(results), 4)
 
         # initial should do a match on code only
         response = self.client.get('%s?initial=fre' % url)
-        results = json.loads(response.content)['results']
+        results = response.json()['results']
         self.assertEqual(len(results), 1)
 
     def test_language_codes(self):
@@ -2289,7 +2430,7 @@ class BulkExportTest(TembaTest):
         post_data = dict(flows=[parent.pk], campaigns=[])
         response = self.client.post(reverse('orgs.org_export'), post_data)
 
-        exported = json.loads(response.content)
+        exported = response.json()
 
         # shouldn't have any triggers
         self.assertFalse(exported['triggers'])
@@ -2304,8 +2445,8 @@ class BulkExportTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse('orgs.org_export'))
 
-        from BeautifulSoup import BeautifulSoup
-        soup = BeautifulSoup(response.content)
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(response.content, "html.parser")
         group = str(soup.findAll("div", {"class": "exportables bucket"})[0])
 
         self.assertIn('Parent Flow', group)
@@ -2326,11 +2467,11 @@ class BulkExportTest(TembaTest):
         self.login(self.admin)
         post_data = dict(flows=[flow.pk], campaigns=[])
         response = self.client.post(reverse('orgs.org_export'), post_data)
-        exported = json.loads(response.content)
+        exported = response.json()
 
         # try to import the flow
         flow.delete()
-        json.loads(response.content)
+        response.json()
         Flow.import_flows(exported, self.org, self.admin)
 
         # make sure the created flow has the same action set
@@ -2398,8 +2539,6 @@ class BulkExportTest(TembaTest):
             self.assertIsNone(Flow.objects.filter(org=self.org, name='New Mother').first())
 
     def test_import_campaign_with_translations(self):
-
-        # import all our bits
         self.import_file('campaign_import_with_translations')
 
         campaign = Campaign.objects.all().first()
@@ -2411,11 +2550,14 @@ class BulkExportTest(TembaTest):
 
         event_msg = json.loads(event.message)
 
-        self.assertEquals(event_msg['swa'], 'hello')
-        self.assertEquals(event_msg['eng'], 'Hey')
+        self.assertEqual(event_msg['swa'], 'hello')
+        self.assertEqual(event_msg['eng'], 'Hey')
 
-        self.assertEquals(action_msg['swa'], 'hello')
-        self.assertEquals(action_msg['eng'], 'Hey')
+        # base language for this flow is 'swa' despite our org languages being unset
+        self.assertEqual(event.flow.base_language, 'swa')
+
+        self.assertEqual(action_msg['swa'], 'hello')
+        self.assertEqual(action_msg['eng'], 'Hey')
 
     def test_export_import(self):
 
@@ -2452,7 +2594,7 @@ class BulkExportTest(TembaTest):
         trigger.flow = confirm_appointment
         trigger.save()
 
-        message_flow = Flow.objects.filter(flow_type='M').order_by('pk').first()
+        message_flow = Flow.objects.filter(flow_type='M', campaignevent__offset=-1).order_by('pk').first()
         action_set = message_flow.action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
         self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
@@ -2477,7 +2619,7 @@ class BulkExportTest(TembaTest):
         self.assertTrue(Flow.objects.filter(pk=message_flow.pk, is_active=False))
 
         # find our new message flow, and see that the original message is there
-        message_flow = Flow.objects.filter(flow_type='M', is_active=True).order_by('pk').first()
+        message_flow = Flow.objects.filter(flow_type='M', campaignevent__offset=-1, is_active=True).order_by('pk').first()
         action_set = Flow.objects.get(pk=message_flow.pk).action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
         self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
@@ -2504,7 +2646,7 @@ class BulkExportTest(TembaTest):
                          campaigns=[c.pk for c in Campaign.objects.all()])
 
         response = self.client.post(reverse('orgs.org_export'), post_data)
-        exported = json.loads(response.content)
+        exported = response.json()
         self.assertEquals(CURRENT_EXPORT_VERSION, exported.get('version', 0))
         self.assertEquals('https://app.rapidpro.io', exported.get('site', None))
 
@@ -2512,9 +2654,17 @@ class BulkExportTest(TembaTest):
         self.assertEquals(4, len(exported.get('triggers', [])))
         self.assertEquals(1, len(exported.get('campaigns', [])))
 
+        # set our org language to english
+        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
+
         # finally let's try importing our exported file
         self.org.import_app(exported, self.admin, site='http://app.rapidpro.io')
         assert_object_counts()
+
+        message_flow = Flow.objects.filter(flow_type='M', campaignevent__offset=-1, is_active=True).order_by('pk').first()
+
+        # make sure the base language is set to 'base', not 'eng'
+        self.assertEqual(message_flow.base_language, 'base')
 
         # let's rename a flow and import our export again
         flow = Flow.objects.get(name='Confirm Appointment')

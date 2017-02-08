@@ -3,8 +3,8 @@ from __future__ import unicode_literals
 from django import template
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
-from temba.contacts.models import Contact, ContactURN, EMAIL_SCHEME, EXTERNAL_SCHEME, FACEBOOK_SCHEME
-from temba.contacts.models import TELEGRAM_SCHEME, TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME
+from temba.contacts.models import ContactURN, EMAIL_SCHEME, EXTERNAL_SCHEME, FACEBOOK_SCHEME
+from temba.contacts.models import TELEGRAM_SCHEME, TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, LINE_SCHEME
 
 register = template.Library()
 
@@ -15,6 +15,7 @@ URN_SCHEME_ICONS = {
     EMAIL_SCHEME: 'icon-envelop',
     FACEBOOK_SCHEME: 'icon-facebook',
     TELEGRAM_SCHEME: 'icon-telegram',
+    LINE_SCHEME: 'icon-line',
     EXTERNAL_SCHEME: 'icon-channel-external'
 }
 
@@ -28,7 +29,10 @@ ACTIVITY_ICONS = {
     'Delivered': 'icon-bubble-check',
     'Call': 'icon-phone',
     'IVRCall': 'icon-phone',
-    'DTMF': 'icon-phone'
+    'DTMF': 'icon-phone',
+    'Expired': 'icon-clock',
+    'Interrupted': 'icon-warning',
+    'Completed': 'icon-checkmark'
 }
 
 
@@ -57,15 +61,35 @@ def name_or_urn(contact, org):
 
 
 @register.filter
-def format_urn(urn_or_contact, org):
-    if isinstance(urn_or_contact, ContactURN):
-        urn_val = urn_or_contact.get_display(org=org, international=True)
-        return urn_val if urn_val != ContactURN.ANON_MASK else '\u2022' * 8  # replace *'s with prettier HTML entity
-    elif isinstance(urn_or_contact, Contact):
-        # will render contact's highest priority URN
-        return urn_or_contact.get_urn_display(org=org, international=True)
-    else:  # pragma: no cover
-        raise ValueError('Must be a URN or contact')
+def name(contact, org):
+    if contact.name:
+        return contact.name
+    elif org.is_anon:
+        return contact.anon_identifier
+    else:
+        return "--"
+
+
+@register.filter
+def format_urn(urn, org):
+    urn_val = urn.get_display(org=org, international=True)
+    if urn_val == ContactURN.ANON_MASK:
+        return ContactURN.ANON_MASK_HTML
+    return urn_val
+
+
+@register.filter
+def urn(contact, org):
+    urn = contact.get_urn()
+    if urn:
+        return format_urn(urn, org)
+    else:
+        return ""
+
+
+@register.filter
+def format_contact(contact, org):
+    return contact.get_display(org=org)
 
 
 @register.filter
@@ -159,8 +183,31 @@ def activity_icon(item):
                     name = 'Failed'
                 elif item.status == 'D':
                     name = 'Delivered'
+    elif name == 'FlowRun':
+        if hasattr(item, 'run_event_type'):
+            if item.exit_type == 'C':
+                name = 'Completed'
+            elif item.exit_type == 'I':
+                name = 'Interrupted'
+            elif item.exit_type == 'E':
+                name = 'Expired'
 
     return mark_safe('<span class="glyph %s"></span>' % (ACTIVITY_ICONS.get(name, '')))
+
+
+@register.filter
+def history_class(item):
+    css = ''
+    from temba.msgs.models import Msg
+    if isinstance(item, Msg):
+        if item.media and item.media[:6] == 'video:':
+            css = '%s %s' % (css, 'video')
+        if item.direction or item.recipient_count:
+            css = '%s %s' % (css, 'msg')
+    else:
+        css = '%s %s' % (css, 'non-msg')
+
+    return css
 
 
 @register.filter

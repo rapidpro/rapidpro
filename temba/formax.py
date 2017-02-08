@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import time
 
@@ -51,4 +51,4 @@ class Formax(object):
                                       icon=icon, action=action, button=button, nobutton=nobutton, dependents=dependents))
 
         if settings.DEBUG:
-            print "%s took: %f" % (url, time.time() - start)
+            print("%s took: %f" % (url, time.time() - start))

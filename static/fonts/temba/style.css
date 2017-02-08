@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?6cn2vq');
-  src:  url('fonts/temba.eot?6cn2vq#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?6cn2vq') format('truetype'),
-    url('fonts/temba.woff?6cn2vq') format('woff'),
-    url('fonts/temba.svg?6cn2vq#temba') format('svg');
+  src:  url('fonts/temba.eot?qxr0h6');
+  src:  url('fonts/temba.eot?qxr0h6#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?qxr0h6') format('truetype'),
+    url('fonts/temba.woff?qxr0h6') format('woff'),
+    url('fonts/temba.svg?qxr0h6#temba') format('svg');
   font-weight: normal;
   font-style: normal;
 }
@@ -24,6 +24,41 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-file_download:before {
+  content: "\e901";
+}
+.icon-photo_camera:before {
+  content: "\e412";
+}
+.icon-photo:before {
+  content: "\e410";
+}
+.icon-pin_drop:before {
+  content: "\e55e";
+}
+.icon-public:before {
+  content: "\e80b";
+}
+.icon-videocam:before {
+  content: "\e06f";
+}
+.icon-language:before {
+  content: "\e602";
+}
+.icon-line .path1:before {
+  content: "\e905";
+  color: rgb(68, 68, 68);
+}
+.icon-line .path2:before {
+  content: "\e906";
+  margin-left: -1em;
+  color: rgb(255, 255, 255);
+}
+.icon-line .path3:before {
+  content: "\e907";
+  margin-left: -1em;
+  color: rgb(68, 68, 68);
+}
 .icon-viber:before {
   content: "\e904";
 }
@@ -747,34 +782,7 @@
 .icon-telegram:before {
   content: "\e900";
 }
-.icon-file_download:before {
-  content: "\e901";
-}
-.icon-photo_camera:before {
-  content: "\e412";
-}
-.icon-photo:before {
-  content: "\e410";
-}
-.icon-pin_drop:before {
-  content: "\e55e";
-}
-.icon-public:before {
-  content: "\e80b";
-}
-.icon-videocam:before {
-  content: "\e06f";
-}
-.icon-language:before {
-  content: "\e602";
-}
 .icon-facebook-official:before {
   content: "\e902";
-}
-.icon-line:before {
-  content: "\e905";
-}
-.icon-fcm:before {
-  content: "\e906";
 }
 

@@ -65,7 +65,7 @@
                       .glyph.icon-checkmark.success
                       -blocktrans with contacts_count=results.records
                         Added all contacts to the new
-                      %a{href:"{% url 'contacts.contact_filter' group.pk %}"}= group.name
+                      %a{href:"{% url 'contacts.contact_filter' group.uuid %}"}= group.name
                       group
 
                   - elif results.errors

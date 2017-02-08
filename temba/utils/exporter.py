@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import csv
+import six
 
 from django.core.files.temp import NamedTemporaryFile
 from openpyxl import Workbook
@@ -48,7 +49,7 @@ class TableExporter(object):
 
         row_cells = []
         for col, label in enumerate(self.columns):
-            row_cells.append(WriteOnlyCell(self.sheet, value=unicode(label)))
+            row_cells.append(WriteOnlyCell(self.sheet, value=six.text_type(label)))
         self.sheet.append(row_cells)
         self.sheet_row = 2
 
@@ -66,7 +67,7 @@ class TableExporter(object):
 
             row_cells = []
             for col, value in enumerate(values):
-                row_cells.append(WriteOnlyCell(self.sheet, value=unicode(value) if value is not None else ''))
+                row_cells.append(WriteOnlyCell(self.sheet, value=six.text_type(value) if value is not None else ''))
 
             self.sheet.append(row_cells)
             self.sheet_row += 1

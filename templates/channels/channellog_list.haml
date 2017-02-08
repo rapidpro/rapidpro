@@ -32,7 +32,11 @@
             %td{ style:'text-align: right', nowrap:'true' }= obj.created_on
           -else
             %td.clickable
-              %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.msg.contact|tel:user_org
+              %a{ href:'{% url "channels.channellog_read" obj.pk %}' }
+                -if obj.msg
+                  {{obj.msg.contact|tel:user_org}}
+                -elif obj.session
+                  {{obj.session.contact|tel:user_org}}
             %td.clickable
               %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.description
             %td{ style:'text-align: right', nowrap:'true' }= obj.created_on
