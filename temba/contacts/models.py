@@ -886,7 +886,7 @@ class Contact(TembaModel):
 
             # add all new URNs
             for raw, normalized in six.iteritems(urns_to_create):
-                urn = ContactURN.get_or_create(org, contact, normalized, channel=channel)
+                urn = ContactURN.get_or_create(org, contact, normalized, channel=channel, extra_path=extra_path)
                 urn_objects[raw] = urn
 
             # save which urns were updated

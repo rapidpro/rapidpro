@@ -3559,7 +3559,7 @@ class ContactFieldTest(TembaTest):
         blocking_export.is_finished = True
         blocking_export.save()
 
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(38):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
@@ -3583,7 +3583,7 @@ class ContactFieldTest(TembaTest):
         contact4 = self.create_contact('Stephen', '+12078778899', twitter='stephen')
         ContactURN.create(self.org, contact, 'tel:+12062233445')
 
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(38):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
