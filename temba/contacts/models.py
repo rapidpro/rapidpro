@@ -279,6 +279,7 @@ class URN(object):
     def from_fcm(cls, path):
         return cls.from_parts(FCM_SCHEME, path)
 
+
 @six.python_2_unicode_compatible
 class ContactField(SmartModel):
     """
