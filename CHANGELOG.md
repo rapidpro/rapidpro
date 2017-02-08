@@ -1,3 +1,8 @@
+v3.0.46
+----------
+ * Fix Contact.search so it doesn't evaluate the base_query
+ * Enable searching in groups and blocked/stopped contacts
+
 v3.0.45
 ----------
  * Fix absolute positioning for account creation form
