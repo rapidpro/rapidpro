@@ -4,7 +4,7 @@ from django import template
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import ContactURN, EMAIL_SCHEME, EXTERNAL_SCHEME, FACEBOOK_SCHEME
-from temba.contacts.models import TELEGRAM_SCHEME, TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME
+from temba.contacts.models import TELEGRAM_SCHEME, TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, LINE_SCHEME
 
 register = template.Library()
 
@@ -15,6 +15,7 @@ URN_SCHEME_ICONS = {
     EMAIL_SCHEME: 'icon-envelop',
     FACEBOOK_SCHEME: 'icon-facebook',
     TELEGRAM_SCHEME: 'icon-telegram',
+    LINE_SCHEME: 'icon-line',
     EXTERNAL_SCHEME: 'icon-channel-external'
 }
 
@@ -60,11 +61,30 @@ def name_or_urn(contact, org):
 
 
 @register.filter
+def name(contact, org):
+    if contact.name:
+        return contact.name
+    elif org.is_anon:
+        return contact.anon_identifier
+    else:
+        return "--"
+
+
+@register.filter
 def format_urn(urn, org):
     urn_val = urn.get_display(org=org, international=True)
     if urn_val == ContactURN.ANON_MASK:
-        return '\u2022' * 8  # replace *'s with prettier HTML entity
+        return ContactURN.ANON_MASK_HTML
     return urn_val
+
+
+@register.filter
+def urn(contact, org):
+    urn = contact.get_urn()
+    if urn:
+        return format_urn(urn, org)
+    else:
+        return ""
 
 
 @register.filter

@@ -16,7 +16,7 @@ from datetime import timedelta
 from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
 from django.core.validators import URLValidator
-from django.db import models, connection
+from django.db import models
 from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
 from django.conf import settings
@@ -30,17 +30,16 @@ from django_redis import get_redis_connection
 from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from smartmin.models import SmartModel
-from temba.nexmo import NexmoClient
-from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID
-from temba.utils.email import send_template_email
+from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID, NEXMO_APP_ID
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit
+from temba.utils.email import send_template_email
+from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
+from temba.utils.nexmo import NexmoClient, NCCOResponse
+from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from time import sleep
-
-from twilio import TwilioRestException
+from twilio import twiml, TwilioRestException
 from twilio.rest import TwilioRestClient
 from twython import Twython
-from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
-from temba.utils.models import TembaModel, generate_uuid
 from urllib import quote_plus
 from xml.sax.saxutils import quoteattr, escape
 
@@ -227,6 +226,10 @@ class Channel(TembaModel):
 
     # list of all USSD channels
     USSD_CHANNELS = [TYPE_VUMI_USSD]
+
+    TWIML_CHANNELS = [TYPE_TWILIO, TYPE_VERBOICE, TYPE_TWIML]
+
+    NCCO_CHANNELS = [TYPE_NEXMO]
 
     GET_STARTED = 'get_started'
     VIBER_NO_SERVICE_ID = 'no_service_id'
@@ -446,7 +449,9 @@ class Channel(TembaModel):
     @classmethod
     def add_nexmo_channel(cls, org, user, country, phone_number):
         client = org.get_nexmo_client()
-        org_uuid = org.config_json().get(NEXMO_UUID)
+        org_config = org.config_json()
+        org_uuid = org_config.get(NEXMO_UUID)
+        app_id = org_config.get(NEXMO_APP_ID)
 
         nexmo_phones = client.get_numbers(phone_number)
         is_shortcode = False
@@ -463,8 +468,8 @@ class Channel(TembaModel):
         # buy the number if we have to
         if not nexmo_phones:
             try:
-                client.buy_number(country, phone_number)
-            except Exception as e:  # pragma: no cover
+                client.buy_nexmo_number(country, phone_number)
+            except Exception as e:
                 raise Exception(_("There was a problem claiming that number, "
                                   "please check the balance on your account. " +
                                   "Note that you can only claim numbers after "
@@ -472,10 +477,21 @@ class Channel(TembaModel):
 
         mo_path = reverse('handlers.nexmo_handler', args=['receive', org_uuid])
 
+        channel_uuid = generate_uuid()
+
+        nexmo_phones = client.get_numbers(phone_number)
+        features = [elt.upper() for elt in nexmo_phones[0]['features']]
+        role = ''
+        if 'SMS' in features:
+            role += Channel.ROLE_SEND + Channel.ROLE_RECEIVE
+
+        if 'VOICE' in features:
+            role += Channel.ROLE_ANSWER + Channel.ROLE_CALL
+
         # update the delivery URLs for it
         from temba.settings import TEMBA_HOST
         try:
-            client.update_number(country, phone_number, 'http://%s%s' % (TEMBA_HOST, mo_path))
+            client.update_nexmo_number(country, phone_number, 'https://%s%s' % (TEMBA_HOST, mo_path), app_id)
 
         except Exception as e:  # pragma: no cover
             # shortcodes don't seem to claim right on nexmo, move forward anyways
@@ -493,7 +509,8 @@ class Channel(TembaModel):
             # nexmo ships numbers around as E164 without the leading +
             nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
 
-        return Channel.create(org, user, country, Channel.TYPE_NEXMO, name=phone, address=phone_number, bod=nexmo_phone_number)
+        return Channel.create(org, user, country, Channel.TYPE_NEXMO, name=phone, address=phone_number, role=role,
+                              bod=nexmo_phone_number, uuid=channel_uuid)
 
     @classmethod
     def add_twilio_channel(cls, org, user, phone_number, country, role):
@@ -786,6 +803,12 @@ class Channel(TembaModel):
     def is_delegate_caller(self):
         return self.parent and Channel.ROLE_CALL in self.role
 
+    def generate_ivr_response(self):
+        if self.channel_type in Channel.TWIML_CHANNELS:
+            return twiml.Response()
+        if self.channel_type in Channel.NCCO_CHANNELS:
+            return NCCOResponse()
+
     def get_ivr_client(self):
         if self.channel_type == Channel.TYPE_TWILIO:
             return self.org.get_twilio_client()
@@ -793,7 +816,8 @@ class Channel(TembaModel):
             return self.get_twiml_client()
         if self.channel_type == Channel.TYPE_VERBOICE:  # pragma: no cover
             return self.org.get_verboice_client()
-        return None  # pragma: no cover
+        elif self.channel_type == Channel.TYPE_NEXMO:
+            return self.org.get_nexmo_client()
 
     def get_twiml_client(self):
         from temba.ivr.clients import TwilioClient
@@ -2027,16 +2051,17 @@ class Channel(TembaModel):
     @classmethod
     def send_nexmo_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
-        from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET
+        from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
 
-        client = NexmoClient(channel.org_config[NEXMO_KEY], channel.org_config[NEXMO_SECRET])
+        client = NexmoClient(channel.org_config[NEXMO_KEY], channel.org_config[NEXMO_SECRET],
+                             channel.org_config[NEXMO_APP_ID], channel.org_config[NEXMO_APP_PRIVATE_KEY])
         start = time.time()
 
         attempts = 0
         response = None
         while not response:
             try:
-                (message_id, response) = client.send_message(channel.address, msg.urn_path, text)
+                (message_id, response) = client.send_message_via_nexmo(channel.address, msg.urn_path, text)
             except SendException as e:
                 match = regex.match(r'.*Throughput Rate Exceeded - please wait \[ (\d+) \] and retry.*', e.response)
 
@@ -2980,13 +3005,13 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
 
 
 @six.python_2_unicode_compatible
-class ChannelCount(models.Model):
+class ChannelCount(SquashableModel):
     """
     This model is maintained by Postgres triggers and maintains the daily counts of messages and ivr interactions
     on each day. This allows for fast visualizations of activity on the channel read page as well as summaries
     of message usage over the course of time.
     """
-    LAST_SQUASH_KEY = 'last_channelcount_squash'
+    SQUASH_OVER = ('channel_id', 'count_type', 'day')
 
     INCOMING_MSG_TYPE = 'IM'  # Incoming message
     OUTGOING_MSG_TYPE = 'OM'  # Outgoing message
@@ -3018,31 +3043,29 @@ class ChannelCount(models.Model):
         return count['count_sum'] if count['count_sum'] is not None else 0
 
     @classmethod
-    def squash_counts(cls):
-        # get the id of the last count we squashed
-        r = get_redis_connection()
-        last_squash = r.get(ChannelCount.LAST_SQUASH_KEY)
-        if not last_squash:
-            last_squash = 0
+    def get_squash_query(cls, distinct_set):
+        if distinct_set.day:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "channel_id" = %%s AND "count_type" = %%s AND "day" = %%s RETURNING "count"
+            )
+            INSERT INTO %(table)s("channel_id", "count_type", "day", "count", "is_squashed")
+            VALUES (%%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {'table': cls._meta.db_table}
 
-        # get the unique ids for all new ones
-        start = time.time()
-        squash_count = 0
-        for count in ChannelCount.objects.filter(id__gt=last_squash).order_by('channel_id', 'count_type', 'day')\
-                                                                    .distinct('channel_id', 'count_type', 'day'):
+            params = (distinct_set.channel_id, distinct_set.count_type, distinct_set.day) * 2
+        else:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "channel_id" = %%s AND "count_type" = %%s AND "day" IS NULL RETURNING "count"
+            )
+            INSERT INTO %(table)s("channel_id", "count_type", "day", "count", "is_squashed")
+            VALUES (%%s, %%s, NULL, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {'table': cls._meta.db_table}
 
-            # perform our atomic squash in SQL by calling our squash method
-            with connection.cursor() as c:
-                c.execute("SELECT temba_squash_channelcount(%s, %s, %s);", (count.channel_id, count.count_type, count.day))
+            params = (distinct_set.channel_id, distinct_set.count_type) * 2
 
-            squash_count += 1
-
-        # insert our new top squashed id
-        max_id = ChannelCount.objects.all().order_by('-id').first()
-        if max_id:
-            r.set(ChannelCount.LAST_SQUASH_KEY, max_id.id)
-
-        print("Squashed channel counts for %d pairs in %0.3fs" % (squash_count, time.time() - start))
+        return sql, params
 
     def __str__(self):  # pragma: no cover
         return "ChannelCount(%d) %s %s count: %d" % (self.channel_id, self.count_type, self.day, self.count)
@@ -3143,8 +3166,12 @@ class SendException(Exception):
 class ChannelLog(models.Model):
     channel = models.ForeignKey(Channel, related_name='logs',
                                 help_text=_("The channel the message was sent on"))
-    msg = models.ForeignKey('msgs.Msg', related_name='channel_logs',
+    msg = models.ForeignKey('msgs.Msg', related_name='channel_logs', null=True,
                             help_text=_("The message that was sent"))
+
+    session = models.ForeignKey('channels.ChannelSession', related_name='channel_logs', null=True,
+                                help_text=_("The channel session for this log"))
+
     description = models.CharField(max_length=255,
                                    help_text=_("A description of the status of this message send"))
     is_error = models.BooleanField(default=None,
@@ -3191,6 +3218,17 @@ class ChannelLog(models.Model):
         ChannelLog.objects.create(channel_id=msg.channel,
                                   msg_id=msg.id,
                                   is_error=True,
+                                  description=description[:255])
+
+    @classmethod
+    def log_ivr_interaction(cls, call, description, request, response, url, method, is_error=False):
+        ChannelLog.objects.create(channel_id=call.channel_id,
+                                  session_id=call.id,
+                                  request=request,
+                                  response=response,
+                                  url=url,
+                                  method=method,
+                                  is_error=is_error,
                                   description=description[:255])
 
 
@@ -3508,51 +3546,5 @@ class ChannelSession(SmartModel):
     def is_done(self):
         return self.status in self.DONE
 
-    def update_status(self, status, duration):
-        """
-        Updates our status from a twilio status string
-        """
-        from temba.flows.models import ActionLog, FlowRun
-        if status == 'queued':
-            self.status = self.QUEUED
-        elif status == 'ringing':
-            self.status = self.RINGING
-        elif status == 'no-answer':
-            self.status = self.NO_ANSWER
-        elif status == 'in-progress':
-            if self.status != self.IN_PROGRESS:
-                self.started_on = timezone.now()
-            self.status = self.IN_PROGRESS
-        elif status == 'completed':
-            if self.contact.is_test:
-                run = FlowRun.objects.filter(session=self)
-                if run:
-                    ActionLog.create(run[0], _("Call ended."))
-            self.status = self.COMPLETED
-        elif status == 'busy':
-            self.status = self.BUSY
-        elif status == 'failed':
-            self.status = self.FAILED
-        elif status == 'canceled':
-            self.status = self.CANCELED
-
-        # if we are done, mark our ended time
-        if self.status in ChannelSession.DONE:
-            self.ended_on = timezone.now()
-
-        if duration:
-            self.duration = duration
-
-    def get_duration(self):
-        """
-        Either gets the set duration as reported by twilio, or tries to calculate
-        it from the approximate time it was started
-        """
-        duration = self.duration
-        if not duration and self.status == 'I' and self.started_on:
-            duration = (timezone.now() - self.started_on).seconds
-
-        if not duration:
-            duration = 0
-
-        return duration
+    def is_ivr(self):
+        return self.session_type == self.IVR

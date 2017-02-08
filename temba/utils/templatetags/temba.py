@@ -89,5 +89,6 @@ class LessBlockNode(template.Node):
         style_output = '<style type="text/less" media="all">\n%s\n%s</style>' % (includes, output)
         return style_output
 
+
 # register our tag
 lessblock = register.tag(lessblock)

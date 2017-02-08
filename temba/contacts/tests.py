@@ -1717,6 +1717,9 @@ class ContactTest(TembaTest):
         self.assertContains(response, "Joe and Frank")
         self.assertEquals(response.context['actions'], ('label', 'block'))
 
+        # make sure Joe's preferred URN is in the list
+        self.assertContains(response, "blow80")
+
         # this just_joe group has one contact and joe_and_frank group has two contacts
         self.assertEquals(len(self.just_joe.contacts.all()), 1)
         self.assertEquals(len(self.joe_and_frank.contacts.all()), 2)
@@ -2086,6 +2089,13 @@ class ContactTest(TembaTest):
         self.joe.refresh_from_db()
         self.assertEqual(self.joe.name, "Joe X")
         self.assertEqual({u.urn for u in self.joe.urns.all()}, {"tel:+250781111111", "ext:EXT123"})  # urns unaffected
+
+        # remove all of joe's URNs
+        ContactURN.objects.filter(contact=self.joe).update(contact=None)
+        response = self.client.get(list_url)
+
+        # no more URN listed
+        self.assertNotContains(response, "blow80")
 
         # try delete action
         call = ChannelEvent.create(self.channel, self.frank.get_urn(TEL_SCHEME).urn, ChannelEvent.TYPE_CALL_OUT_MISSED,

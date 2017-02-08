@@ -686,8 +686,14 @@ a.logo {
 
 .search-details {
   float: left;
-  margin-top: 10px;
   width: 650px;
+  padding-top:20px;
+  margin-bottom:-10px;
+}
+
+
+.list-container {
+  .scroll-x();
 }
 
 table.list-table {
@@ -757,7 +763,7 @@ table.list-table {
   top: 38px;
   text-align: right;
   right: 20px;
-  padding-right: 50px;
+  padding-right: 37px;
 
   // Main menu ring buttons
   li {
@@ -1166,7 +1172,8 @@ table.list-table {
 
   position: absolute;
   top: 110px;
-  right: 50px;
+  right: 30px;
+  display: none;
   text-align: center;
   float: right;
   color: #fff;
@@ -1224,7 +1231,7 @@ a.org-choose {
   z-index: 1039;
   position: absolute;
   top: -7px;
-  right: 50px;
+  right: 30px;
   text-align: center;
   float: right;
   background: rgba(0, 0, 0, .15);
@@ -1594,8 +1601,9 @@ input[type='text'].search-query {
 
 #sidebar-nav {
   border: 1px solid #e6e6e6;
-
   .nav.nav-list {
+    .scroll-y();
+    height: 450px;
     li {
       a {
         font-size: 13px;
@@ -2473,6 +2481,10 @@ input[type='radio'] {
           }
         }
 
+        &.field_name {
+          white-space: nowrap;
+        }
+
         &.value-text {
           width: 75%;
 
@@ -2530,6 +2542,7 @@ input[type='radio'] {
 
   .list-buttons-container {
     height: 35px;
+    visibility: hidden;
 
     .list-buttons {
 
@@ -3007,7 +3020,6 @@ span.label a {
   transition: transform 400ms;
   -webkit-transition: -webkit-transform 400ms;
 }
-
 
 // *****************************************************
 // NOTE NOTE NOTE NOTE!!

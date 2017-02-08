@@ -835,7 +835,6 @@ class ContactCRUDL(SmartCRUDL):
 
     class List(ContactActionMixin, ContactListView):
         title = _("Contacts")
-        refresh = 30000
         system_group = ContactGroup.TYPE_ALL
 
         def get_gear_links(self):

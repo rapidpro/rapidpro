@@ -124,12 +124,12 @@ function recheckIds() {
             $(".object-row[data-object-id='" + lastChecked[i] + "']").addClass('checked');
         }
         $(".search-details").hide();
-        $(".list-buttons").show();
+        $(".list-buttons-container").addClass('visible');
         updateLabelMenu();
     }
     else {
         $(".search-details").show();
-        $(".list-buttons").hide();
+        $(".list-buttons-container").removeClass('visible');
     }
 }
 
@@ -193,27 +193,26 @@ function updateLabelMenu(){
 }
 
 $(document)
-    .on('click',
-	'td.object-row-checkbox',
-	function(e){
-	    e.stopPropagation();
-	    e.preventDefault();
-	    
-	    $(".list-buttons").show();
-	    
-	    var row = $(this).parent('tr');
-	    if (row.hasClass("checked")){
-		row.removeClass("checked");
-		var checks = $(".object-row.checked");
-		       if (checks.length == 0){
-			   $('.list-buttons').hide();
-		       }
-	    } else {
-		row.addClass("checked");
-	    }
-	    updateLabelMenu();
-	    return false;
-	});
+    .on('click', 'td.object-row-checkbox',
+        function (e) {
+            e.stopPropagation();
+            e.preventDefault();
+
+            $(".list-buttons-container").addClass('visible');
+
+            var row = $(this).parent('tr');
+            if (row.hasClass("checked")) {
+                row.removeClass("checked");
+                var checks = $(".object-row.checked");
+                if (checks.length == 0) {
+                    $('.list-buttons-container').removeClass('visible');
+                }
+            } else {
+                row.addClass("checked");
+            }
+            updateLabelMenu();
+            return false;
+        });
 
 $(document).ready(function() {
     $(".page-content").on('click', ".object-btn-label", function() {
