@@ -12,6 +12,9 @@
     %span{ng-if:'config.type == "reply"'}
       %span{auto-complete:"",sms:"action.msg",data-message:"message"}
       %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
+    %span{ng-if:'config.type == "mms"'}
+      %span{auto-complete:"",sms:"action.msg",data-message:"message"}
+      %button{ng-click:'saveMessage(message, "mms")',class:"submit hide"}
     %span{ng-if:'config.type == "say"'}
       %span{show-counter:"false",auto-complete:"",sms:"action.msg",data-message:"message"}
       %button{ng-click:'saveMessage(message, "say")',class:"submit hide"}

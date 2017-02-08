@@ -153,7 +153,7 @@ app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
       if currentLanguage
         iso_code = currentLanguage.iso_code
 
-      if action.type in ['send', 'reply', 'say']
+      if action.type in ['send', 'reply', 'say', 'mms']
         action._translation = action.msg[iso_code]
 
         # translated recording for IVR
@@ -161,6 +161,11 @@ app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
           action._translation_recording = action.recording[iso_code]
           if action._translation_recording
             action._translation_recording = window.mediaURL + action._translation_recording
+
+        if action.media
+          action._translation_media = action.media[iso_code]
+          if action._translation_media
+            action._translation_media = window.mediaURL + action._translation_media
 
         if action._translation is undefined
           action._translation = action.msg[baseLanguage]
