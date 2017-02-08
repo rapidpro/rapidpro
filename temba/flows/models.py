@@ -4666,6 +4666,7 @@ class Action(object):
             cls.__action_mapping = {
                 ReplyAction.TYPE: ReplyAction,
                 SendAction.TYPE: SendAction,
+                SendMediaAction.TYPE: SendMediaAction,
                 AddToGroupAction.TYPE: AddToGroupAction,
                 DeleteFromGroupAction.TYPE: DeleteFromGroupAction,
                 AddLabelAction.TYPE: AddLabelAction,
@@ -5114,6 +5115,61 @@ class PlayAction(Action):
             # no message, possibly failed loop detection
             run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
             return []
+
+
+class SendMediaAction(Action):
+    """
+    Action to send MMS message
+    """
+    TYPE = 'mms'
+    MESSAGE = 'msg'
+    MEDIA = 'media'
+    UUID = 'uuid'
+
+    def __init__(self, uuid, msg, media):
+        self.uuid = uuid
+        self.msg = msg
+        self.media = media
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        return SendMediaAction(json_obj.get(SendMediaAction.UUID),
+                               json_obj.get(SendMediaAction.MESSAGE),
+                               json_obj.get(SendMediaAction.MEDIA))
+
+    def as_json(self):
+        return dict(type=SendMediaAction.TYPE, uuid=self.uuid, msg=self.msg, media=self.media)
+
+    def execute(self, run, actionset_uuid, event, offline_on=None):
+        reply = None
+
+        if self.msg or self.media:
+            user = get_flow_user()
+            text = run.flow.get_localized_text(self.msg, run.contact)
+
+            context = run.flow.build_message_context(run.contact, event)
+
+            media = None
+            if self.media:
+
+                # localize our media attachment
+                attachment = run.flow.get_localized_text(self.media, run.contact)
+
+                # if we have a localized media, create the url
+                if attachment:  # pragma: needs cover
+                    media = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, attachment)
+
+            try:
+                if event:
+                    reply = event.reply(text, user, trigger_send=False, message_context=context, session=run.session,
+                                        media=media)
+                else:
+                    reply = run.contact.send(text, user, trigger_send=False, message_context=context,
+                                             session=run.session, media=media)
+            except UnreachableException:
+                pass
+
+        return [reply] if reply else []
 
 
 class ReplyAction(Action):
