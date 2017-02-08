@@ -951,7 +951,7 @@ class Contact(TembaModel):
         """
         from temba.contacts import search
 
-        if not base_queryset:
+        if base_queryset is None:
             base_queryset = Contact.objects.filter(org=org, is_active=True, is_test=False, is_blocked=False, is_stopped=False)
 
         return search.contact_search(org, query, base_queryset)
