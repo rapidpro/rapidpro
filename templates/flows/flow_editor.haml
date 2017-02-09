@@ -45,6 +45,7 @@
     window.simulateURL = '{% url "flows.flow_simulate" object.pk %}';
     window.activityURL = '{% url "flows.flow_activity" object.pk %}';
     window.uploadURL = '{% url "flows.flow_upload_action_recording" object.pk %}';
+    window.uploadMediaURL = '{% url "flows.flow_upload_media_action" object.pk %}';
     window.mutable = {{mutable|lower}};
     window.ivr = '{{object.flow_type}}' == 'V';
     window.ussd = '{{object.flow_type}}' == 'U';

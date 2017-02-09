@@ -346,7 +346,8 @@ class PartialTemplate(SmartTemplateView):  # pragma: no cover
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'simulate', 'export_results',
                'upload_action_recording', 'read', 'editor', 'results', 'run_table', 'json', 'broadcast', 'activity',
-               'activity_chart', 'filter', 'campaign', 'completion', 'revisions', 'recent_messages')
+               'activity_chart', 'filter', 'campaign', 'completion', 'revisions', 'recent_messages',
+               'upload_media_action')
 
     model = Flow
 
@@ -626,6 +627,18 @@ class FlowCRUDL(SmartCRUDL):
         def save_recording_upload(self, file, actionset_id, action_uuid):  # pragma: needs cover
             flow = self.get_object()
             return default_storage.save('recordings/%d/%d/steps/%s.wav' % (flow.org.pk, flow.id, action_uuid), file)
+
+    class UploadMediaAction(OrgPermsMixin, SmartUpdateView):
+        def post(self, request, *args, **kwargs):
+            path = self.save_media_upload(self.request.FILES['file'], self.request.POST.get('actionset'),
+                                          self.request.POST.get('action'))
+            return JsonResponse(dict(path=path))
+
+        def save_media_upload(self, file, actionset_id, action_uuid):
+            flow = self.get_object()
+            extension = file.name.split('.')[-1]
+            return default_storage.save('attachments/%d/%d/steps/%s.%s' % (flow.org.pk, flow.id, action_uuid, extension),
+                                        file)
 
     class BaseList(FlowActionMixin, OrgQuerysetMixin, OrgPermsMixin, SmartListView):
         title = _("Flows")

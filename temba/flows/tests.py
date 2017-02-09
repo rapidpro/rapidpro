@@ -152,6 +152,27 @@ class FlowTest(TembaTest):
             for run_elt in runs:
                 flow2.get_results(contact=run_elt.contact, run=run_elt)
 
+    def test_upload_media_action(self):
+        upload_media_action_url = reverse('flows.flow_upload_media_action', args=[self.flow.pk])
+
+        def assert_media_upload(filename, action_uuid, expected_path):
+            with open(filename, 'rb') as data:
+                post_data = dict(file=data, action=action_uuid, actionset='some-uuid',
+                                 HTTP_X_FORWARDED_HTTPS='https')
+                response = self.client.post(upload_media_action_url, post_data)
+
+                self.assertEqual(response.status_code, 200)
+                path = response.json().get('path', None)
+                self.assertEquals(path, expected_path)
+
+        self.login(self.admin)
+
+        assert_media_upload('%s/test_media/steve.marten.jpg' % settings.MEDIA_ROOT, 'action-uuid-1',
+                            "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, 'action-uuid-1', '.jpg'))
+
+        assert_media_upload('%s/test_media/snow.mp4' % settings.MEDIA_ROOT, 'action-uuid-2',
+                            "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, 'action-uuid-2', '.mp4'))
+
     def test_revision_history(self):
 
         # every save should result in a new flow version
