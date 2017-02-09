@@ -22,8 +22,8 @@
             width: 100%;
             float:left;
             position:absolute;
-            left: 5px;
-            top: 70px;
+            left: 32px;
+            top: 240px;
 
             input[type=text], input[type=password], input[type=email] {
               font-size:18px;
@@ -174,11 +174,11 @@
 
       $.History.bind('page-two',function(state){
         $("#form-one").animate({'left':'-400', 'opacity':0}, { queue:false, complete:function(){}});
-        $("#form-two").css('left', 400).show().animate({'left':'0', 'opacity':1}, { queue:false, complete:function(){}}).find('#id_name').focus();
+        $("#form-two").css('left', 400).show().animate({'left':'32', 'opacity':1}, { queue:false, complete:function(){}}).find('#id_name').focus();
       });
 
       $.History.bind('',function(state){
-        $("#form-one").animate({'left':'0', 'opacity':1}, { queue:false, complete:function(){}}).find('#id_first_name').focus();
+        $("#form-one").animate({'left':'32', 'opacity':1}, { queue:false, complete:function(){}}).find('#id_first_name').focus();
         $("#form-two").show().animate({'left':'400', 'opacity':0}, { queue:false, complete:function(){ $(this).css('left', 1000)}});
       });
 

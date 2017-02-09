@@ -1,3 +1,14 @@
+v3.0.46
+----------
+ * Fix Contact.search so it doesn't evaluate the base_query
+ * Enable searching in groups and blocked/stopped contacts
+
+v3.0.45
+----------
+ * Fix absolute positioning for account creation form
+ * Add Line channel icon in fonts
+ * Add data migrations to update org config to connect to Nexmo
+
 v3.0.43
 ----------
  * Add Malawi as a country for Africa's Talking
