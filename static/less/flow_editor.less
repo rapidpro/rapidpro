@@ -697,7 +697,7 @@
     }
   }
 
-  .say {
+  .say, .mms {
 
     .drop-overlay {
       height: 100%;
@@ -715,7 +715,7 @@
         width: 158px;
         text-align: center;
         margin: auto;
-        padding-top: 10px;
+        padding-top: 12px;
         line-height: 15px;
       }
     }
@@ -725,7 +725,7 @@
       .bg-gradient(@color-say, @color-say - #101010);
     }
 
-    .play-button {
+    .play-button, .viewer-button {
       font-size:22px;
       position: absolute;
       right: 5px;
@@ -734,6 +734,10 @@
       &:hover {
         color: @flat-blue
       }
+    }
+
+    .viewer-button {
+      font-size: 12px;
     }
 
     .uploading {

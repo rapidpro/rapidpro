@@ -330,7 +330,7 @@
                     class:'[[action.type]]', ng-class:'{ disabled:!action._translation, missing: action._missingTranslation }'}
               .drop-overlay.hide
                 %p
-                  Drop to upload new sound file
+                  Drop to upload new file
 
               .title.action-name{ ng-model: 'action' }
 
@@ -375,6 +375,16 @@
 
                   .missing{ng-hide:'action._translation'}
                     -trans "Click here to add a message"
+
+                  %span.mms{ng-show:'action.type=="mms"'}
+
+                    .upload-button.icon-upload{ng-hide:'action._translation_media || action.uploading', ng-file-select:'onFileSelect($files, action_set, action);', ng-click:'$event.stopPropagation();' }
+
+                    .viewer-button.icon-attachment{ng-show:'action._translation_media'}
+
+                    .uploading{ng-show:'action.uploading'}
+                      %img.throbber{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
+                      .cancel.icon-cancel-circle{ng-click:"upload.abort(); action.uploading=false; action.dirty=true; $event.stopPropagation();"}
 
                   %span.recording{ng-show:'action.type=="say"'}
 

@@ -178,17 +178,17 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     scope = @
     # enforce just one file
     if $files.length > 1
-      showDialog("Too Many Files", "To upload a sound file, please drag and drop one file for each step.")
+      showDialog("Too Many Files", "To upload a file, please drag and drop one file for each step.")
       return
 
     # make sure its an audio file
     file = $files[0]
-    if file.type != 'audio/wav' and file.type != 'audio/x-wav'
+    if action.type == 'say' and file.type != 'audio/wav' and file.type != 'audio/x-wav'
       showDialog('Wrong File Type', 'Audio files need to in the WAV format. Please choose a WAV file and try again.')
       return
 
     # if we have a recording already, confirm they want to replace it
-    if action._translation_recording
+    if action.type == 'say' and action._translation_recording
       modal = showDialog('Overwrite Recording', 'This step already has a recording, would you like to replace this recording with ' + file.name + '?', 'Overwrite Recording', false)
       modal.result.then (value) ->
         if value == 'ok'
@@ -196,9 +196,30 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           scope.onFileSelect($files, actionset, action)
       return
 
+    # if we have an attachement already, confirm they want to replace it
+    if action.type == 'mms' and action._translation_media
+      modal = showDialog('Overwrite Attachment', 'This step already has a recording, would you like to replace this attachment with ' + file.name + '?', 'Overwrite Attachemnt', false)
+      modal.result.then (value) ->
+        if value == 'ok'
+          action._translation_media = null
+          scope.onFileSelect($files, actionset, action)
+      return
+
+
     action.uploading = true
+
+    uploadURL = null
+    if action.type == 'say'
+      uploadURL = window.uploadURL
+
+    if action.type == 'mms'
+      uploadURL = window.uploadMediaURL
+
+    if not uploadURL
+      return
+
     $scope.upload = $upload.upload
-      url: window.uploadURL
+      url: uploadURL
       data:
         actionset: actionset.uuid
         action: action.uuid
@@ -207,9 +228,15 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       $log.debug("percent: " + parseInt(100.0 * evt.loaded / evt.total))
       return
     .success (data, status, headers, config) ->
-      if not action.recording
-        action.recording = {}
-      action.recording[Flow.language.iso_code] = data['path']
+      if action.type == 'say'
+        if not action.recording
+          action.recording = {}
+        action.recording[Flow.language.iso_code] = data['path']
+
+      if action.type == 'mms'
+        if not action.media
+          action.media = {}
+        action.media[Flow.language.iso_code] = data['path']
 
       # make sure our translation state is updated
       action.uploading = false
