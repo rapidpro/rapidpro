@@ -14,6 +14,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
+from temba.channels.models import ChannelLog
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow
 from temba.ivr.models import IVRCall
@@ -52,7 +53,14 @@ class NexmoClient(NexmoCli):
             conversation_uuid = response.get('conversation_uuid')
             call.external_id = six.text_type(conversation_uuid)
             call.save()
+
+            ChannelLog.log_ivr_interaction(call, "Successfully initiated Nexmo call", json.dumps(params),
+                                           six.text_type(response), 'https://api.nexmo.com/v1/calls', 'POST')
+
         except nexmo.Error as e:
+            ChannelLog.log_ivr_interaction(call, "Failed initiating Nexmo call", json.dumps(params),
+                                           six.text_type(e.message), 'https://api.nexmo.com/v1/calls', 'POST')
+
             raise IVRException(_("Nexmo call failed, with error %s") % e.message)
 
     def download_media(self, media_url):
