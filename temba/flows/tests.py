@@ -6492,6 +6492,44 @@ class TimeoutTest(FlowFileTest):
         current_step = run.steps.order_by('-id').first()
         self.assertEqual(current_step.step_uuid, start_step.step_uuid)
 
+    def test_timeout_race(self):
+        # start one flow
+        flow1 = self.get_flow('timeout')
+        flow1.start([], [self.contact])
+        run1 = FlowRun.objects.get(flow=flow1, contact=self.contact)
+
+        # start another flow
+        flow2 = self.get_flow('multi_timeout')
+        flow2.start([], [self.contact])
+
+        # reactivate our first run (not usually possible to have both active)
+        run1.is_active = True
+        run1.save()
+
+        # remove our timeout rule on our second flow
+        flow_json = flow2.as_json()
+        del flow_json['rule_sets'][0]['rules'][-1]
+        flow2.update(flow_json)
+
+        # mark our last message as sent
+        last_msg = run1.get_last_msg(OUTGOING)
+        last_msg.sent_on = timezone.now() - timedelta(minutes=5)
+        last_msg.save()
+
+        time.sleep(.5)
+
+        # ok, change our timeout to the past
+        timeout = timezone.now()
+        run1.timeout_on = timezone.now()
+        run1.save(update_fields=['timeout_on'])
+
+        # process our timeout
+        run1.resume_after_timeout(timeout)
+
+        # should have cleared the timeout, run2 is the active one now
+        run1.refresh_from_db()
+        self.assertIsNone(run1.timeout_on)
+
     def test_timeout_loop(self):
         from temba.flows.tasks import check_flow_timeouts_task
         from temba.msgs.tasks import process_run_timeout
