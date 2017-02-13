@@ -343,6 +343,11 @@ class IVRTests(FlowFileTest):
         with self.assertRaises(IVRException):
             nexmo_client.start_call(call, '+13603621737', self.channel.address, None)
 
+        # check that our channel logs are there
+        response = self.client.get(reverse("channels.channellog_session", args=[call.id]))
+        self.assertContains(response, "lasted 0:00:15")
+        self.assertContains(response, "https://api.nexmo.com/v1/calls")
+
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)

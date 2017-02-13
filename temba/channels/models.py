@@ -2953,6 +2953,9 @@ class Channel(TembaModel):
     def get_success_log_count(self):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE])
 
+    def get_non_ivr_count(self):
+        return self.get_log_count() - self.get_ivr_count()
+
     class Meta:
         ordering = ('-last_seen', '-pk')
 
