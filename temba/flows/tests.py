@@ -6472,7 +6472,7 @@ class TimeoutTest(FlowFileTest):
         last_msg.sent_on = timezone.now() - timedelta(minutes=5)
         last_msg.save()
 
-        time.sleep(.5)
+        time.sleep(1)
 
         # ok, change our timeout to the past
         timeout = timezone.now()
@@ -6491,6 +6491,13 @@ class TimeoutTest(FlowFileTest):
         self.assertIsNone(run.timeout_on)
         current_step = run.steps.order_by('-id').first()
         self.assertEqual(current_step.step_uuid, start_step.step_uuid)
+
+        # check that we can't be double queued by manually moving our timeout back
+        with patch('temba.utils.queues.push_task') as mock_push:
+            FlowRun.objects.all().update(timeout_on=timeout)
+            check_flow_timeouts_task()
+
+            self.assertEqual(0, mock_push.call_count)
 
     def test_timeout_race(self):
         # start one flow
@@ -6594,6 +6601,7 @@ class TimeoutTest(FlowFileTest):
 
         # nothing should have changed as we haven't yet sent our msg
         self.assertTrue(run.is_active)
+        time.sleep(1)
 
         # ok, mark our message as sent, but only two minutes ago
         last_msg = run.get_last_msg(OUTGOING)
@@ -6610,6 +6618,8 @@ class TimeoutTest(FlowFileTest):
         # ok, finally mark our message sent a while ago
         last_msg.sent_on = timezone.now() - timedelta(minutes=10)
         last_msg.save()
+
+        time.sleep(1)
         FlowRun.objects.all().update(timeout_on=timezone.now())
         check_flow_timeouts_task()
         run.refresh_from_db()
@@ -6669,7 +6679,7 @@ class TimeoutTest(FlowFileTest):
         self.assertTrue(run.is_active)
         self.assertTrue(timezone.now() - timedelta(minutes=1) < run.timeout_on > timezone.now() + timedelta(minutes=4))
 
-        time.sleep(.5)
+        time.sleep(1)
 
         # ok, change our timeout to the past
         FlowRun.objects.all().update(timeout_on=timezone.now())

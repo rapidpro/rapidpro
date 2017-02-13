@@ -2823,7 +2823,7 @@ class Channel(TembaModel):
 
         if sent_today or sent_yesterday:
             Msg.mark_sent(r, msg, WIRED, -1)
-            print("!! [%d] prevented duplicate send" % (msg.id))
+            print("!! [%d] prevented duplicate send" % msg.id)
             return
 
         # channel can be none in the case where the channel has been removed
