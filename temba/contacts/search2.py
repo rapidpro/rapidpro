@@ -9,7 +9,6 @@ import six
 from collections import OrderedDict
 from datetime import timedelta
 from decimal import Decimal
-from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from functools import reduce
 from ply import yacc
@@ -167,18 +166,81 @@ class Condition(QueryNode):
         prop_obj = prop_map[self.prop]
 
         if isinstance(prop_obj, ContactField):
-            value_query = self.get_value_query(prop_obj)
+            # empty string equality means contacts without that field set
+            if self.comparator.lower() in ('=', 'is') and self.value == "":
+                return ~Q(id__in=Value.objects.filter(contact__field=prop_obj).values('contact_id'))
+            else:
+                value_query = self.build_value_query(prop_obj)
 
-            return Q(id__in=Value.objects.filter(**value_query).values('contact_id'))
+                return Q(id__in=Value.objects.filter(**value_query).values('contact_id'))
         else:
             # TODO if not a field?
             raise ValueError("TODO")
 
-    def get_value_query(self, field):
-        # TODO different value types, lookups
+    def build_value_query(self, field):
+        if field.value_type == Value.TYPE_TEXT:
+            return self._build_text_field_query(field)
+        elif field.value_type == Value.TYPE_DECIMAL:
+            return self._build_decimal_field_comparison(field)
+        elif field.value_type == Value.TYPE_DATETIME:
+            return self._build_datetime_field_comparison(field)
+        elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
+            return self._build_location_field_comparison(field)
+        else:  # pragma: no cover
+            raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
 
-        lookup = 'iexact'
+    def _build_text_field_query(self, field):
+        lookup = TEXT_LOOKUP_ALIASES.get(self.comparator)
+        if not lookup:
+            raise SearchException("Unsupported comparator %s for text field" % self.comparator)
+
         return {'contact_field': field, 'string_value__%s' % lookup: self.value}
+
+    def _build_decimal_field_query(self, field):
+        lookup = DECIMAL_LOOKUP_ALIASES.get(self.comparator)
+        if not lookup:
+            raise SearchException("Unsupported comparator %s for decimal field" % self.comparator)
+
+        try:
+            value = Decimal(self.value)
+        except Exception:
+            raise SearchException("Can't convert '%s' to a decimal" % self.value)
+
+        return {'contact_field': field, 'decimal_value__%s' % lookup: value}
+
+    def _build_datetime_field_query(self, org, field):
+        lookup = DATETIME_LOOKUP_ALIASES.get(self.comparator)
+        if not lookup:
+            raise SearchException("Unsupported comparator %s for datetime field" % self.comparator)
+
+        # parse as localized date and then convert to UTC
+        local_date = str_to_datetime(self.value, org.timezone, org.get_dayfirst(), fill_time=False)
+        if not local_date:
+            raise SearchException("Unable to parse date: %s" % self.value)
+
+        value = local_date.astimezone(pytz.utc)
+
+        if lookup == '<equal>':
+            # check if datetime is between date and date + 1d, i.e. anytime in that 24 hour period
+            return {'contact_field__id': field.id,
+                    'datetime_value__gte': value, 'datetime_value__lt': value + timedelta(days=1)}
+        elif lookup == 'lte':
+            # check if datetime is less then date + 1d, i.e. that day and all previous
+            return {'contact_field__id': field.id, 'datetime_value__lt': value + timedelta(days=1)}
+        elif lookup == 'gt':
+            # check if datetime is greater than or equal to date + 1d, i.e. day after and subsequent
+            return {'contact_field__id': field.id, 'datetime_value__gte': value + timedelta(days=1)}
+        else:
+            return {'contact_field__id': field.id, 'datetime_value__%s' % lookup: value}
+
+    def _build_location_field_query(self, field):
+        lookup = LOCATION_LOOKUP_ALIASES.get(self.comparator)
+        if not lookup:
+            raise SearchException("Unsupported comparator %s for location field" % self.comparator)
+
+        locations = AdminBoundary.objects.filter(**{'name__%s' % lookup: self.value}).values('id')
+
+        return {'contact_field': field, 'values__location_value__in': locations}
 
     def __str__(self):
         return '%s%s%s' % (self.prop, self.comparator, self.value)
