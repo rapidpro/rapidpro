@@ -76,7 +76,7 @@ phonenumbers
 Pillow==3.4.2
 pisa==3.0.33
 plivo==0.10.1
-ply==3.4
+ply==3.10
 prettytable==0.7.2
 psycopg2==2.5.2
 pyasn1==0.1.9
