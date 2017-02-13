@@ -3232,6 +3232,21 @@ class ChannelLog(models.Model):
                                   response_status=status_code,
                                   description=description[:255])
 
+    def get_request_formatted(self):
+        try:
+            return json.dumps(json.loads(self.request), indent=2)
+        except:
+            return self.response
+
+    def get_response_formatted(self):
+        if not self.response:
+            return "No Response"
+
+        try:
+            return json.dumps(json.loads(self.response), indent=2)
+        except:
+            return self.response
+
 
 class SyncEvent(SmartModel):
     channel = models.ForeignKey(Channel, verbose_name=_("Channel"),
@@ -3543,6 +3558,12 @@ class ChannelSession(SmartModel):
                                     help_text="What sort of session this is")
     duration = models.IntegerField(default=0, null=True,
                                    help_text="The length of this session in seconds")
+
+    def get_logs(self):
+        return self.channel_logs.all().order_by('created_on')
+
+    def get_duration(self):
+        return timedelta(seconds=self.duration)
 
     def is_done(self):
         return self.status in self.DONE

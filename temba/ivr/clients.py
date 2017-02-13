@@ -60,7 +60,7 @@ class NexmoClient(NexmoCli):
                 status = 200
 
             ChannelLog.log_ivr_interaction(call, "Started Nexmo call %s" % call.external_id, json.dumps(params),
-                                           six.text_type(response), 'https://api.nexmo.com/v1/calls', 'POST',
+                                           json.dumps(response), 'https://api.nexmo.com/v1/calls', 'POST',
                                            status_code=status)
 
         except nexmo.Error as e:

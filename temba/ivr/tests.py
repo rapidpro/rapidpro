@@ -266,7 +266,7 @@ class IVRTests(FlowFileTest):
         response = self.client.get("%s?has_event=1" % callback_url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, "")
+        self.assertEqual(response.content, '{"message": "Updated call status", "call": {"duration": 0, "status": "Ringing"}}')
 
         with patch('temba.utils.nexmo.NexmoClient.download_recording') as mock_download_recording:
             mock_download_recording.return_value = MockResponse(200, "SOUND_BITS",
@@ -276,7 +276,7 @@ class IVRTests(FlowFileTest):
             response = self.client.post(callback_url, content_type='application/json',
                                         data=json.dumps(dict(recording_url='http://example.com/allo.wav')))
             self.assertContains(response, 'Saved media for call 12345')
-            self.assertEqual(ChannelLog.objects.all().count(), 3)
+            self.assertEqual(ChannelLog.objects.all().count(), 4)
             channel_log = ChannelLog.objects.last()
             self.assertEqual(channel_log.session.id, call.id)
             self.assertEqual(channel_log.description, "Saved media for call 12345")
@@ -285,7 +285,7 @@ class IVRTests(FlowFileTest):
             self.client.post("%s?save_media=1" % callback_url, content_type='application/json',
                              data=json.dumps(dict(status='answered', duration=2, dtmf='')))
 
-            self.assertEqual(ChannelLog.objects.all().count(), 4)
+            self.assertEqual(ChannelLog.objects.all().count(), 5)
             channel_log = ChannelLog.objects.last()
             self.assertEqual(channel_log.session.id, call.id)
             self.assertEqual(channel_log.description, "Response for call 12345")
@@ -294,7 +294,7 @@ class IVRTests(FlowFileTest):
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), content_type='application/json',
                          data=json.dumps({"status": "completed", "duration": "15"}))
 
-        self.assertEqual(ChannelLog.objects.all().count(), 5)
+        self.assertEqual(ChannelLog.objects.all().count(), 6)
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.session.id, call.id)
         self.assertEqual(channel_log.description, "Updated call 12345 status to Complete")
