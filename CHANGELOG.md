@@ -1,3 +1,8 @@
+v3.0.47
+----------
+ * Add channel log for Nexmo call initiation
+ * Fix import-geojson management command
+
 v3.0.46
 ----------
  * Fix Contact.search so it doesn't evaluate the base_query
