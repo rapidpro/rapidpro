@@ -115,8 +115,8 @@ class CallHandler(View):
                         saved_media_url = client.download_media(media_url)
                         cache.delete('last_call:media_url:%d' % call.pk)
                     else:
-                        response_msg = 'media URL saved'
-                        ChannelLog.log_ivr_interaction(call, "Saved media URL", request_body, six.text_type(response_msg),
+                        response_msg = 'Saved media for call %s' % call.external_id
+                        ChannelLog.log_ivr_interaction(call, response_msg, request_body, six.text_type(response_msg),
                                                        request_path, request_method)
                         return HttpResponse(six.text_type(response_msg))
 
@@ -125,11 +125,11 @@ class CallHandler(View):
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup, resume=resume)
                     if channel_type in Channel.NCCO_CHANNELS:
 
-                        ChannelLog.log_ivr_interaction(call, "Returned response", request_body, six.text_type(response),
+                        ChannelLog.log_ivr_interaction(call, "Response for call %s" % call.external_id, request_body, six.text_type(response),
                                                        request_path, request_method)
                         return JsonResponse(json.loads(six.text_type(response)), safe=False)
 
-                    ChannelLog.log_ivr_interaction(call, "Returned response", request_body, six.text_type(response),
+                    ChannelLog.log_ivr_interaction(call, "Response for call %s" % call.external_id, request_body, six.text_type(response),
                                                    request_path, request_method)
                     return HttpResponse(six.text_type(response))
             else:
@@ -141,13 +141,15 @@ class CallHandler(View):
 
                 response = dict(message="Updated call status",
                                 call=dict(status=call.get_status_display(), duration=call.duration))
-                ChannelLog.log_ivr_interaction(call, "Updated call status: %s" % call.get_status_display(),
+                ChannelLog.log_ivr_interaction(call, "Updated call %s status to %s" % (call.external_id, call.get_status_display()),
                                                request_body, json.dumps(response), request_path, request_method)
                 return JsonResponse(response)
 
         else:  # pragma: no cover
 
             error_message = "Invalid request signature"
+            if call.external_id:
+                error_message = '%s for call %s' % (error_message, call.external_id)
             ChannelLog.log_ivr_interaction(call, error_message, request_body, error_message,
                                            request_path, request_method, is_error=True)
             # raise an exception that things weren't properly signed

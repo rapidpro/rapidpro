@@ -3221,7 +3221,7 @@ class ChannelLog(models.Model):
                                   description=description[:255])
 
     @classmethod
-    def log_ivr_interaction(cls, call, description, request, response, url, method, is_error=False):
+    def log_ivr_interaction(cls, call, description, request, response, url, method, is_error=False, status_code=None):
         ChannelLog.objects.create(channel_id=call.channel_id,
                                   session_id=call.id,
                                   request=request,
@@ -3229,6 +3229,7 @@ class ChannelLog(models.Model):
                                   url=url,
                                   method=method,
                                   is_error=is_error,
+                                  response_status=status_code,
                                   description=description[:255])
 
 
