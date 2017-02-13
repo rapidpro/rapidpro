@@ -107,7 +107,11 @@ class CallHandler(View):
 
                 has_event = '1' == request.GET.get('has_event', '0')
                 if has_event:
-                    return HttpResponse(six.text_type(''))
+                    response = dict(message="Updated call status",
+                                    call=dict(status=call.get_status_display(), duration=call.duration))
+                    ChannelLog.log_ivr_interaction(call, "Updated call %s status to %s" % (call.external_id, call.get_status_display()),
+                                                   request_body, json.dumps(response), request_path, request_method, status_code=200)
+                    return JsonResponse(response)
 
                 save_media = '1' == request.GET.get('save_media', '0')
                 if media_url:

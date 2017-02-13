@@ -133,7 +133,7 @@ class IVRCall(ChannelSession):
                 self.status = self.CANCELED
 
         elif channel_type in Channel.NCCO_CHANNELS:
-            if status == 'ringing':
+            if status in ('ringing', 'started'):
                 self.status = self.RINGING
             elif status == 'answered':
                 self.status = self.IN_PROGRESS

@@ -47,7 +47,6 @@ class NexmoClient(NexmoCli):
         params['from'] = dict(type='phone', number=from_.strip('+'))
         params['event_url'] = ["%s?has_event=1" % url]
         params['event_method'] = "POST"
-        print('Starting nexmo call')
 
         try:
             response = self.create_call(params=params)
