@@ -85,6 +85,7 @@
       %script{src:"{{ STATIC_URL }}bower/video.js/dist/video.js"}
       %script{src:"{{ STATIC_URL }}bower/videojs-vjsdownload/dist/videojs-vjsdownload.js"}
       %script{src:"{{ STATIC_URL }}bower/xregexp/xregexp-all.js"}
+      %script{src:"{{ STATIC_URL }}bower/sticky-kit/jquery.sticky-kit.js"}
 
 
       // Non-bower packages
@@ -139,17 +140,27 @@
 
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
-        %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/style.less', media:'all'}
-        %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/formax.less', media:'all'}
         %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/print.less', media:'print'}
 
-        // custom branding
+      -compress css
+
+        {% lessblock %}
+          :plain
+            @import "formax.less";
+            @import "style.less";
+
+            // any brand styling tweaks
+            @import (optional, reference) "../brands/style.less";
+            @import (optional) "../brands/{{brand.slug}}/less/style.less";
+
+        {% endlessblock %}
+
+        // any additional brand styling such as fonts, etc
         -for style in brand.styles
           -if 'less' in style
             %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}{{style}}', media:'all'}
           -else
             %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}{{style}}", media:'all'}
-
 
       -block extra-less
       -block extra-style
@@ -160,7 +171,7 @@
 
 -load smartmin
 {% block body %}
-%body#pageBody{style:'width:100%'}
+%body#pageBody
   <!-- Header -->
   #print-header
     %span.logo.icon-logo
@@ -196,10 +207,10 @@
   -block post-header
   <!-- Content -->
   -block page-container
-    #page-container.container
-      .divPanel.page-content
+    #page-container.container-fluid
+      .page-content
         -block page-top
-          .row
+          .row-fluid
             .span9
               -block title
                 -block title-icon

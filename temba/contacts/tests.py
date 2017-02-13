@@ -873,11 +873,12 @@ class ContactTest(TembaTest):
             self.assertEqual("Wolfeschlegelstei...", mr_long_name.get_display(short=True))
             self.assertEqual("Billy Nophone", self.billy.get_display())
 
-            self.assertEqual(self.joe.anon_identifier, self.joe.get_urn_display(org=self.org, formatted=False))
-            self.assertEqual(self.joe.anon_identifier, self.joe.get_urn_display())
-            self.assertEqual(self.voldemort.anon_identifier, self.voldemort.get_urn_display())
-            self.assertEqual(mr_long_name.anon_identifier, mr_long_name.get_urn_display())
-            self.assertEqual(self.billy.anon_identifier, self.billy.get_urn_display())
+            self.assertEqual(ContactURN.ANON_MASK, self.joe.get_urn_display(org=self.org, formatted=False))
+            self.assertEqual(ContactURN.ANON_MASK, self.joe.get_urn_display())
+            self.assertEqual(ContactURN.ANON_MASK, self.voldemort.get_urn_display())
+            self.assertEqual(ContactURN.ANON_MASK, mr_long_name.get_urn_display())
+            self.assertEqual('', self.billy.get_urn_display())
+            self.assertEqual('', self.billy.get_urn_display(scheme=TEL_SCHEME))
 
             self.assertEqual("Joe Blow", six.text_type(self.joe))
             self.assertEqual("%010d" % self.voldemort.pk, six.text_type(self.voldemort))
@@ -1247,7 +1248,7 @@ class ContactTest(TembaTest):
                                contact_urn=self.joe.urns.all().first())
 
         # fetch our contact history
-        with self.assertNumQueries(64):
+        with self.assertNumQueries(65):
             response = self.fetch_protected(url, self.admin)
 
         # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -1699,22 +1700,23 @@ class ContactTest(TembaTest):
         self.assertEquals(group_analytic_json['name'], "Joe and Frank")
         self.assertEquals(2, group_analytic_json['count'])
 
-        # list contacts as a user not in the organization
+        # try to list contacts as a user not in the organization
         self.login(self.user1)
         response = self.client.get(list_url)
         self.assertEquals(302, response.status_code)
 
-        self.viewer = self.create_user("Viewer")
-        self.org.viewers.add(self.viewer)
-        self.viewer.set_org(self.org)
-
-        self.login(self.viewer)
+        # login as an org viewer
+        self.login(self.user)
 
         response = self.client.get(list_url)
         self.assertContains(response, "Joe Blow")
         self.assertContains(response, "Frank Smith")
+        self.assertContains(response, "Billy Nophone")
         self.assertContains(response, "Joe and Frank")
         self.assertEquals(response.context['actions'], ('label', 'block'))
+
+        # make sure Joe's preferred URN is in the list
+        self.assertContains(response, "blow80")
 
         # this just_joe group has one contact and joe_and_frank group has two contacts
         self.assertEquals(len(self.just_joe.contacts.all()), 1)
@@ -1740,10 +1742,8 @@ class ContactTest(TembaTest):
         # list the contacts as a manager of the organization
         self.login(self.admin)
         response = self.client.get(list_url)
-        self.assertContains(response, "Joe Blow")
-        self.assertContains(response, "Frank Smith")
-        self.assertContains(response, "Joe and Frank")
-        self.assertEquals(response.context['actions'], ('label', 'block'))
+        self.assertEqual(list(response.context['object_list']), [self.voldemort, self.billy, self.frank, self.joe])
+        self.assertEqual(response.context['actions'], ('label', 'block'))
 
         # this just_joe group has one contact and joe_and_frank group has two contacts
         self.assertEquals(len(self.just_joe.contacts.all()), 1)
@@ -1828,7 +1828,7 @@ class ContactTest(TembaTest):
         self.client.post(joe_and_frank_filter_url, post_data)
         self.assertEquals(self.joe.user_groups.filter(is_active=True).count(), 2)
 
-        # Now archive Joe
+        # Now block Joe
         post_data = dict()
         post_data['action'] = 'block'
         post_data['objects'] = self.joe.id
@@ -1850,14 +1850,14 @@ class ContactTest(TembaTest):
 
         response = self.client.get(stopped_url)
         self.assertEquals(1, len(response.context['object_list']))
-        self.assertEquals(1, response.context['object_list'].count())  # from cache
+        self.assertEquals(1, response.context['object_list'].count())  # from ContactGroupCount
 
         # receiving an incoming message removes us from stopped
         Msg.create_incoming(self.channel, str(self.frank.get_urn('tel')), "Incoming message")
 
         response = self.client.get(stopped_url)
         self.assertEquals(0, len(response.context['object_list']))
-        self.assertEquals(0, response.context['object_list'].count())  # from cache
+        self.assertEquals(0, response.context['object_list'].count())  # from ContactGroupCount
 
         self.frank.refresh_from_db()
         self.assertFalse(self.frank.is_stopped)
@@ -1873,7 +1873,7 @@ class ContactTest(TembaTest):
 
         response = self.client.get(stopped_url)
         self.assertEquals(0, len(response.context['object_list']))
-        self.assertEquals(0, response.context['object_list'].count())  # from cache
+        self.assertEquals(0, response.context['object_list'].count())  # from ContactGroupCount
 
         self.frank.refresh_from_db()
         self.assertFalse(self.frank.is_stopped)
@@ -1881,14 +1881,20 @@ class ContactTest(TembaTest):
         # add him back to joe and frank
         self.joe_and_frank.contacts.add(self.frank)
 
-        # Now let's visit the archived contacts page
+        # Now let's visit the blocked contacts page
         blocked_url = reverse('contacts.contact_blocked')
 
-        # archived contact are not on the list page
-        post_data = dict()
-        post_data['action'] = 'unblock'
-        post_data['objects'] = self.joe.id
-        self.client.post(blocked_url, post_data, follow=True)
+        self.billy.block(self.admin)
+
+        response = self.client.get(blocked_url)
+        self.assertEqual(list(response.context['object_list']), [self.billy, self.joe])
+
+        # can search blocked contacts from this page
+        response = self.client.get(blocked_url + '?search=Joe')
+        self.assertEqual(list(response.context['object_list']), [self.joe])
+
+        # can unblock contacts from this page
+        self.client.post(blocked_url, {'action': 'unblock', 'objects': self.joe.id}, follow=True)
 
         # and check that Joe is restored to the contact list but the group not restored
         response = self.client.get(list_url)
@@ -2085,6 +2091,13 @@ class ContactTest(TembaTest):
         self.joe.refresh_from_db()
         self.assertEqual(self.joe.name, "Joe X")
         self.assertEqual({u.urn for u in self.joe.urns.all()}, {"tel:+250781111111", "ext:EXT123"})  # urns unaffected
+
+        # remove all of joe's URNs
+        ContactURN.objects.filter(contact=self.joe).update(contact=None)
+        response = self.client.get(list_url)
+
+        # no more URN listed
+        self.assertNotContains(response, "blow80")
 
         # try delete action
         call = ChannelEvent.create(self.channel, self.frank.get_urn(TEL_SCHEME).urn, ChannelEvent.TYPE_CALL_OUT_MISSED,

@@ -14,12 +14,11 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models, transaction, connection
+from django.db import models, transaction
 from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
-from django_redis import get_redis_connection
 from smartmin.models import SmartModel
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
@@ -30,7 +29,7 @@ from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_l
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.email import send_template_email
 from temba.utils.expressions import evaluate_template
-from temba.utils.models import TembaModel
+from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from uuid import uuid4
 from .handler import MessageHandler
@@ -677,6 +676,9 @@ class Msg(models.Model):
     media = models.URLField(null=True, blank=True, max_length=255,
                             help_text=_("The media associated with this message if any"))
 
+    session = models.ForeignKey('channels.ChannelSession', null=True,
+                                help_text=_("The session this message was a part of if any"))
+
     @classmethod
     def send_messages(cls, all_msgs):
         """
@@ -1025,9 +1027,9 @@ class Msg(models.Model):
     def is_media_type_image(self):
         return Msg.MEDIA_IMAGE == self.get_media_type()
 
-    def reply(self, text, user, trigger_send=False, message_context=None):
+    def reply(self, text, user, trigger_send=False, message_context=None, session=None):
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None)
+                                 response_to=self if self.id else None, session=session)
 
     def update(self, cmd):
         """
@@ -1156,7 +1158,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
-                        status=PENDING, media=None, msg_type=None, topup=None, external_id=None):
+                        status=PENDING, media=None, msg_type=None, topup=None, external_id=None, session=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
         if not org and channel:
@@ -1213,7 +1215,8 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         media=media,
                         status=status,
-                        external_id=external_id)
+                        external_id=external_id,
+                        session=session)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
@@ -1284,7 +1287,7 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
-                        media=None, topup_id=None, msg_type=INBOX):
+                        media=None, topup_id=None, msg_type=INBOX, session=None):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
@@ -1385,6 +1388,7 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         priority=priority,
                         media=media,
+                        session=session,
                         has_template_error=len(errors) > 0)
 
         if topup_id is not None:
@@ -1562,10 +1566,12 @@ STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,
              'who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
-class SystemLabel(models.Model):
+class SystemLabel(SquashableModel):
     """
     Counts of messages/broadcasts/calls maintained by database level triggers
     """
+    SQUASH_OVER = ('org_id', 'label_type')
+
     TYPE_INBOX = 'I'
     TYPE_FLOWS = 'W'
     TYPE_ARCHIVED = 'A'
@@ -1574,8 +1580,6 @@ class SystemLabel(models.Model):
     TYPE_FAILED = 'X'
     TYPE_SCHEDULED = 'E'
     TYPE_CALLS = 'C'
-
-    LAST_SQUASH_KEY = 'last_systemlabel_squash'
 
     TYPE_CHOICES = ((TYPE_INBOX, "Inbox"),
                     (TYPE_FLOWS, "Flows"),
@@ -1593,29 +1597,16 @@ class SystemLabel(models.Model):
     count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
 
     @classmethod
-    def squash_counts(cls):
-        # get the id of the last count we squashed
-        r = get_redis_connection()
-        last_squash = r.get(SystemLabel.LAST_SQUASH_KEY)
-        if not last_squash:
-            last_squash = 0
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH deleted as (
+            DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("org_id", "label_type", "count", "is_squashed")
+        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+        """ % {'table': cls._meta.db_table}
 
-        # get the unique systemlabel ids for all new ones
-        start = time.time()
-        squash_count = 0
-        for count in SystemLabel.objects.filter(id__gt=last_squash).order_by('org_id', 'label_type').distinct('org_id', 'label_type'):
-            # perform our atomic squash in SQL by calling our squash method
-            with connection.cursor() as c:
-                c.execute("SELECT temba_squash_systemlabel(%s, %s);", (count.org_id, count.label_type))
-
-            squash_count += 1
-
-        # insert our new top squashed id
-        max_id = SystemLabel.objects.all().order_by('-id').first()
-        if max_id:
-            r.set(SystemLabel.LAST_SQUASH_KEY, max_id.id)
-
-        print("Squashed system label counts for %d pairs in %0.3fs" % (squash_count, time.time() - start))
+        return sql, (distinct_set.org_id, distinct_set.label_type) * 2
 
     @classmethod
     def create_all(cls, org):

@@ -1,3 +1,98 @@
+v3.0.47
+----------
+ * Add channel log for Nexmo call initiation
+ * Fix import-geojson management command
+
+v3.0.46
+----------
+ * Fix Contact.search so it doesn't evaluate the base_query
+ * Enable searching in groups and blocked/stopped contacts
+
+v3.0.45
+----------
+ * Fix absolute positioning for account creation form
+ * Add Line channel icon in fonts
+ * Add data migrations to update org config to connect to Nexmo
+
+v3.0.43
+----------
+ * Add Malawi as a country for Africa's Talking
+
+v3.0.42
+----------
+ * Widen pages to browser width so more can fit
+ * Fix the display of URNs on contact list page
+ * Fix searching of Nexmo number on connected accounts
+
+v3.0.41
+----------
+ * Fix channel countries being duplicated for airtime configuration
+ * Add make_sql command to generate SQL files for an app, reorganize current SQL reference files
+ * Added SquashableModel and use it for all squashable count classes
+
+v3.0.40
+----------
+ * Add support for Nexmo IVR
+ * Log IVR interactions in Channel Log
+
+v3.0.37
+----------
+ * Fix to make label of open ended response be All Response even if there is timeout on the ruleset
+ * Data migration to rename category for old Values collected with timeouts
+
+v3.0.36
+----------
+ * Add 256 keys to @extra, also enforce ordering so it is predictible which are included
+ * Make fetching flow run stats more efficient and expose number of active runs on flow run endpoint
+ * Migration to populate session on msg and ended_on where it is missing
+
+v3.0.35
+----------
+ * Offline context per brand
+
+v3.0.34
+----------
+ * Add Junebug channel type
+ * Better base styling for dev project
+ * Pass charset parameter to Kannel when sending unicode
+ * Zero out minutes, seconds, ms for campaign events with set delivery horus
+ * Add other URN types to contact context, return '' if missing, '*' mask for anon orgs
+ * Make sure Campaigns export base_language for simple message events, honor on import
+
+v3.0.33
+----------
+ * Change ansible command run on vagrant up from syncdb to migrate
+ * Remove no longer needed django-modeltranslation
+ * Keep up to 256 extra keys from webhooks instead of 128
+ * Add documentation of API rate limiting
+
+v3.0.32
+----------
+ * Make styling variables uniform across branding
+ * Make brand styling optional
+
+v3.0.28
+----------
+ * Add support for subflows over IVR
+
+v3.0.27
+----------
+ * Fix searching for Twilio numbers, add unit tests
+ * Fix API v1 run serialization when step messages are purged
+
+v3.0.26
+----------
+ * Adds more substitutions from accented characters to gsm7 plain characters
+
+v3.0.25
+----------
+ * Populate ended_on for ivr calls
+ * Add session foreign key to Msg model
+
+v3.0.24
+----------
+ * Fix bug in starting calls from sessions
+
 v3.0.23
 ----------
  * Remove flow from ChannelSession, sessions can span many runs/flows

@@ -6,9 +6,9 @@ django-debug-toolbar
 django-digest
 django-extensions
 django-guardian
--e git+http://github.com/nyaruka/django-modeltranslation.git#egg=django_modeltranslation-dev
 django-rosetta
 flake8
+flake8-print
 gunicorn
 pisa
 raven
@@ -55,6 +55,7 @@ enum34
 plivo
 rapidpro-expressions
 python-telegram-bot
+nexmo
 librato_bg
 django-mptt
 openpyxl

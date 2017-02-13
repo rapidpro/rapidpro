@@ -67,13 +67,13 @@
                   code from <a href="http://www.zenvia.com.br/">Zenvia</a> and connect it
                   in a few simple steps.
 
-    -if org_timezone == 'Africa/Nairobi' or org_timezone == 'Africa/Kampala'
+    -if org_timezone == 'Africa/Nairobi' or org_timezone == 'Africa/Kampala' or org_timezone == 'Africa/Lilongwe'
       .claim-row.africastalking-channel{class:"{% if recommended_channel == 'africastalking' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
           -blocktrans with "<a href='http://africastalking.com'>" as link_start and "</a>" as link_end
-            We recommend using an Africa's Talking shortcode in Kenya or Uganda. Visit {{link_start}}their website{{link_end}} for details.
+            We recommend using an Africa's Talking shortcode in Kenya, Uganda or Malawi. Visit {{link_start}}their website{{link_end}} for details.
 
         .row
           .span3
@@ -87,7 +87,7 @@
             .claim-description
               %div
                 -blocktrans with "<a href='http://africastalking.com'>" as link_start and "</a>" as link_end
-                  If you are based in Kenya or Uganda, you can purchase a short
+                  If you are based in Kenya, Uganda or Malawi you can purchase a short
                   code from {{link_start}}Africa's Talking{{link_end}} and connect it
                   in a few simple steps.
 
@@ -353,7 +353,7 @@
                   If you are based in France, you can purchase a number from High Connexion
                   <a href="http://www.highconnexion.com/en/">High Connection</a> and connect it in a few simple steps.
 
-    
+
     .claim-row.plivo-channel{class:"{% if recommended_channel == 'plivo' %}recommended{% endif %}"}
       .recommendation.hide
         %h3
@@ -421,6 +421,22 @@
             %div
               -blocktrans
                 Connect your <a href="http://www.jasminsms.com/" target="_blank">Jasmin</a> instance that you have
+                already connected to an SMSC.
+
+    .claim-row.junebug-channel
+      .row
+        .span3
+          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_junebug' %}"}
+            .btn-container
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "Junebug"
+
+        .span9
+          .claim-description
+            %div
+              -blocktrans
+                Connect your <a href="https://junebug.praekelt.org/" target="_blank">Junebug</a> instance that you have
                 already connected to an SMSC.
 
     .claim-row.twiml-channel

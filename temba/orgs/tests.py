@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 
 import json
+
+import nexmo
 import pytz
 import six
 
@@ -27,7 +29,6 @@ from temba.flows.models import Flow, ActionSet
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Label, Msg, INCOMING
-from temba.nexmo import NexmoValidationError
 from temba.orgs.models import UserSettings, NEXMO_SECRET, NEXMO_KEY
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
 from temba.triggers.models import Trigger
@@ -117,6 +118,13 @@ class OrgTest(TembaTest):
 
         Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
                        address="billy_bob", role="SR", scheme='twitter')
+
+        self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
+                                                                 currency_code='RWF'),
+                                                            dict(code='US', name='United States',
+                                                                 currency_name='US Dollar', currency_code='USD')])
+
+        Channel.create(self.org, self.user, 'US', 'A', None, "+12001113333", gcm_id="qwer", secret="qwer")
 
         self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
                                                                  currency_code='RWF'),
@@ -1500,7 +1508,9 @@ class OrgTest(TembaTest):
         self.assertEquals(self.org.config_json()['SMTP_PORT'], '465')
         self.assertEquals(self.org.config_json()['SMTP_ENCRYPTION'], 'T')
 
-    def test_connect_nexmo(self):
+    @patch('nexmo.Client.create_application')
+    def test_connect_nexmo(self, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
         self.login(self.admin)
 
         # connect nexmo
@@ -1556,6 +1566,18 @@ class OrgTest(TembaTest):
                 self.org.refresh_from_db()
                 self.assertEquals(self.org.name, "Temba")
 
+                # should change nexmo config
+                with patch('nexmo.Client.get_balance') as mock_get_balance:
+                    mock_get_balance.return_value = 120
+                    self.client.post(nexmo_account_url, dict(api_key='other_key',
+                                                             api_secret='secret-too',
+                                                             disconnect='false'), follow=True)
+
+                    self.org.refresh_from_db()
+                    config = self.org.config_json()
+                    self.assertEquals('other_key', config[NEXMO_KEY])
+                    self.assertEquals('secret-too', config[NEXMO_SECRET])
+
                 self.assertTrue(self.org.is_connected_to_nexmo())
                 self.client.post(nexmo_account_url, dict(disconnect='true'), follow=True)
 
@@ -1568,7 +1590,10 @@ class OrgTest(TembaTest):
         self.assertFalse(self.org.config_json()['NEXMO_KEY'])
         self.assertFalse(self.org.config_json()['NEXMO_SECRET'])
 
-    def test_nexmo_configuration(self):
+    @patch('nexmo.Client.create_application')
+    def test_nexmo_configuration(self, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+
         self.login(self.admin)
 
         nexmo_configuration_url = reverse('orgs.org_nexmo_configuration')
@@ -1583,7 +1608,7 @@ class OrgTest(TembaTest):
 
         self.org.connect_nexmo('key', 'secret', self.admin)
 
-        with patch('temba.nexmo.NexmoClient.update_account') as mock_update_account:
+        with patch('temba.utils.nexmo.NexmoClient.update_account') as mock_update_account:
             # try automatic nexmo settings update
             mock_update_account.return_value = True
 
@@ -1593,8 +1618,8 @@ class OrgTest(TembaTest):
             response = self.client.get(nexmo_configuration_url, follow=True)
             self.assertEqual(response.request['PATH_INFO'], reverse('channels.channel_claim_nexmo'))
 
-        with patch('temba.nexmo.NexmoClient.update_account') as mock_update_account:
-            mock_update_account.side_effect = [NexmoValidationError, NexmoValidationError]
+        with patch('temba.utils.nexmo.NexmoClient.update_account') as mock_update_account:
+            mock_update_account.side_effect = [nexmo.Error, nexmo.Error]
 
             response = self.client.get(nexmo_configuration_url)
             self.assertEqual(response.status_code, 200)
@@ -1858,6 +1883,8 @@ class AnonOrgTest(TembaTest):
         self.org.save()
 
     def test_contacts(self):
+        from temba.contacts.models import ContactURN
+
         # are there real phone numbers on the contact list page?
         contact = self.create_contact(None, "+250788123123")
         self.login(self.admin)
@@ -1871,6 +1898,7 @@ class AnonOrgTest(TembaTest):
 
         # but the id is
         self.assertContains(response, masked)
+        self.assertContains(response, ContactURN.ANON_MASK_HTML)
 
         # can't search for it
         response = self.client.get(reverse('contacts.contact_list') + "?search=788")
@@ -2418,7 +2446,7 @@ class BulkExportTest(TembaTest):
         response = self.client.get(reverse('orgs.org_export'))
 
         from bs4 import BeautifulSoup
-        soup = BeautifulSoup(response.content)
+        soup = BeautifulSoup(response.content, "html.parser")
         group = str(soup.findAll("div", {"class": "exportables bucket"})[0])
 
         self.assertIn('Parent Flow', group)
@@ -2511,8 +2539,6 @@ class BulkExportTest(TembaTest):
             self.assertIsNone(Flow.objects.filter(org=self.org, name='New Mother').first())
 
     def test_import_campaign_with_translations(self):
-
-        # import all our bits
         self.import_file('campaign_import_with_translations')
 
         campaign = Campaign.objects.all().first()
@@ -2524,11 +2550,14 @@ class BulkExportTest(TembaTest):
 
         event_msg = json.loads(event.message)
 
-        self.assertEquals(event_msg['swa'], 'hello')
-        self.assertEquals(event_msg['eng'], 'Hey')
+        self.assertEqual(event_msg['swa'], 'hello')
+        self.assertEqual(event_msg['eng'], 'Hey')
 
-        self.assertEquals(action_msg['swa'], 'hello')
-        self.assertEquals(action_msg['eng'], 'Hey')
+        # base language for this flow is 'swa' despite our org languages being unset
+        self.assertEqual(event.flow.base_language, 'swa')
+
+        self.assertEqual(action_msg['swa'], 'hello')
+        self.assertEqual(action_msg['eng'], 'Hey')
 
     def test_export_import(self):
 
@@ -2565,7 +2594,7 @@ class BulkExportTest(TembaTest):
         trigger.flow = confirm_appointment
         trigger.save()
 
-        message_flow = Flow.objects.filter(flow_type='M').order_by('pk').first()
+        message_flow = Flow.objects.filter(flow_type='M', campaignevent__offset=-1).order_by('pk').first()
         action_set = message_flow.action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
         self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
@@ -2590,7 +2619,7 @@ class BulkExportTest(TembaTest):
         self.assertTrue(Flow.objects.filter(pk=message_flow.pk, is_active=False))
 
         # find our new message flow, and see that the original message is there
-        message_flow = Flow.objects.filter(flow_type='M', is_active=True).order_by('pk').first()
+        message_flow = Flow.objects.filter(flow_type='M', campaignevent__offset=-1, is_active=True).order_by('pk').first()
         action_set = Flow.objects.get(pk=message_flow.pk).action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
         self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
@@ -2625,9 +2654,17 @@ class BulkExportTest(TembaTest):
         self.assertEquals(4, len(exported.get('triggers', [])))
         self.assertEquals(1, len(exported.get('campaigns', [])))
 
+        # set our org language to english
+        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
+
         # finally let's try importing our exported file
         self.org.import_app(exported, self.admin, site='http://app.rapidpro.io')
         assert_object_counts()
+
+        message_flow = Flow.objects.filter(flow_type='M', campaignevent__offset=-1, is_active=True).order_by('pk').first()
+
+        # make sure the base language is set to 'base', not 'eng'
+        self.assertEqual(message_flow.base_language, 'base')
 
         # let's rename a flow and import our export again
         flow = Flow.objects.get(name='Confirm Appointment')

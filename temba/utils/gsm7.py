@@ -20,7 +20,9 @@ GSM7_REPLACEMENTS = {u'á': 'a',
                      u'â': 'a',
                      u'ç': 'c',
                      u'í': 'i',
+                     u'î': 'i',
                      u'ú': 'u',
+                     u'û': 'u',
                      u'õ': 'o',
                      u'ô': 'o',
                      u'ó': 'o',
@@ -33,11 +35,15 @@ GSM7_REPLACEMENTS = {u'á': 'a',
                      u'È': 'E',
                      u'Ê': 'E',
                      u'Í': 'I',
+                     u'Î': 'I',
+                     u'Ì': 'I',
                      u'Ó': 'O',
                      u'Ô': 'O',
+                     u'Ò': 'O',
                      u'Õ': 'O',
                      u'Ú': 'U',
                      u'Ù': 'U',
+                     u'Û': 'U',
 
                      # shit Word likes replacing automatically
                      u'’': '\'',
@@ -66,6 +72,7 @@ def replace_non_gsm7_accents(text):
     takes the form of removing accents.
     """
     return ''.join([GSM7_REPLACEMENTS.get(c, c) for c in text])
+
 
 # Coding table from:
 # http://snoops.roy202.org/testerman/browser/trunk/plugins/codecs/gsm0338.py

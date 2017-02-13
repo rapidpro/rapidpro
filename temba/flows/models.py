@@ -39,13 +39,13 @@ from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VE
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils import chunk_list, clean_string, on_transaction_commit
 from temba.utils.email import send_template_email, is_valid_address
-from temba.utils.models import TembaModel, ChunkIterator, generate_uuid
+from temba.utils.models import SquashableModel, TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
 from temba.values.models import Value
 from temba_expressions.utils import tokenize
-from twilio import twiml
 from uuid import uuid4
+
 
 logger = logging.getLogger(__name__)
 
@@ -242,15 +242,14 @@ class Flow(TembaModel):
         return flow
 
     @classmethod
-    def create_single_message(cls, org, user, message):
+    def create_single_message(cls, org, user, message, base_language=None):
         """
         Creates a special 'single message' flow
         """
         name = 'Single Message (%s)' % six.text_type(uuid4())
 
-        base_language = 'base'
-        if org.primary_language:  # pragma: needs cover
-            base_language = org.primary_language.iso_code
+        if not base_language:
+            base_language = 'base' if not org.primary_language else org.primary_language.iso_code
 
         flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE, base_language=base_language)
         flow.update_single_message_flow(message)
@@ -398,42 +397,37 @@ class Flow(TembaModel):
             return ActionSet.get(flow, uuid)
 
     @classmethod
-    def handle_call(cls, call, user_response=None, hangup=False):
-        if not user_response:
-            user_response = {}
-
+    def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
         run = FlowRun.objects.filter(session=call, is_active=True).order_by('-created_on').first()
+
+        # what we will send back
+        voice_response = call.channel.generate_ivr_response()
+
+        if run is None:
+            voice_response.hangup()
+            return voice_response
+
         flow = run.flow
 
         # make sure we have the latest version
         flow.ensure_current_version()
 
-        # what we will send back
-        voice_response = twiml.Response()
         run.voice_response = voice_response
 
         # make sure our test contact is handled by simulation
         if call.contact.is_test:
             Contact.set_simulation(True)
 
-        # parse the user response
-        text = user_response.get('Digits', None)
-        media_url = user_response.get('RecordingUrl', None)
-
-        # if we've been sent a recording, go grab it
-        if media_url:
-            media_url = call.channel.get_ivr_client().download_media(media_url)
-
         # create a message to hold our inbound message
         from temba.msgs.models import IVR
-        if text is not None or media_url:
+        if text is not None or saved_media_url:
 
             # we don't have text for media, so lets use the media value there too
-            if media_url and ':' in media_url:
-                text = media_url.partition(':')[2]
+            if saved_media_url and ':' in saved_media_url:
+                text = saved_media_url.partition(':')[2]
 
             msg = Msg.create_incoming(call.channel, call.contact_urn.urn,
-                                      text, status=PENDING, msg_type=IVR, media=media_url)
+                                      text, status=PENDING, msg_type=IVR, media=saved_media_url, session=run.session)
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
@@ -453,7 +447,7 @@ class Flow(TembaModel):
 
         # go and actually handle wherever we are in the flow
         destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
-        (handled, msgs) = Flow.handle_destination(destination, step, run, msg, user_input=text is not None)
+        (handled, msgs) = Flow.handle_destination(destination, step, run, msg, user_input=text is not None, resume_parent_run=resume)
 
         # if we stopped needing user input (likely), then wrap our response accordingly
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
@@ -480,14 +474,23 @@ class Flow(TembaModel):
         step = run.steps.all().order_by('-pk').first()
         destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
         if isinstance(destination, RuleSet):
-            response = twiml.Response()
+            response = call.channel.generate_ivr_response()
             callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
             gather = destination.get_voice_input(response, action=callback)
 
             # recordings have to be tacked on last
             if destination.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
                 voice_response.record(action=callback)
-            elif gather:
+
+            elif destination.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                voice_response.redirect(url=callback)
+
+            elif gather and hasattr(gather, 'document'):  # voicexml case
+                gather.join(voice_response)
+
+                voice_response = response
+
+            elif gather:  # TwiML case
                 # nest all of our previous verbs in our gather
                 for verb in voice_response.verbs:
                     gather.append(verb)
@@ -495,7 +498,7 @@ class Flow(TembaModel):
                 voice_response = response
 
                 # append a redirect at the end in case the user sends #
-                voice_response.append(twiml.Redirect(url=callback + "?empty=1"))
+                voice_response.redirect(url=callback + "?empty=1")
 
         return voice_response
 
@@ -689,8 +692,9 @@ class Flow(TembaModel):
                         run.update_expiration(timezone.now())
 
                     if flow:
-                        child_runs = flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
-                                                extra=extra, parent_run=run, interrupt=False)
+                        child_runs = flow.start([], [run.contact], started_flows=started_flows,
+                                                restart_participants=True, extra=extra,
+                                                parent_run=run, interrupt=False)
 
                         msgs = []
                         for run in child_runs:
@@ -708,7 +712,7 @@ class Flow(TembaModel):
             step.add_message(msg)
             run.update_expiration(timezone.now())
 
-        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA:
+        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg.media is not None:
             # store the media path as the value
             value = msg.media.split(':', 1)[1]
 
@@ -1036,9 +1040,6 @@ class Flow(TembaModel):
 
         return (active, visited)
 
-    def get_total_runs(self):
-        return FlowRunCount.run_count(self)
-
     def get_base_text(self, language_dict, default=''):
         if not isinstance(language_dict, dict):  # pragma: no cover
             return language_dict
@@ -1167,28 +1168,21 @@ class Flow(TembaModel):
         action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=message_dict)])]
         self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language=self.base_language))
 
-    def extract_first_message(self):  # pragma: needs cover
-        ActionSet.objects.filter(flow=self, )
-
-    def steps(self):
+    def get_steps(self):
         return FlowStep.objects.filter(run__flow=self)
 
-    def get_completed_runs(self):
-        return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_COMPLETED)
+    def get_run_stats(self):
+        totals_by_exit = FlowRunCount.get_totals(self)
+        total_runs = sum(totals_by_exit.values())
 
-    def get_interrupted_runs(self):
-        return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_INTERRUPTED)
-
-    def get_expired_runs(self):
-        return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_EXPIRED)
-
-    def get_completed_percentage(self):
-        total_runs = FlowRunCount.run_count(self)
-
-        if not total_runs:
-            return 0
-        else:
-            return int(self.get_completed_runs() * 100 / total_runs)
+        return {
+            'total': total_runs,
+            'active': totals_by_exit[FlowRun.STATE_ACTIVE],
+            'completed': totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED],
+            'expired': totals_by_exit[FlowRun.EXIT_TYPE_EXPIRED],
+            'interrupted': totals_by_exit[FlowRun.EXIT_TYPE_INTERRUPTED],
+            'completion': int(totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED] * 100 / total_runs) if total_runs else 0
+        }
 
     def get_and_clear_unread_responses(self):
         """
@@ -1601,8 +1595,7 @@ class Flow(TembaModel):
             run.session = call
             run.save(update_fields=['session'])
 
-            # if we were started by other call, save that off
-            if not parent_run or parent_run.session:
+            if not parent_run or not parent_run.session:
                 # trigger the call to start (in the background)
                 IVRCall.objects.get(id=call.id).start_call()
 
@@ -1849,8 +1842,8 @@ class Flow(TembaModel):
 
         if not is_start:
             # mark any other states for this contact as evaluated, contacts can only be in one place at time
-            self.steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid,
-                                                              rule_uuid=rule, rule_category=category)
+            self.get_steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid,
+                                                                  rule_uuid=rule, rule_category=category)
 
         # then add our new step and associate it with our message
         step = FlowStep.objects.create(run=run, contact=run.contact, step_type=node.get_step_type(),
@@ -2508,6 +2501,8 @@ class Flow(TembaModel):
 
 
 class FlowRun(models.Model):
+    STATE_ACTIVE = 'A'
+
     EXIT_TYPE_COMPLETED = 'C'
     EXIT_TYPE_INTERRUPTED = 'I'
     EXIT_TYPE_EXPIRED = 'E'
@@ -2584,7 +2579,7 @@ class FlowRun(models.Model):
         return FlowRun.INVALID_EXTRA_KEY_CHARS.sub('_', key)[:255]
 
     @classmethod
-    def normalize_fields(cls, fields, max_values=128, count=-1):
+    def normalize_fields(cls, fields, max_values=256, count=-1):
         """
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
@@ -2596,7 +2591,7 @@ class FlowRun(models.Model):
 
         elif isinstance(fields, dict):
             count += 1
-            field_dict = dict()
+            field_dict = OrderedDict()
             for (k, v) in fields.items():
                 (field_dict[FlowRun.normalize_field_key(k)], count) = FlowRun.normalize_fields(v, max_values, count)
 
@@ -2607,7 +2602,7 @@ class FlowRun(models.Model):
 
         elif isinstance(fields, list):
             count += 1
-            list_dict = dict()
+            list_dict = OrderedDict()
             for (i, v) in enumerate(fields):
                 (list_dict[str(i)], count) = FlowRun.normalize_fields(v, max_values, count)
 
@@ -2779,8 +2774,12 @@ class FlowRun(models.Model):
         else:
             from .tasks import continue_parent_flows
 
-            # we delay this by a second to allow current flow execution to complete (and msgs to be sent)
-            on_transaction_commit(lambda: continue_parent_flows.apply_async(args=[[self.id]], countdown=1))
+            if hasattr(self, 'voice_response') and self.parent and self.parent.is_active:
+                callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.session.pk]))
+                self.voice_response.redirect(url=callback + '?resume=1')
+            else:
+                # we delay this by a second to allow current flow execution to complete (and msgs to be sent)
+                on_transaction_commit(lambda: continue_parent_flows.apply_async(args=[[self.id]], countdown=1))
 
     def set_interrupted(self, final_step=None):
         """
@@ -2846,21 +2845,21 @@ class FlowRun(models.Model):
         contact_runs = cls.objects.filter(is_active=True, contact__in=contacts)
         cls.bulk_exit(contact_runs, exit_type)
 
-    def update_fields(self, field_map, max_values=128):
+    def update_fields(self, field_map, max_values=256):
         # validate our field
         (field_map, count) = FlowRun.normalize_fields(field_map, max_values)
 
         if not self.fields:
             self.fields = json.dumps(field_map)
         else:
-            existing_map = json.loads(self.fields)
+            existing_map = json.loads(self.fields, object_pairs_hook=OrderedDict)
             existing_map.update(field_map)
             self.fields = json.dumps(existing_map)
 
         self.save(update_fields=['fields'])
 
     def field_dict(self):
-        return json.loads(self.fields) if self.fields else {}
+        return json.loads(self.fields, object_pairs_hook=OrderedDict) if self.fields else {}
 
     def is_completed(self):
         return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
@@ -2868,7 +2867,7 @@ class FlowRun(models.Model):
     def is_interrupted(self):
         return self.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED
 
-    def create_outgoing_ivr(self, text, recording_url, response_to=None):
+    def create_outgoing_ivr(self, text, recording_url, session, response_to=None):
 
         # create a Msg object to track what happened
         from temba.msgs.models import DELIVERED, IVR
@@ -2879,7 +2878,7 @@ class FlowRun(models.Model):
 
         msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.session.channel,
                                   response_to=response_to, media=media,
-                                  status=DELIVERED, msg_type=IVR)
+                                  status=DELIVERED, msg_type=IVR, session=session)
 
         # play a recording or read some text
         if msg:
@@ -3071,7 +3070,7 @@ class FlowStep(models.Model):
         broadcasts = list(self.broadcasts.all())
         if broadcasts:  # pragma: needs cover
             run = run or self.run
-            return broadcasts[0].get_translated_text(run.contact, base_language=run.flow.base_language, org=run.org)
+            return broadcasts[0].get_translated_text(run.contact, org=run.org)
 
         return None
 
@@ -3294,7 +3293,7 @@ class RuleSet(models.Model):
     def get_voice_input(self, voice_response, action=None):
 
         # recordings aren't wrapped input they get tacked on at the end
-        if self.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
+        if self.ruleset_type in [RuleSet.TYPE_WAIT_RECORDING, RuleSet.TYPE_SUBFLOW]:
             return voice_response
         elif self.ruleset_type == RuleSet.TYPE_WAIT_DIGITS:
             return voice_response.gather(finishOnKey=self.finished_key, timeout=60, action=action)
@@ -3696,36 +3695,42 @@ class FlowRevision(SmartModel):
 
 
 @six.python_2_unicode_compatible
-class FlowPathCount(models.Model):
+class FlowPathCount(SquashableModel):
     """
     Maintains hourly counts of flow paths
     """
-
-    LAST_SQUASH_KEY = 'last_flowpathcount_squash'
+    SQUASH_OVER = ('flow_id', 'from_uuid', 'to_uuid', 'period')
 
     flow = models.ForeignKey(Flow, related_name='activity', help_text=_("The flow where the activity occurred"))
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(null=True, help_text=_("Which flow node they went to"))
     period = models.DateTimeField(help_text=_("When the activity occured with hourly precision"))
     count = models.IntegerField(default=0)
-    is_squashed = models.BooleanField(default=False, help_text=_("Whether this row was created by squashing"))
 
     @classmethod
-    def squash_counts(cls):
-        # get the unique ids for all new ones
-        start = time.time()
-        squash_count = 0
+    def get_squash_query(cls, distinct_set):
+        if distinct_set.to_uuid:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "from_uuid" = %%s AND "to_uuid" = %%s AND "period" = date_trunc('hour', %%s) RETURNING "count"
+            )
+            INSERT INTO %(table)s("flow_id", "from_uuid", "to_uuid", "period", "count", "is_squashed")
+            VALUES (%%s, %%s, %%s, date_trunc('hour', %%s), GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {'table': cls._meta.db_table}
 
-        for count in cls.objects.filter(is_squashed=False).order_by('flow_id', 'from_uuid', 'to_uuid', 'period')\
-                .distinct('flow_id', 'from_uuid', 'to_uuid', 'period'):
+            params = (distinct_set.flow_id, distinct_set.from_uuid, distinct_set.to_uuid, distinct_set.period) * 2
+        else:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "from_uuid" = %%s AND "to_uuid" IS NULL AND "period" = date_trunc('hour', %%s) RETURNING "count"
+            )
+            INSERT INTO %(table)s("flow_id", "from_uuid", "to_uuid", "period", "count", "is_squashed")
+            VALUES (%%s, %%s, NULL, date_trunc('hour', %%s), GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {'table': cls._meta.db_table}
 
-            # perform our atomic squash in SQL by calling our squash method
-            with connection.cursor() as c:
-                c.execute("SELECT temba_squash_flowpathcount(%s, uuid(%s), uuid(%s), %s);", (count.flow_id, count.from_uuid, count.to_uuid, count.period))
+            params = (distinct_set.flow_id, distinct_set.from_uuid, distinct_set.period) * 2
 
-            squash_count += 1
-
-        print("Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start))
+        return sql, params
 
     def __str__(self):  # pragma: no cover
         return "FlowPathCount(%d) %s:%s %s count: %d" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count)
@@ -3812,58 +3817,56 @@ class FlowPathRecentStep(models.Model):
 
 
 @six.python_2_unicode_compatible
-class FlowRunCount(models.Model):
+class FlowRunCount(SquashableModel):
     """
     Maintains counts of different states of exit types of flow runs on a flow. These are calculated
     via triggers on the database.
     """
+    SQUASH_OVER = ('flow_id', 'exit_type')
+
     flow = models.ForeignKey(Flow, related_name='counts')
     exit_type = models.CharField(null=True, max_length=1, choices=FlowRun.EXIT_TYPE_CHOICES)
     count = models.IntegerField(default=0)
-    is_squashed = models.BooleanField(default=False, help_text=_("Whether this row was created by squashing"))
 
     @classmethod
-    def squash_counts(cls):
-        # get the unique flow ids for all new ones
-        start = time.time()
-        squash_count = 0
-        for count in cls.objects.filter(is_squashed=False).order_by('flow_id', 'exit_type').distinct('flow_id', 'exit_type'):
-            # perform our atomic squash in SQL by calling our squash method
-            with connection.cursor() as c:
-                c.execute("SELECT temba_squash_flowruncount(%s, %s);", (count.flow_id, count.exit_type))
+    def get_squash_query(cls, distinct_set):
+        if distinct_set.exit_type:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "exit_type" = %%s RETURNING "count"
+            )
+            INSERT INTO %(table)s("flow_id", "exit_type", "count", "is_squashed")
+            VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {'table': cls._meta.db_table}
 
-            squash_count += 1
+            params = (distinct_set.flow_id, distinct_set.exit_type) * 2
+        else:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "exit_type" IS NULL RETURNING "count"
+            )
+            INSERT INTO %(table)s("flow_id", "exit_type", "count", "is_squashed")
+            VALUES (%%s, NULL, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {'table': cls._meta.db_table}
 
-        print("Squashed run counts for %d pairs in %0.3fs" % (squash_count, time.time() - start))
+            params = (distinct_set.flow_id,) * 2
+
+        return sql, params
 
     @classmethod
-    def run_count(cls, flow):
-        count = FlowRunCount.objects.filter(flow=flow)
-        count = count.aggregate(Sum('count')).get('count__sum', 0)
-        return 0 if count is None else count
+    def get_totals(cls, flow):
+        totals = list(cls.objects.filter(flow=flow).values_list('exit_type').annotate(replies=Sum('count')))
+        totals = {t[0]: t[1] for t in totals}
 
-    @classmethod
-    def run_count_for_type(cls, flow, exit_type=None):
-        count = FlowRunCount.objects.filter(flow=flow).filter(exit_type=exit_type)
-        count = count.aggregate(Sum('count')).get('count__sum', 0)
-        return 0 if count is None else count
+        # for convenience, ensure dict contains all possible states
+        all_states = (None, FlowRun.EXIT_TYPE_COMPLETED, FlowRun.EXIT_TYPE_EXPIRED, FlowRun.EXIT_TYPE_INTERRUPTED)
+        totals = {s: totals.get(s, 0) for s in all_states}
 
-    @classmethod
-    def populate_for_flow(cls, flow):
-        # remove old ones
-        FlowRunCount.objects.filter(flow=flow).delete()
+        # we record active runs as exit_type=None but replace with actual constant for clarity
+        totals[FlowRun.STATE_ACTIVE] = totals[None]
+        del totals[None]
 
-        # get test contacts on this org
-        test_contacts = Contact.objects.filter(org=flow.org, is_test=True).values('id')
-
-        # calculate our count for each exit type
-        counts = FlowRun.objects.filter(flow=flow).exclude(contact__in=test_contacts)\
-                                .values('exit_type').annotate(count=Count('pk'))
-
-        # insert updated counts for each
-        for count in counts:
-            if count['count'] > 0:
-                FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], count=count['count'])
+        return totals
 
     def __str__(self):  # pragma: needs cover
         return "RunCount[%d:%s:%d]" % (self.flow_id, self.exit_type, self.count)
@@ -5063,7 +5066,7 @@ class SayAction(Action):
         message = run.flow.get_localized_text(self.msg, run.contact)
         (message, errors) = Msg.substitute_variables(message, run.contact, run.flow.build_message_context(run.contact, event))
 
-        msg = run.create_outgoing_ivr(message, media_url)
+        msg = run.create_outgoing_ivr(message, media_url, run.session)
 
         if msg:
             if run.contact.is_test:
@@ -5100,7 +5103,7 @@ class PlayAction(Action):
     def execute(self, run, actionset_uuid, event, offline_on=None):
 
         (media, errors) = Msg.substitute_variables(self.url, run.contact, run.flow.build_message_context(run.contact, event))
-        msg = run.create_outgoing_ivr(_('Played contact recording'), media)
+        msg = run.create_outgoing_ivr(_('Played contact recording'), media, run.session)
 
         if msg:
             if run.contact.is_test:  # pragma: needs cover
@@ -5155,9 +5158,9 @@ class ReplyAction(Action):
                 context = run.flow.build_message_context(run.contact, msg)
                 try:
                     if msg:
-                        reply = msg.reply(text, user, trigger_send=False, message_context=context)
+                        reply = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session)
                     else:
-                        reply = run.contact.send(text, user, trigger_send=False, message_context=context)
+                        reply = run.contact.send(text, user, trigger_send=False, message_context=context, session=run.session)
                 except UnreachableException:
                     pass
 

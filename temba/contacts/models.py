@@ -14,11 +14,10 @@ from collections import defaultdict
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.validators import validate_email
-from django.db import models, connection
+from django.db import models
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
-from django_redis import get_redis_connection
 from guardian.utils import get_anonymous_user
 from itertools import chain
 from smartmin.models import SmartModel, SmartImportRowError
@@ -27,7 +26,7 @@ from temba.channels.models import Channel
 from temba.orgs.models import Org, OrgLock
 from temba.utils.email import send_template_email
 from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
-from temba.utils.models import TembaModel
+from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.exporter import TableExporter
 from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value
@@ -952,7 +951,7 @@ class Contact(TembaModel):
         """
         from temba.contacts import search
 
-        if not base_queryset:
+        if base_queryset is None:
             base_queryset = Contact.objects.filter(org=org, is_active=True, is_test=False, is_blocked=False, is_stopped=False)
 
         return search.contact_search(org, query, base_queryset)
@@ -1736,10 +1735,14 @@ class Contact(TembaModel):
         if not org:
             org = self.org
 
-        if org.is_anon:
-            return self.anon_identifier
-
         urn = self.get_urn(scheme)
+
+        if not urn:
+            return ''
+
+        if org.is_anon:
+            return ContactURN.ANON_MASK
+
         return urn.get_display(org=org, formatted=formatted, international=international) if urn else ''
 
     def raw_tel(self):
@@ -1747,11 +1750,11 @@ class Contact(TembaModel):
         if tel:
             return tel.path
 
-    def send(self, text, user, trigger_send=True, response_to=None, message_context=None):
+    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None):
         from temba.msgs.models import Msg
 
         msg = Msg.create_outgoing(self.org, user, self, text, priority=Msg.PRIORITY_HIGH,
-                                  response_to=response_to, message_context=message_context)
+                                  response_to=response_to, message_context=message_context, session=session)
         if trigger_send:
             self.org.trigger_send([msg])
 
@@ -1792,7 +1795,8 @@ class ContactURN(models.Model):
 
     PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90, FACEBOOK_SCHEME: 90, TELEGRAM_SCHEME: 90, VIBER_SCHEME: 90}
 
-    ANON_MASK = '*' * 8  # returned instead of URN values for anon orgs
+    ANON_MASK = '*' * 8            # Returned instead of URN values for anon orgs
+    ANON_MASK_HTML = '\u2022' * 8  # Pretty HTML version of anon mask
 
     contact = models.ForeignKey(Contact, null=True, blank=True, related_name='urns',
                                 help_text="The contact that this URN is for, can be null")
@@ -2220,40 +2224,27 @@ class ContactGroup(TembaModel):
 
 
 @six.python_2_unicode_compatible
-class ContactGroupCount(models.Model):
+class ContactGroupCount(SquashableModel):
     """
     Maintains counts of contact groups. These are calculated via triggers on the database and squashed
-    by a reocurring task.
+    by a recurring task.
     """
+    SQUASH_OVER = ('group_id',)
+
     group = models.ForeignKey(ContactGroup, related_name='counts', db_index=True)
     count = models.IntegerField(default=0)
 
-    LAST_SQUASH_KEY = 'last_contactgroupcount_squash'
-
     @classmethod
-    def squash_counts(cls):
-        # get the id of the last count we squashed
-        r = get_redis_connection()
-        last_squash = r.get(ContactGroupCount.LAST_SQUASH_KEY)
-        if not last_squash:
-            last_squash = 0
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH deleted as (
+            DELETE FROM %(table)s WHERE "group_id" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("group_id", "count", "is_squashed")
+        VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+        """ % {'table': cls._meta.db_table}
 
-        # get the unique group ids for all new ones
-        start = time.time()
-        squash_count = 0
-        for count in ContactGroupCount.objects.filter(id__gt=last_squash).order_by('group_id').distinct('group_id'):
-            # perform our atomic squash in SQL by calling our squash method
-            with connection.cursor() as c:
-                c.execute("SELECT temba_squash_contactgroupcounts(%s);", (count.group_id,))
-
-            squash_count += 1
-
-        # insert our new top squashed id
-        max_id = ContactGroupCount.objects.all().order_by('-id').first()
-        if max_id:
-            r.set(ContactGroupCount.LAST_SQUASH_KEY, max_id.id)
-
-        print("Squashed group counts for %d groups in %0.3fs" % (squash_count, time.time() - start))
+        return sql, (distinct_set.group_id,) * 2
 
     @classmethod
     def contact_count(cls, group):

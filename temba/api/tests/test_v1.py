@@ -610,8 +610,8 @@ class APITest(TembaTest):
         self.assertEqual(steps[0].next_uuid, None)
 
         # check flow stats
-        self.assertEqual(flow.get_total_runs(), 1)
-        self.assertEqual(flow.get_completed_runs(), 0)
+        self.assertEqual(flow.get_run_stats(),
+                         {'total': 1, 'active': 1, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({flow.entry_uuid: 1}, {}))
@@ -790,8 +790,8 @@ class APITest(TembaTest):
         self.assertEqual(out_msgs[0].created_on, datetime(2015, 8, 25, 11, 9, 30, 88000, pytz.UTC))
 
         # check flow stats
-        self.assertEqual(flow.get_total_runs(), 1)
-        self.assertEqual(flow.get_completed_runs(), 0)
+        self.assertEqual(flow.get_run_stats(),
+                         {'total': 1, 'active': 1, 'completed': 0, 'expired': 0, 'interrupted': 0, 'completion': 0})
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({u'00000000-0000-0000-0000-000000000001': 1}, {}))
@@ -890,8 +890,8 @@ class APITest(TembaTest):
         self.assertEqual(out_msgs[1].response_to, step1_msgs[0])
 
         # check flow stats
-        self.assertEqual(flow.get_total_runs(), 1)
-        self.assertEqual(flow.get_completed_runs(), 1)
+        self.assertEqual(flow.get_run_stats(),
+                         {'total': 1, 'active': 0, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 100})
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({},
@@ -1128,6 +1128,14 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "before=01-01T00:00:00.000&after=01-01T00:00:00.000&channel=1,2")
         self.assertEquals(200, response.status_code)
         self.assertResultCount(response, 0)
+
+        # check when all broadcasts have been purged
+        Broadcast.objects.all().update(purged=True)
+        Msg.objects.filter(direction='O').delete()
+
+        response = self.fetchJSON(url, "")
+        self.assertResultCount(response, 10)
+        self.assertEqual(response.json()['results'][0]['steps'][0]['text'], "What is your favorite color?")
 
     def test_api_channels(self):
         url = reverse('api.v1.channels')
