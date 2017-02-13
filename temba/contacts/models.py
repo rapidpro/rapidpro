@@ -732,7 +732,7 @@ class Contact(TembaModel):
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact(self)
 
-    def handle_update_contact(self, field_keys=()):
+    def handle_update_contact(self, field_keys):
         """
         Used for imports to minimize the time for imports
         """
