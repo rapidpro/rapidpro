@@ -2,6 +2,7 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import phonenumbers
+import six
 
 from django.conf import settings
 from django.utils import timezone
@@ -62,7 +63,7 @@ class StringArrayField(serializers.ListField):
 
     def to_internal_value(self, data):
         # accept single string
-        if isinstance(data, basestring):
+        if isinstance(data, six.string_types):
             data = [data]
 
         # don't allow dicts. This is a bug in ListField due to be fixed in 3.3.2
@@ -81,8 +82,8 @@ class StringDictField(serializers.DictField):
     def to_internal_value(self, data):
         # enforce values must be strings, see https://github.com/tomchristie/django-rest-framework/pull/3394
         if isinstance(data, dict):
-            for key, val in data.iteritems():
-                if not isinstance(key, basestring) or not isinstance(val, basestring):
+            for key, val in six.iteritems(data):
+                if not isinstance(key, six.string_types) or not isinstance(val, six.string_types):
                     raise serializers.ValidationError("Both keys and values must be strings")
 
         return super(StringDictField, self).to_internal_value(data)
@@ -93,7 +94,7 @@ class PhoneArrayField(serializers.ListField):
     List of phone numbers or a single phone number
     """
     def to_internal_value(self, data):
-        if isinstance(data, basestring):
+        if isinstance(data, six.string_types):
             return [URN.from_tel(data)]
 
         elif isinstance(data, list):
@@ -102,7 +103,7 @@ class PhoneArrayField(serializers.ListField):
 
             urns = []
             for phone in data:
-                if not isinstance(phone, basestring):
+                if not isinstance(phone, six.string_types):
                     raise serializers.ValidationError("Invalid phone: %s" % str(phone))
                 urns.append(URN.from_tel(phone))
 
@@ -994,13 +995,13 @@ class FlowReadSerializer(ReadSerializer):
     flow = serializers.ReadOnlyField(source='id')  # deprecated, use uuid
 
     def get_runs(self, obj):
-        return obj.get_total_runs()
+        return obj.get_run_stats()['total']
 
     def get_labels(self, obj):
         return [l.name for l in obj.labels.all()]
 
     def get_completed_runs(self, obj):
-        return obj.get_completed_runs()
+        return obj.get_run_stats()['completed']
 
     def get_participants(self, obj):
         return None
@@ -1159,7 +1160,7 @@ class FlowRunReadSerializer(ReadSerializer):
                               arrived_on=step.arrived_on,
                               left_on=step.left_on,
                               text=step.get_text(),
-                              value=unicode(step.rule_value)))
+                              value=six.text_type(step.rule_value)))
 
         return steps
 
@@ -1508,8 +1509,8 @@ class BroadcastCreateSerializer(WriteSerializer):
             for urn in value:
                 try:
                     normalized = URN.normalize(urn, country)
-                except ValueError, e:
-                    raise serializers.ValidationError(e.message)
+                except ValueError as e:
+                    raise serializers.ValidationError(six.text_type(e))
 
                 if not URN.validate(normalized, country):  # pragma: needs cover
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
@@ -1603,7 +1604,7 @@ class MsgCreateSerializer(WriteSerializer):
             for urn in value:
                 try:
                     normalized = URN.normalize(urn, country)
-                except ValueError, e:  # pragma: needs cover
+                except ValueError as e:  # pragma: needs cover
                     raise serializers.ValidationError(e.message)
 
                 if not URN.validate(normalized, country):  # pragma: needs cover
@@ -1743,7 +1744,7 @@ class ChannelReadSerializer(ReadSerializer):
         return obj.get_unsent_messages().count()
 
     def get_country(self, obj):
-        return unicode(obj.country) if obj.country else None
+        return six.text_type(obj.country) if obj.country else None
 
     class Meta:
         model = Channel

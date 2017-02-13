@@ -1,5 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
+import six
+
 from django.db import models
 from temba.channels.models import ChannelSession
 from temba.contacts.models import Contact, URN
@@ -29,13 +31,13 @@ class USSDSession(ChannelSession):
     class Meta:
         proxy = True
 
-    def start_session_async(self):
-        self.flow.start([], [self.contact], start_msg=None, restart_participants=True, session=self)
+    def start_session_async(self, flow):
+        flow.start([], [self.contact], start_msg=None, restart_participants=True, session=self)
 
     def handle_session_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg
 
-        message = Msg.create_incoming(channel=self.channel, urn=urn, text=content or '', date=date)
+        message = Msg.create_incoming(channel=self.channel, urn=urn, text=content or '', date=date, session=self)
         message.external_id = message_id
         message.save()
 
@@ -64,7 +66,7 @@ class USSDSession(ChannelSession):
             trigger = Trigger.find_trigger_for_ussd_session(contact, starcode)
             if not trigger:
                 return False
-            defaults.update(dict(started_on=date, flow=trigger.flow, direction=cls.USSD_PULL, status=status))
+            defaults.update(dict(started_on=date, direction=cls.USSD_PULL, status=status))
 
         elif status == cls.INTERRUPTED:
             defaults.update(dict(ended_on=date, status=status))
@@ -79,14 +81,14 @@ class USSDSession(ChannelSession):
             session, created = cls.objects.update_or_create(external_id=external_id, defaults=defaults)
         else:
             defaults.update(dict(external_id=external_id))
-            for key, value in defaults.iteritems():
+            for key, value in six.iteritems(defaults):
                 setattr(session, key, value)
             session.save()
             created = None
 
         # start session
         if created and async and trigger:
-            session.start_session_async()
+            session.start_session_async(trigger.flow)
 
         # resume session, deal with incoming content and all the other states
         else:

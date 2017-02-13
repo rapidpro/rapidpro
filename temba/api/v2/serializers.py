@@ -101,7 +101,7 @@ class BroadcastReadSerializer(ReadSerializer):
 
 
 class BroadcastWriteSerializer(WriteSerializer):
-    text = serializers.CharField(required=True, max_length=480)
+    text = serializers.CharField(required=True, max_length=640)
     urns = fields.URNListField(required=False)
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
@@ -607,10 +607,12 @@ class FlowReadSerializer(ReadSerializer):
         return [{'uuid': l.uuid, 'name': l.name} for l in obj.labels.all()]
 
     def get_runs(self, obj):
+        stats = obj.get_run_stats()
         return {
-            'completed': obj.get_completed_runs(),
-            'interrupted': obj.get_interrupted_runs(),
-            'expired': obj.get_expired_runs()
+            'active': stats['active'],
+            'completed': stats['completed'],
+            'interrupted': stats['interrupted'],
+            'expired': stats['expired']
         }
 
     class Meta:

@@ -15,10 +15,10 @@
     {{ object.description }} - {{ object.created_on }}
 
 -block above-bar
-  %a.btn.btn-primary{ href: '{% url "channels.channellog_list" %}?channel={{ object.msg.channel.pk }}' } Back
+  %a.btn.btn-primary{ href: '{% url "channels.channellog_list" %}?channel={{ object.channel.pk }}' } Back
 
 -block post-fields
-  -if object.url
+  -if object.url or object.session
     .result
       .result-status=
         -if object.response_status
@@ -28,7 +28,7 @@
             :plain
               {{ object.method }} {{ object.url }}
 
-              {% if object.method == 'POST' or object.method == 'PUT' %}{{ object.request|default:"" }}{% endif %}
+              {% if object.method == 'POST' or object.method == 'PUT' or object.session %}{{ object.request|default:"" }}{% endif %}
           .result-body
             -if object.response
               %pre.prettyprint= object.response

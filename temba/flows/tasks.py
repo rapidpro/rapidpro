@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import time
 
@@ -7,15 +7,17 @@ from django.utils import timezone
 from django_redis import get_redis_connection
 from temba.flows.models import FlowStatsCache
 from temba.msgs.models import Broadcast, Msg, TIMEOUT_EVENT, HANDLER_QUEUE, HANDLE_EVENT_TASK
-from temba.utils.email import send_simple_email
+from temba.orgs.models import Org
 from temba.utils.queues import start_task, complete_task
 from temba.utils.queues import push_task, nonoverlapping_task
-from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount, FlowPathCount
+from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount, FlowPathCount, FlowPathRecentStep
 
 
 @task(track_started=True, name='send_email_action_task')
-def send_email_action_task(recipients, subject, message):
-    send_simple_email(recipients, subject, message)
+def send_email_action_task(org_id, recipients, subject, message):
+    org = Org.objects.filter(pk=org_id, is_active=True).first()
+    if org:
+        org.email_action_send(recipients, subject, message)
 
 
 @task(track_started=True, name='update_run_expirations_task')  # pragma: no cover
@@ -105,7 +107,8 @@ def start_msg_flow_batch_task():
     finally:
         complete_task(Flow.START_MSG_FLOW_BATCH, org_id)
 
-    print "Started batch of %d contacts in flow %d [%d] in %0.3fs" % (len(contacts), flow.id, flow.org_id, time.time() - start)
+    print("Started batch of %d contacts in flow %d [%d] in %0.3fs"
+          % (len(contacts), flow.id, flow.org_id, time.time() - start))
 
 
 @task(track_started=True, name="check_flow_stats_accuracy_task")
@@ -141,13 +144,18 @@ def calculate_flow_stats_task(flow_id):
 
 
 @nonoverlapping_task(track_started=True, name="squash_flowpathcounts", lock_key='squash_flowpathcounts')
-def squash_flowpathcounts():  # pragma: needs cover
-    FlowPathCount.squash_counts()
+def squash_flowpathcounts():
+    FlowPathCount.squash()
+
+
+@nonoverlapping_task(track_started=True, name="prune_flowpathrecentsteps")
+def prune_flowpathrecentsteps():
+    FlowPathRecentStep.prune()
 
 
 @nonoverlapping_task(track_started=True, name="squash_flowruncounts", lock_key='squash_flowruncounts')
 def squash_flowruncounts():
-    FlowRunCount.squash_counts()
+    FlowRunCount.squash()
 
 
 @task(track_started=True, name="delete_flow_results_task")

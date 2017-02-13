@@ -1,5 +1,6 @@
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, print_function, unicode_literals
 
+import six
 import time
 
 from collections import defaultdict
@@ -22,6 +23,7 @@ RULESET_KEY = 'vsd::vsr%d'
 VALUE_SUMMARY_CACHE_TIME = 60 * 60 * 24 * 30
 
 
+@six.python_2_unicode_compatible
 class Value(models.Model):
     """
     A Value is created to store the most recent result for a step in a flow. Value will store typed
@@ -286,7 +288,8 @@ class Value(models.Model):
             set_contacts = contacts & set_contacts
             unset_contacts = contacts - set_contacts
 
-        print "RulesetSummary [%f]: %s contact_field: %s with filters: %s" % (time.time() - start, ruleset, contact_field, filters)
+        print("RulesetSummary [%f]: %s contact_field: %s with filters: %s"
+              % (time.time() - start, ruleset, contact_field, filters))
 
         if return_contacts:
             return (set_contacts, unset_contacts, categories)
@@ -562,7 +565,7 @@ class Value(models.Model):
                 # sort by count, then alphabetically
                 categories = sorted(categories, key=lambda c: (-c['count'], c['label']))
 
-            results.append(dict(label=unicode(_("All")), open_ended=open_ended, set=set_count, unset=unset_count, categories=categories))
+            results.append(dict(label=six.text_type(_("All")), open_ended=open_ended, set=set_count, unset=unset_count, categories=categories))
 
         # for each of our dependencies, add our key as something that depends on it
         pipe = r.pipeline()
@@ -586,7 +589,7 @@ class Value(models.Model):
 
         return results
 
-    def __unicode__(self):  # pragma: needs cover
+    def __str__(self):  # pragma: needs cover
         if self.ruleset:
             return "Contact: %d - %s = %s" % (self.contact.pk, self.ruleset.label, self.category)
         elif self.contact_field:

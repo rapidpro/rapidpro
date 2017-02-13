@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 import json
 import pytz
+import six
 
 from datetime import timedelta
 from django.conf import settings
@@ -16,7 +17,6 @@ from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLo
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
 from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, UnreachableException
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
-from temba.msgs.tasks import purge_broadcasts_task
 from temba.orgs.models import Language, Debit, Org
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
@@ -24,7 +24,8 @@ from temba.utils import dict_to_struct, datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.values.models import Value
 from .management.commands.msg_console import MessageConsole
-from .tasks import squash_systemlabels, clear_old_msg_external_ids
+from .tasks import squash_systemlabels, clear_old_msg_external_ids, purge_broadcasts_task
+from .templatetags.sms import as_icon
 
 
 class MsgTest(TembaTest):
@@ -209,6 +210,14 @@ class MsgTest(TembaTest):
         # contact fields are included at the end in alphabetical order
         self.assertEquals(response.context['completions'], json.dumps(completions))
 
+        # a Twitter channel
+        Channel.create(self.org, self.user, None, 'TT')
+        completions.insert(-2, dict(name="contact.%s" % 'twitter', display="Contact %s" % "Twitter handle"))
+
+        response = self.client.get(outbox_url)
+        # the Twitter URN scheme is included
+        self.assertEquals(response.context['completions'], json.dumps(completions))
+
     def test_create_outgoing(self):
         tel_urn = "tel:250788382382"
         tel_contact = Contact.get_or_create(self.org, self.user, urns=[tel_urn])
@@ -286,7 +295,7 @@ class MsgTest(TembaTest):
         msg = Msg.create_incoming(self.channel, "tel:250788382382", "Yes, 3.")
 
         self.assertEqual(msg.text, "Yes, 3.")
-        self.assertEqual(unicode(msg), "Yes, 3.")
+        self.assertEqual(six.text_type(msg), "Yes, 3.")
 
         # assert there are 3 unread msgs for this org
         self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
@@ -798,49 +807,6 @@ class MsgTest(TembaTest):
 
             self.assertExcelRow(sheet, 8, [msg1.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg1.contact.uuid,
                                            "Incoming", "hello 1", "label1", "Handled"], pytz.UTC)
-
-    def assertHasClass(self, text, clazz):
-        self.assertTrue(text.find(clazz) >= 0)
-
-    def test_templatetags(self):
-        from .templatetags.sms import as_icon
-
-        msg = Msg.create_outgoing(self.org, self.admin, "tel:250788382382", "How is it going?")
-        now = timezone.now()
-        two_hours_ago = now - timedelta(hours=2)
-
-        self.assertHasClass(as_icon(msg), 'icon-bubble-dots-2 green')
-        msg.created_on = two_hours_ago
-        self.assertHasClass(as_icon(msg), 'icon-bubble-dots-2 green')
-        msg.status = 'S'
-        self.assertHasClass(as_icon(msg), 'icon-bubble-right green')
-        msg.status = 'D'
-        self.assertHasClass(as_icon(msg), 'icon-bubble-check green')
-        msg.status = 'E'
-        self.assertHasClass(as_icon(msg), 'icon-bubble-notification red')
-        msg.direction = 'I'
-        self.assertHasClass(as_icon(msg), 'icon-bubble-user primary')
-        msg.msg_type = 'V'
-        self.assertHasClass(as_icon(msg), 'icon-phone')
-
-        # default cause is pending sent
-        self.assertHasClass(as_icon(None), 'icon-bubble-dots-2 green')
-
-        in_call = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
-                                      ChannelEvent.TYPE_CALL_IN, timezone.now(), 5)
-        self.assertHasClass(as_icon(in_call), 'icon-call-incoming green')
-
-        in_miss = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
-                                      ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 5)
-        self.assertHasClass(as_icon(in_miss), 'icon-call-incoming red')
-
-        out_call = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
-                                       ChannelEvent.TYPE_CALL_OUT, timezone.now(), 5)
-        self.assertHasClass(as_icon(out_call), 'icon-call-outgoing green')
-
-        out_miss = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
-                                       ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), 5)
-        self.assertHasClass(as_icon(out_miss), 'icon-call-outgoing red')
 
 
 class MsgCRUDLTest(TembaTest):
@@ -1479,7 +1445,7 @@ class BroadcastCRUDLTest(TembaTest):
         response = self.client.post(url + '?_format=json', post_data)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(json.loads(response.content)['status'], 'success')
+        self.assertEqual(response.json()['status'], 'success')
 
         # raw number means a new contact created
         new_urn = ContactURN.objects.get(path='+250780000001')
@@ -1772,7 +1738,7 @@ class LabelCRUDLTest(TembaTest):
         # editors can though
         self.login(self.editor)
         response = self.client.get(reverse('msgs.label_list'))
-        results = json.loads(response.content)
+        results = response.json()
 
         # results should be A-Z and not include folders or labels from other orgs
         self.assertEqual(len(results), 3)
@@ -2013,3 +1979,66 @@ class SystemLabelTest(TembaTest):
 
         # we should only have one system label per type
         self.assertEqual(SystemLabel.objects.all().count(), 8)
+
+
+class TagsTest(TembaTest):
+    def setUp(self):
+        super(TagsTest, self).setUp()
+
+        self.joe = self.create_contact("Joe Blow", "123")
+
+    def render_template(self, string, context=None):
+        from django.template import Context, Template
+        context = context or {}
+        context = Context(context)
+        return Template(string).render(context)
+
+    def assertHasClass(self, text, clazz):
+        self.assertTrue(text.find(clazz) >= 0)
+
+    def test_as_icon(self):
+        msg = Msg.create_outgoing(self.org, self.admin, "tel:250788382382", "How is it going?")
+        now = timezone.now()
+        two_hours_ago = now - timedelta(hours=2)
+
+        self.assertHasClass(as_icon(msg), 'icon-bubble-dots-2 green')
+        msg.created_on = two_hours_ago
+        self.assertHasClass(as_icon(msg), 'icon-bubble-dots-2 green')
+        msg.status = 'S'
+        self.assertHasClass(as_icon(msg), 'icon-bubble-right green')
+        msg.status = 'D'
+        self.assertHasClass(as_icon(msg), 'icon-bubble-check green')
+        msg.status = 'E'
+        self.assertHasClass(as_icon(msg), 'icon-bubble-notification red')
+        msg.direction = 'I'
+        self.assertHasClass(as_icon(msg), 'icon-bubble-user primary')
+        msg.msg_type = 'V'
+        self.assertHasClass(as_icon(msg), 'icon-phone')
+
+        # default cause is pending sent
+        self.assertHasClass(as_icon(None), 'icon-bubble-dots-2 green')
+
+        in_call = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
+                                      ChannelEvent.TYPE_CALL_IN, timezone.now(), 5)
+        self.assertHasClass(as_icon(in_call), 'icon-call-incoming green')
+
+        in_miss = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
+                                      ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 5)
+        self.assertHasClass(as_icon(in_miss), 'icon-call-incoming red')
+
+        out_call = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
+                                       ChannelEvent.TYPE_CALL_OUT, timezone.now(), 5)
+        self.assertHasClass(as_icon(out_call), 'icon-call-outgoing green')
+
+        out_miss = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
+                                       ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), 5)
+        self.assertHasClass(as_icon(out_miss), 'icon-call-outgoing red')
+
+    def test_render(self):
+        template_src = '{% load sms %}{% render as foo %}123<a>{{ bar }}{% endrender %}-{{ foo }}-'
+        self.assertEqual(self.render_template(template_src, {'bar': 'abc'}),
+                         '-123<a>abc-')
+
+        # exception if tag not used correctly
+        self.assertRaises(ValueError, self.render_template, '{% load sms %}{% render with bob %}{% endrender %}')
+        self.assertRaises(ValueError, self.render_template, '{% load sms %}{% render as %}{% endrender %}')

@@ -1,10 +1,9 @@
 -load contacts humanize smartmin temba i18n
 
 -for item in activity
+  %tr{class:"{{item|history_class}}"}
 
-  %tr.item{data-created:'{{item.created_on|date:"U.u"}}', class:'msg_{{item.msg_type}} {%if item.media|slice:":6" == "video:" %}video{%endif%} {% if item.is_recent %}recent{%endif%} {% if item.direction or item.recipient_count%}msg{%else%}non-msg{%endif%}'}
     -with media_type=item.media|media_type media_content_type=item.media|media_content_type media_url=item.media|media_url
-
       %td.icon
         -if item.media
           -if media_type == 'audio'
@@ -57,7 +56,10 @@
             .activity-run
               .activity-body
                 .summary
-                Started
+                -if run.run_event_type == 'Exited'
+                  {{ run.get_exit_type_display }}
+                -else
+                  Started
                 %a{href:'{% url "flows.flow_editor" run.flow.uuid %}'}
                   {{run.flow.name}}
         -elif item.fired
@@ -168,12 +170,9 @@
         %span.long.hide
           {{item.created_on}}
 
--if not recent
-  %tr.since
-    %td{colspan:3}
-      %span.loading
-      -if has_older
-        %a.btn.btn-tiny.btn-secondary.load-more
-          Load More
-      %span#start_time.hidden
-        {{ start_time }}
+-if has_older and not recent
+  %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{after}}&before={{before}}", 
+       ic-trigger-on:"scrolled-into-view", 
+       ic-target:"table.activity tbody.previous", 
+       ic-indicator:"#indicator" }
+

@@ -1,0 +1,48 @@
+-extends 'smartmin/update.html'
+
+-block modal-extra-style
+  :css
+    input[name="field_value"]:disabled {
+      background: #ffffff !important;
+    }
+
+    .loader-circles {
+      position: absolute;
+      left: 150px;
+      top: 130px;
+    }
+
+
+-block modal-script
+  {{block.super}}
+  :javascript
+    var input_url = '/contact/update_fields_input/{{contact.id}}/?field=';
+    $(document).ready(function() {
+    	$('input.select2_field').on('change', function(evt) {
+        $('.rendered-field-input').children().css('visibility', 'hidden');
+        $('.modal-footer .btn').attr('disabled', true);
+        $('.modal .loader-circles').show();
+
+    		$('.rendered-field-input').attr('ic-src', input_url + evt.added.id)
+        Intercooler.triggerRequest($('.rendered-field-input'));
+    	});
+    });
+
+-block fields
+  .controls
+    %label.control-label
+      Custom Field
+	%input.select2_field{
+	  name:'contact_field',
+      url:'/contactfield/?_format=select2',
+      placeholder: 'Select a custom field to update',
+      value: "{{contact_field.id}}",
+      text: "{{contact_field.label}}"
+    }
+  .loader-circles.hide
+  .rendered-field-input
+    -if contact_field
+      %label.control-label
+        {{contact_field.get_value_type_display}} Value
+      .controls
+        %input{ name:'field_value', type:'text', disabled:'disabled' }

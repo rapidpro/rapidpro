@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import json
+import six
 
 from datetime import date, timedelta
 from django import forms
@@ -18,7 +19,7 @@ from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartFormView, SmartListView, SmartReadView, SmartUpdateView
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
-from temba.contacts.models import ContactGroup, URN
+from temba.contacts.models import ContactGroup, URN, ContactURN, TEL_SCHEME
 from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils import analytics, on_transaction_commit
@@ -39,23 +40,27 @@ def send_message_auto_complete_processor(request):
         org = request.user.get_org()
 
     if org:
-        completions.append(dict(name='contact', display=unicode(_("Contact Name"))))
-        completions.append(dict(name='contact.first_name', display=unicode(_("Contact First Name"))))
-        completions.append(dict(name='contact.groups', display=unicode(_("Contact Groups"))))
-        completions.append(dict(name='contact.language', display=unicode(_("Contact Language"))))
-        completions.append(dict(name='contact.name', display=unicode(_("Contact Name"))))
-        completions.append(dict(name='contact.tel', display=unicode(_("Contact Phone"))))
-        completions.append(dict(name='contact.tel_e164', display=unicode(_("Contact Phone - E164"))))
-        completions.append(dict(name='contact.uuid', display=unicode(_("Contact UUID"))))
+        completions.append(dict(name='contact', display=six.text_type(_("Contact Name"))))
+        completions.append(dict(name='contact.first_name', display=six.text_type(_("Contact First Name"))))
+        completions.append(dict(name='contact.groups', display=six.text_type(_("Contact Groups"))))
+        completions.append(dict(name='contact.language', display=six.text_type(_("Contact Language"))))
+        completions.append(dict(name='contact.name', display=six.text_type(_("Contact Name"))))
+        completions.append(dict(name='contact.tel', display=six.text_type(_("Contact Phone"))))
+        completions.append(dict(name='contact.tel_e164', display=six.text_type(_("Contact Phone - E164"))))
+        completions.append(dict(name='contact.uuid', display=six.text_type(_("Contact UUID"))))
 
-        completions.append(dict(name="date", display=unicode(_("Current Date and Time"))))
-        completions.append(dict(name="date.now", display=unicode(_("Current Date and Time"))))
-        completions.append(dict(name="date.today", display=unicode(_("Current Date"))))
-        completions.append(dict(name="date.tomorrow", display=unicode(_("Tomorrow's Date"))))
-        completions.append(dict(name="date.yesterday", display=unicode(_("Yesterday's Date"))))
+        completions.append(dict(name="date", display=six.text_type(_("Current Date and Time"))))
+        completions.append(dict(name="date.now", display=six.text_type(_("Current Date and Time"))))
+        completions.append(dict(name="date.today", display=six.text_type(_("Current Date"))))
+        completions.append(dict(name="date.tomorrow", display=six.text_type(_("Tomorrow's Date"))))
+        completions.append(dict(name="date.yesterday", display=six.text_type(_("Yesterday's Date"))))
+
+        for scheme, label in ContactURN.SCHEME_CHOICES:
+            if scheme != TEL_SCHEME and scheme in org.get_schemes(Channel.ROLE_SEND):
+                completions.append(dict(name="contact.%s" % scheme, display=six.text_type(_("Contact %s" % label))))
 
         for field in org.contactfields.filter(is_active=True).order_by('label'):
-            display = unicode(_("Contact Field: %(label)s")) % {'label': field.label}
+            display = six.text_type(_("Contact Field: %(label)s")) % {'label': field.label}
             completions.append(dict(name="contact.%s" % str(field.key), display=display))
 
     function_completions = get_function_listing()
@@ -76,7 +81,7 @@ class SendMessageForm(Form):
         valid = super(SendMessageForm, self).is_valid()
         if valid:
             if 'omnibox' not in self.data or len(self.data['omnibox'].strip()) == 0:
-                self.errors['__all__'] = self.error_class([unicode(_("At least one recipient is required"))])
+                self.errors['__all__'] = self.error_class([six.text_type(_("At least one recipient is required"))])
                 return False
         return valid
 
@@ -747,7 +752,7 @@ class LabelCRUDL(SmartCRUDL):
 
         def render_to_response(self, context, **response_kwargs):
             results = [dict(id=l.uuid, text=l.name) for l in context['object_list']]
-            return HttpResponse(json.dumps(results), content_type='application/javascript')
+            return HttpResponse(json.dumps(results), content_type='application/json')
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ('name', 'folder', 'messages')

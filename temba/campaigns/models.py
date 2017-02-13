@@ -1,6 +1,8 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+import six
+
 from datetime import timedelta
 from django.db import models
 from django.db.models import Model
@@ -14,6 +16,7 @@ from temba.utils.models import TembaModel
 from temba.values.models import Value
 
 
+@six.python_2_unicode_compatible
 class Campaign(TembaModel):
     MAX_NAME_LEN = 255
 
@@ -132,7 +135,8 @@ class Campaign(TembaModel):
                                                                    event_spec['offset'],
                                                                    event_spec['unit'],
                                                                    message,
-                                                                   event_spec['delivery_hour'])
+                                                                   event_spec['delivery_hour'],
+                                                                   base_language=event_spec.get('base_language'))
                         event.update_flow_name()
                     else:
                         flow = Flow.objects.filter(org=org, is_active=True, uuid=event_spec['flow']['uuid']).first()
@@ -186,13 +190,22 @@ class Campaign(TembaModel):
                 except:  # pragma: needs cover
                     message = dict(base=message)
 
-            events.append(dict(uuid=event.uuid, offset=event.offset,
-                               unit=event.unit,
-                               event_type=event.event_type,
-                               delivery_hour=event.delivery_hour,
-                               message=message,
-                               flow=dict(uuid=event.flow.uuid, name=event.flow.name),
-                               relative_to=dict(label=event.relative_to.label, key=event.relative_to.key)))
+            event_definition = dict(uuid=event.uuid, offset=event.offset,
+                                    unit=event.unit,
+                                    event_type=event.event_type,
+                                    delivery_hour=event.delivery_hour,
+                                    message=message,
+                                    relative_to=dict(label=event.relative_to.label, key=event.relative_to.key))
+
+            # only include the flow definition for standalone flows
+            if event.event_type == CampaignEvent.TYPE_FLOW:
+                event_definition['flow'] = dict(uuid=event.flow.uuid, name=event.flow.name)
+
+            # include the flow base language for message flows
+            elif event.event_type == CampaignEvent.TYPE_MESSAGE:
+                event_definition['base_language'] = event.flow.base_language
+
+            events.append(event_definition)
 
         definition['events'] = events
         return definition
@@ -221,10 +234,11 @@ class Campaign(TembaModel):
 
         return sorted(events, key=lambda e: e.relative_to.pk * 100000 + e.minute_offset())
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
 
+@six.python_2_unicode_compatible
 class CampaignEvent(TembaModel):
     """
     An event within a campaign that can send a message to a contact or start them in a flow
@@ -270,11 +284,11 @@ class CampaignEvent(TembaModel):
     delivery_hour = models.IntegerField(default=-1, help_text="The hour to send the message or flow at.")
 
     @classmethod
-    def create_message_event(cls, org, user, campaign, relative_to, offset, unit, message, delivery_hour=-1):
+    def create_message_event(cls, org, user, campaign, relative_to, offset, unit, message, delivery_hour=-1, base_language=None):
         if campaign.org != org:  # pragma: no cover
             raise ValueError("Org mismatch")
 
-        flow = Flow.create_single_message(org, user, message)
+        flow = Flow.create_single_message(org, user, message, base_language)
 
         if isinstance(message, dict):
             message = json.dumps(message)
@@ -386,7 +400,7 @@ class CampaignEvent(TembaModel):
                 scheduled = tz.normalize(scheduled)
 
             if self.delivery_hour != -1:
-                scheduled = scheduled.replace(hour=self.delivery_hour)
+                scheduled = scheduled.replace(hour=self.delivery_hour, minute=0, second=0, microsecond=0)
 
             # if we've changed utcoffset (DST shift), tweak accordingly (this keeps us at the same hour of the day)
             elif str(tz) != 'UTC' and date_value.utcoffset() != scheduled.utcoffset():
@@ -416,10 +430,11 @@ class CampaignEvent(TembaModel):
         date_value = EventFire.parse_relative_to_date(contact, self.relative_to.key)
         return self.calculate_scheduled_fire_for_value(date_value, timezone.now())
 
-    def __unicode__(self):
+    def __str__(self):
         return "%s == %d -> %s" % (self.relative_to, self.offset, self.flow)
 
 
+@six.python_2_unicode_compatible
 class EventFire(Model):
     event = models.ForeignKey('campaigns.CampaignEvent', related_name="event_fires",
                               help_text="The event that will be fired")
@@ -596,7 +611,7 @@ class EventFire(Model):
                 if scheduled and not contact.is_test:
                     EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
 
-    def __unicode__(self):
+    def __str__(self):
         return "%s - %s" % (self.event, self.contact)
 
     class Meta:

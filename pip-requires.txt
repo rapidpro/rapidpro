@@ -1,32 +1,29 @@
 smartmin
 Django<1.10
 coverage
-django-celery
 django-compressor
 django-debug-toolbar
 django-digest
 django-extensions
 django-guardian
--e git+http://github.com/nyaruka/django-modeltranslation.git#egg=django_modeltranslation-dev
 django-rosetta
 flake8
+flake8-print
 gunicorn
 pisa
 raven
 celery[redis]
 python-gcm
 pytz
-hamlpy
+django-hamlpy
 django_select2
 django-redis
 redis
-BeautifulSoup
 xlutils
 phonenumbers
 django-countries
 djangorestframework
 djangorestframework-xml
--e git+https://github.com/caktus/django-ttag.git@40c97c01325d436f5d04529526fa7468ff778137#egg=django-ttag-dev
 iptools
 requests
 mock
@@ -45,7 +42,7 @@ pycrypto
 numpy
 analytics-python
 django-storages
-boto
+boto3
 google
 ply
 uservoice
@@ -58,6 +55,7 @@ enum34
 plivo
 rapidpro-expressions
 python-telegram-bot
+nexmo
 librato_bg
 django-mptt
 openpyxl

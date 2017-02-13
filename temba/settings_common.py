@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import djcelery
 import iptools
 import os
 import sys
@@ -40,6 +39,10 @@ EMAIL_HOST_USER = 'server@temba.io'
 DEFAULT_FROM_EMAIL = 'server@temba.io'
 EMAIL_HOST_PASSWORD = 'mypassword'
 EMAIL_USE_TLS = True
+
+# Used when sending email from within a flow and the user hasn't configured
+# their own SMTP server.
+FLOW_FROM_EMAIL = 'no-reply@temba.io'
 
 # where recordings and exports are stored
 AWS_STORAGE_BUCKET_NAME = 'dl-temba-io'
@@ -114,7 +117,7 @@ FIXTURE_DIRS = (os.path.join(PROJECT_DIR, '../fixtures'),)
 TESTFILES_DIR = os.path.join(PROJECT_DIR, '../testfiles')
 STATICFILES_DIRS = (os.path.join(PROJECT_DIR, '../static'), os.path.join(PROJECT_DIR, '../media'), )
 STATIC_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
-STATIC_URL = '/static/'
+STATIC_URL = '/sitestatic/'
 COMPRESS_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
 MEDIA_ROOT = os.path.join(PROJECT_DIR, '../media')
 MEDIA_URL = "/media/"
@@ -130,12 +133,12 @@ TEMPLATES = [
         'OPTIONS': {
             'context_processors': [
                 'django.contrib.auth.context_processors.auth',
-                'django.core.context_processors.debug',
-                'django.core.context_processors.i18n',
-                'django.core.context_processors.media',
-                'django.core.context_processors.static',
+                'django.template.context_processors.debug',
+                'django.template.context_processors.i18n',
+                'django.template.context_processors.media',
+                'django.template.context_processors.static',
                 'django.contrib.messages.context_processors.messages',
-                'django.core.context_processors.request',
+                'django.template.context_processors.request',
                 'temba.context_processors.branding',
                 'temba.orgs.context_processors.user_group_perms_processor',
                 'temba.orgs.context_processors.unread_count_processor',
@@ -171,6 +174,7 @@ MIDDLEWARE_CLASSES = (
     'temba.middleware.FlowSimulationMiddleware',
     'temba.middleware.ActivateLanguageMiddleware',
     'temba.middleware.NonAtomicGetsMiddleware',
+    'temba.utils.middleware.OrgHeaderMiddleware',
 )
 
 ROOT_URLCONF = 'temba.urls'
@@ -210,16 +214,8 @@ INSTALLED_APPS = (
 
     # smartmin
     'smartmin',
-
-    # import tasks
     'smartmin.csv_imports',
-
-    # smartmin users
     'smartmin.users',
-    'modeltranslation',
-
-    # async tasks,
-    'djcelery',
 
     # django-timezone-field
     'timezone_field',
@@ -298,7 +294,7 @@ BRANDING = {
         'name': 'RapidPro',
         'org': 'UNICEF',
         'colors': dict(primary='#0c6596'),
-        'styles': ['brands/rapidpro/font/style.css', 'brands/rapidpro/less/style.less'],
+        'styles': ['brands/rapidpro/font/style.css'],
         'welcome_topup': 1000,
         'email': 'join@rapidpro.io',
         'support_email': 'support@rapidpro.io',
@@ -314,7 +310,7 @@ BRANDING = {
         'bundles': [],
         'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         'description': _("Visually build nationally scalable mobile applications from anywhere in the world."),
-        'credits': _("Copyright &copy; 2012-2015 UNICEF, Nyaruka. All Rights Reserved.")
+        'credits': _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved.")
     }
 }
 DEFAULT_BRAND = 'rapidpro.io'
@@ -359,7 +355,8 @@ PERMISSIONS = {
                          'omnibox',
                          'unblock',
                          'unstop',
-                         'update_fields'
+                         'update_fields',
+                         'update_fields_input'
                          ),
 
     'contacts.contactfield': ('api',
@@ -376,6 +373,7 @@ PERMISSIONS = {
                                 'geometry'),
 
     'orgs.org': ('accounts',
+                 'smtp_server',
                  'api',
                  'country',
                  'clear_cache',
@@ -430,6 +428,7 @@ PERMISSIONS = {
                          'claim_hub9',
                          'claim_infobip',
                          'claim_jasmin',
+                         'claim_junebug',
                          'claim_kannel',
                          'claim_line',
                          'claim_m3tech',
@@ -456,6 +455,7 @@ PERMISSIONS = {
                          'create_bulk_sender',
                          'create_caller',
                          'errors',
+                         'facebook_whitelist',
                          'search_nexmo',
                          'search_numbers',
                          ),
@@ -529,6 +529,7 @@ PERMISSIONS = {
                          'keyword',
                          'missed_call',
                          'new_conversation',
+                         'referral',
                          'register',
                          'schedule',
                          'ussd',
@@ -606,6 +607,7 @@ GROUP_PERMISSIONS = {
         'contacts.contact_unstop',
         'contacts.contact_update',
         'contacts.contact_update_fields',
+        'contacts.contact_update_fields_input',
         'contacts.contactfield.*',
         'contacts.contactgroup.*',
 
@@ -620,6 +622,7 @@ GROUP_PERMISSIONS = {
         'locations.adminboundary_geometry',
 
         'orgs.org_accounts',
+        'orgs.org_smtp_server',
         'orgs.org_api',
         'orgs.org_country',
         'orgs.org_create_sub_org',
@@ -666,6 +669,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
         'channels.channel_claim_jasmin',
+        'channels.channel_claim_junebug',
         'channels.channel_claim_kannel',
         'channels.channel_claim_line',
         'channels.channel_claim_mblox',
@@ -691,6 +695,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_create',
         'channels.channel_create_bulk_sender',
         'channels.channel_create_caller',
+        'channels.channel_facebook_whitelist',
         'channels.channel_delete',
         'channels.channel_list',
         'channels.channel_read',
@@ -763,6 +768,7 @@ GROUP_PERMISSIONS = {
         'contacts.contact_unstop',
         'contacts.contact_update',
         'contacts.contact_update_fields',
+        'contacts.contact_update_fields_input',
         'contacts.contactfield.*',
         'contacts.contactgroup.*',
 
@@ -805,6 +811,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
         'channels.channel_claim_jasmin',
+        'channels.channel_claim_junebug',
         'channels.channel_claim_kannel',
         'channels.channel_claim_line',
         'channels.channel_claim_mblox',
@@ -1035,6 +1042,10 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_flowpathcounts',
         'schedule': timedelta(seconds=300),
     },
+    "prune-flowpathrecentsteps": {
+        'task': 'prune_flowpathrecentsteps',
+        'schedule': timedelta(seconds=300),
+    },
     "squash-channelcounts": {
         'task': 'squash_channelcounts',
         'schedule': timedelta(seconds=300),
@@ -1061,10 +1072,8 @@ CELERY_TASK_MAP = {
 }
 
 # -----------------------------------------------------------------------------------
-# Async tasks with django-celery
+# Async tasks with celery
 # -----------------------------------------------------------------------------------
-djcelery.setup_loader()
-
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
 
@@ -1076,7 +1085,9 @@ BROKER_URL = 'redis://%s:%d/%d' % (REDIS_HOST, REDIS_PORT, REDIS_DB)
 # by default, celery doesn't have any timeout on our redis connections, this fixes that
 BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 5}
 
-CELERY_RESULT_BACKEND = BROKER_URL
+CELERY_RESULT_BACKEND = None
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
 
 IS_PROD = False
 HOSTNAME = "localhost"
@@ -1141,11 +1152,16 @@ else:
         ('text/less', 'lessc --include-path="%s" {infile} {outfile}' % os.path.join(PROJECT_DIR, '../static', 'less')),
         ('text/coffeescript', 'coffee --compile --stdio')
     )
-    COMPRESS_OFFLINE_CONTEXT = dict(STATIC_URL=STATIC_URL, base_template='frame.html')
 
 COMPRESS_ENABLED = False
 COMPRESS_OFFLINE = False
-COMPRESS_URL = '/sitestatic/'
+
+# build up our offline compression context based on available brands
+COMPRESS_OFFLINE_CONTEXT = []
+for brand in BRANDING.values():
+    context = dict(STATIC_URL=STATIC_URL, base_template='frame.html', debug=False, testing=False)
+    context['brand'] = dict(slug=brand['slug'], styles=brand['styles'])
+    COMPRESS_OFFLINE_CONTEXT.append(context)
 
 MAGE_API_URL = 'http://localhost:8026/api/v1'
 MAGE_AUTH_TOKEN = '___MAGE_TOKEN_YOU_PICK__'

@@ -41,7 +41,7 @@
                   -trans "Triggers"
                 - for folder in folders
                   %li{'class':"{% if folder.url == request_url %}active{% endif %}" }
-                    %a{'href':'={folder.url}'}
+                    %a{'href':'{{folder.url}}'}
                       {{ folder.label }} ({{ folder.count }})
 
           -block trigger-list
@@ -52,7 +52,7 @@
 
                 - if org_perms.triggers.trigger_update
                   .list-buttons-container
-                    .list-buttons.hide
+                    .list-buttons
                       -if 'restore' in actions
                         %span.btn-group
                           %a.object-btn-restore{'href':'#'}
@@ -73,14 +73,14 @@
                         %td.trigger.checkbox.object-row-checkbox
                           .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
                       %td
-                        -if obj.trigger_type == 'R' or obj.trigger_type == 'K'
+                        -if obj.trigger_type == 'K'
                           -trans "The keyword"
                           %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
                             - if org_perms.triggers.trigger_update
                               %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}= obj.keyword
                             - else
                               =obj.keyword
-                        -if obj.trigger_type == 'U'
+                        -elif obj.trigger_type == 'U'
                           -trans "The USSD code"
                           %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
                             - if org_perms.triggers.trigger_update
@@ -91,7 +91,7 @@
                               on
                               %span.attn
                                 %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
-                        -if obj.trigger_type == 'M'
+                        -elif obj.trigger_type == 'M'
                           A
                           %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
                             - if org_perms.triggers.trigger_update
@@ -100,7 +100,7 @@
                             - else
                               -trans "missed call"
 
-                        -if obj.trigger_type == 'C'
+                        -elif obj.trigger_type == 'C'
                           An
                           %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
                             - if org_perms.triggers.trigger_update
@@ -109,7 +109,7 @@
                             - else
                               -trans "uncaught message"
 
-                        -if obj.trigger_type == 'V'
+                        -elif obj.trigger_type == 'V'
                           An
                           %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
                             - if org_perms.triggers.trigger_update
@@ -118,7 +118,7 @@
                             - else
                               -trans "inbound call"
 
-                        -if obj.trigger_type == 'F'
+                        -elif obj.trigger_type == 'F'
                           A new
                           %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
                             - if org_perms.triggers.trigger_update
@@ -131,7 +131,7 @@
                             %span.attn
                               %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
 
-                        -if obj.trigger_type == 'N'
+                        -elif obj.trigger_type == 'N'
                           A new
                           %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
                             - if org_perms.triggers.trigger_update
@@ -139,6 +139,19 @@
                                 -trans "conversation"
                             - else
                               -trans "conversation"
+                          -if obj.channel
+                            on
+                            %span.attn
+                              %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
+
+                        -elif obj.trigger_type == 'R'
+                          The referrer id
+                          %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
+                            - if org_perms.triggers.trigger_update
+                              %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
+                                "{{obj.referrer_id}}"
+                            - else
+                              "{{obj.referrer_id}}"
                           -if obj.channel
                             on
                             %span.attn

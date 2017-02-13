@@ -25,7 +25,7 @@
                 %li.nav-header Campaigns
                 - for folder in folders
                   %li{'class':"{% if folder.url == request_url %}active{% endif %}" }
-                    %a{'href':'={folder.url}'}
+                    %a{'href':'{{folder.url}}'}
                       {{ folder.label }} ({{ folder.count }})
 
           -block campaign-list
@@ -36,7 +36,7 @@
 
                 - if org_perms.campaigns.campaign_update
                   .list-buttons-container
-                    .list-buttons.hide
+                    .list-buttons
                       -if 'restore' in actions
                         %span.btn-group
                           %a.object-btn-restore{'href':'#'}

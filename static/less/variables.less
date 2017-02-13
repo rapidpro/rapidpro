@@ -1,5 +1,3 @@
-@refresh-css: 2;
-
 @flat-lightblue: #80b9fb;
 @flat-blue: #3498db;
 @flat-darkblue: #2980b9;
@@ -29,14 +27,15 @@
 @color-secondary: @color-primary + #111;
 
 // main color components
-@color-navbar: @color-primary - #111;
+@color-navbar: @color-primary;
+@color-navlink: @color-navbar;
 @color-links: @color-secondary;
 @color-disabled: @flat-darkwhite;
 
 // buttons
 @color-button: @flat-white;
 @color-button-font: @flat-white - #888;
-@color-button-primary: @flat-darkblue;
+@color-button-primary: @color-primary + #222;
 @color-button-primary-font: #fff;
 @color-button-danger: @flat-red;
 @color-button-danger-font: #fff;
@@ -106,149 +105,3 @@
 @logo: 'logo';
 
 @primary-font: @helvetica, sans-serif;
-
-.placeholder-text(@placeholder-color, @font-weight:400) {
-  ::-webkit-input-placeholder { color:@placeholder-color; font-weight: @font-weight; }
-  ::-moz-placeholder { color:@placeholder-color; font-weight: @font-weight;  } /* firefox 19+ */
-  :-ms-input-placeholder { color:@placeholder-color; font-weight: @font-weight;  } /* ie */
-  input:-moz-placeholder { color:@placeholder-color; font-weight: @font-weight;  }
-}
-
-.opacity (@opacity) {
-    @opacityPercentage: @opacity * 100;
-    opacity: @opacity;
-    -ms-filter: ~"progid:DXImageTransform.Microsoft.Alpha(opacity=(@{opacityPercentage}))";
-    filter: ~"alpha(opacity = (@{opacityPercentage}))";
-}
-
-.rotate(@rotations) {
-  @deg: @rotations * 90deg;
-  -ms-transform:rotate(@deg);     /* IE 9 */
-  -moz-transform:rotate(@deg);    /* Firefox */
-  -webkit-transform:rotate(@deg); /* Safari and Chrome */
-  -o-transform:rotate(@deg);      /* Opera */
-  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=@rotations);
-}
-
-.flip-horizontal () {
-  -moz-transform: scaleX(-1);
-  -o-transform: scaleX(-1);
-  -webkit-transform: scaleX(-1);
-  transform: scaleX(-1);
-  filter: FlipH;
-  -ms-filter: "FlipH";
-}
-
-.rounded-corners (@radius: 5px) {
-  -webkit-border-radius: @radius;
-  -moz-border-radius: @radius;
-  -ms-border-radius: @radius;
-  -o-border-radius: @radius;
-  border-radius: @radius;
-}
-
-.border-radius (@top, @right, @bottom, @left) {
-  -webkit-border-radius: @top @right @bottom @left;
-  -moz-border-radius: @top @right @bottom @left;
-  -ms-border-radius: @top @right @bottom @left;
-  -o-border-radius: @top @right @bottom @left;
-  border-radius: @top @right @bottom @left;
-}
-
-.drop-shadow (@x: 0px, @y: 1px, @blur: 2px, @spread: 1px, @alpha: 0.25, @color: 0) {
-    -webkit-box-shadow:	@x @y @blur @spread rgba(@color, @color, @color, @alpha);
-    -moz-box-shadow:	@x @y @blur @spread rgba(@color, @color, @color, @alpha);
-    box-shadow:		@x @y @blur @spread rgba(@color, @color, @color, @alpha);
-}
-
-.drop-shadow-color (@x: 0px, @y: 1px, @blur: 2px, @spread: 1px, @color: rgba(10,10,10,.8)) {
-    -webkit-box-shadow:	@x @y @blur @spread @color;
-    -moz-box-shadow:	@x @y @blur @spread @color;
-    box-shadow:		@x @y @blur @spread @color;
-}
-
-.arrow-right(@size: 20px, @color: @color-font-white) {
-  width: 0;
-  height: 0;
-  border-top: @size solid transparent;
-  border-bottom: @size solid transparent;
-  border-left: @size solid @color;
-}
-
-.bg-gradient(@top: @color-bg-lightgrey, @bottom:@color-bg-white, @stop1: 24%, @stop2:92%) {
-  background-color: @top;
-  background-image: -o-linear-gradient(bottom, @bottom @stop1, @top @stop2);
-  background-image: -moz-linear-gradient(bottom, @bottom @stop1, @top @stop2);
-  background-image: -webkit-gradient(linear, left bottom, left top, color-stop(0.24, @bottom), color-stop(0.92, @top));
-  background-image: -webkit-linear-gradient(bottom, @bottom @stop1, @top @stop2);
-  background-image: -ms-linear-gradient(bottom, @bottom @stop1, @top @stop2);
-  background-image: linear-gradient(bottom, @bottom @stop1, @top @stop2);
-}
-
-.greyed {
-  color: @color-font-lightgrey;
-}
-
-.box-sizing {
-    -webkit-box-sizing: border-box; /* Safari/Chrome, other WebKit */
-    -moz-box-sizing: border-box;    /* Firefox, other Gecko */
-    box-sizing: border-box          /* Opera/IE 8+ */
-}
-
-/* Message Bubble Colors */
-.queued {
-  color: @color-status-queued
-}
-.queued_instantly {
-  color: @color-status-queued-instantly
-}
-.pending {
-  color: @color-status-pending
-}
-.pending_instantly{
-  color: @color-status-pending-instantly
-}
-.sent {
-  color: @color-status-sent
-}
-.delivered {
-  color: @color-status-delivered
-}
-.handled {
-  color: @color-status-handled
-}
-.errored {
-  color: @color-status-errored
-}
-.failed {
-  color: @color-status-failed
-}
-
-/* SMS Table stylings */
-.glyph {
-
-  &.green {
-    color: @color-status-green;
-  }
-
-  &.orange {
-    color: @color-status-orange;
-  }
-
-  &.red {
-    color: @color-status-red;
-  }
-
-  &.grey {
-    color: @color-status-grey;
-  }
-
-  &.blue {
-    color: @color-status-blue;
-  }
-
-  &.primary {
-    color: @color-primary;
-  }
-
-}
