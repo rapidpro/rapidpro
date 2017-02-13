@@ -344,6 +344,9 @@ class IVRTests(FlowFileTest):
             nexmo_client.start_call(call, '+13603621737', self.channel.address, None)
 
         # check that our channel logs are there
+        response = self.client.get(reverse("channels.channellog_list") + '?channel=%d&sessions=1' % self.channel.id)
+        self.assertContains(response, "0:00:15")
+
         response = self.client.get(reverse("channels.channellog_session", args=[call.id]))
         self.assertContains(response, "lasted 0:00:15")
         self.assertContains(response, "https://api.nexmo.com/v1/calls")

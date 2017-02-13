@@ -3242,9 +3242,6 @@ class ChannelLog(models.Model):
             return self.response
 
     def get_response_formatted(self):
-        if not self.response:
-            return "No Response"
-
         try:
             return json.dumps(json.loads(self.response), indent=2)
         except:

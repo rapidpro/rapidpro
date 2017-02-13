@@ -54,14 +54,8 @@ class NexmoClient(NexmoCli):
             call.external_id = six.text_type(conversation_uuid)
             call.save()
 
-            # infer our status as 200 if they say it's started
-            status = None
-            if (response.get('status') == 'started'):
-                status = 200
-
             ChannelLog.log_ivr_interaction(call, "Started Nexmo call %s" % call.external_id, json.dumps(params),
-                                           json.dumps(response), 'https://api.nexmo.com/v1/calls', 'POST',
-                                           status_code=status)
+                                           json.dumps(response), 'https://api.nexmo.com/v1/calls', 'POST')
 
         except nexmo.Error as e:
             message = 'Failed Nexmo call'
