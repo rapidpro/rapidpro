@@ -1,3 +1,7 @@
+v3.0.49
+----------
+ * Fix update status for Nexmo calls
+
 v3.0.48
 ----------
  * Add channel session log page
