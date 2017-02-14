@@ -1,3 +1,13 @@
+v3.0.48
+----------
+ * Add channel session log page
+ * Use brand variable for zaps to show
+ * Additional logging for nexmo
+ * Increase non-overlap on timeout queueing, never double queue single timeout
+ * Fix broken timeout handling when there is a race
+ * Make field_keys a required parameter
+ * Speed up the contact import by handling contact update at once after all the fields are set
+
 v3.0.47
 ----------
  * Add channel log for Nexmo call initiation
