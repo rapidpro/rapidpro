@@ -2314,6 +2314,7 @@ class ChannelCRUDL(SmartCRUDL):
             key = forms.CharField(label=_('FCM Key'),
                                   help_text=_("The KEY generated on Firebase Console when a new app is created."))
             send_notification = forms.CharField(label=_('Send notification'),
+                                                required=False,
                                                 help_text=_("Check if you want this channel send notification to the "
                                                             "contacts."),
                                                 widget=forms.CheckboxInput())
