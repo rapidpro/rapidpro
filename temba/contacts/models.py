@@ -783,14 +783,12 @@ class Contact(TembaModel):
 
         # optimize the single URN contact lookup case with an existing contact, this doesn't need a lock as
         # it is read only from a contacts perspective, but it is by far the most common case
-        if not uuid and urns and len(urns) == 1:
+        if not uuid and not name and urns and len(urns) == 1:
             existing_urn = ContactURN.lookup(org, urns[0], country)
 
             if existing_urn and existing_urn.contact:
                 contact = existing_urn.contact
-
-                if auth_token and auth_token != existing_urn.auth_token:
-                    ContactURN.update_auth_token(existing_urn, auth_token)
+                ContactURN.update_auth_token(existing_urn, auth_token)
 
                 # return our contact, mapping our existing urn appropriately
                 contact.urn_objects = {urns[0]: existing_urn}
@@ -853,6 +851,8 @@ class Contact(TembaModel):
                         existing_orphan_urns[urn] = existing_urn
                         if not contact and existing_urn.contact:
                             contact = existing_urn.contact
+
+                    ContactURN.update_auth_token(existing_urn, auth_token)
 
                 else:
                     urns_to_create[urn] = normalized
@@ -1872,8 +1872,9 @@ class ContactURN(models.Model):
         return cls.objects.filter(org=org, urn=urn_as_string).select_related('contact').first()
 
     def update_auth_token(self, auth_token):
-        self.auth_token = auth_token
-        self.save(update_fields=['auth_token'])
+        if auth_token and auth_token != self.auth_token:
+            self.auth_token = auth_token
+            self.save(update_fields=['auth_token'])
 
     def update_affinity(self, channel):
         """
