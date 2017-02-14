@@ -9155,9 +9155,14 @@ class FcmTest(TembaTest):
         response = self.client.post(self.receive_url, data)
         self.assertEquals(200, response.status_code)
 
+        data = {'from': '12345abcde', 'msg': 'Hello World!', 'date': '2017-01-01T08:50:00.000',
+                'fcm_token': '12345678901qwertyuiopq'}
+        response = self.client.post(self.receive_url, data)
+        self.assertEquals(200, response.status_code)
+
         # load our message
         msg = Msg.objects.get()
-        self.assertEquals("1234567890qwertyuiop", msg.contact.get_urn(FCM_SCHEME).auth_token)
+        self.assertEquals("12345678901qwertyuiopq", msg.contact.get_urn(FCM_SCHEME).auth_token)
         self.assertEquals("fcm:12345abcde", msg.contact.get_urn(FCM_SCHEME).urn)
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
