@@ -1151,7 +1151,7 @@ class Msg(models.Model):
                     status=self.status, direction=self.direction,
                     external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
-                    created_on=self.created_on, modified_on=self.modified_on)
+                    created_on=self.created_on, modified_on=self.modified_on, auth_token=self.contact_urn.auth_token)
 
     def __str__(self):
         return self.text
