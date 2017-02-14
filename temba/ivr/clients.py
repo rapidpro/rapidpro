@@ -50,15 +50,18 @@ class NexmoClient(NexmoCli):
 
         try:
             response = self.create_call(params=params)
-            conversation_uuid = response.get('conversation_uuid')
+            conversation_uuid = response.get('conversation_uuid', None)
             call.external_id = six.text_type(conversation_uuid)
             call.save()
 
-            ChannelLog.log_ivr_interaction(call, "Successfully initiated Nexmo call", json.dumps(params),
-                                           six.text_type(response), 'https://api.nexmo.com/v1/calls', 'POST')
+            ChannelLog.log_ivr_interaction(call, "Started Nexmo call %s" % call.external_id, json.dumps(params),
+                                           json.dumps(response), 'https://api.nexmo.com/v1/calls', 'POST')
 
         except nexmo.Error as e:
-            ChannelLog.log_ivr_interaction(call, "Failed initiating Nexmo call", json.dumps(params),
+            message = 'Failed Nexmo call'
+            if call.external_id:
+                message = '%s %s' % (message, call.external_id)
+            ChannelLog.log_ivr_interaction(call, message, json.dumps(params),
                                            six.text_type(e.message), 'https://api.nexmo.com/v1/calls', 'POST')
 
             raise IVRException(_("Nexmo call failed, with error %s") % e.message)

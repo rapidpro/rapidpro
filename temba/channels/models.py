@@ -2953,6 +2953,9 @@ class Channel(TembaModel):
     def get_success_log_count(self):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE])
 
+    def get_non_ivr_count(self):
+        return self.get_log_count() - self.get_ivr_count()
+
     class Meta:
         ordering = ('-last_seen', '-pk')
 
@@ -3221,7 +3224,7 @@ class ChannelLog(models.Model):
                                   description=description[:255])
 
     @classmethod
-    def log_ivr_interaction(cls, call, description, request, response, url, method, is_error=False):
+    def log_ivr_interaction(cls, call, description, request, response, url, method, is_error=False, status_code=None):
         ChannelLog.objects.create(channel_id=call.channel_id,
                                   session_id=call.id,
                                   request=request,
@@ -3229,7 +3232,20 @@ class ChannelLog(models.Model):
                                   url=url,
                                   method=method,
                                   is_error=is_error,
+                                  response_status=status_code,
                                   description=description[:255])
+
+    def get_request_formatted(self):
+        try:
+            return json.dumps(json.loads(self.request), indent=2)
+        except:
+            return self.response
+
+    def get_response_formatted(self):
+        try:
+            return json.dumps(json.loads(self.response), indent=2)
+        except:
+            return self.response
 
 
 class SyncEvent(SmartModel):
@@ -3542,6 +3558,12 @@ class ChannelSession(SmartModel):
                                     help_text="What sort of session this is")
     duration = models.IntegerField(default=0, null=True,
                                    help_text="The length of this session in seconds")
+
+    def get_logs(self):
+        return self.channel_logs.all().order_by('created_on')
+
+    def get_duration(self):
+        return timedelta(seconds=self.duration)
 
     def is_done(self):
         return self.status in self.DONE
