@@ -869,6 +869,11 @@ class IVRTests(FlowFileTest):
         test_status_update(call, 'answered', IVRCall.IN_PROGRESS, Channel.TYPE_NEXMO)
         test_status_update(call, 'ringing', IVRCall.RINGING, Channel.TYPE_NEXMO)
         test_status_update(call, 'completed', IVRCall.COMPLETED, Channel.TYPE_NEXMO)
+        test_status_update(call, 'failed', IVRCall.FAILED, Channel.TYPE_NEXMO)
+        test_status_update(call, 'unanswered', IVRCall.NO_ANSWER, Channel.TYPE_NEXMO)
+        test_status_update(call, 'timeout', IVRCall.NO_ANSWER, Channel.TYPE_NEXMO)
+        test_status_update(call, 'busy', IVRCall.BUSY, Channel.TYPE_NEXMO)
+        test_status_update(call, 'rejected', IVRCall.BUSY, Channel.TYPE_NEXMO)
 
         FlowStep.objects.all().delete()
         IVRCall.objects.all().delete()
