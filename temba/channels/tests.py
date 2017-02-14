@@ -9173,12 +9173,12 @@ class FcmTest(TembaTest):
         response = self.client.post(self.register_url, data)
         self.assertEquals(400, response.status_code)
 
-        data = {'urn': '12345abcde', 'fcm_token': '1234567890qwertyuiop'}
+        data = {'urn': '12345abcde', 'fcm_token': '1234567890qwertyuiop', 'name': 'Steve'}
         response = self.client.post(self.register_url, data)
         self.assertEquals(200, response.status_code)
         contact = json.loads(response.content)
 
-        data = {'urn': '12345abcde', 'fcm_token': 'qwertyuiop1234567890'}
+        data = {'urn': '12345abcde', 'fcm_token': 'qwertyuiop1234567890', 'name': 'Steve'}
         response = self.client.post(self.register_url, data)
         self.assertEquals(200, response.status_code)
         updated_contact = json.loads(response.content)
