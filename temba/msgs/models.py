@@ -1914,20 +1914,16 @@ class ExportMessagesTask(BaseExportTask):
 
         book = Workbook(write_only=True)
 
-        small_width = 15
-        medium_width = 20
-        large_width = 100
-
         fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Contact UUID', 'Direction', 'Text', 'Labels', "Status"]
-        fields_col_width = [medium_width,  # Date
-                            medium_width,  # Contact
-                            small_width,   # Contact Type
-                            medium_width,  # Name
-                            medium_width,  # Contact UUID
-                            small_width,   # Direction
-                            large_width,   # Text
-                            medium_width,  # Labels
-                            small_width]   # Status
+        fields_col_width = [self.WIDTH_MEDIUM,  # Date
+                            self.WIDTH_MEDIUM,  # Contact
+                            self.WIDTH_SMALL,   # Contact Type
+                            self.WIDTH_MEDIUM,  # Name
+                            self.WIDTH_MEDIUM,  # Contact UUID
+                            self.WIDTH_SMALL,   # Direction
+                            self.WIDTH_LARGE,   # Text
+                            self.WIDTH_MEDIUM,  # Labels
+                            self.WIDTH_SMALL]   # Status
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on')
 

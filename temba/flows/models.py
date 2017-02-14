@@ -3931,10 +3931,6 @@ class ExportFlowResultsTask(BaseExportTask):
             if cf:
                 contact_fields.append(cf)
 
-        small_width = 15
-        medium_width = 20
-        large_width = 100
-
         # merge the columns for all of our flows
         show_submitted_by = False
         columns = []
@@ -4029,40 +4025,40 @@ class ExportFlowResultsTask(BaseExportTask):
 
             if show_submitted_by:
                 sheet_row.append("Surveyor")
-                col_widths.append(medium_width)
+                col_widths.append(self.WIDTH_MEDIUM)
 
             sheet_row.append("Contact UUID")
-            col_widths.append(medium_width)
+            col_widths.append(self.WIDTH_MEDIUM)
 
             sheet_row.append("URN")
-            col_widths.append(small_width)
+            col_widths.append(self.WIDTH_SMALL)
 
             sheet_row.append("Name")
-            col_widths.append(medium_width)
+            col_widths.append(self.WIDTH_MEDIUM)
 
             sheet_row.append("Groups")
-            col_widths.append(medium_width)
+            col_widths.append(self.WIDTH_MEDIUM)
 
             # add our contact fields
             for cf in contact_fields:
                 sheet_row.append(cf.label)
-                col_widths.append(medium_width)
+                col_widths.append(self.WIDTH_MEDIUM)
 
             sheet_row.append("First Seen")
-            col_widths.append(medium_width)
+            col_widths.append(self.WIDTH_MEDIUM)
 
             sheet_row.append("Last Seen")
-            col_widths.append(medium_width)
+            col_widths.append(self.WIDTH_MEDIUM)
 
             for col in range(len(columns)):
                 ruleset = columns[col]
 
                 sheet_row.append("%s (Category) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
-                col_widths.append(small_width)
+                col_widths.append(self.WIDTH_SMALL)
                 sheet_row.append("%s (Value) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
-                col_widths.append(small_width)
+                col_widths.append(self.WIDTH_SMALL)
                 sheet_row.append("%s (Text) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
-                col_widths.append(small_width)
+                col_widths.append(self.WIDTH_SMALL)
 
             self.append_row(sheet, sheet_row)
             self.set_sheet_column_widths(sheet, col_widths)
@@ -4308,25 +4304,25 @@ class ExportFlowResultsTask(BaseExportTask):
 
                             cell = WriteOnlyCell(msgs, value="Contact UUID")
                             msgs_row.append(cell)
-                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = self.WIDTH_MEDIUM
                             cell = WriteOnlyCell(msgs, value="URN")
                             msgs_row.append(cell)
-                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = self.WIDTH_SMALL
                             cell = WriteOnlyCell(msgs, value="Name")
                             msgs_row.append(cell)
-                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = self.WIDTH_MEDIUM
                             cell = WriteOnlyCell(msgs, value="Date")
                             msgs_row.append(cell)
-                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = self.WIDTH_MEDIUM
                             cell = WriteOnlyCell(msgs, value="Direction")
                             msgs_row.append(cell)
-                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = self.WIDTH_SMALL
                             cell = WriteOnlyCell(msgs, value="Message")
                             msgs_row.append(cell)
-                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = large_width
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = self.WIDTH_LARGE
                             cell = WriteOnlyCell(msgs, value="Channel")
                             msgs_row.append(cell)
-                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = self.WIDTH_MEDIUM
 
                             msgs.append(msgs_row)
                             msgs_row = []

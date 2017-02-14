@@ -26,6 +26,10 @@ class BaseExportTask(SmartModel):
     MAX_EXCEL_ROWS = 1048576
     MAX_EXCEL_COLS = 16384
 
+    WIDTH_SMALL = 15
+    WIDTH_MEDIUM = 20
+    WIDTH_LARGE = 100
+
     org = models.ForeignKey('orgs.Org', related_name='%(class)ss', help_text=_("The organization of the user."))
 
     task_id = models.CharField(null=True, max_length=64)
