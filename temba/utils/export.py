@@ -1,11 +1,55 @@
 from __future__ import unicode_literals
 
 import csv
+import gc
 import six
+import time
 
 from django.core.files.temp import NamedTemporaryFile
+from django.db import models
+from django.utils.translation import ugettext_lazy as _
 from openpyxl import Workbook
 from openpyxl.writer.write_only import WriteOnlyCell
+from smartmin.models import SmartModel
+
+
+class BaseExportTask(SmartModel):
+    """
+    Base class for export task models, i.e. contacts, messages and flow results
+    """
+    EXPORT_NAME = None
+
+    org = models.ForeignKey('orgs.Org', related_name='%(class)ss', help_text=_("The organization of the user."))
+
+    task_id = models.CharField(null=True, max_length=64)
+
+    uuid = models.CharField(max_length=36, null=True,
+                            help_text=_("The uuid used to name the resulting export file"))
+
+    is_finished = models.BooleanField(default=False,
+                                      help_text=_("Whether this export has completed"))
+
+    def start_export(self):
+        """
+        Starts our export, this just wraps our do-export in a try/finally so we can track
+        when the export is complete.
+        """
+        try:
+            start = time.time()
+            self.do_export()
+        finally:
+            elapsed = time.time() - start
+            from ..utils import analytics
+            analytics.track(self.created_by.username, 'temba.%s_latency' % self.EXPORT_NAME, properties=dict(value=elapsed))
+
+            self.is_finished = True
+            self.save(update_fields=('is_finished',))
+
+            # force garbage collection
+            gc.collect()
+
+    class Meta:
+        abstract = True
 
 
 class TableExporter(object):

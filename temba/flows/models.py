@@ -39,6 +39,7 @@ from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VE
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils import chunk_list, clean_string, on_transaction_commit
 from temba.utils.email import send_template_email, is_valid_address
+from temba.utils.export import BaseExportTask
 from temba.utils.models import SquashableModel, TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
@@ -3883,25 +3884,18 @@ class FlowRunCount(SquashableModel):
         index_together = ('flow', 'exit_type')
 
 
-class ExportFlowResultsTask(SmartModel):
+class ExportFlowResultsTask(BaseExportTask):
     """
     Container for managing our export requests
     """
+    EXPORT_NAME = 'flowresult_export'
+
     INCLUDE_RUNS = 'include_runs'
     INCLUDE_MSGS = 'include_msgs'
     CONTACT_FIELDS = 'contact_fields'
     RESPONDED_ONLY = 'responded_only'
 
-    org = models.ForeignKey(Org, related_name='flow_results_exports', help_text=_("The Organization of the user."))
-
     flows = models.ManyToManyField(Flow, related_name='exports', help_text=_("The flows to export"))
-
-    task_id = models.CharField(null=True, max_length=64)
-
-    is_finished = models.BooleanField(default=False, help_text=_("Whether this export is complete"))
-
-    uuid = models.CharField(max_length=36, null=True,
-                            help_text=_("The uuid used to name the resulting export file"))
 
     config = models.TextField(null=True,
                               help_text=_("Any configuration options for this flow export"))
@@ -3913,26 +3907,11 @@ class ExportFlowResultsTask(SmartModel):
                   ExportFlowResultsTask.CONTACT_FIELDS: [c.id for c in contact_fields],
                   ExportFlowResultsTask.RESPONDED_ONLY: responded_only}
 
-        export = ExportFlowResultsTask.objects.create(org=org, created_by=user, modified_by=user,
-                                                      config=json.dumps(config))
+        export = cls.objects.create(org=org, created_by=user, modified_by=user, config=json.dumps(config))
         for flow in flows:
             export.flows.add(flow)
 
         return export
-
-    def start_export(self):
-        """
-        Starts our export, wrapping it in a try block to make sure we mark it as finished when complete.
-        """
-        try:
-            start = time.time()
-            self.do_export()
-        finally:
-            elapsed = time.time() - start
-            analytics.track(self.created_by.username, 'temba.flowresult_export_latency', properties=dict(value=elapsed))
-
-            self.is_finished = True
-            self.save(update_fields=['is_finished'])
 
     def do_export(self):
         from openpyxl import Workbook
@@ -4419,10 +4398,6 @@ class ExportFlowResultsTask(SmartModel):
 
         branding = self.org.get_branding()
         download_url = branding['link'] + get_asset_url(AssetType.results_export, self.pk)
-
-        # force a gc
-        import gc
-        gc.collect()
 
         # only send the email if this is production
         send_template_email(self.created_by.username, subject, template, dict(flows=flows, link=download_url), branding)

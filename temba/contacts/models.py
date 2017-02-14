@@ -27,7 +27,7 @@ from temba.orgs.models import Org, OrgLock
 from temba.utils.email import send_template_email
 from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
 from temba.utils.models import SquashableModel, TembaModel
-from temba.utils.exporter import TableExporter
+from temba.utils.export import BaseExportTask, TableExporter
 from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value
 from temba.locations.models import STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
@@ -2291,30 +2291,10 @@ class ContactGroupCount(SquashableModel):
         return "ContactGroupCount[%d:%d]" % (self.group_id, self.count)
 
 
-class ExportContactsTask(SmartModel):
+class ExportContactsTask(BaseExportTask):
+    EXPORT_NAME = 'contact_export'
 
-    org = models.ForeignKey(Org, related_name='contacts_exports', help_text=_("The Organization of the user."))
     group = models.ForeignKey(ContactGroup, null=True, related_name='exports', help_text=_("The unique group to export"))
-    task_id = models.CharField(null=True, max_length=64)
-    is_finished = models.BooleanField(default=False,
-                                      help_text=_("Whether this export has completed"))
-    uuid = models.CharField(max_length=36, null=True,
-                            help_text=_("The uuid used to name the resulting export file"))
-
-    def start_export(self):
-        """
-        Starts our export, this just wraps our do-export in a try/finally so we can track
-        when the export is complete.
-        """
-        try:
-            start = time.time()
-            self.do_export()
-        finally:
-            elapsed = time.time() - start
-            analytics.track(self.created_by.username, 'temba.contact_export_latency', properties=dict(value=elapsed))
-
-            self.is_finished = True
-            self.save(update_fields=['is_finished'])
 
     def get_export_fields_and_schemes(self):
 
@@ -2446,9 +2426,5 @@ class ExportContactsTask(SmartModel):
 
         subject = "Your contacts export is ready"
         template = 'contacts/email/contacts_export_download'
-
-        # force a gc
-        import gc
-        gc.collect()
 
         send_template_email(self.created_by.username, subject, template, dict(link=download_url), branding)

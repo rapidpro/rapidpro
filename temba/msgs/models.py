@@ -19,7 +19,6 @@ from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
-from smartmin.models import SmartModel
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelEvent
@@ -28,6 +27,7 @@ from temba.schedules.models import Schedule
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, clean_string
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.email import send_template_email
+from temba.utils.export import BaseExportTask
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
@@ -1890,7 +1890,7 @@ class MsgIterator(object):
         return next(self._generator)
 
 
-class ExportMessagesTask(SmartModel):
+class ExportMessagesTask(BaseExportTask):
     """
     Wrapper for handling exports of raw messages. This will export all selected messages in
     an Excel spreadsheet, adding sheets as necessary to fall within the guidelines of Excel 97
@@ -1899,7 +1899,7 @@ class ExportMessagesTask(SmartModel):
     When the export is done, we store the file on the server and send an e-mail notice with a
     link to download the results.
     """
-    org = models.ForeignKey(Org, help_text=_("The organization of the user."))
+    EXPORT_NAME = 'msg_export'
 
     groups = models.ManyToManyField(ContactGroup)
 
@@ -1908,26 +1908,6 @@ class ExportMessagesTask(SmartModel):
     start_date = models.DateField(null=True, blank=True, help_text=_("The date for the oldest message to export"))
 
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
-
-    task_id = models.CharField(null=True, max_length=64)
-
-    is_finished = models.BooleanField(default=False, help_text=_("Whether this export is finished running"))
-
-    uuid = models.CharField(max_length=36, null=True, help_text=_("The uuid used to name the resulting export file"))
-
-    def start_export(self):  # pragma: needs cover
-        """
-        Starts our export, wrapping it in a try block to make sure we mark it as finished when complete.
-        """
-        try:
-            start = time.time()
-            self.do_export()
-        finally:
-            elapsed = time.time() - start
-            analytics.track(self.created_by.username, 'temba.msg_export_latency', properties=dict(value=elapsed))
-
-            self.is_finished = True
-            self.save(update_fields=['is_finished'])
 
     def do_export(self):
         from openpyxl import Workbook
@@ -2074,9 +2054,5 @@ class ExportMessagesTask(SmartModel):
         subject = "Your messages export is ready"
         template = 'msgs/email/msg_export_download'
         download_url = branding['link'] + get_asset_url(AssetType.message_export, self.pk)
-
-        # force a gc
-        import gc
-        gc.collect()
 
         send_template_email(self.created_by.username, subject, template, dict(link=download_url), branding)
