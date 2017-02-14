@@ -24,7 +24,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SC
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, clean_string
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.email import send_template_email
 from temba.utils.export import BaseExportTask
@@ -1911,11 +1911,8 @@ class ExportMessagesTask(BaseExportTask):
 
     def do_export(self):
         from openpyxl import Workbook
-        from openpyxl.writer.write_only import WriteOnlyCell
-        from openpyxl.utils.cell import get_column_letter
 
         book = Workbook(write_only=True)
-        max_rows = 1048576
 
         small_width = 15
         medium_width = 20
@@ -1955,15 +1952,9 @@ class ExportMessagesTask(BaseExportTask):
         messages_sheet_number = 1
 
         current_messages_sheet = book.create_sheet(six.text_type(_("Messages %d" % messages_sheet_number)))
-        sheet_row = []
-        for col in range(1, len(fields) + 1):
-            index = col - 1
-            field = fields[index]
-            cell = WriteOnlyCell(current_messages_sheet, value=six.text_type(field))
-            sheet_row.append(cell)
-            current_messages_sheet.column_dimensions[get_column_letter(col)].width = fields_col_width[index]
 
-        current_messages_sheet.append(sheet_row)
+        self.append_row(current_messages_sheet, fields)
+        self.set_sheet_column_widths(current_messages_sheet, fields_col_width)
 
         row = 2
         processed = 0
@@ -1976,22 +1967,13 @@ class ExportMessagesTask(BaseExportTask):
                                select_related=['contact', 'contact_urn'],
                                prefetch_related=[prefetch]):
 
-            if row >= max_rows:  # pragma: needs cover
+            if row >= self.MAX_EXCEL_ROWS:  # pragma: needs cover
                 messages_sheet_number += 1
                 current_messages_sheet = book.create_sheet(six.text_type(_("Messages %d" % messages_sheet_number)))
-                sheet_row = []
-                for col in range(len(fields)):
-                    field = fields[col]
-                    cell = WriteOnlyCell(current_messages_sheet, value=six.text_type(field))
-                    sheet_row.append(cell)
 
-                current_messages_sheet.append(sheet_row)
+                self.append_row(current_messages_sheet, fields)
+                self.set_sheet_column_widths(current_messages_sheet, fields_col_width)
                 row = 2
-
-            contact_name = clean_string(msg.contact.name) if msg.contact.name else ''
-            contact_uuid = msg.contact.uuid
-            created_on = msg.created_on.astimezone(pytz.utc).replace(microsecond=0, tzinfo=None)
-            msg_labels = ", ".join(clean_string(msg_label.name) for msg_label in msg.labels.all())
 
             # only show URN path if org isn't anon and there is a URN
             if self.org.is_anon:  # pragma: needs cover
@@ -2003,30 +1985,17 @@ class ExportMessagesTask(BaseExportTask):
 
             urn_scheme = msg.contact_urn.scheme if msg.contact_urn else ''
 
-            sheet_row = []
-
-            text = clean_string(msg.text)
-
-            cell = WriteOnlyCell(current_messages_sheet, value=created_on)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=urn_path)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=urn_scheme)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=contact_name)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=contact_uuid)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=msg.get_direction_display())
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=text)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=msg_labels)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=msg.get_status_display())
-            sheet_row.append(cell)
-
-            current_messages_sheet.append(sheet_row)
+            self.append_row(current_messages_sheet, [
+                msg.created_on,
+                urn_path,
+                urn_scheme,
+                msg.contact.name,
+                msg.contact.uuid,
+                msg.get_direction_display(),
+                msg.text,
+                ", ".join(msg_label.name for msg_label in msg.labels.all()),
+                msg.get_status_display()
+            ])
 
             row += 1
             processed += 1

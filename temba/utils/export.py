@@ -2,15 +2,19 @@ from __future__ import unicode_literals
 
 import csv
 import gc
+import pytz
 import six
 import time
 
+from datetime import datetime
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from openpyxl import Workbook
+from openpyxl.utils.cell import get_column_letter
 from openpyxl.writer.write_only import WriteOnlyCell
 from smartmin.models import SmartModel
+from . import clean_string, analytics
 
 
 class BaseExportTask(SmartModel):
@@ -18,6 +22,8 @@ class BaseExportTask(SmartModel):
     Base class for export task models, i.e. contacts, messages and flow results
     """
     EXPORT_NAME = None
+
+    MAX_EXCEL_ROWS = 1048576
 
     org = models.ForeignKey('orgs.Org', related_name='%(class)ss', help_text=_("The organization of the user."))
 
@@ -39,14 +45,39 @@ class BaseExportTask(SmartModel):
             self.do_export()
         finally:
             elapsed = time.time() - start
-            from ..utils import analytics
             analytics.track(self.created_by.username, 'temba.%s_latency' % self.EXPORT_NAME, properties=dict(value=elapsed))
 
             self.is_finished = True
             self.save(update_fields=('is_finished',))
 
-            # force garbage collection
-            gc.collect()
+            gc.collect()  # force garbage collection
+
+    @classmethod
+    def append_row(cls, sheet, values):
+        row = []
+        for value in values:
+            cell = WriteOnlyCell(sheet, value=cls.prepare_value(value))
+            row.append(cell)
+        sheet.append(row)
+
+    @staticmethod
+    def prepare_value(value):
+        if value is None:
+            return ''
+        elif isinstance(value, six.string_types):
+            value = value.strip()
+            if value.startswith('='):  # escape = so value isn't mistaken for a formula
+                value = '\'' + value
+            return clean_string(value)
+        elif isinstance(value, datetime):
+            return value.astimezone(pytz.utc).replace(microsecond=0, tzinfo=None)
+        else:
+            return six.text_type(value)
+
+    @staticmethod
+    def set_sheet_column_widths(sheet, widths):
+        for index, width in enumerate(widths):
+            sheet.column_dimensions[get_column_letter(index + 1)].width = widths[index]
 
     class Meta:
         abstract = True
@@ -58,11 +89,10 @@ class TableExporter(object):
     have a single sheet (as CSV's don't have sheets) but takes care of writing to a CSV in the case
     where there are more than 256 columns, which Excel doesn't support.
 
-    When writing a to an Excel sheet, this also takes care of creating different sheets every 65535
+    When writing to an Excel sheet, this also takes care of creating different sheets every 65535
     rows, as again, Excel file only support that many per sheet.
     """
     MAX_XLS_COLS = 16384
-    MAX_XLS_ROWS = 1048576
 
     def __init__(self, sheet_name, columns):
         self.columns = columns
@@ -91,10 +121,8 @@ class TableExporter(object):
         # add our sheet
         self.sheet = self.workbook.create_sheet(u"%s %d" % (self.sheet_name, self.sheet_number))
 
-        row_cells = []
-        for col, label in enumerate(self.columns):
-            row_cells.append(WriteOnlyCell(self.sheet, value=six.text_type(label)))
-        self.sheet.append(row_cells)
+        BaseExportTask.append_row(self.sheet, self.columns)
+
         self.sheet_row = 2
 
     def write_row(self, values):
@@ -106,14 +134,11 @@ class TableExporter(object):
 
         else:
             # time for a new sheet? do it
-            if self.sheet_row > TableExporter.MAX_XLS_ROWS:
+            if self.sheet_row > BaseExportTask.MAX_EXCEL_ROWS:
                 self._add_sheet()
 
-            row_cells = []
-            for col, value in enumerate(values):
-                row_cells.append(WriteOnlyCell(self.sheet, value=six.text_type(value) if value is not None else ''))
+            BaseExportTask.append_row(self.sheet, values)
 
-            self.sheet.append(row_cells)
             self.sheet_row += 1
 
     def save_file(self):
