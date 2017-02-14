@@ -2580,7 +2580,6 @@ class FCMHandler(BaseChannelHandler):
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
-        from temba.contacts.models import FCM_SCHEME
 
         channel_uuid = kwargs['uuid']
 
@@ -2605,13 +2604,12 @@ class FCMHandler(BaseChannelHandler):
                 fcm_token = self.get_param('fcm_token')
                 name = self.get_param('name', None)
                 contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[fcm_urn],
-                                                channel=channel, extra_path=fcm_token)
+                                                channel=channel, auth_token=fcm_token)
 
                 sms = Msg.create_incoming(channel, fcm_urn, self.get_param('msg'), date=date, contact=contact)
                 return HttpResponse("Msg Accepted: %d" % sms.id)
 
             elif action == 'register':
-
                 if not self.get_param('urn') or not self.get_param('fcm_token'):
                     return HttpResponse("Missing parameters, requires 'urn' and 'fcm_token'", status=400)
 
@@ -2619,11 +2617,7 @@ class FCMHandler(BaseChannelHandler):
                 fcm_token = self.get_param('fcm_token')
                 name = self.get_param('name', None)
                 contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[fcm_urn],
-                                                channel=channel, extra_path=fcm_token)
-                current_paths = [urn.path for urn in contact.get_urns_for_scheme(FCM_SCHEME)]
-                if fcm_token not in current_paths:
-                    contact.update_urn_path(fcm_urn, fcm_token)
-
+                                                channel=channel, auth_token=fcm_token)
                 return HttpResponse(json.dumps({'contact_uuid': contact.uuid}), content_type='application/json')
 
             else:  # pragma: no cover

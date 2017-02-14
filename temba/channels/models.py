@@ -1221,7 +1221,7 @@ class Channel(TembaModel):
                 'message_id': msg.id
             },
             'content_available': False,
-            'to': msg.urn_path,
+            'to': msg.auth_token,
             'priority': 'high'
         }
 
