@@ -9157,7 +9157,7 @@ class FcmTest(TembaTest):
 
         # load our message
         msg = Msg.objects.get()
-        self.assertEquals("1234567890qwertyuiop", msg.contact.get_urn(FCM_SCHEME).path)
+        self.assertEquals("1234567890qwertyuiop", msg.contact.get_urn(FCM_SCHEME).auth_token)
         self.assertEquals("fcm:12345abcde", msg.contact.get_urn(FCM_SCHEME).urn)
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
@@ -9181,7 +9181,7 @@ class FcmTest(TembaTest):
         self.assertEquals(contact.get('contact_uuid'), updated_contact.get('contact_uuid'))
 
     def test_send(self):
-        joe = self.create_contact("Joe", urn="fcm:12345abcde", extra_path="123456abcdef")
+        joe = self.create_contact("Joe", urn="fcm:12345abcde", auth_token="123456abcdef")
         msg = joe.send("Hello, world!", self.admin, trigger_send=False)
 
         with self.settings(SEND_MESSAGES=True):
