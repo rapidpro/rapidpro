@@ -24,6 +24,7 @@ class BaseExportTask(SmartModel):
     EXPORT_NAME = None
 
     MAX_EXCEL_ROWS = 1048576
+    MAX_EXCEL_COLS = 16384
 
     org = models.ForeignKey('orgs.Org', related_name='%(class)ss', help_text=_("The organization of the user."))
 
@@ -92,11 +93,9 @@ class TableExporter(object):
     When writing to an Excel sheet, this also takes care of creating different sheets every 65535
     rows, as again, Excel file only support that many per sheet.
     """
-    MAX_XLS_COLS = 16384
-
     def __init__(self, sheet_name, columns):
         self.columns = columns
-        self.is_csv = len(self.columns) > TableExporter.MAX_XLS_COLS
+        self.is_csv = len(self.columns) > BaseExportTask.MAX_EXCEL_COLS
         self.sheet_name = sheet_name
 
         self.current_sheet = 0

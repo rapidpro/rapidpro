@@ -26,11 +26,10 @@ from temba.utils.voicexml import VoiceXMLException
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from .email import is_valid_address
-from .exporter import TableExporter
+from .export import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
 from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents
-
 from .email import send_simple_email
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
@@ -980,7 +979,7 @@ class ChunkTest(TembaTest):
 
 
 class TableExporterTest(TembaTest):
-    @patch('temba.utils.exporter.TableExporter.MAX_XLS_COLS', new_callable=PropertyMock)
+    @patch('temba.utils.export.BaseExportTask.MAX_EXCEL_COLS', new_callable=PropertyMock)
     def test_csv(self, mock_max_cols):
         test_max_cols = 255
         mock_max_cols.return_value = test_max_cols
@@ -1020,7 +1019,7 @@ class TableExporterTest(TembaTest):
             # should only be three rows
             self.assertEquals(2, idx)
 
-    @patch('temba.utils.exporter.TableExporter.MAX_XLS_ROWS', new_callable=PropertyMock)
+    @patch('temba.utils.export.BaseExportTask.MAX_EXCEL_ROWS', new_callable=PropertyMock)
     def test_xls(self, mock_max_rows):
         test_max_rows = 1500
         mock_max_rows.return_value = test_max_rows
