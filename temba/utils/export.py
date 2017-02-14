@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import csv
 import gc
-import pytz
 import six
 import time
 
@@ -57,16 +56,14 @@ class BaseExportTask(SmartModel):
 
             gc.collect()  # force garbage collection
 
-    @classmethod
-    def append_row(cls, sheet, values):
+    def append_row(self, sheet, values):
         row = []
         for value in values:
-            cell = WriteOnlyCell(sheet, value=cls.prepare_value(value))
+            cell = WriteOnlyCell(sheet, value=self.prepare_value(value))
             row.append(cell)
         sheet.append(row)
 
-    @staticmethod
-    def prepare_value(value):
+    def prepare_value(self, value):
         if value is None:
             return ''
         elif isinstance(value, six.string_types):
@@ -75,12 +72,11 @@ class BaseExportTask(SmartModel):
                 value = '\'' + value
             return clean_string(value)
         elif isinstance(value, datetime):
-            return value.astimezone(pytz.utc).replace(microsecond=0, tzinfo=None)
+            return value.astimezone(self.org.timezone).replace(microsecond=0, tzinfo=None)
         else:
             return six.text_type(value)
 
-    @staticmethod
-    def set_sheet_column_widths(sheet, widths):
+    def set_sheet_column_widths(self, sheet, widths):
         for index, width in enumerate(widths):
             sheet.column_dimensions[get_column_letter(index + 1)].width = widths[index]
 
@@ -97,7 +93,8 @@ class TableExporter(object):
     When writing to an Excel sheet, this also takes care of creating different sheets every 65535
     rows, as again, Excel file only support that many per sheet.
     """
-    def __init__(self, sheet_name, columns):
+    def __init__(self, task, sheet_name, columns):
+        self.task = task
         self.columns = columns
         self.is_csv = len(self.columns) > BaseExportTask.MAX_EXCEL_COLS
         self.sheet_name = sheet_name
@@ -124,7 +121,7 @@ class TableExporter(object):
         # add our sheet
         self.sheet = self.workbook.create_sheet(u"%s %d" % (self.sheet_name, self.sheet_number))
 
-        BaseExportTask.append_row(self.sheet, self.columns)
+        self.task.append_row(self.sheet, self.columns)
 
         self.sheet_row = 2
 
@@ -140,7 +137,7 @@ class TableExporter(object):
             if self.sheet_row > BaseExportTask.MAX_EXCEL_ROWS:
                 self._add_sheet()
 
-            BaseExportTask.append_row(self.sheet, values)
+            self.task.append_row(self.sheet, values)
 
             self.sheet_row += 1
 

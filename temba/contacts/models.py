@@ -2340,7 +2340,7 @@ class ExportContactsTask(BaseExportTask):
             contact_ids = [c['id'] for c in all_contacts.order_by('name', 'id').values('id')]
 
         # create our exporter
-        exporter = TableExporter("Contact", [c['label'] for c in fields])
+        exporter = TableExporter(self, "Contact", [c['label'] for c in fields])
 
         current_contact = 0
         start = time.time()

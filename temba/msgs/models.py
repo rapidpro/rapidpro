@@ -1949,8 +1949,8 @@ class ExportMessagesTask(BaseExportTask):
 
         current_messages_sheet = book.create_sheet(six.text_type(_("Messages %d" % messages_sheet_number)))
 
-        self.append_row(current_messages_sheet, fields)
         self.set_sheet_column_widths(current_messages_sheet, fields_col_width)
+        self.append_row(current_messages_sheet, fields)
 
         row = 2
         processed = 0

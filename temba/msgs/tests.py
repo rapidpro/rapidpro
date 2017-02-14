@@ -2,7 +2,6 @@
 from __future__ import unicode_literals
 
 import json
-import pytz
 import six
 
 from datetime import timedelta
@@ -721,31 +720,31 @@ class MsgTest(TembaTest):
 
         self.assertExcelRow(sheet, 1,
                             [msg9.created_on, "123", "tel", "Joe Blow", msg9.contact.uuid, "Outgoing",
-                             "Hey out 9", "", "Failed Sending"], pytz.UTC)
+                             "Hey out 9", "", "Failed Sending"], self.org.timezone)
 
         self.assertExcelRow(sheet, 2,
                             [msg8.created_on, "123", "tel", "Joe Blow", msg8.contact.uuid, "Outgoing",
-                             "Hey out 8", "", "Error Sending"], pytz.UTC)
+                             "Hey out 8", "", "Error Sending"], self.org.timezone)
 
         self.assertExcelRow(sheet, 3,
                             [msg7.created_on, "123", "tel", "Joe Blow", msg7.contact.uuid, "Outgoing",
-                             "Hey out 7", "", "Delivered"], pytz.UTC)
+                             "Hey out 7", "", "Delivered"], self.org.timezone)
 
         self.assertExcelRow(sheet, 4,
                             [msg6.created_on, "123", "tel", "Joe Blow", msg6.contact.uuid, "Outgoing",
-                             "Hey out 6", "", "Sent"], pytz.UTC)
+                             "Hey out 6", "", "Sent"], self.org.timezone)
 
         self.assertExcelRow(sheet, 5, [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming",
-                                       "Media message", "", "Handled"], pytz.UTC)
+                                       "Media message", "", "Handled"], self.org.timezone)
 
         self.assertExcelRow(sheet, 6, [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "Incoming",
-                                       "hello 4", "", "Handled"], pytz.UTC)
+                                       "hello 4", "", "Handled"], self.org.timezone)
 
         self.assertExcelRow(sheet, 7, [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid, "Incoming",
-                                       "hello 2", "", "Handled"], pytz.UTC)
+                                       "hello 2", "", "Handled"], self.org.timezone)
 
         self.assertExcelRow(sheet, 8, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming",
-                                       "hello 1", "label1", "Handled"], pytz.UTC)
+                                       "hello 1", "label1", "Handled"], self.org.timezone)
 
         email_args = mock_send_temba_email.call_args[0]  # all positional args
 
@@ -769,7 +768,8 @@ class MsgTest(TembaTest):
         sheet = workbook.worksheets[0]
 
         self.assertEquals(len(list(sheet.rows)), 2)  # only header and msg1
-        self.assertExcelRow(sheet, 1, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"], pytz.UTC)
+        self.assertExcelRow(sheet, 1, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming",
+                                       "hello 1", "label1", "Handled"], self.org.timezone)
 
         ExportMessagesTask.objects.all().delete()
 
@@ -785,28 +785,28 @@ class MsgTest(TembaTest):
             self.assertEquals(len(list(sheet.rows)), 9)
 
             self.assertExcelRow(sheet, 1, [msg9.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg9.contact.uuid,
-                                           "Outgoing", "Hey out 9", "", "Failed Sending"], pytz.UTC)
+                                           "Outgoing", "Hey out 9", "", "Failed Sending"], self.org.timezone)
 
             self.assertExcelRow(sheet, 2, [msg8.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg8.contact.uuid,
-                                           "Outgoing", "Hey out 8", "", "Error Sending"], pytz.UTC)
+                                           "Outgoing", "Hey out 8", "", "Error Sending"], self.org.timezone)
 
             self.assertExcelRow(sheet, 3, [msg7.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg7.contact.uuid,
-                                           "Outgoing", "Hey out 7", "", "Delivered"], pytz.UTC)
+                                           "Outgoing", "Hey out 7", "", "Delivered"], self.org.timezone)
 
             self.assertExcelRow(sheet, 4, [msg6.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg6.contact.uuid,
-                                           "Outgoing", "Hey out 6", "", "Sent"], pytz.UTC)
+                                           "Outgoing", "Hey out 6", "", "Sent"], self.org.timezone)
 
             self.assertExcelRow(sheet, 5, [msg5.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg5.contact.uuid,
-                                           "Incoming", "Media message", "", "Handled"], pytz.UTC)
+                                           "Incoming", "Media message", "", "Handled"], self.org.timezone)
 
             self.assertExcelRow(sheet, 6, [msg4.created_on, "%010d" % self.joe.pk, "", "Joe Blow", msg4.contact.uuid,
-                                           "Incoming", "hello 4", "", "Handled"], pytz.UTC)
+                                           "Incoming", "hello 4", "", "Handled"], self.org.timezone)
 
             self.assertExcelRow(sheet, 7, [msg2.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg2.contact.uuid,
-                                           "Incoming", "hello 2", "", "Handled"], pytz.UTC)
+                                           "Incoming", "hello 2", "", "Handled"], self.org.timezone)
 
             self.assertExcelRow(sheet, 8, [msg1.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg1.contact.uuid,
-                                           "Incoming", "hello 1", "label1", "Handled"], pytz.UTC)
+                                           "Incoming", "hello 1", "label1", "Handled"], self.org.timezone)
 
 
 class MsgCRUDLTest(TembaTest):
