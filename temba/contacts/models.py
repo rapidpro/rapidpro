@@ -783,7 +783,7 @@ class Contact(TembaModel):
 
         # optimize the single URN contact lookup case with an existing contact, this doesn't need a lock as
         # it is read only from a contacts perspective, but it is by far the most common case
-        if not uuid and not name and urns and len(urns) == 1:
+        if not uuid and urns and len(urns) == 1:
             existing_urn = ContactURN.lookup(org, urns[0], country)
 
             if existing_urn and existing_urn.contact:
@@ -853,9 +853,6 @@ class Contact(TembaModel):
                         existing_orphan_urns[urn] = existing_urn
                         if not contact and existing_urn.contact:
                             contact = existing_urn.contact
-
-                    if auth_token and auth_token != existing_urn.auth_token:
-                        ContactURN.update_auth_token(existing_urn, auth_token)
 
                 else:
                     urns_to_create[urn] = normalized
