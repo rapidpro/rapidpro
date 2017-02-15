@@ -2006,12 +2006,10 @@ class ExportMessagesTask(BaseExportTask):
         return temp, 'xlsx'
 
 
+@register_asset_store
 class MessageExportAssetStore(BaseExportAssetStore):
     model = ExportMessagesTask
     key = 'message_export'
     directory = 'message_exports'
     permission = 'msgs.msg_export'
     extensions = ('xlsx',)
-
-
-register_asset_store(MessageExportAssetStore)

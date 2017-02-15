@@ -2411,12 +2411,10 @@ class ExportContactsTask(BaseExportTask):
         return exporter.save_file()
 
 
+@register_asset_store
 class ContactExportAssetStore(BaseExportAssetStore):
     model = ExportContactsTask
     key = 'contact_export'
     directory = 'contact_exports'
     permission = 'contacts.contact_export'
     extensions = ('xlsx', 'csv')
-
-
-register_asset_store(ContactExportAssetStore)

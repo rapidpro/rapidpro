@@ -4303,15 +4303,13 @@ class ExportFlowResultsTask(BaseExportTask):
         return temp, 'xlsx'
 
 
+@register_asset_store
 class ResultsExportAssetStore(BaseExportAssetStore):
     model = ExportFlowResultsTask
     key = 'results_export'
     directory = 'results_exports'
     permission = 'flows.flow_export_results'
     extensions = ('xlsx',)
-
-
-register_asset_store(ResultsExportAssetStore)
 
 
 @six.python_2_unicode_compatible
