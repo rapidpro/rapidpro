@@ -133,12 +133,18 @@ class IVRCall(ChannelSession):
                 self.status = self.CANCELED
 
         elif channel_type in Channel.NCCO_CHANNELS:
-            if status == 'ringing':
+            if status in ('ringing', 'started'):
                 self.status = self.RINGING
             elif status == 'answered':
                 self.status = self.IN_PROGRESS
             elif status == 'completed':
                 self.status = self.COMPLETED
+            elif status == 'failed':
+                self.status = self.FAILED
+            elif status in ('rejected', 'busy'):
+                self.status = self.BUSY
+            elif status in ('unanswered', 'timeout'):
+                self.status = self.NO_ANSWER
 
         # if we are done, mark our ended time
         if self.status in ChannelSession.DONE:
