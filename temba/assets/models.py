@@ -138,7 +138,7 @@ class BaseAssetStore(object):
 
         raise AssetFileNotFound()  # pragma: needs cover
 
-    def is_asset_ready(self, asset):
+    def is_asset_ready(self, asset):  # pragma: no cover
         return True
 
     def get_asset_url(self, pk, direct=False):
