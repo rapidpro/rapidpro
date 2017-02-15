@@ -982,7 +982,9 @@ class ExportTest(TembaTest):
     def setUp(self):
         super(ExportTest, self).setUp()
 
-        self.task = ExportContactsTask(org=self.org)
+        self.group = self.create_group("New contacts", [])
+        self.task = ExportContactsTask.objects.create(org=self.org, group=self.group,
+                                                      created_by=self.admin, modified_by=self.admin)
 
     def test_prepare_value(self):
         self.assertEqual(self.task.prepare_value(None), '')
@@ -991,6 +993,24 @@ class ExportTest(TembaTest):
 
         dt = pytz.timezone("Africa/Nairobi").localize(datetime(2017, 2, 7, 15, 41, 23, 123456))
         self.assertEqual(self.task.prepare_value(dt), datetime(2017, 2, 7, 14, 41, 23, 0))
+
+    def test_task_status(self):
+        self.assertEqual(self.task.status, ExportContactsTask.STATUS_PENDING)
+
+        self.task.perform()
+
+        self.assertEqual(self.task.status, ExportContactsTask.STATUS_COMPLETE)
+
+        task2 = ExportContactsTask.objects.create(org=self.org, group=self.group,
+                                                  created_by=self.admin, modified_by=self.admin)
+
+        # if task throws exception, will be marked as failed
+        with patch.object(task2, 'write_export') as mock_write_export:
+            mock_write_export.side_effect = ValueError("Problem!")
+
+            task2.perform()
+
+            self.assertEqual(task2.status, ExportContactsTask.STATUS_FAILED)
 
     @patch('temba.utils.export.BaseExportTask.MAX_EXCEL_COLS', new_callable=PropertyMock)
     def test_tableexporter_csv(self, mock_max_cols):

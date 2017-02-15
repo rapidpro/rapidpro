@@ -50,14 +50,12 @@ class BaseExportTask(TembaModel):
 
     org = models.ForeignKey('orgs.Org', related_name='%(class)ss', help_text=_("The organization of the user."))
 
-    task_id = models.CharField(null=True, max_length=64)
-
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
 
-    def start_export(self):
+    def perform(self):
         """
-        Starts processing of the export. If do_export throws an exception it's caught here and the export is marked as
-        failed.
+        Performs the actual export. If export generation throws an exception it's caught here and the task is marked
+        as failed.
         """
         try:
             self.update_status(self.STATUS_PROCESSING)
@@ -83,7 +81,7 @@ class BaseExportTask(TembaModel):
 
             gc.collect()  # force garbage collection
 
-    def write_export(self):
+    def write_export(self):  # pragma: no cover
         """
         Should return a file handle for a temporary file and the file extension
         """

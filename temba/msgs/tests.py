@@ -704,7 +704,7 @@ class MsgTest(TembaTest):
         self.assertContains(response, "already an export in progress")
 
         # perform the export manually, assert how many queries
-        self.assertNumQueries(8, lambda: blocking_export.start_export())
+        self.assertNumQueries(8, lambda: blocking_export.perform())
 
         self.client.post(reverse('msgs.msg_export'))
         task = ExportMessagesTask.objects.all().order_by('-id').first()

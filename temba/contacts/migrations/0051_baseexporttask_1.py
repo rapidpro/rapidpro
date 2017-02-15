@@ -23,4 +23,8 @@ class Migration(migrations.Migration):
             name='org',
             field=models.ForeignKey(help_text='The organization of the user.', on_delete=django.db.models.deletion.CASCADE, related_name='exportcontactstasks', to='orgs.Org'),
         ),
+        migrations.RemoveField(
+            model_name='exportcontactstask',
+            name='task_id',
+        ),
     ]
