@@ -3888,7 +3888,7 @@ class ExportFlowResultsTask(BaseExportTask):
     """
     Container for managing our export requests
     """
-    EXPORT_NAME = 'flowresult_export'
+    analytics_key = 'flowresult_export'
 
     INCLUDE_RUNS = 'include_runs'
     INCLUDE_MSGS = 'include_msgs'

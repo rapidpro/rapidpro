@@ -5,9 +5,10 @@ import gc
 import six
 import time
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from openpyxl import Workbook
 from openpyxl.utils.cell import get_column_letter
@@ -20,7 +21,7 @@ class BaseExportTask(SmartModel):
     """
     Base class for export task models, i.e. contacts, messages and flow results
     """
-    EXPORT_NAME = None
+    analytics_key = None
 
     MAX_EXCEL_ROWS = 1048576
     MAX_EXCEL_COLS = 16384
@@ -29,32 +30,59 @@ class BaseExportTask(SmartModel):
     WIDTH_MEDIUM = 20
     WIDTH_LARGE = 100
 
+    STATUS_PENDING = 'P'
+    STATUS_PROCESSING = 'O'
+    STATUS_COMPLETE = 'C'
+    STATUS_FAILED = 'F'
+    STATUS_CHOICES = ((STATUS_PENDING, _("Pending")),
+                      (STATUS_PROCESSING, _("Processing")),
+                      (STATUS_COMPLETE, _("Complete")),
+                      (STATUS_FAILED, _("Failed")))
+
     org = models.ForeignKey('orgs.Org', related_name='%(class)ss', help_text=_("The organization of the user."))
 
     task_id = models.CharField(null=True, max_length=64)
 
-    uuid = models.CharField(max_length=36, null=True,
-                            help_text=_("The uuid used to name the resulting export file"))
+    uuid = models.CharField(max_length=36, null=True, help_text=_("The uuid used to name the resulting export file"))
 
-    is_finished = models.BooleanField(default=False,
-                                      help_text=_("Whether this export has completed"))
+    status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
 
     def start_export(self):
         """
-        Starts our export, this just wraps our do-export in a try/finally so we can track
-        when the export is complete.
+        Starts processing of the export. If do_export throws an exception it's caught here and the export is marked as
+        failed.
         """
         try:
+            self.update_status(self.STATUS_PROCESSING)
+
             start = time.time()
             self.do_export()
+        except Exception:
+            self.update_status(self.STATUS_FAILED)
+        else:
+            self.update_status(self.STATUS_COMPLETE)
         finally:
             elapsed = time.time() - start
-            analytics.track(self.created_by.username, 'temba.%s_latency' % self.EXPORT_NAME, properties=dict(value=elapsed))
-
-            self.is_finished = True
-            self.save(update_fields=('is_finished',))
+            analytics.track(self.created_by.username, 'temba.%s_latency' % self.analytics_key, properties=dict(value=elapsed))
 
             gc.collect()  # force garbage collection
+
+    def do_export(self):
+        pass
+
+    def update_status(self, status):
+        self.status = status
+        self.save(update_fields=('status',))
+
+    @classmethod
+    def get_recent_unfinished(cls, org):
+        """
+        Checks for unfinished exports created in the last 24 hours for this org, and returns the most recent
+        """
+        return cls.objects.filter(
+            org=org, created_on__gt=timezone.now() - timedelta(hours=24),
+            status__in=(cls.STATUS_PENDING, cls.STATUS_PROCESSING)
+        ).order_by('-created_on').first()
 
     def append_row(self, sheet, values):
         row = []
@@ -88,9 +116,9 @@ class TableExporter(object):
     """
     Class that abstracts out writing a table of data to a CSV or Excel file. This only works for exports that
     have a single sheet (as CSV's don't have sheets) but takes care of writing to a CSV in the case
-    where there are more than 256 columns, which Excel doesn't support.
+    where there are more than 16384 columns, which Excel doesn't support.
 
-    When writing to an Excel sheet, this also takes care of creating different sheets every 65535
+    When writing to an Excel sheet, this also takes care of creating different sheets every 1048576
     rows, as again, Excel file only support that many per sheet.
     """
     def __init__(self, task, sheet_name, columns):

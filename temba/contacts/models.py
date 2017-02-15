@@ -2292,7 +2292,7 @@ class ContactGroupCount(SquashableModel):
 
 
 class ExportContactsTask(BaseExportTask):
-    EXPORT_NAME = 'contact_export'
+    analytics_key = 'contact_export'
 
     group = models.ForeignKey(ContactGroup, null=True, related_name='exports', help_text=_("The unique group to export"))
 

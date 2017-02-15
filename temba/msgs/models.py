@@ -1899,7 +1899,7 @@ class ExportMessagesTask(BaseExportTask):
     When the export is done, we store the file on the server and send an e-mail notice with a
     link to download the results.
     """
-    EXPORT_NAME = 'msg_export'
+    analytics_key = 'msg_export'
 
     groups = models.ManyToManyField(ContactGroup)
 
