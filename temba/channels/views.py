@@ -1274,6 +1274,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         class BulkSenderForm(forms.Form):
             connection = forms.CharField(max_length=2, widget=forms.HiddenInput, required=False)
+            channel = forms.IntegerField(widget=forms.HiddenInput, required=False)
 
             def __init__(self, *args, **kwargs):
                 self.org = kwargs['org']
@@ -1286,8 +1287,15 @@ class ChannelCRUDL(SmartCRUDL):
                     raise forms.ValidationError(_("A connection to a Nexmo account is required"))
                 return connection
 
+            def clean_channel(self):
+                channel = self.cleaned_data['channel']
+                channel = self.org.channels.filter(pk=channel).first()
+                if not channel:
+                    raise forms.ValidationError("Can't add sender for that number")
+                return channel
+
         form_class = BulkSenderForm
-        fields = ('connection', )
+        fields = ('connection', 'channel')
 
         def get_form_kwargs(self, *args, **kwargs):
             form_kwargs = super(ChannelCRUDL.CreateBulkSender, self).get_form_kwargs(*args, **kwargs)
@@ -1295,16 +1303,9 @@ class ChannelCRUDL(SmartCRUDL):
             return form_kwargs
 
         def form_valid(self, form):
-
-            # make sure they own the channel
-            channel = self.request.GET.get('channel', None)
-            if channel:
-                channel = self.request.user.get_org().channels.filter(pk=channel).first()
-            if not channel:  # pragma: needs cover
-                raise forms.ValidationError("Can't add sender for that number")
-
             user = self.request.user
 
+            channel = form.cleaned_data['channel']
             Channel.add_send_channel(user, channel)
             return super(ChannelCRUDL.CreateBulkSender, self).form_valid(form)
 
