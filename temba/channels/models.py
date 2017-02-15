@@ -1258,7 +1258,7 @@ class Channel(TembaModel):
                                 method='POST',
                                 url=url,
                                 request=payload,
-                                response=result,
+                                response=response.content,
                                 response_status=response.status_code,
                                 start=start)
 
