@@ -2182,10 +2182,6 @@ class ContactTest(TembaTest):
         self.assertEquals(contact5, ContactURN.objects.get(urn='tel:+250788333444').contact)
         self.assertFalse(contact4.urns.all())
 
-        contact5.update_urn_path('tel:0788333444', '0788333445')
-        contact5_urn = contact5.get_urn('tel')
-        self.assertEqual(contact5_urn.path, '0788333445')
-
     def test_from_urn(self):
         self.assertEqual(Contact.from_urn(self.org, 'tel:+250781111111'), self.joe)  # URN with contact
         self.assertIsNone(Contact.from_urn(self.org, 'tel:+250788888888'))  # URN with no contact
