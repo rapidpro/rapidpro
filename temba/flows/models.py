@@ -29,6 +29,7 @@ from django_redis import get_redis_connection
 from enum import Enum
 from smartmin.models import SmartModel
 from temba.airtime.models import AirtimeTransfer
+from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
@@ -38,7 +39,7 @@ from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VE
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.email import is_valid_address
-from temba.utils.export import BaseExportTask
+from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.models import SquashableModel, TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
@@ -3914,10 +3915,6 @@ class ExportFlowResultsTask(BaseExportTask):
 
         return export
 
-    def get_asset_type(self):
-        from temba.assets.models import AssetType
-        return AssetType.results_export
-
     def get_email_context(self, branding):
         context = super(ExportFlowResultsTask, self).get_email_context(branding)
         context['flows'] = self.flows.all()
@@ -4304,6 +4301,17 @@ class ExportFlowResultsTask(BaseExportTask):
         book.save(temp)
         temp.flush()
         return temp, 'xlsx'
+
+
+class ResultsExportAssetStore(BaseExportAssetStore):
+    model = ExportFlowResultsTask
+    key = 'results_export'
+    directory = 'results_exports'
+    permission = 'flows.flow_export_results'
+    extensions = ('xlsx',)
+
+
+register_asset_store(ResultsExportAssetStore)
 
 
 @six.python_2_unicode_compatible

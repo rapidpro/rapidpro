@@ -19,13 +19,14 @@ from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
 from temba_expressions.evaluator import EvaluationContext, DateStyle
+from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
 from temba.utils.cache import get_cacheable_attr
-from temba.utils.export import BaseExportTask
+from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
@@ -1908,10 +1909,6 @@ class ExportMessagesTask(BaseExportTask):
 
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
 
-    def get_asset_type(self):
-        from temba.assets.models import AssetType
-        return AssetType.message_export
-
     def write_export(self):
         from openpyxl import Workbook
 
@@ -2007,3 +2004,14 @@ class ExportMessagesTask(BaseExportTask):
         book.save(temp)
         temp.flush()
         return temp, 'xlsx'
+
+
+class MessageExportAssetStore(BaseExportAssetStore):
+    model = ExportMessagesTask
+    key = 'message_export'
+    directory = 'message_exports'
+    permission = 'msgs.msg_export'
+    extensions = ('xlsx',)
+
+
+register_asset_store(MessageExportAssetStore)

@@ -35,7 +35,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='exportcontactstask',
             name='uuid',
-            field=models.CharField(db_index=True, default=generate_uuid(),
+            field=models.CharField(db_index=True, default=generate_uuid,
                                    help_text='The unique identifier for this object', max_length=36, unique=True,
                                    verbose_name='Unique Identifier'),
         ),

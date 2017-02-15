@@ -21,11 +21,12 @@ from guardian.utils import get_anonymous_user
 from itertools import chain
 from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
+from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
 from temba.utils.models import SquashableModel, TembaModel
-from temba.utils.export import BaseExportTask, TableExporter
+from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value
 from temba.locations.models import STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
@@ -2295,10 +2296,6 @@ class ExportContactsTask(BaseExportTask):
 
     group = models.ForeignKey(ContactGroup, null=True, related_name='exports', help_text=_("The unique group to export"))
 
-    def get_asset_type(self):
-        from temba.assets.models import AssetType
-        return AssetType.contact_export
-
     def get_export_fields_and_schemes(self):
 
         fields = [dict(label='UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
@@ -2412,3 +2409,14 @@ class ExportContactsTask(BaseExportTask):
                                time.time() - start, predicted))
 
         return exporter.save_file()
+
+
+class ContactExportAssetStore(BaseExportAssetStore):
+    model = ExportContactsTask
+    key = 'contact_export'
+    directory = 'contact_exports'
+    permission = 'contacts.contact_export'
+    extensions = ('xlsx', 'csv')
+
+
+register_asset_store(ContactExportAssetStore)

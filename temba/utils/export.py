@@ -14,9 +14,15 @@ from django.utils.translation import ugettext_lazy as _
 from openpyxl import Workbook
 from openpyxl.utils.cell import get_column_letter
 from openpyxl.writer.write_only import WriteOnlyCell
+from temba.assets.models import BaseAssetStore, get_asset_store
 from . import clean_string, analytics
 from .models import TembaModel
 from .email import send_template_email
+
+
+class BaseExportAssetStore(BaseAssetStore):
+    def is_asset_ready(self, asset):
+        return asset.status == BaseExportTask.STATUS_COMPLETE
 
 
 class BaseExportTask(TembaModel):
@@ -60,7 +66,7 @@ class BaseExportTask(TembaModel):
 
             temp_file, extension = self.write_export()
 
-            self.get_asset_type().store.save(self.id, File(temp_file), extension)
+            get_asset_store(model=self.__class__).save(self.id, File(temp_file), extension)
 
             branding = self.org.get_branding()
 
@@ -122,9 +128,9 @@ class BaseExportTask(TembaModel):
             sheet.column_dimensions[get_column_letter(index + 1)].width = widths[index]
 
     def get_email_context(self, branding):
-        from temba.assets.views import get_asset_url
+        asset_store = get_asset_store(model=self.__class__)
 
-        return {'link': branding['link'] + get_asset_url(self.get_asset_type(), self.id)}
+        return {'link': branding['link'] + asset_store.get_asset_url(self.id)}
 
     class Meta:
         abstract = True
