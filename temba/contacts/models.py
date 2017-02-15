@@ -965,12 +965,15 @@ class Contact(TembaModel):
         Performs a search of contacts based on a query. Returns a tuple of the queryset and a bool for whether
         or not the query was a valid complex query, e.g. name = "Bob" AND age = 21
         """
-        from temba.contacts import search
+        from temba.contacts.search2 import contact_search, SearchException
 
         if base_queryset is None:
             base_queryset = Contact.objects.filter(org=org, is_active=True, is_test=False, is_blocked=False, is_stopped=False)
 
-        return search.contact_search(org, query, base_queryset)
+        try:
+            return contact_search(org, query, base_queryset), True
+        except SearchException:
+            return Contact.objects.none(), False
 
     @classmethod
     def create_instance(cls, field_dict):

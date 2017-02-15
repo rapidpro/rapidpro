@@ -15,35 +15,7 @@ from ply import yacc
 from temba.locations.models import AdminBoundary
 from temba.utils import str_to_datetime
 from temba.values.models import Value
-
-PROPERTY_ALIASES = None  # initialised in contact_search to avoid circular import
-
-NON_FIELD_PROPERTIES = ('name', 'urns__path')  # identifiers which are not contact fields
-
-TEXT_LOOKUP_ALIASES = LOCATION_LOOKUP_ALIASES = {
-    '=': 'iexact',
-    'is': 'iexact',
-    '~': 'icontains',
-    'has': 'icontains'
-}
-
-DECIMAL_LOOKUP_ALIASES = {
-    '=': 'exact',
-    'is': 'exact',
-    '>': 'gt',
-    '>=': 'gte',
-    '<': 'lt',
-    '<=': 'lte'
-}
-
-DATETIME_LOOKUP_ALIASES = {
-    '=': '<equal>',
-    'is': '<equal>',
-    '>': 'gt',
-    '>=': 'gte',
-    '<': 'lt',
-    '<=': 'lte'
-}
+from .models import ContactField, ContactURN
 
 
 class SearchException(Exception):
@@ -111,23 +83,38 @@ class SearchLexer(object):
 
 @six.python_2_unicode_compatible
 class ContactQuery(object):
+    """
+    A parsed contact query consisting of a hierarchy of conditions and boolean combinations of conditions
+    """
+    PROP_ATTRIBUTE = 'A'
+    PROP_SCHEME = 'S'
+    PROP_FIELD = 'F'
+
+    SEARCHABLE_ATTRIBUTES = ('name',)
+
+    SEARCHABLE_SCHEMES = ('tel', 'twitter')
+
     def __init__(self, root):
         self.root = root.simplify().split_by_prop()
 
     def as_query(self, org):
         prop_map = self.get_prop_map(org)
 
-        return self.root.as_query(prop_map)
+        return self.root.as_query(org, prop_map)
 
     def get_prop_map(self, org):
-        from temba.contacts.models import ContactField
-
-        prop_map = {p: None for p in self.root.get_prop_names()}
+        prop_map = {p: None for p in self.root.get_prop_names() if p != Condition.NAME_OR_URN}
 
         for field in ContactField.objects.filter(org=org, key__in=prop_map.keys(), is_active=True):
-            prop_map[field.key] = field
+            prop_map[field.key] = (self.PROP_FIELD, field)
 
-        # TODO schemes, attributes
+        for attr in self.SEARCHABLE_ATTRIBUTES:
+            if attr in prop_map.keys():
+                prop_map[attr] = (self.PROP_ATTRIBUTE, attr)
+
+        for scheme in self.SEARCHABLE_SCHEMES:
+            if scheme in prop_map.keys():
+                prop_map[scheme] = (self.PROP_SCHEME, scheme)
 
         for prop, prop_obj in prop_map.items():
             if not prop_obj:
@@ -140,64 +127,124 @@ class ContactQuery(object):
 
 
 class QueryNode(object):
+    """
+    A search query node which is either a condition or a boolean combination of other conditions
+    """
     def simplify(self):
         return self
 
     def split_by_prop(self):
         return self
 
-    def as_query(self, prop_map):
+    def as_query(self, org, prop_map):
         pass
 
 
 @six.python_2_unicode_compatible
 class Condition(QueryNode):
+    NAME_OR_URN = '*'
+
+    TEXT_LOOKUPS = {'=': 'iexact', '~': 'icontains'}
+
+    DECIMAL_LOOKUPS = {
+        '=': 'exact',
+        'is': 'exact',
+        '>': 'gt',
+        '>=': 'gte',
+        '<': 'lt',
+        '<=': 'lte'
+    }
+
+    DATETIME_LOOKUPS = {
+        '=': '<equal>',
+        'is': '<equal>',
+        '>': 'gt',
+        '>=': 'gte',
+        '<': 'lt',
+        '<=': 'lte'
+    }
+
+    COMPARATOR_ALIASES = {'is': '=', 'has': '~'}
+
     def __init__(self, prop, comparator, value):
         self.prop = prop
-        self.comparator = comparator
+        self.comparator = self.COMPARATOR_ALIASES[comparator] if comparator in self.COMPARATOR_ALIASES else comparator
         self.value = value
 
     def get_prop_names(self):
         return [self.prop]
 
-    def as_query(self, prop_map):
-        from temba.contacts.models import ContactField
+    def as_query(self, org, prop_map):
+        # a value without a prop implies query against name or URN, e.g. "bob"
+        if self.prop == self.NAME_OR_URN:
+            return self._build_name_or_urn_query(org)
 
-        prop_obj = prop_map[self.prop]
+        prop_type, prop_obj = prop_map[self.prop]
 
-        if isinstance(prop_obj, ContactField):
+        if prop_type == ContactQuery.PROP_FIELD:
             # empty string equality means contacts without that field set
             if self.comparator.lower() in ('=', 'is') and self.value == "":
-                return ~Q(id__in=Value.objects.filter(contact__field=prop_obj).values('contact_id'))
+                return ~Q(id__in=Value.objects.filter(contact_field=prop_obj).values('contact_id'))
             else:
-                value_query = self.build_value_query(prop_obj)
-
-                return Q(id__in=Value.objects.filter(**value_query).values('contact_id'))
+                return self._build_value_query(prop_obj)
+        elif prop_type == ContactQuery.PROP_SCHEME:
+            if org.is_anon:
+                return Q(id=-1)
+            else:
+                return self._build_urn_query(prop_obj)
         else:
-            # TODO if not a field?
-            raise ValueError("TODO")
+            return self._build_attr_query(prop_obj)
 
-    def build_value_query(self, field):
+    def _build_name_or_urn_query(self, org):
+        name_query = Q(name__icontains=self.value)
+
+        if org.is_anon:
+            try:
+                urn_query = Q(id=int(self.value))  # try id match for anon orgs
+            except ValueError:
+                urn_query = Q(id=-1)
+        else:
+            urn_query = Q(id__in=ContactURN.objects.filter(path__icontains=self.value).values('contact_id'))
+
+        return name_query | urn_query
+
+    def _build_attr_query(self, attr):
+        lookup = self.TEXT_LOOKUPS.get(self.comparator)
+        if not lookup:
+            raise SearchException("Unsupported comparator %s for contact attribute" % self.comparator)
+
+        return Q(**{'%s__%s' % (attr, lookup): self.value})
+
+    def _build_urn_query(self, scheme):
+        lookup = self.TEXT_LOOKUPS.get(self.comparator)
+        if not lookup:
+            raise SearchException("Unsupported comparator %s for URN" % self.comparator)
+
+        return Q(id__in=ContactURN.objects.filter(**{'scheme': scheme, 'path__%s' % lookup: self.value}).values('contact_id'))
+
+    def _build_value_query(self, field):
         if field.value_type == Value.TYPE_TEXT:
-            return self._build_text_field_query(field)
+            params = self._build_text_field_params(field)
         elif field.value_type == Value.TYPE_DECIMAL:
-            return self._build_decimal_field_comparison(field)
+            params = self._build_decimal_field_params(field)
         elif field.value_type == Value.TYPE_DATETIME:
-            return self._build_datetime_field_comparison(field)
+            params = self._build_datetime_field_params(field)
         elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
-            return self._build_location_field_comparison(field)
+            params = self._build_location_field_params(field)
         else:  # pragma: no cover
             raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
 
-    def _build_text_field_query(self, field):
-        lookup = TEXT_LOOKUP_ALIASES.get(self.comparator)
+        return Q(id__in=Value.objects.filter(**params).values('contact_id'))
+
+    def _build_text_field_params(self, field):
+        lookup = self.TEXT_LOOKUPS.get(self.comparator)
         if not lookup:
             raise SearchException("Unsupported comparator %s for text field" % self.comparator)
 
         return {'contact_field': field, 'string_value__%s' % lookup: self.value}
 
-    def _build_decimal_field_query(self, field):
-        lookup = DECIMAL_LOOKUP_ALIASES.get(self.comparator)
+    def _build_decimal_field_params(self, field):
+        lookup = self.DECIMAL_LOOKUPS.get(self.comparator)
         if not lookup:
             raise SearchException("Unsupported comparator %s for decimal field" % self.comparator)
 
@@ -208,13 +255,13 @@ class Condition(QueryNode):
 
         return {'contact_field': field, 'decimal_value__%s' % lookup: value}
 
-    def _build_datetime_field_query(self, org, field):
-        lookup = DATETIME_LOOKUP_ALIASES.get(self.comparator)
+    def _build_datetime_field_params(self, field):
+        lookup = self.DATETIME_LOOKUPS.get(self.comparator)
         if not lookup:
             raise SearchException("Unsupported comparator %s for datetime field" % self.comparator)
 
         # parse as localized date and then convert to UTC
-        local_date = str_to_datetime(self.value, org.timezone, org.get_dayfirst(), fill_time=False)
+        local_date = str_to_datetime(self.value, field.org.timezone, field.org.get_dayfirst(), fill_time=False)
         if not local_date:
             raise SearchException("Unable to parse date: %s" % self.value)
 
@@ -233,14 +280,14 @@ class Condition(QueryNode):
         else:
             return {'contact_field__id': field.id, 'datetime_value__%s' % lookup: value}
 
-    def _build_location_field_query(self, field):
-        lookup = LOCATION_LOOKUP_ALIASES.get(self.comparator)
+    def _build_location_field_params(self, field):
+        lookup = self.TEXT_LOOKUPS.get(self.comparator)
         if not lookup:
             raise SearchException("Unsupported comparator %s for location field" % self.comparator)
 
         locations = AdminBoundary.objects.filter(**{'name__%s' % lookup: self.value}).values('id')
 
-        return {'contact_field': field, 'values__location_value__in': locations}
+        return {'contact_field': field, 'location_value__in': locations}
 
     def __str__(self):
         return '%s%s%s' % (self.prop, self.comparator, self.value)
@@ -306,8 +353,8 @@ class BoolCombination(QueryNode):
 
         return BoolCombination(self.op, *new_children)
 
-    def as_query(self, prop_map):
-        return reduce(self.op, [child.as_query(prop_map) for child in self.children])
+    def as_query(self, org, prop_map):
+        return reduce(self.op, [child.as_query(org, prop_map) for child in self.children])
 
     def __str__(self):
         op = 'OR' if self.op == operator.or_ else 'AND'
@@ -321,28 +368,30 @@ class SinglePropCombination(BoolCombination):
     """
     def __init__(self, prop, op, *children):
         self.prop = prop
+
         super(SinglePropCombination, self).__init__(op, *children)
 
-    def as_query(self, prop_map):
-        from temba.contacts.models import ContactField
+    def as_query(self, org, prop_map):
+        # prop_type, prop_obj = prop_map[self.prop]
 
-        prop_obj = prop_map[self.prop]
+        # if prop_type == ContactQuery.PROP_FIELD and self.op == operator.and_:
+            # TODO optimize `a = 1 OR a = 2` to `a IN (1, 2)`
+            # if self.op == operator.or_ and all([c.comparator == '=' for c in self.children]):
+            #    value_query = {'%s'}
+            # else:
 
-        if isinstance(prop_obj, ContactField):
             # merge queries from children
-            value_query = {}
-            for child in self.children:
-                value_query.update(**child.get_value_query())
+            # value_query = {}
+            # for child in self.children:
+            #    value_query.update(**child.get_value_query())
 
-            # TODO convert OR'd = conditions to IN etc
+            # return Q(id__in=Value.objects.filter(**value_query).values('contact_id'))
 
-            return Q(id__in=Value.objects.filter(**value_query).values('contact_id'))
-        else:
-            return super(SinglePropCombination, self).as_query(prop_map)
+        return super(SinglePropCombination, self).as_query(org, prop_map)
 
     def __str__(self):
         op = 'OR' if self.op == operator.or_ else 'AND'
-        return '%s[%s](%s)' % (op, self.prop, ', '.join([six.text_type(c) for c in self.children]))
+        return '%s[%s](%s)' % (op, self.prop, ', '.join(['%s %s' % (c.comparator, c.value) for c in self.children]))
 
 
 # ================================== Parser definition ==================================
@@ -373,6 +422,11 @@ def p_expression_comparison(p):
     p[0] = Condition(p[1].lower(), p[2].lower(), p[3])
 
 
+def p_expression_value(p):
+    """expression : TEXT"""
+    p[0] = Condition(Condition.NAME_OR_URN, '=', p[1])
+
+
 def p_literal(p):
     """literal : TEXT
                | STRING"""
@@ -391,3 +445,10 @@ search_parser = yacc.yacc(write_tables=False)
 
 def parse_query(text):
     return ContactQuery(search_parser.parse(text, lexer=search_lexer))
+
+
+def contact_search(org, text, base_queryset):
+    parsed = parse_query(text)
+    query = parsed.as_query(org)
+
+    return base_queryset.filter(query)
