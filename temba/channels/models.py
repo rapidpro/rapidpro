@@ -3239,7 +3239,7 @@ class ChannelLog(models.Model):
         try:
             return json.dumps(json.loads(self.request), indent=2)
         except:
-            return self.response
+            return self.request
 
     def get_response_formatted(self):
         try:
