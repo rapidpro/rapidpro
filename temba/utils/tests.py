@@ -1017,9 +1017,9 @@ class ExportTest(TembaTest):
         exporter.write_row(values)
 
         # ok, let's check the result now
-        file = exporter.save_file()
+        temp_file, file_ext = exporter.save_file()
 
-        with open(file.name, 'rb') as csvfile:
+        with open(temp_file.name, 'rb') as csvfile:
             import csv
             reader = csv.reader(csvfile)
 
@@ -1054,8 +1054,8 @@ class ExportTest(TembaTest):
         for i in range(test_max_rows + 200):
             exporter.write_row(values)
 
-        exporter_file = exporter.save_file()
-        workbook = load_workbook(filename=exporter_file.name)
+        temp_file, file_ext = exporter.save_file()
+        workbook = load_workbook(filename=temp_file.name)
 
         self.assertEquals(2, len(workbook.worksheets))
 

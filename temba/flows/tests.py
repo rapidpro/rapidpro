@@ -686,7 +686,7 @@ class FlowTest(TembaTest):
                                             c1_run1_last, "Orange", "orange", "orange"], tz)
 
         self.assertExcelRow(sheet_runs, 2, [contact1_run2.contact.uuid, "+250788382382", "Eric", "Devs", c1_run2_first,
-                                            c1_run2_last, "Blue", "blue", "blue"], tz)
+                                            c1_run2_last, "Blue", "blue", " blue "], tz)
 
         contact2_run1_rs = FlowStep.objects.filter(run=contact2_run1, step_type='R')
         c2_run1_first = contact2_run1_rs.order_by('pk').first().arrived_on
@@ -716,7 +716,7 @@ class FlowTest(TembaTest):
                                                 "color (Text) - Color Flow"])
 
         self.assertExcelRow(sheet_contacts, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "Devs",
-                                                c1_run1_first, c1_run2_last, "Blue", "blue", "blue"], tz)
+                                                c1_run1_first, c1_run2_last, "Blue", "blue", " blue "], tz)
 
         self.assertExcelRow(sheet_contacts, 2, [contact2_run1.contact.uuid, "+250788383383", "Nic", "",
                                                 c2_run1_first, c2_run2_last, "Other", "green", "green"], tz)
@@ -766,7 +766,7 @@ class FlowTest(TembaTest):
                                                 "color (Text) - Color Flow"])
 
         self.assertExcelRow(sheet_contacts, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "Devs",
-                                                c1_run1_first, c1_run2_last, "Blue", "blue", "blue"], tz)
+                                                c1_run1_first, c1_run2_last, "Blue", "blue", " blue "], tz)
 
         self.assertExcelRow(sheet_contacts, 2, [contact2_run1.contact.uuid, "+250788383383", "Nic", "", c2_run1_first,
                                                 c2_run1_last, "Other", "green", "green"], tz)
@@ -801,7 +801,7 @@ class FlowTest(TembaTest):
                                                 "color (Text) - Color Flow"])
 
         self.assertExcelRow(sheet_contacts, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "Devs", "36",
-                                                c1_run1_first, c1_run2_last, "Blue", "blue", "blue"], tz)
+                                                c1_run1_first, c1_run2_last, "Blue", "blue", " blue "], tz)
 
         self.assertExcelRow(sheet_contacts, 2, [contact2_run1.contact.uuid, "+250788383383", "Nic", "", "",
                                                 c2_run1_first, c2_run1_last, "Other", "green", "green"], tz)
