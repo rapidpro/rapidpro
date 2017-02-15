@@ -6,6 +6,7 @@ import six
 import time
 
 from datetime import datetime, timedelta
+from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.utils import timezone
@@ -57,11 +58,13 @@ class BaseExportTask(TembaModel):
 
             start = time.time()
 
-            self.do_export()
+            temp_file, extension = self.write_export()
+
+            self.get_asset_type().store.save(self.id, File(temp_file), extension)
 
             branding = self.org.get_branding()
 
-            # only send the email if this is production
+            # notify user who requested this export
             send_template_email(self.created_by.username, self.email_subject, self.email_template,
                                 self.get_email_context(branding), branding)
         except Exception:
@@ -74,7 +77,10 @@ class BaseExportTask(TembaModel):
 
             gc.collect()  # force garbage collection
 
-    def do_export(self):
+    def write_export(self):
+        """
+        Should return a file handle for a temporary file and the file extension
+        """
         pass
 
     def update_status(self, status):

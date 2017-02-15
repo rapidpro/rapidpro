@@ -16,7 +16,6 @@ from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
 from django.core.cache import cache
-from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
@@ -3924,7 +3923,7 @@ class ExportFlowResultsTask(BaseExportTask):
         context['flows'] = self.flows.all()
         return context
 
-    def do_export(self):
+    def write_export(self):
         from openpyxl import Workbook
         book = Workbook(write_only=True)
 
@@ -4304,8 +4303,7 @@ class ExportFlowResultsTask(BaseExportTask):
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
         temp.flush()
-
-        self.get_asset_type().store.save(self.id, File(temp), 'xlsx')
+        return temp, 'xlsx'
 
 
 @six.python_2_unicode_compatible

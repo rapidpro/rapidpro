@@ -12,7 +12,6 @@ import time
 
 from collections import defaultdict
 from django.core.exceptions import ValidationError
-from django.core.files import File
 from django.core.validators import validate_email
 from django.db import models
 from django.db.models import Count, Max, Q, Sum
@@ -2333,7 +2332,7 @@ class ExportContactsTask(BaseExportTask):
 
         return fields, scheme_counts
 
-    def do_export(self):
+    def write_export(self):
         fields, scheme_counts = self.get_export_fields_and_schemes()
 
         with SegmentProfiler("build up contact ids"):
@@ -2412,7 +2411,4 @@ class ExportContactsTask(BaseExportTask):
                                "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
                                time.time() - start, predicted))
 
-        # get our table file
-        table_file, file_ext = exporter.save_file()
-
-        self.get_asset_type().store.save(self.id, File(table_file), file_ext)
+        return exporter.save_file()

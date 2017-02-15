@@ -12,7 +12,6 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import Q, Count, Prefetch, Sum
@@ -1913,7 +1912,7 @@ class ExportMessagesTask(BaseExportTask):
         from temba.assets.models import AssetType
         return AssetType.message_export
 
-    def do_export(self):
+    def write_export(self):
         from openpyxl import Workbook
 
         book = Workbook(write_only=True)
@@ -2007,5 +2006,4 @@ class ExportMessagesTask(BaseExportTask):
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
         temp.flush()
-
-        self.get_asset_type().store.save(self.id, File(temp), 'xlsx')
+        return temp, 'xlsx'
