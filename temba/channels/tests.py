@@ -8531,8 +8531,7 @@ class GlobeTest(TembaTest):
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
             mock.assert_called_once_with('https://devapi.globelabs.com.ph/smsmessaging/v1/outbound/21586380/requests',
-                                         headers={'User-agent': 'RapidPro', 'Content-Type': 'application/json',
-                                                  'Authorization': u'key=123456789'},
+                                         headers={'User-agent': 'RapidPro'},
                                          data={'message': 'MT', 'app_secret': 'AppSecret', 'app_id': 'AppId',
                                                'passphrase': 'Passphrase', 'address': '639171234567'},
                                          timeout=5)
@@ -9086,8 +9085,7 @@ class ViberPublicTest(TembaTest):
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
             mock.assert_called_with('https://chatapi.viber.com/pa/send_message',
-                                    headers={'Accept': u'application/json', u'User-agent': u'RapidPro',
-                                             'Content-Type': u'application/json', 'Authorization': 'key=123456789'},
+                                    headers={'Accept': u'application/json', u'User-agent': u'RapidPro'},
                                     json={'text': u'MT',
                                           'auth_token': u'auth_token',
                                           'tracking_data': msg.id,
@@ -9217,15 +9215,15 @@ class FcmTest(TembaTest):
                         'body': 'Hello, world!'
                     }
                 })
-                TEMBA_HEADERS.update({
-                    'Content-Type': 'application/json',
-                    'Authorization': 'key=123456789'
-                })
 
-                mock.assert_called_with('https://fcm.googleapis.com/fcm/send',
-                                        data=data,
-                                        headers=TEMBA_HEADERS,
-                                        timeout=5)
+                mock.assert_called_once_with('https://fcm.googleapis.com/fcm/send',
+                                             data=data,
+                                             headers={
+                                                 'Content-Type': 'application/json',
+                                                 'Authorization': 'key=123456789',
+                                                 'User-agent': 'RapidPro'
+                                             },
+                                             timeout=5)
 
                 self.clear_cache()
 
