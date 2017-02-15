@@ -58,7 +58,7 @@ class BaseAssetStore(object):
         if not user.has_org_perm(asset.org, self.permission):  # pragma: needs cover
             raise AssetAccessDenied()
 
-        if not asset.uuid:
+        if not self.is_asset_ready(asset):
             raise AssetFileNotFound()
 
         path = self.derive_path(asset.org, asset.uuid)
@@ -129,22 +129,31 @@ class BaseAssetStore(object):
 
         raise AssetFileNotFound()  # pragma: needs cover
 
+    def is_asset_ready(self, asset):
+        return True
 
-class ContactExportAssetStore(BaseAssetStore):
+
+class BaseExportAssetStore(BaseAssetStore):
+    def is_asset_ready(self, asset):
+        from temba.utils.export import BaseExportTask
+        return asset.status == BaseExportTask.STATUS_COMPLETE
+
+
+class ContactExportAssetStore(BaseExportAssetStore):
     model = ExportContactsTask
     directory = 'contact_exports'
     permission = 'contacts.contact_export'
     extensions = ('xlsx', 'csv')
 
 
-class ResultsExportAssetStore(BaseAssetStore):
+class ResultsExportAssetStore(BaseExportAssetStore):
     model = ExportFlowResultsTask
     directory = 'results_exports'
     permission = 'flows.flow_export_results'
     extensions = ('xlsx',)
 
 
-class MessageExportAssetStore(BaseAssetStore):
+class MessageExportAssetStore(BaseExportAssetStore):
     model = ExportMessagesTask
     directory = 'message_exports'
     permission = 'msgs.msg_export'

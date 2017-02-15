@@ -38,7 +38,7 @@ from temba.msgs.models import OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils import chunk_list, on_transaction_commit
-from temba.utils.email import send_template_email, is_valid_address
+from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask
 from temba.utils.models import SquashableModel, TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
@@ -3889,6 +3889,8 @@ class ExportFlowResultsTask(BaseExportTask):
     Container for managing our export requests
     """
     analytics_key = 'flowresult_export'
+    email_subject = "Your results export is ready"
+    email_template = 'flows/email/flow_export_download'
 
     INCLUDE_RUNS = 'include_runs'
     INCLUDE_MSGS = 'include_msgs'
@@ -3912,6 +3914,15 @@ class ExportFlowResultsTask(BaseExportTask):
             export.flows.add(flow)
 
         return export
+
+    def get_asset_type(self):
+        from temba.assets.models import AssetType
+        return AssetType.results_export
+
+    def get_email_context(self, branding):
+        context = super(ExportFlowResultsTask, self).get_email_context(branding)
+        context['flows'] = self.flows.all()
+        return context
 
     def do_export(self):
         from openpyxl import Workbook
@@ -4294,25 +4305,7 @@ class ExportFlowResultsTask(BaseExportTask):
         book.save(temp)
         temp.flush()
 
-        # initialize the UUID which we will save results as
-        self.uuid = str(uuid4())
-        self.save(update_fields=['uuid'])
-
-        # save as file asset associated with this task
-        from temba.assets.models import AssetType
-        from temba.assets.views import get_asset_url
-
-        store = AssetType.results_export.store
-        store.save(self.pk, File(temp), 'xlsx')
-
-        subject = "Your export is ready"
-        template = 'flows/email/flow_export_download'
-
-        branding = self.org.get_branding()
-        download_url = branding['link'] + get_asset_url(AssetType.results_export, self.pk)
-
-        # only send the email if this is production
-        send_template_email(self.created_by.username, subject, template, dict(flows=flows, link=download_url), branding)
+        self.get_asset_type().store.save(self.id, File(temp), 'xlsx')
 
 
 @six.python_2_unicode_compatible

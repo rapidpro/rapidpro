@@ -13,15 +13,17 @@ from django.utils.translation import ugettext_lazy as _
 from openpyxl import Workbook
 from openpyxl.utils.cell import get_column_letter
 from openpyxl.writer.write_only import WriteOnlyCell
-from smartmin.models import SmartModel
 from . import clean_string, analytics
+from .models import TembaModel
+from .email import send_template_email
 
 
-class BaseExportTask(SmartModel):
+class BaseExportTask(TembaModel):
     """
     Base class for export task models, i.e. contacts, messages and flow results
     """
     analytics_key = None
+    asset_type = None
 
     MAX_EXCEL_ROWS = 1048576
     MAX_EXCEL_COLS = 16384
@@ -43,8 +45,6 @@ class BaseExportTask(SmartModel):
 
     task_id = models.CharField(null=True, max_length=64)
 
-    uuid = models.CharField(max_length=36, null=True, help_text=_("The uuid used to name the resulting export file"))
-
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
 
     def start_export(self):
@@ -56,7 +56,14 @@ class BaseExportTask(SmartModel):
             self.update_status(self.STATUS_PROCESSING)
 
             start = time.time()
+
             self.do_export()
+
+            branding = self.org.get_branding()
+
+            # only send the email if this is production
+            send_template_email(self.created_by.username, self.email_subject, self.email_template,
+                                self.get_email_context(branding), branding)
         except Exception:
             self.update_status(self.STATUS_FAILED)
         else:
@@ -107,6 +114,11 @@ class BaseExportTask(SmartModel):
     def set_sheet_column_widths(self, sheet, widths):
         for index, width in enumerate(widths):
             sheet.column_dimensions[get_column_letter(index + 1)].width = widths[index]
+
+    def get_email_context(self, branding):
+        from temba.assets.views import get_asset_url
+
+        return {'link': branding['link'] + get_asset_url(self.get_asset_type(), self.id)}
 
     class Meta:
         abstract = True
@@ -171,11 +183,11 @@ class TableExporter(object):
 
     def save_file(self):
         """
-        Saves our data to a file, returning the file saved to
+        Saves our data to a file, returning the file saved to and the extension
         """
         # have to flush the XLS file
         if not self.is_csv:
             self.workbook.save(self.file)
 
         self.file.flush()
-        return self.file
+        return self.file, ('csv' if self.is_csv else 'xlsx')

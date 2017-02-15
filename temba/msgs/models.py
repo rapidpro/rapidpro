@@ -26,12 +26,10 @@ from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
 from temba.utils.cache import get_cacheable_attr
-from temba.utils.email import send_template_email
 from temba.utils.export import BaseExportTask
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
-from uuid import uuid4
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -1900,6 +1898,8 @@ class ExportMessagesTask(BaseExportTask):
     link to download the results.
     """
     analytics_key = 'msg_export'
+    email_subject = "Your messages export is ready"
+    email_template = 'msgs/email/msg_export_download'
 
     groups = models.ManyToManyField(ContactGroup)
 
@@ -1908,6 +1908,10 @@ class ExportMessagesTask(BaseExportTask):
     start_date = models.DateField(null=True, blank=True, help_text=_("The date for the oldest message to export"))
 
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
+
+    def get_asset_type(self):
+        from temba.assets.models import AssetType
+        return AssetType.message_export
 
     def do_export(self):
         from openpyxl import Workbook
@@ -2004,20 +2008,4 @@ class ExportMessagesTask(BaseExportTask):
         book.save(temp)
         temp.flush()
 
-        self.uuid = str(uuid4())
-        self.save(update_fields=['uuid'])
-
-        # save as file asset associated with this task
-        from temba.assets.models import AssetType
-        from temba.assets.views import get_asset_url
-
-        store = AssetType.message_export.store
-        store.save(self.pk, File(temp), 'xlsx')
-
-        branding = self.org.get_branding()
-
-        subject = "Your messages export is ready"
-        template = 'msgs/email/msg_export_download'
-        download_url = branding['link'] + get_asset_url(AssetType.message_export, self.pk)
-
-        send_template_email(self.created_by.username, subject, template, dict(link=download_url), branding)
+        self.get_asset_type().store.save(self.id, File(temp), 'xlsx')

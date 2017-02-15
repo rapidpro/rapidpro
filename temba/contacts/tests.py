@@ -3595,7 +3595,7 @@ class ContactFieldTest(TembaTest):
         # ok, mark that one as finished and try again
         blocking_export.update_status(ExportContactsTask.STATUS_COMPLETE)
 
-        with self.assertNumQueries(38):
+        with self.assertNumQueries(37):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
@@ -3619,7 +3619,7 @@ class ContactFieldTest(TembaTest):
         contact4 = self.create_contact('Stephen', '+12078778899', twitter='stephen')
         ContactURN.create(self.org, contact, 'tel:+12062233445')
 
-        with self.assertNumQueries(38):
+        with self.assertNumQueries(37):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 

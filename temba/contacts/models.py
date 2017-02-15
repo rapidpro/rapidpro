@@ -24,14 +24,12 @@ from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
 from temba.orgs.models import Org, OrgLock
-from temba.utils.email import send_template_email
 from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.export import BaseExportTask, TableExporter
 from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value
 from temba.locations.models import STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
-from uuid import uuid4
 
 
 logger = logging.getLogger(__name__)
@@ -2293,8 +2291,14 @@ class ContactGroupCount(SquashableModel):
 
 class ExportContactsTask(BaseExportTask):
     analytics_key = 'contact_export'
+    email_subject = "Your contacts export is ready"
+    email_template = 'contacts/email/contacts_export_download'
 
     group = models.ForeignKey(ContactGroup, null=True, related_name='exports', help_text=_("The unique group to export"))
+
+    def get_asset_type(self):
+        from temba.assets.models import AssetType
+        return AssetType.contact_export
 
     def get_export_fields_and_schemes(self):
 
@@ -2408,23 +2412,7 @@ class ExportContactsTask(BaseExportTask):
                                "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
                                time.time() - start, predicted))
 
-        # save as file asset associated with this task
-        from temba.assets.models import AssetType
-        from temba.assets.views import get_asset_url
-
         # get our table file
-        table_file = exporter.save_file()
+        table_file, file_ext = exporter.save_file()
 
-        self.uuid = str(uuid4())
-        self.save(update_fields=['uuid'])
-
-        store = AssetType.contact_export.store
-        store.save(self.pk, File(table_file), 'csv' if exporter.is_csv else 'xlsx')
-
-        branding = self.org.get_branding()
-        download_url = branding['link'] + get_asset_url(AssetType.contact_export, self.pk)
-
-        subject = "Your contacts export is ready"
-        template = 'contacts/email/contacts_export_download'
-
-        send_template_email(self.created_by.username, subject, template, dict(link=download_url), branding)
+        self.get_asset_type().store.save(self.id, File(table_file), file_ext)
