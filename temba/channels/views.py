@@ -2311,12 +2311,11 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimFcm(OrgPermsMixin, SmartFormView):
         class ClaimFcmForm(forms.Form):
             title = forms.CharField(label=_('Notification title'))
-            key = forms.CharField(label=_('FCM Key'),
-                                  help_text=_("The KEY generated on Firebase Console when a new app is created."))
-            send_notification = forms.CharField(label=_('Send notification'),
-                                                required=False,
-                                                help_text=_("Check if you want this channel send notification to the "
-                                                            "contacts."),
+            key = forms.CharField(label=_('FCM Key'), help_text=_("The key provided on the the Firebase Console "
+                                                                  "when you created your app."))
+            send_notification = forms.CharField(label=_('Send notification'), required=False,
+                                                help_text=_("Check if you want this channel to send notifications "
+                                                            "to contacts."),
                                                 widget=forms.CheckboxInput())
 
         form_class = ClaimFcmForm
