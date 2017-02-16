@@ -2546,6 +2546,32 @@ class ActionTest(TembaTest):
         self.assertEquals("We love green too!", response.text)
         self.assertEquals(self.contact, response.contact)
 
+    def test_mms_action(self):
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+        run = FlowRun.create(self.flow, self.contact.pk)
+
+        action = ReplyAction(dict(base="We love green too!"), 'path/to/media.jpg')
+        action.execute(run, None, msg)
+        reply_msg = Msg.objects.get(contact=self.contact, direction='O')
+        self.assertEquals("We love green too!", reply_msg.text)
+        self.assertEquals(reply_msg.media, "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg'))
+
+        Broadcast.objects.all().delete()
+        Msg.objects.all().delete()
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+
+        action_json = action.as_json()
+        action = ReplyAction.from_json(self.org, action_json)
+        self.assertEquals(dict(base="We love green too!"), action.msg)
+        self.assertEquals('path/to/media.jpg', action.media)
+
+        action.execute(run, None, msg)
+
+        response = msg.responses.get()
+        self.assertEquals("We love green too!", response.text)
+        self.assertEquals(response.media, "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg'))
+        self.assertEquals(self.contact, response.contact)
+
     def test_ussd_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
