@@ -11,14 +11,17 @@ from datetime import datetime, time
 from decimal import Decimal
 from django.conf import settings
 from django.core import mail
+from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
 from django.core.paginator import Paginator
-from django.test import override_settings
+from django.test import override_settings, TestCase
 from django.utils import timezone
 from django_redis import get_redis_connection
 from mock import patch, PropertyMock
 from openpyxl import load_workbook
 from temba.contacts.models import Contact
+from temba.msgs.models import Msg
+from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba.utils import voicexml
 from temba.utils.nexmo import NCCOException, NCCOResponse
@@ -1429,3 +1432,16 @@ class MiddlewareTest(TembaTest):
 
         response = self.client.get(reverse('public.public_index'))
         self.assertEqual(response['X-Temba-Org'], six.text_type(self.org.id))
+
+
+class CommandsTest(TestCase):
+    def test_maketestdb(self):
+        call_command('maketestdb', num_orgs=2, num_contacts=4, num_messages=5)
+
+        self.assertEqual(Org.objects.count(), 2)
+        self.assertEqual(Contact.objects.count(), 4)
+        self.assertEqual(Msg.all_messages.count(), 5)
+
+        # check can't be run again on a now non-empty database
+        with self.assertRaises(CommandError):
+            call_command('maketestdb', num_orgs=2, num_contacts=4, num_messages=5)
