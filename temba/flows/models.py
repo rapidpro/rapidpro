@@ -2985,7 +2985,7 @@ class FlowStep(models.Model):
             last_incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
             for action in actions:
-                msgs += action.execute(run, node.uuid, msg=last_incoming, offline_on=arrived_on)
+                msgs += action.execute(run, node.uuid, event=last_incoming, offline_on=arrived_on)
 
         step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, rule=previous_rule)
 
@@ -5186,9 +5186,11 @@ class ReplyAction(Action):
     """
     TYPE = 'reply'
     MESSAGE = 'msg'
+    MEDIA = 'media'
 
-    def __init__(self, msg=None):
+    def __init__(self, msg=None, media=None):
         self.msg = msg
+        self.media = media
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5203,28 +5205,43 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
 
-        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE))
+        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE), media=json_obj.get(ReplyAction.MEDIA, None))
 
     def as_json(self):
-        return dict(type=ReplyAction.TYPE, msg=self.msg)
+        return dict(type=ReplyAction.TYPE, msg=self.msg, media=self.media)
 
-    def execute(self, run, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, actionset_uuid, event, offline_on=None):
         reply = None
 
-        if self.msg:
+        if self.msg or self.media:
             user = get_flow_user()
-            text = run.flow.get_localized_text(self.msg, run.contact)
+
+            text = ''
+            if self.msg:
+                text = run.flow.get_localized_text(self.msg, run.contact)
+
+            media = None
+            if self.media:
+                # localize our media attachment
+                attachment = run.flow.get_localized_text(self.media, run.contact)
+
+                # if we have a localized media, create the url
+                if attachment:  # pragma: needs cover
+                    media = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, attachment)
 
             if offline_on:
                 reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
-                                            created_on=offline_on, response_to=msg)
+                                            created_on=offline_on, response_to=event, media=media)
             else:
-                context = run.flow.build_message_context(run.contact, msg)
+                context = run.flow.build_message_context(run.contact, event)
+
                 try:
-                    if msg:
-                        reply = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session)
+                    if event:
+                        reply = event.reply(text, user, trigger_send=False, message_context=context, session=run.session,
+                                            media=media)
                     else:
-                        reply = run.contact.send(text, user, trigger_send=False, message_context=context, session=run.session)
+                        reply = run.contact.send(text, user, trigger_send=False, message_context=context,
+                                                 session=run.session, media=media)
                 except UnreachableException:
                     pass
 

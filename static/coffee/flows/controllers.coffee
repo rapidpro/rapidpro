@@ -197,8 +197,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       return
 
     # if we have an attachement already, confirm they want to replace it
-    if action.type == 'mms' and action._translation_media
-      modal = showDialog('Overwrite Attachment', 'This step already has a recording, would you like to replace this attachment with ' + file.name + '?', 'Overwrite Attachemnt', false)
+    if action.type == 'reply' and action._translation_media
+      modal = showDialog('Overwrite Attachment', 'This step already has a attacment, would you like to replace this attachment with ' + file.name + '?', 'Overwrite Attachemnt', false)
       modal.result.then (value) ->
         if value == 'ok'
           action._translation_media = null
@@ -212,7 +212,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     if action.type == 'say'
       uploadURL = window.uploadURL
 
-    if action.type == 'mms'
+    if action.type == 'reply'
       uploadURL = window.uploadMediaURL
 
     if not uploadURL
@@ -222,7 +222,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       url: uploadURL
       data:
         actionset: actionset.uuid
-        action: action.uuid
+        action:  if uuid in action then action.uuid else ''
       file: file
     .progress (evt) ->
       $log.debug("percent: " + parseInt(100.0 * evt.loaded / evt.total))
@@ -233,7 +233,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           action.recording = {}
         action.recording[Flow.language.iso_code] = data['path']
 
-      if action.type == 'mms'
+      if action.type  == 'reply'
         if not action.media
           action.media = {}
         action.media[Flow.language.iso_code] = data['path']

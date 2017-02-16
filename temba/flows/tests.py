@@ -152,12 +152,13 @@ class FlowTest(TembaTest):
             for run_elt in runs:
                 flow2.get_results(contact=run_elt.contact, run=run_elt)
 
-    def test_upload_media_action(self):
+    @patch('temba.flows.views.uuid4')
+    def test_upload_media_action(self, mock_uuid):
         upload_media_action_url = reverse('flows.flow_upload_media_action', args=[self.flow.pk])
 
         def assert_media_upload(filename, action_uuid, expected_path):
             with open(filename, 'rb') as data:
-                post_data = dict(file=data, action=action_uuid, actionset='some-uuid',
+                post_data = dict(file=data, action=None, actionset='some-uuid',
                                  HTTP_X_FORWARDED_HTTPS='https')
                 response = self.client.post(upload_media_action_url, post_data)
 
@@ -167,11 +168,13 @@ class FlowTest(TembaTest):
 
         self.login(self.admin)
 
+        mock_uuid.side_effect = ['11111-111-11', '22222-222-22']
+
         assert_media_upload('%s/test_media/steve.marten.jpg' % settings.MEDIA_ROOT, 'action-uuid-1',
-                            "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, 'action-uuid-1', '.jpg'))
+                            "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, '11111-111-11', '.jpg'))
 
         assert_media_upload('%s/test_media/snow.mp4' % settings.MEDIA_ROOT, 'action-uuid-2',
-                            "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, 'action-uuid-2', '.mp4'))
+                            "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, '22222-222-22', '.mp4'))
 
     def test_revision_history(self):
 

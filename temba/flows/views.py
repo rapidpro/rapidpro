@@ -2,6 +2,8 @@ from __future__ import print_function, unicode_literals
 
 import json
 import logging
+from uuid import uuid4
+
 import regex
 import six
 import traceback
@@ -630,14 +632,15 @@ class FlowCRUDL(SmartCRUDL):
 
     class UploadMediaAction(OrgPermsMixin, SmartUpdateView):
         def post(self, request, *args, **kwargs):
+            generated_uuid = six.text_type(uuid4())
             path = self.save_media_upload(self.request.FILES['file'], self.request.POST.get('actionset'),
-                                          self.request.POST.get('action'))
+                                          generated_uuid)
             return JsonResponse(dict(path=path))
 
-        def save_media_upload(self, file, actionset_id, action_uuid):
+        def save_media_upload(self, file, actionset_id, name_uuid):
             flow = self.get_object()
             extension = file.name.split('.')[-1]
-            return default_storage.save('attachments/%d/%d/steps/%s.%s' % (flow.org.pk, flow.id, action_uuid, extension),
+            return default_storage.save('attachments/%d/%d/steps/%s.%s' % (flow.org.pk, flow.id, name_uuid, extension),
                                         file)
 
     class BaseList(FlowActionMixin, OrgQuerysetMixin, OrgPermsMixin, SmartListView):
