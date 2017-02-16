@@ -5134,7 +5134,7 @@ class ReplyAction(Action):
 
     def __init__(self, msg=None, media=None):
         self.msg = msg
-        self.media = media
+        self.media = media if media else {}
 
     @classmethod
     def from_json(cls, org, json_obj):
