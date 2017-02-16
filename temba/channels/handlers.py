@@ -2604,7 +2604,7 @@ class FCMHandler(BaseChannelHandler):
                 fcm_token = self.get_param('fcm_token')
                 name = self.get_param('name', None)
                 contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[fcm_urn],
-                                                channel=channel, auth_token=fcm_token)
+                                                channel=channel, auth=fcm_token)
 
                 sms = Msg.create_incoming(channel, fcm_urn, self.get_param('msg'), date=date, contact=contact)
                 return HttpResponse("Msg Accepted: %d" % sms.id)
@@ -2617,7 +2617,7 @@ class FCMHandler(BaseChannelHandler):
                 fcm_token = self.get_param('fcm_token')
                 name = self.get_param('name', None)
                 contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[fcm_urn],
-                                                channel=channel, auth_token=fcm_token)
+                                                channel=channel, auth=fcm_token)
                 return HttpResponse(json.dumps({'contact_uuid': contact.uuid}), content_type='application/json')
 
             else:  # pragma: no cover

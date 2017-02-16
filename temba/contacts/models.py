@@ -753,7 +753,7 @@ class Contact(TembaModel):
             return None
 
     @classmethod
-    def get_or_create(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_urn_update=False, auth_token=None):
+    def get_or_create(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_urn_update=False, auth=None):
         """
         Gets or creates a contact with the given URNs
         """
@@ -788,7 +788,7 @@ class Contact(TembaModel):
 
             if existing_urn and existing_urn.contact:
                 contact = existing_urn.contact
-                ContactURN.update_auth_token(existing_urn, auth_token)
+                ContactURN.update_auth(existing_urn, auth)
 
                 # return our contact, mapping our existing urn appropriately
                 contact.urn_objects = {urns[0]: existing_urn}
@@ -852,7 +852,7 @@ class Contact(TembaModel):
                         if not contact and existing_urn.contact:
                             contact = existing_urn.contact
 
-                    ContactURN.update_auth_token(existing_urn, auth_token)
+                    ContactURN.update_auth(existing_urn, auth)
 
                 else:
                     urns_to_create[urn] = normalized
@@ -891,7 +891,7 @@ class Contact(TembaModel):
 
             # add all new URNs
             for raw, normalized in six.iteritems(urns_to_create):
-                urn = ContactURN.get_or_create(org, contact, normalized, channel=channel, auth_token=auth_token)
+                urn = ContactURN.get_or_create(org, contact, normalized, channel=channel, auth=auth)
                 urn_objects[raw] = urn
 
             # save which urns were updated
@@ -1830,28 +1830,28 @@ class ContactURN(models.Model):
     channel = models.ForeignKey(Channel, null=True, blank=True,
                                 help_text="The preferred channel for this URN")
 
-    auth_token = models.TextField(null=True,
-                                  help_text=_("The token used on channels with two identifiers"))
+    auth = models.TextField(null=True,
+                            help_text=_("Any authentication information needed by this URN"))
 
     @classmethod
-    def get_or_create(cls, org, contact, urn_as_string, channel=None, auth_token=None):
+    def get_or_create(cls, org, contact, urn_as_string, channel=None, auth=None):
         urn = cls.lookup(org, urn_as_string)
 
         # not found? create it
         if not urn:
-            urn = cls.create(org, contact, urn_as_string, channel=channel, auth_token=auth_token)
+            urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
 
         return urn
 
     @classmethod
-    def create(cls, org, contact, urn_as_string, channel=None, priority=None, auth_token=None):
+    def create(cls, org, contact, urn_as_string, channel=None, priority=None, auth=None):
         scheme, path = URN.to_parts(urn_as_string)
 
         if not priority:
             priority = cls.PRIORITY_DEFAULTS.get(scheme, cls.PRIORITY_STANDARD)
 
         return cls.objects.create(org=org, contact=contact, priority=priority, channel=channel,
-                                  scheme=scheme, path=path, urn=urn_as_string, auth_token=auth_token)
+                                  scheme=scheme, path=path, urn=urn_as_string, auth=auth)
 
     @classmethod
     def lookup(cls, org, urn_as_string, country_code=None, normalize=True):
@@ -1863,10 +1863,10 @@ class ContactURN(models.Model):
 
         return cls.objects.filter(org=org, urn=urn_as_string).select_related('contact').first()
 
-    def update_auth_token(self, auth_token):
-        if auth_token and auth_token != self.auth_token:
-            self.auth_token = auth_token
-            self.save(update_fields=['auth_token'])
+    def update_auth(self, auth):
+        if auth and auth != self.auth:
+            self.auth = auth
+            self.save(update_fields=['auth'])
 
     def update_affinity(self, channel):
         """
