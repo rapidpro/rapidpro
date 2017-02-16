@@ -65,8 +65,7 @@ def update_nexmo_config(Org):
                 # for NX channels update the roles according to features available on Nexmo
                 nexmo_client = NexmoClient(nexmo_api_key, nexmo_secret, app_id, private_key, org=org)
 
-                org_nexmo_channels = org.channels.filter(channel_type='NX')
-
+                org_nexmo_channels = org.channels.filter(channel_type='NX').exclude(role='S')
                 for channel in org_nexmo_channels:
                     mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
 
