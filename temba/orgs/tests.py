@@ -1537,6 +1537,25 @@ class OrgTest(TembaTest):
                 self.assertEquals(self.org.config_json()['NEXMO_KEY'], 'key')
                 self.assertEquals(self.org.config_json()['NEXMO_SECRET'], 'secret')
 
+                nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['answer_url'],
+                                  "https://%s%s" % (settings.TEMBA_HOST.lower(),
+                                                    reverse('handlers.nexmo_call_handler', args=['answer',
+                                                                                                 nexmo_uuid])))
+
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['event_url'],
+                                  "https://%s%s" % (settings.TEMBA_HOST.lower(),
+                                                    reverse('handlers.nexmo_call_handler', args=['event',
+                                                                                                 nexmo_uuid])))
+
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['answer_method'], 'POST')
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['event_method'], 'POST')
+
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['type'], 'voice')
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['name'],
+                                  "%s/%s" % (settings.TEMBA_HOST.lower(), nexmo_uuid))
+
                 nexmo_account_url = reverse('orgs.org_nexmo_account')
                 response = self.client.get(nexmo_account_url)
                 self.assertEquals("key", response.context['api_key'])
