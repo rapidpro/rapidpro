@@ -923,6 +923,50 @@ class ContactTest(TembaTest):
         self.assertIsNone(getattr(self.frank, '__field__nick'))
         self.assertIsNone(getattr(self.billy, '__field__nick'))
 
+    def test_contact_search_parsing(self):
+        from .search2 import parse_query, ContactQuery, Condition, BoolCombination, SinglePropCombination
+
+        # simple condition
+        self.assertEqual(parse_query('will'), ContactQuery(Condition('*', '=', 'will')))
+
+        # boolean combinations of simple conditions
+        self.assertEqual(parse_query('will and felix', optimize=False), ContactQuery(
+            BoolCombination(BoolCombination.AND, Condition('*', '=', 'will'), Condition('*', '=', 'felix'))
+        ))
+        self.assertEqual(parse_query('will or felix or matt', optimize=False), ContactQuery(
+            BoolCombination(BoolCombination.OR,
+                            BoolCombination(BoolCombination.OR,
+                                            Condition('*', '=', 'will'),
+                                            Condition('*', '=', 'felix')),
+                            Condition('*', '=', 'matt'))
+        ))
+        self.assertEqual(parse_query('will or felix or matt'), ContactQuery(
+            SinglePropCombination('*', BoolCombination.OR, Condition('*', '=', 'will'),
+                                  Condition('*', '=', 'felix'), Condition('*', '=', 'matt'))
+        ))
+
+        # implicit ANDing of simple conditions
+        self.assertEqual(parse_query('will felix', optimize=False), ContactQuery(
+            BoolCombination(BoolCombination.AND, Condition('*', '=', 'will'), Condition('*', '=', 'felix'))
+        ))
+
+        # property conditions
+        self.assertEqual(parse_query('name=will'), ContactQuery(Condition('name', '=', 'will')))
+        self.assertEqual(parse_query('name ~ "felix"'), ContactQuery(Condition('name', '~', 'felix')))
+
+        # boolean combinations of property conditions
+        self.assertEqual(parse_query('name=will or name ~ "felix"', optimize=False), ContactQuery(
+            BoolCombination(BoolCombination.OR, Condition('name', '=', 'will'), Condition('name', '~', 'felix'))
+        ))
+        self.assertEqual(parse_query('name=will or name ~ "felix"'), ContactQuery(
+            SinglePropCombination('name', BoolCombination.OR, Condition('name', '=', 'will'), Condition('name', '~', 'felix'))
+        ))
+
+        # mixture of simple and property conditions
+        self.assertEqual(parse_query('will or name ~ "felix"'), ContactQuery(
+            BoolCombination(BoolCombination.OR, Condition('*', '=', 'will'), Condition('name', '~', 'felix'))
+        ))
+
     def test_contact_search(self):
         self.login(self.admin)
 

@@ -38,7 +38,6 @@ class SearchLexer(object):
 
     literals = '()'
 
-    # treat reserved words specially http://www.dabeaz.com/ply/ply.html#ply_nn4
     reserved = {
         'and': 'AND',
         'or': 'OR',
@@ -73,15 +72,16 @@ class SearchLexer(object):
         raise SearchException("Invalid character %s" % t.value[0])
 
     def test(self, data):  # pragma: no cover
+        toks = []
         self.lexer.input(data)
         while True:
             tok = self.lexer.token()
             if not tok:
                 break
-            print(tok)
+            toks.append(tok)
+        return toks
 
 
-@six.python_2_unicode_compatible
 class ContactQuery(object):
     """
     A parsed contact query consisting of a hierarchy of conditions and boolean combinations of conditions
@@ -95,7 +95,10 @@ class ContactQuery(object):
     SEARCHABLE_SCHEMES = ('tel', 'twitter')
 
     def __init__(self, root):
-        self.root = root.simplify().split_by_prop()
+        self.root = root
+
+    def optimized(self):
+        return ContactQuery(self.root.simplify().split_by_prop())
 
     def as_query(self, org):
         prop_map = self.get_prop_map(org)
@@ -103,7 +106,7 @@ class ContactQuery(object):
         return self.root.as_query(org, prop_map)
 
     def get_prop_map(self, org):
-        prop_map = {p: None for p in self.root.get_prop_names() if p != Condition.NAME_OR_URN}
+        prop_map = {p: None for p in self.root.get_prop_names() if p != Condition.IMPLICIT_PROP}
 
         for field in ContactField.objects.filter(org=org, key__in=prop_map.keys(), is_active=True):
             prop_map[field.key] = (self.PROP_FIELD, field)
@@ -122,8 +125,11 @@ class ContactQuery(object):
 
         return prop_map
 
-    def __str__(self):
-        return six.text_type(self.root)
+    def __eq__(self, other):
+        return isinstance(other, ContactQuery) and self.root == other.root
+
+    def __repr__(self):
+        return 'Query[%s]' % (six.text_type(self.root))
 
 
 class QueryNode(object):
@@ -140,9 +146,8 @@ class QueryNode(object):
         pass
 
 
-@six.python_2_unicode_compatible
 class Condition(QueryNode):
-    NAME_OR_URN = '*'
+    IMPLICIT_PROP = '*'
 
     TEXT_LOOKUPS = {'=': 'iexact', '~': 'icontains'}
 
@@ -176,8 +181,8 @@ class Condition(QueryNode):
 
     def as_query(self, org, prop_map):
         # a value without a prop implies query against name or URN, e.g. "bob"
-        if self.prop == self.NAME_OR_URN:
-            return self._build_name_or_urn_query(org)
+        if self.prop == self.IMPLICIT_PROP:
+            return self._build_implicit_prop_query(org)
 
         prop_type, prop_obj = prop_map[self.prop]
 
@@ -195,7 +200,7 @@ class Condition(QueryNode):
         else:
             return self._build_attr_query(prop_obj)
 
-    def _build_name_or_urn_query(self, org):
+    def _build_implicit_prop_query(self, org):
         name_query = Q(name__icontains=self.value)
 
         if org.is_anon:
@@ -289,15 +294,20 @@ class Condition(QueryNode):
 
         return {'contact_field': field, 'location_value__in': locations}
 
-    def __str__(self):
-        return '%s%s%s' % (self.prop, self.comparator, self.value)
+    def __eq__(self, other):
+        return isinstance(other, Condition) and self.prop == other.prop and self.comparator == other.comparator and self.value == other.value
+
+    def __repr__(self):
+        return 'Condition[%s%s%s]' % (self.prop, self.comparator, self.value)
 
 
-@six.python_2_unicode_compatible
 class BoolCombination(QueryNode):
     """
     A combination of two or more conditions using an AND or OR logical operation
     """
+    AND = operator.and_
+    OR = operator.or_
+
     def __init__(self, op, *children):
         self.op = op
         self.children = list(children)
@@ -356,12 +366,14 @@ class BoolCombination(QueryNode):
     def as_query(self, org, prop_map):
         return reduce(self.op, [child.as_query(org, prop_map) for child in self.children])
 
-    def __str__(self):
-        op = 'OR' if self.op == operator.or_ else 'AND'
+    def __eq__(self, other):
+        return isinstance(other, BoolCombination) and self.op == other.op and self.children == other.children
+
+    def __repr__(self):
+        op = 'OR' if self.op == self.OR else 'AND'
         return '%s(%s)' % (op, ', '.join([six.text_type(c) for c in self.children]))
 
 
-@six.python_2_unicode_compatible
 class SinglePropCombination(BoolCombination):
     """
     A special case combination where all conditions are on the same property and may be optimized
@@ -374,9 +386,9 @@ class SinglePropCombination(BoolCombination):
     def as_query(self, org, prop_map):
         # prop_type, prop_obj = prop_map[self.prop]
 
-        # if prop_type == ContactQuery.PROP_FIELD and self.op == operator.and_:
+        # if prop_type == ContactQuery.PROP_FIELD and self.op == self.AND:
             # TODO optimize `a = 1 OR a = 2` to `a IN (1, 2)`
-            # if self.op == operator.or_ and all([c.comparator == '=' for c in self.children]):
+            # if self.op == self.OR and all([c.comparator == '=' for c in self.children]):
             #    value_query = {'%s'}
             # else:
 
@@ -389,8 +401,11 @@ class SinglePropCombination(BoolCombination):
 
         return super(SinglePropCombination, self).as_query(org, prop_map)
 
-    def __str__(self):
-        op = 'OR' if self.op == operator.or_ else 'AND'
+    def __eq__(self, other):
+        return isinstance(other, SinglePropCombination) and self.prop == other.prop and super(SinglePropCombination, self).__eq__(other)
+
+    def __repr__(self):
+        op = 'OR' if self.op == self.OR else 'AND'
         return '%s[%s](%s)' % (op, self.prop, ', '.join(['%s %s' % (c.comparator, c.value) for c in self.children]))
 
 
@@ -404,12 +419,17 @@ precedence = (
 
 def p_expression_and(p):
     """expression : expression AND expression"""
-    p[0] = BoolCombination(operator.and_, p[1], p[3])
+    p[0] = BoolCombination(BoolCombination.AND, p[1], p[3])
 
 
 def p_expression_or(p):
     """expression : expression OR expression"""
-    p[0] = BoolCombination(operator.or_, p[1], p[3])
+    p[0] = BoolCombination(BoolCombination.OR, p[1], p[3])
+
+
+def p_expression_implicit_and(p):
+    """expression : expression expression %prec AND"""
+    p[0] = BoolCombination(BoolCombination.AND, p[1], p[2])
 
 
 def p_expression_grouping(p):
@@ -422,9 +442,9 @@ def p_expression_comparison(p):
     p[0] = Condition(p[1].lower(), p[2].lower(), p[3])
 
 
-def p_expression_value(p):
+def p_expression_simple(p):
     """expression : TEXT"""
-    p[0] = Condition(Condition.NAME_OR_URN, '=', p[1])
+    p[0] = Condition(Condition.IMPLICIT_PROP, '=', p[1])
 
 
 def p_literal(p):
@@ -443,8 +463,9 @@ tokens = search_lexer.tokens
 search_parser = yacc.yacc(write_tables=False)
 
 
-def parse_query(text):
-    return ContactQuery(search_parser.parse(text, lexer=search_lexer))
+def parse_query(text, optimize=True):
+    query = ContactQuery(search_parser.parse(text, lexer=search_lexer))
+    return query.optimized() if optimize else query
 
 
 def contact_search(org, text, base_queryset):
