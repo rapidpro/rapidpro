@@ -141,7 +141,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(ChannelLog.objects.all().count(), 1)
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.session.id, call.id)
-        self.assertEqual(channel_log.description, "Returned response")
+        self.assertEqual(channel_log.description, "Response for call CallSid")
 
         # simulate the caller making a recording and then hanging up, first they'll give us the
         # recording (they give us a call status of completed at the same time)
@@ -161,7 +161,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(ChannelLog.objects.all().count(), 2)
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.session.id, call.id)
-        self.assertEqual(channel_log.description, "Returned response")
+        self.assertEqual(channel_log.description, "Response for call CallSid")
 
         # we should have captured the recording, and ended the call
         call = IVRCall.objects.get(pk=call.pk)
@@ -174,7 +174,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(ChannelLog.objects.all().count(), 3)
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.session.id, call.id)
-        self.assertEqual(channel_log.description, "Updated call status: Complete")
+        self.assertEqual(channel_log.description, "Updated call CallSid status to Complete")
 
         call = IVRCall.objects.get(pk=call.pk)
         self.assertEquals(IVRCall.COMPLETED, call.status)
@@ -240,10 +240,14 @@ class IVRTests(FlowFileTest):
         response = self.client.post(callback_url, content_type='application/json',
                                     data=json.dumps(dict(status='ringing', duration=0)))
 
-        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        self.assertEqual(ChannelLog.objects.all().count(), 2)
+        channel_log = ChannelLog.objects.first()
+        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.description, "Started Nexmo call 12345")
+
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.session.id, call.id)
-        self.assertEqual(channel_log.description, "Returned response")
+        self.assertEqual(channel_log.description, "Response for call 12345")
 
         # we have a talk action
         self.assertContains(response, '"action": "talk",')
@@ -254,7 +258,7 @@ class IVRTests(FlowFileTest):
         self.assertContains(response, '"eventUrl": ["https://%s%s"]' % (settings.TEMBA_HOST, callback_url))
 
         # we have an input to redirect so we save the recording
-        # hack to make the recording look synchrous for our flows
+        # hack to make the recording look synchronous for our flows
         self.assertContains(response, '"action": "input"')
         self.assertContains(response, '"eventUrl": ["https://%s%s?save_media=1"]' % (settings.TEMBA_HOST, callback_url))
 
@@ -262,7 +266,7 @@ class IVRTests(FlowFileTest):
         response = self.client.get("%s?has_event=1" % callback_url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, "")
+        self.assertEqual(response.content, '{"message": "Updated call status", "call": {"duration": 0, "status": "Ringing"}}')
 
         with patch('temba.utils.nexmo.NexmoClient.download_recording') as mock_download_recording:
             mock_download_recording.return_value = MockResponse(200, "SOUND_BITS",
@@ -271,30 +275,29 @@ class IVRTests(FlowFileTest):
             # async callback to tell us the recording url
             response = self.client.post(callback_url, content_type='application/json',
                                         data=json.dumps(dict(recording_url='http://example.com/allo.wav')))
-
-            self.assertContains(response, 'media URL saved')
-            self.assertEqual(ChannelLog.objects.all().count(), 2)
+            self.assertContains(response, 'Saved media for call 12345')
+            self.assertEqual(ChannelLog.objects.all().count(), 4)
             channel_log = ChannelLog.objects.last()
             self.assertEqual(channel_log.session.id, call.id)
-            self.assertEqual(channel_log.description, "Saved media URL")
+            self.assertEqual(channel_log.description, "Saved media for call 12345")
 
             # hack input call back to tell us to save the recording and an empty input submission
             self.client.post("%s?save_media=1" % callback_url, content_type='application/json',
                              data=json.dumps(dict(status='answered', duration=2, dtmf='')))
 
-            self.assertEqual(ChannelLog.objects.all().count(), 3)
+            self.assertEqual(ChannelLog.objects.all().count(), 5)
             channel_log = ChannelLog.objects.last()
             self.assertEqual(channel_log.session.id, call.id)
-            self.assertEqual(channel_log.description, "Returned response")
+            self.assertEqual(channel_log.description, "Response for call 12345")
 
         # nexmo will also send us a final completion message with the call duration
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), content_type='application/json',
                          data=json.dumps({"status": "completed", "duration": "15"}))
 
-        self.assertEqual(ChannelLog.objects.all().count(), 4)
+        self.assertEqual(ChannelLog.objects.all().count(), 6)
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.session.id, call.id)
-        self.assertEqual(channel_log.description, "Updated call status: Complete")
+        self.assertEqual(channel_log.description, "Updated call 12345 status to Complete")
 
         # we should have captured the recording, and ended the call
         call = IVRCall.objects.get(pk=call.pk)
@@ -339,6 +342,14 @@ class IVRTests(FlowFileTest):
         nexmo_client = self.org.get_nexmo_client()
         with self.assertRaises(IVRException):
             nexmo_client.start_call(call, '+13603621737', self.channel.address, None)
+
+        # check that our channel logs are there
+        response = self.client.get(reverse("channels.channellog_list") + '?channel=%d&sessions=1' % self.channel.id)
+        self.assertContains(response, "0:00:15")
+
+        response = self.client.get(reverse("channels.channellog_session", args=[call.id]))
+        self.assertContains(response, "lasted 0:00:15")
+        self.assertContains(response, "https://api.nexmo.com/v1/calls")
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -858,6 +869,11 @@ class IVRTests(FlowFileTest):
         test_status_update(call, 'answered', IVRCall.IN_PROGRESS, Channel.TYPE_NEXMO)
         test_status_update(call, 'ringing', IVRCall.RINGING, Channel.TYPE_NEXMO)
         test_status_update(call, 'completed', IVRCall.COMPLETED, Channel.TYPE_NEXMO)
+        test_status_update(call, 'failed', IVRCall.FAILED, Channel.TYPE_NEXMO)
+        test_status_update(call, 'unanswered', IVRCall.NO_ANSWER, Channel.TYPE_NEXMO)
+        test_status_update(call, 'timeout', IVRCall.NO_ANSWER, Channel.TYPE_NEXMO)
+        test_status_update(call, 'busy', IVRCall.BUSY, Channel.TYPE_NEXMO)
+        test_status_update(call, 'rejected', IVRCall.BUSY, Channel.TYPE_NEXMO)
 
         FlowStep.objects.all().delete()
         IVRCall.objects.all().delete()

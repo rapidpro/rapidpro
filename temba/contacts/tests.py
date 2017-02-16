@@ -2961,6 +2961,45 @@ class ContactTest(TembaTest):
         contact1 = Contact.objects.all().order_by('name')[0]
         self.assertEquals(contact1.get_field_raw('startdate'), '31-12-2014 10:00')
 
+    def test_contact_import_handle_update_contact(self):
+        self.login(self.admin)
+        self.create_campaign()
+
+        ballers = self.create_group("Ballers", query='team has ball')
+
+        self.campaign.group = ballers
+        self.campaign.save()
+
+        self.assertEqual(self.campaign.group, ballers)
+
+        response = self.assertContactImport(
+            '%s/test_imports/sample_contacts_with_extra_field_date_planting.xls' % settings.MEDIA_ROOT,
+            None, task_customize=True)
+
+        customize_url = reverse('contacts.contact_customize', args=[response.context['task'].pk])
+
+        post_data = dict()
+        post_data['column_planting_date_include'] = 'on'
+        post_data['column_planting_date_type'] = 'D'
+        post_data['column_planting_date_label'] = 'Planting Date'
+
+        post_data['column_team_include'] = 'on'
+        post_data['column_team_type'] = 'T'
+        post_data['column_team_label'] = 'Team'
+
+        response = self.client.post(customize_url, post_data, follow=True)
+        self.assertEquals(response.context['results'], dict(records=1, errors=0, error_messages=[], creates=0,
+                                                            updates=1))
+
+        contact1 = Contact.objects.filter(name='John Blow').first()
+        self.assertEquals(contact1.get_field_raw('planting_date'), '31-12-2020 10:00')
+        self.assertEquals(contact1.get_field_raw('team'), 'Ballers')
+
+        event_fire = EventFire.objects.filter(event=self.message_event, contact=contact1,
+                                              event__campaign__group__in=[ballers]).first()
+        contact1_planting_date = contact1.get_field('planting_date').datetime_value.replace(second=0, microsecond=0)
+        self.assertEquals(event_fire.scheduled, contact1_planting_date + timedelta(days=7))
+
     def test_contact_import_with_languages(self):
         self.create_contact(name="Eric", number="+250788382382")
 
@@ -3272,7 +3311,7 @@ class ContactTest(TembaTest):
             self.frank.set_field(self.user, 'joined', '1/1/2014')
 
             # create more groups based on fields (checks that contacts are added correctly on group create)
-            men_group = self.create_group("Girls", query='gender = "male" AND age >= 18')
+            men_group = self.create_group("Boys", query='gender = "male" AND age >= 18')
             women_group = self.create_group("Girls", query='gender = "female" AND age >= 18')
 
             joe_flow = self.create_flow()

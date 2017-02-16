@@ -629,7 +629,7 @@ class Contact(TembaModel):
         else:
             return value.string_value
 
-    def set_field(self, user, key, value, label=None):
+    def set_field(self, user, key, value, label=None, importing=False):
         from temba.values.models import Value
 
         # make sure this field exists
@@ -700,8 +700,9 @@ class Contact(TembaModel):
         self.modified_on = timezone.now()
         self.save(update_fields=('modified_by', 'modified_on'))
 
-        # update any groups or campaigns for this contact
-        self.handle_update(field=field)
+        # update any groups or campaigns for this contact if not importing
+        if not importing:
+            self.handle_update(field=field)
 
         # invalidate our value cache for this contact field
         Value.invalidate_cache(contact_field=field)
@@ -728,6 +729,21 @@ class Contact(TembaModel):
             EventFire.update_events_for_contact_field(self, field.key)
 
         if group or dynamic_group_change:
+            # ensure our campaigns are up to date
+            EventFire.update_events_for_contact(self)
+
+    def handle_update_contact(self, field_keys):
+        """
+        Used for imports to minimize the time for imports
+        """
+        from temba.campaigns.models import EventFire
+        dynamic_group_change = self.reevaluate_dynamic_groups()
+
+        # ensure our campaigns are up to date for every field
+        for field_key in field_keys:
+            EventFire.update_events_for_contact_field(self, field_key)
+
+        if dynamic_group_change:
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact(self)
 
@@ -1048,6 +1064,7 @@ class Contact(TembaModel):
         if contact.is_blocked:
             contact.unblock(user)
 
+        contact_field_keys_updated = set()
         for key in field_dict.keys():
             # ignore any reserved fields
             if key in Contact.RESERVED_FIELDS:
@@ -1062,7 +1079,11 @@ class Contact(TembaModel):
                     value = org.timezone.localize(value) if org.timezone else pytz.utc.localize(value)
                 value = org.format_date(value, True)
 
-            contact.set_field(user, key, value)
+            contact.set_field(user, key, value, importing=True)
+            contact_field_keys_updated.add(key)
+
+        # to handle dynamic groups and campaign events updates
+        contact.handle_update_contact(field_keys=contact_field_keys_updated)
 
         return contact
 

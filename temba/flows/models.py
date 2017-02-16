@@ -2692,7 +2692,15 @@ class FlowRun(models.Model):
         """
         Resumes a flow that is at a ruleset that has timed out
         """
-        last_step = self.steps.order_by('-arrived_on').first()
+        last_step = FlowStep.get_active_steps_for_contact(self.contact).first()
+
+        # this timeout is invalid, clear it
+        if not last_step or last_step.run != self:
+            self.timeout_on = None
+            self.modified_on = timezone.now()
+            self.save(update_fields=['timeout_on', 'modified_on'])
+            return
+
         node = last_step.get_step()
 
         # only continue if we are at a ruleset with a timeout

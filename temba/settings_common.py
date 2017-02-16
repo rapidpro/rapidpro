@@ -460,6 +460,8 @@ PERMISSIONS = {
                          'search_numbers',
                          ),
 
+    'channels.channellog': ('session',),
+
     'channels.channelevent': ('api',
                               'calls'),
 
@@ -706,6 +708,7 @@ GROUP_PERMISSIONS = {
         'channels.channelevent.*',
         'channels.channellog_list',
         'channels.channellog_read',
+        'channels.channellog_session',
 
         'reports.report.*',
 

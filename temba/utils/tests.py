@@ -39,7 +39,7 @@ from . import format_decimal, slugify_with, str_to_datetime, str_to_time, trunca
     clean_string
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, non_atomic_gets
-from . import datetime_to_str, chunk_list, get_country_code_by_name
+from . import datetime_to_str, chunk_list, get_country_code_by_name, datetime_to_epoch
 
 
 class InitTest(TembaTest):
@@ -75,6 +75,10 @@ class InitTest(TembaTest):
         self.assertEqual(datetime_to_str(d2, tz=tz), '2014-01-02T03:04:05.000006Z')  # in specific timezone
         self.assertEqual(datetime_to_str(d2, ms=False), '2014-01-02T01:04:05Z')  # no ms
         self.assertEqual(datetime_to_str(d2.date()), '2014-01-02T00:00:00.000000Z')  # no ms
+
+    def test_datetime_to_epoch(self):
+        dt = json_date_to_datetime('2014-01-02T01:04:05.000Z')
+        self.assertEqual(1388624645, datetime_to_epoch(dt))
 
     def test_str_to_datetime(self):
         tz = pytz.timezone('Asia/Kabul')
