@@ -109,7 +109,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         # contact list views don't use regular field searching but use more complex contact searching
         query = self.request.GET.get('search', None)
         if query:
-            qs, self.request.compiled_query = Contact.search(org, query, qs)
+            qs = Contact.search(org, query, qs)
 
         return qs.order_by('-pk').prefetch_related('all_groups')
 

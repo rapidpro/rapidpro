@@ -32,6 +32,7 @@ from temba.utils import datetime_to_str, datetime_to_ms, get_datetime_format
 from temba.values.models import Value
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
 from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
+from .search import parse_query, ContactQuery, Condition, BoolCombination, SinglePropCombination
 from .tasks import squash_contactgroupcounts
 
 
@@ -924,8 +925,6 @@ class ContactTest(TembaTest):
         self.assertIsNone(getattr(self.billy, '__field__nick'))
 
     def test_contact_search_parsing(self):
-        from .search2 import parse_query, ContactQuery, Condition, BoolCombination, SinglePropCombination
-
         # implicit condition on name/URN/id
         self.assertEqual(parse_query('will'), ContactQuery(Condition('*', '=', 'will')))
 
@@ -1044,7 +1043,7 @@ class ContactTest(TembaTest):
             contact.set_field(self.user, 'hasbirth', 'no')
 
         def q(query):
-            return Contact.search(self.org, query)[0].count()
+            return Contact.search(self.org, query).count()
 
         # non-complex queries
         self.assertEqual(q('trey'), 23)
@@ -1111,7 +1110,7 @@ class ContactTest(TembaTest):
         contact = self.create_contact(name="Id Contact")
 
         # non-anon orgs can't search by id (because they never see ids)
-        self.assertFalse(contact in Contact.search(self.org, '%d' % contact.pk)[0])  # others may match by id on tel
+        self.assertFalse(contact in Contact.search(self.org, '%d' % contact.pk))  # others may match by id on tel
 
         with AnonymousOrg(self.org):
             # still allow name and field searches
@@ -1125,8 +1124,8 @@ class ContactTest(TembaTest):
             self.assertEqual(q('twitter has blow'), 0)
 
             # anon orgs can search by id, with or without zero padding
-            self.assertTrue(contact in Contact.search(self.org, '%d' % contact.pk)[0])
-            self.assertTrue(contact in Contact.search(self.org, '%010d' % contact.pk)[0])
+            self.assertTrue(contact in Contact.search(self.org, '%d' % contact.pk))
+            self.assertTrue(contact in Contact.search(self.org, '%010d' % contact.pk))
 
         # syntactically invalid queries should return no results
         self.assertEqual(q('name > trey'), 0)  # unrecognized non-field operator

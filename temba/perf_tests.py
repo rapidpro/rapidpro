@@ -369,16 +369,14 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self._create_values(contacts, self.field_nick, lambda c: c.name.lower().replace(' ', '_'))
 
         with SegmentProfiler("Contact search with simple query", self, force_profile=True):
-            qs, is_complex = Contact.search(self.org, 'bob')
+            qs = Contact.search(self.org, 'bob')
 
         self.assertEqual(3334, qs.count())
-        self.assertEqual(False, is_complex)
 
         with SegmentProfiler("Contact search with complex query", self, force_profile=True):
-            qs, is_complex = Contact.search(self.org, 'name = bob or tel has 078 or twitter = tweep_123 or nick is bob')
+            qs = Contact.search(self.org, 'name = bob or tel has 078 or twitter = tweep_123 or nick is bob')
 
         self.assertEqual(3377, qs.count())
-        self.assertEqual(True, is_complex)
 
     def test_group_counts(self):
         num_contacts = 10000

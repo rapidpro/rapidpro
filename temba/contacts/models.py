@@ -962,18 +962,18 @@ class Contact(TembaModel):
     @classmethod
     def search(cls, org, query, base_queryset=None):
         """
-        Performs a search of contacts based on a query. Returns a tuple of the queryset and a bool for whether
-        or not the query was a valid complex query, e.g. name = "Bob" AND age = 21
+        Performs a search of contacts based on a base queryset
         """
-        from temba.contacts.search2 import contact_search, SearchException
+        from .search import contact_search, SearchException
 
         if base_queryset is None:
             base_queryset = Contact.objects.filter(org=org, is_active=True, is_test=False, is_blocked=False, is_stopped=False)
 
         try:
-            return contact_search(org, query, base_queryset), True
+            return contact_search(org, query, base_queryset)
         except SearchException:
-            return Contact.objects.none(), False
+            # TODO something better than swallowing search parse exceptions
+            return Contact.objects.none()
 
     @classmethod
     def create_instance(cls, field_dict):
@@ -2184,8 +2184,7 @@ class ContactGroup(TembaModel):
         if not self.is_dynamic:  # pragma: no cover
             raise ValueError("Can only be called on dynamic groups")
 
-        members, is_complex = Contact.search(self.org, self.query)
-        return members
+        return Contact.search(self.org, self.query)
 
     def _check_dynamic_membership(self, contact):
         """

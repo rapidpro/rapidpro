@@ -126,16 +126,10 @@
 
               .search-details
                 -if search
-                  -if compiled_query
-                    -blocktrans count results_count=paginator.count
-                      Found {{ results_count }} contact where <i>{{search}}</i>.
-                      -plural
-                        Found {{ results_count }} contacts where <i>{{search}}</i>.
-                  -else
-                    -blocktrans count results_count=paginator.count
-                      Found {{ results_count }} contact where name or phone contains <i>{{search}}</i>.
-                      -plural
-                        Found {{ results_count }} contacts where name or phone contains <i>{{search}}</i>.
+                  -blocktrans count results_count=paginator.count
+                    Found {{ results_count }} contact matching <i>{{search}}</i>.
+                    -plural
+                      Found {{ results_count }} contacts matching <i>{{search}}</i>.
 
               .list-container
                 %table.list-table.contact_list.table.object-list.table.table-condensed{style: '{% if not org_perms.contacts.contact_update %}margin-top:10px{% endif %}'}
