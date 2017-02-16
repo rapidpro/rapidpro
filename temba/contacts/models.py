@@ -1003,7 +1003,11 @@ class Contact(TembaModel):
             if not value:
                 continue
 
-            value = str(value)
+            try:
+                value = str(value)
+            except UnicodeEncodeError:
+                error_msg = "Invalid text in column '%s'" % urn_header
+                raise SmartImportRowError(error_msg)
 
             urn_scheme = ContactURN.IMPORT_HEADER_TO_SCHEME[urn_header]
 

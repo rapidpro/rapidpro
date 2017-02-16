@@ -2521,6 +2521,13 @@ class ContactTest(TembaTest):
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
+        self.assertContactImport('%s/test_imports/sample_contacts_bad_unicode.xls' % settings.MEDIA_ROOT,
+                                 dict(records=1, errors=1, creates=1, updates=0,
+                                      error_messages=[dict(line=3, error="Invalid text in column 'phone'")]))
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+
         # import a spreadsheet with phone, name and twitter columns
         self.assertContactImport('%s/test_imports/sample_contacts_twitter_and_phone.xls' % settings.MEDIA_ROOT,
                                  dict(records=3, errors=0, error_messages=[], creates=3, updates=0))
