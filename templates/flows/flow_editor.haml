@@ -369,14 +369,14 @@
 
 
                 // messages with translations
-                %span.translation{ng-show:'action.type == "send" || action.type == "reply" || action.type == "say" || action.type == "mms"'}
+                %span.translation{ng-show:'action.type == "send" || action.type == "reply" || action.type == "say"'}
 
                   [[action._translation]]
 
                   .missing{ng-hide:'action._translation'}
                     -trans "Click here to add a message"
 
-                  %span.mms{ng-show:'action.type=="mms"'}
+                  %span.reply{ng-show:'action.type == "reply"'}
 
                     .upload-button.icon-upload{ng-hide:'action._translation_media || action.uploading', ng-file-select:'onFileSelect($files, action_set, action);', ng-click:'$event.stopPropagation();' }
 
