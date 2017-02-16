@@ -2160,6 +2160,8 @@ class ContactGroup(TembaModel):
         """
         Updates the query for a dynamic group
         """
+        from .search import extract_fields
+
         if not self.is_dynamic:
             raise ValueError("Can only update query for a dynamic group")
 
@@ -2168,10 +2170,8 @@ class ContactGroup(TembaModel):
 
         self.query_fields.clear()
 
-        for match in regex.finditer(r'\w+', self.query, regex.V0):
-            field = ContactField.objects.filter(key__iexact=match.group(), org=self.org, is_active=True).first()
-            if field:
-                self.query_fields.add(field)
+        for field in extract_fields(self.org, self.query):
+            self.query_fields.add(field)
 
         members = list(self._get_dynamic_members())
         self.contacts.clear()

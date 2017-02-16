@@ -82,6 +82,7 @@ class SearchLexer(object):
         return toks
 
 
+@six.python_2_unicode_compatible
 class ContactQuery(object):
     """
     A parsed contact query consisting of a hierarchy of conditions and boolean combinations of conditions
@@ -106,6 +107,10 @@ class ContactQuery(object):
         return self.root.as_query(org, prop_map)
 
     def get_prop_map(self, org):
+        """
+        Recursively collects all property names from this query and tries to match them to fields, searchable attributes
+        and URN schemes.
+        """
         prop_map = {p: None for p in self.root.get_prop_names() if p != Condition.IMPLICIT_PROP}
 
         for field in ContactField.objects.filter(org=org, key__in=prop_map.keys(), is_active=True):
@@ -128,8 +133,11 @@ class ContactQuery(object):
     def __eq__(self, other):
         return isinstance(other, ContactQuery) and self.root == other.root
 
+    def __str__(self):
+        return six.text_type(self.root)
+
     def __repr__(self):
-        return 'ContactQuery[%s]' % (six.text_type(self.root))
+        return 'ContactQuery{%s}' % six.text_type(self)
 
 
 class QueryNode(object):
@@ -146,6 +154,7 @@ class QueryNode(object):
         pass
 
 
+@six.python_2_unicode_compatible
 class Condition(QueryNode):
     IMPLICIT_PROP = '*'
 
@@ -300,10 +309,11 @@ class Condition(QueryNode):
     def __eq__(self, other):
         return isinstance(other, Condition) and self.prop == other.prop and self.comparator == other.comparator and self.value == other.value
 
-    def __repr__(self):
-        return 'Condition[%s%s%s]' % (self.prop, self.comparator, self.value)
+    def __str__(self):
+        return '%s%s%s' % (self.prop, self.comparator, self.value)
 
 
+@six.python_2_unicode_compatible
 class BoolCombination(QueryNode):
     """
     A combination of two or more conditions using an AND or OR logical operation
@@ -356,10 +366,10 @@ class BoolCombination(QueryNode):
 
         new_children = []
         for prop, children in children_by_prop.items():
-            if len(children) > 1:
+            if len(children) > 1 and prop is not None:
                 new_children.append(SinglePropCombination(prop, self.op, *children))
             else:
-                new_children.append(children[0])
+                new_children += children
 
         if len(new_children) == 1:
             return new_children[0]
@@ -372,17 +382,20 @@ class BoolCombination(QueryNode):
     def __eq__(self, other):
         return isinstance(other, BoolCombination) and self.op == other.op and self.children == other.children
 
-    def __repr__(self):
+    def __str__(self):
         op = 'OR' if self.op == self.OR else 'AND'
-        return 'BoolCombination[%s(%s)]' % (op, ', '.join([six.text_type(c) for c in self.children]))
+        return '%s(%s)' % (op, ', '.join([six.text_type(c) for c in self.children]))
 
 
+@six.python_2_unicode_compatible
 class SinglePropCombination(BoolCombination):
     """
     A special case combination where all conditions are on the same property and so may be optimized to query the value
     table only once.
     """
     def __init__(self, prop, op, *children):
+        assert all([isinstance(c, Condition) and c.prop == prop for c in children])
+
         self.prop = prop
 
         super(SinglePropCombination, self).__init__(op, *children)
@@ -408,9 +421,9 @@ class SinglePropCombination(BoolCombination):
     def __eq__(self, other):
         return isinstance(other, SinglePropCombination) and self.prop == other.prop and super(SinglePropCombination, self).__eq__(other)
 
-    def __repr__(self):
+    def __str__(self):
         op = 'OR' if self.op == self.OR else 'AND'
-        return 'SinglePropCombination[%s(%s: %s)]' % (op, self.prop, ', '.join(['%s %s' % (c.comparator, c.value) for c in self.children]))
+        return '%s[%s](%s)' % (op, self.prop, ', '.join(['%s %s' % (c.comparator, c.value) for c in self.children]))
 
 
 # ================================== Parser definition ==================================
@@ -458,8 +471,7 @@ def p_literal(p):
 
 
 def p_error(p):
-    message = ("Syntax error at '%s'" % p.value) if p else "Syntax error"
-    raise SearchException(message)
+    raise SearchException(("Syntax error at '%s'" % p.value) if p else "Syntax error")
 
 
 search_lexer = SearchLexer()
@@ -468,12 +480,27 @@ search_parser = yacc.yacc(write_tables=False)
 
 
 def parse_query(text, optimize=True):
+    """
+    Parses a text query but doesn't perform it
+    """
     query = ContactQuery(search_parser.parse(text, lexer=search_lexer))
     return query.optimized() if optimize else query
 
 
 def contact_search(org, text, base_queryset):
+    """
+    Performs the given contact query on the given base queryset
+    """
     parsed = parse_query(text)
     query = parsed.as_query(org)
 
     return base_queryset.filter(query)
+
+
+def extract_fields(org, text):
+    """
+    Extracts contact fields from the given text query
+    """
+    parsed = parse_query(text)
+    prop_map = parsed.get_prop_map(org)
+    return [prop_obj for (prop_type, prop_obj) in prop_map.values() if prop_type == ContactQuery.PROP_FIELD]

@@ -1001,6 +1001,17 @@ class ContactTest(TembaTest):
                             Condition('*', '=', 'amber'))
         ))
 
+        # boolean combinations can themselves be combined
+        self.assertEqual(parse_query('(Age < 18 and Gender = "male") or (Age > 18 and Gender = "female")'), ContactQuery(
+            BoolCombination(BoolCombination.OR,
+                            BoolCombination(BoolCombination.AND,
+                                            Condition('age', '<', '18'),
+                                            Condition('gender', '=', 'male')),
+                            BoolCombination(BoolCombination.AND,
+                                            Condition('age', '>', '18'),
+                                            Condition('gender', '=', 'female')))
+        ))
+
     def test_contact_search(self):
         self.login(self.admin)
 
