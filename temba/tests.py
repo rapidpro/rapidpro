@@ -23,7 +23,7 @@ from django.utils import timezone
 from HTMLParser import HTMLParser
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
-from temba.contacts.models import Contact, ContactGroup, URN
+from temba.contacts.models import Contact, ContactGroup, ContactField, URN
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
@@ -31,6 +31,7 @@ from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
+from temba.values.models import Value
 from twilio.util import RequestValidator
 
 
@@ -254,6 +255,10 @@ class TembaTest(SmartminTest):
             if contacts:
                 group.contacts.add(*contacts)
             return group
+
+    def create_field(self, key, label, value_type=Value.TYPE_TEXT):
+        return ContactField.objects.create(org=self.org, key=key, label=label, value_type=value_type,
+                                           created_by=self.admin, modified_by=self.admin)
 
     def create_msg(self, **kwargs):
         if 'org' not in kwargs:

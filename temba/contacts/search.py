@@ -454,12 +454,12 @@ def p_expression_grouping(p):
     p[0] = p[2]
 
 
-def p_expression_comparison(p):
+def p_condition(p):
     """expression : TEXT COMPARATOR literal"""
     p[0] = Condition(p[1].lower(), p[2].lower(), p[3])
 
 
-def p_expression_simple(p):
+def p_condition_implicit(p):
     """expression : TEXT"""
     p[0] = Condition(Condition.IMPLICIT_PROP, '=', p[1])
 

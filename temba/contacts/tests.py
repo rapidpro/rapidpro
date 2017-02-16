@@ -227,6 +227,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.name, "first")
 
     def test_get_user_groups(self):
+        self.create_field('gender', "Gender")
         static = ContactGroup.create_static(self.org, self.admin, "Static")
         dynamic = ContactGroup.create_dynamic(self.org, self.admin, "Dynamic", "gender=M")
         deleted = ContactGroup.create_static(self.org, self.admin, "Deleted")
@@ -1149,6 +1150,7 @@ class ContactTest(TembaTest):
 
     def test_omnibox(self):
         # add a group with members and an empty group
+        self.create_field('gender', "Gender")
         joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
         men = self.create_group("Men", [], "gender=M")
         nobody = self.create_group("Nobody", [])
@@ -3054,6 +3056,7 @@ class ContactTest(TembaTest):
         self.login(self.admin)
         self.create_campaign()
 
+        self.create_field('team', "Team")
         ballers = self.create_group("Ballers", query='team has ball')
 
         self.campaign.group = ballers

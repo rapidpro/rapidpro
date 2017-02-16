@@ -3078,6 +3078,7 @@ class ActionTest(TembaTest):
         self.assertFalse(group.pk in [g.pk for g in updated_action.groups])
 
         # try adding a contact to a dynamic group
+        self.create_field('isalive', "Is Alive")
         dynamic_group = self.create_group("Dynamic", query="isalive=YES")
         action = AddToGroupAction([dynamic_group])
 
