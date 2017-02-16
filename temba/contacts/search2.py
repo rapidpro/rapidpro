@@ -129,7 +129,7 @@ class ContactQuery(object):
         return isinstance(other, ContactQuery) and self.root == other.root
 
     def __repr__(self):
-        return 'Query[%s]' % (six.text_type(self.root))
+        return 'ContactQuery[%s]' % (six.text_type(self.root))
 
 
 class QueryNode(object):
@@ -168,6 +168,8 @@ class Condition(QueryNode):
         '<': 'lt',
         '<=': 'lte'
     }
+
+    LOCATION_LOOKUPS = {'=': 'iexact', '~': 'icontains'}
 
     COMPARATOR_ALIASES = {'is': '=', 'has': '~'}
 
@@ -228,18 +230,19 @@ class Condition(QueryNode):
         return Q(id__in=ContactURN.objects.filter(**{'scheme': scheme, 'path__%s' % lookup: self.value}).values('contact_id'))
 
     def _build_value_query(self, field):
+        return Q(id__in=Value.objects.filter(**self.build_value_query_params(field)).values('contact_id'))
+
+    def build_value_query_params(self, field):
         if field.value_type == Value.TYPE_TEXT:
-            params = self._build_text_field_params(field)
+            return self._build_text_field_params(field)
         elif field.value_type == Value.TYPE_DECIMAL:
-            params = self._build_decimal_field_params(field)
+            return self._build_decimal_field_params(field)
         elif field.value_type == Value.TYPE_DATETIME:
-            params = self._build_datetime_field_params(field)
+            return self._build_datetime_field_params(field)
         elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
-            params = self._build_location_field_params(field)
+            return self._build_location_field_params(field)
         else:  # pragma: no cover
             raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
-
-        return Q(id__in=Value.objects.filter(**params).values('contact_id'))
 
     def _build_text_field_params(self, field):
         lookup = self.TEXT_LOOKUPS.get(self.comparator)
@@ -274,19 +277,19 @@ class Condition(QueryNode):
 
         if lookup == '<equal>':
             # check if datetime is between date and date + 1d, i.e. anytime in that 24 hour period
-            return {'contact_field__id': field.id,
+            return {'contact_field': field,
                     'datetime_value__gte': value, 'datetime_value__lt': value + timedelta(days=1)}
         elif lookup == 'lte':
             # check if datetime is less then date + 1d, i.e. that day and all previous
-            return {'contact_field__id': field.id, 'datetime_value__lt': value + timedelta(days=1)}
+            return {'contact_field': field, 'datetime_value__lt': value + timedelta(days=1)}
         elif lookup == 'gt':
             # check if datetime is greater than or equal to date + 1d, i.e. day after and subsequent
-            return {'contact_field__id': field.id, 'datetime_value__gte': value + timedelta(days=1)}
+            return {'contact_field': field, 'datetime_value__gte': value + timedelta(days=1)}
         else:
-            return {'contact_field__id': field.id, 'datetime_value__%s' % lookup: value}
+            return {'contact_field': field, 'datetime_value__%s' % lookup: value}
 
     def _build_location_field_params(self, field):
-        lookup = self.TEXT_LOOKUPS.get(self.comparator)
+        lookup = self.LOCATION_LOOKUPS.get(self.comparator)
         if not lookup:
             raise SearchException("Unsupported comparator %s for location field" % self.comparator)
 
@@ -371,12 +374,13 @@ class BoolCombination(QueryNode):
 
     def __repr__(self):
         op = 'OR' if self.op == self.OR else 'AND'
-        return '%s(%s)' % (op, ', '.join([six.text_type(c) for c in self.children]))
+        return 'BoolCombination[%s(%s)]' % (op, ', '.join([six.text_type(c) for c in self.children]))
 
 
 class SinglePropCombination(BoolCombination):
     """
-    A special case combination where all conditions are on the same property and may be optimized
+    A special case combination where all conditions are on the same property and so may be optimized to query the value
+    table only once.
     """
     def __init__(self, prop, op, *children):
         self.prop = prop
@@ -384,20 +388,20 @@ class SinglePropCombination(BoolCombination):
         super(SinglePropCombination, self).__init__(op, *children)
 
     def as_query(self, org, prop_map):
-        # prop_type, prop_obj = prop_map[self.prop]
+        prop_type, prop_obj = prop_map[self.prop]
 
-        # if prop_type == ContactQuery.PROP_FIELD and self.op == self.AND:
+        if prop_type == ContactQuery.PROP_FIELD:
+            value_queries = []
+            for child in self.children:
+                params = child.build_value_query_params(prop_obj)
+                del params['contact_field']
+                value_queries.append(Q(**params))
+
             # TODO optimize `a = 1 OR a = 2` to `a IN (1, 2)`
-            # if self.op == self.OR and all([c.comparator == '=' for c in self.children]):
-            #    value_query = {'%s'}
-            # else:
 
-            # merge queries from children
-            # value_query = {}
-            # for child in self.children:
-            #    value_query.update(**child.get_value_query())
+            value_query = Q(contact_field=prop_obj) & reduce(self.op, value_queries)
 
-            # return Q(id__in=Value.objects.filter(**value_query).values('contact_id'))
+            return Q(id__in=Value.objects.filter(value_query).values('contact_id'))
 
         return super(SinglePropCombination, self).as_query(org, prop_map)
 
@@ -406,7 +410,7 @@ class SinglePropCombination(BoolCombination):
 
     def __repr__(self):
         op = 'OR' if self.op == self.OR else 'AND'
-        return '%s[%s](%s)' % (op, self.prop, ', '.join(['%s %s' % (c.comparator, c.value) for c in self.children]))
+        return 'SinglePropCombination[%s(%s: %s)]' % (op, self.prop, ', '.join(['%s %s' % (c.comparator, c.value) for c in self.children]))
 
 
 # ================================== Parser definition ==================================
