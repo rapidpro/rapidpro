@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import unicode_literals, division
 
 import math
 import pytz
@@ -6,6 +6,7 @@ import random
 import resource
 import sys
 
+from datetime import timedelta
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.timezone import now
@@ -13,7 +14,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Broadcast, Label, Msg, FLOW, INBOX, INCOMING, OUTGOING, HANDLED, SENT
 from temba.orgs.models import Org
-from temba.utils import chunk_list
+from temba.utils import chunk_list, ms_to_datetime, datetime_to_str, datetime_to_ms
 from temba.values.models import Value
 
 
@@ -34,10 +35,9 @@ CONTACT_NAMES = (None, "Jon", "Daenerys", "Melisandre", "Arya", "Sansa", "Tyrion
 CONTACT_LANGS = (None, "eng", "fra", "kin")
 CONTACT_HAS_TEL_PROB = 0.9  # 9/10 contacts have a phone number
 CONTACT_HAS_TWITTER_PROB = 0.1  # 1/10 contacts have a twitter handle
-CONTACT_IS_FAILED_PROB = 0.01  # 1/100 contacts are failed
+CONTACT_IS_STOPPED_PROB = 0.01  # 1/100 contacts are stopped
 CONTACT_IS_BLOCKED_PROB = 0.01  # 1/100 contacts are blocked
 CONTACT_IS_DELETED_PROB = 0.005  # 1/200 contacts are deleted
-CONTACT_FIELD_VALUES = ("yes", "no", "maybe", 1, 2, 3, 10, 100)
 MESSAGE_WORDS = (CONTACT_NAMES[1:], ("eats", "fights", "loves", "builds"), ("castles", "the throne", "a wolf", "horses"))
 MESSAGE_OUT_IN_RATIO = 10  # 10x as many outgoing as incoming
 MESSAGE_IS_FLOW_PROB = 0.7  # 7/10 messages are flow messages
@@ -63,7 +63,7 @@ class Command(BaseCommand):
         self.create_fields(orgs)
         self.create_groups(orgs, GROUPS_PER_ORG)
         self.create_labels(orgs, LABELS_PER_ORG)
-        # self.create_contacts(orgs, num_contacts)
+        self.create_contacts(orgs, num_contacts)
         # self.create_messages(orgs, num_messages)
 
         self.stdout.write("Peak memory usage: %d MiB" % int(peak_memory()))
@@ -110,20 +110,18 @@ class Command(BaseCommand):
         self.stdout.write("Creating %d users... " % (len(orgs) * 4), ending='')
         self.stdout.flush()  # user creation is CPU intensive
 
+        def create_user(org, username, email, role):
+            user = User.objects.create_user(username, email, USER_PASSWORD)
+            getattr(org, role).add(user)
+            user.set_org(org)
+            return user
+
         for o, org in enumerate(orgs):
             # each org has a user of every type
-            admin = User.objects.create_user("admin%d" % (o + 1), "org%d_admin@example.com" % (o + 1), USER_PASSWORD)
-            org._admin = admin
-            org.administrators.add(admin)
-
-            editor = User.objects.create_user("editor%d" % (o + 1), "org%d_editor@example.com" % (o + 1), USER_PASSWORD)
-            org.editors.add(editor)
-
-            viewer = User.objects.create_user("viewer%d" % (o + 1), "org%d_viewer@example.com" % (o + 1), USER_PASSWORD)
-            org.viewers.add(viewer)
-
-            surveyor = User.objects.create_user("surveyor%d" % (o + 1), "org%d_surveyor@example.com" % (o + 1), USER_PASSWORD)
-            org.surveyors.add(surveyor)
+            org._admin = create_user(org, "admin%d" % (o + 1), "org%d_admin@example.com" % (o + 1), 'administrators')
+            create_user(org, "editor%d" % (o + 1), "org%d_editor@example.com" % (o + 1), 'editors')
+            create_user(org, "viewer%d" % (o + 1), "org%d_viewer@example.com" % (o + 1), 'viewers')
+            create_user(org, "surveyor%d" % (o + 1), "org%d_surveyor@example.com" % (o + 1), 'surveyors')
 
         self.stdout.write(self.style.SUCCESS("OK"))
         return orgs
@@ -159,17 +157,17 @@ class Command(BaseCommand):
             # each org gets a contact field of each type
             org._fields = [
                 ContactField.objects.create(org=org, key='gender', label="Gender", value_type=Value.TYPE_TEXT,
-                                            created_by=org._admin, modified_by=org._admin),
+                                            show_in_table=True, created_by=org._admin, modified_by=org._admin),
                 ContactField.objects.create(org=org, key='age', label="Age", value_type=Value.TYPE_DECIMAL,
-                                            created_by=org._admin, modified_by=org._admin),
+                                            show_in_table=True, created_by=org._admin, modified_by=org._admin),
                 ContactField.objects.create(org=org, key='joined', label="Joined On", value_type=Value.TYPE_DATETIME,
-                                            created_by=org._admin, modified_by=org._admin),
+                                            show_in_table=True, created_by=org._admin, modified_by=org._admin),
                 ContactField.objects.create(org=org, key='ward', label="Ward", value_type=Value.TYPE_WARD,
-                                            created_by=org._admin, modified_by=org._admin),
+                                            show_in_table=True, created_by=org._admin, modified_by=org._admin),
                 ContactField.objects.create(org=org, key='district', label="District", value_type=Value.TYPE_DISTRICT,
-                                            created_by=org._admin, modified_by=org._admin),
+                                            show_in_table=True, created_by=org._admin, modified_by=org._admin),
                 ContactField.objects.create(org=org, key='state', label="State", value_type=Value.TYPE_STATE,
-                                            created_by=org._admin, modified_by=org._admin),
+                                            show_in_table=True, created_by=org._admin, modified_by=org._admin),
             ]
 
         self.stdout.write(self.style.SUCCESS("OK"))
@@ -201,52 +199,69 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("OK"))
 
     def create_contacts(self, orgs, num_total):
-        self.stdout.write("Creating contacts...")
+        self.stdout.write("Creating test contacts...", ending='')
 
-        for c in range(num_total):
-            org = orgs[c] if c < len(orgs) else self.random_org(orgs)  # ensure every org gets at least one contact
-            name = random_choice(CONTACT_NAMES)
+        for user in User.objects.all():
+            if user.get_org():
+                Contact.get_test_contact(user)
 
-            contact = Contact.objects.create(org=org,
-                                             name=name,
-                                             language=random_choice(CONTACT_LANGS),
-                                             is_failed=probability(CONTACT_IS_FAILED_PROB),
-                                             is_blocked=probability(CONTACT_IS_BLOCKED_PROB),
-                                             is_active=probability(1 - CONTACT_IS_DELETED_PROB),
-                                             created_by=org._admin, modified_by=org._admin)
+        self.stdout.write(self.style.SUCCESS("OK"))
+        self.stdout.write("Creating %d contacts..." % num_total)
 
-            # maybe give the contact some URNs
-            urn = None
+        batch = 1
+        for index_batch in chunk_list(range(num_total), 10000):
+            self.stdout.write(" > Creating batch %d of %d... " % (batch, num_total // 10000))
+            self.stdout.flush()
+            contacts = []
+            urns = []
+            values = []
+            for c in index_batch:
+                c_id = c + 1
+                org = orgs[c] if c < len(orgs) else self.random_org(orgs)  # ensure every org gets at least one contact
+                name = random_choice(CONTACT_NAMES)
+                gender = random_choice(('M', 'F'))
+                age = random.randint(16, 80)
+                joined = random_date()
 
-            if probability(CONTACT_HAS_TEL_PROB):
-                phone = '+2507%08d' % c
-                urn = ContactURN.objects.create(org=org, contact=contact, priority=50,
-                                                scheme=TEL_SCHEME, path=phone, urn=URN.from_tel(phone))
+                contacts.append(Contact(org=org, name=name, language=random_choice(CONTACT_LANGS),
+                                        is_stopped=probability(CONTACT_IS_STOPPED_PROB),
+                                        is_blocked=probability(CONTACT_IS_BLOCKED_PROB),
+                                        is_active=probability(1 - CONTACT_IS_DELETED_PROB),
+                                        created_by=org._admin, modified_by=org._admin,
+                                        created_on=random_date()))
 
-            if probability(CONTACT_HAS_TWITTER_PROB):
-                handle = '%s%d' % (name.lower() if name else 'tweep', c)
-                urn = ContactURN.objects.create(org=org, contact=contact, priority=50,
-                                                scheme=TWITTER_SCHEME, path=handle, urn=URN.from_twitter(handle))
+                if probability(CONTACT_HAS_TEL_PROB):
+                    phone = '+2507%08d' % c
+                    urns.append(ContactURN(org=org, contact_id=c_id, priority=50,
+                                           scheme=TEL_SCHEME, path=phone, urn=URN.from_tel(phone)))
 
-            # give contact values for random sample of their org's fields
-            contact_fields = random.sample(org._fields, random.randrange(len(org._fields)))
-            contact_values = []
-            for field in contact_fields:
-                val = random_choice(CONTACT_FIELD_VALUES)
-                contact_values.append(Value(org=org, contact=contact, contact_field=field, string_value=str(val)))
-            Value.objects.bulk_create(contact_values)
+                if probability(CONTACT_HAS_TWITTER_PROB):
+                    handle = '%s%d' % (name.lower() if name else 'tweep', c)
+                    urns.append(ContactURN(org=org, contact_id=c_id, priority=50,
+                                           scheme=TWITTER_SCHEME, path=handle, urn=URN.from_twitter(handle)))
 
-            # place the contact in a biased sample of up to half of their org's groups
-            for g in range(random.randrange(len(org._groups) / 2)):
-                group = random_choice(org._groups, 3)
-                group.contacts.add(contact)
+                values.append(Value(org=org, contact_id=c_id, contact_field=org._fields[0], string_value=gender))
+                values.append(Value(org=org, contact_id=c_id, contact_field=org._fields[1],
+                                    string_value=str(age), decimal_value=age))
+                values.append(Value(org=org, contact_id=c_id, contact_field=org._fields[2],
+                                    string_value=datetime_to_str(joined), datetime_value=joined))
 
-            # keeping all contact objects in memory is too expensive so just keep the important bits
-            contact_desc = (contact.pk, urn.pk, urn.scheme) if urn else (contact.pk, None, None)
-            org._contacts.append(contact_desc)
+                # TODO don't create some values and values for location types
 
-            if (c + 1) % 1000 == 0 or c == (num_total - 1):
-                self.stdout.write(" > Created %d of %d contacts" % (c + 1, num_total))
+                # TODO random group memberships
+                # place the contact in a biased sample of up to half of their org's groups
+                # for g in range(random.randrange(len(org._groups) / 2)):
+                #     group = random_choice(org._groups, 3)
+                #     group.contacts.add(contact)
+
+                # keeping all contact objects in memory is too expensive so just keep the important bits
+                # contact_desc = (c_id,) if urn else (contact.pk, None, None)
+                # org._contacts.append(contact_desc)
+
+            Contact.objects.bulk_create(contacts, batch_size=1000)
+            ContactURN.objects.bulk_create(urns, batch_size=1000)
+            Value.objects.bulk_create(values, batch_size=1000)
+            batch += 1
 
     def create_messages(self, orgs, num_target):
         self.stdout.write("Creating messages...")
@@ -322,6 +337,15 @@ def probability(prob):
 
 def random_choice(seq, bias=1):
     return seq[int(math.pow(random.random(), bias) * len(seq))]
+
+
+def random_date(start=None, end=None):
+    if not start:
+        start = now() - timedelta(days=365)
+    if not end:
+        end = now()
+
+    return ms_to_datetime(random.randrange(datetime_to_ms(start), datetime_to_ms(end)))
 
 
 def random_text():
