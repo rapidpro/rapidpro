@@ -2985,7 +2985,7 @@ class FlowStep(models.Model):
             last_incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
             for action in actions:
-                msgs += action.execute(run, node.uuid, event=last_incoming, offline_on=arrived_on)
+                msgs += action.execute(run, node.uuid, msg=last_incoming, offline_on=arrived_on)
 
         step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, rule=previous_rule)
 
@@ -5154,7 +5154,7 @@ class ReplyAction(Action):
     def as_json(self):
         return dict(type=ReplyAction.TYPE, msg=self.msg, media=self.media)
 
-    def execute(self, run, actionset_uuid, event, offline_on=None):
+    def execute(self, run, actionset_uuid, msg, offline_on=None):
         reply = None
 
         if self.msg or self.media:
@@ -5175,14 +5175,14 @@ class ReplyAction(Action):
 
             if offline_on:
                 reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
-                                            created_on=offline_on, response_to=event, media=media)
+                                            created_on=offline_on, response_to=msg, media=media)
             else:
-                context = run.flow.build_message_context(run.contact, event)
+                context = run.flow.build_message_context(run.contact, msg)
 
                 try:
-                    if event:
-                        reply = event.reply(text, user, trigger_send=False, message_context=context, session=run.session,
-                                            media=media)
+                    if msg:
+                        reply = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session,
+                                          media=media)
                     else:
                         reply = run.contact.send(text, user, trigger_send=False, message_context=context,
                                                  session=run.session, media=media)
