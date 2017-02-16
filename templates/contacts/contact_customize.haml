@@ -47,7 +47,9 @@
   :javascript
     $(".smartmin-form select").select2({minimumResultsForSearch: 1, width: 'element', containerCssClass: "select2-custom-field-select" });
 
-    useFontCheckbox(".field-include-checkbox input[type=checkbox]" );
+    $(document).ready(function() {
+      useFontCheckbox(".field-include-checkbox input[type=checkbox]" );
+    });
 
     var contactFields = {{contact_fields|safe}};
     $('.smartmin-form .field-as-name input').select2({

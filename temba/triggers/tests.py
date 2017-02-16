@@ -200,6 +200,62 @@ class TriggerTest(TembaTest):
         self.assertEquals(2, Flow.objects.filter(flow_type=Flow.VOICE, is_archived=False).count())
         self.assertEquals(2, Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL, is_archived=False).count())
 
+    def test_referral_trigger(self):
+        self.login(self.admin)
+        flow = self.create_flow()
+
+        self.fb_channel = Channel.create(self.org, self.user, None, 'FB', None, '1234',
+                                         config={Channel.CONFIG_AUTH_TOKEN: 'auth'},
+                                         uuid='00000000-0000-0000-0000-000000001234')
+
+        create_url = reverse('triggers.trigger_referral')
+
+        post_data = dict()
+        response = self.client.post(create_url, post_data)
+        self.assertEquals(response.context['form'].errors.keys(), ['referrer_id', 'flow'])
+
+        # ok, valid referrer id and flow
+        post_data = dict(flow=flow.id, referrer_id='signup')
+        response = self.client.post(create_url, post_data)
+        self.assertNoFormErrors(response)
+
+        # assert our trigger was created
+        first_trigger = Trigger.objects.get()
+        self.assertEqual(first_trigger.trigger_type, Trigger.TYPE_REFERRAL)
+        self.assertEqual(first_trigger.flow, flow)
+        self.assertIsNone(first_trigger.channel)
+
+        # try to create the same trigger, should fail as we can only have one per referrer
+        post_data = dict(flow=flow.id, referrer_id='signup')
+        response = self.client.post(create_url, post_data)
+        self.assertEquals(response.context['form'].errors.keys(), ['__all__'])
+
+        # should work if we specify a specific channel
+        post_data['channel'] = self.fb_channel.id
+        response = self.client.post(create_url, post_data)
+        self.assertNoFormErrors(response)
+
+        # load it
+        second_trigger = Trigger.objects.get(channel=self.fb_channel)
+        self.assertEqual(second_trigger.trigger_type, Trigger.TYPE_REFERRAL)
+        self.assertEqual(second_trigger.flow, flow)
+
+        # try updating it to a null channel
+        update_url = reverse('triggers.trigger_update', args=[second_trigger.id])
+        del post_data['channel']
+        response = self.client.post(update_url, post_data)
+        self.assertEquals(response.context['form'].errors.keys(), ['__all__'])
+
+        # archive our first trigger
+        Trigger.apply_action_archive(self.admin, Trigger.objects.filter(channel=None))
+
+        # should now be able to update to a null channel
+        response = self.client.post(update_url, post_data)
+        self.assertNoFormErrors(response)
+        second_trigger.refresh_from_db()
+
+        self.assertIsNone(second_trigger.channel)
+
     def test_trigger_schedule(self):
         self.login(self.admin)
         flow = self.create_flow()
@@ -373,7 +429,6 @@ class TriggerTest(TembaTest):
         self.assertEquals(trigger.contacts.all()[0].pk, stromae.pk)
 
     def test_join_group_trigger(self):
-
         self.login(self.admin)
         group = self.create_group(name='Chat', contacts=[])
 
@@ -785,7 +840,6 @@ class TriggerTest(TembaTest):
         self.assertFalse(group_catch_all.is_active)
 
     def test_update(self):
-
         self.login(self.admin)
         group = self.create_group(name='Chat', contacts=[])
 
@@ -1006,9 +1060,15 @@ class TriggerTest(TembaTest):
         # try a duplicate ussd code
         post_data = dict(channel=channel.pk, keyword='*111#', flow=flow.pk)
         response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
-        self.assertEquals(2, len(response.context['form'].errors))
+        self.assertEquals(1, len(response.context['form'].errors))
         self.assertEquals(response.context['form'].errors['keyword'],
-                          [u'Another active trigger uses this code, code must be unique'])
+                          [u'An active trigger already uses this keyword on this channel.'])
+
+        # different code on same channel should work
+        post_data = dict(channel=channel.pk, keyword='*112#', flow=flow.pk)
+        response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
+        self.assertNoFormErrors(response)
+        trigger = Trigger.objects.get(keyword='*112#')
 
         # try a second ussd code with the same channel
         # TODO: fix this with multichannel triggers

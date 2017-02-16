@@ -49,8 +49,8 @@
                 -trans "Messages"
               - for folder in folders
                 %li{'class': '{% if request.path == folder.url %}active{% endif %}' }
-                  %a{'href':'={folder.url}'}
-                    ={folder.label} ({{ folder.count | intcomma }})
+                  %a{'href':'{{folder.url}}'}
+                    {{folder.label}} ({{ folder.count | intcomma }})
 
               - if labels
                 %li.nav-header
@@ -103,7 +103,7 @@
               -block action-buttons
                 -if org_perms.msgs.msg_update
                   .list-buttons-container
-                    .list-buttons.hide
+                    .list-buttons
                       - if 'unlabel' in actions
                         %span.btn-group
                           %a.object-btn-unlabel{href:'#'}
@@ -184,12 +184,12 @@
                             - for label in object.labels.all
                               %span.label.label-info.lbl{ data-id: '{{label.id}}' }
                                 %a{href:"{% url 'msgs.msg_filter' label.pk%}"}
-                                  ={label.name}
+                                  {{label.name}}
 
                           - if object.get_flow_id
                             %span.label.label-success
                               %a{href:"{% url 'flows.flow_editor' object.get_flow.uuid %}"}
-                                ={object.get_flow.name}
+                                {{object.get_flow.name}}
 
                       %td.value-icon.field_icon
                         -with object.get_last_log as log

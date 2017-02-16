@@ -1,14 +1,14 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import requests
 import logging
 import time
 
+from celery.task import task
 from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
 from django_redis import get_redis_connection
-from djcelery_transactions import task
 from enum import Enum
 from temba.msgs.models import SEND_MSG_TASK, MSG_QUEUE
 from temba.utils import dict_to_struct
@@ -106,9 +106,9 @@ def trim_channel_log_task():  # pragma: needs cover
 @task(track_started=True, name='notify_mage_task')
 def notify_mage_task(channel_uuid, action):
     """
-    Notifies Mage of a change to a Twitter channel. Having this in a djcelery_transactions task ensures that the channel
-    db object is updated before Mage tries to fetch it
+    Notifies Mage of a change to a Twitter channel
     """
+    action = MageStreamAction[action]
     mage = MageClient(settings.MAGE_API_URL, settings.MAGE_AUTH_TOKEN)
 
     if action == MageStreamAction.activate:
@@ -123,7 +123,7 @@ def notify_mage_task(channel_uuid, action):
 
 @nonoverlapping_task(track_started=True, name="squash_channelcounts", lock_key='squash_channelcounts')
 def squash_channelcounts():
-    ChannelCount.squash_counts()
+    ChannelCount.squash()
 
 
 @task(track_started=True, name="fb_channel_subscribe")
@@ -138,4 +138,4 @@ def fb_channel_subscribe(channel_id):
                                  params=dict(access_token=page_access_token))
 
         if response.status_code != 200 or not response.json()['success']:
-            print "Unable to subscribe for delivery of events: %s" % response.content
+            print("Unable to subscribe for delivery of events: %s" % response.content)

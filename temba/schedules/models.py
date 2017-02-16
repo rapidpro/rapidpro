@@ -1,6 +1,7 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import calendar
+import six
 
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
@@ -9,6 +10,7 @@ from django.utils import timezone
 from smartmin.models import SmartModel
 
 
+@six.python_2_unicode_compatible
 class Schedule(SmartModel):
     """
     Describes a point in the future to execute some action. These are used to schedule Broadcasts
@@ -129,7 +131,7 @@ class Schedule(SmartModel):
             return True
 
     def unschedule(self):
-        print "Unscheduling %s" % self.pk
+        print("Unscheduling %s" % self.pk)
         self.status = 'U'
         self.save()
 
@@ -162,6 +164,6 @@ class Schedule(SmartModel):
                     days.append(str(int(power, 2)))
         return days
 
-    def __unicode__(self):  # pragma: no cover
+    def __str__(self):  # pragma: no cover
         return "[%s] %s %s %s:%s" % (str(self.next_fire), self.repeat_period, self.repeat_day_of_month,
                                      self.repeat_hour_of_day, self.repeat_minute_of_hour)

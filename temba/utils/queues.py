@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import json
 import time
@@ -110,7 +110,7 @@ def lookup_task_function(task_name):
     """
     task_map = getattr(settings, 'CELERY_TASK_MAP', None)
     if not task_map:  # pragma: needs cover
-        print "Empty or missing CELERY_TASK_MAP in settings.py, unable to find task for %s" % task_name
+        print("Empty or missing CELERY_TASK_MAP in settings.py, unable to find task for %s" % task_name)
 
     task_function = task_map.get(task_name, None)
     if not task_function:  # pragma: needs cover

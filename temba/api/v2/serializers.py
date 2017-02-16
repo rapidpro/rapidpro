@@ -12,7 +12,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
 from temba.msgs.models import QUEUED
-from temba.utils import datetime_to_json_date
+from temba.utils import datetime_to_json_date, on_transaction_commit
 from temba.values.models import Value
 
 from . import fields
@@ -101,7 +101,7 @@ class BroadcastReadSerializer(ReadSerializer):
 
 
 class BroadcastWriteSerializer(WriteSerializer):
-    text = serializers.CharField(required=True, max_length=480)
+    text = serializers.CharField(required=True, max_length=640)
     urns = fields.URNListField(required=False)
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
@@ -136,7 +136,8 @@ class BroadcastWriteSerializer(WriteSerializer):
                                      recipients=recipients, channel=self.validated_data.get('channel'))
 
         # send in task
-        send_broadcast_task.delay(broadcast.id)
+        on_transaction_commit(lambda: send_broadcast_task.delay(broadcast.id))
+
         return broadcast
 
 
@@ -606,10 +607,12 @@ class FlowReadSerializer(ReadSerializer):
         return [{'uuid': l.uuid, 'name': l.name} for l in obj.labels.all()]
 
     def get_runs(self, obj):
+        stats = obj.get_run_stats()
         return {
-            'completed': obj.get_completed_runs(),
-            'interrupted': obj.get_interrupted_runs(),
-            'expired': obj.get_expired_runs()
+            'active': stats['active'],
+            'completed': stats['completed'],
+            'interrupted': stats['interrupted'],
+            'expired': stats['expired']
         }
 
     class Meta:

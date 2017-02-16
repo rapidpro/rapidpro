@@ -1,4 +1,4 @@
--load flows contacts
+-load contacts
 
 -for run in runs
   <tr class="exit-{{run.exit_type}}" {%if forloop.last%}ic-append-from="/flow/runs_partial/{{object.id}}?modified_on={{run.modified_on|date:'U'}}&id={{run.id}}" ic-trigger-on="scrolled-into-view" ic-target="#results_run_table" ic-template="results_run_table" ic-indicator="#indicator"{%endif%}>
@@ -12,7 +12,7 @@
           -if run.contact.name
             {{run.contact.name|truncatechars:100}}
           -else
-            {{ run.contact|format_urn:user_org }}
+            {{ run.contact|format_contact:user_org }}
 
     -for value in run.value_list
       %td

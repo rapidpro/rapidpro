@@ -41,7 +41,7 @@
                   -trans "Flows"
                 - for folder in folders
                   %li{'class':"{% if folder.url == request_url %}active{% endif %}" }
-                    %a{'href':'={folder.url}'}
+                    %a{'href':'{{folder.url}}'}
                       {{ folder.label }} ({{ folder.count }})
 
                 -if labels
@@ -81,7 +81,7 @@
                   -block buttons-right
 
                 .list-buttons-container
-                  .list-buttons.hide
+                  .list-buttons
                     - if 'unlabel' in actions and org_perms.flows.flow_update
                       %span.btn-group
                         %a.object-btn-unlabel{href:'#'}
@@ -126,7 +126,7 @@
                     %span.btn-group
                       %a.object-btn-export{'href':'#', onclick:'exportFlows()'}
                         %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Download Results" %}'}
-                         .glyph.icon-excel
+                          .glyph.icon-excel
 
               %table.list-table.flow-list.object-list.table.table-condensed{style: '{% if not org_perms.flows.flow_update %}margin-top:10px{% endif %}'}
                 %tbody
@@ -152,28 +152,28 @@
                                     - blocktrans count counter=new_responses
                                       1 New Response
                                       - plural
-                                      ={counter} New Responses
+                                      {{counter}} New Responses
 
                                 - for label in object.labels.all
                                   %span.label.label-info.lbl{ data-id: '{{label.id}}' }
                                     %a{href:"{% url 'flows.flow_filter' label.pk%}"}
-                                      ={label.name}
+                                      {{label.name}}
 
-                        -if not object.get_total_runs
+                        -if not object.run_stats.total
                           %td.value-status
                           %td.value-status
                             -trans "No runs"
 
                         -else
                           %td.value-status
-                            {% blocktrans count run_count=object.get_total_runs %}
+                            {% blocktrans count run_count=object.run_stats.total %}
                               {{ run_count }} run
                             {% plural %}
                               {{ run_count }} runs
                             {% endblocktrans %}
 
                           %td.value-status
-                            {% blocktrans with completed_percentage=object.get_completed_percentage %}
+                            {% blocktrans with completed_percentage=object.run_stats.completion %}
                               {{ completed_percentage }}% completion
                             {% endblocktrans %}
 

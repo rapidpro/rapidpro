@@ -6,6 +6,7 @@ import hashlib
 import json
 import pytz
 import requests
+import six
 import xml.etree.ElementTree as ET
 
 from datetime import datetime
@@ -28,11 +29,11 @@ from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, OUTGOING
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
-from temba.utils import json_date_to_datetime, ms_to_datetime
+from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
-from .tasks import fb_channel_subscribe
 from twilio import twiml
+from .tasks import fb_channel_subscribe
 
 
 class BaseChannelHandler(View):
@@ -75,7 +76,7 @@ def get_channel_handlers():
 
 class TwimlAPIHandler(BaseChannelHandler):
 
-    url = r'^/twiml_api/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^twiml_api/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.twiml_api_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: no cover
@@ -96,7 +97,7 @@ class TwimlAPIHandler(BaseChannelHandler):
         from_number = self.get_param('From')
 
         # Twilio sometimes sends un-normalized numbers
-        if not to_number.startswith('+') and to_country:
+        if to_number and not to_number.startswith('+') and to_country:
             to_number, valid = URN.normalize_number(to_number, to_country)
 
         # see if it's a twilio call being initiated
@@ -108,7 +109,7 @@ class TwimlAPIHandler(BaseChannelHandler):
                 response = twiml.Response()
                 response.say('Sorry, there is no channel configured to take this call. Goodbye.')
                 response.hangup()
-                return HttpResponse(unicode(response))
+                return HttpResponse(six.text_type(response))
 
             org = channel.org
 
@@ -124,7 +125,6 @@ class TwimlAPIHandler(BaseChannelHandler):
 
             if validator.validate(url, request.POST, signature):
                 from temba.ivr.models import IVRCall
-
                 # find a contact for the one initiating us
                 urn = URN.from_tel(from_number)
                 contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], channel=channel)
@@ -133,18 +133,21 @@ class TwimlAPIHandler(BaseChannelHandler):
                 flow = Trigger.find_flow_for_inbound_call(contact)
 
                 if flow:
-                    call = IVRCall.create_incoming(channel, contact, urn_obj, flow, channel.created_by)
+                    call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, call_sid)
+
                     call.update_status(request.POST.get('CallStatus', None),
-                                       request.POST.get('CallDuration', None))
+                                       request.POST.get('CallDuration', None),
+                                       Channel.TYPE_TWILIO)
                     call.save()
 
                     FlowRun.create(flow, contact.pk, session=call)
-                    response = Flow.handle_call(call, {})
-                    return HttpResponse(unicode(response))
+                    response = Flow.handle_call(call)
+                    return HttpResponse(six.text_type(response))
+
                 else:
 
                     # we don't have an inbound trigger to deal with this call.
-                    response = twiml.Response()
+                    response = channel.generate_ivr_response()
 
                     # say nothing and hangup, this is a little rude, but if we reject the call, then
                     # they'll get a non-working number error. We send 'busy' when our server is down
@@ -156,13 +159,25 @@ class TwimlAPIHandler(BaseChannelHandler):
                     Trigger.catch_triggers(contact, Trigger.TYPE_MISSED_CALL, channel)
 
                     # either way, we need to hangup now
-                    return HttpResponse(unicode(response))
+                    return HttpResponse(six.text_type(response))
 
         action = request.GET.get('action', 'received')
         channel_uuid = kwargs.get('uuid')
 
+        # check for call progress events, these include post-call hangup notifications
+        if request.POST.get('CallbackSource', None) == 'call-progress-events':
+            if call_sid:
+                from temba.ivr.models import IVRCall
+                call = IVRCall.objects.filter(external_id=call_sid).first()
+                if call:
+                    call.update_status(request.POST.get('CallStatus', None), request.POST.get('CallDuration', None),
+                                       Channel.TYPE_TWIML)
+                    call.save()
+                    return HttpResponse("Call status updated")
+            return HttpResponse("No call found")
+
         # this is a callback for a message we sent
-        if action == 'callback':
+        elif action == 'callback':
             smsId = request.GET.get('id', None)
             status = request.POST.get('SmsStatus', None)
 
@@ -201,6 +216,9 @@ class TwimlAPIHandler(BaseChannelHandler):
             return HttpResponse("", status=200)
 
         elif action == 'received':
+            if not to_number:
+                return HttpResponse("Must provide To number for received messages", status=400)
+
             channel = self.get_receive_channel(channel_uuid=channel_uuid, to_number=to_number)
             if not channel:
                 return HttpResponse("No active channel found for number: %s" % to_number, status=400)
@@ -251,7 +269,7 @@ class TwimlAPIHandler(BaseChannelHandler):
 
 class TwilioHandler(TwimlAPIHandler):
 
-    url = r'^/twilio/$'
+    url = r'^twilio/$'
     url_name = 'handlers.twilio_handler'
 
     def get_receive_channel(self, channel_uuid=None, to_number=None):
@@ -263,7 +281,7 @@ class TwilioHandler(TwimlAPIHandler):
 
 class TwilioMessagingServiceHandler(BaseChannelHandler):
 
-    url = r'^/twilio_messaging_service/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^twilio_messaging_service/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.twilio_messaging_service_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: no cover
@@ -306,7 +324,7 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
 
 class AfricasTalkingHandler(BaseChannelHandler):
 
-    url = r'^/africastalking/(?P<action>delivery|callback)/(?P<uuid>[a-z0-9\-]+)/$'
+    url = r'^africastalking/(?P<action>delivery|callback)/(?P<uuid>[a-z0-9\-]+)/$'
     url_name = 'handlers.africas_talking_handler'
 
     def get(self, request, *args, **kwargs):
@@ -359,7 +377,7 @@ class AfricasTalkingHandler(BaseChannelHandler):
 
 class ZenviaHandler(BaseChannelHandler):
 
-    url = r'^/zenvia/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
+    url = r'^zenvia/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
     url_name = 'handlers.zenvia_handler'
 
     def get(self, request, *args, **kwargs):
@@ -426,7 +444,7 @@ class ZenviaHandler(BaseChannelHandler):
 
 class ExternalHandler(BaseChannelHandler):
 
-    url = r'^/external/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$'
+    url = r'^external/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$'
     url_name = 'handlers.external_handler'
 
     def get_channel_type(self):
@@ -453,15 +471,15 @@ class ExternalHandler(BaseChannelHandler):
 
         # this is a callback for a message we sent
         if action == 'delivered' or action == 'failed' or action == 'sent':
-            sms_pk = self.get_param('id')
+            sms_id = self.get_param('id')
 
-            if sms_pk is None:  # pragma: needs cover
+            if sms_id is None:
                 return HttpResponse("Missing 'id' parameter, invalid call.", status=400)
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=sms_pk).select_related('channel').first()
+            sms = Msg.objects.filter(channel=channel, direction=OUTGOING, id=sms_id).select_related('channel').first()
             if not sms:
-                return HttpResponse("No SMS message with id: %s" % sms_pk, status=400)
+                return HttpResponse("No outgoing message with id: %s" % sms_id, status=400)
 
             if action == 'delivered':
                 sms.status_delivered()
@@ -500,7 +518,7 @@ class ShaqodoonHandler(ExternalHandler):
     """
     Overloaded external channel for accepting Shaqodoon messages
     """
-    url = r'^/shaqodoon/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$'
+    url = r'^shaqodoon/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$'
     url_name = 'handlers.shaqodoon_handler'
 
     def get_channel_type(self):
@@ -511,7 +529,7 @@ class YoHandler(ExternalHandler):
     """
     Overloaded external channel for accepting Yo! Messages.
     """
-    url = r'^/yo/(?P<action>received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^yo/(?P<action>received)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.yo_handler'
 
     def get_channel_type(self):
@@ -520,7 +538,7 @@ class YoHandler(ExternalHandler):
 
 class TelegramHandler(BaseChannelHandler):
 
-    url = r'^/telegram/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^telegram/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.telegram_handler'
 
     @classmethod
@@ -654,7 +672,7 @@ class TelegramHandler(BaseChannelHandler):
 
 class InfobipHandler(BaseChannelHandler):
 
-    url = r'^/infobip/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^infobip/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.infobip_handler'
 
     def post(self, request, *args, **kwargs):
@@ -730,14 +748,17 @@ class InfobipHandler(BaseChannelHandler):
 
 class Hub9Handler(BaseChannelHandler):
 
-    url = r'^/hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.hub9_handler'
+
+    def get_channel_type(self):
+        return Channel.TYPE_HUB9
 
     def get(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
 
         channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_HUB9).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -754,6 +775,10 @@ class Hub9Handler(BaseChannelHandler):
 
         # delivery reports
         if action == 'delivered':  # pragma: needs cover
+
+            if external_id is None or status is None:
+                return HttpResponse("Parameters messageid and status should not be null.", status=401)
+
             # look up the message
             sms = Msg.objects.filter(channel=channel, pk=external_id).select_related('channel').first()
             if not sms:
@@ -770,8 +795,13 @@ class Hub9Handler(BaseChannelHandler):
 
         # An MO message
         if action == 'received':
+
+            if message is None or from_number is None or to_number is None:
+                return HttpResponse("Parameters message, original and sendto should not be null.",
+                                    status=401)
+
             # make sure the channel number matches the receiver
-            if channel.address != '+' + to_number:
+            if channel.address not in ['+' + to_number, to_number]:
                 return HttpResponse("Channel with number '%s' not found." % to_number, status=404)
 
             Msg.create_incoming(channel, URN.from_tel('+' + from_number), message)
@@ -780,9 +810,18 @@ class Hub9Handler(BaseChannelHandler):
         return HttpResponse("Unreconized action: %s" % action, status=404)  # pragma: needs cover
 
 
+class DartMediaHandler(Hub9Handler):
+
+    url = r'^dartmedia/(?P<action>delivered|received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.dartmedia_handler'
+
+    def get_channel_type(self):
+        return Channel.TYPE_DARTMEDIA
+
+
 class HighConnectionHandler(BaseChannelHandler):
 
-    url = r'^/hcnx/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^hcnx/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.hcnx_handler'
 
     def post(self, request, *args, **kwargs):
@@ -842,7 +881,7 @@ class HighConnectionHandler(BaseChannelHandler):
 
 class BlackmynaHandler(BaseChannelHandler):
 
-    url = r'^/blackmyna/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^blackmyna/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.blackmyna_handler'
 
     def post(self, request, *args, **kwargs):  # pragma: needs cover
@@ -898,7 +937,7 @@ class BlackmynaHandler(BaseChannelHandler):
 
 class SMSCentralHandler(BaseChannelHandler):
 
-    url = r'^/smscentral/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^smscentral/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.smscentral_handler'
 
     def post(self, request, *args, **kwargs):  # pragma: needs cover
@@ -932,16 +971,78 @@ class M3TechHandler(ExternalHandler):
     """
     Exposes our API for handling and receiving messages, same as external handlers.
     """
-    url = r'^/m3tech/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^m3tech/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.m3tech_handler'
 
     def get_channel_type(self):
         return Channel.TYPE_M3TECH
 
 
+class NexmoCallHandler(BaseChannelHandler):
+
+    url = r'^nexmo/(?P<action>answer|event)/(?P<uuid>[a-z0-9\-]+)/$'
+    url_name = 'handlers.nexmo_call_handler'
+
+    def post(self, request, *args, **kwargs):
+        return self.get(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        from temba.ivr.models import IVRCall
+
+        action = kwargs['action'].lower()
+
+        # nexmo fires a test request at our URL with no arguments, return 200 so they take our URL as valid
+        if action == 'answer' and not self.get_param('nexmo_caller_id', None):
+            return HttpResponse("No to parameter, ignoring")
+
+        request_uuid = kwargs['uuid']
+
+        channel = Channel.objects.filter(uuid__iexact=request_uuid, is_active=True, channel_type=Channel.TYPE_NEXMO).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("No channel to answer call for UUID: %s" % request_uuid, status=404)
+
+        if action == 'answer':
+
+            from_number = self.get_param('nexmo_caller_id')
+            external_id = self.get_param('nexmo_call_id')
+
+            urn = URN.from_tel(from_number)
+            contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], channel=channel)
+            urn_obj = contact.urn_objects[urn]
+
+            flow = Trigger.find_flow_for_inbound_call(contact)
+
+            if flow:
+                call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, external_id)
+
+                FlowRun.create(flow, contact.pk, session=call)
+                response = Flow.handle_call(call)
+                return HttpResponse(unicode(response))
+            else:
+                # we don't have an inbound trigger to deal with this call.
+                response = channel.generate_ivr_response()
+
+                # say nothing and hangup, this is a little rude, but if we reject the call, then
+                # they'll get a non-working number error. We send 'busy' when our server is down
+                # so we don't want to use that here either.
+                response.say('')
+                response.hangup()
+
+                # if they have a missed call trigger, fire that off
+                Trigger.catch_triggers(contact, Trigger.TYPE_MISSED_CALL, channel)
+
+                # either way, we need to hangup now
+                return HttpResponse(unicode(response))
+
+        if action == 'event':
+            # event are handled by call event webhook
+            # this url is just required to be able to create the nexmo application
+            return HttpResponse('')
+
+
 class NexmoHandler(BaseChannelHandler):
 
-    url = r'^/nexmo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
+    url = r'^nexmo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
     url_name = 'handlers.nexmo_handler'
 
     def post(self, request, *args, **kwargs):  # pragma: needs cover
@@ -995,9 +1096,7 @@ class NexmoHandler(BaseChannelHandler):
         # this is a new incoming message
         elif action == 'receive':
             urn = URN.from_tel('+%s' % self.get_param('msisdn'))
-            sms = Msg.create_incoming(channel, urn, self.get_param('text'))
-            sms.external_id = external_id
-            sms.save(update_fields=['external_id'])
+            sms = Msg.create_incoming(channel, urn, self.get_param('text'), external_id=external_id)
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:  # pragma: needs cover
@@ -1006,7 +1105,7 @@ class NexmoHandler(BaseChannelHandler):
 
 class VerboiceHandler(BaseChannelHandler):
 
-    url = r'^/verboice/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^verboice/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.verboice_handler'
 
     def post(self, request, *args, **kwargs):
@@ -1032,7 +1131,7 @@ class VerboiceHandler(BaseChannelHandler):
             from temba.ivr.models import IVRCall
             call = IVRCall.objects.filter(external_id=call_sid).first()
             if call:
-                call.update_status(call_status, None)
+                call.update_status(call_status, None, Channel.TYPE_VERBOICE)
                 call.save()
                 return HttpResponse("Call Status Updated")
 
@@ -1041,7 +1140,7 @@ class VerboiceHandler(BaseChannelHandler):
 
 class VumiHandler(BaseChannelHandler):
 
-    url = r'^/vumi/(?P<action>event|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^vumi/(?P<action>event|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.vumi_handler'
 
     def get(self, request, *args, **kwargs):
@@ -1057,7 +1156,7 @@ class VumiHandler(BaseChannelHandler):
         try:
             body = json.loads(request.body)
         except Exception as e:  # pragma: needs cover
-            return HttpResponse("Invalid JSON: %s" % unicode(e), status=400)
+            return HttpResponse("Invalid JSON: %s" % six.text_type(e), status=400)
 
         # determine if it's a USSD session message or a regular SMS
         is_ussd = "ussd" in body.get('transport_name', '') or body.get('transport_type', '') == 'ussd'
@@ -1176,7 +1275,7 @@ class VumiHandler(BaseChannelHandler):
 
 class KannelHandler(BaseChannelHandler):
 
-    url = r'^/kannel/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^kannel/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.kannel_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: needs cover
@@ -1259,7 +1358,7 @@ class KannelHandler(BaseChannelHandler):
 
 class ClickatellHandler(BaseChannelHandler):
 
-    url = r'^/clickatell/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^clickatell/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.clickatell_handler'
 
     def get(self, request, *args, **kwargs):
@@ -1382,7 +1481,7 @@ class ClickatellHandler(BaseChannelHandler):
 
 class PlivoHandler(BaseChannelHandler):
 
-    url = r'^/plivo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^plivo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.plivo_handler'
 
     def get(self, request, *args, **kwargs):
@@ -1490,7 +1589,7 @@ class PlivoHandler(BaseChannelHandler):
 
 class MageHandler(BaseChannelHandler):
 
-    url = r'^/mage/(?P<action>handle_message|follow_notification)$'
+    url = r'^mage/(?P<action>handle_message|follow_notification)$'
     url_name = 'handlers.mage_handler'
 
     def get(self, request, *args, **kwargs):
@@ -1527,14 +1626,15 @@ class MageHandler(BaseChannelHandler):
             except ValueError:  # pragma: needs cover
                 return JsonResponse(dict(error="Invalid channel or contact URN id"), status=400)
 
-            fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact), queue='handler')
+            on_transaction_commit(lambda: fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact),
+                                                                           queue='handler'))
 
         return JsonResponse(dict(error=None))
 
 
 class StartHandler(BaseChannelHandler):
 
-    url = r'^/start/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^start/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.start_handler'
 
     def post(self, request, *args, **kwargs):
@@ -1580,7 +1680,7 @@ class StartHandler(BaseChannelHandler):
 
 class ChikkaHandler(BaseChannelHandler):
 
-    url = r'^/chikka/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^chikka/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.chikka_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: needs cover
@@ -1658,7 +1758,7 @@ class ChikkaHandler(BaseChannelHandler):
 
 class JasminHandler(BaseChannelHandler):
 
-    url = r'^/jasmin/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^jasmin/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.jasmin_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: needs cover
@@ -1719,9 +1819,93 @@ class JasminHandler(BaseChannelHandler):
             return HttpResponse("Not handled, unknown action", status=400)
 
 
+class JunebugHandler(BaseChannelHandler):
+
+    url = r'^junebug/(?P<action>event|inbound)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.junebug_handler'
+
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("Must be called as a POST", status=400)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+
+        action = kwargs['action'].lower()
+        request_uuid = kwargs['uuid']
+
+        # look up the channel
+        channel = Channel.objects.filter(
+            uuid=request_uuid,
+            is_active=True,
+            channel_type=Channel.TYPE_JUNEBUG).exclude(org=None).first()
+
+        if not channel:
+            return HttpResponse(
+                "Channel not found for id: %s" % request_uuid, status=400)
+
+        data = json.load(request)
+
+        # Junebug is sending an event
+        if action == 'event':
+            expected_keys = ["event_type", "message_id", "timestamp"]
+            if not set(expected_keys).issubset(data.keys()):
+                return HttpResponse(
+                    "Missing one of %s in request parameters." % (
+                        ', '.join(expected_keys)), status=400)
+
+            message_id = data['message_id']
+            event_type = data["event_type"]
+
+            # look up the message
+            message = Msg.objects.filter(
+                channel=channel, external_id=message_id
+            ).select_related('channel')
+            if not message:
+                return HttpResponse(
+                    "Message with external id of '%s' not found" % message_id,
+                    status=400)
+
+            if event_type == 'submitted':
+                for message_obj in message:
+                    message_obj.status_sent()
+            if event_type == 'delivery_succeeded':
+                for message_obj in message:
+                    message_obj.status_delivered()
+            elif event_type in ['delivery_failed', 'rejected']:
+                for message_obj in message:
+                    message_obj.status_fail()
+
+            # Let Junebug know we're happy
+            return HttpResponse('OK')
+
+        # Handle an inbound message
+        elif action == 'inbound':
+            expected_keys = [
+                'channel_data',
+                'from',
+                'channel_id',
+                'timestamp',
+                'content',
+                'to',
+                'reply_to',
+                'message_id',
+            ]
+            if not set(expected_keys).issubset(data.keys()):
+                return HttpResponse(
+                    "Missing one of %s in request parameters." % (
+                        ', '.join(expected_keys)), status=400)
+
+            content = data['content']
+            message = Msg.create_incoming(
+                channel, URN.from_tel(data['from']), content)
+            Msg.objects.filter(pk=message.id).update(
+                external_id=data['message_id'])
+            return HttpResponse('OK')
+
+
 class MbloxHandler(BaseChannelHandler):
 
-    url = r'^/mblox/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^mblox/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.mblox_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: needs cover
@@ -1790,7 +1974,7 @@ class MbloxHandler(BaseChannelHandler):
 
 class FacebookHandler(BaseChannelHandler):
 
-    url = r'^/facebook/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^facebook/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.facebook_handler'
 
     def lookup_channel(self, kwargs):
@@ -1808,8 +1992,9 @@ class FacebookHandler(BaseChannelHandler):
         if request.GET.get('hub.mode') == 'subscribe':
             # verify the token against our secret, if the same return the challenge FB sent us
             if channel.secret == request.GET.get('hub.verify_token'):
-                # fire off a subscription for facebook events, we have a bit of a delay here so that FB can react to this webhook result
-                fb_channel_subscribe.apply_async([channel.id], delay=5)
+                # fire off a subscription for facebook events, we have a bit of a delay here so that FB can react to
+                # this webhook result
+                on_transaction_commit(lambda: fb_channel_subscribe.apply_async([channel.id], delay=5))
 
                 return HttpResponse(request.GET.get('hub.challenge'))
 
@@ -1838,7 +2023,61 @@ class FacebookHandler(BaseChannelHandler):
                 status = []
 
                 for envelope in entry['messaging']:
-                    if 'message' in envelope or 'postback' in envelope:
+                    if 'optin' in envelope:
+                        # check that the recipient is correct for this channel
+                        channel_address = str(envelope['recipient']['id'])
+                        if channel_address != channel.address:  # pragma: needs cover
+                            return HttpResponse("Msg Ignored for recipient id: %s" % channel_address, status=200)
+
+                        referrer_id = envelope['optin'].get('ref')
+
+                        # This is a standard opt in, we know the sender id:
+                        #   https://developers.facebook.com/docs/messenger-platform/webhook-reference/optins
+                        # {
+                        #   "sender": { "id": "USER_ID" },
+                        #   "recipient": { "id": "PAGE_ID" },
+                        #   "timestamp": 1234567890,
+                        #   "optin": {
+                        #     "ref": "PASS_THROUGH_PARAM"
+                        #   }
+                        # }
+                        if 'sender' in envelope:
+                            # grab our contact
+                            urn = URN.from_facebook(envelope['sender']['id'])
+                            contact = Contact.from_urn(channel.org, urn)
+
+                        # This is a checkbox-plugin:
+                        #   https://developers.facebook.com/docs/messenger-platform/plugin-reference/checkbox-plugin
+                        # {
+                        #   "recipient": { "id": "PAGE_ID" },
+                        #   "timestamp": 1234567890,
+                        #   "optin": {
+                        #      "ref": "PASS_THROUGH_PARAM",
+                        #      "user_ref": "UNIQUE_REF_PARAM"
+                        #   }
+                        # }
+                        elif 'user_ref' in envelope['optin']:
+                            urn = URN.from_facebook(URN.path_from_fb_ref(envelope['optin']['user_ref']))
+                            contact = Contact.from_urn(channel.org, urn)
+
+                        # no idea what this is, ignore
+                        else:
+                            status.append("Ignored opt-in, no user_ref or sender")
+                            continue
+
+                        if not contact:
+                            contact = Contact.get_or_create(channel.org, channel.created_by,
+                                                            urns=[urn], channel=channel)
+
+                        caught = Trigger.catch_triggers(contact, Trigger.TYPE_REFERRAL, channel,
+                                                        referrer_id=referrer_id, extra=envelope['optin'])
+
+                        if caught:
+                            status.append("Triggered flow for ref: %s" % referrer_id)
+                        else:
+                            status.append("Ignored opt-in, no trigger for ref: %s" % referrer_id)
+
+                    elif 'message' in envelope or 'postback' in envelope:
                         # ignore echos
                         if 'message' in envelope and envelope['message'].get('is_echo'):
                             status.append("Echo Ignored")
@@ -1861,7 +2100,7 @@ class FacebookHandler(BaseChannelHandler):
                                     if attachment['payload'] and 'url' in attachment['payload']:
                                         urls.append(attachment['payload']['url'])
                                     elif 'url' in attachment and attachment['url']:
-                                        if 'title' in attachment:
+                                        if 'title' in attachment and attachment['title']:
                                             urls.append(attachment['title'])
                                         urls.append(attachment['url'])
 
@@ -1884,7 +2123,7 @@ class FacebookHandler(BaseChannelHandler):
                                 # if this isn't an anonymous org, look up their name from the Facebook API
                                 if not channel.org.is_anon:
                                     try:
-                                        response = requests.get('https://graph.facebook.com/v2.5/' + unicode(sender_id),
+                                        response = requests.get('https://graph.facebook.com/v2.5/' + six.text_type(sender_id),
                                                                 params=dict(fields='first_name,last_name',
                                                                             access_token=channel.config_json()[Channel.CONFIG_AUTH_TOKEN]))
 
@@ -1934,7 +2173,7 @@ class FacebookHandler(BaseChannelHandler):
 
 class GlobeHandler(BaseChannelHandler):
 
-    url = r'^/globe/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^globe/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.globe_handler'
 
     def get(self, request, *args, **kwargs):
@@ -1974,7 +2213,7 @@ class GlobeHandler(BaseChannelHandler):
         try:
             body = json.loads(request.body)
         except Exception as e:
-            return HttpResponse("Invalid JSON: %s" % unicode(e), status=400)
+            return HttpResponse("Invalid JSON: %s" % six.text_type(e), status=400)
 
         # needs to contain our message list and inboundSMS message
         if 'inboundSMSMessageList' not in body or 'inboundSMSMessage' not in body['inboundSMSMessageList']:
@@ -1991,9 +2230,6 @@ class GlobeHandler(BaseChannelHandler):
                     scheme, destination = URN.to_parts(inbound_msg['destinationAddress'])
                 except ValueError as v:
                     return HttpResponse("Error parsing destination address: " + str(v), status=400)
-
-                if destination != channel.address:
-                    return HttpResponse("Invalid request, channel address: %s mismatch with destinationAddress: %s" % (channel.address, destination), status=400)
 
                 # dates come in the format "2014-04-18 03:54:20.570618" GMT
                 sms_date = datetime.strptime(inbound_msg['dateTime'], "%a %b %d %Y %H:%M:%S GMT+0000 (UTC)")
@@ -2018,7 +2254,7 @@ class GlobeHandler(BaseChannelHandler):
 
 class ViberHandler(BaseChannelHandler):
 
-    url = r'^/viber/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^viber/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.viber_handler'
 
     def get(self, request, *args, **kwargs):
@@ -2086,7 +2322,7 @@ class ViberHandler(BaseChannelHandler):
 
 class LineHandler(BaseChannelHandler):
 
-    url = r'^/line/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^line/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.line_handler'
 
     def get(self, request, *args, **kwargs):
@@ -2128,7 +2364,7 @@ class LineHandler(BaseChannelHandler):
 
 class ViberPublicHandler(BaseChannelHandler):
 
-    url = r'^/viber_public/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^viber_public/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.viber_public_handler'
 
     @classmethod
@@ -2192,7 +2428,8 @@ class ViberPublicHandler(BaseChannelHandler):
             #    "message_token": 4912661846655238145
             # }
             viber_id = body['user']['id']
-            contact = Contact.get_or_create(channel.org, channel.created_by, body['user'].get('name'), urns=[URN.from_viber(viber_id)])
+            contact_name = None if channel.org.is_anon else body['user'].get('name')
+            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[URN.from_viber(viber_id)])
             Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
             return HttpResponse("Subscription for contact: %s handled" % viber_id)
 
@@ -2318,8 +2555,9 @@ class ViberPublicHandler(BaseChannelHandler):
 
             # get or create our contact with any name sent in
             urn = URN.from_viber(body['sender']['id'])
-            contact = Contact.get_or_create(channel.org, channel.created_by,
-                                            body['sender'].get('name'), urns=[urn])
+
+            contact_name = None if channel.org.is_anon else body['sender'].get('name')
+            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
 
             # add our caption first if it is present
             if caption:  # pragma: needs cover

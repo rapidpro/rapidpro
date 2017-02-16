@@ -1,4 +1,4 @@
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, print_function, unicode_literals
 
 import json
 import time
@@ -9,12 +9,14 @@ import regex
 import requests
 import telegram
 import re
+import six
+
 from enum import Enum
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
 from django.core.validators import URLValidator
-from django.db import models, connection
+from django.db import models
 from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
 from django.conf import settings
@@ -28,24 +30,27 @@ from django_redis import get_redis_connection
 from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from smartmin.models import SmartModel
-from temba.nexmo import NexmoClient
-from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID
+from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID, NEXMO_APP_ID
+from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit
 from temba.utils.email import send_template_email
-from temba.utils import analytics, random_string, dict_to_struct, dict_to_json
+from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
+from temba.utils.nexmo import NexmoClient, NCCOResponse
+from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from time import sleep
-
-from twilio import TwilioRestException
+from twilio import twiml, TwilioRestException
 from twilio.rest import TwilioRestClient
 from twython import Twython
-from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
-from temba.utils.models import TembaModel, generate_uuid
 from urllib import quote_plus
 from xml.sax.saxutils import quoteattr, escape
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
 
-# Some providers need a static ip to whitelist, route them through our proxy
-OUTGOING_PROXIES = settings.OUTGOING_PROXIES
+# Hub9 is an aggregator in Indonesia, set this to the endpoint for your service
+# and make sure you send from a whitelisted IP Address
+HUB9_ENDPOINT = 'http://175.103.48.29:28078/testing/smsmt.php'
+
+# Dart Media is another aggregator in Indonesia, set this to the endpoint for your service
+DART_MEDIA_ENDPOINT = 'http://202.43.169.11/APIhttpU/receive2waysms.php'
 
 
 class Encoding(Enum):
@@ -54,12 +59,14 @@ class Encoding(Enum):
     UNICODE = 3
 
 
+@six.python_2_unicode_compatible
 class Channel(TembaModel):
     TYPE_AFRICAS_TALKING = 'AT'
     TYPE_ANDROID = 'A'
     TYPE_BLACKMYNA = 'BM'
     TYPE_CHIKKA = 'CK'
     TYPE_CLICKATELL = 'CT'
+    TYPE_DARTMEDIA = 'DA'
     TYPE_DUMMY = 'DM'
     TYPE_EXTERNAL = 'EX'
     TYPE_FACEBOOK = 'FB'
@@ -68,6 +75,7 @@ class Channel(TembaModel):
     TYPE_HUB9 = 'H9'
     TYPE_INFOBIP = 'IB'
     TYPE_JASMIN = 'JS'
+    TYPE_JUNEBUG = 'JN'
     TYPE_KANNEL = 'KN'
     TYPE_LINE = 'LN'
     TYPE_M3TECH = 'M3'
@@ -147,6 +155,7 @@ class Channel(TembaModel):
         TYPE_BLACKMYNA: dict(scheme='tel', max_length=1600),
         TYPE_CHIKKA: dict(scheme='tel', max_length=160),
         TYPE_CLICKATELL: dict(scheme='tel', max_length=420),
+        TYPE_DARTMEDIA: dict(scheme='tel', max_length=160),
         TYPE_DUMMY: dict(scheme='tel', max_length=160),
         TYPE_EXTERNAL: dict(max_length=160),
         TYPE_FACEBOOK: dict(scheme='facebook', max_length=320),
@@ -155,6 +164,7 @@ class Channel(TembaModel):
         TYPE_HUB9: dict(scheme='tel', max_length=1600),
         TYPE_INFOBIP: dict(scheme='tel', max_length=1600),
         TYPE_JASMIN: dict(scheme='tel', max_length=1600),
+        TYPE_JUNEBUG: dict(scheme='tel', max_length=1600),
         TYPE_KANNEL: dict(scheme='tel', max_length=1600),
         TYPE_LINE: dict(scheme='line', max_length=1600),
         TYPE_M3TECH: dict(scheme='tel', max_length=160),
@@ -182,6 +192,7 @@ class Channel(TembaModel):
                     (TYPE_ANDROID, "Android"),
                     (TYPE_BLACKMYNA, "Blackmyna"),
                     (TYPE_CLICKATELL, "Clickatell"),
+                    (TYPE_DARTMEDIA, "Dart Media"),
                     (TYPE_DUMMY, "Dummy"),
                     (TYPE_EXTERNAL, "External"),
                     (TYPE_FACEBOOK, "Facebook"),
@@ -190,6 +201,7 @@ class Channel(TembaModel):
                     (TYPE_HUB9, "Hub9"),
                     (TYPE_INFOBIP, "Infobip"),
                     (TYPE_JASMIN, "Jasmin"),
+                    (TYPE_JUNEBUG, "Junebug"),
                     (TYPE_KANNEL, "Kannel"),
                     (TYPE_LINE, "Line"),
                     (TYPE_M3TECH, "M3 Tech"),
@@ -214,6 +226,10 @@ class Channel(TembaModel):
 
     # list of all USSD channels
     USSD_CHANNELS = [TYPE_VUMI_USSD]
+
+    TWIML_CHANNELS = [TYPE_TWILIO, TYPE_VERBOICE, TYPE_TWIML]
+
+    NCCO_CHANNELS = [TYPE_NEXMO]
 
     GET_STARTED = 'get_started'
     VIBER_NO_SERVICE_ID = 'no_service_id'
@@ -433,7 +449,9 @@ class Channel(TembaModel):
     @classmethod
     def add_nexmo_channel(cls, org, user, country, phone_number):
         client = org.get_nexmo_client()
-        org_uuid = org.config_json().get(NEXMO_UUID)
+        org_config = org.config_json()
+        org_uuid = org_config.get(NEXMO_UUID)
+        app_id = org_config.get(NEXMO_APP_ID)
 
         nexmo_phones = client.get_numbers(phone_number)
         is_shortcode = False
@@ -450,8 +468,8 @@ class Channel(TembaModel):
         # buy the number if we have to
         if not nexmo_phones:
             try:
-                client.buy_number(country, phone_number)
-            except Exception as e:  # pragma: no cover
+                client.buy_nexmo_number(country, phone_number)
+            except Exception as e:
                 raise Exception(_("There was a problem claiming that number, "
                                   "please check the balance on your account. " +
                                   "Note that you can only claim numbers after "
@@ -459,10 +477,21 @@ class Channel(TembaModel):
 
         mo_path = reverse('handlers.nexmo_handler', args=['receive', org_uuid])
 
+        channel_uuid = generate_uuid()
+
+        nexmo_phones = client.get_numbers(phone_number)
+        features = [elt.upper() for elt in nexmo_phones[0]['features']]
+        role = ''
+        if 'SMS' in features:
+            role += Channel.ROLE_SEND + Channel.ROLE_RECEIVE
+
+        if 'VOICE' in features:
+            role += Channel.ROLE_ANSWER + Channel.ROLE_CALL
+
         # update the delivery URLs for it
         from temba.settings import TEMBA_HOST
         try:
-            client.update_number(country, phone_number, 'http://%s%s' % (TEMBA_HOST, mo_path))
+            client.update_nexmo_number(country, phone_number, 'https://%s%s' % (TEMBA_HOST, mo_path), app_id)
 
         except Exception as e:  # pragma: no cover
             # shortcodes don't seem to claim right on nexmo, move forward anyways
@@ -480,7 +509,8 @@ class Channel(TembaModel):
             # nexmo ships numbers around as E164 without the leading +
             nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
 
-        return Channel.create(org, user, country, Channel.TYPE_NEXMO, name=phone, address=phone_number, bod=nexmo_phone_number)
+        return Channel.create(org, user, country, Channel.TYPE_NEXMO, name=phone, address=phone_number, role=role,
+                              bod=nexmo_phone_number, uuid=channel_uuid)
 
     @classmethod
     def add_twilio_channel(cls, org, user, phone_number, country, role):
@@ -614,7 +644,7 @@ class Channel(TembaModel):
 
     @classmethod
     def add_twitter_channel(cls, org, user, screen_name, handle_id, oauth_token, oauth_token_secret):
-        config = dict(handle_id=long(handle_id),
+        config = dict(handle_id=int(handle_id),
                       oauth_token=oauth_token,
                       oauth_token_secret=oauth_token_secret)
 
@@ -630,7 +660,7 @@ class Channel(TembaModel):
 
                 # notify Mage so that it activates this channel
                 from .tasks import MageStreamAction, notify_mage_task
-                notify_mage_task.delay(channel.uuid, MageStreamAction.activate)
+                on_transaction_commit(lambda: notify_mage_task.delay(channel.uuid, MageStreamAction.activate.name))
 
         return channel
 
@@ -773,6 +803,12 @@ class Channel(TembaModel):
     def is_delegate_caller(self):
         return self.parent and Channel.ROLE_CALL in self.role
 
+    def generate_ivr_response(self):
+        if self.channel_type in Channel.TWIML_CHANNELS:
+            return twiml.Response()
+        if self.channel_type in Channel.NCCO_CHANNELS:
+            return NCCOResponse()
+
     def get_ivr_client(self):
         if self.channel_type == Channel.TYPE_TWILIO:
             return self.org.get_twilio_client()
@@ -780,7 +816,8 @@ class Channel(TembaModel):
             return self.get_twiml_client()
         if self.channel_type == Channel.TYPE_VERBOICE:  # pragma: no cover
             return self.org.get_verboice_client()
-        return None  # pragma: no cover
+        elif self.channel_type == Channel.TYPE_NEXMO:
+            return self.org.get_nexmo_client()
 
     def get_twiml_client(self):
         from temba.ivr.clients import TwilioClient
@@ -847,7 +884,7 @@ class Channel(TembaModel):
         from temba.contacts.models import TEL_SCHEME
 
         address = self.get_address_display()
-        default = address if address else self.__unicode__()
+        default = address if address else six.text_type(self)
 
         # for backwards compatibility
         if self.scheme == TEL_SCHEME:
@@ -1073,7 +1110,7 @@ class Channel(TembaModel):
         if notify_mage and self.channel_type == Channel.TYPE_TWITTER:
             # notify Mage so that it deactivates this channel
             from .tasks import MageStreamAction, notify_mage_task
-            notify_mage_task.delay(self.uuid, MageStreamAction.deactivate)
+            on_transaction_commit(lambda: notify_mage_task.delay(self.uuid, MageStreamAction.deactivate.name))
 
         from temba.triggers.models import Trigger
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)
@@ -1089,7 +1126,7 @@ class Channel(TembaModel):
                 if not gcm_id:
                     gcm_id = self.gcm_id
                 if gcm_id:
-                    sync_channel_task.delay(gcm_id, channel_id=self.pk)
+                    on_transaction_commit(lambda: sync_channel_task.delay(gcm_id, channel_id=self.pk))
 
         # otherwise this is an aggregator, no-op
         else:
@@ -1109,7 +1146,7 @@ class Channel(TembaModel):
     @classmethod
     def build_send_url(cls, url, variables):
         for key in variables.keys():
-            url = url.replace("{{%s}}" % key, quote_plus(unicode(variables[key]).encode('utf-8')))
+            url = url.replace("{{%s}}" % key, quote_plus(six.text_type(variables[key]).encode('utf-8')))
 
         return url
 
@@ -1182,7 +1219,7 @@ class Channel(TembaModel):
         try:
             response = requests.get(channel.config[Channel.CONFIG_SEND_URL], verify=True, params=payload, timeout=15)
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='GET',
                                 url=log_url,
                                 request="",
@@ -1209,12 +1246,70 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, 'GET', log_url, payload, response, external_id)
 
     @classmethod
-    def send_facebook_message(cls, channel, msg, text):
+    def send_junebug_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
+
+        # the event url Junebug will relay events to
+        event_url = 'https://%s%s' % (
+            settings.HOSTNAME,
+            reverse('handlers.junebug_handler',
+                    args=['event', channel.uuid]))
 
         # build our payload
         payload = dict()
-        payload['recipient'] = dict(id=msg.urn_path)
+        payload['to'] = msg.urn_path
+        payload['from'] = channel.address
+        payload['event_url'] = event_url
+        payload['content'] = text
+
+        log_url = channel.config[Channel.CONFIG_SEND_URL]
+        start = time.time()
+
+        try:
+            response = requests.post(
+                channel.config[Channel.CONFIG_SEND_URL], verify=True,
+                json=payload, timeout=15,
+                auth=(channel.config[Channel.CONFIG_USERNAME],
+                      channel.config[Channel.CONFIG_PASSWORD]))
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=log_url,
+                                request=payload,
+                                response="",
+                                response_status=503,
+                                start=start)
+
+        if not (200 <= response.status_code < 300):
+            raise SendException(
+                "Received a non 200 response %d from Junebug" % (
+                    response.status_code,),
+                method='POST',
+                url=log_url,
+                request=payload,
+                response=response.text,
+                response_status=response.status_code,
+                start=start)
+
+        data = response.json()
+        message_id = data['result']['id']
+        Channel.success(
+            channel, msg, WIRED, start, 'POST', log_url, payload, response,
+            message_id)
+
+    @classmethod
+    def send_facebook_message(cls, channel, msg, text):
+        from temba.msgs.models import WIRED
+        from temba.contacts.models import Contact, ContactURN, URN
+
+        # build our payload
+        payload = dict()
+
+        # this is a ref facebook id, temporary just for this message
+        if URN.is_path_fb_ref(msg.urn_path):
+            payload['recipient'] = dict(user_ref=URN.fb_ref_from_path(msg.urn_path))
+        else:
+            payload['recipient'] = dict(id=msg.urn_path)
         payload['message'] = dict(text=text)
         payload = json.dumps(payload)
 
@@ -1226,7 +1321,7 @@ class Channel(TembaModel):
         try:
             response = requests.post(url, payload, params=params, headers=headers, timeout=15)
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=payload,
@@ -1252,6 +1347,28 @@ class Channel(TembaModel):
             # if we can't pull out our message id, that's ok, we still sent
             pass
 
+        # if we sent Facebook a user_ref, look up the real Facebook id for this contact, should be in 'recipient_id'
+        if URN.is_path_fb_ref(msg.urn_path):
+            contact_obj = Contact.objects.get(id=msg.contact)
+            org_obj = Org.objects.get(id=channel.org)
+            channel_obj = Channel.objects.get(id=channel.id)
+
+            try:
+                real_fb_id = response.json()['recipient_id']
+
+                # associate this contact with our real FB id
+                ContactURN.get_or_create(org_obj, contact_obj, URN.from_facebook(real_fb_id), channel=channel_obj)
+
+                # save our ref_id as an external URN on this contact
+                ContactURN.get_or_create(org_obj, contact_obj, URN.from_external(URN.fb_ref_from_path(msg.urn_path)))
+
+                # finally, disassociate our temp ref URN with this contact
+                ContactURN.objects.filter(id=msg.contact_urn).update(contact=None)
+
+            except Exception as e:   # pragma: no cover
+                # if we can't pull out the recipient id, that's ok, msg was sent
+                pass
+
         Channel.success(channel, msg, WIRED, start, 'POST', url, payload, response, external_id)
 
     @classmethod
@@ -1269,9 +1386,9 @@ class Channel(TembaModel):
 
         try:
             response = requests.post(send_url, data=data, headers=headers)
-            content = json.loads(response.content)
+            content = response.json()
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=send_url,
                                 request=data,
@@ -1312,7 +1429,7 @@ class Channel(TembaModel):
         try:
             response = requests.post(url, request_body, headers=headers, timeout=15)
         except Exception as e:  # pragma: no cover
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=request_body,
@@ -1386,9 +1503,10 @@ class Channel(TembaModel):
         # figure out if we should send encoding or do any of our own substitution
         desired_encoding = channel.config.get(Channel.CONFIG_ENCODING, Channel.ENCODING_DEFAULT)
 
-        # they want unicde, they get unicode!
+        # they want unicode, they get unicode!
         if desired_encoding == Channel.ENCODING_UNICODE:
             payload['coding'] = '2'
+            payload['charset'] = 'utf8'
 
         # otherwise, if this is smart encoding, try to derive it
         elif desired_encoding == Channel.ENCODING_SMART:
@@ -1398,6 +1516,7 @@ class Channel(TembaModel):
 
             if encoding == Encoding.UNICODE:
                 payload['coding'] = '2'
+                payload['charset'] = 'utf8'
 
         log_payload = payload.copy()
         log_payload['password'] = 'x' * len(log_payload['password'])
@@ -1417,7 +1536,7 @@ class Channel(TembaModel):
                 response = requests.get(channel.config[Channel.CONFIG_SEND_URL], verify=False, params=payload, timeout=15)
         except Exception as e:
             payload['password'] = 'x' * len(payload['password'])
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='GET',
                                 url=log_url,
                                 request="",
@@ -1457,7 +1576,7 @@ class Channel(TembaModel):
             response = requests.get(url, headers=TEMBA_HEADERS, timeout=15, verify=False)
 
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='GET',
                                 url=url,
                                 request=log_payload,
@@ -1526,7 +1645,7 @@ class Channel(TembaModel):
                 response = requests.get(url, headers=headers, timeout=5)
 
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method=method,
                                 url=url,
                                 request=log_payload,
@@ -1578,7 +1697,7 @@ class Channel(TembaModel):
         try:
             response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=log_payload,
@@ -1603,7 +1722,7 @@ class Channel(TembaModel):
                     log_payload['secret_key'] = 'x' * len(log_payload['secret_key'])
 
                 except Exception as e:
-                    raise SendException(unicode(e),
+                    raise SendException(six.text_type(e),
                                         method='POST',
                                         url=url,
                                         request=log_payload,
@@ -1646,7 +1765,7 @@ class Channel(TembaModel):
             response = requests.get(url, headers=TEMBA_HEADERS, timeout=30)
             log_payload = urlencode(payload)
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='GET',
                                 url=url,
                                 request=log_payload,
@@ -1696,7 +1815,7 @@ class Channel(TembaModel):
                 external_id = response_json[0].get('id', None)
 
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=log_payload,
@@ -1721,12 +1840,15 @@ class Channel(TembaModel):
 
         post_body = u"""
           <message>
-            <service id="single" source=$$FROM$$ />
+            <service id="single" source=$$FROM$$ validity=$$VALIDITY$$/>
             <to>$$TO$$</to>
             <body content-type="plain/text" encoding="plain">$$BODY$$</body>
           </message>
         """
         post_body = post_body.replace("$$FROM$$", quoteattr(channel.address))
+
+        # tell Start to attempt to deliver this message for up to 12 hours
+        post_body = post_body.replace("$$VALIDITY$$", quoteattr("+12 hours"))
         post_body = post_body.replace("$$TO$$", escape(msg.urn_path))
         post_body = post_body.replace("$$BODY$$", escape(msg.text))
         post_body = post_body.encode('utf8')
@@ -1744,7 +1866,7 @@ class Channel(TembaModel):
                                      auth=(channel.config[Channel.CONFIG_USERNAME], channel.config[Channel.CONFIG_PASSWORD]),
                                      timeout=30)
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=post_body.decode('utf8'),
@@ -1789,7 +1911,7 @@ class Channel(TembaModel):
             response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=30)
 
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=log_payload,
@@ -1851,7 +1973,7 @@ class Channel(TembaModel):
                                     auth=(channel.config['account_key'], channel.config['access_token']))
 
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='PUT',
                                 url=url,
                                 request=payload,
@@ -1906,7 +2028,7 @@ class Channel(TembaModel):
                                      headers=headers,
                                      timeout=5)
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=payload,
@@ -1931,16 +2053,17 @@ class Channel(TembaModel):
     @classmethod
     def send_nexmo_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
-        from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET
+        from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
 
-        client = NexmoClient(channel.org_config[NEXMO_KEY], channel.org_config[NEXMO_SECRET])
+        client = NexmoClient(channel.org_config[NEXMO_KEY], channel.org_config[NEXMO_SECRET],
+                             channel.org_config[NEXMO_APP_ID], channel.org_config[NEXMO_APP_PRIVATE_KEY])
         start = time.time()
 
         attempts = 0
         response = None
         while not response:
             try:
-                (message_id, response) = client.send_message(channel.address, msg.urn_path, text)
+                (message_id, response) = client.send_message_via_nexmo(channel.address, msg.urn_path, text)
             except SendException as e:
                 match = regex.match(r'.*Throughput Rate Exceeded - please wait \[ (\d+) \] and retry.*', e.response)
 
@@ -2046,7 +2169,7 @@ class Channel(TembaModel):
                 response = requests.post(url, params=payload, headers=headers, timeout=5)
             except Exception as e:
                 payload['authentication']['password'] = 'x' * len(payload['authentication']['password'])
-                raise SendException(u"Unable to send message: %s" % unicode(e),
+                raise SendException(u"Unable to send message: %s" % six.text_type(e),
                                     url=url,
                                     method='POST',
                                     request=json.dumps(payload),
@@ -2081,7 +2204,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, SENT, start, 'POST', url, json.dumps(payload), response, external_id)
 
     @classmethod
-    def send_hub9_message(cls, channel, msg, text):
+    def send_hub9_or_dartmedia_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
 
         # http://175.103.48.29:28078/testing/smsmt.php?
@@ -2094,8 +2217,11 @@ class Channel(TembaModel):
         #   &message=Test+Normal+Single+Message&dcs=0
         #   &udhl=0&charset=utf-8
         #
-        from temba.settings import HUB9_ENDPOINT
-        url = HUB9_ENDPOINT
+        if channel.channel_type == Channel.TYPE_HUB9:
+            url = HUB9_ENDPOINT
+        elif channel.channel_type == Channel.TYPE_DARTMEDIA:
+            url = DART_MEDIA_ENDPOINT
+
         payload = dict(userid=channel.config['username'], password=channel.config['password'],
                        original=channel.address.lstrip('+'), sendto=msg.urn_path.lstrip('+'),
                        messageid=msg.id, message=text, dcs=0, udhl=0)
@@ -2107,7 +2233,7 @@ class Channel(TembaModel):
         start = time.time()
 
         try:
-            response = requests.get(send_url, proxies=OUTGOING_PROXIES, headers=TEMBA_HEADERS, timeout=15)
+            response = requests.get(send_url, headers=TEMBA_HEADERS, timeout=15)
             if not response:  # pragma: no cover
                 raise SendException("Unable to send message",
                                     url=masked_url,
@@ -2152,7 +2278,7 @@ class Channel(TembaModel):
                     reason = e.message.reason
             except Exception:
                 pass
-            raise SendException(u"Unable to send message: %s" % unicode(reason)[:64],
+            raise SendException(u"Unable to send message: %s" % six.text_type(reason)[:64],
                                 url=masked_url,
                                 method='GET',
                                 request=None,
@@ -2184,7 +2310,7 @@ class Channel(TembaModel):
             response = requests.get(zenvia_url,
                                     params=payload, headers=headers, timeout=5)
         except Exception as e:
-            raise SendException(u"Unable to send message: %s" % unicode(e),
+            raise SendException(u"Unable to send message: %s" % six.text_type(e),
                                 url=zenvia_url,
                                 method='POST',
                                 request=json.dumps(payload),
@@ -2230,7 +2356,7 @@ class Channel(TembaModel):
             response = requests.post(api_url,
                                      data=payload, headers=headers, timeout=5)
         except Exception as e:
-            raise SendException(u"Unable to send message: %s" % unicode(e),
+            raise SendException(u"Unable to send message: %s" % six.text_type(e),
                                 url=api_url,
                                 method='POST',
                                 request=json.dumps(payload),
@@ -2360,7 +2486,7 @@ class Channel(TembaModel):
                 fatal = True
             elif error_code == 403:
                 for err in Channel.TWITTER_FATAL_403S:
-                    if unicode(e).find(err) >= 0:
+                    if six.text_type(e).find(err) >= 0:
                         fatal = True
                         break
 
@@ -2417,7 +2543,7 @@ class Channel(TembaModel):
 
         except Exception as e:
             log_payload = urlencode(payload)
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='GET',
                                 url=url,
                                 request=log_payload,
@@ -2463,7 +2589,7 @@ class Channel(TembaModel):
         try:
             plivo_response_status, plivo_response = client.send_message(params=payload)
         except Exception as e:  # pragma: no cover
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=json.dumps(payload),
@@ -2518,7 +2644,7 @@ class Channel(TembaModel):
             response = requests.get(url, params=payload, headers=TEMBA_HEADERS, timeout=5)
 
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='GET',
                                 url=url,
                                 request=log_payload,
@@ -2576,7 +2702,7 @@ class Channel(TembaModel):
             response = requests.post(url, json=payload, headers=headers, timeout=5)
             response_json = response.json()
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=json.dumps(payload),
@@ -2626,7 +2752,7 @@ class Channel(TembaModel):
             response = requests.post(url, json=payload, headers=headers, timeout=5)
             response_json = response.json()
         except Exception as e:
-            raise SendException(unicode(e),
+            raise SendException(six.text_type(e),
                                 method='POST',
                                 url=url,
                                 request=json.dumps(payload),
@@ -2699,7 +2825,7 @@ class Channel(TembaModel):
 
         if sent_today or sent_yesterday:
             Msg.mark_sent(r, msg, WIRED, -1)
-            print "!! [%d] prevented duplicate send" % (msg.id)
+            print("!! [%d] prevented duplicate send" % (msg.id))
             return
 
         # channel can be none in the case where the channel has been removed
@@ -2752,7 +2878,7 @@ class Channel(TembaModel):
                 # never send in debug unless overridden
                 if not settings.SEND_MESSAGES:
                     Msg.mark_sent(r, msg, WIRED, -1)
-                    print "FAKED SEND for [%d] - %s" % (msg.id, part)
+                    print("FAKED SEND for [%d] - %s" % (msg.id, part))
                 elif channel_type in SEND_FUNCTIONS:
                     SEND_FUNCTIONS[channel_type](channel, msg, part)
                 else:
@@ -2768,7 +2894,7 @@ class Channel(TembaModel):
                 sent_count -= 1
 
             except Exception as e:
-                ChannelLog.log_error(msg, unicode(e))
+                ChannelLog.log_error(msg, six.text_type(e))
 
                 import traceback
                 traceback.print_exc(e)
@@ -2779,7 +2905,7 @@ class Channel(TembaModel):
             finally:
                 # if we are still in a queued state, mark ourselves as an error
                 if msg.status == QUEUED:
-                    print "!! [%d] marking queued message as error" % msg.id
+                    print("!! [%d] marking queued message as error" % msg.id)
                     Msg.mark_error(r, channel, msg)
                     sent_count -= 1
 
@@ -2798,7 +2924,7 @@ class Channel(TembaModel):
         url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler') + "?action=callback&id=%d" % sms_id
         return url
 
-    def __unicode__(self):  # pragma: no cover
+    def __str__(self):  # pragma: no cover
         if self.name:
             return self.name
         elif self.device:
@@ -2806,7 +2932,7 @@ class Channel(TembaModel):
         elif self.address:
             return self.address
         else:
-            return unicode(self.pk)
+            return six.text_type(self.pk)
 
     def get_count(self, count_types):
         count = ChannelCount.objects.filter(channel=self, count_type__in=count_types)\
@@ -2832,6 +2958,7 @@ class Channel(TembaModel):
     class Meta:
         ordering = ('-last_seen', '-pk')
 
+
 SOURCE_AC = "AC"
 SOURCE_USB = "USB"
 SOURCE_WIRELESS = "WIR"
@@ -2847,14 +2974,16 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_BLACKMYNA: Channel.send_blackmyna_message,
                   Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_CLICKATELL: Channel.send_clickatell_message,
+                  Channel.TYPE_DARTMEDIA: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
                   Channel.TYPE_EXTERNAL: Channel.send_external_message,
                   Channel.TYPE_FACEBOOK: Channel.send_facebook_message,
                   Channel.TYPE_GLOBE: Channel.send_globe_message,
                   Channel.TYPE_HIGH_CONNECTION: Channel.send_high_connection_message,
-                  Channel.TYPE_HUB9: Channel.send_hub9_message,
+                  Channel.TYPE_HUB9: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_INFOBIP: Channel.send_infobip_message,
                   Channel.TYPE_JASMIN: Channel.send_jasmin_message,
+                  Channel.TYPE_JUNEBUG: Channel.send_junebug_message,
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,
                   Channel.TYPE_LINE: Channel.send_line_message,
                   Channel.TYPE_M3TECH: Channel.send_m3tech_message,
@@ -2877,13 +3006,14 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_ZENVIA: Channel.send_zenvia_message}
 
 
-class ChannelCount(models.Model):
+@six.python_2_unicode_compatible
+class ChannelCount(SquashableModel):
     """
     This model is maintained by Postgres triggers and maintains the daily counts of messages and ivr interactions
     on each day. This allows for fast visualizations of activity on the channel read page as well as summaries
     of message usage over the course of time.
     """
-    LAST_SQUASH_KEY = 'last_channelcount_squash'
+    SQUASH_OVER = ('channel_id', 'count_type', 'day')
 
     INCOMING_MSG_TYPE = 'IM'  # Incoming message
     OUTGOING_MSG_TYPE = 'OM'  # Outgoing message
@@ -2915,33 +3045,31 @@ class ChannelCount(models.Model):
         return count['count_sum'] if count['count_sum'] is not None else 0
 
     @classmethod
-    def squash_counts(cls):
-        # get the id of the last count we squashed
-        r = get_redis_connection()
-        last_squash = r.get(ChannelCount.LAST_SQUASH_KEY)
-        if not last_squash:
-            last_squash = 0
+    def get_squash_query(cls, distinct_set):
+        if distinct_set.day:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "channel_id" = %%s AND "count_type" = %%s AND "day" = %%s RETURNING "count"
+            )
+            INSERT INTO %(table)s("channel_id", "count_type", "day", "count", "is_squashed")
+            VALUES (%%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {'table': cls._meta.db_table}
 
-        # get the unique ids for all new ones
-        start = time.time()
-        squash_count = 0
-        for count in ChannelCount.objects.filter(id__gt=last_squash).order_by('channel_id', 'count_type', 'day')\
-                                                                    .distinct('channel_id', 'count_type', 'day'):
+            params = (distinct_set.channel_id, distinct_set.count_type, distinct_set.day) * 2
+        else:
+            sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "channel_id" = %%s AND "count_type" = %%s AND "day" IS NULL RETURNING "count"
+            )
+            INSERT INTO %(table)s("channel_id", "count_type", "day", "count", "is_squashed")
+            VALUES (%%s, %%s, NULL, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            """ % {'table': cls._meta.db_table}
 
-            # perform our atomic squash in SQL by calling our squash method
-            with connection.cursor() as c:
-                c.execute("SELECT temba_squash_channelcount(%s, %s, %s);", (count.channel_id, count.count_type, count.day))
+            params = (distinct_set.channel_id, distinct_set.count_type) * 2
 
-            squash_count += 1
+        return sql, params
 
-        # insert our new top squashed id
-        max_id = ChannelCount.objects.all().order_by('-id').first()
-        if max_id:
-            r.set(ChannelCount.LAST_SQUASH_KEY, max_id.id)
-
-        print "Squashed channel counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
-
-    def __unicode__(self):  # pragma: no cover
+    def __str__(self):  # pragma: no cover
         return "ChannelCount(%d) %s %s count: %d" % (self.channel_id, self.count_type, self.day, self.count)
 
     class Meta:
@@ -3040,8 +3168,12 @@ class SendException(Exception):
 class ChannelLog(models.Model):
     channel = models.ForeignKey(Channel, related_name='logs',
                                 help_text=_("The channel the message was sent on"))
-    msg = models.ForeignKey('msgs.Msg', related_name='channel_logs',
+    msg = models.ForeignKey('msgs.Msg', related_name='channel_logs', null=True,
                             help_text=_("The message that was sent"))
+
+    session = models.ForeignKey('channels.ChannelSession', related_name='channel_logs', null=True,
+                                help_text=_("The channel session for this log"))
+
     description = models.CharField(max_length=255,
                                    help_text=_("A description of the status of this message send"))
     is_error = models.BooleanField(default=None,
@@ -3071,7 +3203,7 @@ class ChannelLog(models.Model):
         ChannelLog.objects.create(channel_id=msg.channel,
                                   msg_id=msg.id,
                                   is_error=True,
-                                  description=unicode(e.description)[:255],
+                                  description=six.text_type(e.description)[:255],
                                   method=e.method,
                                   url=e.url,
                                   request=e.request,
@@ -3088,6 +3220,17 @@ class ChannelLog(models.Model):
         ChannelLog.objects.create(channel_id=msg.channel,
                                   msg_id=msg.id,
                                   is_error=True,
+                                  description=description[:255])
+
+    @classmethod
+    def log_ivr_interaction(cls, call, description, request, response, url, method, is_error=False):
+        ChannelLog.objects.create(channel_id=call.channel_id,
+                                  session_id=call.id,
+                                  request=request,
+                                  response=response,
+                                  url=url,
+                                  method=method,
+                                  is_error=is_error,
                                   description=description[:255])
 
 
@@ -3391,8 +3534,6 @@ class ChannelSession(SmartModel):
 
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES,
                                  help_text="The direction of this session, either incoming or outgoing")
-    flow = models.ForeignKey('flows.Flow', null=True,
-                             help_text="The flow this session was part of")
     started_on = models.DateTimeField(null=True, blank=True,
                                       help_text="When this session was connected and started")
     ended_on = models.DateTimeField(null=True, blank=True,
@@ -3404,52 +3545,8 @@ class ChannelSession(SmartModel):
     duration = models.IntegerField(default=0, null=True,
                                    help_text="The length of this session in seconds")
 
-    parent = models.ForeignKey('ChannelSession', verbose_name=_("Parent Session"), related_name='child_sessions', null=True,
-                               help_text=_("The session that triggered this one"))
-
     def is_done(self):
         return self.status in self.DONE
 
-    def update_status(self, status, duration):
-        """
-        Updates our status from a twilio status string
-        """
-        from temba.flows.models import ActionLog, FlowRun
-        if status == 'queued':
-            self.status = self.QUEUED
-        elif status == 'ringing':
-            self.status = self.RINGING
-        elif status == 'no-answer':
-            self.status = self.NO_ANSWER
-        elif status == 'in-progress':
-            if self.status != self.IN_PROGRESS:
-                self.started_on = timezone.now()
-            self.status = self.IN_PROGRESS
-        elif status == 'completed':
-            if self.contact.is_test:
-                run = FlowRun.objects.filter(session=self)
-                if run:
-                    ActionLog.create(run[0], _("Call ended."))
-            self.status = self.COMPLETED
-        elif status == 'busy':
-            self.status = self.BUSY
-        elif status == 'failed':
-            self.status = self.FAILED
-        elif status == 'canceled':
-            self.status = self.CANCELED
-
-        self.duration = duration
-
-    def get_duration(self):
-        """
-        Either gets the set duration as reported by twilio, or tries to calculate
-        it from the aproximate time it was started
-        """
-        duration = self.duration
-        if not duration and self.status == 'I' and self.started_on:
-            duration = (timezone.now() - self.started_on).seconds
-
-        if not duration:
-            duration = 0
-
-        return duration
+    def is_ivr(self):
+        return self.session_type == self.IVR

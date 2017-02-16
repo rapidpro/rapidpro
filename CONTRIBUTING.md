@@ -3,8 +3,12 @@ Contributions to the RapidPro projects are highly appreciated!
 In order to clarify the intellectual property license granted
 with contributions from any person or entity, we must have a 
 Copyright Assignment Agreement ("CAA") on file that has
-been signed by each Contributor, indicating agreement to the license
-terms below. 
+been signed by each individual Contributor, indicating agreement to the license
+terms below.
+
+If you are contributing on behalf of an organization or corporation, you will
+need to sign the CCLA found here:
+  https://github.com/rapidpro/rapidpro/blob/master/CCLA.txt
 
 This license is for your protection as a Contributor as
 well as the protection of the RapidPro project and its users; it does not
@@ -107,7 +111,7 @@ license is conditioned upon compliance with Section 2.3.
 ### 2.3 Outbound License
 
 As a condition on the grant of rights in Sections 2.1 and 2.2, We
-agree to license the Contribution only under the terms of the license
+agree to continue to license the Contribution under the terms of the license
 or licenses which We are using on the Submission Date for the Material
 (including any rights to adopt any future version of a license if
 permitted).
