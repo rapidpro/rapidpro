@@ -20,7 +20,6 @@ from django_redis import get_redis_connection
 from mock import patch, PropertyMock
 from openpyxl import load_workbook
 from temba.contacts.models import Contact
-from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba.utils import voicexml
@@ -1436,12 +1435,11 @@ class MiddlewareTest(TembaTest):
 
 class CommandsTest(TestCase):
     def test_maketestdb(self):
-        call_command('maketestdb', num_orgs=2, num_contacts=4, num_messages=5)
+        call_command('make_test_db', num_orgs=2, num_contacts=4)
 
         self.assertEqual(Org.objects.count(), 2)
         self.assertEqual(Contact.objects.count(), 4)
-        self.assertEqual(Msg.all_messages.count(), 5)
 
         # check can't be run again on a now non-empty database
         with self.assertRaises(CommandError):
-            call_command('maketestdb', num_orgs=2, num_contacts=4, num_messages=5)
+            call_command('make_test_db', num_orgs=2, num_contacts=4)

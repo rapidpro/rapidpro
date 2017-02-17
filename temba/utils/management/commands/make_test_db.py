@@ -8,65 +8,89 @@ import sys
 
 from datetime import timedelta
 from django.contrib.auth.models import User
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management import BaseCommand, CommandError
 from django.utils.timezone import now
+from subprocess import call
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME
-from temba.msgs.models import Broadcast, Label, Msg, FLOW, INBOX, INCOMING, OUTGOING, HANDLED, SENT
+from temba.locations.models import AdminBoundary
+from temba.msgs.models import Label
 from temba.orgs.models import Org
 from temba.utils import chunk_list, ms_to_datetime, datetime_to_str, datetime_to_ms
 from temba.values.models import Value
 
 
-DEFAULT_NUM_ORGS = 100
-DEFAULT_NUM_CONTACTS = 2000000
-DEFAULT_NUM_MESSAGES = 5000000
-
-GROUPS_PER_ORG = 20
-LABELS_PER_ORG = 10
-
 # how much to bias to apply when allocating contacts, messages and runs. For 100 orgs, a bias of 5 gives the first org
 # about 40% of the content.
 ORG_BIAS = 5
 
+# ever user will have this password
 USER_PASSWORD = "password"
-ORG_NAMES = ("House Stark", "House Targaryen", "House Lannister", "House Bolton", "House Greyjoy", "House Frey", "House Mormont")
-CONTACT_NAMES = (None, "Jon", "Daenerys", "Melisandre", "Arya", "Sansa", "Tyrion", "Cersei", "Gregor", "Khal")
-CONTACT_LANGS = (None, "eng", "fra", "kin")
+
+# organization names are generated from these components
+ORG_NAMES = (
+    ("UNICEF", "WHO", "WFP", "UNESCO", "UNHCR", "UNITAR", "FAO", "UNEP", "UNAIDS", "UNDAF"),
+    ("Nigeria", "Chile", "Indonesia", "Rwanda", "Mexico", "Zambia", "India", "Brazil", "Sudan", "Mozambique")
+)
+
+# the channels, groups, labels and fields to create for each organization
+CHANNELS = (
+    {'name': "Android", 'channel_type': Channel.TYPE_ANDROID, 'scheme': 'tel', 'address': "1234"},
+    {'name': "Nexmo", 'channel_type': Channel.TYPE_NEXMO, 'scheme': 'tel', 'address': "2345"},
+    {'name': "Twitter", 'channel_type': Channel.TYPE_TWITTER, 'scheme': 'twitter', 'address': "my_handle"},
+)
+GROUPS = ("Reporters", "Testers", "Youth", "Farmers", "Doctors", "Teachers", "Traders", "Drivers", "Builders", "Spammers")
+LABELS = ("Reporting", "Testing", "Youth", "Farming", "Health", "Education", "Trade", "Driving", "Building", "Spam")
+FIELDS = (
+    {'key': 'gender', 'label': "Gender", 'value_type': Value.TYPE_TEXT},
+    {'key': 'age', 'label': "Age", 'value_type': Value.TYPE_DECIMAL},
+    {'key': 'joined', 'label': "Joined On", 'value_type': Value.TYPE_DATETIME},
+    {'key': 'ward', 'label': "Ward", 'value_type': Value.TYPE_WARD},
+    {'key': 'district', 'label': "District", 'value_type': Value.TYPE_DISTRICT},
+    {'key': 'state', 'label': "State", 'value_type': Value.TYPE_STATE},
+)
+
+# contact names are generated from these components
+CONTACT_NAMES = (
+    ("", "Anne", "Bob", "Cathy", "Dave", "Evan", "Freda", "George", "Hallie", "Igor"),
+    ("", "Jameson", "Kardashian", "Lopez", "Mooney", "Newman", "O'Shea", "Poots", "Quincy", "Roberts"),
+)
+CONTACT_LANGS = (None, "eng", "fre", "spa", "kin")
 CONTACT_HAS_TEL_PROB = 0.9  # 9/10 contacts have a phone number
 CONTACT_HAS_TWITTER_PROB = 0.1  # 1/10 contacts have a twitter handle
 CONTACT_IS_STOPPED_PROB = 0.01  # 1/100 contacts are stopped
 CONTACT_IS_BLOCKED_PROB = 0.01  # 1/100 contacts are blocked
 CONTACT_IS_DELETED_PROB = 0.005  # 1/200 contacts are deleted
-MESSAGE_WORDS = (CONTACT_NAMES[1:], ("eats", "fights", "loves", "builds"), ("castles", "the throne", "a wolf", "horses"))
-MESSAGE_OUT_IN_RATIO = 10  # 10x as many outgoing as incoming
-MESSAGE_IS_FLOW_PROB = 0.7  # 7/10 messages are flow messages
-MESSAGE_ARCHIVED_PROB = 0.5  # 1/2 non-flow incoming messages are archived (i.e. 5/100 of total incoming)
-MESSAGE_LABELLED_PROB = 0.5  # 1/2 incoming messages are labelled
+CONTACT_HAS_FIELD_PROB = 0.8  # 8/10 fields set for each contact
 
 
 class Command(BaseCommand):
     help = "Installs a database suitable for testing"
 
     def add_arguments(self, parser):
-        parser.add_argument('--num-orgs', type=int, action='store', dest='num_orgs', default=DEFAULT_NUM_ORGS)
-        parser.add_argument('--num-contacts', type=int, action='store', dest='num_contacts', default=DEFAULT_NUM_CONTACTS)
-        parser.add_argument('--num-messages', type=int, action='store', dest='num_messages', default=DEFAULT_NUM_MESSAGES)
+        parser.add_argument('--num-orgs', type=int, action='store', dest='num_orgs', default=100)
+        parser.add_argument('--num-contacts', type=int, action='store', dest='num_contacts', default=2000000)
+        parser.add_argument('--seed', type=int, action='store', dest='seed', default=None)
 
-    def handle(self, num_orgs, num_contacts, num_messages, **kwargs):
+    def handle(self, num_orgs, num_contacts, num_messages, seed, **kwargs):
+        if seed is not None:
+            random.seed(seed)
+
         self.check_db_state()
 
         superuser = User.objects.create_superuser("root", "root@example.com", "password")
 
+        # export PGPASSWORD=nyaruka && pg_dump -Utemba -w temba --format=custom --data-only --table=locations_adminboundary --disable-triggers > test-data/nigeria.bin
+        locations = self.create_locations('test-data/nigeria.bin')
+
         orgs = self.create_orgs(superuser, num_orgs)
         self.create_channels(orgs)
         self.create_fields(orgs)
-        self.create_groups(orgs, GROUPS_PER_ORG)
-        self.create_labels(orgs, LABELS_PER_ORG)
-        self.create_contacts(orgs, num_contacts)
-        # self.create_messages(orgs, num_messages)
+        self.create_groups(orgs)
+        self.create_contacts(orgs, locations, num_contacts)
+        self.create_labels(orgs)
 
-        self.stdout.write("Peak memory usage: %d MiB" % int(peak_memory()))
+        self._log("Peak memory usage: %d MiB\n" % int(peak_memory()))
 
     def check_db_state(self):
         """
@@ -85,140 +109,120 @@ class Command(BaseCommand):
         """
         return random_choice(orgs, bias=ORG_BIAS)
 
+    def create_locations(self, path):
+        self._log("Loading locations from %s... " % path)
+
+        call('pg_restore -Utemba -w -d temba %s' % path, shell=True)
+
+        # fetch tuples of (WARD, DISTRICT, STATE)
+        wards = AdminBoundary.objects.filter(level=3).prefetch_related('parent', 'parent__parent')
+        locations = [(w, w.parent, w.parent.parent) for w in wards]
+
+        self._log(self.style.SUCCESS("OK") + '\n')
+
+        return locations
+
     def create_orgs(self, superuser, num_total):
-        self.stdout.write("Creating %d orgs... " % num_total, ending='')
+        self._log("Creating %d orgs... " % num_total)
+
+        org_names = ['%s %s' % (o1, o2) for o2 in ORG_NAMES[1] for o1 in ORG_NAMES[0]]
+        random.shuffle(org_names)
+
+        country = AdminBoundary.objects.filter(level=0).get()
 
         orgs = []
         for o in range(num_total):
-            orgs.append(Org(name="%s (%d)" % (random.choice(ORG_NAMES), o + 1),
-                        timezone=random.choice(pytz.all_timezones),
-                        brand='rapidpro.io', created_by=superuser, modified_by=superuser))
+            orgs.append(Org(name=org_names[o % len(org_names)], timezone=random.choice(pytz.all_timezones),
+                            brand='rapidpro.io', country=country,
+                            created_by=superuser, modified_by=superuser))
         Org.objects.bulk_create(orgs)
         orgs = list(Org.objects.order_by('id'))
 
-        self.stdout.write(self.style.SUCCESS("OK"))
-        self.stdout.write("Initializing orgs... ", ending='')
+        self._log(self.style.SUCCESS("OK") + "\nInitializing orgs... ")
 
         for org in orgs:
-            org.initialize()
-            org._fields = []
-            org._groups = []
-            org._contacts = []
-            org._labels = []
+            org.initialize(topup_size=1000)  # TODO proportional topup sizes
 
-        self.stdout.write(self.style.SUCCESS("OK"))
-        self.stdout.write("Creating %d users... " % (len(orgs) * 4), ending='')
-        self.stdout.flush()  # user creation is CPU intensive
+            # we'll cache some metadata on each org as it's created to save re-fetching things
+            org.cache = {'users': [], 'channels': [], 'fields': {}, 'groups': [], 'contacts': [], 'labels': []}
+
+        self._log(self.style.SUCCESS("OK") + "\nCreating %d users... " % (len(orgs) * 4))
 
         def create_user(org, username, email, role):
             user = User.objects.create_user(username, email, USER_PASSWORD)
             getattr(org, role).add(user)
             user.set_org(org)
+            org.cache['users'].append(user)
             return user
 
         for o, org in enumerate(orgs):
             # each org has a user of every type
-            org._admin = create_user(org, "admin%d" % (o + 1), "org%d_admin@example.com" % (o + 1), 'administrators')
+            create_user(org, "admin%d" % (o + 1), "org%d_admin@example.com" % (o + 1), 'administrators')
             create_user(org, "editor%d" % (o + 1), "org%d_editor@example.com" % (o + 1), 'editors')
             create_user(org, "viewer%d" % (o + 1), "org%d_viewer@example.com" % (o + 1), 'viewers')
             create_user(org, "surveyor%d" % (o + 1), "org%d_surveyor@example.com" % (o + 1), 'surveyors')
 
-        self.stdout.write(self.style.SUCCESS("OK"))
+        self._log(self.style.SUCCESS("OK") + '\n')
         return orgs
 
     def create_channels(self, orgs):
-        self.stdout.write("Creating %d channels... " % (len(orgs) * 3), ending='')
-
-        for o, org in enumerate(orgs):
-            # each org has 3 channels
-            android = Channel.objects.create(org=org, name="Android", channel_type=Channel.TYPE_ANDROID,
-                                             address='1234', scheme='tel',
-                                             created_by=org._admin, modified_by=org._admin)
-            org._channels_by_scheme = {
-                TEL_SCHEME: [
-                    android,
-                    Channel.objects.create(org=org, name="Nexmo", channel_type=Channel.TYPE_NEXMO, address='2345',
-                                           scheme='tel', parent=android, created_by=org._admin, modified_by=org._admin)
-                ],
-                TWITTER_SCHEME: [
-                    Channel.objects.create(org=org, name="Twitter", channel_type=Channel.TYPE_TWITTER,
-                                           address='org%d' % o, scheme='twitter',
-                                           created_by=org._admin, modified_by=org._admin)
-                ]
-            }
-
-        self.stdout.write(self.style.SUCCESS("OK"))
-        return orgs
-
-    def create_fields(self, orgs):
-        self.stdout.write("Creating %d fields... " % (len(orgs) * 5), ending='')
+        self._log("Creating %d channels... " % (len(orgs) * len(CHANNELS)))
 
         for org in orgs:
-            # each org gets a contact field of each type
-            org._fields = [
-                ContactField.objects.create(org=org, key='gender', label="Gender", value_type=Value.TYPE_TEXT,
-                                            show_in_table=True, created_by=org._admin, modified_by=org._admin),
-                ContactField.objects.create(org=org, key='age', label="Age", value_type=Value.TYPE_DECIMAL,
-                                            show_in_table=True, created_by=org._admin, modified_by=org._admin),
-                ContactField.objects.create(org=org, key='joined', label="Joined On", value_type=Value.TYPE_DATETIME,
-                                            show_in_table=True, created_by=org._admin, modified_by=org._admin),
-                ContactField.objects.create(org=org, key='ward', label="Ward", value_type=Value.TYPE_WARD,
-                                            show_in_table=True, created_by=org._admin, modified_by=org._admin),
-                ContactField.objects.create(org=org, key='district', label="District", value_type=Value.TYPE_DISTRICT,
-                                            show_in_table=True, created_by=org._admin, modified_by=org._admin),
-                ContactField.objects.create(org=org, key='state', label="State", value_type=Value.TYPE_STATE,
-                                            show_in_table=True, created_by=org._admin, modified_by=org._admin),
-            ]
+            user = org.cache['users'][0]
+            for channel in CHANNELS:
+                Channel.objects.create(org=org, name=channel['name'], channel_type=channel['channel_type'],
+                                       address=channel['address'], scheme=channel['scheme'],
+                                       created_by=user, modified_by=user)
+                org.cache['channels'].append(channel)
 
-        self.stdout.write(self.style.SUCCESS("OK"))
+        self._log(self.style.SUCCESS("OK") + '\n')
 
-    def create_groups(self, orgs, num_per_org):
-        total_groups = len(orgs) * num_per_org
+    def create_fields(self, orgs):
+        self._log("Creating %d fields... " % (len(orgs) * len(FIELDS)))
 
-        self.stdout.write("Creating %d groups... " % total_groups, ending='')
+        for org in orgs:
+            user = org.cache['users'][0]
+            for field in FIELDS:
+                field_obj = ContactField.objects.create(org=org, key=field['key'], label=field['label'],
+                                                        value_type=field['value_type'], show_in_table=True,
+                                                        created_by=user, modified_by=user)
+                org.cache['fields'][field['key']] = field_obj
 
-        for g in range(total_groups):
-            org = orgs[g % len(orgs)]
-            group = ContactGroup.user_groups.create(org=org, name="Group #%d" % (g + 1),
-                                                    created_by=org._admin, modified_by=org._admin)
-            org._groups.append(group)
+        self._log(self.style.SUCCESS("OK") + '\n')
 
-        self.stdout.write(self.style.SUCCESS("OK"))
+    def create_groups(self, orgs):
+        self._log("Creating %d groups... " % (len(orgs) * len(GROUPS)))
 
-    def create_labels(self, orgs, num_per_org):
-        total_labels = len(orgs) * num_per_org
+        for org in orgs:
+            user = org.cache['users'][0]
+            for name in GROUPS:
+                group = ContactGroup.user_groups.create(org=org, name=name, created_by=user, modified_by=user)
+                org.cache['groups'].append(group)
 
-        self.stdout.write("Creating %d labels... " % total_labels, ending='')
+        self._log(self.style.SUCCESS("OK") + '\n')
 
-        for l in range(total_labels):
-            org = orgs[l % len(orgs)]
-            label = Label.label_objects.create(org=org, name="Label #%d" % (l + 1),
-                                               created_by=org._admin, modified_by=org._admin)
-            org._labels.append(label)
+    def create_contacts(self, orgs, locations, num_total):
+        self._log("Creating %d contacts...\n" % num_total)
 
-        self.stdout.write(self.style.SUCCESS("OK"))
-
-    def create_contacts(self, orgs, num_total):
-        self.stdout.write("Creating test contacts...", ending='')
-
-        for user in User.objects.all():
-            if user.get_org():
-                Contact.get_test_contact(user)
-
-        self.stdout.write(self.style.SUCCESS("OK"))
-        self.stdout.write("Creating %d contacts..." % num_total)
+        names = [('%s %s' % (c1, c2)).strip() for c2 in CONTACT_NAMES[1] for c1 in CONTACT_NAMES[0]]
+        names = [n if n else None for n in names]
 
         batch = 1
         for index_batch in chunk_list(range(num_total), 10000):
-            self.stdout.write(" > Creating batch %d of %d... " % (batch, num_total // 10000))
+            self._log(" > Creating batch %d of %d...\n" % (batch, max(num_total // 10000, 1)))
             self.stdout.flush()
             contacts = []
             urns = []
             values = []
             for c in index_batch:
+                # TODO Contact.get_test_contact(user)
+
                 c_id = c + 1
                 org = orgs[c] if c < len(orgs) else self.random_org(orgs)  # ensure every org gets at least one contact
-                name = random_choice(CONTACT_NAMES)
+                user = org.cache['users'][0]
+
+                name = random_choice(names)
                 gender = random_choice(('M', 'F'))
                 age = random.randint(16, 80)
                 joined = random_date()
@@ -227,8 +231,7 @@ class Command(BaseCommand):
                                         is_stopped=probability(CONTACT_IS_STOPPED_PROB),
                                         is_blocked=probability(CONTACT_IS_BLOCKED_PROB),
                                         is_active=probability(1 - CONTACT_IS_DELETED_PROB),
-                                        created_by=org._admin, modified_by=org._admin,
-                                        created_on=random_date()))
+                                        created_by=user, modified_by=user))
 
                 if probability(CONTACT_HAS_TEL_PROB):
                     phone = '+2507%08d' % c
@@ -236,17 +239,27 @@ class Command(BaseCommand):
                                            scheme=TEL_SCHEME, path=phone, urn=URN.from_tel(phone)))
 
                 if probability(CONTACT_HAS_TWITTER_PROB):
-                    handle = '%s%d' % (name.lower() if name else 'tweep', c)
+                    handle = '%s%d' % (name.replace(' ', '_').lower() if name else 'tweep', c)
                     urns.append(ContactURN(org=org, contact_id=c_id, priority=50,
                                            scheme=TWITTER_SCHEME, path=handle, urn=URN.from_twitter(handle)))
 
-                values.append(Value(org=org, contact_id=c_id, contact_field=org._fields[0], string_value=gender))
-                values.append(Value(org=org, contact_id=c_id, contact_field=org._fields[1],
-                                    string_value=str(age), decimal_value=age))
-                values.append(Value(org=org, contact_id=c_id, contact_field=org._fields[2],
-                                    string_value=datetime_to_str(joined), datetime_value=joined))
-
-                # TODO don't create some values and values for location types
+                fields = org.cache['fields']
+                if probability(CONTACT_HAS_FIELD_PROB):
+                    values.append(Value(org=org, contact_id=c_id, contact_field=fields['gender'], string_value=gender))
+                if probability(CONTACT_HAS_FIELD_PROB):
+                    values.append(Value(org=org, contact_id=c_id, contact_field=fields['age'],
+                                        string_value=str(age), decimal_value=age))
+                if probability(CONTACT_HAS_FIELD_PROB):
+                    values.append(Value(org=org, contact_id=c_id, contact_field=fields['joined'],
+                                        string_value=datetime_to_str(joined), datetime_value=joined))
+                if probability(CONTACT_HAS_FIELD_PROB):
+                    location = random_choice(locations)
+                    values.append(Value(org=org, contact_id=c_id, contact_field=fields['ward'],
+                                        string_value=location[0].name, location_value=location[0]))
+                    values.append(Value(org=org, contact_id=c_id, contact_field=fields['district'],
+                                        string_value=location[1].name, location_value=location[1]))
+                    values.append(Value(org=org, contact_id=c_id, contact_field=fields['state'],
+                                        string_value=location[2].name, location_value=location[2]))
 
                 # TODO random group memberships
                 # place the contact in a biased sample of up to half of their org's groups
@@ -263,72 +276,23 @@ class Command(BaseCommand):
             Value.objects.bulk_create(values, batch_size=1000)
             batch += 1
 
-    def create_messages(self, orgs, num_target):
-        self.stdout.write("Creating messages...")
+        # for sanity check that our presumed last contact id matches the last actual contact id
+        assert c_id == Contact.objects.order_by('-id').first().id
 
-        num_created = 0
-        while num_created < num_target:
-            org = self.random_org(orgs)
+    def create_labels(self, orgs):
+        self._log("Creating %d labels... " % (len(orgs) * len(LABELS)))
 
-            num_outgoing = self.create_broadcast(org)
-            num_incoming = num_outgoing / MESSAGE_OUT_IN_RATIO
+        for org in orgs:
+            user = org.cache['users'][0]
+            for name in LABELS:
+                label = Label.label_objects.create(org=org, name=name, created_by=user, modified_by=user)
+                org.cache['labels'].append(label)
 
-            self.create_responses(org, num_incoming)
+        self._log(self.style.SUCCESS("OK") + '\n')
 
-            num_created += (num_outgoing + num_incoming)
-
-    def create_broadcast(self, org):
-        contacts = org._contacts
-        contact_ids = [c[0] for c in contacts]
-        urn_ids = [c[1] for c in contacts if c[1]]
-        text = random_text() + "?"
-
-        broadcast = Broadcast.objects.create(org=org, text=text, status=SENT,
-                                             created_by=org._admin, modified_by=org._admin)
-        broadcast.contacts.add(*contact_ids)
-        broadcast.recipients.add(*urn_ids)
-
-        self.stdout.write(" > Created broadcast")
-
-        num_created = 0
-        for batch in chunk_list(contacts, 1000):
-            msgs = []
-            batch_created_on = now()
-            for contact_id, contact_urn_id, urn_scheme in batch:
-                msgs.append(Msg(org=org,
-                                contact_id=contact_id, contact_urn_id=contact_urn_id,
-                                text=text, visibility=Msg.VISIBILITY_VISIBLE, msg_type=FLOW,
-                                direction=OUTGOING, status=SENT,
-                                created_on=batch_created_on, modified_on=batch_created_on))
-
-            Msg.all_messages.bulk_create(msgs)
-            num_created += len(msgs)
-
-            self.stdout.write(" > Created %d of %d outgoing messages" % (num_created, len(contacts)))
-
-        return len(contacts)
-
-    def create_responses(self, org, num_total):
-        for m in range(num_total):
-            contact_id, contact_urn_id, urn_scheme = random_choice(org._contacts)
-            channel = random_choice(org._channels_by_scheme[urn_scheme]) if urn_scheme else None
-            text = random_text()
-            msg_type = FLOW if probability(MESSAGE_IS_FLOW_PROB) else INBOX
-            archived = msg_type == INBOX and probability(MESSAGE_ARCHIVED_PROB)
-            visibility = Msg.VISIBILITY_ARCHIVED if archived else Msg.VISIBILITY_VISIBLE
-
-            msg = Msg.all_messages.create(org=org,
-                                          contact_id=contact_id, contact_urn_id=contact_urn_id, channel=channel,
-                                          text=text, visibility=visibility, msg_type=msg_type,
-                                          direction=INCOMING, status=HANDLED,
-                                          created_on=now(), modified_on=now())
-
-            # give some messages a random label with bias toward first labels
-            if probability(MESSAGE_LABELLED_PROB):
-                msg.labels.add(random_choice(org._labels, bias=3))
-
-            if (m + 1) % 1000 == 0 or m == (num_total - 1):
-                self.stdout.write(" > Created %d of %d incoming messages" % (m + 1, num_total))
+    def _log(self, text):
+        self.stdout.write(text, ending='')
+        self.stdout.flush()
 
 
 def probability(prob):
@@ -346,10 +310,6 @@ def random_date(start=None, end=None):
         end = now()
 
     return ms_to_datetime(random.randrange(datetime_to_ms(start), datetime_to_ms(end)))
-
-
-def random_text():
-    return " ".join([random.choice(l) for l in MESSAGE_WORDS])
 
 
 def peak_memory():
