@@ -515,20 +515,6 @@
       -trans "To use your Firebase Cloud Messaging channel you'll have to POST to the following URLs with the parameters below."
 
     .clearfix
-      .config-value
-        .name
-          -trans "Name:"
-        .value {{ object.name }}
-      .config-value
-        .name
-          -trans "Address/Key:"
-        .value {{ object.address }}
-      .config-value
-        .name
-          -trans "Notification title:"
-        .value {{ object.config_json.FCM_TITLE }}
-
-    .clearfix
     %hr
 
     %h4
