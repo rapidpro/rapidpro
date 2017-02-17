@@ -1911,7 +1911,6 @@ class FlowTest(TembaTest):
 
         response = self.client.post(reverse('flows.flow_create'), post_data)
         self.assertTrue(response.context['form'].errors)
-        print(response.context['form'].errors['keyword_triggers'])
         self.assertTrue('The keywords "this, unique" are already used for another flow' in response.context['form'].errors['keyword_triggers'])
         trigger.delete()
 
@@ -1928,6 +1927,34 @@ class FlowTest(TembaTest):
         self.assertEqual(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[flow3.uuid]))
         self.assertEqual(response.context['object'].triggers.count(), 3)
 
+        # update expiration for voice flow
+        post_data = dict()
+        response = self.client.get(reverse('flows.flow_update', args=[voice_flow.pk]), post_data, follow=True)
+
+        choices = response.context['form'].fields['expires_after_minutes'].choices
+        self.assertEqual(7, len(choices))
+        self.assertEqual(1, choices[0][0])
+        self.assertEqual(2, choices[1][0])
+        self.assertEqual(3, choices[2][0])
+        self.assertEqual(4, choices[3][0])
+        self.assertEqual(5, choices[4][0])
+        self.assertEqual(10, choices[5][0])
+        self.assertEqual(15, choices[6][0])
+
+        # try updating with an sms type expiration to make sure it's restricted for voice flows
+        post_data['expires_after_minutes'] = 60 * 12
+        post_data['name'] = 'Voice Flow'
+        response = self.client.post(reverse('flows.flow_update', args=[voice_flow.pk]), post_data, follow=True)
+        voice_flow.refresh_from_db()
+        self.assertEqual(5, voice_flow.expires_after_minutes)
+
+        # now do a valid value for voice
+        post_data['expires_after_minutes'] = 3
+        response = self.client.post(reverse('flows.flow_update', args=[voice_flow.pk]), post_data, follow=True)
+
+        voice_flow.refresh_from_db()
+        self.assertEqual(3, voice_flow.expires_after_minutes)
+
         # update flow triggers
         post_data = dict()
         post_data['name'] = "Flow With Keyword Triggers"
@@ -1943,7 +1970,7 @@ class FlowTest(TembaTest):
         self.assertEquals(flow3.triggers.filter(is_archived=False).count(), 3)
         self.assertEquals(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
 
-        # update flow with unformated keyword
+        # update flow with unformatted keyword
         post_data['keyword_triggers'] = "it,changes,every thing"
         response = self.client.post(reverse('flows.flow_update', args=[flow3.pk]), post_data)
         self.assertTrue(response.context['form'].errors)
