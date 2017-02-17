@@ -16,7 +16,6 @@ from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
 from django.core.cache import cache
-from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
@@ -30,6 +29,7 @@ from django_redis import get_redis_connection
 from enum import Enum
 from smartmin.models import SmartModel
 from temba.airtime.models import AirtimeTransfer
+from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
@@ -37,8 +37,9 @@ from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INI
 from temba.msgs.models import OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
-from temba.utils import chunk_list, clean_string, on_transaction_commit
-from temba.utils.email import send_template_email, is_valid_address
+from temba.utils import chunk_list, on_transaction_commit
+from temba.utils.email import is_valid_address
+from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.models import SquashableModel, TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
@@ -3883,25 +3884,20 @@ class FlowRunCount(SquashableModel):
         index_together = ('flow', 'exit_type')
 
 
-class ExportFlowResultsTask(SmartModel):
+class ExportFlowResultsTask(BaseExportTask):
     """
     Container for managing our export requests
     """
+    analytics_key = 'flowresult_export'
+    email_subject = "Your results export is ready"
+    email_template = 'flows/email/flow_export_download'
+
     INCLUDE_RUNS = 'include_runs'
     INCLUDE_MSGS = 'include_msgs'
     CONTACT_FIELDS = 'contact_fields'
     RESPONDED_ONLY = 'responded_only'
 
-    org = models.ForeignKey(Org, related_name='flow_results_exports', help_text=_("The Organization of the user."))
-
     flows = models.ManyToManyField(Flow, related_name='exports', help_text=_("The flows to export"))
-
-    task_id = models.CharField(null=True, max_length=64)
-
-    is_finished = models.BooleanField(default=False, help_text=_("Whether this export is complete"))
-
-    uuid = models.CharField(max_length=36, null=True,
-                            help_text=_("The uuid used to name the resulting export file"))
 
     config = models.TextField(null=True,
                               help_text=_("Any configuration options for this flow export"))
@@ -3913,33 +3909,20 @@ class ExportFlowResultsTask(SmartModel):
                   ExportFlowResultsTask.CONTACT_FIELDS: [c.id for c in contact_fields],
                   ExportFlowResultsTask.RESPONDED_ONLY: responded_only}
 
-        export = ExportFlowResultsTask.objects.create(org=org, created_by=user, modified_by=user,
-                                                      config=json.dumps(config))
+        export = cls.objects.create(org=org, created_by=user, modified_by=user, config=json.dumps(config))
         for flow in flows:
             export.flows.add(flow)
 
         return export
 
-    def start_export(self):
-        """
-        Starts our export, wrapping it in a try block to make sure we mark it as finished when complete.
-        """
-        try:
-            start = time.time()
-            self.do_export()
-        finally:
-            elapsed = time.time() - start
-            analytics.track(self.created_by.username, 'temba.flowresult_export_latency', properties=dict(value=elapsed))
+    def get_email_context(self, branding):
+        context = super(ExportFlowResultsTask, self).get_email_context(branding)
+        context['flows'] = self.flows.all()
+        return context
 
-            self.is_finished = True
-            self.save(update_fields=['is_finished'])
-
-    def do_export(self):
+    def write_export(self):
         from openpyxl import Workbook
-        from openpyxl.writer.write_only import WriteOnlyCell
-        from openpyxl.utils.cell import get_column_letter
         book = Workbook(write_only=True)
-        max_rows = 1048576
 
         config = json.loads(self.config) if self.config else dict()
         include_runs = config.get(ExportFlowResultsTask.INCLUDE_RUNS, False)
@@ -3952,10 +3935,6 @@ class ExportFlowResultsTask(SmartModel):
             cf = ContactField.objects.filter(id=cf_id, org=self.org, is_active=True).first()
             if cf:
                 contact_fields.append(cf)
-
-        small_width = 15
-        medium_width = 20
-        large_width = 100
 
         # merge the columns for all of our flows
         show_submitted_by = False
@@ -3971,14 +3950,6 @@ class ExportFlowResultsTask(SmartModel):
         org = None
         if flows:
             org = flows[0].org
-
-        org_tz = flows[0].org.timezone
-
-        def as_org_tz(dt):
-            if dt:
-                return dt.astimezone(org_tz).replace(tzinfo=None, microsecond=0)
-            else:  # pragma: needs cover
-                return None
 
         # create a mapping of column id to index
         column_map = dict()
@@ -4025,7 +3996,7 @@ class ExportFlowResultsTask(SmartModel):
 
         # the full sheets we need for runs
         if include_runs:
-            for i in range(all_runs_count / max_rows + 1):
+            for i in range(all_runs_count / self.MAX_EXCEL_ROWS + 1):
                 total_run_sheet_count += 1
                 name = "Runs" if (i + 1) <= 1 else "Runs (%d)" % (i + 1)
                 book.create_sheet(name)
@@ -4034,7 +4005,7 @@ class ExportFlowResultsTask(SmartModel):
         total_merged_run_sheet_count = 0
 
         # the full sheets we need for contacts
-        for i in range(contacts_count / max_rows + 1):
+        for i in range(contacts_count / self.MAX_EXCEL_ROWS + 1):
             total_merged_run_sheet_count += 1
             name = "Contacts" if (i + 1) <= 1 else "Contacts (%d)" % (i + 1)
             book.create_sheet(name)
@@ -4043,68 +4014,51 @@ class ExportFlowResultsTask(SmartModel):
         sheet_row = []
         # then populate their header columns
         for (sheet_num, sheet_name) in enumerate(run_sheets):
-
             sheet = book[sheet_name]
+
             # build up our header row
             sheet_row = []
+            col_widths = []
 
-            index = 1
             if show_submitted_by:
-                cell = WriteOnlyCell(sheet, value="Surveyor")
-                sheet.column_dimensions[get_column_letter(index)].width = medium_width
-                sheet_row.append(cell)
-                index += 1
+                sheet_row.append("Surveyor")
+                col_widths.append(self.WIDTH_MEDIUM)
 
-            cell = WriteOnlyCell(sheet, value="Contact UUID")
-            sheet.column_dimensions[get_column_letter(index)].width = medium_width
-            sheet_row.append(cell)
-            index += 1
+            sheet_row.append("Contact UUID")
+            col_widths.append(self.WIDTH_MEDIUM)
 
-            cell = WriteOnlyCell(sheet, value="URN")
-            sheet.column_dimensions[get_column_letter(index)].width = small_width
-            sheet_row.append(cell)
-            index += 1
+            sheet_row.append("URN")
+            col_widths.append(self.WIDTH_SMALL)
 
-            cell = WriteOnlyCell(sheet, value="Name")
-            sheet.column_dimensions[get_column_letter(index)].width = medium_width
-            sheet_row.append(cell)
-            index += 1
+            sheet_row.append("Name")
+            col_widths.append(self.WIDTH_MEDIUM)
 
-            cell = WriteOnlyCell(sheet, value="Groups")
-            sheet.column_dimensions[get_column_letter(index)].width = medium_width
-            sheet_row.append(cell)
-            index += 1
+            sheet_row.append("Groups")
+            col_widths.append(self.WIDTH_MEDIUM)
 
             # add our contact fields
             for cf in contact_fields:
-                cell = WriteOnlyCell(sheet, value=cf.label)
-                sheet.column_dimensions[get_column_letter(index)].width = medium_width
-                sheet_row.append(cell)
-                index += 1
+                sheet_row.append(cf.label)
+                col_widths.append(self.WIDTH_MEDIUM)
 
-            cell = WriteOnlyCell(sheet, value="First Seen")
-            sheet.column_dimensions[get_column_letter(index)].width = medium_width
-            sheet_row.append(cell)
-            index += 1
+            sheet_row.append("First Seen")
+            col_widths.append(self.WIDTH_MEDIUM)
 
-            cell = WriteOnlyCell(sheet, value="Last Seen")
-            sheet.column_dimensions[get_column_letter(index)].width = medium_width
-            sheet_row.append(cell)
-            index += 1
+            sheet_row.append("Last Seen")
+            col_widths.append(self.WIDTH_MEDIUM)
 
             for col in range(len(columns)):
                 ruleset = columns[col]
-                cell = WriteOnlyCell(sheet, value="%s (Category) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
-                sheet.column_dimensions[get_column_letter(index)].width = small_width
-                sheet_row.append(cell)
-                cell = WriteOnlyCell(sheet, value="%s (Value) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
-                sheet.column_dimensions[get_column_letter(index)].width = small_width
-                sheet_row.append(cell)
-                cell = WriteOnlyCell(sheet, value="%s (Text) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
-                sheet.column_dimensions[get_column_letter(index)].width = small_width
-                sheet_row.append(cell)
 
-            sheet.append(sheet_row)
+                sheet_row.append("%s (Category) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
+                col_widths.append(self.WIDTH_SMALL)
+                sheet_row.append("%s (Value) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
+                col_widths.append(self.WIDTH_SMALL)
+                sheet_row.append("%s (Text) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
+                col_widths.append(self.WIDTH_SMALL)
+
+            self.set_sheet_column_widths(sheet, col_widths)
+            self.append_row(sheet, sheet_row)
 
         run_row = 1
         merged_row = 1
@@ -4173,7 +4127,7 @@ class ExportFlowResultsTask(SmartModel):
 
             contact_urn_display = get_contact_urn_display(run_step.contact)
             contact_uuid = run_step.contact.uuid
-            contact_name = clean_string(run_step.contact.name)
+            contact_name = self.prepare_value(run_step.contact.name)
 
             # if this is a rule step, write out the value collected
             if run_step.step_type == FlowStep.TYPE_RULE_SET:
@@ -4183,11 +4137,11 @@ class ExportFlowResultsTask(SmartModel):
                     merged_earliest = run_step.arrived_on
                     merged_latest = None
                     if merged_sheet_row != [None] * sheet_columns_number:
-                        merged_runs.append(merged_sheet_row)
+                        self.append_row(merged_runs, merged_sheet_row)
                     merged_sheet_row = [None] * sheet_columns_number
                     merged_row += 1
 
-                    if merged_row > max_rows:  # pragma: needs cover
+                    if merged_row > self.MAX_EXCEL_ROWS:  # pragma: needs cover
                         # get the next sheet to use for Contacts
                         merged_row = 1
                         merged_run_sheet_index += 1
@@ -4201,11 +4155,11 @@ class ExportFlowResultsTask(SmartModel):
                     if include_runs:
 
                         if runs_sheet_row != [None] * sheet_columns_number:
-                            runs.append(runs_sheet_row)
+                            self.append_row(runs, runs_sheet_row)
                         runs_sheet_row = [None] * sheet_columns_number
                         run_row += 1
 
-                        if run_row > max_rows:  # pragma: needs cover
+                        if run_row > self.MAX_EXCEL_ROWS:  # pragma: needs cover
                             # get the next sheet to use for Runs
                             run_row = 1
                             run_sheet_index += 1
@@ -4229,30 +4183,20 @@ class ExportFlowResultsTask(SmartModel):
                             submitted_by = run_step.run.submitted_by.username
 
                         if include_runs:
-                            cell = WriteOnlyCell(runs, value=submitted_by)
-                            runs_sheet_row[0] = cell
-                        cell = WriteOnlyCell(merged_runs, value=submitted_by)
-                        merged_sheet_row[0] = cell
+                            runs_sheet_row[0] = submitted_by
+                        merged_sheet_row[0] = submitted_by
                         padding = 1
 
                     if include_runs:
-                        cell = WriteOnlyCell(runs, value=contact_uuid)
-                        runs_sheet_row[padding + 0] = cell
-                        cell = WriteOnlyCell(runs, value=contact_urn_display)
-                        runs_sheet_row[padding + 1] = cell
-                        cell = WriteOnlyCell(runs, value=contact_name)
-                        runs_sheet_row[padding + 2] = cell
-                        cell = WriteOnlyCell(runs, value=groups)
-                        runs_sheet_row[padding + 3] = cell
+                        runs_sheet_row[padding + 0] = contact_uuid
+                        runs_sheet_row[padding + 1] = contact_urn_display
+                        runs_sheet_row[padding + 2] = contact_name
+                        runs_sheet_row[padding + 3] = groups
 
-                    cell = WriteOnlyCell(merged_runs, value=contact_uuid)
-                    merged_sheet_row[padding + 0] = cell
-                    cell = WriteOnlyCell(merged_runs, value=contact_urn_display)
-                    merged_sheet_row[padding + 1] = cell
-                    cell = WriteOnlyCell(merged_runs, value=contact_name)
-                    merged_sheet_row[padding + 2] = cell
-                    cell = WriteOnlyCell(merged_runs, value=groups)
-                    merged_sheet_row[padding + 3] = cell
+                    merged_sheet_row[padding + 0] = contact_uuid
+                    merged_sheet_row[padding + 1] = contact_urn_display
+                    merged_sheet_row[padding + 2] = contact_name
+                    merged_sheet_row[padding + 3] = groups
 
                     cf_padding = 0
 
@@ -4264,11 +4208,9 @@ class ExportFlowResultsTask(SmartModel):
 
                         field_value = six.text_type(field_value)
 
-                        cell = WriteOnlyCell(merged_runs, value=field_value)
-                        merged_sheet_row[padding + 4 + cf_padding] = cell
+                        merged_sheet_row[padding + 4 + cf_padding] = field_value
                         if include_runs:
-                            cell = WriteOnlyCell(runs, value=field_value)
-                            runs_sheet_row[padding + 4 + cf_padding] = cell
+                            runs_sheet_row[padding + 4 + cf_padding] = field_value
 
                         cf_padding += 1
 
@@ -4279,15 +4221,11 @@ class ExportFlowResultsTask(SmartModel):
                     merged_latest = run_step.arrived_on
 
                 if include_runs:
-                    cell = WriteOnlyCell(runs, value=as_org_tz(earliest))
-                    runs_sheet_row[padding + 4 + cf_padding] = cell
-                    cell = WriteOnlyCell(runs, value=as_org_tz(latest))
-                    runs_sheet_row[padding + 5 + cf_padding] = cell
+                    runs_sheet_row[padding + 4 + cf_padding] = earliest
+                    runs_sheet_row[padding + 5 + cf_padding] = latest
 
-                cell = WriteOnlyCell(merged_runs, value=as_org_tz(merged_earliest))
-                merged_sheet_row[padding + 4 + cf_padding] = cell
-                cell = WriteOnlyCell(merged_runs, value=as_org_tz(merged_latest))
-                merged_sheet_row[padding + 5 + cf_padding] = cell
+                merged_sheet_row[padding + 4 + cf_padding] = merged_earliest
+                merged_sheet_row[padding + 5 + cf_padding] = merged_latest
 
                 # write the step data
                 col = column_map.get(run_step.step_uuid, 0) + padding
@@ -4295,34 +4233,26 @@ class ExportFlowResultsTask(SmartModel):
                     category = category_map.get(run_step.rule_uuid, None)
                     if category:
                         if include_runs:
-                            cell = WriteOnlyCell(runs, value=category)
-                            runs_sheet_row[col] = cell
-                        cell = WriteOnlyCell(merged_runs, value=category)
-                        merged_sheet_row[col] = cell
+                            runs_sheet_row[col] = category
+                        merged_sheet_row[col] = category
                     elif run_step.rule_category:  # pragma: needs cover
                         if include_runs:
-                            cell = WriteOnlyCell(runs, value=run_step.rule_category)
-                            runs_sheet_row[col] = cell
-                        cell = WriteOnlyCell(merged_runs, value=run_step.rule_category)
-                        merged_sheet_row[col] = cell
+                            runs_sheet_row[col] = run_step.rule_category
+                        merged_sheet_row[col] = run_step.rule_category
 
                     value = run_step.rule_value
                     if value:
-                        value = clean_string(value)
+                        value = self.prepare_value(value)
                         if include_runs:
-                            cell = WriteOnlyCell(runs, value=value)
-                            runs_sheet_row[col + 1] = cell
-                        cell = WriteOnlyCell(merged_runs, value=value)
-                        merged_sheet_row[col + 1] = cell
+                            runs_sheet_row[col + 1] = value
+                        merged_sheet_row[col + 1] = value
 
                     text = run_step.get_text()
                     if text:
-                        text = clean_string(text)
+                        text = self.prepare_value(text)
                         if include_runs:
-                            cell = WriteOnlyCell(runs, value=text)
-                            runs_sheet_row[col + 2] = cell
-                        cell = WriteOnlyCell(merged_runs, value=text)
-                        merged_sheet_row[col + 2] = cell
+                            runs_sheet_row[col + 2] = text
+                        merged_sheet_row[col + 2] = text
 
                 last_run = run_step.run.pk
                 last_contact = run_step.contact.pk
@@ -4334,98 +4264,52 @@ class ExportFlowResultsTask(SmartModel):
                 if step_msgs:
                     msg = step_msgs[0]
                     msg_row += 1
-                    msgs_row = []
 
                     if msg.pk not in seen_msgs:
-                        if msg_row > max_rows or not msgs:
+                        if msg_row > self.MAX_EXCEL_ROWS or not msgs:
                             msg_row = 2
 
                             name = "Messages" if (msg_sheet_index + 1) <= 1 else "Messages (%d)" % (msg_sheet_index + 1)
                             msgs = book.create_sheet(name)
-                            msgs_row = []
+                            headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"]
+                            col_widths = [self.WIDTH_MEDIUM, self.WIDTH_SMALL, self.WIDTH_MEDIUM, self.WIDTH_MEDIUM,
+                                          self.WIDTH_SMALL, self.WIDTH_LARGE, self.WIDTH_MEDIUM]
                             msg_sheet_index += 1
 
-                            cell = WriteOnlyCell(msgs, value="Contact UUID")
-                            msgs_row.append(cell)
-                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
-                            cell = WriteOnlyCell(msgs, value="URN")
-                            msgs_row.append(cell)
-                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
-                            cell = WriteOnlyCell(msgs, value="Name")
-                            msgs_row.append(cell)
-                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
-                            cell = WriteOnlyCell(msgs, value="Date")
-                            msgs_row.append(cell)
-                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
-                            cell = WriteOnlyCell(msgs, value="Direction")
-                            msgs_row.append(cell)
-                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
-                            cell = WriteOnlyCell(msgs, value="Message")
-                            msgs_row.append(cell)
-                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = large_width
-                            cell = WriteOnlyCell(msgs, value="Channel")
-                            msgs_row.append(cell)
-                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                            self.set_sheet_column_widths(msgs, col_widths)
+                            self.append_row(msgs, headers)
 
-                            msgs.append(msgs_row)
-                            msgs_row = []
-
-                        msg_urn_display = msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else ''
-                        channel_name = msg.channel.name if msg.channel else ''
-                        text = clean_string(msg.text)
-
-                        cell = WriteOnlyCell(msgs, value=run_step.contact.uuid)
-                        msgs_row.append(cell)
-                        cell = WriteOnlyCell(msgs, value=msg_urn_display)
-                        msgs_row.append(cell)
-                        cell = WriteOnlyCell(msgs, value=contact_name)
-                        msgs_row.append(cell)
-                        cell = WriteOnlyCell(msgs, value=as_org_tz(msg.created_on))
-                        msgs_row.append(cell)
-                        cell = WriteOnlyCell(msgs, value="IN" if msg.direction == INCOMING else "OUT")
-                        msgs_row.append(cell)
-                        cell = WriteOnlyCell(msgs, value=text)
-                        msgs_row.append(cell)
-                        cell = WriteOnlyCell(msgs, value=channel_name)
-                        msgs_row.append(cell)
-
-                        msgs.append(msgs_row)
+                        self.append_row(msgs, [
+                            run_step.contact.uuid,
+                            msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else '',
+                            contact_name,
+                            msg.created_on,
+                            "IN" if msg.direction == INCOMING else "OUT",
+                            msg.text,
+                            msg.channel.name if msg.channel else ''
+                        ])
 
                         seen_msgs.add(msg.pk)
 
         if runs_sheet_row != [None] * sheet_columns_number:
-            runs.append(runs_sheet_row)
+            self.append_row(runs, runs_sheet_row)
 
         if merged_sheet_row != [None] * sheet_columns_number:
-            merged_runs.append(merged_sheet_row)
+            self.append_row(merged_runs, merged_sheet_row)
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
         temp.flush()
+        return temp, 'xlsx'
 
-        # initialize the UUID which we will save results as
-        self.uuid = str(uuid4())
-        self.save(update_fields=['uuid'])
 
-        # save as file asset associated with this task
-        from temba.assets.models import AssetType
-        from temba.assets.views import get_asset_url
-
-        store = AssetType.results_export.store
-        store.save(self.pk, File(temp), 'xlsx')
-
-        subject = "Your export is ready"
-        template = 'flows/email/flow_export_download'
-
-        branding = self.org.get_branding()
-        download_url = branding['link'] + get_asset_url(AssetType.results_export, self.pk)
-
-        # force a gc
-        import gc
-        gc.collect()
-
-        # only send the email if this is production
-        send_template_email(self.created_by.username, subject, template, dict(flows=flows, link=download_url), branding)
+@register_asset_store
+class ResultsExportAssetStore(BaseExportAssetStore):
+    model = ExportFlowResultsTask
+    key = 'results_export'
+    directory = 'results_exports'
+    permission = 'flows.flow_export_results'
+    extensions = ('xlsx',)
 
 
 @six.python_2_unicode_compatible

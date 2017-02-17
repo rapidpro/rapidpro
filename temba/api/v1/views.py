@@ -16,7 +16,7 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView, SmartFormView
 from temba.api.models import APIToken
-from temba.assets.models import AssetType
+from temba.assets.models import get_asset_store
 from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
@@ -2745,15 +2745,16 @@ class AssetEndpoint(BaseAPIView):
     This endpoint allows you to fetch assets associated with your account using the ```GET``` method.
     """
     def get(self, request, *args, **kwargs):  # pragma: needs cover
-        type_name = request.GET.get('type')
+        store_key = request.GET.get('type')
         identifier = request.GET.get('identifier')
-        if not type_name or not identifier:
+        if not store_key or not identifier:
             return HttpResponseBadRequest("Must provide type and identifier")
 
-        if type_name not in AssetType.__members__:
-            return HttpResponseBadRequest("Invalid asset type: %s" % type_name)
+        asset_store = get_asset_store(store_key)
+        if not asset_store:
+            return HttpResponseBadRequest("Invalid asset type: %s" % store_key)
 
-        return handle_asset_request(request.user, AssetType[type_name], identifier)
+        return handle_asset_request(request.user, asset_store, identifier)
 
 
 class OrgEndpoint(BaseAPIView):

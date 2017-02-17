@@ -1672,21 +1672,6 @@ class OrgTest(TembaTest):
             self.assertEquals(self.client.session[Channel.CONFIG_PLIVO_AUTH_ID], 'auth-id')
             self.assertEquals(self.client.session[Channel.CONFIG_PLIVO_AUTH_TOKEN], 'auth-token')
 
-    def test_download(self):
-        response = self.client.get('/org/download/messages/123/')
-        self.assertLoginRedirect(response)
-
-        self.login(self.admin)
-
-        response = self.client.get('/org/download/messages/123/')
-        self.assertRedirect(response, '/assets/download/message_export/123/')
-
-        response = self.client.get('/org/download/contacts/123/')
-        self.assertRedirect(response, '/assets/download/contact_export/123/')
-
-        response = self.client.get('/org/download/flows/123/')
-        self.assertRedirect(response, '/assets/download/results_export/123/')
-
     def test_tiers(self):
 
         # default is no tiers, everything is allowed, go crazy!

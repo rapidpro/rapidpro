@@ -90,7 +90,7 @@ def export_flow_results_task(id):
     """
     export_task = ExportFlowResultsTask.objects.filter(pk=id).first()
     if export_task:
-        export_task.start_export()
+        export_task.perform()
 
 
 @task(track_started=True, name='start_flow_task')
