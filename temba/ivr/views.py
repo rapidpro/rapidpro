@@ -128,8 +128,8 @@ class CallHandler(View):
                 if call.is_ivr():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup, resume=resume)
                     if channel_type in Channel.NCCO_CHANNELS:
-
-                        ChannelLog.log_ivr_interaction(call, "Response for call %s" % call.external_id, request_body, six.text_type(response),
+                        ChannelLog.log_ivr_interaction(call, "Response for call %s" % call.external_id, request_body,
+                                                       six.text_type(response),
                                                        request_path, request_method)
                         return JsonResponse(json.loads(six.text_type(response)), safe=False)
 
