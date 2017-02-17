@@ -337,7 +337,7 @@ class IVRTests(FlowFileTest):
         for msg in messages:
             self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' is not attached to exactly one step" % msg.text)
 
-        mock_create_call.side_effect = nexmo.Error('Error')
+        mock_create_call.side_effect = Exception('Error')
 
         nexmo_client = self.org.get_nexmo_client()
         with self.assertRaises(IVRException):

@@ -6,7 +6,6 @@ import re
 import requests
 import six
 import time
-import nexmo
 
 from django.conf import settings
 from django.core.files import File
@@ -57,7 +56,7 @@ class NexmoClient(NexmoCli):
             ChannelLog.log_ivr_interaction(call, "Started Nexmo call %s" % call.external_id, json.dumps(params),
                                            json.dumps(response), 'https://api.nexmo.com/v1/calls', 'POST')
 
-        except nexmo.Error as e:
+        except Exception as e:
             message = 'Failed Nexmo call'
             if call.external_id:
                 message = '%s %s' % (message, call.external_id)
