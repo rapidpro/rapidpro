@@ -77,7 +77,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--num-orgs', type=int, action='store', dest='num_orgs', default=100)
-        parser.add_argument('--num-contacts', type=int, action='store', dest='num_contacts', default=2000000)
+        parser.add_argument('--num-contacts', type=int, action='store', dest='num_contacts', default=1000000)
         parser.add_argument('--seed', type=int, action='store', dest='seed', default=None)
 
     def handle(self, num_orgs, num_contacts, seed, **kwargs):
@@ -161,8 +161,8 @@ class Command(BaseCommand):
 
         self._log(self.style.SUCCESS("OK") + "\nInitializing orgs... ")
 
-        for org in orgs:
-            org.initialize(topup_size=1000)  # TODO proportional topup sizes
+        for o, org in enumerate(orgs):
+            org.initialize(topup_size=max((1000 - o), 1) * 1000)
 
             # we'll cache some metadata on each org as it's created to save re-fetching things
             org.cache = {'users': [], 'channels': [], 'fields': {}, 'groups': [], 'contacts': [], 'labels': []}
@@ -222,6 +222,7 @@ class Command(BaseCommand):
         self._log(self.style.SUCCESS("OK") + '\n')
 
     def create_contacts(self, orgs, locations, num_total):
+        batch_size = 5000
         num_test_contacts = len(orgs) * len(USERS)
         group_membership_model = ContactGroup.contacts.through
 
@@ -239,7 +240,7 @@ class Command(BaseCommand):
             names = [n if n else None for n in names]
 
             batch = 1
-            for index_batch in chunk_list(range(num_total - num_test_contacts), 10000):
+            for index_batch in chunk_list(range(num_total - num_test_contacts), batch_size):
                 contacts = []
                 urns = []
                 values = []
@@ -297,12 +298,12 @@ class Command(BaseCommand):
                         group._count += 1
                         memberships.append(group_membership_model(contact_id=c_id, contactgroup=group))
 
-                Contact.objects.bulk_create(contacts, batch_size=1000)
-                ContactURN.objects.bulk_create(urns, batch_size=1000)
-                Value.objects.bulk_create(values, batch_size=1000)
-                group_membership_model.objects.bulk_create(memberships, batch_size=1000)
+                Contact.objects.bulk_create(contacts)
+                ContactURN.objects.bulk_create(urns)
+                Value.objects.bulk_create(values)
+                group_membership_model.objects.bulk_create(memberships)
 
-                self._log(" > Created batch %d of %d\n" % (batch, max(num_total // 10000, 1)))
+                self._log(" > Created batch %d of %d\n" % (batch, max(num_total // batch_size, 1)))
                 batch += 1
 
         # create group count records manually
