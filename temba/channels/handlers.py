@@ -1011,12 +1011,13 @@ class NexmoCallHandler(BaseChannelHandler):
 
             call = IVRCall.objects.filter(external_id=conversation_uuid).first()
             if not call:
-                response = dict(message="Call not found")
+                response = dict(message="Call not found for %s" % conversation_uuid)
                 return JsonResponse(response)
 
             channel = call.channel
             channel_type = channel.channel_type
             call.update_status(status, duration, channel_type)
+            call.save()
 
             response = dict(message="Updated call status",
                             call=dict(status=call.get_status_display(), duration=call.duration))

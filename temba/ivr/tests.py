@@ -1083,6 +1083,11 @@ class IVRTests(FlowFileTest):
         self.assertEquals('+250788382382', call.contact_urn.path)
         self.assertEquals('ext-id', call.external_id)
 
+        self.assertEqual(ChannelLog.objects.all().count(), 2)
+        channel_log = ChannelLog.objects.first()
+        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.description, "Response for received call %s" % call.external_id)
+
     @patch('nexmo.Client.create_application')
     def test_incoming_call_nexmo(self, mock_create_application):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
@@ -1107,6 +1112,18 @@ class IVRTests(FlowFileTest):
         FlowRevision.objects.create(flow=flow, definition=json.dumps(flow_json, indent=2),
                                     spec_version=3, revision=2, created_by=self.admin, modified_by=self.admin)
 
+        # event for non-existing external_id call
+        post_data = dict()
+        post_data['status'] = 'ringing'
+        post_data['duration'] = '0'
+        post_data['conversation_uuid'] = 'ext-id'
+
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]),
+                                    json.dumps(post_data), content_type="application/json")
+
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, 'Call not found for ext-id')
+
         # create an inbound call
         post_data = dict()
         post_data['from'] = '250788382382'
@@ -1121,15 +1138,41 @@ class IVRTests(FlowFileTest):
                              text='Would you like me to call you? Press one for yes, two for no, or three for maybe.')
                         in json.loads(response.content))
 
-        call = IVRCall.objects.all().first()
+        call = IVRCall.objects.get()
         self.assertIsNotNone(call)
         self.assertEquals('+250788382382', call.contact_urn.path)
         self.assertEqual(call.direction, IVRCall.INCOMING)
         self.assertEquals('ext-id', call.external_id)
 
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        channel_log = ChannelLog.objects.first()
+        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.description, "Response for received call %s" % call.external_id)
+
         from temba.orgs.models import CURRENT_EXPORT_VERSION
         flow.refresh_from_db()
         self.assertEquals(CURRENT_EXPORT_VERSION, flow.version_number)
+
+        self.assertIsNot(call.status, IVRCall.COMPLETED)
+
+        # event for non-existing external_id call
+        post_data = dict()
+        post_data['status'] = 'completed'
+        post_data['duration'] = '0'
+        post_data['conversation_uuid'] = 'ext-id'
+
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]),
+                                    json.dumps(post_data), content_type="application/json")
+
+        call = IVRCall.objects.get()
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "Updated call status")
+        self.assertEquals(call.status, IVRCall.COMPLETED)
+
+        self.assertEqual(ChannelLog.objects.all().count(), 2)
+        channel_log = ChannelLog.objects.last()
+        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.description, "Updated call ext-id status to Complete")
 
     @patch('nexmo.Client.create_application')
     def test_nexmo_config_empty_callbacks(self, mock_create_application):
@@ -1142,12 +1185,18 @@ class IVRTests(FlowFileTest):
 
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
                                     '', content_type='application/json')
-
         self.assertEqual(200, response.status_code)
 
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
                                     json.dumps({}), content_type='application/json')
+        self.assertEqual(200, response.status_code)
 
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]),
+                                    '', content_type='application/json')
+        self.assertEqual(200, response.status_code)
+
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]),
+                                    json.dumps({}), content_type='application/json')
         self.assertEqual(200, response.status_code)
 
     @patch('nexmo.Client.create_application')
