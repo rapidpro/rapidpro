@@ -22,11 +22,7 @@ from temba.utils import chunk_list, ms_to_datetime, datetime_to_str, datetime_to
 from temba.values.models import Value
 
 
-# how much to bias to apply when allocating contacts, messages and runs. For 100 orgs, a bias of 5 gives the first org
-# about 40% of the content.
-ORG_BIAS = 5
-
-# ever user will have this password
+# every user will have this password
 USER_PASSWORD = "password"
 
 # database dump containing admin boundary records
@@ -81,6 +77,10 @@ class Command(BaseCommand):
         if seed is not None:
             random.seed(seed)
 
+        # We want a variety of large and small orgs so when allocating content like contacts and messages, we apply a
+        # bias toward the beginning orgs. This bias is set to give the first org approximately 50% of the total content.
+        self.org_bias = math.log(1.0 / num_orgs, 0.5)
+
         self.check_db_state()
 
         superuser = User.objects.create_superuser("root", "root@example.com", "password")
@@ -111,7 +111,7 @@ class Command(BaseCommand):
         """
         Returns a random org with bias toward the orgs with the lowest indexes
         """
-        return random_choice(orgs, bias=ORG_BIAS)
+        return random_choice(orgs, bias=self.org_bias)
 
     def load_locations(self, path):
         """
@@ -314,7 +314,7 @@ def probability(prob):
     return random.random() < prob
 
 
-def random_choice(seq, bias=1):
+def random_choice(seq, bias=1.0):
     return seq[int(math.pow(random.random(), bias) * len(seq))]
 
 

@@ -1435,7 +1435,7 @@ class MiddlewareTest(TembaTest):
 
 class CommandsTest(TestCase):
     def test_maketestdb(self):
-        call_command('make_test_db', num_orgs=2, num_contacts=4)
+        call_command('make_test_db', num_orgs=2, num_contacts=4, seed=123456)
 
         self.assertEqual(Org.objects.count(), 2)
         self.assertEqual(Contact.objects.count(), 4)
