@@ -15,6 +15,7 @@ from django.core import mail
 from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
 from django.core.paginator import Paginator
+from django.db import connection
 from django.test import override_settings, TestCase
 from django.utils import timezone
 from django_redis import get_redis_connection
@@ -1436,6 +1437,10 @@ class MiddlewareTest(TembaTest):
 
 class CommandsTest(TestCase):
     def test_maketestdb(self):
+        # reset contact id sequence as command assumes database is newly created
+        with connection.cursor() as cursor:
+            cursor.execute('ALTER SEQUENCE contacts_contact_id_seq RESTART WITH 1;')
+
         call_command('make_test_db', num_orgs=2, num_contacts=10, seed=123456)
 
         self.assertEqual(Org.objects.count(), 2)

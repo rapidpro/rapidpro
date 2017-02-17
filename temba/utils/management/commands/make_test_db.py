@@ -5,17 +5,17 @@ import pytz
 import random
 import resource
 import sys
+import time
 
 from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management import BaseCommand, CommandError
 from django.db import connection
-from django.utils.timesince import timesince
 from django.utils.timezone import now
 from subprocess import check_call, CalledProcessError
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, ContactGroupCount, URN, TEL_SCHEME, TWITTER_SCHEME
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
 from temba.orgs.models import Org
@@ -90,7 +90,7 @@ class Command(BaseCommand):
 
         self.check_db_state()
 
-        start = now()
+        start = time.time()
 
         superuser = User.objects.create_superuser("root", "root@example.com", "password")
 
@@ -103,7 +103,8 @@ class Command(BaseCommand):
         self.create_contacts(orgs, locations, num_contacts)
         self.create_labels(orgs)
 
-        self._log("Time taken: %s, peak memory usage: %d MiB\n" % (timesince(start), int(peak_memory())))
+        time_taken = time.time() - start
+        self._log("Time taken: %d secs, peak memory usage: %d MiB\n" % (int(time_taken), int(peak_memory())))
 
     def check_db_state(self):
         """
@@ -215,17 +216,16 @@ class Command(BaseCommand):
             user = org.cache['users'][0]
             for name in GROUPS:
                 group = ContactGroup.user_groups.create(org=org, name=name, created_by=user, modified_by=user)
+                group._count = 0  # used for tracking membership count
                 org.cache['groups'].append(group)
 
         self._log(self.style.SUCCESS("OK") + '\n')
 
     def create_contacts(self, orgs, locations, num_total):
         num_test_contacts = len(orgs) * len(USERS)
-        self._log("Creating %d test contacts...\n" % num_test_contacts)
+        group_membership_model = ContactGroup.contacts.through
 
-        # make sure first contact id will be 1
-        with connection.cursor() as cursor:
-            cursor.execute('ALTER SEQUENCE contacts_contact_id_seq RESTART WITH 1;')
+        self._log("Creating %d test contacts...\n" % num_test_contacts)
 
         for org in orgs:
             for user in org.cache['users']:
@@ -233,75 +233,82 @@ class Command(BaseCommand):
 
         self._log("Creating %d regular contacts...\n" % (num_total - num_test_contacts))
 
-        names = [('%s %s' % (c1, c2)).strip() for c2 in CONTACT_NAMES[1] for c1 in CONTACT_NAMES[0]]
-        names = [n if n else None for n in names]
+        # disable group count triggers to speed up contact insertion
+        with DisableTriggersOn(group_membership_model):
+            names = [('%s %s' % (c1, c2)).strip() for c2 in CONTACT_NAMES[1] for c1 in CONTACT_NAMES[0]]
+            names = [n if n else None for n in names]
 
-        group_membership_model = ContactGroup.contacts.through
+            batch = 1
+            for index_batch in chunk_list(range(num_total - num_test_contacts), 10000):
+                contacts = []
+                urns = []
+                values = []
+                memberships = []
+                for c in index_batch:
+                    # calculate the database id this contact will have when created
+                    c_id = num_test_contacts + c + 1
 
-        batch = 1
-        for index_batch in chunk_list(range(num_total - num_test_contacts), 10000):
-            contacts = []
-            urns = []
-            values = []
-            memberships = []
-            for c in index_batch:
-                # calculate the database id this contact will have when created
-                c_id = num_test_contacts + c + 1
+                    # ensure every org gets at least one contact
+                    org = orgs[c] if c < len(orgs) else self.random_org(orgs)
 
-                # ensure every org gets at least one contact
-                org = orgs[c] if c < len(orgs) else self.random_org(orgs)
+                    user = org.cache['users'][0]
+                    name = random_choice(names)
+                    gender = random_choice(('M', 'F'))
+                    age = random.randint(16, 80)
+                    joined = random_date()
 
-                user = org.cache['users'][0]
-                name = random_choice(names)
-                gender = random_choice(('M', 'F'))
-                age = random.randint(16, 80)
-                joined = random_date()
+                    contacts.append(Contact(org=org, name=name, language=random_choice(CONTACT_LANGS),
+                                            is_stopped=probability(CONTACT_IS_STOPPED_PROB),
+                                            is_blocked=probability(CONTACT_IS_BLOCKED_PROB),
+                                            is_active=probability(1 - CONTACT_IS_DELETED_PROB),
+                                            created_by=user, modified_by=user))
 
-                contacts.append(Contact(org=org, name=name, language=random_choice(CONTACT_LANGS),
-                                        is_stopped=probability(CONTACT_IS_STOPPED_PROB),
-                                        is_blocked=probability(CONTACT_IS_BLOCKED_PROB),
-                                        is_active=probability(1 - CONTACT_IS_DELETED_PROB),
-                                        created_by=user, modified_by=user))
+                    if probability(CONTACT_HAS_TEL_PROB):
+                        phone = '+2507%08d' % c
+                        urns.append(ContactURN(org=org, contact_id=c_id, priority=50,
+                                               scheme=TEL_SCHEME, path=phone, urn=URN.from_tel(phone)))
 
-                if probability(CONTACT_HAS_TEL_PROB):
-                    phone = '+2507%08d' % c
-                    urns.append(ContactURN(org=org, contact_id=c_id, priority=50,
-                                           scheme=TEL_SCHEME, path=phone, urn=URN.from_tel(phone)))
+                    if probability(CONTACT_HAS_TWITTER_PROB):
+                        handle = '%s%d' % (name.replace(' ', '_').lower() if name else 'tweep', c)
+                        urns.append(ContactURN(org=org, contact_id=c_id, priority=50,
+                                               scheme=TWITTER_SCHEME, path=handle, urn=URN.from_twitter(handle)))
 
-                if probability(CONTACT_HAS_TWITTER_PROB):
-                    handle = '%s%d' % (name.replace(' ', '_').lower() if name else 'tweep', c)
-                    urns.append(ContactURN(org=org, contact_id=c_id, priority=50,
-                                           scheme=TWITTER_SCHEME, path=handle, urn=URN.from_twitter(handle)))
+                    fields = org.cache['fields']
+                    if probability(CONTACT_HAS_FIELD_PROB):
+                        values.append(Value(org=org, contact_id=c_id, contact_field=fields['gender'], string_value=gender))
+                    if probability(CONTACT_HAS_FIELD_PROB):
+                        values.append(Value(org=org, contact_id=c_id, contact_field=fields['age'],
+                                            string_value=str(age), decimal_value=age))
+                    if probability(CONTACT_HAS_FIELD_PROB):
+                        values.append(Value(org=org, contact_id=c_id, contact_field=fields['joined'],
+                                            string_value=datetime_to_str(joined), datetime_value=joined))
+                    if probability(CONTACT_HAS_FIELD_PROB):
+                        location = random_choice(locations)
+                        values.append(Value(org=org, contact_id=c_id, contact_field=fields['ward'],
+                                            string_value=location[0].name, location_value=location[0]))
+                        values.append(Value(org=org, contact_id=c_id, contact_field=fields['district'],
+                                            string_value=location[1].name, location_value=location[1]))
+                        values.append(Value(org=org, contact_id=c_id, contact_field=fields['state'],
+                                            string_value=location[2].name, location_value=location[2]))
 
-                fields = org.cache['fields']
-                if probability(CONTACT_HAS_FIELD_PROB):
-                    values.append(Value(org=org, contact_id=c_id, contact_field=fields['gender'], string_value=gender))
-                if probability(CONTACT_HAS_FIELD_PROB):
-                    values.append(Value(org=org, contact_id=c_id, contact_field=fields['age'],
-                                        string_value=str(age), decimal_value=age))
-                if probability(CONTACT_HAS_FIELD_PROB):
-                    values.append(Value(org=org, contact_id=c_id, contact_field=fields['joined'],
-                                        string_value=datetime_to_str(joined), datetime_value=joined))
-                if probability(CONTACT_HAS_FIELD_PROB):
-                    location = random_choice(locations)
-                    values.append(Value(org=org, contact_id=c_id, contact_field=fields['ward'],
-                                        string_value=location[0].name, location_value=location[0]))
-                    values.append(Value(org=org, contact_id=c_id, contact_field=fields['district'],
-                                        string_value=location[1].name, location_value=location[1]))
-                    values.append(Value(org=org, contact_id=c_id, contact_field=fields['state'],
-                                        string_value=location[2].name, location_value=location[2]))
+                    # place contact in a biased sample of their org's groups
+                    for g in range(random.randrange(len(org.cache['groups']))):
+                        group = org.cache['groups'][g]
+                        group._count += 1
+                        memberships.append(group_membership_model(contact_id=c_id, contactgroup=group))
 
-                # place contact in a biased sample of their org's groups
-                for g in range(random.randrange(len(org.cache['groups']))):
-                    memberships.append(group_membership_model(contact_id=c_id, contactgroup=org.cache['groups'][g]))
+                Contact.objects.bulk_create(contacts, batch_size=1000)
+                ContactURN.objects.bulk_create(urns, batch_size=1000)
+                Value.objects.bulk_create(values, batch_size=1000)
+                group_membership_model.objects.bulk_create(memberships, batch_size=1000)
 
-            Contact.objects.bulk_create(contacts, batch_size=1000)
-            ContactURN.objects.bulk_create(urns, batch_size=1000)
-            Value.objects.bulk_create(values, batch_size=1000)
-            group_membership_model.objects.bulk_create(memberships, batch_size=1000)
+                self._log(" > Created batch %d of %d\n" % (batch, max(num_total // 10000, 1)))
+                batch += 1
 
-            self._log(" > Created batch %d of %d\n" % (batch, max(num_total // 10000, 1)))
-            batch += 1
+        # create group count records manually
+        for org in orgs:
+            for group in org.cache['groups']:
+                ContactGroupCount.objects.create(group=group, count=group._count, is_squashed=True)
 
         # for sanity check that our presumed last contact id matches the last actual contact id
         assert c_id == Contact.objects.order_by('-id').first().id
@@ -346,3 +353,19 @@ def peak_memory():
         rusage_denom *= rusage_denom
     mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / rusage_denom
     return mem
+
+
+class DisableTriggersOn(object):
+    """
+    Helper context manager for temporarily disabling database triggers for a given model
+    """
+    def __init__(self, model):
+        self.table = model._meta.db_table
+
+    def __enter__(self):
+        with connection.cursor() as cursor:
+            cursor.execute('ALTER TABLE %s DISABLE TRIGGER USER;' % self.table)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        with connection.cursor() as cursor:
+            cursor.execute('ALTER TABLE %s ENABLE TRIGGER USER;' % self.table)
