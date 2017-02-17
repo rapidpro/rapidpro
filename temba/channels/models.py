@@ -3570,3 +3570,6 @@ class ChannelSession(SmartModel):
 
     def is_ivr(self):
         return self.session_type == self.IVR
+
+    def close(self):
+        pass

@@ -45,13 +45,13 @@ class IVRCall(ChannelSession):
             test_call = IVRCall.objects.filter(id=run.session.id).first()
             if test_call.channel.channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_TWIML]:
                 if not test_call.is_done():
-                    test_call.hangup()
+                    test_call.close()
 
-    def hangup(self):
+    def close(self):
         if not self.is_done():
             client = self.channel.get_ivr_client()
             if client and self.external_id:
-                client.calls.hangup(self.external_id)
+                client.hangup(self.external_id)
 
     def do_start_call(self, qs=None):
         client = self.channel.get_ivr_client()

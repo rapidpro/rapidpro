@@ -2620,6 +2620,12 @@ class FlowRun(models.Model):
         """
         Exits (expires, interrupts) runs in bulk
         """
+
+        # when expiring phone calls, we want to issue hangups
+        call_runs = runs.exclude(session=None)
+        for run in call_runs:
+            run.session.close()
+
         if isinstance(runs, list):
             runs = [{'id': r.pk, 'flow_id': r.flow_id} for r in runs]
         else:
@@ -2671,7 +2677,7 @@ class FlowRun(models.Model):
 
                 # if our child was interrupted, so shall we be
                 if run.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED and run.contact.id == step.run.contact.id:
-                    FlowRun.bulk_exit([step.run], FlowRun.EXIT_TYPE_INTERRUPTED)
+                    FlowRun.bulk_exit(FlowRun.objects.filter(id=step.run.id), FlowRun.EXIT_TYPE_INTERRUPTED)
                     return
 
                 ruleset = RuleSet.objects.filter(uuid=step.step_uuid, ruleset_type=RuleSet.TYPE_SUBFLOW, flow__org=step.run.org).first()
@@ -2847,7 +2853,7 @@ class FlowRun(models.Model):
             self.parent.update_expiration(self.expires_on)
 
     def expire(self):
-        self.bulk_exit([self], FlowRun.EXIT_TYPE_EXPIRED)
+        self.bulk_exit(FlowRun.objects.filter(id=self.id), FlowRun.EXIT_TYPE_EXPIRED)
 
     @classmethod
     def exit_all_for_contacts(cls, contacts, exit_type):

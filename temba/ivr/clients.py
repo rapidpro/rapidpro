@@ -105,6 +105,9 @@ class NexmoClient(NexmoCli):
 
         return None
 
+    def hangup(self, call_id):
+        self.update_call(call_id, action='hangup')
+
 
 class TwilioClient(TwilioRestClient):
 
@@ -177,6 +180,9 @@ class TwilioClient(TwilioRestClient):
             return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
 
         return None  # pragma: needs cover
+
+    def hangup(self, sid):
+        self.calls.hangup(sid)
 
 
 class VerboiceClient:  # pragma: needs cover
