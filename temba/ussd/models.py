@@ -3,8 +3,10 @@ from __future__ import absolute_import, unicode_literals
 import six
 
 from django.db import models
+from django.conf import settings
+from django.contrib.auth.models import User
 from temba.channels.models import ChannelSession
-from temba.contacts.models import Contact, URN
+from temba.contacts.models import Contact, URN, ContactURN
 from temba.triggers.models import Trigger
 
 
@@ -14,7 +16,11 @@ class USSDQuerySet(models.QuerySet):
         return super(USSDQuerySet, self).get(*args, **kwargs)
 
     def create(self, **kwargs):
-        user = kwargs.get('channel').created_by
+        if kwargs.get('channel'):
+            user = kwargs.get('channel').created_by
+        else:  # testing purposes (eg. simulator)
+            user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+
         kwargs.update(dict(session_type=USSDSession.USSD, created_by=user, modified_by=user))
         return super(USSDQuerySet, self).create(**kwargs)
 
@@ -37,7 +43,7 @@ class USSDSession(ChannelSession):
     def handle_session_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg
 
-        message = Msg.create_incoming(channel=self.channel, urn=urn, text=content or '', date=date, session=self)
+        message = Msg.create_incoming(channel=self.channel, org=self.org, urn=urn, text=content or '', date=date, session=self)
         message.external_id = message_id
         message.save()
 
@@ -46,21 +52,28 @@ class USSDSession(ChannelSession):
         pass
 
     @classmethod
-    def handle_incoming(cls, channel, urn, date, external_id, message_id=None, status=None,
+    def handle_incoming(cls, channel, urn, date, external_id, contact=None, message_id=None, status=None,
                         flow=None, content=None, starcode=None, org=None, async=True):
 
         trigger = None
 
         # handle contact with channel
         urn = URN.from_tel(urn)
-        contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], channel=channel)
-        contact_urn = contact.urn_objects[urn]
+
+        if not contact:
+            contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], channel=channel)
+            contact_urn = contact.urn_objects[urn]
+        elif urn:
+            contact_urn = ContactURN.get_or_create(org, contact, urn, channel=channel)
 
         contact.set_preferred_channel(channel)
-        contact_urn.update_affinity(channel)
+
+        if contact_urn:
+            contact_urn.update_affinity(channel)
 
         # setup session
-        defaults = dict(channel=channel, contact=contact, contact_urn=contact_urn, org=channel.org)
+        defaults = dict(channel=channel, contact=contact, contact_urn=contact_urn,
+                        org=channel.org if channel else contact.org)
 
         if status == cls.TRIGGERED:
             trigger = Trigger.find_trigger_for_ussd_session(contact, starcode)
