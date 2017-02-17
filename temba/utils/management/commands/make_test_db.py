@@ -7,10 +7,12 @@ import resource
 import sys
 
 from datetime import timedelta
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management import BaseCommand, CommandError
+from django.db import connection
 from django.utils.timezone import now
-from subprocess import call
+from subprocess import check_call, CalledProcessError
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME
 from temba.locations.models import AdminBoundary
@@ -26,6 +28,9 @@ ORG_BIAS = 5
 
 # ever user will have this password
 USER_PASSWORD = "password"
+
+# database dump containing admin boundary records
+LOCATIONS_DUMP = 'test-data/nigeria.bin'
 
 # organization names are generated from these components
 ORG_NAMES = (
@@ -65,14 +70,14 @@ CONTACT_HAS_FIELD_PROB = 0.8  # 8/10 fields set for each contact
 
 
 class Command(BaseCommand):
-    help = "Installs a database suitable for testing"
+    help = "Generates a database suitable for performance testing"
 
     def add_arguments(self, parser):
         parser.add_argument('--num-orgs', type=int, action='store', dest='num_orgs', default=100)
         parser.add_argument('--num-contacts', type=int, action='store', dest='num_contacts', default=2000000)
         parser.add_argument('--seed', type=int, action='store', dest='seed', default=None)
 
-    def handle(self, num_orgs, num_contacts, num_messages, seed, **kwargs):
+    def handle(self, num_orgs, num_contacts, seed, **kwargs):
         if seed is not None:
             random.seed(seed)
 
@@ -80,8 +85,7 @@ class Command(BaseCommand):
 
         superuser = User.objects.create_superuser("root", "root@example.com", "password")
 
-        # export PGPASSWORD=nyaruka && pg_dump -Utemba -w temba --format=custom --data-only --table=locations_adminboundary --disable-triggers > test-data/nigeria.bin
-        locations = self.create_locations('test-data/nigeria.bin')
+        locations = self.load_locations(LOCATIONS_DUMP)
 
         orgs = self.create_orgs(superuser, num_orgs)
         self.create_channels(orgs)
@@ -109,17 +113,24 @@ class Command(BaseCommand):
         """
         return random_choice(orgs, bias=ORG_BIAS)
 
-    def create_locations(self, path):
+    def load_locations(self, path):
+        """
+        Loads admin boundary records from the given dump of that table
+        """
         self._log("Loading locations from %s... " % path)
 
-        call('pg_restore -Utemba -w -d temba %s' % path, shell=True)
+        # load dump into current db with pg_restore
+        db_config = settings.DATABASES['default']
+        try:
+            check_call('pg_restore -U%s -w -d %s %s' % (db_config['USER'], db_config['NAME'], path), shell=True)
+        except CalledProcessError:  # pragma: no cover
+            raise CommandError("Error occurred whilst calling pg_restore to load locations dump")
 
-        # fetch tuples of (WARD, DISTRICT, STATE)
+        # fetch as tuples of (WARD, DISTRICT, STATE)
         wards = AdminBoundary.objects.filter(level=3).prefetch_related('parent', 'parent__parent')
         locations = [(w, w.parent, w.parent.parent) for w in wards]
 
         self._log(self.style.SUCCESS("OK") + '\n')
-
         return locations
 
     def create_orgs(self, superuser, num_total):
@@ -204,6 +215,10 @@ class Command(BaseCommand):
 
     def create_contacts(self, orgs, locations, num_total):
         self._log("Creating %d contacts...\n" % num_total)
+
+        # make sure first contact id will be 1
+        with connection.cursor() as cursor:
+            cursor.execute('ALTER SEQUENCE contacts_contact_id_seq RESTART WITH 1;')
 
         names = [('%s %s' % (c1, c2)).strip() for c2 in CONTACT_NAMES[1] for c1 in CONTACT_NAMES[0]]
         names = [n if n else None for n in names]
