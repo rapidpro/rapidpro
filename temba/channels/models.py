@@ -3523,15 +3523,12 @@ class ChannelSession(SmartModel):
                                    help_text="The external id for this session, our twilio id usually")
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING,
                               help_text="The status of this session")
-
     channel = models.ForeignKey('Channel',
-                                help_text="The channel that created this session")
+                                help_text="The channel that created this session", null=True)
     contact = models.ForeignKey('contacts.Contact', related_name='sessions',
                                 help_text="Who this session is with")
-
     contact_urn = models.ForeignKey('contacts.ContactURN', verbose_name=_("Contact URN"),
                                     help_text=_("The URN this session is communicating with"))
-
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES,
                                  help_text="The direction of this session, either incoming or outgoing")
     started_on = models.DateTimeField(null=True, blank=True,
