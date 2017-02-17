@@ -10,6 +10,7 @@ from celery.app.task import Task
 from datetime import datetime, time
 from decimal import Decimal
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.core import mail
 from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
@@ -19,7 +20,7 @@ from django.utils import timezone
 from django_redis import get_redis_connection
 from mock import patch, PropertyMock
 from openpyxl import load_workbook
-from temba.contacts.models import Contact
+from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba.utils import voicexml
@@ -1435,10 +1436,13 @@ class MiddlewareTest(TembaTest):
 
 class CommandsTest(TestCase):
     def test_maketestdb(self):
-        call_command('make_test_db', num_orgs=2, num_contacts=4, seed=123456)
+        call_command('make_test_db', num_orgs=2, num_contacts=10, seed=123456)
 
         self.assertEqual(Org.objects.count(), 2)
-        self.assertEqual(Contact.objects.count(), 4)
+        self.assertEqual(User.objects.count(), 10)  # 4 for each org + superuser + anonymous
+        self.assertEqual(Contact.objects.count(), 10)
+        self.assertEqual(ContactField.objects.count(), 12)  # 6 per org
+        self.assertEqual(ContactGroup.user_groups.count(), 20)  # 10 per org
 
         # check can't be run again on a now non-empty database
         with self.assertRaises(CommandError):

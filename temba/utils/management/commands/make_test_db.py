@@ -11,6 +11,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management import BaseCommand, CommandError
 from django.db import connection
+from django.utils.timesince import timesince
 from django.utils.timezone import now
 from subprocess import check_call, CalledProcessError
 from temba.channels.models import Channel
@@ -22,7 +23,7 @@ from temba.utils import chunk_list, ms_to_datetime, datetime_to_str, datetime_to
 from temba.values.models import Value
 
 
-# every user will have this password
+# every user will have this password including the superuser
 USER_PASSWORD = "password"
 
 # database dump containing admin boundary records
@@ -34,7 +35,13 @@ ORG_NAMES = (
     ("Nigeria", "Chile", "Indonesia", "Rwanda", "Mexico", "Zambia", "India", "Brazil", "Sudan", "Mozambique")
 )
 
-# the channels, groups, labels and fields to create for each organization
+# the users, channels, groups, labels and fields to create for each organization
+USERS = (
+    {'username': "admin%d", 'email': "org%d_admin@example.com", 'role': 'administrators'},
+    {'username': "editor%d", 'email': "org%d_editor@example.com", 'role': 'editors'},
+    {'username': "viewer%d", 'email': "org%d_viewer@example.com", 'role': 'viewers'},
+    {'username': "surveyor%d", 'email': "org%d_surveyor@example.com", 'role': 'surveyors'},
+)
 CHANNELS = (
     {'name': "Android", 'channel_type': Channel.TYPE_ANDROID, 'scheme': 'tel', 'address': "1234"},
     {'name': "Nexmo", 'channel_type': Channel.TYPE_NEXMO, 'scheme': 'tel', 'address': "2345"},
@@ -83,18 +90,20 @@ class Command(BaseCommand):
 
         self.check_db_state()
 
+        start = now()
+
         superuser = User.objects.create_superuser("root", "root@example.com", "password")
 
-        locations = self.load_locations(LOCATIONS_DUMP)
-
-        orgs = self.create_orgs(superuser, num_orgs)
+        country, locations = self.load_locations(LOCATIONS_DUMP)
+        orgs = self.create_orgs(superuser, country, num_orgs)
+        self.create_users(orgs)
         self.create_channels(orgs)
         self.create_fields(orgs)
         self.create_groups(orgs)
         self.create_contacts(orgs, locations, num_contacts)
         self.create_labels(orgs)
 
-        self._log("Peak memory usage: %d MiB\n" % int(peak_memory()))
+        self._log("Time taken: %s, peak memory usage: %d MiB\n" % (timesince(start), int(peak_memory())))
 
     def check_db_state(self):
         """
@@ -130,16 +139,16 @@ class Command(BaseCommand):
         wards = AdminBoundary.objects.filter(level=3).prefetch_related('parent', 'parent__parent')
         locations = [(w, w.parent, w.parent.parent) for w in wards]
 
-        self._log(self.style.SUCCESS("OK") + '\n')
-        return locations
+        country = AdminBoundary.objects.filter(level=0).get()
 
-    def create_orgs(self, superuser, num_total):
+        self._log(self.style.SUCCESS("OK") + '\n')
+        return country, locations
+
+    def create_orgs(self, superuser, country, num_total):
         self._log("Creating %d orgs... " % num_total)
 
         org_names = ['%s %s' % (o1, o2) for o2 in ORG_NAMES[1] for o1 in ORG_NAMES[0]]
         random.shuffle(org_names)
-
-        country = AdminBoundary.objects.filter(level=0).get()
 
         orgs = []
         for o in range(num_total):
@@ -157,24 +166,21 @@ class Command(BaseCommand):
             # we'll cache some metadata on each org as it's created to save re-fetching things
             org.cache = {'users': [], 'channels': [], 'fields': {}, 'groups': [], 'contacts': [], 'labels': []}
 
-        self._log(self.style.SUCCESS("OK") + "\nCreating %d users... " % (len(orgs) * 4))
-
-        def create_user(org, username, email, role):
-            user = User.objects.create_user(username, email, USER_PASSWORD)
-            getattr(org, role).add(user)
-            user.set_org(org)
-            org.cache['users'].append(user)
-            return user
-
-        for o, org in enumerate(orgs):
-            # each org has a user of every type
-            create_user(org, "admin%d" % (o + 1), "org%d_admin@example.com" % (o + 1), 'administrators')
-            create_user(org, "editor%d" % (o + 1), "org%d_editor@example.com" % (o + 1), 'editors')
-            create_user(org, "viewer%d" % (o + 1), "org%d_viewer@example.com" % (o + 1), 'viewers')
-            create_user(org, "surveyor%d" % (o + 1), "org%d_surveyor@example.com" % (o + 1), 'surveyors')
-
         self._log(self.style.SUCCESS("OK") + '\n')
         return orgs
+
+    def create_users(self, orgs):
+        self._log("Creating %d users... " % (len(orgs) * len(USERS)))
+
+        # create users for each org
+        for org in orgs:
+            for u in USERS:
+                user = User.objects.create_user(u['username'] % org.id, u['email'] % org.id, USER_PASSWORD)
+                getattr(org, u['role']).add(user)
+                user.set_org(org)
+                org.cache['users'].append(user)
+
+        self._log(self.style.SUCCESS("OK") + '\n')
 
     def create_channels(self, orgs):
         self._log("Creating %d channels... " % (len(orgs) * len(CHANNELS)))
@@ -214,29 +220,38 @@ class Command(BaseCommand):
         self._log(self.style.SUCCESS("OK") + '\n')
 
     def create_contacts(self, orgs, locations, num_total):
-        self._log("Creating %d contacts...\n" % num_total)
+        num_test_contacts = len(orgs) * len(USERS)
+        self._log("Creating %d test contacts...\n" % num_test_contacts)
 
         # make sure first contact id will be 1
         with connection.cursor() as cursor:
             cursor.execute('ALTER SEQUENCE contacts_contact_id_seq RESTART WITH 1;')
 
+        for org in orgs:
+            for user in org.cache['users']:
+                Contact.get_test_contact(user)
+
+        self._log("Creating %d regular contacts...\n" % (num_total - num_test_contacts))
+
         names = [('%s %s' % (c1, c2)).strip() for c2 in CONTACT_NAMES[1] for c1 in CONTACT_NAMES[0]]
         names = [n if n else None for n in names]
 
+        group_membership_model = ContactGroup.contacts.through
+
         batch = 1
-        for index_batch in chunk_list(range(num_total), 10000):
-            self._log(" > Creating batch %d of %d...\n" % (batch, max(num_total // 10000, 1)))
-            self.stdout.flush()
+        for index_batch in chunk_list(range(num_total - num_test_contacts), 10000):
             contacts = []
             urns = []
             values = []
+            memberships = []
             for c in index_batch:
-                # TODO Contact.get_test_contact(user)
+                # calculate the database id this contact will have when created
+                c_id = num_test_contacts + c + 1
 
-                c_id = c + 1
-                org = orgs[c] if c < len(orgs) else self.random_org(orgs)  # ensure every org gets at least one contact
+                # ensure every org gets at least one contact
+                org = orgs[c] if c < len(orgs) else self.random_org(orgs)
+
                 user = org.cache['users'][0]
-
                 name = random_choice(names)
                 gender = random_choice(('M', 'F'))
                 age = random.randint(16, 80)
@@ -276,19 +291,16 @@ class Command(BaseCommand):
                     values.append(Value(org=org, contact_id=c_id, contact_field=fields['state'],
                                         string_value=location[2].name, location_value=location[2]))
 
-                # TODO random group memberships
-                # place the contact in a biased sample of up to half of their org's groups
-                # for g in range(random.randrange(len(org._groups) / 2)):
-                #     group = random_choice(org._groups, 3)
-                #     group.contacts.add(contact)
-
-                # keeping all contact objects in memory is too expensive so just keep the important bits
-                # contact_desc = (c_id,) if urn else (contact.pk, None, None)
-                # org._contacts.append(contact_desc)
+                # place contact in a biased sample of their org's groups
+                for g in range(random.randrange(len(org.cache['groups']))):
+                    memberships.append(group_membership_model(contact_id=c_id, contactgroup=org.cache['groups'][g]))
 
             Contact.objects.bulk_create(contacts, batch_size=1000)
             ContactURN.objects.bulk_create(urns, batch_size=1000)
             Value.objects.bulk_create(values, batch_size=1000)
+            group_membership_model.objects.bulk_create(memberships, batch_size=1000)
+
+            self._log(" > Created batch %d of %d\n" % (batch, max(num_total // 10000, 1)))
             batch += 1
 
         # for sanity check that our presumed last contact id matches the last actual contact id
