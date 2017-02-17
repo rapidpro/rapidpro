@@ -852,10 +852,6 @@ class ContactCRUDL(SmartCRUDL):
 
             context['actions'] = ('label', 'block')
             context['contact_fields'] = ContactField.objects.filter(org=org, is_active=True).order_by('pk')
-
-            if 'compiled_query' in self.request.__dict__:
-                context['compiled_query'] = self.request.compiled_query
-
             return context
 
     class Blocked(ContactActionMixin, ContactListView):
