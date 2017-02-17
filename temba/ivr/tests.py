@@ -1056,12 +1056,17 @@ class IVRTests(FlowFileTest):
         self.channel.channel_type = Channel.TYPE_NEXMO
         self.channel.save()
 
+        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+
         self.get_flow('call_me_start')
 
         # create an inbound call
-        post_data = dict(nexmo_call_id="ext-id", nexmo_caller_id="+250788382382")
-        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', self.channel.uuid]),
-                                    post_data)
+        post_data = dict()
+        post_data['from'] = '250788382382'
+        post_data['to'] = '250785551212'
+        post_data['conversation_uuid'] = 'ext-id'
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
+                                    json.dumps(post_data), content_type="application/json")
 
         # grab the redirect URL
         redirect_url = re.match(r'.*"eventUrl": \["(.*)"\].*', response.content).group(1)
@@ -1088,6 +1093,8 @@ class IVRTests(FlowFileTest):
         self.channel.channel_type = Channel.TYPE_NEXMO
         self.channel.save()
 
+        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+
         # import an ivr flow
         flow = self.get_flow('call_me_maybe')
         flow.version_number = 3
@@ -1101,9 +1108,13 @@ class IVRTests(FlowFileTest):
                                     spec_version=3, revision=2, created_by=self.admin, modified_by=self.admin)
 
         # create an inbound call
-        post_data = dict(nexmo_call_id='ext-id', nexmo_caller_id='+250788382382')
-        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', self.channel.uuid]),
-                                    post_data)
+        post_data = dict()
+        post_data['from'] = '250788382382'
+        post_data['to'] = '250785551212'
+        post_data['conversation_uuid'] = 'ext-id'
+
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
+                                    json.dumps(post_data), content_type="application/json")
 
         self.assertTrue(dict(action='talk',
                              bargeIn=True,
@@ -1127,7 +1138,16 @@ class IVRTests(FlowFileTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
-        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', self.channel.uuid]), {})
+        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
+                                    '', content_type='application/json')
+
+        self.assertEqual(200, response.status_code)
+
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
+                                    json.dumps({}), content_type='application/json')
+
         self.assertEqual(200, response.status_code)
 
     @patch('nexmo.Client.create_application')
@@ -1137,16 +1157,22 @@ class IVRTests(FlowFileTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
+        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+
         # remove our channel
         self.channel.release()
 
         # create an inbound call
-        post_data = dict(nexmo_call_id='ext-id', nexmo_caller_id='+250788382382', )
-        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', self.channel.uuid]),
-                                    post_data)
+        post_data = dict()
+        post_data['from'] = '250788382382'
+        post_data['to'] = '250785551212'
+        post_data['conversation_uuid'] = 'ext-id'
+
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
+                                    json.dumps(post_data), content_type="application/json")
 
         self.assertEqual(404, response.status_code)
-        self.assertEqual('No channel to answer call for UUID: %s' % self.channel.uuid, response.content)
+        self.assertEqual('Channel not found for number: 250785551212', response.content)
 
         # no call object created
         self.assertFalse(IVRCall.objects.all())
@@ -1161,12 +1187,17 @@ class IVRTests(FlowFileTest):
         self.channel.channel_type = Channel.TYPE_NEXMO
         self.channel.save()
 
+        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+
         flow = self.get_flow('missed_call_flow')
 
         # create an inbound call
-        post_data = dict(nexmo_call_id='ext-id', nexmo_caller_id='+250788382382', )
-        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', self.channel.uuid]),
-                                    post_data)
+        post_data = dict()
+        post_data['from'] = '250788382382'
+        post_data['to'] = '250785551212'
+        post_data['conversation_uuid'] = 'ext-id'
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
+                                    json.dumps(post_data), content_type="application/json")
 
         self.assertEqual(json.loads(response.content), [dict(action='talk', bargeIn=False, text='')])
         # no call object created

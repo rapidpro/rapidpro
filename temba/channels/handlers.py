@@ -1031,9 +1031,12 @@ class NexmoCallHandler(BaseChannelHandler):
                 return HttpResponse('')
 
             body_json = json.loads(request_body)
-            from_number = body_json.get('from')
-            channel_number = body_json.get('to')
-            external_id = body_json.get('conversation_uuid')
+            from_number = body_json.get('from', None)
+            channel_number = body_json.get('to', None)
+            external_id = body_json.get('conversation_uuid', None)
+
+            if not from_number or not channel_number or not external_id:
+                return HttpResponse("Missing parameters, Ignoring")
 
             # look up the channel
             address_q = Q(address=channel_number) | Q(address=('+' + channel_number))
