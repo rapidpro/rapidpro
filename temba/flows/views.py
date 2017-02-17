@@ -1331,6 +1331,7 @@ class FlowCRUDL(SmartCRUDL):
                         USSDSession.handle_incoming(test_contact.org.get_send_channel(contact_urn=test_contact.get_urn(TEL_SCHEME)),
                                                     test_contact.get_urn(TEL_SCHEME).path,
                                                     content=new_message,
+                                                    contact=test_contact,
                                                     date=timezone.now(),
                                                     message_id=str(randint(0, 1000)),
                                                     external_id=str(randint(0, 1000)),
