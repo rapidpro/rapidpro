@@ -18,7 +18,7 @@ from django.utils import timezone
 from django_redis import get_redis_connection
 from mock import patch, PropertyMock
 from openpyxl import load_workbook
-from temba.contacts.models import Contact
+from temba.contacts.models import Contact, ExportContactsTask
 from temba.tests import TembaTest
 from temba.utils import voicexml
 from temba.utils.nexmo import NCCOException, NCCOResponse
@@ -26,11 +26,10 @@ from temba.utils.voicexml import VoiceXMLException
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from .email import is_valid_address
-from .exporter import TableExporter
+from .export import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
 from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents
-
 from .email import send_simple_email
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
@@ -979,9 +978,42 @@ class ChunkTest(TembaTest):
         self.assertEqual(curr, 100)
 
 
-class TableExporterTest(TembaTest):
-    @patch('temba.utils.exporter.TableExporter.MAX_XLS_COLS', new_callable=PropertyMock)
-    def test_csv(self, mock_max_cols):
+class ExportTest(TembaTest):
+    def setUp(self):
+        super(ExportTest, self).setUp()
+
+        self.group = self.create_group("New contacts", [])
+        self.task = ExportContactsTask.objects.create(org=self.org, group=self.group,
+                                                      created_by=self.admin, modified_by=self.admin)
+
+    def test_prepare_value(self):
+        self.assertEqual(self.task.prepare_value(None), '')
+        self.assertEqual(self.task.prepare_value("=()"), "'=()")  # escape formulas
+        self.assertEqual(self.task.prepare_value(123), '123')
+
+        dt = pytz.timezone("Africa/Nairobi").localize(datetime(2017, 2, 7, 15, 41, 23, 123456))
+        self.assertEqual(self.task.prepare_value(dt), datetime(2017, 2, 7, 14, 41, 23, 0))
+
+    def test_task_status(self):
+        self.assertEqual(self.task.status, ExportContactsTask.STATUS_PENDING)
+
+        self.task.perform()
+
+        self.assertEqual(self.task.status, ExportContactsTask.STATUS_COMPLETE)
+
+        task2 = ExportContactsTask.objects.create(org=self.org, group=self.group,
+                                                  created_by=self.admin, modified_by=self.admin)
+
+        # if task throws exception, will be marked as failed
+        with patch.object(task2, 'write_export') as mock_write_export:
+            mock_write_export.side_effect = ValueError("Problem!")
+
+            task2.perform()
+
+            self.assertEqual(task2.status, ExportContactsTask.STATUS_FAILED)
+
+    @patch('temba.utils.export.BaseExportTask.MAX_EXCEL_COLS', new_callable=PropertyMock)
+    def test_tableexporter_csv(self, mock_max_cols):
         test_max_cols = 255
         mock_max_cols.return_value = test_max_cols
 
@@ -991,7 +1023,7 @@ class TableExporterTest(TembaTest):
             cols.append("Column %d" % i)
 
         # create a new exporter
-        exporter = TableExporter("test", cols)
+        exporter = TableExporter(self.task, "test", cols)
 
         # should be CSV because we have too many columns
         self.assertTrue(exporter.is_csv)
@@ -1005,9 +1037,9 @@ class TableExporterTest(TembaTest):
         exporter.write_row(values)
 
         # ok, let's check the result now
-        file = exporter.save_file()
+        temp_file, file_ext = exporter.save_file()
 
-        with open(file.name, 'rb') as csvfile:
+        with open(temp_file.name, 'rb') as csvfile:
             import csv
             reader = csv.reader(csvfile)
 
@@ -1020,8 +1052,8 @@ class TableExporterTest(TembaTest):
             # should only be three rows
             self.assertEquals(2, idx)
 
-    @patch('temba.utils.exporter.TableExporter.MAX_XLS_ROWS', new_callable=PropertyMock)
-    def test_xls(self, mock_max_rows):
+    @patch('temba.utils.export.BaseExportTask.MAX_EXCEL_ROWS', new_callable=PropertyMock)
+    def test_tableexporter_xls(self, mock_max_rows):
         test_max_rows = 1500
         mock_max_rows.return_value = test_max_rows
 
@@ -1029,7 +1061,7 @@ class TableExporterTest(TembaTest):
         for i in range(32):
             cols.append("Column %d" % i)
 
-        exporter = TableExporter("test", cols)
+        exporter = TableExporter(self.task, "test", cols)
 
         # should be an XLS file
         self.assertFalse(exporter.is_csv)
@@ -1042,8 +1074,8 @@ class TableExporterTest(TembaTest):
         for i in range(test_max_rows + 200):
             exporter.write_row(values)
 
-        exporter_file = exporter.save_file()
-        workbook = load_workbook(filename=exporter_file.name)
+        temp_file, file_ext = exporter.save_file()
+        workbook = load_workbook(filename=temp_file.name)
 
         self.assertEquals(2, len(workbook.worksheets))
 

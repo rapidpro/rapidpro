@@ -1018,11 +1018,7 @@ class FlowCRUDL(SmartCRUDL):
             org = user.get_org()
 
             # is there already an export taking place?
-            existing = ExportFlowResultsTask.objects.filter(org=org, is_finished=False,
-                                                            created_on__gt=timezone.now() - timedelta(hours=24))\
-                                                    .order_by('-created_on').first()
-
-            # if there is an existing export, don't allow it
+            existing = ExportFlowResultsTask.get_recent_unfinished(org)
             if existing:
                 messages.info(self.request,
                               _("There is already an export in progress, started by %s. You must wait "

@@ -3593,8 +3593,7 @@ class ContactFieldTest(TembaTest):
         self.assertContains(response, "already an export in progress")
 
         # ok, mark that one as finished and try again
-        blocking_export.is_finished = True
-        blocking_export.save()
+        blocking_export.update_status(ExportContactsTask.STATUS_COMPLETE)
 
         with self.assertNumQueries(37):
             self.client.get(reverse('contacts.contact_export'), dict())
