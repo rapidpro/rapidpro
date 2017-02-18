@@ -217,7 +217,7 @@ class IVRTests(FlowFileTest):
     @patch('nexmo.Client.create_call')
     def test_ivr_recording_with_nexmo(self, mock_create_call, mock_create_application):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
-        mock_create_call.return_value = dict(conversation_uuid='12345')
+        mock_create_call.return_value = dict(uuid='12345')
 
         # connect Nexmo
         self.org.connect_nexmo('123', '456', self.admin)
@@ -580,7 +580,7 @@ class IVRTests(FlowFileTest):
     @patch('nexmo.Client.create_call')
     def test_ivr_digital_gather_with_nexmo(self, mock_create_call, mock_create_application):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
-        mock_create_call.return_value = dict(conversation_uuid='12345')
+        mock_create_call.return_value = dict(uuid='12345')
 
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
@@ -621,8 +621,8 @@ class IVRTests(FlowFileTest):
     @patch('nexmo.Client.create_call')
     def test_hangup(self, mock_create_call, mock_create_application, mock_update_call):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
-        mock_create_call.return_value = dict(conversation_uuid='12345')
-        mock_update_call.return_value = dict(conversation_uuid='12345')
+        mock_create_call.return_value = dict(uuid='12345')
+        mock_update_call.return_value = dict(uuid='12345')
 
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
@@ -652,7 +652,7 @@ class IVRTests(FlowFileTest):
     @patch('nexmo.Client.create_call')
     def test_ivr_subflow_with_nexmo(self, mock_create_call, mock_create_application):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
-        mock_create_call.return_value = dict(conversation_uuid='12345')
+        mock_create_call.return_value = dict(uuid='12345')
 
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
@@ -1083,7 +1083,7 @@ class IVRTests(FlowFileTest):
     @patch('nexmo.Client.create_application')
     def test_incoming_start_nexmo(self, mock_create_application, mock_update_call):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
-        mock_update_call.return_value = dict(conversation_uuid='12345')
+        mock_update_call.return_value = dict(uuid='12345')
 
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
@@ -1099,7 +1099,7 @@ class IVRTests(FlowFileTest):
         post_data = dict()
         post_data['from'] = '250788382382'
         post_data['to'] = '250785551212'
-        post_data['conversation_uuid'] = 'ext-id'
+        post_data['uuid'] = 'ext-id'
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
                                     json.dumps(post_data), content_type="application/json")
 
@@ -1151,7 +1151,7 @@ class IVRTests(FlowFileTest):
         post_data = dict()
         post_data['status'] = 'ringing'
         post_data['duration'] = '0'
-        post_data['conversation_uuid'] = 'ext-id'
+        post_data['uuid'] = 'ext-id'
 
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]),
                                     json.dumps(post_data), content_type="application/json")
@@ -1163,7 +1163,7 @@ class IVRTests(FlowFileTest):
         post_data = dict()
         post_data['from'] = '250788382382'
         post_data['to'] = '250785551212'
-        post_data['conversation_uuid'] = 'ext-id'
+        post_data['uuid'] = 'ext-id'
 
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
                                     json.dumps(post_data), content_type="application/json")
@@ -1194,7 +1194,7 @@ class IVRTests(FlowFileTest):
         post_data = dict()
         post_data['status'] = 'completed'
         post_data['duration'] = '0'
-        post_data['conversation_uuid'] = 'ext-id'
+        post_data['uuid'] = 'ext-id'
 
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]),
                                     json.dumps(post_data), content_type="application/json")
@@ -1250,7 +1250,7 @@ class IVRTests(FlowFileTest):
         post_data = dict()
         post_data['from'] = '250788382382'
         post_data['to'] = '250785551212'
-        post_data['conversation_uuid'] = 'ext-id'
+        post_data['uuid'] = 'ext-id'
 
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
                                     json.dumps(post_data), content_type="application/json")
@@ -1279,7 +1279,7 @@ class IVRTests(FlowFileTest):
         post_data = dict()
         post_data['from'] = '250788382382'
         post_data['to'] = '250785551212'
-        post_data['conversation_uuid'] = 'ext-id'
+        post_data['uuid'] = 'ext-id'
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]),
                                     json.dumps(post_data), content_type="application/json")
 
@@ -1374,7 +1374,7 @@ class IVRTests(FlowFileTest):
     @patch('nexmo.Client.create_call')
     def test_download_media_nexmo(self, mock_create_call, mock_create_application, mock_download_recording):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
-        mock_create_call.return_value = dict(conversation_uuid='12345')
+        mock_create_call.return_value = dict(uuid='12345')
         mock_download_recording.side_effect = [
             MockResponse(200, "SOUND BITS"),
 

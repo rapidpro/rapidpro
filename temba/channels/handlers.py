@@ -1004,14 +1004,14 @@ class NexmoCallHandler(BaseChannelHandler):
             body_json = json.loads(request_body)
             status = body_json.get('status', None)
             duration = body_json.get('duration', None)
-            conversation_uuid = body_json.get('conversation_uuid', None)
+            call_uuid = body_json.get('uuid', None)
 
-            if conversation_uuid is None:
-                return HttpResponse("Missing conversation_uuid parameter, ignoring")
+            if call_uuid is None:
+                return HttpResponse("Missing uuid parameter, ignoring")
 
-            call = IVRCall.objects.filter(external_id=conversation_uuid).first()
+            call = IVRCall.objects.filter(external_id=call_uuid).first()
             if not call:
-                response = dict(message="Call not found for %s" % conversation_uuid)
+                response = dict(message="Call not found for %s" % call_uuid)
                 return JsonResponse(response)
 
             channel = call.channel
@@ -1034,7 +1034,7 @@ class NexmoCallHandler(BaseChannelHandler):
             body_json = json.loads(request_body)
             from_number = body_json.get('from', None)
             channel_number = body_json.get('to', None)
-            external_id = body_json.get('conversation_uuid', None)
+            external_id = body_json.get('uuid', None)
 
             if not from_number or not channel_number or not external_id:
                 return HttpResponse("Missing parameters, Ignoring")
