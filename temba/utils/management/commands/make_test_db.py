@@ -7,6 +7,7 @@ import resource
 import sys
 import time
 
+from collections import defaultdict
 from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -84,11 +85,12 @@ class Command(BaseCommand):
         if seed is not None:
             random.seed(seed)
 
-        # We want a variety of large and small orgs so when allocating content like contacts and messages, we apply a
-        # bias toward the beginning orgs. This bias is set to give the first org approximately 50% of the total content.
-        self.org_bias = math.log(1.0 / num_orgs, 0.5)
-
         self.check_db_state()
+
+        # We want a variety of large and small orgs so when allocating content like contacts and messages, we apply a
+        # bias toward the beginning orgs. if there are N orgs, then the amount of content the first org will be
+        # allocated is (1/N) ^ (1/bias). This sets the bias so that the first org will get ~50% of the content:
+        self.org_bias = math.log(1.0 / num_orgs, 0.5)
 
         start = time.time()
 
@@ -165,7 +167,15 @@ class Command(BaseCommand):
             org.initialize(topup_size=max((1000 - o), 1) * 1000)
 
             # we'll cache some metadata on each org as it's created to save re-fetching things
-            org.cache = {'users': [], 'channels': [], 'fields': {}, 'groups': [], 'contacts': [], 'labels': []}
+            org.cache = {
+                'users': [],
+                'channels': [],
+                'fields': {},
+                'groups': [],
+                'sysgroups': list(ContactGroup.system_groups.filter(org=org).order_by('id')),
+                'contacts': [],
+                'labels': [],
+            }
 
         self._log(self.style.SUCCESS("OK") + '\n')
         return orgs
@@ -188,10 +198,10 @@ class Command(BaseCommand):
 
         for org in orgs:
             user = org.cache['users'][0]
-            for channel in CHANNELS:
-                Channel.objects.create(org=org, name=channel['name'], channel_type=channel['channel_type'],
-                                       address=channel['address'], scheme=channel['scheme'],
-                                       created_by=user, modified_by=user)
+            for c in CHANNELS:
+                channel = Channel.objects.create(org=org, name=c['name'], channel_type=c['channel_type'],
+                                                 address=c['address'], scheme=c['scheme'],
+                                                 created_by=user, modified_by=user)
                 org.cache['channels'].append(channel)
 
         self._log(self.style.SUCCESS("OK") + '\n')
@@ -201,11 +211,11 @@ class Command(BaseCommand):
 
         for org in orgs:
             user = org.cache['users'][0]
-            for field in FIELDS:
-                field_obj = ContactField.objects.create(org=org, key=field['key'], label=field['label'],
-                                                        value_type=field['value_type'], show_in_table=True,
-                                                        created_by=user, modified_by=user)
-                org.cache['fields'][field['key']] = field_obj
+            for f in FIELDS:
+                field = ContactField.objects.create(org=org, key=f['key'], label=f['label'],
+                                                    value_type=f['value_type'], show_in_table=True,
+                                                    created_by=user, modified_by=user)
+                org.cache['fields'][f['key']] = field
 
         self._log(self.style.SUCCESS("OK") + '\n')
 
@@ -216,7 +226,6 @@ class Command(BaseCommand):
             user = org.cache['users'][0]
             for name in GROUPS:
                 group = ContactGroup.user_groups.create(org=org, name=name, created_by=user, modified_by=user)
-                group._count = 0  # used for tracking membership count
                 org.cache['groups'].append(group)
 
         self._log(self.style.SUCCESS("OK") + '\n')
@@ -225,6 +234,7 @@ class Command(BaseCommand):
         batch_size = 5000
         num_test_contacts = len(orgs) * len(USERS)
         group_membership_model = ContactGroup.contacts.through
+        group_counts = defaultdict(int)
 
         self._log("Creating %d test contacts...\n" % num_test_contacts)
 
@@ -234,7 +244,7 @@ class Command(BaseCommand):
 
         self._log("Creating %d regular contacts...\n" % (num_total - num_test_contacts))
 
-        # disable group count triggers to speed up contact insertion
+        # disable group count triggers to speed up contact insertion and avoid having a count row for every contact
         with DisableTriggersOn(group_membership_model):
             names = [('%s %s' % (c1, c2)).strip() for c2 in CONTACT_NAMES[1] for c1 in CONTACT_NAMES[0]]
             names = [n if n else None for n in names]
@@ -245,7 +255,8 @@ class Command(BaseCommand):
                 urns = []
                 values = []
                 memberships = []
-                for c in index_batch:
+                for c in index_batch:  # pragma: no cover
+
                     # calculate the database id this contact will have when created
                     c_id = num_test_contacts + c + 1
 
@@ -257,11 +268,20 @@ class Command(BaseCommand):
                     gender = random_choice(('M', 'F'))
                     age = random.randint(16, 80)
                     joined = random_date()
+                    is_stopped = probability(CONTACT_IS_STOPPED_PROB)
+                    is_blocked = probability(CONTACT_IS_BLOCKED_PROB)
+                    is_active = probability(1 - CONTACT_IS_DELETED_PROB)
+
+                    if is_active:
+                        if not is_blocked and not is_stopped:
+                            group_counts[org.cache['sysgroups'][0]] += 1
+                        if is_blocked:
+                            group_counts[org.cache['sysgroups'][1]] += 1
+                        if is_stopped:
+                            group_counts[org.cache['sysgroups'][2]] += 1
 
                     contacts.append(Contact(org=org, name=name, language=random_choice(CONTACT_LANGS),
-                                            is_stopped=probability(CONTACT_IS_STOPPED_PROB),
-                                            is_blocked=probability(CONTACT_IS_BLOCKED_PROB),
-                                            is_active=probability(1 - CONTACT_IS_DELETED_PROB),
+                                            is_stopped=is_stopped, is_blocked=is_blocked, is_active=is_active,
                                             created_by=user, modified_by=user))
 
                     if probability(CONTACT_HAS_TEL_PROB):
@@ -295,7 +315,7 @@ class Command(BaseCommand):
                     # place contact in a biased sample of their org's groups
                     for g in range(random.randrange(len(org.cache['groups']))):
                         group = org.cache['groups'][g]
-                        group._count += 1
+                        group_counts[group] += 1
                         memberships.append(group_membership_model(contact_id=c_id, contactgroup=group))
 
                 Contact.objects.bulk_create(contacts)
@@ -307,9 +327,8 @@ class Command(BaseCommand):
                 batch += 1
 
         # create group count records manually
-        for org in orgs:
-            for group in org.cache['groups']:
-                ContactGroupCount.objects.create(group=group, count=group._count, is_squashed=True)
+        for group, count in group_counts.items():
+            ContactGroupCount.objects.create(group=group, count=count, is_squashed=True)
 
         # for sanity check that our presumed last contact id matches the last actual contact id
         assert c_id == Contact.objects.order_by('-id').first().id
