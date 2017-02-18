@@ -3581,4 +3581,4 @@ class ChannelSession(SmartModel):
         if self.session_type == ChannelSession.USSD:
             from temba.ussd.models import USSDSession
             return USSDSession.objects.filter(id=self.id).first()
-        return self
+        return self  # pragma: no cover
