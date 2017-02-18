@@ -6,7 +6,6 @@ import re
 import requests
 import six
 import time
-import nexmo
 
 from django.conf import settings
 from django.core.files import File
@@ -57,14 +56,14 @@ class NexmoClient(NexmoCli):
             ChannelLog.log_ivr_interaction(call, "Started Nexmo call %s" % call.external_id, json.dumps(params),
                                            json.dumps(response), 'https://api.nexmo.com/v1/calls', 'POST')
 
-        except nexmo.Error as e:
+        except Exception as e:
             message = 'Failed Nexmo call'
             if call.external_id:
                 message = '%s %s' % (message, call.external_id)
             ChannelLog.log_ivr_interaction(call, message, json.dumps(params),
-                                           six.text_type(e.message), 'https://api.nexmo.com/v1/calls', 'POST')
+                                           six.text_type(e), 'https://api.nexmo.com/v1/calls', 'POST')
 
-            raise IVRException(_("Nexmo call failed, with error %s") % e.message)
+            raise IVRException(_("Nexmo call failed, with error %s") % six.text_type(e.message))
 
     def download_media(self, media_url):
         """
@@ -105,6 +104,9 @@ class NexmoClient(NexmoCli):
             return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
 
         return None
+
+    def hangup(self, call_id):
+        self.update_call(call_id, action='hangup')
 
 
 class TwilioClient(TwilioRestClient):
@@ -178,6 +180,9 @@ class TwilioClient(TwilioRestClient):
             return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
 
         return None  # pragma: needs cover
+
+    def hangup(self, sid):
+        self.calls.hangup(sid)
 
 
 class VerboiceClient:  # pragma: needs cover

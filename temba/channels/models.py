@@ -3570,3 +3570,15 @@ class ChannelSession(SmartModel):
 
     def is_ivr(self):
         return self.session_type == self.IVR
+
+    def close(self):  # pragma: no cover
+        pass
+
+    def get(self):
+        if self.session_type == ChannelSession.IVR:
+            from temba.ivr.models import IVRCall
+            return IVRCall.objects.filter(id=self.id).first()
+        if self.session_type == ChannelSession.USSD:
+            from temba.ussd.models import USSDSession
+            return USSDSession.objects.filter(id=self.id).first()
+        return self  # pragma: no cover

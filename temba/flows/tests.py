@@ -1860,24 +1860,33 @@ class FlowTest(TembaTest):
         twilio.delete()
 
         # create a new regular flow
-        response = self.client.post(reverse('flows.flow_create'), dict(name='Flow', flow_type='F', expires_after_minutes=5), follow=True)
+        response = self.client.post(reverse('flows.flow_create'), dict(name='Flow', flow_type='F'), follow=True)
         flow1 = Flow.objects.get(org=self.org, name="Flow")
         # add a trigger on this flow
         Trigger.objects.create(org=self.org, keyword='unique', flow=flow1,
                                created_by=self.admin, modified_by=self.admin)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(flow1.flow_type, 'F')
-        self.assertEqual(flow1.expires_after_minutes, 5)
+        self.assertEqual(flow1.expires_after_minutes, 10080)
 
         # create a new surveyor flow
-        self.client.post(reverse('flows.flow_create'), dict(name='Surveyor Flow', expires_after_minutes=5, flow_type='S'), follow=True)
+        self.client.post(reverse('flows.flow_create'), dict(name='Surveyor Flow', flow_type='S'), follow=True)
         flow2 = Flow.objects.get(org=self.org, name="Surveyor Flow")
         self.assertEqual(flow2.flow_type, 'S')
-        self.assertEqual(flow2.expires_after_minutes, 5)
+        self.assertEqual(flow2.expires_after_minutes, 10080)
 
         # make sure we don't get a start flow button for Android Surveys
         response = self.client.get(reverse('flows.flow_editor', args=[flow2.uuid]))
         self.assertNotContains(response, "broadcast-rulesflow btn-primary")
+
+        # create a new voice flow
+        response = self.client.post(reverse('flows.flow_create'), dict(name='Voice Flow', flow_type='V'), follow=True)
+        voice_flow = Flow.objects.get(org=self.org, name="Voice Flow")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(voice_flow.flow_type, 'V')
+
+        # default expiration for voice is shorter
+        self.assertEqual(voice_flow.expires_after_minutes, 5)
 
         # test flows with triggers
         # create a new flow with one unformatted keyword
@@ -1902,7 +1911,6 @@ class FlowTest(TembaTest):
 
         response = self.client.post(reverse('flows.flow_create'), post_data)
         self.assertTrue(response.context['form'].errors)
-        print(response.context['form'].errors['keyword_triggers'])
         self.assertTrue('The keywords "this, unique" are already used for another flow' in response.context['form'].errors['keyword_triggers'])
         trigger.delete()
 
@@ -1919,6 +1927,34 @@ class FlowTest(TembaTest):
         self.assertEqual(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[flow3.uuid]))
         self.assertEqual(response.context['object'].triggers.count(), 3)
 
+        # update expiration for voice flow
+        post_data = dict()
+        response = self.client.get(reverse('flows.flow_update', args=[voice_flow.pk]), post_data, follow=True)
+
+        choices = response.context['form'].fields['expires_after_minutes'].choices
+        self.assertEqual(7, len(choices))
+        self.assertEqual(1, choices[0][0])
+        self.assertEqual(2, choices[1][0])
+        self.assertEqual(3, choices[2][0])
+        self.assertEqual(4, choices[3][0])
+        self.assertEqual(5, choices[4][0])
+        self.assertEqual(10, choices[5][0])
+        self.assertEqual(15, choices[6][0])
+
+        # try updating with an sms type expiration to make sure it's restricted for voice flows
+        post_data['expires_after_minutes'] = 60 * 12
+        post_data['name'] = 'Voice Flow'
+        response = self.client.post(reverse('flows.flow_update', args=[voice_flow.pk]), post_data, follow=True)
+        voice_flow.refresh_from_db()
+        self.assertEqual(5, voice_flow.expires_after_minutes)
+
+        # now do a valid value for voice
+        post_data['expires_after_minutes'] = 3
+        response = self.client.post(reverse('flows.flow_update', args=[voice_flow.pk]), post_data, follow=True)
+
+        voice_flow.refresh_from_db()
+        self.assertEqual(3, voice_flow.expires_after_minutes)
+
         # update flow triggers
         post_data = dict()
         post_data['name'] = "Flow With Keyword Triggers"
@@ -1934,7 +1970,7 @@ class FlowTest(TembaTest):
         self.assertEquals(flow3.triggers.filter(is_archived=False).count(), 3)
         self.assertEquals(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
 
-        # update flow with unformated keyword
+        # update flow with unformatted keyword
         post_data['keyword_triggers'] = "it,changes,every thing"
         response = self.client.post(reverse('flows.flow_update', args=[flow3.pk]), post_data)
         self.assertTrue(response.context['form'].errors)
@@ -1986,7 +2022,7 @@ class FlowTest(TembaTest):
 
         # check flow listing
         response = self.client.get(reverse('flows.flow_list'))
-        self.assertEqual(list(response.context['object_list']), [flow1, flow3, flow2, self.flow])  # by last modified
+        self.assertEqual(list(response.context['object_list']), [flow1, flow3, voice_flow, flow2, self.flow])  # by last modified
 
         # start a contact on that flow
         flow = flow1
@@ -5128,7 +5164,7 @@ class FlowsTest(FlowFileTest):
 
         # now interrupt the child flow
         run = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by('-created_on').first()
-        FlowRun.bulk_exit([run], FlowRun.EXIT_TYPE_INTERRUPTED)
+        FlowRun.bulk_exit(FlowRun.objects.filter(id=run.id), FlowRun.EXIT_TYPE_INTERRUPTED)
 
         # all flows should have finished
         self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
@@ -5155,7 +5191,7 @@ class FlowsTest(FlowFileTest):
 
         # now expire out of the child flow
         run = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by('-created_on').first()
-        FlowRun.bulk_exit([run], FlowRun.EXIT_TYPE_EXPIRED)
+        FlowRun.bulk_exit(FlowRun.objects.filter(id=run.id), FlowRun.EXIT_TYPE_EXPIRED)
 
         # all flows should have finished
         self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())

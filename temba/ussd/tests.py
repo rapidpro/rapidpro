@@ -16,6 +16,7 @@ from temba.channels.models import Channel
 from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING
 from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
+from temba.flows.models import FlowRun
 from temba.utils import dict_to_struct
 
 from .models import USSDSession
@@ -111,6 +112,15 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(flow.get_steps().last().messages.count(), 1)
         self.assertEqual(flow.get_steps().last().messages.first().direction, OUTGOING)
         self.assertEqual(flow.get_steps().last().messages.first().text, u'Thank you!')
+
+    def test_expiration(self):
+        # start off a PUSH session
+        self.test_push_async_start()
+        run = FlowRun.objects.last()
+        run.expire()
+
+        # we should be marked as interrupted now
+        self.assertEqual(USSDSession.INTERRUPTED, run.session.status)
 
     def test_async_interrupt_handling(self):
         # start a flow
