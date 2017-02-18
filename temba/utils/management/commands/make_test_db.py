@@ -244,8 +244,9 @@ class Command(BaseCommand):
 
         self._log("Creating %d regular contacts...\n" % (num_total - num_test_contacts))
 
-        # disable group count triggers to speed up contact insertion and avoid having a count row for every contact
-        with DisableTriggersOn(group_membership_model):
+        # Disable table triggers to speed up insertion and in the case of contact group m2m, avoid having an unsquashed
+        # count row for every contact
+        with DisableTriggersOn(Contact, ContactURN, Value, group_membership_model):
             names = [('%s %s' % (c1, c2)).strip() for c2 in CONTACT_NAMES[1] for c1 in CONTACT_NAMES[0]]
             names = [n if n else None for n in names]
 
@@ -327,8 +328,10 @@ class Command(BaseCommand):
                 batch += 1
 
         # create group count records manually
+        counts = []
         for group, count in group_counts.items():
-            ContactGroupCount.objects.create(group=group, count=count, is_squashed=True)
+            counts.append(ContactGroupCount(group=group, count=count, is_squashed=True))
+        ContactGroupCount.objects.bulk_create(counts)
 
         # for sanity check that our presumed last contact id matches the last actual contact id
         assert c_id == Contact.objects.order_by('-id').first().id
@@ -379,13 +382,15 @@ class DisableTriggersOn(object):
     """
     Helper context manager for temporarily disabling database triggers for a given model
     """
-    def __init__(self, model):
-        self.table = model._meta.db_table
+    def __init__(self, *models):
+        self.tables = [m._meta.db_table for m in models]
 
     def __enter__(self):
         with connection.cursor() as cursor:
-            cursor.execute('ALTER TABLE %s DISABLE TRIGGER USER;' % self.table)
+            for table in self.tables:
+                cursor.execute('ALTER TABLE %s DISABLE TRIGGER ALL;' % table)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         with connection.cursor() as cursor:
-            cursor.execute('ALTER TABLE %s ENABLE TRIGGER USER;' % self.table)
+            for table in self.tables:
+                cursor.execute('ALTER TABLE %s ENABLE TRIGGER ALL;' % table)
