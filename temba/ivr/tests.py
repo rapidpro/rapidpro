@@ -337,7 +337,7 @@ class IVRTests(FlowFileTest):
         for msg in messages:
             self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' is not attached to exactly one step" % msg.text)
 
-        mock_create_call.side_effect = Exception('Error')
+        mock_create_call.side_effect = Exception('Kab00m!')
 
         nexmo_client = self.org.get_nexmo_client()
         with self.assertRaises(IVRException):
@@ -350,6 +350,7 @@ class IVRTests(FlowFileTest):
         response = self.client.get(reverse("channels.channellog_session", args=[call.id]))
         self.assertContains(response, "lasted 0:00:15")
         self.assertContains(response, "https://api.nexmo.com/v1/calls")
+        self.assertContains(response, "Kab00m!")
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)

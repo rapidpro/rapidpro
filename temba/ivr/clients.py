@@ -61,9 +61,9 @@ class NexmoClient(NexmoCli):
             if call.external_id:
                 message = '%s %s' % (message, call.external_id)
             ChannelLog.log_ivr_interaction(call, message, json.dumps(params),
-                                           six.text_type(e.message), 'https://api.nexmo.com/v1/calls', 'POST')
+                                           six.text_type(e), 'https://api.nexmo.com/v1/calls', 'POST')
 
-            raise IVRException(_("Nexmo call failed, with error %s") % e.message)
+            raise IVRException(_("Nexmo call failed, with error %s") % six.text_type(e.message))
 
     def download_media(self, media_url):
         """
