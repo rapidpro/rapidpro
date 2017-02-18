@@ -16,7 +16,7 @@ from django.core.files import File
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from mock import patch
-from temba.channels.models import Channel, ChannelLog
+from temba.channels.models import Channel, ChannelLog, ChannelSession
 from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep
 from temba.ivr.clients import IVRException
@@ -614,6 +614,38 @@ class IVRTests(FlowFileTest):
         self.assertContains(response, '"submitOnHash": true,')
 
         self.assertContains(response, '"eventUrl": ["https://%s%s"]}]' % (settings.TEMBA_HOST, callback_url))
+
+    @patch('nexmo.Client.update_call')
+    @patch('nexmo.Client.create_application')
+    @patch('nexmo.Client.create_call')
+    def test_hangup(self, mock_create_call, mock_create_application, mock_update_call):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+        mock_create_call.return_value = dict(conversation_uuid='12345')
+        mock_update_call.return_value = dict(conversation_uuid='12345')
+
+        self.org.connect_nexmo('123', '456', self.admin)
+        self.org.save()
+
+        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.save()
+
+        # import an ivr flow
+        self.import_file('gather_digits')
+
+        # make sure our flow is there as expected
+        flow = Flow.objects.filter(name='Gather Digits').first()
+
+        # start our flow
+        eric = self.create_contact('Eric Newcomer', number='+13603621737')
+        flow.start([], [eric])
+
+        # expire our flow
+        run = FlowRun.objects.get()
+        run.expire()
+
+        mock_update_call.assert_called()
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
+        self.assertEqual(ChannelSession.INTERRUPTED, call.status)
 
     @patch('nexmo.Client.create_application')
     @patch('nexmo.Client.create_call')

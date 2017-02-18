@@ -2622,14 +2622,18 @@ class FlowRun(models.Model):
         """
 
         # when expiring phone calls, we want to issue hangups
-        call_runs = runs.exclude(session=None)
-        for run in call_runs:
-            run.session.close()
+        session_runs = runs.exclude(session=None)
+        for run in session_runs:
+            session = run.session.get()
 
-        if isinstance(runs, list):
-            runs = [{'id': r.pk, 'flow_id': r.flow_id} for r in runs]
-        else:
-            runs = list(runs.values('id', 'flow_id'))  # select only what we need...
+            # have our session close itself
+            session.close()
+
+            # make sure we are marked as interrupted
+            session.status = ChannelSession.INTERRUPTED
+            session.save()
+
+        runs = list(runs.values('id', 'flow_id'))  # select only what we need...
 
         # organize runs by flow
         runs_by_flow = defaultdict(list)
