@@ -49,6 +49,11 @@ class IVRCall(ChannelSession):
 
     def close(self):
         if not self.is_done():
+
+            # mark us as interrupted
+            self.status = ChannelSession.INTERRUPTED
+            self.save()
+
             client = self.channel.get_ivr_client()
             if client and self.external_id:
                 client.hangup(self.external_id)

@@ -2627,11 +2627,8 @@ class FlowRun(models.Model):
             session = run.session.get()
 
             # have our session close itself
-            session.close()
-
-            # make sure we are marked as interrupted
-            session.status = ChannelSession.INTERRUPTED
-            session.save()
+            if exit_type == FlowRun.EXIT_TYPE_EXPIRED:
+                session.close()
 
         runs = list(runs.values('id', 'flow_id'))  # select only what we need...
 

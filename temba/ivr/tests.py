@@ -1079,9 +1079,11 @@ class IVRTests(FlowFileTest):
         response = self.client.post(urlparse(redirect_url).path, post_data)
         self.assertContains(response, "You are not part of group.")
 
+    @patch('nexmo.Client.update_call')
     @patch('nexmo.Client.create_application')
-    def test_incoming_start_nexmo(self, mock_create_application):
+    def test_incoming_start_nexmo(self, mock_create_application, mock_update_call):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+        mock_update_call.return_value = dict(conversation_uuid='12345')
 
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
