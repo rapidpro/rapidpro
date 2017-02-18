@@ -1,3 +1,9 @@
+v3.0.54
+----------
+ * Use shorter timeout for IVR
+ * Issue hangups on expiration during IVR runs
+ * Catch all exceptions and log them when initiating call
+
 v3.0.49
 ----------
  * Fix update status for Nexmo calls
