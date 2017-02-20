@@ -1,19 +1,17 @@
 from __future__ import print_function, unicode_literals
 
 import ply.lex as lex
-import pytz
 import operator
 import re
 import six
 
 from collections import OrderedDict
-from datetime import timedelta
 from decimal import Decimal
 from django.db.models import Q
 from functools import reduce
 from ply import yacc
 from temba.locations.models import AdminBoundary
-from temba.utils import str_to_datetime
+from temba.utils import str_to_datetime, date_to_utc_range
 from temba.values.models import Value
 from .models import ContactField, ContactURN
 
@@ -162,7 +160,6 @@ class Condition(QueryNode):
 
     DECIMAL_LOOKUPS = {
         '=': 'exact',
-        'is': 'exact',
         '>': 'gt',
         '>=': 'gte',
         '<': 'lt',
@@ -171,7 +168,6 @@ class Condition(QueryNode):
 
     DATETIME_LOOKUPS = {
         '=': '<equal>',
-        'is': '<equal>',
         '>': 'gt',
         '>=': 'gte',
         '<': 'lt',
@@ -277,25 +273,24 @@ class Condition(QueryNode):
         if not lookup:
             raise SearchException("Unsupported comparator %s for datetime field" % self.comparator)
 
-        # parse as localized date and then convert to UTC
+        # parse as localized date
         local_date = str_to_datetime(self.value, field.org.timezone, field.org.get_dayfirst(), fill_time=False)
         if not local_date:
             raise SearchException("Unable to parse date: %s" % self.value)
 
-        value = local_date.astimezone(pytz.utc)
+        # get the range of UTC datetimes for this local date
+        utc_range = date_to_utc_range(local_date.date(), field.org)
 
         if lookup == '<equal>':
-            # check if datetime is between date and date + 1d, i.e. anytime in that 24 hour period
-            return {'contact_field': field,
-                    'datetime_value__gte': value, 'datetime_value__lt': value + timedelta(days=1)}
+            return {'contact_field': field, 'datetime_value__gte': utc_range[0], 'datetime_value__lt': utc_range[1]}
+        elif lookup == 'lt':
+            return {'contact_field': field, 'datetime_value__lt': utc_range[0]}
         elif lookup == 'lte':
-            # check if datetime is less then date + 1d, i.e. that day and all previous
-            return {'contact_field': field, 'datetime_value__lt': value + timedelta(days=1)}
+            return {'contact_field': field, 'datetime_value__lt': utc_range[1]}
         elif lookup == 'gt':
-            # check if datetime is greater than or equal to date + 1d, i.e. day after and subsequent
-            return {'contact_field': field, 'datetime_value__gte': value + timedelta(days=1)}
-        else:
-            return {'contact_field': field, 'datetime_value__%s' % lookup: value}
+            return {'contact_field': field, 'datetime_value__gte': utc_range[1]}
+        elif lookup == 'gte':
+            return {'contact_field': field, 'datetime_value__gte': utc_range[0]}
 
     def _build_location_field_params(self, field):
         lookup = self.LOCATION_LOOKUPS.get(self.comparator)
