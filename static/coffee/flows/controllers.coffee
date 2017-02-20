@@ -222,7 +222,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       url: uploadURL
       data:
         actionset: actionset.uuid
-        action:  if uuid in action then action.uuid else ''
+        action:  if action.uuid? then action.uuid else ''
       file: file
     .progress (evt) ->
       $log.debug("percent: " + parseInt(100.0 * evt.loaded / evt.total))
@@ -771,6 +771,42 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         Flow.fetchRecentMessages(ruleset.uuid, categoryTo, categoryFrom).then (response) ->
           category._messages = response.data
     , 500
+
+  showMediaDelay = null
+  $scope.toggleActionMedia = ->
+    if this.action._showMedia
+      this.hideActionMedia()
+    else
+      this.showActionMedia()
+  
+  $scope.hideActionMedia = ->
+    $timeout.cancel(showMediaDelay)
+
+    this.action._showMedia = false
+
+
+  $scope.showActionMedia = ->
+    hovered = this
+    showMediaDelay = $timeout ->
+      action = hovered.action
+      action._showMedia = true
+      if action._translation_media.endsWith('mp4')
+        action._mediaType = 'video'
+        body = "%video.attachment-viewer{controls:'', id:'[[action.uuid]]_video', src:'[[action._translation_media]]'}"
+
+        showDialog('Video Attachment', body)
+        return;
+      
+      if action._translation_media.endsWith('jpg')
+        body = "<img class='attachment-viewer' width='100%' src='" + action._translation_media " />"
+        showDialog('Image Attachment', body)
+        return;
+        action._mediaType = 'image'
+      
+      if action._translation_media.endsWith('mp3') or action._translation_media.endsWith('wav')
+        action._mediaType = 'audio'
+    , 500   
+
 
 ]
 

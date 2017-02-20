@@ -24,6 +24,7 @@
 @z-action-controls: 800;
 @z-source: 900;
 @z-activity: 980;
+@z-action-media: 985;
 @z-sticky-notes: 990;
 @z-endpoint: 997;
 @z-status-message: 998;
@@ -193,6 +194,24 @@
 
     &.recents {
       z-index: @z-recent-messages;
+    }
+
+    .action-media {
+      position:absolute;
+      background: rgba(240,240,240,.95);
+      z-index:@z-action-media;
+      margin-top: -20px;
+      margin-left: 200px;
+      .drop-shadow(0,0, 2px, 2px, .1);
+      .rounded-corners(5px);
+
+      &.action-media-image {
+        width: 120%;
+      }
+
+      &.action-media-audio {
+      }
+
     }
 
     .recent-messages {
