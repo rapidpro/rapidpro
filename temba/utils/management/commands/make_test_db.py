@@ -6,6 +6,7 @@ import random
 import resource
 import sys
 import time
+import uuid
 
 from collections import defaultdict
 from datetime import timedelta
@@ -82,10 +83,17 @@ class Command(BaseCommand):
         parser.add_argument('--seed', type=int, action='store', dest='seed', default=None)
 
     def handle(self, num_orgs, num_contacts, seed, **kwargs):
-        if seed is not None:
-            random.seed(seed)
-
         self.check_db_state()
+
+        if seed is None:
+            seed = random.randrange(0, 65536)
+        random.seed(seed)
+
+        # monkey patch uuid4 so it returns the same UUIDs for the same seed
+        from temba.utils import models
+        models.uuid4 = lambda: uuid.UUID(int=random.getrandbits(128))
+
+        self._log("Generating random test database (seed=%d)...\n" % seed)
 
         # We want a variety of large and small orgs so when allocating content like contacts and messages, we apply a
         # bias toward the beginning orgs. if there are N orgs, then the amount of content the first org will be
@@ -258,6 +266,11 @@ class Command(BaseCommand):
                 urns = []
                 values = []
                 memberships = []
+
+                def add_to_group(g):
+                    group_counts[g] += 1
+                    memberships.append(group_membership_model(contact_id=c_id, contactgroup=g))
+
                 for c in index_batch:  # pragma: no cover
 
                     # calculate the database id this contact will have when created
@@ -277,11 +290,11 @@ class Command(BaseCommand):
 
                     if is_active:
                         if not is_blocked and not is_stopped:
-                            group_counts[org.cache['sysgroups'][0]] += 1
+                            add_to_group(org.cache['sysgroups'][0])
                         if is_blocked:
-                            group_counts[org.cache['sysgroups'][1]] += 1
+                            add_to_group(org.cache['sysgroups'][1])
                         if is_stopped:
-                            group_counts[org.cache['sysgroups'][2]] += 1
+                            add_to_group(org.cache['sysgroups'][2])
 
                     contacts.append(Contact(org=org, name=name, language=self.random_choice(CONTACT_LANGS),
                                             is_stopped=is_stopped, is_blocked=is_blocked, is_active=is_active,
@@ -317,9 +330,7 @@ class Command(BaseCommand):
 
                     # place contact in a biased sample of their org's groups
                     for g in range(random.randrange(len(org.cache['groups']))):
-                        group = org.cache['groups'][g]
-                        group_counts[group] += 1
-                        memberships.append(group_membership_model(contact_id=c_id, contactgroup=group))
+                        add_to_group(org.cache['groups'][g])
 
                 Contact.objects.bulk_create(contacts)
                 ContactURN.objects.bulk_create(urns)

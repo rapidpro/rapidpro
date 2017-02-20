@@ -20,7 +20,7 @@ from django.utils import timezone
 from django_redis import get_redis_connection
 from mock import patch, PropertyMock
 from openpyxl import load_workbook
-from temba.contacts.models import Contact, ContactField, ContactGroup, ExportContactsTask
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org
 from temba.tests import TembaTest
@@ -1479,13 +1479,23 @@ class MakeTestDBTest(SimpleTestCase):
         AdminBoundary.objects.all().delete()
 
     def test_command(self):
-        call_command('make_test_db', num_orgs=2, num_contacts=10, seed=123456)
+        call_command('make_test_db', num_orgs=2, num_contacts=12, seed=123456)
 
-        self.assertEqual(Org.objects.count(), 2)
+        org_1, org_2 = list(Org.objects.order_by('id'))
+
         self.assertEqual(User.objects.count(), 10)  # 4 for each org + superuser + anonymous
-        self.assertEqual(Contact.objects.count(), 10)
         self.assertEqual(ContactField.objects.count(), 12)  # 6 per org
         self.assertEqual(ContactGroup.user_groups.count(), 20)  # 10 per org
+        self.assertEqual(Contact.objects.filter(is_test=True).count(), 8)  # 1 for each user
+        self.assertEqual(Contact.objects.filter(is_test=False).count(), 4)
+
+        org_1_all_contacts = ContactGroup.system_groups.get(org=org_1, name="All Contacts")
+
+        self.assertEqual(org_1_all_contacts.contacts.count(), 2)
+        self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(2,)])
+
+        # same seed should generate objects with same UUIDs
+        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'cec602da-1406-e378-df14-b8d4a99b7cc4')
 
         # check can't be run again on a now non-empty database
         with self.assertRaises(CommandError):
