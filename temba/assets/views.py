@@ -2,33 +2,27 @@ from __future__ import absolute_import, unicode_literals
 
 import mimetypes
 
-from django.core.urlresolvers import reverse
 from django.http import HttpResponse, HttpResponseNotFound, HttpResponseForbidden, HttpResponseRedirect
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
 from smartmin.views import SmartTemplateView, SmartView
-from .models import AssetType, AssetEntityNotFound, AssetAccessDenied, AssetFileNotFound
+from .models import AssetEntityNotFound, AssetAccessDenied, AssetFileNotFound, get_asset_store
 
 
-def get_asset_url(asset_type, pk, direct=False):
-    view_name = 'assets.stream' if direct else 'assets.download'
-    return reverse(view_name, kwargs=dict(type=asset_type.name, pk=pk))
-
-
-def handle_asset_request(user, asset_type, pk):
+def handle_asset_request(user, asset_store, pk):
     """
     Request handler shared by the asset view and the asset API endpoint
     """
     try:
-        asset_org, location, filename = asset_type.store.resolve(user, pk)
-        asset_type = mimetypes.guess_type(filename)[0]
+        asset_org, location, filename = asset_store.resolve(user, pk)
+        mime_type = mimetypes.guess_type(filename)[0]
 
         if location.startswith('http'):  # pragma: needs cover
             # return an HTTP Redirect to the source
             response = HttpResponseRedirect(location)
         else:
             asset_file = open('.' + location, 'rb')
-            response = HttpResponse(asset_file, content_type=asset_type)
+            response = HttpResponse(asset_file, content_type=mime_type)
             response['Content-Disposition'] = 'attachment; filename=%s' % filename
 
         return response
@@ -52,11 +46,11 @@ class AssetDownloadView(SmartTemplateView):
     def get_context_data(self, **kwargs):
         context = super(AssetDownloadView, self).get_context_data(**kwargs)
 
-        asset_type = AssetType[kwargs.pop('type')]
+        asset_store = get_asset_store(kwargs.pop('type'))
         pk = kwargs.pop('pk')
 
         try:
-            asset_org, location, filename = asset_type.store.resolve(self.request.user, pk)
+            asset_org, location, filename = asset_store.resolve(self.request.user, pk)
         except (AssetEntityNotFound, AssetFileNotFound):
             file_error = _("File not found")
         except AssetAccessDenied:  # pragma: needs cover
@@ -65,7 +59,7 @@ class AssetDownloadView(SmartTemplateView):
             file_error = None
             self.request.user.set_org(asset_org)
 
-        download_url = get_asset_url(asset_type, pk, direct=True)
+        download_url = asset_store.get_asset_url(pk, direct=True)
 
         context['file_error'] = file_error
         context['download_url'] = download_url
@@ -81,7 +75,7 @@ class AssetStreamView(SmartView, View):
         return self.request.user.is_authenticated()
 
     def get(self, request, *args, **kwargs):
-        asset_type = AssetType[kwargs.pop('type')]
+        asset_store = get_asset_store(kwargs.pop('type'))
         pk = kwargs.pop('pk')
 
-        return handle_asset_request(request.user, asset_type, pk)
+        return handle_asset_request(request.user, asset_store, pk)

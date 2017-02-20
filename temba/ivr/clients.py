@@ -6,7 +6,6 @@ import re
 import requests
 import six
 import time
-import nexmo
 
 from django.conf import settings
 from django.core.files import File
@@ -14,6 +13,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
+from temba.channels.models import ChannelLog
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow
 from temba.ivr.models import IVRCall
@@ -49,11 +49,21 @@ class NexmoClient(NexmoCli):
 
         try:
             response = self.create_call(params=params)
-            conversation_uuid = response.get('conversation_uuid')
-            call.external_id = six.text_type(conversation_uuid)
+            call_uuid = response.get('uuid', None)
+            call.external_id = six.text_type(call_uuid)
             call.save()
-        except nexmo.Error as e:
-            raise IVRException(_("Nexmo call failed, with error %s") % e.message)
+
+            ChannelLog.log_ivr_interaction(call, "Started Nexmo call %s" % call.external_id, json.dumps(params),
+                                           json.dumps(response), 'https://api.nexmo.com/v1/calls', 'POST')
+
+        except Exception as e:
+            message = 'Failed Nexmo call'
+            if call.external_id:
+                message = '%s %s' % (message, call.external_id)
+            ChannelLog.log_ivr_interaction(call, message, json.dumps(params),
+                                           six.text_type(e), 'https://api.nexmo.com/v1/calls', 'POST')
+
+            raise IVRException(_("Nexmo call failed, with error %s") % six.text_type(e.message))
 
     def download_media(self, media_url):
         """
@@ -94,6 +104,9 @@ class NexmoClient(NexmoCli):
             return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
 
         return None
+
+    def hangup(self, call_id):
+        self.update_call(call_id, action='hangup')
 
 
 class TwilioClient(TwilioRestClient):
@@ -167,6 +180,9 @@ class TwilioClient(TwilioRestClient):
             return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
 
         return None  # pragma: needs cover
+
+    def hangup(self, sid):
+        self.calls.hangup(sid)
 
 
 class VerboiceClient:  # pragma: needs cover

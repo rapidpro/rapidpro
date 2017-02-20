@@ -1038,6 +1038,10 @@ class ChannelTest(TembaTest):
         self.assertEqual(default_sender, self.org.get_receive_channel(TEL_SCHEME))
         self.assertFalse(default_sender.is_delegate_sender())
 
+        response = self.client.post(reverse('channels.channel_create_bulk_sender') + "?connection=NX",
+                                    dict(connection='NX'))
+        self.assertFormError(response, 'form', 'channel', "Can't add sender for that number")
+
         # try to claim a bulk Nexmo sender (without adding Nexmo account to org)
         claim_nexmo_url = reverse('channels.channel_create_bulk_sender') + "?connection=NX&channel=%d" % android2.pk
         response = self.client.post(claim_nexmo_url, dict(connection='NX', channel=android2.pk))

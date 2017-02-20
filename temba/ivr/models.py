@@ -45,13 +45,18 @@ class IVRCall(ChannelSession):
             test_call = IVRCall.objects.filter(id=run.session.id).first()
             if test_call.channel.channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_TWIML]:
                 if not test_call.is_done():
-                    test_call.hangup()
+                    test_call.close()
 
-    def hangup(self):
+    def close(self):
         if not self.is_done():
+
+            # mark us as interrupted
+            self.status = ChannelSession.INTERRUPTED
+            self.save()
+
             client = self.channel.get_ivr_client()
             if client and self.external_id:
-                client.calls.hangup(self.external_id)
+                client.hangup(self.external_id)
 
     def do_start_call(self, qs=None):
         client = self.channel.get_ivr_client()
@@ -133,12 +138,18 @@ class IVRCall(ChannelSession):
                 self.status = self.CANCELED
 
         elif channel_type in Channel.NCCO_CHANNELS:
-            if status == 'ringing':
+            if status in ('ringing', 'started'):
                 self.status = self.RINGING
             elif status == 'answered':
                 self.status = self.IN_PROGRESS
             elif status == 'completed':
                 self.status = self.COMPLETED
+            elif status == 'failed':
+                self.status = self.FAILED
+            elif status in ('rejected', 'busy'):
+                self.status = self.BUSY
+            elif status in ('unanswered', 'timeout'):
+                self.status = self.NO_ANSWER
 
         # if we are done, mark our ended time
         if self.status in ChannelSession.DONE:

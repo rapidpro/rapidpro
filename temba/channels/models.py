@@ -2898,7 +2898,7 @@ class Channel(TembaModel):
 
         if sent_today or sent_yesterday:
             Msg.mark_sent(r, msg, WIRED, -1)
-            print("!! [%d] prevented duplicate send" % (msg.id))
+            print("!! [%d] prevented duplicate send" % msg.id)
             return
 
         # channel can be none in the case where the channel has been removed
@@ -3027,6 +3027,9 @@ class Channel(TembaModel):
 
     def get_success_log_count(self):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE])
+
+    def get_non_ivr_count(self):
+        return self.get_log_count() - self.get_ivr_count()
 
     class Meta:
         ordering = ('-last_seen', '-pk')
@@ -3297,7 +3300,7 @@ class ChannelLog(models.Model):
                                   description=description[:255])
 
     @classmethod
-    def log_ivr_interaction(cls, call, description, request, response, url, method, is_error=False):
+    def log_ivr_interaction(cls, call, description, request, response, url, method, is_error=False, status_code=None):
         ChannelLog.objects.create(channel_id=call.channel_id,
                                   session_id=call.id,
                                   request=request,
@@ -3305,7 +3308,20 @@ class ChannelLog(models.Model):
                                   url=url,
                                   method=method,
                                   is_error=is_error,
+                                  response_status=status_code,
                                   description=description[:255])
+
+    def get_request_formatted(self):
+        try:
+            return json.dumps(json.loads(self.request), indent=2)
+        except:
+            return self.request
+
+    def get_response_formatted(self):
+        try:
+            return json.dumps(json.loads(self.response), indent=2)
+        except:
+            return self.response
 
 
 class SyncEvent(SmartModel):
@@ -3619,8 +3635,26 @@ class ChannelSession(SmartModel):
     duration = models.IntegerField(default=0, null=True,
                                    help_text="The length of this session in seconds")
 
+    def get_logs(self):
+        return self.channel_logs.all().order_by('created_on')
+
+    def get_duration(self):
+        return timedelta(seconds=self.duration)
+
     def is_done(self):
         return self.status in self.DONE
 
     def is_ivr(self):
         return self.session_type == self.IVR
+
+    def close(self):  # pragma: no cover
+        pass
+
+    def get(self):
+        if self.session_type == ChannelSession.IVR:
+            from temba.ivr.models import IVRCall
+            return IVRCall.objects.filter(id=self.id).first()
+        if self.session_type == ChannelSession.USSD:
+            from temba.ussd.models import USSDSession
+            return USSDSession.objects.filter(id=self.id).first()
+        return self  # pragma: no cover

@@ -34,6 +34,7 @@ from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRE
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
+from temba.channels.models import ChannelSession
 from temba.utils import analytics, non_atomic_when_eager, on_transaction_commit
 from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import timezone_to_country_code
@@ -1274,6 +1275,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         class BulkSenderForm(forms.Form):
             connection = forms.CharField(max_length=2, widget=forms.HiddenInput, required=False)
+            channel = forms.IntegerField(widget=forms.HiddenInput, required=False)
 
             def __init__(self, *args, **kwargs):
                 self.org = kwargs['org']
@@ -1286,8 +1288,15 @@ class ChannelCRUDL(SmartCRUDL):
                     raise forms.ValidationError(_("A connection to a Nexmo account is required"))
                 return connection
 
+            def clean_channel(self):
+                channel = self.cleaned_data['channel']
+                channel = self.org.channels.filter(pk=channel).first()
+                if not channel:
+                    raise forms.ValidationError("Can't add sender for that number")
+                return channel
+
         form_class = BulkSenderForm
-        fields = ('connection', )
+        fields = ('connection', 'channel')
 
         def get_form_kwargs(self, *args, **kwargs):
             form_kwargs = super(ChannelCRUDL.CreateBulkSender, self).get_form_kwargs(*args, **kwargs)
@@ -1295,16 +1304,9 @@ class ChannelCRUDL(SmartCRUDL):
             return form_kwargs
 
         def form_valid(self, form):
-
-            # make sure they own the channel
-            channel = self.request.GET.get('channel', None)
-            if channel:
-                channel = self.request.user.get_org().channels.filter(pk=channel).first()
-            if not channel:  # pragma: needs cover
-                raise forms.ValidationError("Can't add sender for that number")
-
             user = self.request.user
 
+            channel = form.cleaned_data['channel']
             Channel.add_send_channel(user, channel)
             return super(ChannelCRUDL.CreateBulkSender, self).form_valid(form)
 
@@ -3015,7 +3017,7 @@ class ChannelEventCRUDL(SmartCRUDL):
 
 class ChannelLogCRUDL(SmartCRUDL):
     model = ChannelLog
-    actions = ('list', 'read')
+    actions = ('list', 'read', 'session')
 
     class List(OrgPermsMixin, SmartListView):
         fields = ('channel', 'description', 'created_on')
@@ -3024,16 +3026,25 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             channel = Channel.objects.get(pk=self.request.GET['channel'])
-            events = ChannelLog.objects.filter(channel=channel).order_by('-created_on').select_related('msg__contact', 'msg')
+
+            if self.request.GET.get('sessions'):
+                logs = ChannelLog.objects.filter(channel=channel).exclude(session=None).values_list('session_id', flat=True)
+                events = ChannelSession.objects.filter(id__in=logs).order_by('-created_on')
+            else:
+                events = ChannelLog.objects.filter(channel=channel, session=None).order_by('-created_on').select_related('msg__contact', 'msg')
+                events.count = lambda: channel.get_non_ivr_count()
 
             # monkey patch our queryset for the total count
-            events.count = lambda: channel.get_log_count()
+
             return events
 
         def get_context_data(self, **kwargs):
             context = super(ChannelLogCRUDL.List, self).get_context_data(**kwargs)
             context['channel'] = Channel.objects.get(pk=self.request.GET['channel'])
             return context
+
+    class Session(ChannelCRUDL.AnonMixin, SmartReadView):
+        model = ChannelSession
 
     class Read(ChannelCRUDL.AnonMixin, SmartReadView):
         fields = ('description', 'created_on')
