@@ -25,7 +25,7 @@ from temba.values.models import Value
 
 
 # every user will have this password including the superuser
-USER_PASSWORD = "password"
+USER_PASSWORD = "Qwerty123"
 
 # database dump containing admin boundary records
 LOCATIONS_DUMP = 'test-data/nigeria.bin'
@@ -106,7 +106,7 @@ class Command(BaseCommand):
         self.create_labels(orgs)
 
         time_taken = time.time() - start
-        self._log("Time taken: %d secs, peak memory usage: %d MiB\n" % (int(time_taken), int(peak_memory())))
+        self._log("Time taken: %d secs, peak memory usage: %d MiB\n" % (int(time_taken), int(self.peak_memory())))
 
     def check_db_state(self):
         """
@@ -123,7 +123,7 @@ class Command(BaseCommand):
         """
         Returns a random org with bias toward the orgs with the lowest indexes
         """
-        return random_choice(orgs, bias=self.org_bias)
+        return self.random_choice(orgs, bias=self.org_bias)
 
     def load_locations(self, path):
         """
@@ -244,6 +244,8 @@ class Command(BaseCommand):
 
         self._log("Creating %d regular contacts...\n" % (num_total - num_test_contacts))
 
+        base_contact_id = self.get_current_id(Contact) + 1
+
         # Disable table triggers to speed up insertion and in the case of contact group m2m, avoid having an unsquashed
         # count row for every contact
         with DisableTriggersOn(Contact, ContactURN, Value, group_membership_model):
@@ -259,19 +261,19 @@ class Command(BaseCommand):
                 for c in index_batch:  # pragma: no cover
 
                     # calculate the database id this contact will have when created
-                    c_id = num_test_contacts + c + 1
+                    c_id = base_contact_id + c
 
                     # ensure every org gets at least one contact
                     org = orgs[c] if c < len(orgs) else self.random_org(orgs)
 
                     user = org.cache['users'][0]
-                    name = random_choice(names)
-                    gender = random_choice(('M', 'F'))
+                    name = self.random_choice(names)
+                    gender = self.random_choice(('M', 'F'))
                     age = random.randint(16, 80)
-                    joined = random_date()
-                    is_stopped = probability(CONTACT_IS_STOPPED_PROB)
-                    is_blocked = probability(CONTACT_IS_BLOCKED_PROB)
-                    is_active = probability(1 - CONTACT_IS_DELETED_PROB)
+                    joined = self.random_date()
+                    is_stopped = self.probability(CONTACT_IS_STOPPED_PROB)
+                    is_blocked = self.probability(CONTACT_IS_BLOCKED_PROB)
+                    is_active = self.probability(1 - CONTACT_IS_DELETED_PROB)
 
                     if is_active:
                         if not is_blocked and not is_stopped:
@@ -281,31 +283,31 @@ class Command(BaseCommand):
                         if is_stopped:
                             group_counts[org.cache['sysgroups'][2]] += 1
 
-                    contacts.append(Contact(org=org, name=name, language=random_choice(CONTACT_LANGS),
+                    contacts.append(Contact(org=org, name=name, language=self.random_choice(CONTACT_LANGS),
                                             is_stopped=is_stopped, is_blocked=is_blocked, is_active=is_active,
                                             created_by=user, modified_by=user))
 
-                    if probability(CONTACT_HAS_TEL_PROB):
+                    if self.probability(CONTACT_HAS_TEL_PROB):
                         phone = '+2507%08d' % c
                         urns.append(ContactURN(org=org, contact_id=c_id, priority=50,
                                                scheme=TEL_SCHEME, path=phone, urn=URN.from_tel(phone)))
 
-                    if probability(CONTACT_HAS_TWITTER_PROB):
+                    if self.probability(CONTACT_HAS_TWITTER_PROB):
                         handle = '%s%d' % (name.replace(' ', '_').lower() if name else 'tweep', c)
                         urns.append(ContactURN(org=org, contact_id=c_id, priority=50,
                                                scheme=TWITTER_SCHEME, path=handle, urn=URN.from_twitter(handle)))
 
                     fields = org.cache['fields']
-                    if probability(CONTACT_HAS_FIELD_PROB):
+                    if self.probability(CONTACT_HAS_FIELD_PROB):
                         values.append(Value(org=org, contact_id=c_id, contact_field=fields['gender'], string_value=gender))
-                    if probability(CONTACT_HAS_FIELD_PROB):
+                    if self.probability(CONTACT_HAS_FIELD_PROB):
                         values.append(Value(org=org, contact_id=c_id, contact_field=fields['age'],
                                             string_value=str(age), decimal_value=age))
-                    if probability(CONTACT_HAS_FIELD_PROB):
+                    if self.probability(CONTACT_HAS_FIELD_PROB):
                         values.append(Value(org=org, contact_id=c_id, contact_field=fields['joined'],
                                             string_value=datetime_to_str(joined), datetime_value=joined))
-                    if probability(CONTACT_HAS_FIELD_PROB):
-                        location = random_choice(locations)
+                    if self.probability(CONTACT_HAS_FIELD_PROB):
+                        location = self.random_choice(locations)
                         values.append(Value(org=org, contact_id=c_id, contact_field=fields['ward'],
                                             string_value=location[0].name, location_value=location[0]))
                         values.append(Value(org=org, contact_id=c_id, contact_field=fields['district'],
@@ -347,35 +349,44 @@ class Command(BaseCommand):
 
         self._log(self.style.SUCCESS("OK") + '\n')
 
+    @staticmethod
+    def get_current_id(model):
+        """
+        Gets the current (i.e. last generated) id for the given model
+        """
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT last_value FROM %s_id_seq' % model._meta.db_table)
+            return cursor.fetchone()[0]
+
+    @staticmethod
+    def probability(prob):
+        return random.random() < prob
+
+    @staticmethod
+    def random_choice(seq, bias=1.0):
+        return seq[int(math.pow(random.random(), bias) * len(seq))]
+
+    @staticmethod
+    def random_date(start=None, end=None):
+        if not start:
+            start = now() - timedelta(days=365)
+        if not end:
+            end = now()
+
+        return ms_to_datetime(random.randrange(datetime_to_ms(start), datetime_to_ms(end)))
+
+    @staticmethod
+    def peak_memory():
+        rusage_denom = 1024.0
+        if sys.platform == 'darwin':
+            # OSX gives value in bytes, other OSes in kilobytes
+            rusage_denom *= rusage_denom
+        mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / rusage_denom
+        return mem
+
     def _log(self, text):
         self.stdout.write(text, ending='')
         self.stdout.flush()
-
-
-def probability(prob):
-    return random.random() < prob
-
-
-def random_choice(seq, bias=1.0):
-    return seq[int(math.pow(random.random(), bias) * len(seq))]
-
-
-def random_date(start=None, end=None):
-    if not start:
-        start = now() - timedelta(days=365)
-    if not end:
-        end = now()
-
-    return ms_to_datetime(random.randrange(datetime_to_ms(start), datetime_to_ms(end)))
-
-
-def peak_memory():
-    rusage_denom = 1024.0
-    if sys.platform == 'darwin':
-        # OSX gives value in bytes, other OSes in kilobytes
-        rusage_denom *= rusage_denom
-    mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / rusage_denom
-    return mem
 
 
 class DisableTriggersOn(object):

@@ -10,18 +10,18 @@ from celery.app.task import Task
 from datetime import datetime, time
 from decimal import Decimal
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.core import mail
 from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
 from django.core.paginator import Paginator
-from django.db import connection
-from django.test import override_settings, TestCase
+from django.test import override_settings, SimpleTestCase
 from django.utils import timezone
 from django_redis import get_redis_connection
 from mock import patch, PropertyMock
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactGroup
+from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba.utils import voicexml
@@ -1435,12 +1435,19 @@ class MiddlewareTest(TembaTest):
         self.assertEqual(response['X-Temba-Org'], six.text_type(self.org.id))
 
 
-class CommandsTest(TestCase):
-    def test_maketestdb(self):
-        # reset contact id sequence as command assumes database is newly created
-        with connection.cursor() as cursor:
-            cursor.execute('ALTER SEQUENCE contacts_contact_id_seq RESTART WITH 1;')
+class MakeTestDBTest(SimpleTestCase):
+    """
+    This command can't be run in a transaction so we have to manually ensure all data is deleted on completion
+    """
+    allow_database_queries = True
 
+    def tearDown(self):
+        Org.objects.all().delete()
+        User.objects.all().delete()
+        Group.objects.all().delete()
+        AdminBoundary.objects.all().delete()
+
+    def test_command(self):
         call_command('make_test_db', num_orgs=2, num_contacts=10, seed=123456)
 
         self.assertEqual(Org.objects.count(), 2)
