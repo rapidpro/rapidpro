@@ -1,3 +1,8 @@
+v3.0.57
+----------
+ * Fix inbound calls on Nexmo to use conversation_uuid
+ * Style tweaks for zapier widget
+
 v3.0.54
 ----------
  * Use shorter timeout for IVR
