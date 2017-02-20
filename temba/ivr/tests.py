@@ -616,13 +616,21 @@ class IVRTests(FlowFileTest):
 
         self.assertContains(response, '"eventUrl": ["https://%s%s"]}]' % (settings.TEMBA_HOST, callback_url))
 
-    @patch('nexmo.Client.update_call')
+    @patch('jwt.encode')
+    @patch('requests.put')
     @patch('nexmo.Client.create_application')
     @patch('nexmo.Client.create_call')
-    def test_hangup(self, mock_create_call, mock_create_application, mock_update_call):
+    def test_hangup(self, mock_create_call, mock_create_application, mock_put, mock_jwt):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
         mock_create_call.return_value = dict(uuid='12345')
-        mock_update_call.return_value = dict(uuid='12345')
+        mock_jwt.return_value = "Encoded data"
+
+        import mock
+        request = mock.MagicMock()
+        request.body = json.dumps(dict(call_id='12345'))
+        request.url = "http://api.nexmo.com/../"
+        request.method = "PUT"
+        mock_put.return_value = mock.MagicMock(call_id='12345', request=request, status_code=200, content='response')
 
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
@@ -644,9 +652,12 @@ class IVRTests(FlowFileTest):
         run = FlowRun.objects.get()
         run.expire()
 
-        mock_update_call.assert_called()
+        mock_put.assert_called()
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
         self.assertEqual(ChannelSession.INTERRUPTED, call.status)
+
+        # call initiation and timeout should both be logged
+        self.assertEqual(2, ChannelLog.objects.filter(session=call).count())
 
     @patch('nexmo.Client.create_application')
     @patch('nexmo.Client.create_call')

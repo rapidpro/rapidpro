@@ -56,7 +56,7 @@ class IVRCall(ChannelSession):
 
             client = self.channel.get_ivr_client()
             if client and self.external_id:
-                client.hangup(self.external_id)
+                client.hangup(self)
 
     def do_start_call(self, qs=None):
         client = self.channel.get_ivr_client()

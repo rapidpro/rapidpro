@@ -21,6 +21,7 @@ from temba.utils.nexmo import NexmoClient as NexmoCli
 from twilio import TwilioRestException
 from twilio.rest import TwilioRestClient
 from twilio.util import RequestValidator
+from nexmo import AuthenticationError, ClientError, ServerError
 
 
 class IVRException(Exception):
@@ -105,8 +106,37 @@ class NexmoClient(NexmoCli):
 
         return None
 
-    def hangup(self, call_id):
-        self.update_call(call_id, action='hangup')
+    def hangup(self, call):
+        return self.update_call(call.external_id, action='hangup', call_id=call.external_id)
+
+    def parse(self, host, response):
+        try:
+            request = response.request
+            request_body = json.loads(response.request.body)
+            call_id = request_body.get('call_id', None)
+            if call_id:
+                call = IVRCall.objects.filter(external_id=call_id).first()
+                if call:
+                    ChannelLog.log_ivr_interaction(call, "Nexmo call update", request.body, response.content, request.url,
+                                                   request.method, status_code=response.status_code)
+        except:
+            pass
+
+        # Nexmo client doesn't extend object, so can't call super
+        if response.status_code == 401:
+            raise AuthenticationError
+        elif response.status_code == 204:
+            return None
+        elif 200 <= response.status_code < 300:
+            return response.json()
+        elif 400 <= response.status_code < 500:
+            message = "{code} response from {host}".format(code=response.status_code, host=host)
+
+            raise ClientError(message)
+        elif 500 <= response.status_code < 600:
+            message = "{code} response from {host}".format(code=response.status_code, host=host)
+
+            raise ServerError(message)
 
 
 class TwilioClient(TwilioRestClient):
@@ -181,8 +211,8 @@ class TwilioClient(TwilioRestClient):
 
         return None  # pragma: needs cover
 
-    def hangup(self, sid):
-        self.calls.hangup(sid)
+    def hangup(self, call):
+        return self.calls.hangup(call.external_id)
 
 
 class VerboiceClient:  # pragma: needs cover
