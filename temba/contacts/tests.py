@@ -2522,8 +2522,16 @@ class ContactTest(TembaTest):
         ContactGroup.user_groups.all().delete()
 
         self.assertContactImport('%s/test_imports/sample_contacts_bad_unicode.xls' % settings.MEDIA_ROOT,
-                                 dict(records=1, errors=1, creates=1, updates=0,
-                                      error_messages=[dict(line=3, error="Invalid text in column 'phone'")]))
+                                 dict(records=2, errors=0, creates=2, updates=0, error_messages=[]))
+
+        self.assertEquals(1, Contact.objects.filter(name='John Doe').count())
+        self.assertEquals(1, Contact.objects.filter(name='Mary Smith').count())
+
+        contact = Contact.objects.filter(name='John Doe').first()
+        contact2 = Contact.objects.filter(name='Mary Smith').first()
+
+        self.assertEqual(list(contact.get_urns().values_list('path', flat=True)), ['+250788123123'])
+        self.assertEqual(list(contact2.get_urns().values_list('path', flat=True)), ['+250788345345'])
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()

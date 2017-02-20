@@ -76,10 +76,8 @@
                               Some rows were not imported
                           %br
                           %strong
-                            -blocktrans count results.error_messages as error_count
-                              Error description
-                              -plural
-                                Errors description
+                            -blocktrans
+                              Errors description
                           %br
                             - for error_message in results.error_messages
                               Row {{ error_message.line }}: {{ error_message.error }}
@@ -96,10 +94,9 @@
                     .import-result
                       .well.well-small
                         %strong
-                          -blocktrans count results.error_messages as error_count
-                            Error description
-                            -plural
-                              Errors description
+                          -blocktrans
+                            Errors description
+
                         %br
                           - for error_message in results.error_messages
                             Row {{ error_message.line }}: {{ error_message.error }}
