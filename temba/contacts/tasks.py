@@ -12,7 +12,7 @@ def export_contacts_task(id):
     """
     export_task = ExportContactsTask.objects.filter(pk=id).first()
     if export_task:
-        export_task.start_export()
+        export_task.perform()
 
 
 @nonoverlapping_task(track_started=True, name='squash_contactgroupcounts')

@@ -12,7 +12,6 @@ import time
 
 from collections import defaultdict
 from django.core.exceptions import ValidationError
-from django.core.files import File
 from django.core.validators import validate_email
 from django.db import models
 from django.db.models import Count, Max, Q, Sum
@@ -22,16 +21,15 @@ from guardian.utils import get_anonymous_user
 from itertools import chain
 from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
+from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.orgs.models import Org, OrgLock
-from temba.utils.email import send_template_email
 from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
 from temba.utils.models import SquashableModel, TembaModel
-from temba.utils.exporter import TableExporter
+from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value
 from temba.locations.models import STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
-from uuid import uuid4
 
 
 logger = logging.getLogger(__name__)
@@ -2291,30 +2289,12 @@ class ContactGroupCount(SquashableModel):
         return "ContactGroupCount[%d:%d]" % (self.group_id, self.count)
 
 
-class ExportContactsTask(SmartModel):
+class ExportContactsTask(BaseExportTask):
+    analytics_key = 'contact_export'
+    email_subject = "Your contacts export is ready"
+    email_template = 'contacts/email/contacts_export_download'
 
-    org = models.ForeignKey(Org, related_name='contacts_exports', help_text=_("The Organization of the user."))
     group = models.ForeignKey(ContactGroup, null=True, related_name='exports', help_text=_("The unique group to export"))
-    task_id = models.CharField(null=True, max_length=64)
-    is_finished = models.BooleanField(default=False,
-                                      help_text=_("Whether this export has completed"))
-    uuid = models.CharField(max_length=36, null=True,
-                            help_text=_("The uuid used to name the resulting export file"))
-
-    def start_export(self):
-        """
-        Starts our export, this just wraps our do-export in a try/finally so we can track
-        when the export is complete.
-        """
-        try:
-            start = time.time()
-            self.do_export()
-        finally:
-            elapsed = time.time() - start
-            analytics.track(self.created_by.username, 'temba.contact_export_latency', properties=dict(value=elapsed))
-
-            self.is_finished = True
-            self.save(update_fields=['is_finished'])
 
     def get_export_fields_and_schemes(self):
 
@@ -2349,7 +2329,7 @@ class ExportContactsTask(SmartModel):
 
         return fields, scheme_counts
 
-    def do_export(self):
+    def write_export(self):
         fields, scheme_counts = self.get_export_fields_and_schemes()
 
         with SegmentProfiler("build up contact ids"):
@@ -2360,7 +2340,7 @@ class ExportContactsTask(SmartModel):
             contact_ids = [c['id'] for c in all_contacts.order_by('name', 'id').values('id')]
 
         # create our exporter
-        exporter = TableExporter("Contact", [c['label'] for c in fields])
+        exporter = TableExporter(self, "Contact", [c['label'] for c in fields])
 
         current_contact = 0
         start = time.time()
@@ -2428,27 +2408,13 @@ class ExportContactsTask(SmartModel):
                                "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
                                time.time() - start, predicted))
 
-        # save as file asset associated with this task
-        from temba.assets.models import AssetType
-        from temba.assets.views import get_asset_url
+        return exporter.save_file()
 
-        # get our table file
-        table_file = exporter.save_file()
 
-        self.uuid = str(uuid4())
-        self.save(update_fields=['uuid'])
-
-        store = AssetType.contact_export.store
-        store.save(self.pk, File(table_file), 'csv' if exporter.is_csv else 'xlsx')
-
-        branding = self.org.get_branding()
-        download_url = branding['link'] + get_asset_url(AssetType.contact_export, self.pk)
-
-        subject = "Your contacts export is ready"
-        template = 'contacts/email/contacts_export_download'
-
-        # force a gc
-        import gc
-        gc.collect()
-
-        send_template_email(self.created_by.username, subject, template, dict(link=download_url), branding)
+@register_asset_store
+class ContactExportAssetStore(BaseExportAssetStore):
+    model = ExportContactsTask
+    key = 'contact_export'
+    directory = 'contact_exports'
+    permission = 'contacts.contact_export'
+    extensions = ('xlsx', 'csv')

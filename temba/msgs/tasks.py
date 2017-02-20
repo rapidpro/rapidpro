@@ -202,7 +202,7 @@ def export_sms_task(id):  # pragma: needs cover
     """
     export_task = ExportMessagesTask.objects.filter(pk=id).first()
     if export_task:
-        export_task.start_export()
+        export_task.perform()
 
 
 @task(track_started=True, name="handle_event_task", time_limit=180, soft_time_limit=120)
