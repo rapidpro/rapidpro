@@ -11,7 +11,7 @@ from temba.contacts.models import ContactGroup
 from temba.orgs.models import Org
 
 # time threshold for a warning and a failure
-TIME_LIMITS = (2, 3)
+TIME_LIMITS = (0.5, 1)
 
 # number of times to request each URL to determine min/max times
 REQUESTS_PER_URL = 3
