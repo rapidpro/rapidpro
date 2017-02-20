@@ -49,8 +49,8 @@ class NexmoClient(NexmoCli):
 
         try:
             response = self.create_call(params=params)
-            conversation_uuid = response.get('conversation_uuid', None)
-            call.external_id = six.text_type(conversation_uuid)
+            call_uuid = response.get('uuid', None)
+            call.external_id = six.text_type(call_uuid)
             call.save()
 
             ChannelLog.log_ivr_interaction(call, "Started Nexmo call %s" % call.external_id, json.dumps(params),
