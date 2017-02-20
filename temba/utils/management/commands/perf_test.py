@@ -10,8 +10,8 @@ from django.utils.http import urlquote_plus
 from temba.contacts.models import ContactGroup
 from temba.orgs.models import Org
 
-# any request that takes longer than this number of seconds is considered a problem
-TIME_LIMIT = (2, 3)
+# time threshold for a warning and a failure
+TIME_LIMITS = (2, 3)
 
 # number of times to request each URL to determine min/max times
 REQUESTS_PER_URL = 3
@@ -30,22 +30,25 @@ TEST_URLS = (
     '/api/v2/contacts.json?group={first-group}',
     '/api/v2/groups.json',
     '/api/v2/fields.json',
-    '/api/v2/labels.json'
-    '/api/v2/messages.json',
-    '/api/v2/messages.json',
-    '/api/v2/messages.json',
-    '/api/v2/messages.json',
-    '/api/v2/messages.json',
-    '/api/v2/messages.json',
+    '/api/v2/labels.json',
+    '/api/v2/messages.json?folder=incoming',
+    '/api/v2/messages.json?folder=inbox',
+    '/api/v2/messages.json?folder=flows',
+    '/api/v2/messages.json?folder=archived',
+    '/api/v2/messages.json?folder=outbox',
+    '/api/v2/messages.json?folder=sent',
     '/api/v2/org.json',
     '/contact/',
     '/contact/?search=' + urlquote_plus('gender=F'),
-    '/contact/?search=' + urlquote_plus('ward=Jebuaw or ward=Gumai or ward=Dundun'),
-    '/contact/?search=' + urlquote_plus('gender=M and ward=Jebuaw or ward=Gumai'),
+    '/contact/?search=' + urlquote_plus('ward=Jebuaw or ward=Gumai or ward=Dundun or ward=Dinawa'),
+    '/contact/?search=' + urlquote_plus('gender=M and district=Faskari and age<30'),
     '/contact/blocked/',
     '/contact/stopped/',
     '/contact/filter/{first-group}/',
+    '/contact/filter/{first-group}/?search=' + urlquote_plus('gender=F'),
     '/contact/filter/{last-group}/',
+    '/contact/omnibox/?search=George',
+    '/contact/omnibox/?search=07009',
 )
 
 
@@ -57,6 +60,8 @@ class Command(BaseCommand):  # pragma: no cover
 
     def handle(self, url_include_pattern, *args, **options):
         settings.ALLOWED_HOSTS = ('testserver',)
+        settings.DEBUG = False
+        settings.TEMPLATES[0]['OPTIONS']['debug'] = False
 
         self.client = Client()
 
@@ -102,9 +107,9 @@ class Command(BaseCommand):  # pragma: no cover
 
     def color_times(self, min_time, max_time):
         time_str = "%.2f...%.2f" % (min_time, max_time)
-        if max_time < TIME_LIMIT[0]:
+        if max_time < TIME_LIMITS[0]:
             return self.style.SUCCESS(time_str)
-        elif max_time < TIME_LIMIT[1]:
+        elif max_time < TIME_LIMITS[1]:
             return self.style.WARNING(time_str)
         else:
             return self.style.ERROR(time_str)
