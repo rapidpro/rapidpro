@@ -3253,7 +3253,7 @@ class ActionTest(TembaTest):
 
         # check webhook was called with correct payload
         mock_requests_post.assert_called_once_with('http://example.com/callback.php',
-                                                   headers={'User-agent': "RapidPro"},
+                                                   headers={'User-agent': 'RapidPro'},
                                                    data={'run': run.pk,
                                                          'phone': u'+250788382382',
                                                          'contact': self.contact.uuid,

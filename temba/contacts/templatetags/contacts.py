@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from django import template
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
-from temba.contacts.models import ContactURN, EMAIL_SCHEME, EXTERNAL_SCHEME, FACEBOOK_SCHEME
+from temba.contacts.models import ContactURN, EMAIL_SCHEME, EXTERNAL_SCHEME, FACEBOOK_SCHEME, FCM_SCHEME
 from temba.contacts.models import TELEGRAM_SCHEME, TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, LINE_SCHEME
 
 register = template.Library()
@@ -16,7 +16,8 @@ URN_SCHEME_ICONS = {
     FACEBOOK_SCHEME: 'icon-facebook',
     TELEGRAM_SCHEME: 'icon-telegram',
     LINE_SCHEME: 'icon-line',
-    EXTERNAL_SCHEME: 'icon-channel-external'
+    EXTERNAL_SCHEME: 'icon-channel-external',
+    FCM_SCHEME: 'icon-fcm'
 }
 
 ACTIVITY_ICONS = {

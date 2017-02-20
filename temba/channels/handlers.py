@@ -2568,3 +2568,60 @@ class ViberPublicHandler(BaseChannelHandler):
 
         else:  # pragma: no cover
             return HttpResponse("Not handled, unknown event: %s" % event, status=400)
+
+
+class FCMHandler(BaseChannelHandler):
+
+    url = r'^fcm/(?P<action>register|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.fcm_handler'
+
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("Must be called as a POST", status=405)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+
+        channel_uuid = kwargs['uuid']
+
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_FCM).exclude(
+            org=None).first()
+
+        if not channel:
+            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
+
+        action = kwargs['action']
+
+        try:
+            if action == 'receive':
+                if not self.get_param('from') or not self.get_param('msg') or not self.get_param('fcm_token'):
+                    return HttpResponse("Missing parameters, requires 'from', 'msg' and 'fcm_token'", status=400)
+
+                date = self.get_param('date', self.get_param('time', None))
+                if date:
+                    date = json_date_to_datetime(date)
+
+                fcm_urn = URN.from_fcm(self.get_param('from'))
+                fcm_token = self.get_param('fcm_token')
+                name = self.get_param('name', None)
+                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[fcm_urn],
+                                                channel=channel, auth=fcm_token)
+
+                sms = Msg.create_incoming(channel, fcm_urn, self.get_param('msg'), date=date, contact=contact)
+                return HttpResponse("Msg Accepted: %d" % sms.id)
+
+            elif action == 'register':
+                if not self.get_param('urn') or not self.get_param('fcm_token'):
+                    return HttpResponse("Missing parameters, requires 'urn' and 'fcm_token'", status=400)
+
+                fcm_urn = URN.from_fcm(self.get_param('urn'))
+                fcm_token = self.get_param('fcm_token')
+                name = self.get_param('name', None)
+                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[fcm_urn],
+                                                channel=channel, auth=fcm_token)
+                return HttpResponse(json.dumps({'contact_uuid': contact.uuid}), content_type='application/json')
+
+            else:  # pragma: no cover
+                return HttpResponse("Not handled, unknown action", status=400)
+
+        except Exception as e:  # pragma: no cover
+            return HttpResponse(e.args, status=400)
