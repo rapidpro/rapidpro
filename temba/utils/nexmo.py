@@ -271,7 +271,7 @@ class NCCOResponse(object):
         self.document.append(result)
         result = dict(action='input', maxDigits=1, timeOut=1,
                       eventUrl=["%s%ssave_media=1" % (kwargs.get('action'),
-                                                      "?" if '?' not in six.text_type(kwargs.get('action')) else "&&")])
+                                                      "?" if '?' not in six.text_type(kwargs.get('action')) else "&")])
 
         self.document.append(result)
 

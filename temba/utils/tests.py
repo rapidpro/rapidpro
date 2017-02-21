@@ -1445,7 +1445,7 @@ class NCCOTest(TembaTest):
                                                                     endOnSilence=4, timeOut=60, endOnKey='#',
                                                                     action='record', beepStart=True),
                                                                dict(action='input', maxDigits=1, timeOut=1,
-                                                                    eventUrl=["http://example.com?param=12&&save_media=1"])
+                                                                    eventUrl=["http://example.com?param=12&save_media=1"])
                                                                ])
 
 
