@@ -40,7 +40,7 @@ class CallHandler(View):
             if not request.user.is_anonymous():
                 user_org = request.user.get_org()
                 if user_org and user_org.pk == call.org.pk:
-                    client.hangup(call.external_id)
+                    client.hangup(call)
                     return HttpResponse(json.dumps(dict(status='Canceled')), content_type="application/json")
                 else:  # pragma: no cover
                     return HttpResponse("Not found", status=404)
