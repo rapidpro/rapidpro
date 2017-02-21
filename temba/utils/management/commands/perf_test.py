@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import fnmatch
 import json
+import sys
 import time
 
 from collections import OrderedDict
@@ -13,20 +14,20 @@ from django.utils.http import urlquote_plus
 from temba.contacts.models import ContactGroup
 from temba.orgs.models import Org
 
-# time threshold for a warning and a failure
-TIME_LIMITS = (0.5, 1)
-
 # default number of times to request each URL to determine min/max times
 DEFAULT_NUM_REQUESTS = 3
 
 # default file to save timing results to
 DEFAULT_RESULTS_FILE = '.perf_results'
 
-# allow this much percentage change from previous results
-ALLOWED_CHANGE_PERCENTAGE = 5
+# allow this maximum request time
+ALLOWED_MAXIMUM = 3
 
 # allow this much absolute change from previous results (50ms)
 ALLOWED_CHANGE_MAXIMUM = 0.05
+
+# allow this much percentage change from previous results
+ALLOWED_CHANGE_PERCENTAGE = 5
 
 # a org specific context used in URL generation
 URL_CONTEXT_TEMPLATE = {
@@ -64,6 +65,34 @@ TEST_URLS = (
 )
 
 
+class URLResult(object):
+    def __init__(self, org, url, times, prev_times):
+        self.org = org
+        self.url = url
+        self.times = times
+
+        self.min = min(*self.times)
+        self.max = max(*self.times)
+        self.exceeds_maximum = self.max > ALLOWED_MAXIMUM
+
+        this_avg = sum(self.times) / len(self.times)
+        prev_avg = sum(prev_times) / len(prev_times) if prev_times else None
+        if prev_avg is not None:
+            self.change = this_avg - prev_avg
+            self.percentage_change = int(100 * self.change / prev_avg)
+            self.exceeds_change = self.change > ALLOWED_CHANGE_MAXIMUM and self.percentage_change > ALLOWED_CHANGE_PERCENTAGE
+        else:
+            self.change = None
+            self.percentage_change = None
+            self.exceeds_change = False
+
+    def is_pass(self):
+        return not (self.exceeds_maximum or self.exceeds_change)
+
+    def as_json(self):
+        return {'org': self.org.id, 'url': self.url, 'times': self.times, 'pass': self.is_pass()}
+
+
 class Command(BaseCommand):  # pragma: no cover
     help = "Runs performance tests on a database generated with make_test_db"
 
@@ -81,39 +110,34 @@ class Command(BaseCommand):  # pragma: no cover
         self.client = Client()
         started = datetime.utcnow()
 
-        prev_results = self.load_previous_results(results_file)
+        prev_times = self.load_previous_times(results_file)
 
-        if not prev_results:
+        if not prev_times:
             self.stdout.write(self.style.WARNING("No previous results found for change calculation"))
 
         test_orgs = [Org.objects.first(), Org.objects.last()]
 
         tests = []
+
         for org in test_orgs:
-            # look for previous results for this org
-            prev_org_results = {}
-            for test in prev_results.get('tests', []):
-                if test['org'] == org.id:
-                    prev_org_results = test['results']
-                    break
-
-            results = self.test_with_org(org, url_include_pattern, num_requests, prev_org_results)
-
-            tests.append({'org': org.id, 'results': results})
+            tests += self.test_with_org(org, url_include_pattern, num_requests, prev_times)
 
         self.save_results(results_file, started, tests)
 
-    def test_with_org(self, org, url_include_pattern, num_requests, prev_org_results):
+        if any([not t.is_pass for t in tests]):
+            sys.exit(1)
+
+    def test_with_org(self, org, url_include_pattern, num_requests, prev_times):
         self.stdout.write(self.style.MIGRATE_HEADING("Testing with org #%d" % org.id))
 
         url_context = {}
         for key, value in URL_CONTEXT_TEMPLATE.items():
             url_context[key] = value(org) if callable(value) else value
 
-        # login in as org administrator
-        self.client.force_login(org.administrators.get())
+        # login in as an org administrator
+        self.client.force_login(org.administrators.first())
 
-        results = OrderedDict()
+        tests = []
 
         for url in TEST_URLS:
             url = url.format(**url_context)
@@ -124,27 +148,14 @@ class Command(BaseCommand):  # pragma: no cover
             self.stdout.write(" > %s " % url, ending='')
 
             times = self.request_times(url, num_requests)
-            results[url] = times
+            prev_url_times = prev_times.get((org.id, url))
 
-            self.stdout.write(self.format_min_max(times), ending='')
+            result = URLResult(org, url, times, prev_url_times)
+            tests.append(result)
 
-            # do we have a previous result for this URL?
-            prev_times = prev_org_results.get(url)
-            prev_avg = sum(prev_times) / len(prev_times) if prev_times else None
+            self.stdout.write(self.format_result(result))
 
-            if prev_avg is not None:
-                change = (prev_avg - sum(times) / len(times))
-                percentage_change = int(100 * change / prev_avg)
-
-                if abs(change) > ALLOWED_CHANGE_MAXIMUM:
-                    if percentage_change > ALLOWED_CHANGE_PERCENTAGE:
-                        self.stdout.write(' (' + self.style.ERROR('\u25b2 %d%%' % percentage_change) + ')', ending='')
-                    elif percentage_change < -ALLOWED_CHANGE_PERCENTAGE:
-                        self.stdout.write(' (' + self.style.SUCCESS('\u25bc %d%%' % percentage_change) + ')', ending='')
-
-            self.stdout.write('')
-
-        return results
+        return tests
 
     def request_times(self, url, num_requests):
         """
@@ -158,23 +169,35 @@ class Command(BaseCommand):  # pragma: no cover
             times.append(time.time() - start_time)
         return times
 
-    def load_previous_results(self, results_file):
+    def format_result(self, result):
+        range_str = "%.3f...%.3f" % (result.min, result.max)
+        if result.exceeds_maximum:
+            range_str = self.style.ERROR(range_str)
+        else:
+            range_str = self.style.SUCCESS(range_str)
+
+        if result.change:
+            arrow = '\u25b2' if result.change > 0 else '\u25bc'
+            style = self.style.ERROR if result.exceeds_change else self.style.SUCCESS
+            change_str = style('%s %.3f, %d%%' % (arrow, result.change, result.percentage_change))
+        else:
+            change_str = 'change unknown'
+
+        return "%s (%s)" % (range_str, change_str)
+
+    def load_previous_times(self, results_file):
         try:
             with open(results_file, 'r') as f:
-                return json.load(f, object_pairs_hook=OrderedDict)
-        except (IOError, ValueError):
+                times_by_org_and_url = OrderedDict()
+                for test in json.load(f)['tests']:
+                    times_by_org_and_url[(test['org'], test['url'])] = test['times']
+                return times_by_org_and_url
+        except (IOError, ValueError, KeyError):
             return {}
 
     def save_results(self, results_file, started, tests):
         with open(results_file, 'w') as f:
-            json.dump({'started': started.isoformat(), 'tests': tests}, f, indent=4)
-
-    def format_min_max(self, times):
-        min_time, max_time = min(*times), max(*times)
-        time_str = "%.3f...%.3f" % (min_time, max_time)
-        if max_time < TIME_LIMITS[0]:
-            return self.style.SUCCESS(time_str)
-        elif max_time < TIME_LIMITS[1]:
-            return self.style.WARNING(time_str)
-        else:
-            return self.style.ERROR(time_str)
+            json.dump({
+                'started': started.isoformat(),
+                'tests': [t.as_json() for t in tests]
+            }, f, indent=4)
