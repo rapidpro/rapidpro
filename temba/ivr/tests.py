@@ -275,26 +275,28 @@ class IVRTests(FlowFileTest):
             # async callback to tell us the recording url
             response = self.client.post(callback_url, content_type='application/json',
                                         data=json.dumps(dict(recording_url='http://example.com/allo.wav')))
-            self.assertContains(response, 'Saved media for call 12345')
+            self.assertContains(response, 'Saved media URL for call 12345')
             self.assertEqual(ChannelLog.objects.all().count(), 4)
             channel_log = ChannelLog.objects.last()
             self.assertEqual(channel_log.session.id, call.id)
-            self.assertEqual(channel_log.description, "Saved media for call 12345")
+            self.assertEqual(channel_log.description, "Saved media URL for call 12345")
 
             # hack input call back to tell us to save the recording and an empty input submission
             self.client.post("%s?save_media=1" % callback_url, content_type='application/json',
                              data=json.dumps(dict(status='answered', duration=2, dtmf='')))
 
-            self.assertEqual(ChannelLog.objects.all().count(), 5)
+            self.assertEqual(ChannelLog.objects.all().count(), 6)
             channel_log = ChannelLog.objects.last()
             self.assertEqual(channel_log.session.id, call.id)
             self.assertEqual(channel_log.description, "Response for call 12345")
+            self.assertTrue(ChannelLog.objects.filter(description="Successfully downloaded media for call %s" % call.external_id,
+                                                      session_id=call.id))
 
         # nexmo will also send us a final completion message with the call duration
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), content_type='application/json',
                          data=json.dumps({"status": "completed", "duration": "15"}))
 
-        self.assertEqual(ChannelLog.objects.all().count(), 6)
+        self.assertEqual(ChannelLog.objects.all().count(), 7)
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.session.id, call.id)
         self.assertEqual(channel_log.description, "Updated call 12345 status to Complete")
@@ -1407,27 +1409,40 @@ class IVRTests(FlowFileTest):
         self.channel.channel_type = Channel.TYPE_NEXMO
         self.channel.save()
 
+        # import an ivr flow
+        self.import_file('gather_digits')
+
+        # make sure our flow is there as expected
+        flow = Flow.objects.filter(name='Gather Digits').first()
+
+        # start our flow
+        eric = self.create_contact('Eric Newcomer', number='+13603621737')
+        flow.start([], [eric])
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
+        call.external_id = 'ext-id'
+        call.save()
+
         nexmo_client = self.org.get_nexmo_client()
 
         with patch('temba.orgs.models.Org.save_media') as mock_save_media:
             mock_save_media.return_value = 'SAVED'
 
             # without content-type
-            output = nexmo_client.download_media("http://nexmo.com/some_audio_link")
+            output = nexmo_client.download_media(call, "http://nexmo.com/some_audio_link")
             self.assertIsNone(output)
 
             # with content-type and retry fetch
-            output = nexmo_client.download_media("http://nexmo.com/some_audio_link")
+            output = nexmo_client.download_media(call, "http://nexmo.com/some_audio_link")
             self.assertIsNotNone(output)
             self.assertEqual(output, 'audio/x-wav:SAVED')
 
             # for content-disposition inline
-            output = nexmo_client.download_media("http://nexmo.com/some_audio_link")
+            output = nexmo_client.download_media(call, "http://nexmo.com/some_audio_link")
             self.assertIsNotNone(output)
             self.assertEqual(output, 'audio/x-wav:SAVED')
 
             # for content disposition attachment
-            output = nexmo_client.download_media("http://nexmo.com/some_audio_link")
+            output = nexmo_client.download_media(call, "http://nexmo.com/some_audio_link")
             self.assertIsNotNone(output)
             self.assertEqual(output, 'audio/x-wav:SAVED')
 
@@ -1449,6 +1464,19 @@ class IVRTests(FlowFileTest):
         self.channel.channel_type = Channel.TYPE_NEXMO
         self.channel.save()
 
+        # import an ivr flow
+        self.import_file('gather_digits')
+
+        # make sure our flow is there as expected
+        flow = Flow.objects.filter(name='Gather Digits').first()
+
+        # start our flow
+        eric = self.create_contact('Eric Newcomer', number='+13603621737')
+        flow.start([], [eric])
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
+        call.external_id = 'ext-id'
+        call.save()
+
         nexmo_client = self.org.get_nexmo_client()
 
         user_agent = 'nexmo-python/{0}/{1}'.format(nexmo.__version__, python_version())
@@ -1457,7 +1485,7 @@ class IVRTests(FlowFileTest):
 
         with patch('requests.get') as mock_get:
             mock_get.return_value = MockResponse(200, "DONE")
-            nexmo_client.download_media('http://example.com/file.txt')
+            nexmo_client.download_media(call, 'http://example.com/file.txt')
 
             mock_get.assert_called_once_with('http://example.com/file.txt', params=None,
                                              headers={"User-Agent": user_agent, "Authorization": b'Bearer TOKEN'})
