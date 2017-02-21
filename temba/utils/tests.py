@@ -1385,7 +1385,7 @@ class NCCOTest(TembaTest):
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(action='input', maxDigits=1, timeOut=1,
                                                                     eventUrl=[
-                                                                        'http://example.com/?param=12&&input_redirect=1'
+                                                                        'http://example.com/?param=12&input_redirect=1'
                                                                     ])])
 
     def test_hangup(self):

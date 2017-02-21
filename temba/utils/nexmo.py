@@ -225,7 +225,7 @@ class NCCOResponse(object):
 
     def redirect(self, url=None, **kwargs):
         result = dict(action='input', maxDigits=1, timeOut=1,
-                      eventUrl=["%s%sinput_redirect=1" % (url, "?" if '?' not in url else "&&")])
+                      eventUrl=["%s%sinput_redirect=1" % (url, "?" if '?' not in url else "&")])
 
         self.document.append(result)
         return self
