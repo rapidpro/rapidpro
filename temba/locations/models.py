@@ -24,7 +24,7 @@ class AdminBoundary(MPTTModel, models.Model):
     osm_id = models.CharField(max_length=15, unique=True,
                               help_text="This is the OSM id for this administrative boundary")
 
-    name = models.CharField(max_length=128, db_index=True,
+    name = models.CharField(max_length=128,
                             help_text="The name of our administrative boundary")
 
     level = models.IntegerField(help_text="The level of the boundary, 0 for country, 1 for state, 2 for district, 3 for ward")
@@ -92,7 +92,7 @@ class BoundaryAlias(SmartModel):
     """
     Alternative names for a boundaries
     """
-    name = models.CharField(max_length=128, help_text="The name for our alias", db_index=True)
+    name = models.CharField(max_length=128, help_text="The name for our alias")
 
     boundary = models.ForeignKey(AdminBoundary, help_text='The admin boundary this alias applies to', related_name='aliases')
 
