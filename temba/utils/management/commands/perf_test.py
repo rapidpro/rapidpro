@@ -16,11 +16,11 @@ from temba.orgs.models import Org
 # time threshold for a warning and a failure
 TIME_LIMITS = (0.5, 1)
 
-# file to save timing results to
-RESULTS_FILE = '.perf_results'
-
 # default number of times to request each URL to determine min/max times
 DEFAULT_NUM_REQUESTS = 3
+
+# default file to save timing results to
+DEFAULT_RESULTS_FILE = '.perf_results'
 
 # allow this much percentage change from previous results
 ALLOWED_CHANGE_PERCENTAGE = 5
@@ -70,8 +70,9 @@ class Command(BaseCommand):  # pragma: no cover
     def add_arguments(self, parser):
         parser.add_argument('--include', type=str, action='store', dest='url_include_pattern', default=None)
         parser.add_argument('--num-requests', type=int, action='store', dest='num_requests', default=DEFAULT_NUM_REQUESTS)
+        parser.add_argument('--results-file', type=str, action='store', dest='results_file', default=DEFAULT_RESULTS_FILE)
 
-    def handle(self, url_include_pattern, num_requests, *args, **options):
+    def handle(self, url_include_pattern, num_requests, results_file, *args, **options):
         # override some settings so that we behave more like a production instance
         settings.ALLOWED_HOSTS = ('testserver',)
         settings.DEBUG = False
@@ -80,7 +81,7 @@ class Command(BaseCommand):  # pragma: no cover
         self.client = Client()
         started = datetime.utcnow()
 
-        prev_results = self.load_previous_results()
+        prev_results = self.load_previous_results(results_file)
 
         if not prev_results:
             self.stdout.write(self.style.WARNING("No previous results found for change calculation"))
@@ -100,7 +101,7 @@ class Command(BaseCommand):  # pragma: no cover
 
             tests.append({'org': org.id, 'results': results})
 
-        self.save_results(started, tests)
+        self.save_results(results_file, started, tests)
 
     def test_with_org(self, org, url_include_pattern, num_requests, prev_org_results):
         self.stdout.write(self.style.MIGRATE_HEADING("Testing with org #%d" % org.id))
@@ -157,15 +158,15 @@ class Command(BaseCommand):  # pragma: no cover
             times.append(time.time() - start_time)
         return times
 
-    def load_previous_results(self):
+    def load_previous_results(self, results_file):
         try:
-            with open(RESULTS_FILE, 'r') as f:
+            with open(results_file, 'r') as f:
                 return json.load(f, object_pairs_hook=OrderedDict)
         except (IOError, ValueError):
             return {}
 
-    def save_results(self, started, tests):
-        with open(RESULTS_FILE, 'w') as f:
+    def save_results(self, results_file, started, tests):
+        with open(results_file, 'w') as f:
             json.dump({'started': started.isoformat(), 'tests': tests}, f, indent=4)
 
     def format_min_max(self, times):
