@@ -52,6 +52,7 @@ class IVRCall(ChannelSession):
 
             # mark us as interrupted
             self.status = ChannelSession.INTERRUPTED
+            self.ended_on = timezone.now()
             self.save()
 
             client = self.channel.get_ivr_client()

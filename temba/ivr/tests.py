@@ -279,7 +279,7 @@ class IVRTests(FlowFileTest):
             self.assertEqual(ChannelLog.objects.all().count(), 4)
             channel_log = ChannelLog.objects.last()
             self.assertEqual(channel_log.session.id, call.id)
-            self.assertEqual(channel_log.description, "Saved media for call 12345")
+            self.assertEqual(channel_log.description, json.dumps(dict(message="Saved media for call 12345")))
 
             # hack input call back to tell us to save the recording and an empty input submission
             self.client.post("%s?save_media=1" % callback_url, content_type='application/json',
@@ -620,7 +620,7 @@ class IVRTests(FlowFileTest):
     @patch('requests.put')
     @patch('nexmo.Client.create_application')
     @patch('nexmo.Client.create_call')
-    def test_hangup(self, mock_create_call, mock_create_application, mock_put, mock_jwt):
+    def test_expiration_hangup(self, mock_create_call, mock_create_application, mock_put, mock_jwt):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
         mock_create_call.return_value = dict(uuid='12345')
         mock_jwt.return_value = "Encoded data"
@@ -658,6 +658,7 @@ class IVRTests(FlowFileTest):
 
         # call initiation and timeout should both be logged
         self.assertEqual(2, ChannelLog.objects.filter(session=call).count())
+        self.assertIsNotNone(call.ended_on)
 
     @patch('nexmo.Client.create_application')
     @patch('nexmo.Client.create_call')
