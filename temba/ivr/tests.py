@@ -42,6 +42,61 @@ class IVRTests(FlowFileTest):
         super(IVRTests, self).tearDown()
         settings.SEND_CALLS = False
 
+    @patch('nexmo.Client.create_application')
+    @patch('nexmo.Client.create_call')
+    @patch('nexmo.Client.update_call')
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_preferred_channel(self, mock_update_call, mock_create_call, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+        mock_create_call.return_value = dict(uuid='12345')
+        mock_update_call.return_value = dict(uuid='12345')
+
+        flow = self.get_flow('call_me_maybe')
+
+        # start our flow
+        contact = self.create_contact('Chuck D', number='+13603621737')
+        flow.start([], [contact])
+
+        call = IVRCall.objects.get()
+        self.assertEquals(IVRCall.PENDING, call.status)
+
+        # call should be on a Twilio channel since that's all we have
+        self.assertEquals(Channel.TYPE_TWILIO, call.channel.channel_type)
+
+        # connect Nexmo instead
+        self.org.connect_nexmo('123', '456', self.admin)
+        self.org.save()
+
+        # manually create a Nexmo channel
+        nexmo = Channel.create(self.org, self.user, 'RW', Channel.TYPE_NEXMO, role=Channel.ROLE_CALL + Channel.ROLE_ANSWER + Channel.ROLE_SEND,
+                               name="Nexmo Channel", address="+250785551215")
+
+        # set the preferred channel on this contact to Twilio
+        contact.set_preferred_channel(self.channel)
+
+        # restart the flow
+        flow.start([], [contact], restart_participants=True)
+
+        call = IVRCall.objects.all().last()
+        self.assertEquals(IVRCall.PENDING, call.status)
+        self.assertEquals(Channel.TYPE_TWILIO, call.channel.channel_type)
+
+        # switch back to Nexmo being the preferred channel
+        contact.set_preferred_channel(nexmo)
+
+        # clear open calls and runs
+        IVRCall.objects.all().delete()
+        FlowRun.objects.all().delete()
+
+        # restart the flow
+        flow.start([], [contact], restart_participants=True)
+
+        call = IVRCall.objects.all().last()
+        self.assertEquals(IVRCall.PENDING, call.status)
+        self.assertEquals(Channel.TYPE_NEXMO, call.channel.channel_type)
+
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
