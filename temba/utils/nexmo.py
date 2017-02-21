@@ -37,7 +37,7 @@ class NexmoClient(nx.Client):
     def get_numbers(self, pattern=None, size=10):
         params = dict()
         if pattern:
-            params['pattern'] = str(pattern).strip('+')
+            params['pattern'] = six.text_type(pattern).strip('+')
         params['size'] = size
 
         response = nx.Client.get_account_numbers(self, params=params)
@@ -129,7 +129,7 @@ class NexmoClient(nx.Client):
         payload.setdefault('application_id', self.application_id)
         payload.setdefault('iat', iat)
         payload.setdefault('exp', iat + 60)
-        payload.setdefault('jti', str(uuid.uuid4()))
+        payload.setdefault('jti', six.text_type(uuid.uuid4()))
 
         token = jwt.encode(payload, self.private_key, algorithm='RS256')
 
@@ -200,7 +200,7 @@ class NCCOResponse(object):
         return self
 
     def say(self, text, **kwargs):
-        self.document.append(dict(action='talk', text=str(text), bargeIn=True))
+        self.document.append(dict(action='talk', text=six.text_type(text), bargeIn=True))
         return self
 
     def play(self, url=None, digits=None, **kwargs):
@@ -249,19 +249,19 @@ class NCCOResponse(object):
         result['submitOnHash'] = kwargs.get('finishOnKey', '#') == '#'
 
         if kwargs.get('numDigits', False):
-            result['maxDigits'] = str(kwargs.get('numDigits'))
+            result['maxDigits'] = int(six.text_type(kwargs.get('numDigits')))
 
         if kwargs.get('timeout', False):
-            result['timeOut'] = str(kwargs.get('timeout'))
+            result['timeOut'] = int(six.text_type(kwargs.get('timeout')))
 
         self.document.append(result)
         return self
 
     def record(self, **kwargs):
-        result = dict(format='wav', endOnSilence='4', endOnKey='#', beepStart=True, action='record')
+        result = dict(format='wav', endOnSilence=4, endOnKey='#', beepStart=True, action='record')
 
         if kwargs.get('maxLength', False):
-            result['timeOut'] = six.text_type(kwargs.get('maxLength'))
+            result['timeOut'] = int(six.text_type(kwargs.get('maxLength')))
 
         if kwargs.get('action', False):
             method = kwargs.get('method', 'post')
