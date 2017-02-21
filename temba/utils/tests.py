@@ -1342,7 +1342,7 @@ class NCCOTest(TembaTest):
                                                                     bargeIn=False),
                                                                dict(format='wav', eventMethod='post',
                                                                     eventUrl=['http://example.com'],
-                                                                    endOnSilence='4', timeOut='60', endOnKey='#',
+                                                                    endOnSilence=4, timeOut=60, endOnKey='#',
                                                                     action='record', beepStart=True),
                                                                dict(action='input', maxDigits=1, timeOut=1,
                                                                     eventUrl=[
@@ -1385,7 +1385,7 @@ class NCCOTest(TembaTest):
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(action='input', maxDigits=1, timeOut=1,
                                                                     eventUrl=[
-                                                                        'http://example.com/?param=12&&input_redirect=1'
+                                                                        'http://example.com/?param=12&input_redirect=1'
                                                                     ])])
 
     def test_hangup(self):
@@ -1412,16 +1412,16 @@ class NCCOTest(TembaTest):
         response = NCCOResponse()
         response.gather(action='http://example.com', numDigits=1, timeout=45, finishOnKey='*')
 
-        self.assertEqual(json.loads(six.text_type(response)), [dict(maxDigits='1', eventMethod='post', action='input',
+        self.assertEqual(json.loads(six.text_type(response)), [dict(maxDigits=1, eventMethod='post', action='input',
                                                                     submitOnHash=False,
                                                                     eventUrl=['http://example.com'],
-                                                                    timeOut='45')])
+                                                                    timeOut=45)])
 
     def test_record(self):
         response = NCCOResponse()
         response.record()
 
-        self.assertEqual(json.loads(six.text_type(response)), [dict(format='wav', endOnSilence='4', beepStart=True,
+        self.assertEqual(json.loads(six.text_type(response)), [dict(format='wav', endOnSilence=4, beepStart=True,
                                                                     action='record', endOnKey='#'),
                                                                dict(action='input', maxDigits=1, timeOut=1,
                                                                     eventUrl=["None?save_media=1"])
@@ -1432,7 +1432,7 @@ class NCCOTest(TembaTest):
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(format='wav', eventMethod='post',
                                                                     eventUrl=['http://example.com'],
-                                                                    endOnSilence='4', timeOut='60', endOnKey='#',
+                                                                    endOnSilence=4, timeOut=60, endOnKey='#',
                                                                     action='record', beepStart=True),
                                                                dict(action='input', maxDigits=1, timeOut=1,
                                                                     eventUrl=["%s?save_media=1" % "http://example.com"])
@@ -1442,10 +1442,10 @@ class NCCOTest(TembaTest):
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(format='wav', eventMethod='post',
                                                                     eventUrl=['http://example.com?param=12'],
-                                                                    endOnSilence='4', timeOut='60', endOnKey='#',
+                                                                    endOnSilence=4, timeOut=60, endOnKey='#',
                                                                     action='record', beepStart=True),
                                                                dict(action='input', maxDigits=1, timeOut=1,
-                                                                    eventUrl=["http://example.com?param=12&&save_media=1"])
+                                                                    eventUrl=["http://example.com?param=12&save_media=1"])
                                                                ])
 
 

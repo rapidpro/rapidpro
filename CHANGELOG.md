@@ -1,16 +1,13 @@
-v3.0.57
+v3.0.61
 ----------
+ * Make migrations to populate new export task fields non-atomic
+ * Add indexes for admin boundaries and aliases
+ * Nexmo: make sure calls are ended on hangup, log hangups and media
  * Fix inbound calls on Nexmo to use conversation_uuid
  * Style tweaks for zapier widget
-
-v3.0.54
-----------
  * Use shorter timeout for IVR
  * Issue hangups on expiration during IVR runs
  * Catch all exceptions and log them when initiating call
-
-v3.0.49
-----------
  * Fix update status for Nexmo calls
 
 v3.0.48
