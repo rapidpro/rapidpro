@@ -1011,7 +1011,7 @@ class Contact(TembaModel):
             if not value:
                 continue
 
-            value = str(value)
+            value = six.text_type(value)
 
             urn_scheme = ContactURN.IMPORT_HEADER_TO_SCHEME[urn_header]
 

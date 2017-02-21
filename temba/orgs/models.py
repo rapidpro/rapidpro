@@ -482,7 +482,7 @@ class Org(SmartModel):
                 scheme = contact_urn.scheme
 
                 # if URN has a previously used channel that is still active, use that
-                if contact_urn.channel and contact_urn.channel.is_active and role == Channel.ROLE_SEND:
+                if contact_urn.channel and contact_urn.channel.is_active:
                     previous_sender = self.get_channel_delegate(contact_urn.channel, role)
                     if previous_sender:
                         return previous_sender

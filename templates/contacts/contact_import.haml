@@ -68,6 +68,21 @@
                       %a{href:"{% url 'contacts.contact_filter' group.uuid %}"}= group.name
                       group
 
+                    - if results.errors
+                      .import-result
+                        .well.well-small
+                          %strong
+                            -blocktrans
+                              Some rows were not imported
+                          %br
+                          %strong
+                            -blocktrans
+                              Errors description
+                          %br
+                            - for error_message in results.error_messages
+                              Row {{ error_message.line }}: {{ error_message.error }}
+                              %br
+
                   - elif results.errors
                     .import-result
                       .glyph.icon-warning.warning
@@ -79,10 +94,9 @@
                     .import-result
                       .well.well-small
                         %strong
-                          -blocktrans count results.error_messages as error_count
-                            Error description
-                            -plural
-                              Errors description
+                          -blocktrans
+                            Errors description
+
                         %br
                           - for error_message in results.error_messages
                             Row {{ error_message.line }}: {{ error_message.error }}

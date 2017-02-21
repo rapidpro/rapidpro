@@ -2521,6 +2521,21 @@ class ContactTest(TembaTest):
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
+        self.assertContactImport('%s/test_imports/sample_contacts_bad_unicode.xls' % settings.MEDIA_ROOT,
+                                 dict(records=2, errors=0, creates=2, updates=0, error_messages=[]))
+
+        self.assertEquals(1, Contact.objects.filter(name='John Doe').count())
+        self.assertEquals(1, Contact.objects.filter(name='Mary Smith').count())
+
+        contact = Contact.objects.filter(name='John Doe').first()
+        contact2 = Contact.objects.filter(name='Mary Smith').first()
+
+        self.assertEqual(list(contact.get_urns().values_list('path', flat=True)), ['+250788123123'])
+        self.assertEqual(list(contact2.get_urns().values_list('path', flat=True)), ['+250788345345'])
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+
         # import a spreadsheet with phone, name and twitter columns
         self.assertContactImport('%s/test_imports/sample_contacts_twitter_and_phone.xls' % settings.MEDIA_ROOT,
                                  dict(records=3, errors=0, error_messages=[], creates=3, updates=0))

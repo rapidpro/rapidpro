@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contacts', '0050_contactgroupcount_is_squashed'),
+        ('contacts', '0052_baseexporttask_2'),
     ]
 
     operations = [

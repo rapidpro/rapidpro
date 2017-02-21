@@ -142,7 +142,8 @@ class Command(BaseCommand):
         # load dump into current db with pg_restore
         db_config = settings.DATABASES['default']
         try:
-            check_call('pg_restore -U%s -w -d %s %s' % (db_config['USER'], db_config['NAME'], path), shell=True)
+            check_call('export PGPASSWORD=%s && pg_restore -U%s -w -d %s %s' %
+                       (db_config['PASSWORD'], db_config['USER'], db_config['NAME'], path), shell=True)
         except CalledProcessError:  # pragma: no cover
             raise CommandError("Error occurred whilst calling pg_restore to load locations dump")
 
