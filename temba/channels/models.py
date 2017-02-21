@@ -831,9 +831,9 @@ class Channel(TembaModel):
     def get_ivr_client(self):
         if self.channel_type == Channel.TYPE_TWILIO:
             return self.org.get_twilio_client()
-        if self.channel_type == Channel.TYPE_TWIML:
+        elif self.channel_type == Channel.TYPE_TWIML:
             return self.get_twiml_client()
-        if self.channel_type == Channel.TYPE_VERBOICE:  # pragma: no cover
+        elif self.channel_type == Channel.TYPE_VERBOICE:  # pragma: no cover
             return self.org.get_verboice_client()
         elif self.channel_type == Channel.TYPE_NEXMO:
             return self.org.get_nexmo_client()
