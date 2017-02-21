@@ -76,14 +76,10 @@ class IVRTests(FlowFileTest):
         # set the preferred channel on this contact to Twilio
         contact.set_preferred_channel(self.channel)
 
-        # clear open calls and runs
-        IVRCall.objects.all().delete()
-        FlowRun.objects.all().delete()
-
         # restart the flow
-        flow.start([], [contact])
+        flow.start([], [contact], restart_participants=True)
 
-        call = IVRCall.objects.get()
+        call = IVRCall.objects.all().last()
         self.assertEquals(IVRCall.PENDING, call.status)
         self.assertEquals(Channel.TYPE_TWILIO, call.channel.channel_type)
 
@@ -95,9 +91,9 @@ class IVRTests(FlowFileTest):
         FlowRun.objects.all().delete()
 
         # restart the flow
-        flow.start([], [contact])
+        flow.start([], [contact], restart_participants=True)
 
-        call = IVRCall.objects.get()
+        call = IVRCall.objects.all().last()
         self.assertEquals(IVRCall.PENDING, call.status)
         self.assertEquals(Channel.TYPE_NEXMO, call.channel.channel_type)
 
