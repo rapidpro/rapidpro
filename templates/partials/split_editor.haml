@@ -186,7 +186,7 @@
               .operation{ng-if:"rule._config.operands == 0"}
               .categorize
                 -trans "categorize as"
-                %input{ng-model:"rule.category._base",name:"category",ng-required:"rule._config.operands==0 || (rule._config.operands==1 && rule.test._base) || (rule._config.operands==2 && (rule.test.test.min || rule.test.test.max))",ng-change:"rule.category._autoName = false",type:"text",class:"category"}
+                %input{ng-model:"rule.category._base",name:"category",ng-required:"rule._config.operands==0 || (rule._config.operands==1 && rule.test._base) || (rule._config.operands==2 && (rule.test.test.min || rule.test.test.max))",ng-change:"rule.category._autoName = false",type:"text",class:"category",maxlength:"36"}
               .icon.icon-close{ng-click:"remove(rule)"}
               .error{ng-show:"inner.min.$error.lowerThan"}
                 -blocktrans

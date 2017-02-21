@@ -30,7 +30,7 @@ from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, LINE_SCHEME
 from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING
-from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
+from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME, FCM_SCHEME
 from temba.ivr.models import IVRCall
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
 from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN, NEXMO_UUID, \
@@ -2043,6 +2043,32 @@ class ChannelTest(TembaTest):
 
             response = self.client.post(claim_line_url, payload, follow=True)
             self.assertContains(response, "invalid token")
+
+    def test_claim_fcm(self):
+
+        # disassociate all of our channels
+        self.org.channels.all().update(org=None, is_active=False)
+
+        self.login(self.admin)
+        claim_url = reverse('channels.channel_claim_fcm')
+        response = self.client.get(claim_url)
+        self.assertContains(response, 'Firebase')
+
+        claim_fcm_url = reverse('channels.channel_claim_fcm')
+
+        with patch('requests.get') as mock:
+            mock.return_value = MockResponse(200, json.dumps(dict(title='FCM Channel', key='abcde12345',
+                                                                  send_notification='True')))
+
+            payload = dict(title='FCM Channel', key='abcde12345', send_notification='True')
+
+            response = self.client.post(claim_fcm_url, payload, follow=True)
+            channel = Channel.objects.get(channel_type=Channel.TYPE_FCM)
+            self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
+            self.assertEqual(channel.channel_type, "FCM")
+            self.assertEqual(channel.config_json()[Channel.CONFIG_FCM_KEY], 'abcde12345')
+            self.assertEqual(channel.config_json()[Channel.CONFIG_FCM_TITLE], 'FCM Channel')
+            self.assertEqual(channel.address, "abcde12345")
 
     def test_release(self):
         Channel.objects.all().delete()
@@ -9097,3 +9123,122 @@ class ViberPublicTest(TembaTest):
             msg.refresh_from_db()
             self.assertEquals(ERRORED, msg.status)
             self.clear_cache()
+
+
+class FcmTest(TembaTest):
+
+    def setUp(self):
+        super(FcmTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_FCM, 'FCM Channel', 'fcm-channel',
+                                      config=dict(FCM_KEY='123456789', FCM_TITLE='FCM Channel',
+                                                  FCM_NOTIFICATION=True),
+                                      uuid='00000000-0000-0000-0000-000000001234')
+        self.receive_url = reverse('handlers.fcm_handler', args=['receive', self.channel.uuid])
+        self.register_url = reverse('handlers.fcm_handler', args=['register', self.channel.uuid])
+
+    def test_receive(self):
+        # invalid UUID
+        response = self.client.post(reverse('handlers.fcm_handler', args=['receive',
+                                                                          '00000000-0000-0000-0000-000000000000']))
+        self.assertEqual(response.status_code, 404)
+
+        # try GET
+        response = self.client.get(self.receive_url)
+        self.assertEqual(response.status_code, 405)
+
+        data = {'from': '12345abcde', 'msg': 'Hello World!', 'date': '2017-01-01T08:50:00.000'}
+        response = self.client.post(self.receive_url, data)
+        self.assertEquals(400, response.status_code)
+
+        data = {'from': '12345abcde', 'msg': 'Hello World!', 'date': '2017-01-01T08:50:00.000',
+                'fcm_token': '1234567890qwertyuiop'}
+        response = self.client.post(self.receive_url, data)
+        self.assertEquals(200, response.status_code)
+
+        data = {'from': '12345abcde', 'msg': 'Hello World!', 'date': '2017-01-01T08:50:00.000',
+                'fcm_token': '12345678901qwertyuiopq'}
+        response = self.client.post(self.receive_url, data)
+        self.assertEquals(200, response.status_code)
+
+        # load our message
+        msg = Msg.objects.get()
+        self.assertEquals("12345678901qwertyuiopq", msg.contact.get_urn(FCM_SCHEME).auth)
+        self.assertEquals("fcm:12345abcde", msg.contact.get_urn(FCM_SCHEME).urn)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello World!", msg.text)
+
+    def test_register(self):
+        data = {'urn': '12345abcde'}
+        response = self.client.post(self.register_url, data)
+        self.assertEquals(400, response.status_code)
+
+        data = {'urn': '12345abcde', 'fcm_token': '1234567890qwertyuiop'}
+        response = self.client.post(self.register_url, data)
+        self.assertEquals(200, response.status_code)
+        contact = json.loads(response.content)
+
+        data = {'urn': '12345abcde', 'fcm_token': 'qwertyuiop1234567890'}
+        response = self.client.post(self.register_url, data)
+        self.assertEquals(200, response.status_code)
+        updated_contact = json.loads(response.content)
+
+        self.assertEquals(contact.get('contact_uuid'), updated_contact.get('contact_uuid'))
+
+    def test_send(self):
+        joe = self.create_contact("Joe", urn="fcm:12345abcde", auth="123456abcdef")
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False)
+
+        with self.settings(SEND_MESSAGES=True):
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, '{ "success": 1, "multicast_id": 123456, "failures": 0 }')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEqual(msg.status, WIRED)
+                self.assertTrue(msg.sent_on)
+
+                data = json.dumps({
+                    'data': {
+                        'type': 'rapidpro',
+                        'title': 'FCM Channel',
+                        'message': 'Hello, world!',
+                        'message_id': msg.id
+                    },
+                    'content_available': True,
+                    'to': '123456abcdef',
+                    'priority': 'high',
+                    'notification': {
+                        'title': 'FCM Channel',
+                        'body': 'Hello, world!'
+                    }
+                })
+
+                mock.assert_called_once_with('https://fcm.googleapis.com/fcm/send',
+                                             data=data,
+                                             headers={
+                                                 'Content-Type': 'application/json',
+                                                 'Authorization': 'key=123456789',
+                                                 'User-agent': 'RapidPro'
+                                             },
+                                             timeout=5)
+
+                self.clear_cache()
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(400, "Error", method='POST')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # message should be marked as an error
+                msg.refresh_from_db()
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
