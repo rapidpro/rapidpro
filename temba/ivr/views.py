@@ -40,7 +40,7 @@ class CallHandler(View):
             if not request.user.is_anonymous():
                 user_org = request.user.get_org()
                 if user_org and user_org.pk == call.org.pk:
-                    client.hangup(call.external_id)
+                    client.hangup(call)
                     return HttpResponse(json.dumps(dict(status='Canceled')), content_type="application/json")
                 else:  # pragma: no cover
                     return HttpResponse("Not found", status=404)
@@ -120,9 +120,10 @@ class CallHandler(View):
                         cache.delete('last_call:media_url:%d' % call.pk)
                     else:
                         response_msg = 'Saved media for call %s' % call.external_id
-                        ChannelLog.log_ivr_interaction(call, response_msg, request_body, six.text_type(response_msg),
+                        response = dict(message=response_msg)
+                        ChannelLog.log_ivr_interaction(call, response_msg, request_body, json.dumps(response),
                                                        request_path, request_method)
-                        return HttpResponse(six.text_type(response_msg))
+                        return JsonResponse(response)
 
             if call.status not in IVRCall.DONE or hangup:
                 if call.is_ivr():
