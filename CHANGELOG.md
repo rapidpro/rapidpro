@@ -1,3 +1,9 @@
+v3.0.61
+----------
+ * Make migrations to populate new export task fields non-atomic
+ * Add indexes for admin boundaries and aliases
+ * Nexmo: make sure calls are ended on hangup, log hangups and media
+
 v3.0.57
 ----------
  * Fix inbound calls on Nexmo to use conversation_uuid
