@@ -1,3 +1,7 @@
+v3.0.62
+----------
+ * Fix preferred channels for non-msg channels
+
 v3.0.61
 ----------
  * Make migrations to populate new export task fields non-atomic
