@@ -279,7 +279,7 @@ class IVRTests(FlowFileTest):
             self.assertEqual(ChannelLog.objects.all().count(), 4)
             channel_log = ChannelLog.objects.last()
             self.assertEqual(channel_log.session.id, call.id)
-            self.assertEqual(channel_log.description, json.dumps(dict(message="Saved media for call 12345")))
+            self.assertEqual(channel_log.description, "Saved media for call 12345")
 
             # hack input call back to tell us to save the recording and an empty input submission
             self.client.post("%s?save_media=1" % callback_url, content_type='application/json',
