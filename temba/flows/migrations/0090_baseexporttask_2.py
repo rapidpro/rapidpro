@@ -20,6 +20,7 @@ def populate_uuid(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [
         ('flows', '0089_baseexporttask_1'),
