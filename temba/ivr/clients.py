@@ -125,15 +125,15 @@ class NexmoClient(NexmoCli):
         # Nexmo client doesn't extend object, so can't call super
         if response.status_code == 401:
             raise AuthenticationError
-        elif response.status_code == 204:
+        elif response.status_code == 204:  # pragma: no cover
             return None
         elif 200 <= response.status_code < 300:
             return response.json()
-        elif 400 <= response.status_code < 500:
+        elif 400 <= response.status_code < 500:  # pragma: no cover
             message = "{code} response from {host}".format(code=response.status_code, host=host)
 
             raise ClientError(message)
-        elif 500 <= response.status_code < 600:
+        elif 500 <= response.status_code < 600:  # pragma: no cover
             message = "{code} response from {host}".format(code=response.status_code, host=host)
 
             raise ServerError(message)
