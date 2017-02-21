@@ -124,7 +124,7 @@ class Command(BaseCommand):  # pragma: no cover
 
         self.save_results(results_file, started, tests)
 
-        if any([not t.is_pass for t in tests]):
+        if any([not t.is_pass() for t in tests]):
             sys.exit(1)
 
     def test_with_org(self, org, url_include_pattern, num_requests, prev_times):
