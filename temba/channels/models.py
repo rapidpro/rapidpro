@@ -70,6 +70,7 @@ class Channel(TembaModel):
     TYPE_DUMMY = 'DM'
     TYPE_EXTERNAL = 'EX'
     TYPE_FACEBOOK = 'FB'
+    TYPE_FCM = 'FCM'
     TYPE_GLOBE = 'GL'
     TYPE_HIGH_CONNECTION = 'HX'
     TYPE_HUB9 = 'H9'
@@ -118,6 +119,9 @@ class Channel(TembaModel):
     CONFIG_CHANNEL_ID = 'channel_id'
     CONFIG_CHANNEL_SECRET = 'channel_secret'
     CONFIG_CHANNEL_MID = 'channel_mid'
+    CONFIG_FCM_KEY = 'FCM_KEY'
+    CONFIG_FCM_TITLE = 'FCM_TITLE'
+    CONFIG_FCM_NOTIFICATION = 'FCM_NOTIFICATION'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -159,6 +163,7 @@ class Channel(TembaModel):
         TYPE_DUMMY: dict(scheme='tel', max_length=160),
         TYPE_EXTERNAL: dict(max_length=160),
         TYPE_FACEBOOK: dict(scheme='facebook', max_length=320),
+        TYPE_FCM: dict(scheme='fcm', max_length=10000),
         TYPE_GLOBE: dict(scheme='tel', max_length=160),
         TYPE_HIGH_CONNECTION: dict(scheme='tel', max_length=1500),
         TYPE_HUB9: dict(scheme='tel', max_length=1600),
@@ -196,6 +201,7 @@ class Channel(TembaModel):
                     (TYPE_DUMMY, "Dummy"),
                     (TYPE_EXTERNAL, "External"),
                     (TYPE_FACEBOOK, "Facebook"),
+                    (TYPE_FCM, "Firebase Cloud Messaging"),
                     (TYPE_GLOBE, "Globe Labs"),
                     (TYPE_HIGH_CONNECTION, "High Connection"),
                     (TYPE_HUB9, "Hub9"),
@@ -378,6 +384,19 @@ class Channel(TembaModel):
             raise Exception(_("Unable to set Viber webhook: %s" % response_json['status_message']))
 
         return channel
+
+    @classmethod
+    def add_fcm_channel(cls, org, user, data):
+        """
+        Creates a new Firebase Cloud Messaging channel
+        """
+        from temba.contacts.models import FCM_SCHEME
+
+        assert Channel.CONFIG_FCM_KEY in data and Channel.CONFIG_FCM_TITLE in data, "%s and %s are required" % (
+            Channel.CONFIG_FCM_KEY, Channel.CONFIG_FCM_TITLE)
+
+        return Channel.create(org, user, None, Channel.TYPE_FCM, name=data.get(Channel.CONFIG_FCM_TITLE),
+                              address=data.get(Channel.CONFIG_FCM_KEY), config=data, scheme=FCM_SCHEME)
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number,
@@ -812,9 +831,9 @@ class Channel(TembaModel):
     def get_ivr_client(self):
         if self.channel_type == Channel.TYPE_TWILIO:
             return self.org.get_twilio_client()
-        if self.channel_type == Channel.TYPE_TWIML:
+        elif self.channel_type == Channel.TYPE_TWIML:
             return self.get_twiml_client()
-        if self.channel_type == Channel.TYPE_VERBOICE:  # pragma: no cover
+        elif self.channel_type == Channel.TYPE_VERBOICE:  # pragma: no cover
             return self.org.get_verboice_client()
         elif self.channel_type == Channel.TYPE_NEXMO:
             return self.org.get_nexmo_client()
@@ -1186,6 +1205,62 @@ class Channel(TembaModel):
                                   response=response_text,
                                   response_status=response_status,
                                   request_time=request_time)
+
+    @classmethod
+    def send_fcm_message(cls, channel, msg, text):
+        from temba.msgs.models import WIRED
+        start = time.time()
+
+        url = 'https://fcm.googleapis.com/fcm/send'
+        title = channel.config.get(Channel.CONFIG_FCM_TITLE)
+        data = {
+            'data': {
+                'type': 'rapidpro',
+                'title': title,
+                'message': text,
+                'message_id': msg.id
+            },
+            'content_available': False,
+            'to': msg.auth,
+            'priority': 'high'
+        }
+
+        if channel.config.get(Channel.CONFIG_FCM_NOTIFICATION):
+            data['notification'] = {
+                'title': title,
+                'body': text
+            }
+            data['content_available'] = True
+
+        payload = json.dumps(data)
+        headers = {'Content-Type': 'application/json',
+                   'Authorization': 'key=%s' % channel.config.get(Channel.CONFIG_FCM_KEY)}
+        headers.update(TEMBA_HEADERS)
+
+        try:
+            response = requests.post(url, data=payload, headers=headers, timeout=5)
+            result = json.loads(response.content) if response.status_code == 200 else None
+        except Exception as e:  # pragma: no cover
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=payload,
+                                response="",
+                                response_status=503,
+                                start=start)
+
+        if result and 'success' in result and result.get('success') == 1:
+            external_id = result.get('multicast_id')
+            Channel.success(channel, msg, WIRED, start, 'POST', url, payload, response, external_id)
+        else:
+            raise SendException("Got non-200 response [%d] from Firebase Cloud Messaging" %
+                                response.status_code,
+                                method='POST',
+                                url=url,
+                                request=payload,
+                                response=response.content,
+                                response_status=response.status_code,
+                                start=start)
 
     @classmethod
     def send_jasmin_message(cls, channel, msg, text):
@@ -2979,6 +3054,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
                   Channel.TYPE_EXTERNAL: Channel.send_external_message,
                   Channel.TYPE_FACEBOOK: Channel.send_facebook_message,
+                  Channel.TYPE_FCM: Channel.send_fcm_message,
                   Channel.TYPE_GLOBE: Channel.send_globe_message,
                   Channel.TYPE_HIGH_CONNECTION: Channel.send_high_connection_message,
                   Channel.TYPE_HUB9: Channel.send_hub9_or_dartmedia_message,
@@ -3570,3 +3646,15 @@ class ChannelSession(SmartModel):
 
     def is_ivr(self):
         return self.session_type == self.IVR
+
+    def close(self):  # pragma: no cover
+        pass
+
+    def get(self):
+        if self.session_type == ChannelSession.IVR:
+            from temba.ivr.models import IVRCall
+            return IVRCall.objects.filter(id=self.id).first()
+        if self.session_type == ChannelSession.USSD:
+            from temba.ussd.models import USSDSession
+            return USSDSession.objects.filter(id=self.id).first()
+        return self  # pragma: no cover

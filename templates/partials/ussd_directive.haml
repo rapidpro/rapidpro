@@ -24,7 +24,7 @@
 
           .categorize
             -trans "categorize as"
-            %input{ng-model:"item.category._base",name:"category",ng-required:"item.label[base_language]",ng-change:"item.category._autoName = false",type:"text",class:"category"}
+            %input{ng-model:"item.category._base",name:"category",ng-required:"item.label[base_language]",ng-change:"item.category._autoName = false",type:"text",class:"category",maxlength:"36"}
           .icon.icon-close{ng-click:"remove(item, $index)"}
 #split-on{ng-if:'USSD_RESPONSE'}
   -trans "If the message response..."

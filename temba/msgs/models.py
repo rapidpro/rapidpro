@@ -1142,7 +1142,7 @@ class Msg(models.Model):
         """
         Used internally to serialize to JSON when queueing messages in Redis
         """
-        return dict(id=self.id, org=self.org_id, channel=self.channel_id, broadcast=self.broadcast_id,
+        data = dict(id=self.id, org=self.org_id, channel=self.channel_id, broadcast=self.broadcast_id,
                     text=self.text, urn_path=self.contact_urn.path,
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
@@ -1150,6 +1150,11 @@ class Msg(models.Model):
                     external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
                     created_on=self.created_on, modified_on=self.modified_on)
+
+        if self.contact_urn.auth:
+            data.update(dict(auth=self.contact_urn.auth))
+
+        return data
 
     def __str__(self):
         return self.text

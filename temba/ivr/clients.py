@@ -6,7 +6,6 @@ import re
 import requests
 import six
 import time
-import nexmo
 
 from django.conf import settings
 from django.core.files import File
@@ -22,6 +21,7 @@ from temba.utils.nexmo import NexmoClient as NexmoCli
 from twilio import TwilioRestException
 from twilio.rest import TwilioRestClient
 from twilio.util import RequestValidator
+from nexmo import AuthenticationError, ClientError, ServerError
 
 
 class IVRException(Exception):
@@ -50,21 +50,21 @@ class NexmoClient(NexmoCli):
 
         try:
             response = self.create_call(params=params)
-            conversation_uuid = response.get('conversation_uuid', None)
-            call.external_id = six.text_type(conversation_uuid)
+            call_uuid = response.get('uuid', None)
+            call.external_id = six.text_type(call_uuid)
             call.save()
 
             ChannelLog.log_ivr_interaction(call, "Started Nexmo call %s" % call.external_id, json.dumps(params),
                                            json.dumps(response), 'https://api.nexmo.com/v1/calls', 'POST')
 
-        except nexmo.Error as e:
+        except Exception as e:
             message = 'Failed Nexmo call'
             if call.external_id:
                 message = '%s %s' % (message, call.external_id)
             ChannelLog.log_ivr_interaction(call, message, json.dumps(params),
-                                           six.text_type(e.message), 'https://api.nexmo.com/v1/calls', 'POST')
+                                           six.text_type(e), 'https://api.nexmo.com/v1/calls', 'POST')
 
-            raise IVRException(_("Nexmo call failed, with error %s") % e.message)
+            raise IVRException(_("Nexmo call failed, with error %s") % six.text_type(e.message))
 
     def download_media(self, media_url):
         """
@@ -105,6 +105,38 @@ class NexmoClient(NexmoCli):
             return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
 
         return None
+
+    def hangup(self, call):
+        return self.update_call(call.external_id, action='hangup', call_id=call.external_id)
+
+    def parse(self, host, response):
+        try:
+            request = response.request
+            request_body = json.loads(response.request.body)
+            call_id = request_body.get('call_id', None)
+            if call_id:
+                call = IVRCall.objects.filter(external_id=call_id).first()
+                if call:
+                    ChannelLog.log_ivr_interaction(call, "Nexmo call update", request.body, response.content, request.url,
+                                                   request.method, status_code=response.status_code)
+        except:
+            pass
+
+        # Nexmo client doesn't extend object, so can't call super
+        if response.status_code == 401:
+            raise AuthenticationError
+        elif response.status_code == 204:  # pragma: no cover
+            return None
+        elif 200 <= response.status_code < 300:
+            return response.json()
+        elif 400 <= response.status_code < 500:  # pragma: no cover
+            message = "{code} response from {host}".format(code=response.status_code, host=host)
+
+            raise ClientError(message)
+        elif 500 <= response.status_code < 600:  # pragma: no cover
+            message = "{code} response from {host}".format(code=response.status_code, host=host)
+
+            raise ServerError(message)
 
 
 class TwilioClient(TwilioRestClient):
@@ -178,6 +210,9 @@ class TwilioClient(TwilioRestClient):
             return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
 
         return None  # pragma: needs cover
+
+    def hangup(self, call):
+        return self.calls.hangup(call.external_id)
 
 
 class VerboiceClient:  # pragma: needs cover
