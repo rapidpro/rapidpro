@@ -19,11 +19,11 @@ DEFAULT_NUM_REQUESTS = 3
 # default file to save timing results to
 DEFAULT_RESULTS_FILE = '.perf_results'
 
-# allow this maximum request time
-ALLOWED_MAXIMUM = 3
+# allow this maximum request time (milliseconds)
+ALLOWED_MAXIMUM = 3000
 
-# allow this much absolute change from previous results (50ms)
-ALLOWED_CHANGE_MAXIMUM = 0.05
+# allow this much absolute change from previous results (milliseconds)
+ALLOWED_CHANGE_MAXIMUM = 50
 
 # allow this much percentage change from previous results
 ALLOWED_CHANGE_PERCENTAGE = 5
@@ -167,7 +167,7 @@ class Command(BaseCommand):  # pragma: no cover
             start_time = time.time()
             response = self.client.get(url)
             assert response.status_code == 200
-            url_times.append(time.time() - start_time)
+            url_times.append(int(1000 * (time.time() - start_time)))
 
         result = URLResult(url, url_times, prev_times)
 
@@ -176,9 +176,9 @@ class Command(BaseCommand):  # pragma: no cover
 
     def format_result(self, result):
         """
-        Formats a result like 0.024...0.037 (▼ -0.001, -3%)
+        Formats a result like 24...370 (▼ -1, -3%)
         """
-        range_str = "%.3f...%.3f" % (result.min, result.max)
+        range_str = "%d...%d" % (result.min, result.max)
         if result.exceeds_maximum:
             range_str = self.style.ERROR(range_str)
         else:
@@ -187,7 +187,9 @@ class Command(BaseCommand):  # pragma: no cover
         if result.change:
             arrow = '\u25b2' if result.change > 0 else '\u25bc'
             style = self.style.ERROR if result.exceeds_change else self.style.SUCCESS
-            change_str = style('%s %.3f, %d%%' % (arrow, result.change, result.percentage_change))
+            change_str = style('%s %d, %d%%' % (arrow, result.change, result.percentage_change))
+        elif result.change == 0:
+            change_str = 'no change'
         else:
             change_str = 'change unknown'
 
@@ -234,9 +236,9 @@ class Command(BaseCommand):  # pragma: no cover
         </tr>
         <tr style="background-color: #f2f6fc; color: #2f4970">
             <th style="padding: 5px; text-align: left">URL</th>
-            <th style="padding: 5px">Min (secs)</th>
-            <th style="padding: 5px">Max (secs)</th>
-            <th style="padding: 5px">Change (secs)</th>
+            <th style="padding: 5px">Min (ms)</th>
+            <th style="padding: 5px">Max (ms)</th>
+            <th style="padding: 5px">Change (ms)</th>
             <th style="padding: 5px">Change (%%)</th>
         </tr>
         """ % org.id)
@@ -244,7 +246,7 @@ class Command(BaseCommand):  # pragma: no cover
         for test in tests:
             if test.change:
                 arrow = '&#8593; ' if test.change > 0 else '&#8595; '
-                change = '%s %.3f' % (arrow, test.change)
+                change = '%s %d' % (arrow, test.change)
                 percentage_change = '%d' % test.percentage_change
             else:
                 change = ''
@@ -256,8 +258,8 @@ class Command(BaseCommand):  # pragma: no cover
 
             f.write('<tr style="background-color: #%s">' % row_bg)
             f.write('<td style="padding: 5px">%s</td>' % test.url)
-            f.write('<td style="padding: 5px">%.3f</td>' % test.min)
-            f.write('<td style="padding: 5px; background-color: #%s">%.3f</td>' % (max_bg, test.max))
+            f.write('<td style="padding: 5px">%d</td>' % test.min)
+            f.write('<td style="padding: 5px; background-color: #%s">%d</td>' % (max_bg, test.max))
             f.write('<td style="padding: 5px">%s</td>' % change)
             f.write('<td style="padding: 5px; background-color: #%s"">%s</td>' % (change_bg, percentage_change))
             f.write('</tr>')
