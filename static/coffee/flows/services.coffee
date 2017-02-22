@@ -459,7 +459,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           { name: 'Failure', test: { type: 'webhook_status', status: 'failure'}},
         ]},
 
-        { type: 'resthook', name:'Call Zapier', verbose_name: 'Call Zapier', split:'zapier response', filter:[TEXT,VOICE], rules:[
+        { type: 'resthook', name:'Call Zapier', verbose_name: 'Call Zapier', split:'zapier response', filter:[TEXT,VOICE,USSD], rules:[
           { name: 'Success', test: { type: 'webhook_status', status: 'success'}},
           { name: 'Failure', test: { type: 'webhook_status', status: 'failure'}},
         ]},
@@ -1289,7 +1289,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       if not action
         return true
 
-      return action.type != 'flow'
+      return action.type not in ['flow', 'end_ussd']
 
     saveAction: (actionset, action) ->
 
