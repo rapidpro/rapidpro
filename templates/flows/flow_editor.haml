@@ -437,8 +437,8 @@
                     [[action.name]]
 
 
-          .add.icon-plus-circle2{ng-click:'addAction(action_set);'}
-          .source{ng-attr-id:'[[action_set.uuid]]_source', drop-scope:'rules', ng-class:'{connected:action_set.destination}', ng-click:'clickActionSource(action_set); $event.stopPropagation()'}
+          .add.icon-plus-circle2{ng-show:'!hasEndUssd(action_set)', ng-click:'addAction(action_set);'}
+          .source{ng-show:'!hasEndUssd(action_set)', ng-attr-id:'[[action_set.uuid]]_source', drop-scope:'rules', ng-class:'{connected:action_set.destination}', ng-click:'clickActionSource(action_set); $event.stopPropagation()'}
             .recent-messages{ng-show:'action_set._showMessages'}
               .title
                 -trans "Recent Messages"
