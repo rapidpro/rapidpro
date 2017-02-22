@@ -1,0 +1,16 @@
+-load i18n
+
+%html
+  %body
+    .modal{class:'[[type]]', data-dismiss:"modal"}
+      .modal-header
+        %button{ng-click:"cancel()", data-dimiss:"modal",type:"button",class:"pull-right close",aria-hidden:"true"}
+          x
+        %h3
+          .icon
+          %span{id:"modal-title"}><
+            [[title]]
+      .modal-body
+        %img.attachment-media{ng-if:'action._mediaType == "image"', id:'[[action.uuid]]_image', src:'[[action._translation_media]]'}
+        %video.attachment-media{ng-if:'action._mediaType == "video"', controls:'', id:'[[action.uuid]]_video', src:'[[action._translation_media]]'}
+        %audio.attachment-media{ng-if:'action._mediaType == "audio"', controls:'', id:'[[action.uuid]]_audio', src:'[[action._translation_media]]'}
