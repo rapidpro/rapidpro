@@ -461,7 +461,7 @@
                 .date
                   [[message.sent|date:'medium']]
           .visited{ng-show:'action_set._visited && action_set.destination'}
-            .count{ng-mouseover:'showRecentMessages()', ng-mouseleave:''}
+            .count{ng-mouseover:'showRecentMessages()', ng-mouseleave:'hideRecentMessages();'}
               [[action_set._visited|number]]
 
 
