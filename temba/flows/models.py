@@ -5235,6 +5235,13 @@ class ReplyAction(Action):
         return [reply] if reply else []
 
 
+class EndUssdAction(ReplyAction):
+    """
+    Reply action that ends a USSD session gracefully with a message
+    """
+    TYPE = 'end_ussd'
+
+
 class UssdAction(ReplyAction):
     """
     USSD action to send outgoing USSD messages
