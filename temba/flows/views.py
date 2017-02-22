@@ -846,12 +846,15 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
 
+            flow = self.get_object(self.get_queryset())
+
             # hangup any test calls if we have them
-            IVRCall.hangup_test_call(self.get_object())
+            if flow.flow_type == Flow.VOICE:
+                IVRCall.hangup_test_call(flow)
 
             org = self.request.user.get_org()
             context = super(FlowCRUDL.Read, self).get_context_data(*args, **kwargs)
-            flow = self.get_object(self.get_queryset())
+
             flow.ensure_current_version()
 
             initial = flow.as_json(expand_contacts=True)
