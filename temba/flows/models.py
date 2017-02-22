@@ -3603,7 +3603,7 @@ class ActionSet(models.Model):
     def is_messaging(self):
         actions = self.get_actions()
         for action in actions:
-            if isinstance(action, (ReplyAction, SendAction)):
+            if isinstance(action, (EndUssdAction, ReplyAction, SendAction)):
                 return True
         return False
 
@@ -4746,6 +4746,7 @@ class Action(object):
                 SayAction.TYPE: SayAction,
                 PlayAction.TYPE: PlayAction,
                 TriggerFlowAction.TYPE: TriggerFlowAction,
+                EndUssdAction.TYPE: EndUssdAction,
             }
 
         action_type = json_obj.get(cls.TYPE)
