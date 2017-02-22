@@ -404,7 +404,7 @@ class Flow(TembaModel):
         # what we will send back
         voice_response = call.channel.generate_ivr_response()
 
-        if run is None:
+        if run is None:  # pragma: no cover
             voice_response.hangup()
             return voice_response
 
