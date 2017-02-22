@@ -3,14 +3,11 @@
 %html
   %body
     .modal{class:'[[type]]', data-dismiss:"modal"}
-      .modal-header
+      .modal-body
         %button{ng-click:"cancel()", data-dimiss:"modal",type:"button",class:"pull-right close",aria-hidden:"true"}
           x
-        %h3
-          .icon
-          %span{id:"modal-title"}><
-            [[title]]
-      .modal-body
+        %a.download-btn.icon.icon-file_download{ng-if:'action._mediaType == "image"', type:"button", class:"pull-right", target:"_self", download:"", href:"[[action._translation_media]]"}
         %img.attachment-media{ng-if:'action._mediaType == "image"', id:'[[action.uuid]]_image', src:'[[action._translation_media]]'}
         %video.attachment-media{ng-if:'action._mediaType == "video"', controls:'', id:'[[action.uuid]]_video', src:'[[action._translation_media]]'}
         %audio.attachment-media{ng-if:'action._mediaType == "audio"', controls:'', id:'[[action.uuid]]_audio', src:'[[action._translation_media]]'}
+

@@ -787,7 +787,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
     resolveObj =
       action: -> action
-      title: -> "Action media"
       type: -> "attachment-viewer"
 
     $scope.dialog = utils.openModal("/partials/attachment_viewer", AttachmentViewerController , resolveObj)
@@ -1961,9 +1960,8 @@ TerminalWarningController = ($scope, $modalInstance, $log, actionset, flowContro
     $modalInstance.dismiss "cancel"
 
 
-AttachmentViewerController = ($scope, $modalInstance, title, action, type) ->
+AttachmentViewerController = ($scope, $modalInstance, action, type) ->
   $scope.action = action
-  $scope.title = title
   $scope.type = type
 
   $scope.cancel = ->
