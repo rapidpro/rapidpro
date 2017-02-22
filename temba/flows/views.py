@@ -1354,6 +1354,14 @@ class FlowCRUDL(SmartCRUDL):
                                         status=400)
 
             messages = Msg.objects.filter(contact=test_contact).order_by('pk', 'created_on')
+
+            if flow.flow_type == Flow.USSD:
+                for msg in messages:
+                    if msg.session.should_end:
+                        msg.session.mark_ended()
+
+                messages = messages.exclude(text='', direction='O')
+
             action_logs = ActionLog.objects.filter(run__contact=test_contact).order_by('pk', 'created_on')
 
             messages_and_logs = chain(messages, action_logs)
