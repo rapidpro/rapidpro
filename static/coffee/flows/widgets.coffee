@@ -3,7 +3,7 @@ app = angular.module('temba.widgets', [])
 #============================================================================
 # Displaying USSD Menu with textarea, menu inputs and char counter
 #============================================================================
-app.directive "ussd", [ "$rootScope", "$log", "Flow", "utils", ($rootScope, $log, Flow, utils) ->
+app.directive "ussd", [ "$rootScope", "$log", "Flow", ($rootScope, $log, Flow) ->
   MESSAGE_LENGTH = 182
 
   link = (scope, element, attrs) ->
