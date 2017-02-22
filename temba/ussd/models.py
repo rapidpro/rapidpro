@@ -37,13 +37,28 @@ class USSDSession(ChannelSession):
     class Meta:
         proxy = True
 
+    @property
+    def should_end(self):
+        return self.status == self.ENDING
+
+    def mark_ending(self):  # session to be ended
+        if self.status != self.ENDING:
+            self.status = self.ENDING
+            self.save()
+
+    def mark_ended(self):  # session has successfully ended
+        if self.status != self.COMPLETED:
+            self.status = self.COMPLETED
+            self.save()
+
     def start_session_async(self, flow):
         flow.start([], [self.contact], start_msg=None, restart_participants=True, session=self)
 
     def handle_session_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg
 
-        message = Msg.create_incoming(channel=self.channel, org=self.org, urn=urn, text=content or '', date=date, session=self)
+        message = Msg.create_incoming(channel=self.channel, org=self.org, urn=urn,
+                                      text=content or '', date=date, session=self)
         message.external_id = message_id
         message.save()
 
@@ -56,6 +71,7 @@ class USSDSession(ChannelSession):
                         flow=None, content=None, starcode=None, org=None, async=True):
 
         trigger = None
+        contact_urn = None
 
         # handle contact with channel
         urn = URN.from_tel(urn)
