@@ -1,3 +1,4 @@
+# coding=utf-8
 from __future__ import unicode_literals
 
 import fnmatch
@@ -98,8 +99,9 @@ class Command(BaseCommand):  # pragma: no cover
         parser.add_argument('--include', type=str, action='store', dest='url_include_pattern', default=None)
         parser.add_argument('--num-requests', type=int, action='store', dest='num_requests', default=DEFAULT_NUM_REQUESTS)
         parser.add_argument('--results-file', type=str, action='store', dest='results_file', default=DEFAULT_RESULTS_FILE)
+        parser.add_argument('--results-html', type=str, action='store', dest='results_html', default=None)
 
-    def handle(self, url_include_pattern, num_requests, results_file, *args, **options):
+    def handle(self, url_include_pattern, num_requests, results_file, results_html, *args, **options):
         # override some settings so that we behave more like a production instance
         settings.ALLOWED_HOSTS = ('testserver',)
         settings.DEBUG = False
@@ -119,10 +121,16 @@ class Command(BaseCommand):  # pragma: no cover
 
         self.save_results(results_file, started, results)
 
+        if results_html:
+            self.save_html_results(results_html, results)
+
         if any([not r.is_pass() for r in results]):
             sys.exit(1)
 
     def run_tests(self, urls, orgs, url_include_pattern, requests_per_org, prev_times):
+        """
+        Tests the given URLs for the given orgs
+        """
         # build a URL context for each org
         url_context_by_org = {}
         for org in orgs:
@@ -150,14 +158,14 @@ class Command(BaseCommand):  # pragma: no cover
         url_times = []
 
         for org in orgs:
-            url = url.format(**org_contexts[org])
+            formatted_url = url.format(**org_contexts[org])
 
             # login in as an org administrator
             self.client.force_login(org.administrators.first())
 
             for r in range(requests_per_org):
                 start_time = time.time()
-                response = self.client.get(url)
+                response = self.client.get(formatted_url)
                 assert response.status_code == 200
                 url_times.append(time.time() - start_time)
 
@@ -167,6 +175,9 @@ class Command(BaseCommand):  # pragma: no cover
         return result
 
     def format_result(self, result):
+        """
+        Formats a result like 0.024...0.037 (▼ -0.001, -3%)
+        """
         range_str = "%.3f...%.3f" % (result.min, result.max)
         if result.exceeds_maximum:
             range_str = self.style.ERROR(range_str)
@@ -183,6 +194,9 @@ class Command(BaseCommand):  # pragma: no cover
         return "%s (%s)" % (range_str, change_str)
 
     def load_previous_times(self, results_file):
+        """
+        Extracts URL times from a previous results file so they can be compared with current times
+        """
         try:
             with open(results_file, 'r') as f:
                 times_by_url = {}
@@ -192,9 +206,45 @@ class Command(BaseCommand):  # pragma: no cover
         except (IOError, ValueError, KeyError):
             return {}
 
-    def save_results(self, results_file, started, results):
-        with open(results_file, 'w') as f:
+    def save_results(self, path, started, results):
+        with open(path, 'w') as f:
             json.dump({
                 'started': started.isoformat(),
                 'results': [r.as_json() for r in results]
             }, f, indent=4)
+
+    def save_html_results(self, path, results):
+        header = """<table style="font-family: Arial, Helvetica, sans-serif; border-spacing: 0; border-collapse: separate;">
+        <tr>
+            <th style="padding: 5px; text-align: left">URL</th>
+            <th style="padding: 5px">Min (secs)</th>
+            <th style="padding: 5px">Max (secs)</th>
+            <th style="padding: 5px">Change (secs)</th>
+            <th style="padding: 5px">Change (%)</th>
+        </tr>
+        """
+        footer = """</table>"""
+
+        with open(path, 'w') as f:
+            f.write(header)
+            for result in results:
+                if result.change:
+                    arrow = '&#8593; ' if result.change > 0 else '&#8595; '
+                    change = '%s %.3f' % (arrow, result.change)
+                    percentage_change = '%d' % result.percentage_change
+                else:
+                    change = ''
+                    percentage_change = ''
+
+                row_bg = 'dbffe3' if result.is_pass() else 'ffe0e0'
+                max_bg = 'ffafaf' if result.exceeds_maximum else row_bg
+                change_bg = 'ffafaf' if result.exceeds_change else row_bg
+
+                f.write('<tr style="background-color: #%s">' % row_bg)
+                f.write('<td style="padding: 5px">%s</td>' % result.url)
+                f.write('<td style="padding: 5px">%.3f</td>' % result.min)
+                f.write('<td style="padding: 5px; background-color: #%s">%.3f</td>' % (max_bg, result.max))
+                f.write('<td style="padding: 5px">%s</td>' % change)
+                f.write('<td style="padding: 5px; background-color: #%s"">%s</td>' % (change_bg, percentage_change))
+                f.write('</tr>')
+            f.write(footer)
