@@ -187,6 +187,7 @@
 -block extra-style
   {{ block.super }}
   %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/leaflet/dist/leaflet.css", media:'all'}
+
   -compress css
     {% lessblock %}
       :plain

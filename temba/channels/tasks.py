@@ -4,11 +4,11 @@ import requests
 import logging
 import time
 
+from celery.task import task
 from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
 from django_redis import get_redis_connection
-from djcelery_transactions import task
 from enum import Enum
 from temba.msgs.models import SEND_MSG_TASK, MSG_QUEUE
 from temba.utils import dict_to_struct
@@ -106,8 +106,7 @@ def trim_channel_log_task():  # pragma: needs cover
 @task(track_started=True, name='notify_mage_task')
 def notify_mage_task(channel_uuid, action):
     """
-    Notifies Mage of a change to a Twitter channel. Having this in a djcelery_transactions task ensures that the channel
-    db object is updated before Mage tries to fetch it
+    Notifies Mage of a change to a Twitter channel
     """
     action = MageStreamAction[action]
     mage = MageClient(settings.MAGE_API_URL, settings.MAGE_AUTH_TOKEN)

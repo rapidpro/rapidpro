@@ -5,8 +5,8 @@
 
 -block extra-less
   {{block.super}}
+  -compress css
     {% lessblock %}
-    {% compress css%}
       :plain
         .service {
           margin-top:5px;
@@ -52,7 +52,6 @@
         }
 
         .service {
-          float:right;
           width: 50px;
           margin-right:20px;
         }
@@ -81,7 +80,7 @@
           padding:10px;
           .rounded-corners(5px);
         }
-      {% endcompress %}
+
     {% endlessblock %}
 
 -block extra-script

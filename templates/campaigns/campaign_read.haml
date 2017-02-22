@@ -13,7 +13,7 @@
       .icon-users-2
       -if object.group.is_active
         Events for the
-        %a{href:"{% url 'contacts.contact_filter' object.group.pk %}"}= object.group.name
+        %a{href:"{% url 'contacts.contact_filter' object.group.uuid %}"}= object.group.name
         group
       -else
         -trans "No group assigned to this campaign"
@@ -71,8 +71,8 @@
             %td{colspan:2}
 
 -block extra-less
+  -compress css
     {% lessblock %}
-    {%compress css%}
       :plain
 
         @row-color: @flat-white;
@@ -183,7 +183,6 @@
           }
 
         }
-      {%endcompress%}
     {% endlessblock %}
 
 -block extra-script

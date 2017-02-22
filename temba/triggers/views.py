@@ -22,7 +22,7 @@ from temba.schedules.views import BaseScheduleForm
 from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.msgs.views import ModalMixin
-from temba.utils import analytics
+from temba.utils import analytics, on_transaction_commit
 from temba.utils.views import BaseActionForm
 from .models import Trigger
 
@@ -544,7 +544,7 @@ class TriggerCRUDL(SmartCRUDL):
                 # fire our trigger schedule if necessary
                 if trigger.schedule.is_expired():
                     from temba.schedules.tasks import check_schedule_task
-                    check_schedule_task.delay(trigger.schedule.pk)
+                    on_transaction_commit(lambda: check_schedule_task.delay(trigger.schedule.pk))
 
             response = super(TriggerCRUDL.Update, self).form_valid(form)
             response['REDIRECT'] = self.get_success_url()
@@ -756,7 +756,7 @@ class TriggerCRUDL(SmartCRUDL):
             # fire our trigger schedule if necessary
             if obj.schedule.is_expired():
                 from temba.schedules.tasks import check_schedule_task
-                check_schedule_task.delay(obj.schedule.pk)
+                on_transaction_commit(lambda: check_schedule_task.delay(obj.schedule.pk))
 
             return obj
 

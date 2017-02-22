@@ -16,7 +16,7 @@ from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING
 from temba.orgs.models import CURRENT_EXPORT_VERSION, EARLIEST_IMPORT_VERSION
-from temba.utils import datetime_to_json_date
+from temba.utils import datetime_to_json_date, on_transaction_commit
 from temba.values.models import Value
 
 # Maximum number of items that can be passed to bulk action endpoint. We don't currently enforce this for messages but
@@ -1567,7 +1567,8 @@ class BroadcastCreateSerializer(WriteSerializer):
                                      recipients=recipients, channel=self.validated_data.get('channel'))
 
         # send in task
-        send_broadcast_task.delay(broadcast.id)
+        on_transaction_commit(lambda: send_broadcast_task.delay(broadcast.id))
+
         return broadcast
 
 

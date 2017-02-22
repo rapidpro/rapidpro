@@ -3,8 +3,8 @@
 -load i18n smartmin temba compress
 
 -block extra-less
+  -compress css inline
     {% lessblock %}
-    {% compress css inline%}
       :plain
         body {
           padding: 0;
@@ -88,7 +88,7 @@
             }
           }
         }
-      {% endcompress %}
+
     {% endlessblock %}
 
 -block body

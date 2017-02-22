@@ -12,6 +12,7 @@ import requests
 import telegram
 import re
 import six
+
 from enum import Enum
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
@@ -46,14 +47,12 @@ from xml.sax.saxutils import quoteattr, escape
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
 
-
 # Hub9 is an aggregator in Indonesia, set this to the endpoint for your service
 # and make sure you send from a whitelisted IP Address
 HUB9_ENDPOINT = 'http://175.103.48.29:28078/testing/smsmt.php'
 
 # Dart Media is another aggregator in Indonesia, set this to the endpoint for your service
 DART_MEDIA_ENDPOINT = 'http://202.43.169.11/APIhttpU/receive2waysms.php'
-
 
 
 class Encoding(Enum):
@@ -69,6 +68,7 @@ class Channel(TembaModel):
     TYPE_BLACKMYNA = 'BM'
     TYPE_CHIKKA = 'CK'
     TYPE_CLICKATELL = 'CT'
+    TYPE_DARTMEDIA = 'DA'
     TYPE_DUMMY = 'DM'
     TYPE_EXTERNAL = 'EX'
     TYPE_FACEBOOK = 'FB'
@@ -161,6 +161,7 @@ class Channel(TembaModel):
         TYPE_BLACKMYNA: dict(scheme='tel', max_length=1600),
         TYPE_CHIKKA: dict(scheme='tel', max_length=160),
         TYPE_CLICKATELL: dict(scheme='tel', max_length=420),
+        TYPE_DARTMEDIA: dict(scheme='tel', max_length=160),
         TYPE_DUMMY: dict(scheme='tel', max_length=160),
         TYPE_EXTERNAL: dict(max_length=160),
         TYPE_FACEBOOK: dict(scheme='facebook', max_length=320),
@@ -198,6 +199,7 @@ class Channel(TembaModel):
                     (TYPE_ANDROID, "Android"),
                     (TYPE_BLACKMYNA, "Blackmyna"),
                     (TYPE_CLICKATELL, "Clickatell"),
+                    (TYPE_DARTMEDIA, "Dart Media"),
                     (TYPE_DUMMY, "Dummy"),
                     (TYPE_EXTERNAL, "External"),
                     (TYPE_FACEBOOK, "Facebook"),
@@ -679,9 +681,7 @@ class Channel(TembaModel):
 
                 # notify Mage so that it activates this channel
                 from .tasks import MageStreamAction, notify_mage_task
-
                 on_transaction_commit(lambda: notify_mage_task.delay(channel.uuid, MageStreamAction.activate.name))
-
 
         return channel
 
@@ -1131,9 +1131,7 @@ class Channel(TembaModel):
         if notify_mage and self.channel_type == Channel.TYPE_TWITTER:
             # notify Mage so that it deactivates this channel
             from .tasks import MageStreamAction, notify_mage_task
-
             on_transaction_commit(lambda: notify_mage_task.delay(self.uuid, MageStreamAction.deactivate.name))
-
 
         from temba.triggers.models import Trigger
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)
@@ -1149,7 +1147,7 @@ class Channel(TembaModel):
                 if not gcm_id:
                     gcm_id = self.gcm_id
                 if gcm_id:
-                    sync_channel_task.delay(gcm_id, channel_id=self.pk)
+                    on_transaction_commit(lambda: sync_channel_task.delay(gcm_id, channel_id=self.pk))
 
         # otherwise this is an aggregator, no-op
         else:
@@ -1919,12 +1917,15 @@ class Channel(TembaModel):
 
         post_body = u"""
           <message>
-            <service id="single" source=$$FROM$$ />
+            <service id="single" source=$$FROM$$ validity=$$VALIDITY$$/>
             <to>$$TO$$</to>
             <body content-type="plain/text" encoding="plain">$$BODY$$</body>
           </message>
         """
         post_body = post_body.replace("$$FROM$$", quoteattr(channel.address))
+
+        # tell Start to attempt to deliver this message for up to 12 hours
+        post_body = post_body.replace("$$VALIDITY$$", quoteattr("+12 hours"))
         post_body = post_body.replace("$$TO$$", escape(msg.urn_path))
         post_body = post_body.replace("$$BODY$$", escape(msg.text))
         post_body = post_body.encode('utf8')
@@ -2278,7 +2279,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, SENT, start, 'POST', url, json.dumps(payload), response, external_id)
 
     @classmethod
-    def send_hub9_message(cls, channel, msg, text):
+    def send_hub9_or_dartmedia_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
 
         # http://175.103.48.29:28078/testing/smsmt.php?
@@ -2291,8 +2292,11 @@ class Channel(TembaModel):
         #   &message=Test+Normal+Single+Message&dcs=0
         #   &udhl=0&charset=utf-8
         #
-        from temba.settings import HUB9_ENDPOINT
-        url = HUB9_ENDPOINT
+        if channel.channel_type == Channel.TYPE_HUB9:
+            url = HUB9_ENDPOINT
+        elif channel.channel_type == Channel.TYPE_DARTMEDIA:
+            url = DART_MEDIA_ENDPOINT
+
         payload = dict(userid=channel.config['username'], password=channel.config['password'],
                        original=channel.address.lstrip('+'), sendto=msg.urn_path.lstrip('+'),
                        messageid=msg.id, message=text, dcs=0, udhl=0)
@@ -3032,6 +3036,7 @@ class Channel(TembaModel):
     class Meta:
         ordering = ('-last_seen', '-pk')
 
+
 SOURCE_AC = "AC"
 SOURCE_USB = "USB"
 SOURCE_WIRELESS = "WIR"
@@ -3047,13 +3052,14 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_BLACKMYNA: Channel.send_blackmyna_message,
                   Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_CLICKATELL: Channel.send_clickatell_message,
+                  Channel.TYPE_DARTMEDIA: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
                   Channel.TYPE_EXTERNAL: Channel.send_external_message,
                   Channel.TYPE_FACEBOOK: Channel.send_facebook_message,
                   Channel.TYPE_FCM: Channel.send_fcm_message,
                   Channel.TYPE_GLOBE: Channel.send_globe_message,
                   Channel.TYPE_HIGH_CONNECTION: Channel.send_high_connection_message,
-                  Channel.TYPE_HUB9: Channel.send_hub9_message,
+                  Channel.TYPE_HUB9: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_INFOBIP: Channel.send_infobip_message,
                   Channel.TYPE_JASMIN: Channel.send_jasmin_message,
                   Channel.TYPE_JUNEBUG: Channel.send_junebug_message,

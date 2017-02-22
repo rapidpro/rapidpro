@@ -9,7 +9,6 @@ from temba.channels.models import ChannelSession, Channel
 from temba.utils import on_transaction_commit
 
 
-
 class IVRManager(models.Manager):
     def create(self, *args, **kwargs):
         return super(IVRManager, self).create(*args, session_type=IVRCall.IVR, **kwargs)

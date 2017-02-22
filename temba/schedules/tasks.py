@@ -1,10 +1,10 @@
 from __future__ import print_function, unicode_literals
 
-from django.utils import timezone
+from celery.task import task
 from django_redis import get_redis_connection
-from djcelery_transactions import task
-from .models import Schedule
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils import timezone
+from .models import Schedule
 
 
 @task(track_started=True, name='check_schedule_task')  # pragma: no cover

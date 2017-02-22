@@ -198,6 +198,28 @@
                 -blocktrans
                   Easily add a two way number you have configured with Hub9 in Indonesia.
 
+      .claim-row.dartmedia-channel{class:"{% if recommended_channel == 'dartmedia' %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans with "<a href='http://www.dartmedia.biz'>" as link_start and "</a>" as link_end
+            We recommend using a Dart Media phone number in Indonesia, please visit {{link_start}}http://www.dartmedia.biz{{link_end}} for details.
+
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_dart_media' %}"}
+              .btn-container
+                .claim-glyph.icon-channel-external
+                %p.claim-text
+                  -trans "Dart Media Number"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Easily add a two way number you have configured with Dart Media in Indonesia.
+
+
     -if not user_org.is_connected_to_twilio
       .claim-row.twilio-channel{class:"{% if recommended_channel == 'twilio' %}recommended{% endif %}"}
         .recommendation.hide
@@ -779,9 +801,8 @@
 
 
 -block extra-less
+  -compress css inline
     {% lessblock %}
-    {%compress css inline%}
-
       :plain
 
         .channel-options {
@@ -827,7 +848,6 @@
           }
 
         }
-      {%endcompress%}
     {% endlessblock %}
 
 

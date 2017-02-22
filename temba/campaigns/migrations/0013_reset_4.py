@@ -14,9 +14,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='campaign',
-            name='org',
-            field=models.ForeignKey(help_text='The organization this campaign exists for', on_delete=django.db.models.deletion.CASCADE, to='orgs.Org'),
-        ),
+        #migrations.AddField(
+        #    model_name='campaign',
+        #    name='org',
+        #    field=models.ForeignKey(help_text='The organization this campaign exists for', on_delete=django.db.models.deletion.CASCADE, to='orgs.Org'),
+        #),
     ]

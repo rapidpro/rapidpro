@@ -270,12 +270,19 @@ LOGGING = {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
             'formatter': 'verbose'
-        }
+        },
+        'null': {
+            'class': 'logging.NullHandler',
+        },
     },
     'loggers': {
         'pycountry': {
             'level': 'ERROR',
             'handlers': ['console'],
+            'propagate': False,
+        },
+        'django.security.DisallowedHost': {
+            'handlers': ['null'],
             'propagate': False,
         },
         'django.db.backends': {
@@ -421,6 +428,7 @@ PERMISSIONS = {
                          'claim_blackmyna',
                          'claim_chikka',
                          'claim_clickatell',
+                         'claim_dart_media',
                          'claim_external',
                          'claim_facebook',
                          'claim_fcm',
@@ -664,6 +672,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_blackmyna',
         'channels.channel_claim_chikka',
         'channels.channel_claim_clickatell',
+        'channels.channel_claim_dart_media',
         'channels.channel_claim_external',
         'channels.channel_claim_facebook',
         'channels.channel_claim_fcm',
@@ -807,6 +816,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_blackmyna',
         'channels.channel_claim_chikka',
         'channels.channel_claim_clickatell',
+        'channels.channel_claim_dart_media',
         'channels.channel_claim_external',
         'channels.channel_claim_facebook',
         'channels.channel_claim_fcm',
@@ -996,11 +1006,11 @@ CELERYBEAT_SCHEDULE = {
     },
     "schedules": {
         'task': 'check_schedule_task',
-        'schedule': timedelta(seconds=20),
+        'schedule': timedelta(seconds=60),
     },
     "campaigns": {
         'task': 'check_campaigns_task',
-        'schedule': timedelta(seconds=20),
+        'schedule': timedelta(seconds=60),
     },
     "check-flows": {
         'task': 'check_flows_task',
@@ -1090,11 +1100,9 @@ BROKER_URL = 'redis://%s:%d/%d' % (REDIS_HOST, REDIS_PORT, REDIS_DB)
 # by default, celery doesn't have any timeout on our redis connections, this fixes that
 BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 5}
 
-
 CELERY_RESULT_BACKEND = None
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
-
 
 IS_PROD = False
 HOSTNAME = "localhost"
@@ -1147,15 +1155,6 @@ REST_FRAMEWORK = {
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
 
-
-# -----------------------------------------------------------------------------------
-# Aggregator settings
-# -----------------------------------------------------------------------------------
-
-# Hub9 is an aggregator in Indonesia, set this to the endpoint for your service
-# and make sure you send from a whitelisted IP Address
-HUB9_ENDPOINT = 'http://175.103.48.29:28078/testing/smsmt.php'
-
 # -----------------------------------------------------------------------------------
 # Django Compressor configuration
 # -----------------------------------------------------------------------------------
@@ -1171,7 +1170,7 @@ else:
 
 COMPRESS_ENABLED = True
 COMPRESS_OFFLINE = True
-COMPRESS_URL = '/sitestatic/'
+#COMPRESS_URL = '/sitestatic/'
 
 
 # build up our offline compression context based on available brands
@@ -1180,7 +1179,6 @@ for brand in BRANDING.values():
     context = dict(STATIC_URL=STATIC_URL, base_template='frame.html', debug=False, testing=False)
     context['brand'] = dict(slug=brand['slug'], styles=brand['styles'])
     COMPRESS_OFFLINE_CONTEXT.append(context)
-
 
 MAGE_API_URL = 'http://localhost:8026/api/v1'
 MAGE_AUTH_TOKEN = '___MAGE_TOKEN_YOU_PICK__'

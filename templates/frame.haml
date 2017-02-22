@@ -120,16 +120,15 @@
     -load i18n
 
     -block styles
-      {%compress css%}
+      -compress css
         %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/bootstrap-css/css/bootstrap.css',  media:'all' }
         %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/animate.css/animate.css',  media:'all' }
 
-      {%endcompress%}
-      {%compress css%}
+      -compress css
         %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/bootstrap-css/css/bootstrap-responsive.css',
               media:'all and (min-width: 1200px), all and (max-width: 767px), all and (max-width: 480px), all and (min-width: 980px)' }
-      {%endcompress%}
-      {%compress css%}
+
+      -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/toastr/toastr.css", media:'all'}
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/select2/select2.css", media:'all'}
         %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/At.js/dist/css/jquery.atwho.css', media:'all'}
@@ -139,15 +138,9 @@
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/video.js/dist/video-js.css", media:'all'}
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/videojs-vjsdownload/dist/videojs-vjsdownload.css", media:'all'}
 
-      {%endcompress%}
-      {%compress css%}
+      -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
         %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/print.less', media:'print'}
-
-
-      {%endcompress%}
-        // custom branding
-
 
       -compress css
 
@@ -187,6 +180,8 @@
     &nbsp;
 
   %a#big-logo.logo.icon-logo{href:"/", title:"{{brand.name}}"}
+    .name
+      {{brand.name}}
 
   -include 'includes/nav.html'
 

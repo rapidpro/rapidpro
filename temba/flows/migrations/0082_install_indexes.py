@@ -30,5 +30,5 @@ CREATE INDEX flows_flowrun_timeout_active ON flows_flowrun (timeout_on) WHERE is
     ]
 
     operations = [
-        migrations.RunSQL(INDEX_SQL)
+        #migrations.RunSQL(INDEX_SQL)
     ]

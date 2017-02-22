@@ -3,8 +3,8 @@
 -load i18n
 
 -block extra-less
+  -compress css inline
     {% lessblock %}
-    {%compress css inline%}
       :plain
         #sign-up {
 
@@ -80,7 +80,6 @@
             }
           }
         }
-      {%endcompress%}
     {% endlessblock %}
 
 -block page-top

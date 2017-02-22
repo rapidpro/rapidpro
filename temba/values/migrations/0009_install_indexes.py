@@ -18,5 +18,5 @@ WHERE contact_field_id IS NOT NULL AND location_value_id IS NOT NULL;
     ]
 
     operations = [
-        migrations.RunSQL(INDEX_SQL)
+        #migrations.RunSQL(INDEX_SQL)
     ]

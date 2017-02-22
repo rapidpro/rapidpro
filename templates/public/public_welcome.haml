@@ -175,9 +175,8 @@
 
 
 -block extra-less
+  -compress css inline
     {% lessblock %}
-      {%compress css inline%}
-
       :plain
         .workflow-btn {
           padding: 4px 10px;
@@ -201,5 +200,4 @@
         a.workflow-glyph {
           text-decoration: none;
         }
-        {%endcompress%}
     {% endlessblock %}

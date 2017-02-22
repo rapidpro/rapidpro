@@ -882,7 +882,6 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
                'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist')
-
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1150,7 +1149,7 @@ class ChannelCRUDL(SmartCRUDL):
         cancel_url = 'id@channels.channel_read'
         title = _("Remove Android")
         success_message = ''
-        form = []
+        fields = ('id',)
 
         def get_success_url(self):
             return reverse('orgs.org_home')
@@ -1248,7 +1247,6 @@ class ChannelCRUDL(SmartCRUDL):
                 # notify Mage so that it refreshes this channel
                 from .tasks import MageStreamAction, notify_mage_task
                 on_transaction_commit(lambda: notify_mage_task.delay(obj.uuid, MageStreamAction.refresh.name))
-
 
             return obj
 
@@ -1758,7 +1756,7 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = ChikkaForm
 
         def get_country(self, obj):
-            return "Indonesia"
+            return "Philippines"
 
         def get_submitted_country(self, data):
             return 'PH'
@@ -1859,7 +1857,7 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimGlobe(ClaimAuthenticatedExternal):
         class GlobeClaimForm(forms.Form):
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The shortcode you have been assigned by Globe Labs"
+                                     help_text=_("The shortcode you have been assigned by Globe Labs "
                                                  "ex: 15543"))
             app_id = forms.CharField(label=_("Application Id"),
                                      help_text=_("The id of your Globe Labs application"))
@@ -1902,6 +1900,17 @@ class ChannelCRUDL(SmartCRUDL):
             return "Indonesia"
 
         def get_submitted_country(self, data):  # pragma: needs cover
+            return "ID"
+
+    class ClaimDartMedia(ClaimAuthenticatedExternal):
+        title = _("Connect Dart Media")
+        channel_type = Channel.TYPE_DARTMEDIA
+        readonly = ('country',)
+
+        def get_country(self, obj):
+            return "Indonesia"
+
+        def get_submitted_country(self, data):
             return "ID"
 
     class ClaimHighConnection(ClaimAuthenticatedExternal):

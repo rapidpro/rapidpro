@@ -43,13 +43,8 @@
         @import "simulator.less";
     {% endlessblock %}
 
-
+  -compress css inline
     {% lessblock %}
-    {%compress css%}
-    %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/simulator.less', media:'all'}
-    {%endcompress%}
-
-    {%compress css inline%}
       :plain
         .gear-menu {
           .dropdown-menu {
@@ -230,7 +225,7 @@
         }
 
 
-      {%endcompress%}
+
     {% endlessblock %}
 
 -block extra-script

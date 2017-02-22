@@ -3,8 +3,8 @@
 -block page-top
 
 -block extra-less
+  -compress css
     {% lessblock %}
-      {%compress css%}
       :plain
         #lead-form {
           display: block;
@@ -37,7 +37,7 @@
             position: relative;
           }
         }
-      {% endcompress %}
+
     {% endlessblock %}
 
 -block post-header

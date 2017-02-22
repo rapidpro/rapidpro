@@ -7,8 +7,8 @@
 
 -block extra-less
   {{block.super}}
+  -compress css
     {% lessblock %}
-      {%compress css%}
       :plain
         th.header-credits {
           text-align: right;
@@ -19,6 +19,5 @@
           font-size:22px;
           font-weight:100;
         }
-      {% endcompress %}
     {% endlessblock %}
 

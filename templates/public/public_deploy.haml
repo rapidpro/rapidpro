@@ -10,8 +10,8 @@
   :javascript
 
 -block extra-less
+  -compress css
     {% lessblock %}
-    {% compress css %}
     :plain
 
       .deploy {
@@ -111,7 +111,7 @@
 
         }
       }
-      {% endcompress %}
+
     {% endlessblock %}
 
 

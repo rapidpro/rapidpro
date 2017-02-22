@@ -137,7 +137,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
         groups_qs = ContactGroup.user_groups.filter(org=org).select_related('org')
         groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')
-        groups = [dict(pk=g.pk, label=g.name, count=g.get_member_count(), is_dynamic=g.is_dynamic) for g in groups_qs]
+        groups = [dict(pk=g.pk, uuid=g.uuid, label=g.name, count=g.get_member_count(), is_dynamic=g.is_dynamic) for g in groups_qs]
 
         # resolve the paginated object list so we can initialize a cache of URNs and fields
         contacts = list(context['object_list'])
@@ -327,9 +327,9 @@ class ContactCRUDL(SmartCRUDL):
             org = user.get_org()
 
             group = None
-            group_id = self.request.GET.get('g', None)
-            if group_id:
-                groups = ContactGroup.user_groups.filter(pk=group_id, org=org)
+            group_uuid = self.request.GET.get('g', None)
+            if group_uuid:
+                groups = ContactGroup.user_groups.filter(uuid=group_uuid, org=org)
 
                 if groups:
                     group = groups[0]
@@ -348,7 +348,8 @@ class ContactCRUDL(SmartCRUDL):
                     analytics.track(self.request.user.username, 'temba.contact_exported')
 
                 export = ExportContactsTask.objects.create(created_by=user, modified_by=user, org=org, group=group)
-                export_contacts_task.delay(export.pk)
+
+                on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: no cover
                     messages.info(self.request,
@@ -356,7 +357,6 @@ class ContactCRUDL(SmartCRUDL):
                                   % self.request.user.username)
 
                 else:
-                    export = ExportContactsTask.objects.get(id=export.pk)
                     dl_url = reverse('assets.download', kwargs=dict(type='contact_export', pk=export.pk))
                     messages.info(self.request,
                                   _("Export complete, you can find it here: %s (production users will get an email)")
@@ -926,10 +926,10 @@ class ContactCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r'^%s/%s/(?P<group>\d+)/$' % (path, action)
+            return r'^%s/%s/(?P<group>[^/]+)/$' % (path, action)
 
         def derive_group(self):
-            return ContactGroup.user_groups.get(pk=self.kwargs['group'])
+            return ContactGroup.user_groups.get(uuid=self.kwargs['group'])
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
@@ -1128,7 +1128,7 @@ class ContactGroupCRUDL(SmartCRUDL):
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactGroupForm
         fields = ('name', 'preselected_contacts', 'group_query')
-        success_url = "id@contacts.contact_filter"
+        success_url = "uuid@contacts.contact_filter"
         success_message = ''
         submit_button_name = _("Create")
 
@@ -1158,7 +1158,7 @@ class ContactGroupCRUDL(SmartCRUDL):
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = ContactGroupForm
         fields = ('name',)
-        success_url = 'id@contacts.contact_filter'
+        success_url = 'uuid@contacts.contact_filter'
         success_message = ''
 
         def derive_fields(self):
@@ -1176,7 +1176,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             return obj
 
     class Delete(OrgObjPermsMixin, SmartDeleteView):
-        cancel_url = 'id@contacts.contact_filter'
+        cancel_url = 'uuid@contacts.contact_filter'
         redirect_url = '@contacts.contact_list'
         success_message = ''
 

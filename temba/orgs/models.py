@@ -998,14 +998,13 @@ class Org(SmartModel):
         """
         formats = get_datetime_format(self.get_dayfirst())
         format = formats[1] if show_time else formats[0]
-
         return datetime_to_str(datetime, format, False, self.timezone)
 
     def parse_date(self, date_string):
         if isinstance(date_string, datetime):
             return date_string
 
-        return str_to_datetime(date_string, self.timezone)
+        return str_to_datetime(date_string, self.timezone, self.get_dayfirst())
 
     def parse_decimal(self, decimal_string):
         parsed = None

@@ -61,11 +61,11 @@
       -for group in contact_groups
         %span.group-membership{id:"group_{{group.id}}_{{contact.id}}"}
           -if org_perms.contacts.contact_update and not group.is_dynamic
-            %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.id %}"}
+            %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.uuid %}"}
               = group.name
               %a.btn.btn-primary.btn-mini{href:"#", onclick:'removeContactFromGroup({{group.pk}}, {{contact.pk}})'} x
           -else
-            %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.id %}"}
+            %a.btn.btn-primary.btn-mini{href:"{% url 'contacts.contact_filter' group.uuid %}"}
               = group.name
 
 -block read-buttons
@@ -204,11 +204,11 @@
       %a#delete-form.posterize{href:'{% url "contacts.contact_delete" contact.pk %}'}
 
 -block extra-less
+  -compress css
 
+    %link{type:'text/css', rel:'stylesheet', href:'{{STATIC_URL}}bower/video.js/dist/video-js.css', media:'all'}
 
     {% lessblock %}
-    {%compress css%}
-      <link media='all' href='/sitestatic/bower/video.js/dist/video-js.css' type='text/css' rel='stylesheet' />
       :plain
         .show-all {
           margin-top:-10px;
@@ -522,7 +522,6 @@
 
           }
         }
-        {% endcompress %}
 
     {% endlessblock %}
 

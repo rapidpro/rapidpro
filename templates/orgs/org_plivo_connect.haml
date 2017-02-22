@@ -29,8 +29,8 @@
       $("form.smartmin-form").attr('autocomplete', 'off');
     });
 -block extra-less
+  -compress css inline
     {% lessblock %}
-    {% compress css inline%}
       :plain
         .connect-help {
           margin-bottom: 25px;
@@ -55,6 +55,5 @@
         a:hover {
           text-decoration: none;
         }
-      {% endcompress %}
 
     {% endlessblock %}

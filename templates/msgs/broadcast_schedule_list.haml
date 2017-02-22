@@ -41,9 +41,8 @@
 
 
 -block extra-less
+  -compress css inline
     {% lessblock %}
-      {%compress css inline%}
-
       :plain
         td.value-next {
           color: @color-font-grey;
@@ -61,5 +60,4 @@
         .list-table {
         margin-top:48px;
         }
-      {%endcompress%}
     {% endlessblock %}

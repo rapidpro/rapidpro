@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 
+from celery.task import task
 from datetime import timedelta
 from django.utils import timezone
 from django_redis import get_redis_connection
