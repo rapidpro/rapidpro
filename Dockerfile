@@ -1,7 +1,20 @@
 FROM ubuntu:latest
 
+COPY ./geolibs.sh /
 RUN apt-get update && \
   apt-get install -y --no-install-recommends \
+  bash \
+  patch \
+  git \
+  gcc \
+  g++ \
+  make \
+  libc-dev \
+  musl-dev \
+  libpng-dev \
+  libxslt-dev \
+  libxml2-dev \
+  libffi-dev \
   nodejs \
   npm \
   nodejs-legacy \
@@ -10,14 +23,16 @@ RUN apt-get update && \
   python-pip \
   python-dev \
   build-essential \
-  git \
-  vim\
+  vim \
+  wget \
   libpq-dev \
   lib32ncurses5-dev \
   libgeos-dev && \
+  sh /geolibs.sh \
   rm -rf /var/lib/apt/lists/* && \
   npm install -g less && \
   npm install -g coffee-script
+
 
 ENV C_FORCE_ROOT True
 RUN mkdir rapidpro

@@ -844,7 +844,7 @@ class Flow(TembaModel):
             trigger.release()
 
         # delete our results in the background
-        delete_flow_results_task.delay(self.id)
+        on_transaction_commit(lambda: delete_flow_results_task.delay(self.id))
 
     def delete_results(self):
         """
@@ -1076,17 +1076,6 @@ class Flow(TembaModel):
         preferred_languages.append(self.base_language)
 
         return Language.get_localized_text(text_translations, preferred_languages, default_text)
-
-    def update_run_expirations(self):
-        """
-        Update all of our current run expirations according to our new expiration period
-        """
-        for step in FlowStep.objects.filter(run__flow=self, run__is_active=True, left_on=None).distinct('run'):
-            step.run.update_expiration(step.arrived_on)
-
-        # force an expiration update
-        from temba.flows.tasks import check_flows_task
-        check_flows_task.delay()
 
     def import_definition(self, flow_json):
         """
@@ -1416,7 +1405,7 @@ class Flow(TembaModel):
         group_ids = [g.id for g in groups]
         flow_start.groups.add(*group_ids)
 
-        start_flow_task.delay(flow_start.pk)
+        on_transaction_commit(lambda: start_flow_task.delay(flow_start.pk))
 
     def start(self, groups, contacts, restart_participants=False, started_flows=None,
               start_msg=None, extra=None, flow_start=None, parent_run=None, interrupt=True, session=None):
@@ -2665,7 +2654,7 @@ class FlowRun(models.Model):
             run_objs.update(is_active=False, exited_on=now, exit_type=exit_type, modified_on=now)
 
             # continue the parent flows to continue async
-            continue_parent_flows.delay(ids)
+            on_transaction_commit(lambda: continue_parent_flows.delay(ids))
 
     def get_last_msg(self, direction=INCOMING):
         """
@@ -2801,14 +2790,12 @@ class FlowRun(models.Model):
         else:
             from .tasks import continue_parent_flows
 
-
             if hasattr(self, 'voice_response') and self.parent and self.parent.is_active:
                 callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.session.pk]))
                 self.voice_response.redirect(url=callback + '?resume=1')
             else:
                 # we delay this by a second to allow current flow execution to complete (and msgs to be sent)
                 on_transaction_commit(lambda: continue_parent_flows.apply_async(args=[[self.id]], countdown=1))
-
 
     def set_interrupted(self, final_step=None):
         """
@@ -4441,7 +4428,7 @@ class FlowStart(SmartModel):
 
     def async_start(self):
         from temba.flows.tasks import start_flow_task
-        start_flow_task.delay(self.id)
+        on_transaction_commit(lambda: start_flow_task.delay(self.id))
 
     def start(self):
         self.status = FlowStart.STATUS_STARTING
@@ -4667,7 +4654,6 @@ class EmailAction(Action):
 
         if not run.contact.is_test:
             if valid_addresses:
-
                 on_transaction_commit(lambda: send_email_action_task.delay(run.flow.org.id, valid_addresses, subject, message))
         else:
             if valid_addresses:
@@ -5779,7 +5765,6 @@ class Test(object):
                 EqTest.TYPE: EqTest,
                 BetweenTest.TYPE: BetweenTest,
                 StartsWithTest.TYPE: StartsWithTest,
-                ElasticsearchTest.TYPE: ElasticsearchTest,
                 HasDateTest.TYPE: HasDateTest,
                 DateEqualTest.TYPE: DateEqualTest,
                 DateAfterTest.TYPE: DateAfterTest,
@@ -6195,80 +6180,6 @@ class ContainsAnyTest(ContainsTest):
             return 1, matched_words
         else:
             return 0, None
-
-
-class ElasticsearchTest(Test):
-    """
-    { op: "elasticsearch", "test": "red" }
-    """
-    TEST = 'test'
-    TYPE = 'elasticsearch'
-
-    FLOW_INDEX = 'flows'
-    FLOW_DOC_TYPE = 'flow'
-
-    INDEX_SETTINGS = { "settings": {
-                        "analysis":{
-                            "filter": {
-                                "spanish_stop": { "type": "stop", "stopwords":  "_spanish_" },
-                                "spanish_stemmer": { "type": "stemmer", "language": "light_spanish"}},
-                            "analyzer": {
-                                "spanish": {
-                                    "tokenizer": "standard",
-                                        "filter":[ "lowercase", "spanish_stop", "spanish_stemmer"]
-                                        }
-                                    }
-                                }
-                            }}
-
-    def __init__(self, test):
-        self.test = test
-
-        from elasticsearch import Elasticsearch
-        import os
-        self.es = Elasticsearch([{u'host': str(os.environ['ES_PORT_9200_TCP_ADDR']), u'port': b'9200'}])
-        exist = self.es.indices.exists(ElasticsearchTest.FLOW_INDEX)
-
-        if not (exist):
-            self.es.indices.create(index = ElasticsearchTest.FLOW_INDEX, body = ElasticsearchTest.INDEX_SETTINGS)
-
-        result = self.es.search(index= ElasticsearchTest.FLOW_INDEX, body = {'query' : {'fuzzy': {'base': {'value': test['base'].lower(), 'fuzziness':1}}}})
-        hit = result['hits']['hits']
-        if not hit:
-            test_transform = test.copy()
-            test_transform['base'] = test_transform['base'].lower()
-            self.es.index(index = ElasticsearchTest.FLOW_INDEX, doc_type = ElasticsearchTest.FLOW_DOC_TYPE, body =test_transform)
-
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls(json[cls.TEST])
-
-    def as_json(self):  # pragma: needs cover
-        return dict(type=ElasticsearchTest.TYPE, test=self.test)
-
-    def evaluate(self, run, sms, context, text):
-        # substitute any variables in our test
-        test = run.flow.get_localized_text(self.test, run.contact)
-        test, errors = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
-
-        # strip leading and trailing whitespace
-        text = text.strip()
-
-        # see whether we start with our test
-        if text.lower().find(test.lower()) == 0:
-            return 1, text[:len(test)]
-        else:
-            #Search in elasticsearch
-            result = self.es.search(index= ElasticsearchTest.FLOW_INDEX, body = {'query' : {'fuzzy': {'base': {'value': text.lower(), 'fuzziness':8}}}})
-            hits = result['hits']['hits']
-            if hits:
-                final_item = hits[0]['_source']['base']
-                print  "resultado %s %s" %(result, final_item)
-                return 1, final_item
-            else:
-                print  "resultado %s" %(result)
-                return 0, None
 
 
 class StartsWithTest(Test):
