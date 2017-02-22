@@ -3544,6 +3544,22 @@ class ChannelSession(SmartModel):
     duration = models.IntegerField(default=0, null=True,
                                    help_text="The length of this session in seconds")
 
+    def __init__(self, *args, **kwargs):
+        super(ChannelSession, self).__init__(*args, **kwargs)
+
+        """ This is needed when referencing `session` from `FlowRun`. Since
+        the FK is bound to ChannelSession, when it initializes an instance from
+        DB we need to specify the class based on `session_type` so we can access
+        all the methods the proxy model implements. """
+
+        if type(self) is ChannelSession:
+            if self.session_type == self.USSD:
+                from temba.ussd.models import USSDSession
+                self.__class__ = USSDSession
+            elif self.session_type == self.IVR:
+                from temba.ivr.models import IVRCall
+                self.__class__ = IVRCall
+
     def is_done(self):
         return self.status in self.DONE
 
