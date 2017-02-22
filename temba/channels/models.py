@@ -2009,6 +2009,9 @@ class Channel(TembaModel):
         body = response.json()
         external_id = body.get('message_id', '')
 
+        if is_ussd and msg.session.should_end:
+            msg.session.mark_ended()
+
         Channel.success(channel, msg, WIRED, start, 'PUT', url, payload, response, external_id)
 
     @classmethod
