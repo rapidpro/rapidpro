@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 
-from celery.task import task
+from djcelery_transactions import task
 from .models import IVRCall
 
 

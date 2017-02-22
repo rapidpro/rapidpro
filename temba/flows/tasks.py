@@ -1,10 +1,9 @@
 from __future__ import unicode_literals
 
 import time
-
-from celery.task import task
 from django.utils import timezone
 from django_redis import get_redis_connection
+from djcelery_transactions import task
 from temba.flows.models import FlowStatsCache
 from temba.msgs.models import Broadcast, Msg, TIMEOUT_EVENT, HANDLER_QUEUE, HANDLE_EVENT_TASK
 from temba.utils.email import send_simple_email

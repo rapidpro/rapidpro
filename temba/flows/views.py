@@ -35,7 +35,7 @@ from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, INCOMING, OUTGOING, PENDING
 from temba.triggers.models import Trigger
-from temba.utils import analytics, build_json_response, percentage, datetime_to_str, on_transaction_commit
+from temba.utils import analytics, build_json_response, percentage, datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 from temba.values.models import Value
@@ -630,7 +630,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # run async task to update all runs
             from .tasks import update_run_expirations_task
-            on_transaction_commit(lambda: update_run_expirations_task.delay(obj.pk))
+            update_run_expirations_task.delay(obj.pk)
 
             return obj
 
@@ -1038,7 +1038,7 @@ class FlowCRUDL(SmartCRUDL):
                                                       include_runs=form.cleaned_data['include_runs'],
                                                       include_msgs=form.cleaned_data['include_messages'],
                                                       responded_only=form.cleaned_data['responded_only'])
-                on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
+                export_flow_results_task.delay(export.pk)
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: needs cover
                     messages.info(self.request,

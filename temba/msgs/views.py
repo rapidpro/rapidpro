@@ -21,7 +21,7 @@ from temba.contacts.fields import OmniboxField
 from temba.contacts.models import ContactGroup, URN
 from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.utils import analytics, on_transaction_commit
+from temba.utils import analytics
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 from .models import Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
@@ -328,7 +328,7 @@ class BroadcastCRUDL(SmartCRUDL):
         def post_save(self, obj):
             # fire our send in celery
             from temba.msgs.tasks import send_broadcast_task
-            on_transaction_commit(lambda: send_broadcast_task.delay(obj.pk))
+            send_broadcast_task.delay(obj.pk)
             return obj
 
         def get_form_kwargs(self):
@@ -476,13 +476,14 @@ class MsgCRUDL(SmartCRUDL):
                 for group in groups:
                     export.groups.add(group)
 
-                on_transaction_commit(lambda: export_sms_task.delay(export.pk))
+                export_sms_task.delay(export.pk)
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
                     messages.info(self.request, _("We are preparing your export. We will e-mail you at %s when "
                                                   "it is ready.") % self.request.user.username)
 
                 else:
+                    export = ExportMessagesTask.objects.get(id=export.pk)
                     dl_url = reverse('assets.download', kwargs=dict(type='message_export', pk=export.pk))
                     messages.info(self.request, _("Export complete, you can find it here: %s (production users "
                                                   "will get an email)") % dl_url)

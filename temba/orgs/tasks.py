@@ -2,8 +2,8 @@ from __future__ import absolute_import, unicode_literals
 
 import time
 
-from celery.task import task
 from datetime import timedelta
+from djcelery_transactions import task
 from django.utils import timezone
 from django_redis import get_redis_connection
 from .models import CreditAlert, Invitation, Org, TopUpCredits

@@ -33,7 +33,7 @@ from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRE
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.utils import analytics, non_atomic_when_eager, on_transaction_commit
+from temba.utils import analytics, non_atomic_when_eager
 from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import timezone_to_country_code
 from twilio import TwilioRestException
@@ -557,7 +557,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
-               'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media')
+               'claim_twiml_api', 'claim_line', 'claim_viber_public')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -792,7 +792,7 @@ class ChannelCRUDL(SmartCRUDL):
         cancel_url = 'id@channels.channel_read'
         title = _("Remove Android")
         success_message = ''
-        fields = ('id',)
+        form = []
 
         def get_success_url(self):
             return reverse('orgs.org_home')
@@ -889,7 +889,7 @@ class ChannelCRUDL(SmartCRUDL):
             if obj.channel_type == Channel.TYPE_TWITTER:
                 # notify Mage so that it refreshes this channel
                 from .tasks import MageStreamAction, notify_mage_task
-                on_transaction_commit(lambda: notify_mage_task.delay(obj.uuid, MageStreamAction.refresh))
+                notify_mage_task.delay(obj.uuid, MageStreamAction.refresh)
 
             return obj
 
@@ -1378,7 +1378,7 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = ChikkaForm
 
         def get_country(self, obj):
-            return "Philippines"
+            return "Indonesia"
 
         def get_submitted_country(self, data):
             return 'PH'
@@ -1479,7 +1479,7 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimGlobe(ClaimAuthenticatedExternal):
         class GlobeClaimForm(forms.Form):
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The shortcode you have been assigned by Globe Labs "
+                                     help_text=_("The shortcode you have been assigned by Globe Labs"
                                                  "ex: 15543"))
             app_id = forms.CharField(label=_("Application Id"),
                                      help_text=_("The id of your Globe Labs application"))
@@ -1522,17 +1522,6 @@ class ChannelCRUDL(SmartCRUDL):
             return "Indonesia"
 
         def get_submitted_country(self, data):  # pragma: needs cover
-            return "ID"
-
-    class ClaimDartMedia(ClaimAuthenticatedExternal):
-        title = _("Connect Dart Media")
-        channel_type = Channel.TYPE_DARTMEDIA
-        readonly = ('country',)
-
-        def get_country(self, obj):
-            return "Indonesia"
-
-        def get_submitted_country(self, data):
             return "ID"
 
     class ClaimHighConnection(ClaimAuthenticatedExternal):
@@ -2628,4 +2617,4 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             queryset = super(ChannelLogCRUDL.Read, self).derive_queryset(**kwargs)
-            return queryset.filter(msg__channel__org=self.request.user.get_org()).order_by('-created_on')
+            return queryset.filter(msg__channel__org=self.request.user.get_org).order_by('-created_on')
