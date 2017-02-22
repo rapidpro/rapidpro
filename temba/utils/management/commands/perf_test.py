@@ -237,7 +237,7 @@ class Command(BaseCommand):  # pragma: no cover
     def write_org_html(self, f, org, tests):
         f.write("""
         <tr style="background-color: #2f4970; color: white">
-            <th style="padding: 5px" colspan="5">Org #%d</th>
+            <th style="padding: 5px" colspan="5">Org #%d (%d contacts)</th>
         </tr>
         <tr style="background-color: #f2f6fc; color: #2f4970">
             <th style="padding: 5px; text-align: left">URL</th>
@@ -246,7 +246,7 @@ class Command(BaseCommand):  # pragma: no cover
             <th style="padding: 5px">Change (ms)</th>
             <th style="padding: 5px">Change (%%)</th>
         </tr>
-        """ % org.id)
+        """ % (org.id, org.org_contacts.count()))
 
         for test in tests:
             if test.change:
