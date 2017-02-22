@@ -97,19 +97,34 @@ app.directive "msg", [ "$log", "Flow", ($log, Flow) ->
 
   link = (scope, element, attrs) ->
 
+    msgType = if attrs.type then attrs.type else "sms"
+
+    if msgType == "sms"
+      messageLength = 160
+    else if msgType == "ussd"
+      messageLength = 182
+
     scope.showCounter = true
     if attrs.showCounter?
       scope.showCounter = eval(attrs.showCounter)
 
-    # find out how many sms messages this will be
+    # find out how many messages this will be
     scope.countCharacters = ->
       if scope.message
-        length = scope.message.length
-        scope.messages = Math.ceil(length/160)
-        scope.characters = scope.messages * 160 - length
+        if msgType == "sms"
+          length = scope.message.length
+          scope.messages = Math.ceil(length/messageLength)
+          scope.characters = scope.messages * messageLength - length
+        if msgType == "ussd"
+          length = scope.message.length
+          scope.characters = messageLength - length
+
+          # invalidate form if we ran out of chars
+          modelController = element.find('textarea').controller('ngModel')
+          modelController.$setValidity 'message', scope.characters >= 0
       else
         scope.messages = 0
-        scope.characters = 160
+        scope.characters = messageLength
 
     # update our counter everytime the message changes
     scope.$watch (->scope.message), scope.countCharacters
