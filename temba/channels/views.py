@@ -58,6 +58,7 @@ RELAYER_TYPE_ICONS = {Channel.TYPE_ANDROID: "icon-channel-android",
                       Channel.TYPE_TWITTER: "icon-twitter",
                       Channel.TYPE_TELEGRAM: "icon-telegram",
                       Channel.TYPE_FACEBOOK: "icon-facebook-official",
+                      Channel.TYPE_FCM: "icon-fcm",
                       Channel.TYPE_VIBER: "icon-viber"}
 
 SESSION_TWITTER_TOKEN = 'twitter_oauth_token'
@@ -874,7 +875,7 @@ class UpdateTwitterForm(UpdateChannelForm):
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
-               'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration', 'claim_external',
+               'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration', 'claim_external', 'claim_fcm',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
@@ -2308,6 +2309,35 @@ class ChannelCRUDL(SmartCRUDL):
 
             context['twitter_auth_url'] = auth['auth_url']
             return context
+
+    class ClaimFcm(OrgPermsMixin, SmartFormView):
+        class ClaimFcmForm(forms.Form):
+            title = forms.CharField(label=_('Notification title'))
+            key = forms.CharField(label=_('FCM Key'), help_text=_("The key provided on the the Firebase Console "
+                                                                  "when you created your app."))
+            send_notification = forms.CharField(label=_('Send notification'), required=False,
+                                                help_text=_("Check if you want this channel to send notifications "
+                                                            "to contacts."),
+                                                widget=forms.CheckboxInput())
+
+        form_class = ClaimFcmForm
+        fields = ('title', 'key', 'send_notification',)
+        title = _("Connect Firebase Cloud Messaging")
+        success_url = "id@channels.channel_configuration"
+
+        def form_valid(self, form):
+            cleaned_data = form.cleaned_data
+            data = {
+                Channel.CONFIG_FCM_TITLE: cleaned_data.get('title'),
+                Channel.CONFIG_FCM_KEY: cleaned_data.get('key')
+            }
+
+            if cleaned_data.get('send_notification') == 'True':
+                data[Channel.CONFIG_FCM_NOTIFICATION] = True
+
+            self.object = Channel.add_fcm_channel(org=self.request.user.get_org(), user=self.request.user, data=data)
+
+            return super(ChannelCRUDL.ClaimFcm, self).form_valid(form)
 
     class ClaimFacebook(OrgPermsMixin, SmartFormView):
         class FacebookForm(forms.Form):

@@ -10,15 +10,19 @@ from celery.app.task import Task
 from datetime import datetime, time
 from decimal import Decimal
 from django.conf import settings
+from django.contrib.auth.models import User, Group
 from django.core import mail
+from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
 from django.core.paginator import Paginator
-from django.test import override_settings
+from django.test import override_settings, SimpleTestCase
 from django.utils import timezone
 from django_redis import get_redis_connection
 from mock import patch, PropertyMock
 from openpyxl import load_workbook
-from temba.contacts.models import Contact, ExportContactsTask
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
+from temba.locations.models import AdminBoundary
+from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba.utils import voicexml
 from temba.utils.nexmo import NCCOException, NCCOResponse
@@ -34,10 +38,9 @@ from .email import send_simple_email
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .currencies import currency_for_country
-from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager, \
-    clean_string
+from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
-from . import percentage, datetime_to_json_date, json_date_to_datetime, non_atomic_gets
+from . import percentage, datetime_to_json_date, json_date_to_datetime, non_atomic_gets, clean_string
 from . import datetime_to_str, chunk_list, get_country_code_by_name, datetime_to_epoch
 
 
@@ -1339,7 +1342,7 @@ class NCCOTest(TembaTest):
                                                                     bargeIn=False),
                                                                dict(format='wav', eventMethod='post',
                                                                     eventUrl=['http://example.com'],
-                                                                    endOnSilence='4', timeOut='60', endOnKey='#',
+                                                                    endOnSilence=4, timeOut=60, endOnKey='#',
                                                                     action='record', beepStart=True),
                                                                dict(action='input', maxDigits=1, timeOut=1,
                                                                     eventUrl=[
@@ -1382,7 +1385,7 @@ class NCCOTest(TembaTest):
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(action='input', maxDigits=1, timeOut=1,
                                                                     eventUrl=[
-                                                                        'http://example.com/?param=12&&input_redirect=1'
+                                                                        'http://example.com/?param=12&input_redirect=1'
                                                                     ])])
 
     def test_hangup(self):
@@ -1409,16 +1412,16 @@ class NCCOTest(TembaTest):
         response = NCCOResponse()
         response.gather(action='http://example.com', numDigits=1, timeout=45, finishOnKey='*')
 
-        self.assertEqual(json.loads(six.text_type(response)), [dict(maxDigits='1', eventMethod='post', action='input',
+        self.assertEqual(json.loads(six.text_type(response)), [dict(maxDigits=1, eventMethod='post', action='input',
                                                                     submitOnHash=False,
                                                                     eventUrl=['http://example.com'],
-                                                                    timeOut='45')])
+                                                                    timeOut=45)])
 
     def test_record(self):
         response = NCCOResponse()
         response.record()
 
-        self.assertEqual(json.loads(six.text_type(response)), [dict(format='wav', endOnSilence='4', beepStart=True,
+        self.assertEqual(json.loads(six.text_type(response)), [dict(format='wav', endOnSilence=4, beepStart=True,
                                                                     action='record', endOnKey='#'),
                                                                dict(action='input', maxDigits=1, timeOut=1,
                                                                     eventUrl=["None?save_media=1"])
@@ -1429,7 +1432,7 @@ class NCCOTest(TembaTest):
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(format='wav', eventMethod='post',
                                                                     eventUrl=['http://example.com'],
-                                                                    endOnSilence='4', timeOut='60', endOnKey='#',
+                                                                    endOnSilence=4, timeOut=60, endOnKey='#',
                                                                     action='record', beepStart=True),
                                                                dict(action='input', maxDigits=1, timeOut=1,
                                                                     eventUrl=["%s?save_media=1" % "http://example.com"])
@@ -1439,10 +1442,10 @@ class NCCOTest(TembaTest):
 
         self.assertEqual(json.loads(six.text_type(response)), [dict(format='wav', eventMethod='post',
                                                                     eventUrl=['http://example.com?param=12'],
-                                                                    endOnSilence='4', timeOut='60', endOnKey='#',
+                                                                    endOnSilence=4, timeOut=60, endOnKey='#',
                                                                     action='record', beepStart=True),
                                                                dict(action='input', maxDigits=1, timeOut=1,
-                                                                    eventUrl=["http://example.com?param=12&&save_media=1"])
+                                                                    eventUrl=["http://example.com?param=12&save_media=1"])
                                                                ])
 
 
@@ -1461,3 +1464,39 @@ class MiddlewareTest(TembaTest):
 
         response = self.client.get(reverse('public.public_index'))
         self.assertEqual(response['X-Temba-Org'], six.text_type(self.org.id))
+
+
+class MakeTestDBTest(SimpleTestCase):
+    """
+    This command can't be run in a transaction so we have to manually ensure all data is deleted on completion
+    """
+    allow_database_queries = True
+
+    def tearDown(self):
+        Org.objects.all().delete()
+        User.objects.all().delete()
+        Group.objects.all().delete()
+        AdminBoundary.objects.all().delete()
+
+    def test_command(self):
+        call_command('make_test_db', num_orgs=2, num_contacts=12, seed=123456)
+
+        org_1, org_2 = list(Org.objects.order_by('id'))
+
+        self.assertEqual(User.objects.count(), 10)  # 4 for each org + superuser + anonymous
+        self.assertEqual(ContactField.objects.count(), 12)  # 6 per org
+        self.assertEqual(ContactGroup.user_groups.count(), 20)  # 10 per org
+        self.assertEqual(Contact.objects.filter(is_test=True).count(), 8)  # 1 for each user
+        self.assertEqual(Contact.objects.filter(is_test=False).count(), 4)
+
+        org_1_all_contacts = ContactGroup.system_groups.get(org=org_1, name="All Contacts")
+
+        self.assertEqual(org_1_all_contacts.contacts.count(), 2)
+        self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(2,)])
+
+        # same seed should generate objects with same UUIDs
+        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'cec602da-1406-e378-df14-b8d4a99b7cc4')
+
+        # check can't be run again on a now non-empty database
+        with self.assertRaises(CommandError):
+            call_command('make_test_db', num_orgs=2, num_contacts=4)

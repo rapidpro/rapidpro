@@ -41,6 +41,7 @@ media/orgs
 media/recordings
 media/test_orgs
 media/tmp
+media/attachments
 
 
 # External projects
@@ -91,6 +92,7 @@ htmlcov/
 .tox/
 .coverage
 .cache
+.perf_results
 nosetests.xml
 coverage.xml
 js-coverage/
