@@ -400,6 +400,7 @@ class IVRTests(FlowFileTest):
 
             # back down to our original run
             self.assertEqual(1, FlowRun.objects.filter(is_active=True).count())
+            run = FlowRun.objects.filter(is_active=True).first()
 
             response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]) + '?resume=1', post_data)
             self.assertContains(response, 'In the child flow you picked Red.')
@@ -407,6 +408,9 @@ class IVRTests(FlowFileTest):
 
             # make sure we only called to start the call once
             self.assertEqual(1, start_call.call_count)
+
+            run.refresh_from_db()
+            self.assertFalse(run.is_completed())
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -1210,13 +1214,15 @@ class IVRTests(FlowFileTest):
         post_data['conversation_uuid'] = 'ext-id'
         post_data['uuid'] = 'call-ext-id'
 
-        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]),
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]) + '?has_event=1',
                                     json.dumps(post_data), content_type="application/json")
 
         call = IVRCall.objects.get()
+        run = call.runs.all().first()
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "Updated call status")
         self.assertEquals(call.status, IVRCall.COMPLETED)
+        self.assertTrue(run.is_completed())
 
         self.assertEqual(ChannelLog.objects.all().count(), 2)
         channel_log = ChannelLog.objects.last()

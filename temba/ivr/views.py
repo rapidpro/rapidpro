@@ -10,7 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from temba.channels.models import Channel, ChannelLog
 from temba.ivr.models import IVRCall
-from temba.flows.models import Flow, FlowRun
+from temba.flows.models import Flow, FlowRun, FlowStep
 
 
 class CallHandler(View):
@@ -72,6 +72,7 @@ class CallHandler(View):
             saved_media_url = None
             text = None
             media_url = None
+            has_event = False
 
             if channel_type in Channel.TWIML_CHANNELS:
 
@@ -106,13 +107,6 @@ class CallHandler(View):
                         text = None
 
                 has_event = '1' == request.GET.get('has_event', '0')
-                if has_event:
-                    response = dict(message="Updated call status",
-                                    call=dict(status=call.get_status_display(), duration=call.duration))
-                    ChannelLog.log_ivr_interaction(call, "Updated call %s status to %s" % (call.external_id, call.get_status_display()),
-                                                   request_body, json.dumps(response), request_path, request_method, status_code=200)
-                    return JsonResponse(response)
-
                 save_media = '1' == request.GET.get('save_media', '0')
                 if media_url:
                     if save_media:
@@ -125,7 +119,7 @@ class CallHandler(View):
                                                        request_path, request_method)
                         return JsonResponse(response)
 
-            if call.status not in IVRCall.DONE or hangup:
+            if not has_event and call.status not in IVRCall.DONE or hangup:
                 if call.is_ivr():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup, resume=resume)
                     if channel_type in Channel.NCCO_CHANNELS:
@@ -140,9 +134,11 @@ class CallHandler(View):
             else:
                 if call.status == IVRCall.COMPLETED:
                     # if our call is completed, hangup
-                    run = FlowRun.objects.filter(session=call).first()
-                    if run:
-                        run.set_completed()
+                    runs = FlowRun.objects.filter(session=call)
+                    for run in runs:
+                        if not run.is_completed():
+                            final_step = FlowStep.objects.filter(run=run).order_by('-arrived_on').first()
+                            run.set_completed(final_step=final_step)
 
                 response = dict(message="Updated call status",
                                 call=dict(status=call.get_status_display(), duration=call.duration))

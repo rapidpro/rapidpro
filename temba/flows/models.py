@@ -733,7 +733,6 @@ class Flow(TembaModel):
                 # run was interrupted and interrupt state not handled (not connected)
                 run.set_interrupted(final_step=step)
             else:
-                # log it for our test contacts
                 run.set_completed(final_step=step)
 
             return dict(handled=True, destination=None, destination_type=None)
@@ -2696,6 +2695,19 @@ class FlowRun(models.Model):
                     # finally, trigger our parent flow
                     Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
 
+    def is_ivr(self):
+        """
+        If this run is over an IVR session
+        """
+        return self.session and self.session.is_ivr()
+
+    def keep_active_on_exit(self):
+        """
+        If our run should be completed when we leave the last node
+        """
+        # we let parent runs over ivr get closed by the provider
+        return self.is_ivr() and not self.parent
+
     def resume_after_timeout(self, expired_timeout):
         """
         Resumes a flow that is at a ruleset that has timed out
@@ -2777,11 +2789,12 @@ class FlowRun(models.Model):
             self.flow.remove_active_for_step(final_step)
 
         # mark this flow as inactive
-        self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
-        self.exited_on = completed_on
-        self.modified_on = now
-        self.is_active = False
-        self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
+        if not self.keep_active_on_exit():
+            self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
+            self.exited_on = completed_on
+            self.modified_on = now
+            self.is_active = False
+            self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
         # let our parent know we finished
         if self.contact.is_test:

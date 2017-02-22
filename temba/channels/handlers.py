@@ -24,7 +24,7 @@ from requests import Request
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import Contact, URN
-from temba.flows.models import Flow, FlowRun
+from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, OUTGOING
 from temba.triggers.models import Trigger
@@ -1032,6 +1032,15 @@ class NexmoCallHandler(BaseChannelHandler):
                                            "Updated call %s status to %s" % (call.external_id,
                                                                              call.get_status_display()),
                                            request_body, json.dumps(response), request_path, request_method)
+
+            if call.status == IVRCall.COMPLETED:
+                # if our call is completed, hangup
+                runs = FlowRun.objects.filter(session=call)
+                for run in runs:
+                    if not run.is_completed():
+                        final_step = FlowStep.objects.filter(run=run).order_by('-arrived_on').first()
+                        run.set_completed(final_step=final_step)
+
             return JsonResponse(response)
 
         if action == 'answer':
