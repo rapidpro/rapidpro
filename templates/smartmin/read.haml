@@ -12,7 +12,7 @@
           %div.span12.buttons
             -block read-buttons
               -if view.edit_button
-                %a.btn.btn-primary.pull-right{'href':'../../update/={ object.id }/'}
+                %a.btn.btn-primary.pull-right{'href':'../../update/{{ object.id }}/'}
                   Edit
 
       %div.row
@@ -23,7 +23,7 @@
             %table.table.table-striped
               %tbody
                 -for field in fields
-                  %tr.read-={field}
+                  %tr{ class:"read-{{field}}" }
                     %td.read-label
                       -get_label field
                     %td.read-value

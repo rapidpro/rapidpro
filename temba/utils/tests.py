@@ -4,34 +4,44 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import pytz
+import six
 
 from celery.app.task import Task
 from datetime import datetime, time
 from decimal import Decimal
 from django.conf import settings
+from django.contrib.auth.models import User, Group
+from django.core import mail
+from django.core.management import call_command, CommandError
+from django.core.urlresolvers import reverse
 from django.core.paginator import Paginator
+from django.test import override_settings, SimpleTestCase
 from django.utils import timezone
 from django_redis import get_redis_connection
 from mock import patch, PropertyMock
 from openpyxl import load_workbook
-from temba.contacts.models import Contact
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
+from temba.locations.models import AdminBoundary
+from temba.orgs.models import Org
 from temba.tests import TembaTest
+from temba.utils import voicexml
+from temba.utils.nexmo import NCCOException, NCCOResponse
+from temba.utils.voicexml import VoiceXMLException
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from .email import is_valid_address
-from .exporter import TableExporter
+from .export import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
 from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents
-
+from .email import send_simple_email
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .currencies import currency_for_country
-from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager, \
-    clean_string
+from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
-from . import percentage, datetime_to_json_date, json_date_to_datetime, non_atomic_gets
-from . import datetime_to_str, chunk_list, get_country_code_by_name
+from . import percentage, datetime_to_json_date, json_date_to_datetime, non_atomic_gets, clean_string
+from . import datetime_to_str, chunk_list, get_country_code_by_name, datetime_to_epoch
 
 
 class InitTest(TembaTest):
@@ -67,6 +77,10 @@ class InitTest(TembaTest):
         self.assertEqual(datetime_to_str(d2, tz=tz), '2014-01-02T03:04:05.000006Z')  # in specific timezone
         self.assertEqual(datetime_to_str(d2, ms=False), '2014-01-02T01:04:05Z')  # no ms
         self.assertEqual(datetime_to_str(d2.date()), '2014-01-02T00:00:00.000000Z')  # no ms
+
+    def test_datetime_to_epoch(self):
+        dt = json_date_to_datetime('2014-01-02T01:04:05.000Z')
+        self.assertEqual(1388624645, datetime_to_epoch(dt))
 
     def test_str_to_datetime(self):
         tz = pytz.timezone('Asia/Kabul')
@@ -314,6 +328,22 @@ class CacheTest(TembaTest):
 
 
 class EmailTest(TembaTest):
+
+    @override_settings(SEND_EMAILS=True)
+    def test_send_simple_email(self):
+        send_simple_email(['recipient@bar.com'], "Test Subject", "Test Body")
+        self.assertEquals(len(mail.outbox), 1)
+        self.assertEquals(mail.outbox[0].from_email, settings.DEFAULT_FROM_EMAIL)
+        self.assertEquals(mail.outbox[0].subject, "Test Subject")
+        self.assertEquals(mail.outbox[0].body, "Test Body")
+        self.assertEquals(mail.outbox[0].recipients(), ['recipient@bar.com'])
+
+        send_simple_email(['recipient@bar.com'], "Test Subject", "Test Body", from_email='no-reply@foo.com')
+        self.assertEquals(len(mail.outbox), 2)
+        self.assertEquals(mail.outbox[1].from_email, 'no-reply@foo.com')
+        self.assertEquals(mail.outbox[1].subject, "Test Subject")
+        self.assertEquals(mail.outbox[1].body, "Test Body")
+        self.assertEquals(mail.outbox[1].recipients(), ["recipient@bar.com"])
 
     def test_is_valid_address(self):
 
@@ -926,12 +956,17 @@ class GSM7Test(TembaTest):
         self.assertEquals('No crazy "word" quotes.', replaced)
         self.assertTrue(is_gsm7(replaced))
 
+        # non breaking space
+        replaced = replace_non_gsm7_accents("Pour chercher du boulot, comment fais-tu ?")
+        self.assertEquals('Pour chercher du boulot, comment fais-tu ?', replaced)
+        self.assertTrue(is_gsm7(replaced))
+
 
 class ChunkTest(TembaTest):
 
     def test_chunking(self):
         curr = 0
-        for chunk in chunk_list(xrange(100), 7):
+        for chunk in chunk_list(six.moves.xrange(100), 7):
             batch_curr = curr
             for item in chunk:
                 self.assertEqual(item, curr)
@@ -946,9 +981,42 @@ class ChunkTest(TembaTest):
         self.assertEqual(curr, 100)
 
 
-class TableExporterTest(TembaTest):
-    @patch('temba.utils.exporter.TableExporter.MAX_XLS_COLS', new_callable=PropertyMock)
-    def test_csv(self, mock_max_cols):
+class ExportTest(TembaTest):
+    def setUp(self):
+        super(ExportTest, self).setUp()
+
+        self.group = self.create_group("New contacts", [])
+        self.task = ExportContactsTask.objects.create(org=self.org, group=self.group,
+                                                      created_by=self.admin, modified_by=self.admin)
+
+    def test_prepare_value(self):
+        self.assertEqual(self.task.prepare_value(None), '')
+        self.assertEqual(self.task.prepare_value("=()"), "'=()")  # escape formulas
+        self.assertEqual(self.task.prepare_value(123), '123')
+
+        dt = pytz.timezone("Africa/Nairobi").localize(datetime(2017, 2, 7, 15, 41, 23, 123456))
+        self.assertEqual(self.task.prepare_value(dt), datetime(2017, 2, 7, 14, 41, 23, 0))
+
+    def test_task_status(self):
+        self.assertEqual(self.task.status, ExportContactsTask.STATUS_PENDING)
+
+        self.task.perform()
+
+        self.assertEqual(self.task.status, ExportContactsTask.STATUS_COMPLETE)
+
+        task2 = ExportContactsTask.objects.create(org=self.org, group=self.group,
+                                                  created_by=self.admin, modified_by=self.admin)
+
+        # if task throws exception, will be marked as failed
+        with patch.object(task2, 'write_export') as mock_write_export:
+            mock_write_export.side_effect = ValueError("Problem!")
+
+            task2.perform()
+
+            self.assertEqual(task2.status, ExportContactsTask.STATUS_FAILED)
+
+    @patch('temba.utils.export.BaseExportTask.MAX_EXCEL_COLS', new_callable=PropertyMock)
+    def test_tableexporter_csv(self, mock_max_cols):
         test_max_cols = 255
         mock_max_cols.return_value = test_max_cols
 
@@ -958,7 +1026,7 @@ class TableExporterTest(TembaTest):
             cols.append("Column %d" % i)
 
         # create a new exporter
-        exporter = TableExporter("test", cols)
+        exporter = TableExporter(self.task, "test", cols)
 
         # should be CSV because we have too many columns
         self.assertTrue(exporter.is_csv)
@@ -972,9 +1040,9 @@ class TableExporterTest(TembaTest):
         exporter.write_row(values)
 
         # ok, let's check the result now
-        file = exporter.save_file()
+        temp_file, file_ext = exporter.save_file()
 
-        with open(file.name, 'rb') as csvfile:
+        with open(temp_file.name, 'rb') as csvfile:
             import csv
             reader = csv.reader(csvfile)
 
@@ -987,8 +1055,8 @@ class TableExporterTest(TembaTest):
             # should only be three rows
             self.assertEquals(2, idx)
 
-    @patch('temba.utils.exporter.TableExporter.MAX_XLS_ROWS', new_callable=PropertyMock)
-    def test_xls(self, mock_max_rows):
+    @patch('temba.utils.export.BaseExportTask.MAX_EXCEL_ROWS', new_callable=PropertyMock)
+    def test_tableexporter_xls(self, mock_max_rows):
         test_max_rows = 1500
         mock_max_rows.return_value = test_max_rows
 
@@ -996,7 +1064,7 @@ class TableExporterTest(TembaTest):
         for i in range(32):
             cols.append("Column %d" % i)
 
-        exporter = TableExporter("test", cols)
+        exporter = TableExporter(self.task, "test", cols)
 
         # should be an XLS file
         self.assertFalse(exporter.is_csv)
@@ -1009,8 +1077,8 @@ class TableExporterTest(TembaTest):
         for i in range(test_max_rows + 200):
             exporter.write_row(values)
 
-        exporter_file = exporter.save_file()
-        workbook = load_workbook(filename=exporter_file.name)
+        temp_file, file_ext = exporter.save_file()
+        workbook = load_workbook(filename=temp_file.name)
 
         self.assertEquals(2, len(workbook.worksheets))
 
@@ -1043,3 +1111,392 @@ class CurrencyTest(TembaTest):
         self.assertEqual(currency_for_country('DE').letter, 'EUR')
         self.assertEqual(currency_for_country('YE').letter, 'YER')
         self.assertEqual(currency_for_country('AF').letter, 'AFN')
+
+
+class VoiceXMLTest(TembaTest):
+
+    def test_context_managers(self):
+        response = voicexml.VXMLResponse()
+        self.assertEqual(response, response.__enter__())
+        self.assertFalse(response.__exit__(None, None, None))
+
+    def test_response(self):
+        response = voicexml.VXMLResponse()
+        self.assertEqual(response.document, '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>')
+        self.assertEqual(six.text_type(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form></form></vxml>')
+
+        response.document += '</form></vxml>'
+        self.assertEqual(six.text_type(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form></form></vxml>')
+
+    def test_join(self):
+        response1 = voicexml.VXMLResponse()
+        response2 = voicexml.VXMLResponse()
+
+        response1.document += 'Allo '
+        response2.document += 'Hey '
+
+        # the content of response2 should be prepended before the content of response1
+        self.assertEqual(six.text_type(response1.join(response2)),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>Hey Allo </form></vxml>')
+
+    def test_say(self):
+        response = voicexml.VXMLResponse()
+        response.say('Hello')
+
+        self.assertEqual(six.text_type(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<block><prompt>Hello</prompt></block></form></vxml>')
+
+    def test_play(self):
+        response = voicexml.VXMLResponse()
+
+        with self.assertRaises(VoiceXMLException):
+            response.play()
+
+        response.play(digits='123')
+        self.assertEqual(six.text_type(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<block><prompt>123</prompt></block></form></vxml>')
+
+        response = voicexml.VXMLResponse()
+        response.play(url='http://example.com/audio.wav')
+
+        self.assertEqual(six.text_type(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<block><prompt><audio src="http://example.com/audio.wav" /></prompt></block></form></vxml>')
+
+    def test_pause(self):
+        response = voicexml.VXMLResponse()
+
+        response.pause()
+        self.assertEqual(six.text_type(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<block><prompt><break /></prompt></block></form></vxml>')
+
+        response = voicexml.VXMLResponse()
+
+        response.pause(length=40)
+        self.assertEqual(six.text_type(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<block><prompt><break time="40s"/></prompt></block></form></vxml>')
+
+    def test_redirect(self):
+        response = voicexml.VXMLResponse()
+        response.redirect('http://example.com/')
+
+        self.assertEqual(six.text_type(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<subdialog src="http://example.com/" ></subdialog></form></vxml>')
+
+    def test_hangup(self):
+        response = voicexml.VXMLResponse()
+        response.hangup()
+
+        self.assertEqual(six.text_type(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form><exit /></form></vxml>')
+
+    def test_reject(self):
+        response = voicexml.VXMLResponse()
+        response.reject(reason='some')
+
+        self.assertEqual(six.text_type(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form><exit /></form></vxml>')
+
+    def test_gather(self):
+        response = voicexml.VXMLResponse()
+        response.gather()
+
+        self.assertEqual(six.text_type(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<field name="Digits"><grammar termchar="#" src="builtin:dtmf/digits" />'
+                         '</field></form></vxml>')
+
+        response = voicexml.VXMLResponse()
+        response.gather(action='http://example.com')
+
+        self.assertEqual(six.text_type(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<field name="Digits"><grammar termchar="#" src="builtin:dtmf/digits" />'
+                         '<nomatch><submit next="http://example.com?empty=1" method="post" /></nomatch></field>'
+                         '<filled><submit next="http://example.com" method="post" /></filled></form></vxml>')
+
+        response = voicexml.VXMLResponse()
+        response.gather(action='http://example.com', numDigits=1, timeout=45, finishOnKey='*')
+
+        self.assertEqual(six.text_type(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<field name="Digits"><grammar termtimeout="45s" timeout="45s" termchar="*" '
+                         'src="builtin:dtmf/digits?minlength=1;maxlength=1" />'
+                         '<nomatch><submit next="http://example.com?empty=1" method="post" /></nomatch></field>'
+                         '<filled><submit next="http://example.com" method="post" /></filled></form></vxml>')
+
+    def test_record(self):
+        response = voicexml.VXMLResponse()
+        response.record()
+
+        self.assertEqual(six.text_type(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<record name="UserRecording" beep="true" finalsilence="4000ms" '
+                         'dtmfterm="true" type="audio/x-wav"></record></form></vxml>')
+
+        response = voicexml.VXMLResponse()
+        response.record(action="http://example.com", method="post", maxLength=60)
+
+        self.assertEqual(six.text_type(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<record name="UserRecording" beep="true" maxtime="60s" finalsilence="4000ms" '
+                         'dtmfterm="true" type="audio/x-wav">'
+                         '<filled><submit next="http://example.com" method="post" '
+                         'enctype="multipart/form-data" /></filled></record></form></vxml>')
+
+
+class NCCOTest(TembaTest):
+
+    def test_context_managers(self):
+        response = NCCOResponse()
+        self.assertEqual(response, response.__enter__())
+        self.assertFalse(response.__exit__(None, None, None))
+
+    def test_response(self):
+        response = NCCOResponse()
+        self.assertEqual(response.document, [])
+        self.assertEqual(json.loads(six.text_type(response)), [])
+
+    def test_join(self):
+        response1 = NCCOResponse()
+        response2 = NCCOResponse()
+
+        response1.document.append(dict(action='foo'))
+        response2.document.append(dict(action='bar'))
+
+        # the content of response2 should be prepended before the content of response1
+        self.assertEqual(json.loads(six.text_type(response1.join(response2))), [dict(action='bar'), dict(action='foo')])
+
+    def test_say(self):
+        response = NCCOResponse()
+        response.say('Hello')
+
+        self.assertEqual(json.loads(six.text_type(response)), [dict(action='talk', text='Hello', bargeIn=False)])
+
+    def test_play(self):
+        response = NCCOResponse()
+
+        with self.assertRaises(NCCOException):
+            response.play()
+
+        response.play(digits='123')
+        self.assertEqual(json.loads(six.text_type(response)), [dict(action='talk', text='123', bargeIn=False)])
+
+        response = NCCOResponse()
+        response.play(url='http://example.com/audio.wav')
+
+        self.assertEqual(json.loads(six.text_type(response)), [dict(action='stream', bargeIn=False,
+                                                                    streamUrl=['http://example.com/audio.wav'])])
+
+        response = NCCOResponse()
+        response.play(url='http://example.com/audio.wav', digits='123')
+
+        self.assertEqual(json.loads(six.text_type(response)), [dict(action='stream', bargeIn=False,
+                                                                    streamUrl=['http://example.com/audio.wav'])])
+
+    def test_bargeIn(self):
+        response = NCCOResponse()
+        response.say('Hello')
+        response.redirect('http://example.com/')
+
+        self.assertEqual(json.loads(six.text_type(response)), [dict(action='talk', text='Hello', bargeIn=True),
+                                                               dict(action='input', maxDigits=1, timeOut=1,
+                                                                    eventUrl=[
+                                                                        "%s?input_redirect=1" % 'http://example.com/'
+                                                                    ])])
+
+        response = NCCOResponse()
+        response.say('Hello')
+        response.redirect('http://example.com/')
+        response.say('Goodbye')
+
+        self.assertEqual(json.loads(six.text_type(response)), [dict(action='talk', text='Hello', bargeIn=True),
+                                                               dict(action='input', maxDigits=1, timeOut=1,
+                                                                    eventUrl=[
+                                                                        "%s?input_redirect=1" % 'http://example.com/']),
+                                                               dict(action='talk', text='Goodbye', bargeIn=False)])
+
+        response = NCCOResponse()
+        response.say('Hello')
+        response.redirect('http://example.com/')
+        response.say('Please make a recording')
+        response.record(action="http://example.com", method="post", maxLength=60)
+        response.say('Thanks')
+        response.say('Allo')
+        response.say('Cool')
+        response.redirect('http://example.com/')
+        response.say('Bye')
+
+        self.assertEqual(json.loads(six.text_type(response)), [dict(action='talk', text='Hello', bargeIn=True),
+                                                               dict(action='input', maxDigits=1, timeOut=1,
+                                                                    eventUrl=[
+                                                                        "%s?input_redirect=1" % 'http://example.com/']),
+                                                               dict(action='talk', text='Please make a recording',
+                                                                    bargeIn=False),
+                                                               dict(format='wav', eventMethod='post',
+                                                                    eventUrl=['http://example.com'],
+                                                                    endOnSilence=4, timeOut=60, endOnKey='#',
+                                                                    action='record', beepStart=True),
+                                                               dict(action='input', maxDigits=1, timeOut=1,
+                                                                    eventUrl=[
+                                                                        "%s?save_media=1" % "http://example.com"]),
+                                                               dict(action='talk', text='Thanks', bargeIn=False),
+                                                               dict(action='talk', text='Allo', bargeIn=False),
+                                                               dict(action='talk', text='Cool', bargeIn=True),
+                                                               dict(action='input', maxDigits=1, timeOut=1,
+                                                                    eventUrl=[
+                                                                        "%s?input_redirect=1" % 'http://example.com/']),
+                                                               dict(action='talk', text='Bye', bargeIn=False)])
+
+        response = NCCOResponse()
+        response.play(url='http://example.com/audio.wav')
+        response.redirect('http://example.com/')
+        response.say('Goodbye')
+
+        self.assertEqual(json.loads(six.text_type(response)), [dict(action='stream', bargeIn=True,
+                                                                    streamUrl=['http://example.com/audio.wav']),
+                                                               dict(action='input', maxDigits=1, timeOut=1,
+                                                                    eventUrl=[
+                                                                        "%s?input_redirect=1" % 'http://example.com/']),
+                                                               dict(action='talk', text='Goodbye', bargeIn=False)])
+
+    def test_pause(self):
+        response = NCCOResponse()
+        response.pause()
+
+    def test_redirect(self):
+        response = NCCOResponse()
+        response.redirect('http://example.com/')
+
+        self.assertEqual(json.loads(six.text_type(response)), [dict(action='input', maxDigits=1, timeOut=1,
+                                                                    eventUrl=[
+                                                                        "%s?input_redirect=1" % 'http://example.com/'
+                                                                    ])])
+
+        response = NCCOResponse()
+        response.redirect('http://example.com/?param=12')
+
+        self.assertEqual(json.loads(six.text_type(response)), [dict(action='input', maxDigits=1, timeOut=1,
+                                                                    eventUrl=[
+                                                                        'http://example.com/?param=12&input_redirect=1'
+                                                                    ])])
+
+    def test_hangup(self):
+        response = NCCOResponse()
+        response.hangup()
+
+    def test_reject(self):
+        response = NCCOResponse()
+        response.reject()
+
+    def test_gather(self):
+        response = NCCOResponse()
+        response.gather()
+
+        self.assertEqual(json.loads(six.text_type(response)), [dict(action='input', submitOnHash=True)])
+
+        response = NCCOResponse()
+        response.gather(action='http://example.com')
+
+        self.assertEqual(json.loads(six.text_type(response)), [dict(eventMethod='post', action='input',
+                                                                    submitOnHash=True,
+                                                                    eventUrl=['http://example.com'])])
+
+        response = NCCOResponse()
+        response.gather(action='http://example.com', numDigits=1, timeout=45, finishOnKey='*')
+
+        self.assertEqual(json.loads(six.text_type(response)), [dict(maxDigits=1, eventMethod='post', action='input',
+                                                                    submitOnHash=False,
+                                                                    eventUrl=['http://example.com'],
+                                                                    timeOut=45)])
+
+    def test_record(self):
+        response = NCCOResponse()
+        response.record()
+
+        self.assertEqual(json.loads(six.text_type(response)), [dict(format='wav', endOnSilence=4, beepStart=True,
+                                                                    action='record', endOnKey='#'),
+                                                               dict(action='input', maxDigits=1, timeOut=1,
+                                                                    eventUrl=["None?save_media=1"])
+                                                               ])
+
+        response = NCCOResponse()
+        response.record(action="http://example.com", method="post", maxLength=60)
+
+        self.assertEqual(json.loads(six.text_type(response)), [dict(format='wav', eventMethod='post',
+                                                                    eventUrl=['http://example.com'],
+                                                                    endOnSilence=4, timeOut=60, endOnKey='#',
+                                                                    action='record', beepStart=True),
+                                                               dict(action='input', maxDigits=1, timeOut=1,
+                                                                    eventUrl=["%s?save_media=1" % "http://example.com"])
+                                                               ])
+        response = NCCOResponse()
+        response.record(action="http://example.com?param=12", method="post", maxLength=60)
+
+        self.assertEqual(json.loads(six.text_type(response)), [dict(format='wav', eventMethod='post',
+                                                                    eventUrl=['http://example.com?param=12'],
+                                                                    endOnSilence=4, timeOut=60, endOnKey='#',
+                                                                    action='record', beepStart=True),
+                                                               dict(action='input', maxDigits=1, timeOut=1,
+                                                                    eventUrl=["http://example.com?param=12&save_media=1"])
+                                                               ])
+
+
+class MiddlewareTest(TembaTest):
+
+    def test_orgheader(self):
+        response = self.client.get(reverse('public.public_index'))
+        self.assertFalse(response.has_header('X-Temba-Org'))
+
+        self.login(self.superuser)
+
+        response = self.client.get(reverse('public.public_index'))
+        self.assertFalse(response.has_header('X-Temba-Org'))
+
+        self.login(self.admin)
+
+        response = self.client.get(reverse('public.public_index'))
+        self.assertEqual(response['X-Temba-Org'], six.text_type(self.org.id))
+
+
+class MakeTestDBTest(SimpleTestCase):
+    """
+    This command can't be run in a transaction so we have to manually ensure all data is deleted on completion
+    """
+    allow_database_queries = True
+
+    def tearDown(self):
+        Org.objects.all().delete()
+        User.objects.all().delete()
+        Group.objects.all().delete()
+        AdminBoundary.objects.all().delete()
+
+    def test_command(self):
+        call_command('make_test_db', num_orgs=2, num_contacts=12, seed=123456)
+
+        org_1, org_2 = list(Org.objects.order_by('id'))
+
+        self.assertEqual(User.objects.count(), 10)  # 4 for each org + superuser + anonymous
+        self.assertEqual(ContactField.objects.count(), 12)  # 6 per org
+        self.assertEqual(ContactGroup.user_groups.count(), 20)  # 10 per org
+        self.assertEqual(Contact.objects.filter(is_test=True).count(), 8)  # 1 for each user
+        self.assertEqual(Contact.objects.filter(is_test=False).count(), 4)
+
+        org_1_all_contacts = ContactGroup.system_groups.get(org=org_1, name="All Contacts")
+
+        self.assertEqual(org_1_all_contacts.contacts.count(), 2)
+        self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(2,)])
+
+        # same seed should generate objects with same UUIDs
+        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'cec602da-1406-e378-df14-b8d4a99b7cc4')
+
+        # check can't be run again on a now non-empty database
+        with self.assertRaises(CommandError):
+            call_command('make_test_db', num_orgs=2, num_contacts=4)

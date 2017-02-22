@@ -187,9 +187,11 @@
 -block extra-style
   {{ block.super }}
   %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/leaflet/dist/leaflet.css", media:'all'}
-  {%compress css%}
-    %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/analytics.less', media:'all'}
-  {% endcompress %}
+  -compress css
+    {% lessblock %}
+      :plain
+        @import "analytics.less";
+    {% endlessblock %}
 
   :css
     .field-loading {

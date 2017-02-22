@@ -79,14 +79,24 @@ class RootView(views.APIView):
 
     The success or failure of requests is represented by status codes as well as a message in the response body:
 
-     * **200**: A list or update request was successful
-     * **201**: A resource was successfully created (only returned for `POST` requests)
+     * **200**: A list or update request was successful.
+     * **201**: A resource was successfully created (only returned for `POST` requests).
      * **204**: An empty response - used for both successful `DELETE` requests and `POST` requests that update multiple
                 resources.
      * **400**: The request failed due to invalid parameters. Do not retry with the same values, and the body of the
                 response will contain details.
-     * **403**: You do not have permission to access this resource
-     * **404**: The resource was not found (returned by `POST` and `DELETE` methods)
+     * **403**: You do not have permission to access this resource.
+     * **404**: The resource was not found (returned by `POST` and `DELETE` methods).
+     * **429**: You have exceeded the rate limit for this endpoint (see below).
+
+    ## Rate Limiting
+
+    All endpoints are subject to rate limiting. If you exceed the number of allowed requests in a given time window, you
+    will get a response with status code 429. The response will also include a header called 'Retry-After' which will
+    specify the number of seconds that you should wait for before making further requests.
+
+    The rate limit for all endpoints is 2,500 requests per hour. It is important to honor the Retry-After header when
+    encountering 429 responses as the limit is subject to change without notice.
 
     ## Date Values
 
@@ -592,7 +602,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     A `POST` allows you to create and send new broadcasts, with the following JSON data:
 
-      * **text** - the text of the message to send (string, limited to 480 characters)
+      * **text** - the text of the message to send (string, limited to 640 characters)
       * **urns** - the URNs of contacts to send to (array of up to 100 strings, optional)
       * **contacts** - the UUIDs of contacts to send to (array of up to 100 strings, optional)
       * **groups** - the UUIDs of contact groups to send to (array of up to 100 strings, optional)
@@ -1745,7 +1755,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
 
         GET /api/v2/flows.json
 
-    Response containing the groups for your organization:
+    Response containing the flows for your organization:
 
         {
             "next": null,
@@ -1759,6 +1769,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
                     "expires": 600,
                     "created_on": "2016-01-06T15:33:00.813162Z",
                     "runs": {
+                        "active": 47,
                         "completed": 123,
                         "interrupted": 2,
                         "expired": 34

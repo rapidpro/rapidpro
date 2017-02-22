@@ -1,21 +1,55 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
+
+import six
+import time
 
 from collections import defaultdict
-
-from django.db import models
+from django.db import models, connection
 from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
 from uuid import uuid4
 
 
 def generate_uuid():
-    return unicode(uuid4())
+    return six.text_type(uuid4())
 
 
 class TembaModel(SmartModel):
 
     uuid = models.CharField(max_length=36, unique=True, db_index=True, default=generate_uuid,
                             verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this object"))
+
+    class Meta:
+        abstract = True
+
+
+class SquashableModel(models.Model):
+    """
+    Base class for models which track counts by delta insertions which are then periodically squashed
+    """
+    SQUASH_OVER = None
+
+    is_squashed = models.BooleanField(default=False, help_text=_("Whether this row was created by squashing"))
+
+    @classmethod
+    def get_unsquashed(cls):
+        return cls.objects.filter(is_squashed=False)
+
+    @classmethod
+    def squash(cls):
+        start = time.time()
+        num_sets = 0
+        for distinct_set in cls.get_unsquashed().order_by(*cls.SQUASH_OVER).distinct(*cls.SQUASH_OVER):
+            with connection.cursor() as cursor:
+                sql, params = cls.get_squash_query(distinct_set)
+
+                cursor.execute(sql, params)
+
+            num_sets += 1
+
+        time_taken = time.time() - start
+
+        print("Squashed %d distinct sets of %s in %0.3fs" % (num_sets, cls.__name__, time_taken))
 
     class Meta:
         abstract = True
@@ -39,7 +73,7 @@ class ChunkIterator(object):
     def _setup(self):
         from temba.values.models import Value
 
-        for i in xrange(0, len(self._ids), self.max_obj_num):
+        for i in six.moves.xrange(0, len(self._ids), self.max_obj_num):
             chunk_queryset = self._model.objects.filter(id__in=self._ids[i:i + self.max_obj_num])
 
             if self._order_by:

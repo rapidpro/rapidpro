@@ -586,7 +586,9 @@
           %textarea.msd-elastic.body.note-input{ng-model:'note.body'}
 
 -block extra-style
-  {%compress css%}
-    %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/flow_editor.less', media:'all'}
-    %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/simulator.less', media:'all'}
-  {% endcompress %}
+  -compress css
+    {% lessblock %}
+      :plain
+        @import "flow_editor.less";
+        @import "simulator.less";
+    {% endlessblock %}

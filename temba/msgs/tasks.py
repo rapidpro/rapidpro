@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import logging
 import six
@@ -34,7 +34,7 @@ def process_run_timeout(run_id, timeout_on):
         key = 'pcm_%d' % run.contact_id
         if not r.get(key):
             with r.lock(key, timeout=120):
-                print "T[%09d] Processing timeout" % run.id
+                print("T[%09d] Processing timeout" % run.id)
                 start = time.time()
 
                 run.refresh_from_db()
@@ -43,9 +43,9 @@ def process_run_timeout(run_id, timeout_on):
                 if run.timeout_on and abs(run.timeout_on - timeout_on) < timedelta(milliseconds=1):
                     run.resume_after_timeout(timeout_on)
                 else:
-                    print "T[%09d] .. skipping timeout, already handled" % run.id
+                    print("T[%09d] .. skipping timeout, already handled" % run.id)
 
-                print "T[%09d] %08.3f s" % (run.id, time.time() - start)
+                print("T[%09d] %08.3f s" % (run.id, time.time() - start))
 
 
 @task(track_started=True, name='process_message_task')  # pragma: no cover
@@ -64,7 +64,7 @@ def process_message_task(msg_id, from_mage=False, new_contact=False):
     key = 'pcm_%d' % msg.contact_id
     if not r.get(key):
         with r.lock(key, timeout=120):
-            print "M[%09d] Processing - %s" % (msg.id, msg.text)
+            print("M[%09d] Processing - %s" % (msg.id, msg.text))
             start = time.time()
 
             # if message was created in Mage...
@@ -74,7 +74,7 @@ def process_message_task(msg_id, from_mage=False, new_contact=False):
                     mage_handle_new_contact(msg.org, msg.contact)
 
             Msg.process_message(msg)
-            print "M[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text)
+            print("M[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text))
 
 
 @task(track_started=True, name='send_broadcast')
@@ -99,7 +99,7 @@ def send_spam(user_id, contact_id):  # pragma: no cover
     channel = contact.org.get_send_channel(TEL_SCHEME)
 
     if not channel:  # pragma: no cover
-        print "Sorry, no channel to be all spammy with"
+        print("Sorry, no channel to be all spammy with")
         return
 
     long_text = "Test Message #%d. The path of the righteous man is beset on all sides by the iniquities of the " \
@@ -201,7 +201,7 @@ def export_sms_task(id):  # pragma: needs cover
     """
     export_task = ExportMessagesTask.objects.filter(pk=id).first()
     if export_task:
-        export_task.start_export()
+        export_task.perform()
 
 
 @task(track_started=True, name="handle_event_task", time_limit=180, soft_time_limit=120)
@@ -237,10 +237,10 @@ def handle_event_task():
                     event = EventFire.objects.filter(pk=event_task['id'], fired=None)\
                                              .select_related('event', 'event__campaign', 'event__campaign__org').first()
                     if event:
-                        print "E[%09d] Firing for org: %s" % (event.id, event.event.campaign.org.name)
+                        print("E[%09d] Firing for org: %s" % (event.id, event.event.campaign.org.name))
                         start = time.time()
                         event.fire()
-                        print "E[%09d] %08.3f s" % (event.id, time.time() - start)
+                        print("E[%09d] %08.3f s" % (event.id, time.time() - start))
 
         elif event_task['type'] == TIMEOUT_EVENT:
             timeout_on = json_date_to_datetime(event_task['timeout_on'])
@@ -335,14 +335,14 @@ def purge_broadcasts_task():
 
         print("[PURGE] Purged %d of %d broadcasts (%d messages deleted)" % (bcasts_purged, len(purge_ids), msgs_deleted))
 
-    Debit.squash_purge_debits()
+    Debit.squash()
 
     print("[PURGE] Finished purging %d broadcasts older than %s, deleting %d messages" % (len(purge_ids), purge_before, msgs_deleted))
 
 
 @nonoverlapping_task(track_started=True, name="squash_systemlabels")
 def squash_systemlabels():
-    SystemLabel.squash_counts()
+    SystemLabel.squash()
 
 
 @nonoverlapping_task(track_started=True, name='clear_old_msg_external_ids', time_limit=60 * 60 * 36)

@@ -1,8 +1,9 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import json
 import logging
 import regex
+import six
 import traceback
 
 from collections import Counter
@@ -15,17 +16,19 @@ from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
 from django.db.models import Count, Min, Max, Sum
 from django import forms
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
+from functools import cmp_to_key
 from itertools import chain
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartListView, SmartUpdateView
 from smartmin.views import SmartDeleteView, SmartTemplateView, SmartFormView
+from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
-from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME, ContactURN
 from temba.ivr.models import IVRCall
 from temba.ussd.models import USSDSession
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
@@ -33,13 +36,13 @@ from temba.reports.models import Report
 from temba.flows.models import Flow, FlowRun, FlowRevision, FlowRunCount
 from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, INCOMING, OUTGOING, PENDING
+from temba.msgs.models import Msg, PENDING
 from temba.triggers.models import Trigger
-from temba.utils import analytics, build_json_response, percentage, datetime_to_str
+from temba.utils import analytics, percentage, datetime_to_str, on_transaction_commit
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 from temba.values.models import Value
-from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart
+from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart, FlowPathRecentStep
 
 logger = logging.getLogger(__name__)
 
@@ -62,12 +65,18 @@ EXPIRES_CHOICES = (
 )
 
 
-class BaseFlowForm(forms.ModelForm):
-    expires_after_minutes = forms.ChoiceField(label=_('Expire inactive contacts'),
-                                              help_text=_("When inactive contacts should be removed from the flow"),
-                                              initial=str(60 * 24 * 7),
-                                              choices=EXPIRES_CHOICES)
+IVR_EXPIRES_CHOICES = (
+    (1, _('After 1 minute')),
+    (2, _('After 2 minutes')),
+    (3, _('After 3 minutes')),
+    (4, _('After 4 minutes')),
+    (5, _('After 5 minutes')),
+    (10, _('After 10 minutes')),
+    (15, _('After 15 minutes'))
+)
 
+
+class BaseFlowForm(forms.ModelForm):
     def clean_keyword_triggers(self):
         org = self.user.get_org()
         wrong_format = []
@@ -167,7 +176,7 @@ class RuleCRUDL(SmartCRUDL):
             return dict(id=ruleset.pk, label=ruleset.label, results=results)
 
         def render_to_response(self, context, **response_kwargs):
-            response = HttpResponse(json.dumps(context), content_type='application/javascript')
+            response = HttpResponse(json.dumps(context), content_type='application/json')
             return response
 
     class Choropleth(OrgPermsMixin, SmartReadView):
@@ -282,7 +291,7 @@ class RuleCRUDL(SmartCRUDL):
                     current_flow = dict(id=flow.id,
                                         text=flow.name,
                                         rules=[],
-                                        stats=dict(runs=flow.get_total_runs(),
+                                        stats=dict(runs=flow.get_run_stats()['total'],
                                                    created_on=flow.created_on))
 
                 current_flow['rules'].append(dict(text=rule.label, id=rule.pk, flow=current_flow['id'],
@@ -351,40 +360,21 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, request, *args, **kwargs):
             org = self.get_object_org()
 
-            step_uuid = request.GET.get('step', None)
-            next_uuid = request.GET.get('destination', None)
-            rule_uuid = request.GET.get('rule', None)
+            step_uuid = request.GET.get('step')
+            next_uuid = request.GET.get('destination')
+            rule_uuids = request.GET.get('rule')
 
             recent_messages = []
 
-            # noop if we are missing needed parameters
-            if not step_uuid or not next_uuid:
-                return build_json_response(recent_messages)
+            if (step_uuid or rule_uuids) and next_uuid:
+                from_uuids = rule_uuids.split(',') if rule_uuids else [step_uuid]
+                to_uuids = [next_uuid]
+                recent = FlowPathRecentStep.get_recent_messages(from_uuids, to_uuids, limit=5)
 
-            if rule_uuid:
-                rule_uuids = rule_uuid.split(',')
-                recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
-                                                       next_uuid=next_uuid,
-                                                       rule_uuid__in=rule_uuids).order_by('-left_on')[:20].prefetch_related('messages', 'contact')
-                msg_direction_filter = INCOMING
+                for msg in recent:
+                    recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=org.timezone), text=msg.text))
 
-            else:
-                recent_steps = FlowStep.objects.filter(step_uuid=step_uuid,
-                                                       next_uuid=next_uuid,
-                                                       rule_uuid=None).order_by('-left_on')[:20].prefetch_related('messages', 'contact')
-
-                msg_direction_filter = OUTGOING
-
-            # this is slightly goofy for performance reasons, we don't want to do the big join, so instead use the
-            # prefetch related above and do the filtering ourselves
-            for step in recent_steps:
-                if not step.contact.is_test:
-                    for msg in step.messages.all():
-                        if msg.visibility == Msg.VISIBILITY_VISIBLE and msg.direction == msg_direction_filter:
-                            recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=org.timezone),
-                                                        text=msg.text))
-
-            return build_json_response(recent_messages[:5])
+            return JsonResponse(recent_messages, safe=False)
 
     class Revisions(OrgObjPermsMixin, SmartReadView):
 
@@ -395,7 +385,7 @@ class FlowCRUDL(SmartCRUDL):
 
             if revision_id:
                 revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
-                return build_json_response(revision.get_definition_json())
+                return JsonResponse(revision.get_definition_json())
             else:
                 revisions = []
                 for revision in flow.revisions.all().order_by('-created_on')[:25]:
@@ -413,7 +403,7 @@ class FlowCRUDL(SmartCRUDL):
                         logger.exception("Error validating flow revision: %s [%d]" % (flow.uuid, revision.id))
                         pass
 
-                return build_json_response(revisions)
+                return JsonResponse(revisions, safe=False)
 
     class OrgQuerysetMixin(object):
         def derive_queryset(self, *args, **kwargs):
@@ -447,7 +437,7 @@ class FlowCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Flow
-                fields = ('name', 'keyword_triggers', 'expires_after_minutes', 'flow_type', 'base_language')
+                fields = ('name', 'keyword_triggers', 'flow_type', 'base_language')
 
         form_class = FlowCreateForm
         success_url = 'uuid@flows.flow_editor'
@@ -484,8 +474,14 @@ class FlowCRUDL(SmartCRUDL):
             if not obj.base_language:  # pragma: needs cover
                 obj.base_language = 'base'
 
+            # default expiration is a week
+            expires_after_minutes = 60 * 24 * 7
+            if obj.flow_type == Flow.VOICE:
+                # ivr expires after 5 minutes of inactivity
+                expires_after_minutes = 5
+
             self.object = Flow.create(org, self.request.user, obj.name,
-                                      flow_type=obj.flow_type, expires_after_minutes=obj.expires_after_minutes,
+                                      flow_type=obj.flow_type, expires_after_minutes=expires_after_minutes,
                                       base_language=obj.base_language)
 
         def post_save(self, obj):
@@ -527,6 +523,12 @@ class FlowCRUDL(SmartCRUDL):
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class FlowUpdateForm(BaseFlowForm):
 
+            expires_after_minutes = forms.ChoiceField(label=_('Expire inactive contacts'),
+                                                      help_text=_(
+                                                          "When inactive contacts should be removed from the flow"),
+                                                      initial=str(60 * 24 * 7),
+                                                      choices=EXPIRES_CHOICES)
+
             def __init__(self, user, *args, **kwargs):
                 super(FlowCRUDL.Update.FlowUpdateForm, self).__init__(*args, **kwargs)
                 self.user = user
@@ -536,6 +538,11 @@ class FlowCRUDL(SmartCRUDL):
                     org=self.instance.org, flow=self.instance, is_archived=False, groups=None,
                     trigger_type=Trigger.TYPE_KEYWORD
                 ).order_by('created_on')
+
+                if self.instance.flow_type == Flow.VOICE:
+                    expiration = self.fields['expires_after_minutes']
+                    expiration.choices = IVR_EXPIRES_CHOICES
+                    expiration.initial = 5
 
                 # if we don't have a base language let them pick one (this is immutable)
                 if not self.instance.base_language:
@@ -637,7 +644,7 @@ class FlowCRUDL(SmartCRUDL):
     class UploadActionRecording(OrgPermsMixin, SmartUpdateView):
         def post(self, request, *args, **kwargs):  # pragma: needs cover
             path = self.save_recording_upload(self.request.FILES['file'], self.request.POST.get('actionset'), self.request.POST.get('action'))
-            return build_json_response(dict(path=path))
+            return JsonResponse(dict(path=path))
 
         def save_recording_upload(self, file, actionset_id, action_uuid):  # pragma: needs cover
             flow = self.get_object()
@@ -659,6 +666,11 @@ class FlowCRUDL(SmartCRUDL):
             context['campaigns'] = self.get_campaigns()
             context['request_url'] = self.request.path
             context['actions'] = self.actions
+
+            # decorate flow objects with their run activity stats
+            for flow in context['object_list']:
+                flow.run_stats = flow.get_run_stats()
+
             return context
 
         def derive_queryset(self, *args, **kwargs):
@@ -795,37 +807,43 @@ class FlowCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             contact_variables = [
-                dict(name='contact', display=unicode(_('Contact Name'))),
-                dict(name='contact.first_name', display=unicode(_('Contact First Name'))),
-                dict(name='contact.groups', display=unicode(_('Contact Groups'))),
-                dict(name='contact.language', display=unicode(_('Contact Language'))),
-                dict(name='contact.mailto', display=unicode(_('Contact Email Address'))),
-                dict(name='contact.name', display=unicode(_('Contact Name'))),
-                dict(name='contact.tel', display=unicode(_('Contact Phone'))),
-                dict(name='contact.tel_e164', display=unicode(_('Contact Phone - E164'))),
-                dict(name='contact.uuid', display=unicode(_("Contact UUID"))),
-                dict(name='new_contact', display=unicode(_('New Contact')))
+                dict(name='contact', display=six.text_type(_('Contact Name'))),
+                dict(name='contact.first_name', display=six.text_type(_('Contact First Name'))),
+                dict(name='contact.groups', display=six.text_type(_('Contact Groups'))),
+                dict(name='contact.language', display=six.text_type(_('Contact Language'))),
+                dict(name='contact.mailto', display=six.text_type(_('Contact Email Address'))),
+                dict(name='contact.name', display=six.text_type(_('Contact Name'))),
+                dict(name='contact.tel', display=six.text_type(_('Contact Phone'))),
+                dict(name='contact.tel_e164', display=six.text_type(_('Contact Phone - E164'))),
+                dict(name='contact.uuid', display=six.text_type(_("Contact UUID"))),
+                dict(name='new_contact', display=six.text_type(_('New Contact')))
             ]
-            contact_variables += [dict(name="contact.%s" % field.key, display=field.label) for field in ContactField.objects.filter(org=org, is_active=True)]
+
+            contact_variables += [dict(name="contact.%s" % scheme, display=six.text_type(_("Contact %s" % label)))
+                                  for scheme, label in ContactURN.SCHEME_CHOICES if scheme != TEL_SCHEME and scheme in
+                                  org.get_schemes(Channel.ROLE_SEND)]
+
+            contact_variables += [dict(name="contact.%s" % field.key, display=field.label) for field in
+                                  ContactField.objects.filter(org=org, is_active=True)]
 
             date_variables = [
-                dict(name='date', display=unicode(_('Current Date and Time'))),
-                dict(name='date.now', display=unicode(_('Current Date and Time'))),
-                dict(name='date.today', display=unicode(_('Current Date'))),
-                dict(name='date.tomorrow', display=unicode(_("Tomorrow's Date"))),
-                dict(name='date.yesterday', display=unicode(_("Yesterday's Date")))
+                dict(name='date', display=six.text_type(_('Current Date and Time'))),
+                dict(name='date.now', display=six.text_type(_('Current Date and Time'))),
+                dict(name='date.today', display=six.text_type(_('Current Date'))),
+                dict(name='date.tomorrow', display=six.text_type(_("Tomorrow's Date"))),
+                dict(name='date.yesterday', display=six.text_type(_("Yesterday's Date")))
             ]
 
             flow_variables = [
-                dict(name='channel', display=unicode(_('Sent to'))),
-                dict(name='channel.name', display=unicode(_('Sent to'))),
-                dict(name='channel.tel', display=unicode(_('Sent to'))),
-                dict(name='channel.tel_e164', display=unicode(_('Sent to'))),
-                dict(name='step', display=unicode(_('Sent to'))),
-                dict(name='step.value', display=unicode(_('Sent to')))
+                dict(name='channel', display=six.text_type(_('Sent to'))),
+                dict(name='channel.name', display=six.text_type(_('Sent to'))),
+                dict(name='channel.tel', display=six.text_type(_('Sent to'))),
+                dict(name='channel.tel_e164', display=six.text_type(_('Sent to'))),
+                dict(name='step', display=six.text_type(_('Sent to'))),
+                dict(name='step.value', display=six.text_type(_('Sent to')))
             ]
             flow_variables += [dict(name='step.%s' % v['name'], display=v['display']) for v in contact_variables]
-            flow_variables.append(dict(name='flow', display=unicode(_('All flow variables'))))
+            flow_variables.append(dict(name='flow', display=six.text_type(_('All flow variables'))))
 
             flow_id = self.request.GET.get('flow', None)
 
@@ -840,8 +858,8 @@ class FlowCRUDL(SmartCRUDL):
                     flow_variables.append(dict(name='flow.%s.time' % key, display='%s Time' % rule_set.label))
 
             function_completions = get_function_listing()
-            return build_json_response(dict(message_completions=contact_variables + date_variables + flow_variables,
-                                            function_completions=function_completions))
+            return JsonResponse(dict(message_completions=contact_variables + date_variables + flow_variables,
+                                     function_completions=function_completions))
 
     class Read(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = 'uuid'
@@ -1023,11 +1041,7 @@ class FlowCRUDL(SmartCRUDL):
             org = user.get_org()
 
             # is there already an export taking place?
-            existing = ExportFlowResultsTask.objects.filter(org=org, is_finished=False,
-                                                            created_on__gt=timezone.now() - timedelta(hours=24))\
-                                                    .order_by('-created_on').first()
-
-            # if there is an existing export, don't allow it
+            existing = ExportFlowResultsTask.get_recent_unfinished(org)
             if existing:
                 messages.info(self.request,
                               _("There is already an export in progress, started by %s. You must wait "
@@ -1186,7 +1200,7 @@ class FlowCRUDL(SmartCRUDL):
                 modified_on = datetime.fromtimestamp(int(modified_on), flow.org.timezone)
                 runs = runs.filter(modified_on__lt=modified_on).exclude(modified_on=modified_on, id__lt=id)
 
-            runs = list(runs.order_by('-modified_on'))[:self.paginate_by]
+            runs = list(runs.order_by('-modified_on')[:self.paginate_by])
 
             # populate ruleset values
             for run in runs:
@@ -1232,13 +1246,13 @@ class FlowCRUDL(SmartCRUDL):
             from temba.ivr.models import IVRCall
 
             messages = []
-            call = IVRCall.objects.filter(contact__is_test=True, flow=flow).first()
+            call = IVRCall.objects.filter(contact__is_test=True).first()
             if call:
                 messages = Msg.objects.filter(contact=Contact.get_test_contact(self.request.user)).order_by('created_on')
                 action_logs = list(ActionLog.objects.filter(run__flow=flow, run__contact__is_test=True).order_by('created_on'))
 
                 messages_and_logs = chain(messages, action_logs)
-                messages_and_logs = sorted(messages_and_logs, cmp=msg_log_cmp)
+                messages_and_logs = sorted(messages_and_logs, key=cmp_to_key(msg_log_cmp))
 
                 messages_json = []
                 if messages_and_logs:
@@ -1248,10 +1262,8 @@ class FlowCRUDL(SmartCRUDL):
 
             (active, visited) = flow.get_activity()
 
-            return build_json_response(dict(messages=messages,
-                                            activity=active,
-                                            visited=visited,
-                                            flow=flow_json, pending=pending))
+            return JsonResponse(dict(messages=messages, activity=active, visited=visited,
+                                     flow=flow_json, pending=pending))
 
     class Simulate(OrgObjPermsMixin, SmartReadView):
 
@@ -1264,7 +1276,7 @@ class FlowCRUDL(SmartCRUDL):
             try:
                 json_dict = json.loads(request.body)
             except Exception as e:  # pragma: needs cover
-                return build_json_response(dict(status="error", description="Error parsing JSON: %s" % str(e)), status=400)
+                return JsonResponse(dict(status="error", description="Error parsing JSON: %s" % str(e)), status=400)
 
             Contact.set_simulation(True)
             user = self.request.user
@@ -1274,7 +1286,7 @@ class FlowCRUDL(SmartCRUDL):
             if json_dict and json_dict.get('hangup', False):  # pragma: needs cover
                 # hangup any test calls if we have them
                 IVRCall.hangup_test_call(self.get_object())
-                return build_json_response(dict(status="success", message="Test call hung up"))
+                return JsonResponse(dict(status="success", message="Test call hung up"))
 
             if json_dict and json_dict.get('has_refresh', False):
 
@@ -1353,13 +1365,14 @@ class FlowCRUDL(SmartCRUDL):
                 except Exception as e:  # pragma: needs cover
 
                     traceback.print_exc(e)
-                    return build_json_response(dict(status="error", description="Error creating message: %s" % str(e)), status=400)
+                    return JsonResponse(dict(status="error", description="Error creating message: %s" % str(e)),
+                                        status=400)
 
             messages = Msg.objects.filter(contact=test_contact).order_by('pk', 'created_on')
             action_logs = ActionLog.objects.filter(run__contact=test_contact).order_by('pk', 'created_on')
 
             messages_and_logs = chain(messages, action_logs)
-            messages_and_logs = sorted(messages_and_logs, cmp=msg_log_cmp)
+            messages_and_logs = sorted(messages_and_logs, key=cmp_to_key(msg_log_cmp))
 
             messages_json = []
             if messages_and_logs:
@@ -1376,7 +1389,7 @@ class FlowCRUDL(SmartCRUDL):
                 if ruleset:
                     response['ruleset'] = ruleset.as_json()
 
-            return build_json_response(dict(status="success", description="Message sent to Flow", **response))
+            return JsonResponse(dict(status="success", description="Message sent to Flow", **response))
 
     class Json(OrgObjPermsMixin, SmartUpdateView):
         success_message = ''
@@ -1398,8 +1411,8 @@ class FlowCRUDL(SmartCRUDL):
 
             # all the channels available for our org
             channels = [dict(uuid=chan.uuid, name=u"%s: %s" % (chan.get_channel_type_display(), chan.get_address_display())) for chan in flow.org.channels.filter(is_active=True)]
-            return build_json_response(dict(flow=flow.as_json(expand_contacts=True), languages=languages,
-                                            channel_countries=channel_countries, channels=channels))
+            return JsonResponse(dict(flow=flow.as_json(expand_contacts=True), languages=languages,
+                                     channel_countries=channel_countries, channels=channels))
 
         def post(self, request, *args, **kwargs):
 
@@ -1416,14 +1429,14 @@ class FlowCRUDL(SmartCRUDL):
 
             # try to save the our flow, if this fails, let's let that bubble up to our logger
             json_dict = json.loads(json_string)
-            print json.dumps(json_dict, indent=2)
+            print(json.dumps(json_dict, indent=2))
 
             try:
                 response_data = self.get_object(self.get_queryset()).update(json_dict, user=self.request.user)
-                return build_json_response(response_data, status=200)
+                return JsonResponse(response_data, status=200)
             except Exception as e:
                 # give the editor a formatted error response
-                return build_json_response(dict(status="failure", description=str(e)), status=400)
+                return JsonResponse(dict(status="failure", description=str(e)), status=400)
 
     class Broadcast(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class BroadcastForm(forms.ModelForm):
@@ -1471,8 +1484,10 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Broadcast, self).get_context_data(*args, **kwargs)
-            context['run_count'] = self.object.get_total_runs()
-            context['complete_count'] = self.object.get_completed_runs()
+
+            run_stats = self.object.get_run_stats()
+            context['run_count'] = run_stats['total']
+            context['complete_count'] = run_stats['completed']
             return context
 
         def get_form_kwargs(self):
@@ -1507,7 +1522,7 @@ class PreprocessTest(FormView):  # pragma: no cover
 
     def post(self, request, *args, **kwargs):
         return HttpResponse(json.dumps(dict(text='Norbert', extra=dict(occupation='hoopster', skillz=7.9))),
-                            content_type='application/javascript')
+                            content_type='application/json')
 
 
 class FlowLabelForm(forms.ModelForm):

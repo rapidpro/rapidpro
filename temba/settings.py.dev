@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 # -----------------------------------------------------------------------------------
 # Sample RapidPro settings file, this should allow you to deploy RapidPro locally on
@@ -12,7 +12,7 @@ from __future__ import unicode_literals
 
 import warnings
 
-from settings_common import *  # noqa
+from .settings_common import *  # noqa
 
 # -----------------------------------------------------------------------------------
 # Used when creating callbacks for Twilio, Nexmo etc..

@@ -1,4 +1,7 @@
+from __future__ import unicode_literals
+
 import json
+import six
 import uuid
 
 from datetime import datetime
@@ -13,6 +16,7 @@ from temba.channels.models import Channel
 from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING
 from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
+from temba.flows.models import FlowRun
 from temba.utils import dict_to_struct
 
 from .models import USSDSession
@@ -74,7 +78,7 @@ class USSDSessionTest(TembaTest):
         # message created and sent out
         msg = Msg.objects.get()
 
-        self.assertEqual(flow.steps().get().messages.get().text, msg.text)
+        self.assertEqual(flow.get_steps().get().messages.get().text, msg.text)
 
         return flow
 
@@ -97,17 +101,26 @@ class USSDSessionTest(TembaTest):
 
         # lets check the steps and incoming and outgoing messages
         # first step has 1 outgoing and the answer
-        self.assertEqual(flow.steps().first().messages.count(), 2)
-        self.assertEqual(flow.steps().first().messages.last().direction, OUTGOING)
-        self.assertEqual(flow.steps().first().messages.last().text, u'What would you like to read about?')
+        self.assertEqual(flow.get_steps().first().messages.count(), 2)
+        self.assertEqual(flow.get_steps().first().messages.last().direction, OUTGOING)
+        self.assertEqual(flow.get_steps().first().messages.last().text, u'What would you like to read about?')
 
-        self.assertEqual(flow.steps().first().messages.first().direction, INCOMING)
-        self.assertEqual(flow.steps().first().messages.first().text, u'1')
+        self.assertEqual(flow.get_steps().first().messages.first().direction, INCOMING)
+        self.assertEqual(flow.get_steps().first().messages.first().text, u'1')
 
         # second step sent out the next message and waits for response
-        self.assertEqual(flow.steps().last().messages.count(), 1)
-        self.assertEqual(flow.steps().last().messages.first().direction, OUTGOING)
-        self.assertEqual(flow.steps().last().messages.first().text, u'Thank you!')
+        self.assertEqual(flow.get_steps().last().messages.count(), 1)
+        self.assertEqual(flow.get_steps().last().messages.first().direction, OUTGOING)
+        self.assertEqual(flow.get_steps().last().messages.first().text, u'Thank you!')
+
+    def test_expiration(self):
+        # start off a PUSH session
+        self.test_push_async_start()
+        run = FlowRun.objects.last()
+        run.expire()
+
+        # we should be marked as interrupted now
+        self.assertEqual(USSDSession.INTERRUPTED, run.session.status)
 
     def test_async_interrupt_handling(self):
         # start a flow
@@ -236,12 +249,12 @@ class VumiUssdTest(TembaTest):
                 data = {
                     "transport_name": "ussd_transport",
                     "event_type": "ack",
-                    "event_id": unicode(uuid.uuid4()),
-                    "sent_message_id": unicode(uuid.uuid4()),
+                    "event_id": six.text_type(uuid.uuid4()),
+                    "sent_message_id": six.text_type(uuid.uuid4()),
                     "helper_metadata": {},
                     "routing_metadata": {},
                     "message_version": "20110921",
-                    "timestamp": unicode(timezone.now()),
+                    "timestamp": six.text_type(timezone.now()),
                     "transport_metadata": {},
                     "user_message_id": msg.external_id,
                     "message_type": "event"
@@ -290,8 +303,8 @@ class VumiUssdTest(TembaTest):
                     "transport_name": "ussd_transport",
                     "event_type": "nack",
                     "nack_reason": "Unknown address.",
-                    "event_id": unicode(uuid.uuid4()),
-                    "timestamp": unicode(timezone.now()),
+                    "event_id": six.text_type(uuid.uuid4()),
+                    "timestamp": six.text_type(timezone.now()),
                     "message_version": "20110921",
                     "transport_metadata": {},
                     "user_message_id": msg.external_id,
@@ -390,15 +403,16 @@ class VumiUssdTest(TembaTest):
 
         self.assertEqual(response.status_code, 200)
 
+        session = USSDSession.objects.last()
+        self.assertEqual(session.external_id, str(int(from_addr) + int(session_start)))
+
         msg = Msg.objects.get()
         self.assertEquals(INCOMING, msg.direction)
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
         self.assertEquals("Hello from Vumi 2", msg.text)
         self.assertEquals('123457', msg.external_id)
-
-        session = USSDSession.objects.last()
-        self.assertEqual(session.external_id, str(int(from_addr) + int(session_start)))
+        self.assertEquals(session, msg.session)
 
     @patch('temba.msgs.models.Msg.create_incoming')
     def test_interrupt(self, create_incoming):

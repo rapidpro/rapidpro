@@ -1,13 +1,25 @@
 from __future__ import absolute_import, unicode_literals
 
 import os
+import six
 
 from django.conf import settings
 from django.core.files.storage import default_storage
-from enum import Enum
-from temba.contacts.models import ExportContactsTask
-from temba.flows.models import ExportFlowResultsTask
-from temba.msgs.models import ExportMessagesTask
+from django.core.urlresolvers import reverse
+
+
+ASSET_STORES_BY_KEY = {}
+ASSET_STORES_BY_MODEL = {}
+
+
+def register_asset_store(store_class):
+    store = store_class()
+    ASSET_STORES_BY_KEY[store.key] = store
+    ASSET_STORES_BY_MODEL[store.model] = store
+
+
+def get_asset_store(key=None, model=None):
+    return ASSET_STORES_BY_KEY.get(key) if key else ASSET_STORES_BY_MODEL.get(model)
 
 
 class AssetException(Exception):
@@ -40,12 +52,10 @@ class BaseAssetStore(object):
     Base class for asset handlers. Assumes that pk is primary key of a db object with an associated asset.
     """
     model = None
+    key = None
     directory = None
     permission = None
     extensions = None
-
-    def __init__(self, asset_type):
-        self.asset_type = asset_type
 
     def resolve(self, user, pk):
         """
@@ -57,7 +67,7 @@ class BaseAssetStore(object):
         if not user.has_org_perm(asset.org, self.permission):  # pragma: needs cover
             raise AssetAccessDenied()
 
-        if not asset.uuid:
+        if not self.is_asset_ready(asset):
             raise AssetFileNotFound()
 
         path = self.derive_path(asset.org, asset.uuid)
@@ -67,7 +77,7 @@ class BaseAssetStore(object):
 
         # create a more friendly download filename
         remainder, extension = path.rsplit('.', 1)
-        filename = '%s_%s.%s' % (self.asset_type.name, pk, extension)
+        filename = '%s_%s.%s' % (self.key, pk, extension)
 
         # if our storage backend is S3
         if settings.DEFAULT_FILE_STORAGE == 'storages.backends.s3boto.S3BotoStorage':  # pragma: needs cover
@@ -114,8 +124,8 @@ class BaseAssetStore(object):
         """
         Derives the storage path of an asset, e.g. 'orgs/1/recordings/asdf-asdf-asdf-asdf-asdf-asdf.wav'
         """
-        base_name = unicode(uuid)
-        directory = os.path.join(settings.STORAGE_ROOT_DIR, unicode(org.pk), self.directory)
+        base_name = six.text_type(uuid)
+        directory = os.path.join(settings.STORAGE_ROOT_DIR, six.text_type(org.pk), self.directory)
 
         if extension:
             return '%s/%s.%s' % (directory, base_name, extension)
@@ -128,32 +138,9 @@ class BaseAssetStore(object):
 
         raise AssetFileNotFound()  # pragma: needs cover
 
+    def is_asset_ready(self, asset):  # pragma: no cover
+        return True
 
-class ContactExportAssetStore(BaseAssetStore):
-    model = ExportContactsTask
-    directory = 'contact_exports'
-    permission = 'contacts.contact_export'
-    extensions = ('xlsx', 'csv')
-
-
-class ResultsExportAssetStore(BaseAssetStore):
-    model = ExportFlowResultsTask
-    directory = 'results_exports'
-    permission = 'flows.flow_export_results'
-    extensions = ('xlsx',)
-
-
-class MessageExportAssetStore(BaseAssetStore):
-    model = ExportMessagesTask
-    directory = 'message_exports'
-    permission = 'msgs.msg_export'
-    extensions = ('xlsx',)
-
-
-class AssetType(Enum):
-    contact_export = (ContactExportAssetStore,)
-    results_export = (ResultsExportAssetStore,)
-    message_export = (MessageExportAssetStore,)
-
-    def __init__(self, store_class):
-        self.store = store_class(self)
+    def get_asset_url(self, pk, direct=False):
+        view_name = 'assets.stream' if direct else 'assets.download'
+        return reverse(view_name, kwargs=dict(type=self.key, pk=pk))

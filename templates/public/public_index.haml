@@ -54,6 +54,8 @@
                 <img src="{{ STATIC_URL }}images/question.png" style="width: 50px; height: 50px; right: 0px; bottom: 0px; position: fixed; z-index: 999;">
             </a>
 
+    -if not thanks
+      %br.clearfix{clear:"both"}
             <!-- Modal -->
             <div id="send-suggestion" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
               <div class="modal-dialog">

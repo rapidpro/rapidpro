@@ -1,9 +1,10 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import json
 import logging
 import pytz
 import regex
+import six
 import time
 import traceback
 
@@ -11,27 +12,24 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models, transaction, connection
+from django.db import models, transaction
 from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
-from django_redis import get_redis_connection
-from smartmin.models import SmartModel
 from temba_expressions.evaluator import EvaluationContext, DateStyle
+from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, clean_string
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
 from temba.utils.cache import get_cacheable_attr
-from temba.utils.email import send_template_email
+from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
-from temba.utils.models import TembaModel
+from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
-from uuid import uuid4
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -155,6 +153,7 @@ class BroadcastRecipient(models.Model):
         db_table = 'msgs_broadcast_recipients'
 
 
+@six.python_2_unicode_compatible
 class Broadcast(models.Model):
     """
     A broadcast is a message that is sent out to more than one recipient, such
@@ -545,10 +544,11 @@ class Broadcast(models.Model):
 
         self.save(update_fields=['status'])
 
-    def __unicode__(self):
+    def __str__(self):
         return "%s (%s)" % (self.org.name, self.pk)
 
 
+@six.python_2_unicode_compatible
 class Msg(models.Model):
     """
     Messages are the main building blocks of a RapidPro application. Channels send and receive
@@ -674,6 +674,9 @@ class Msg(models.Model):
     media = models.URLField(null=True, blank=True, max_length=255,
                             help_text=_("The media associated with this message if any"))
 
+    session = models.ForeignKey('channels.ChannelSession', null=True,
+                                help_text=_("The session this message was a part of if any"))
+
     @classmethod
     def send_messages(cls, all_msgs):
         """
@@ -759,7 +762,7 @@ class Msg(models.Model):
                     handled = handler.handle(msg)
 
                     if start:  # pragma: no cover
-                        print "[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk or 0)
+                        print("[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk or 0))
 
                     if handled:
                         break
@@ -1022,9 +1025,9 @@ class Msg(models.Model):
     def is_media_type_image(self):
         return Msg.MEDIA_IMAGE == self.get_media_type()
 
-    def reply(self, text, user, trigger_send=False, message_context=None):
+    def reply(self, text, user, trigger_send=False, message_context=None, session=None):
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None)
+                                 response_to=self if self.id else None, session=session)
 
     def update(self, cmd):
         """
@@ -1139,7 +1142,7 @@ class Msg(models.Model):
         """
         Used internally to serialize to JSON when queueing messages in Redis
         """
-        return dict(id=self.id, org=self.org_id, channel=self.channel_id, broadcast=self.broadcast_id,
+        data = dict(id=self.id, org=self.org_id, channel=self.channel_id, broadcast=self.broadcast_id,
                     text=self.text, urn_path=self.contact_urn.path,
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
@@ -1148,12 +1151,17 @@ class Msg(models.Model):
                     sent_on=self.sent_on, queued_on=self.queued_on,
                     created_on=self.created_on, modified_on=self.modified_on)
 
-    def __unicode__(self):
+        if self.contact_urn.auth:
+            data.update(dict(auth=self.contact_urn.auth))
+
+        return data
+
+    def __str__(self):
         return self.text
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
-                        status=PENDING, media=None, msg_type=None, topup=None, external_id=None):
+                        status=PENDING, media=None, msg_type=None, topup=None, external_id=None, session=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
         if not org and channel:
@@ -1210,7 +1218,8 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         media=media,
                         status=status,
-                        external_id=external_id)
+                        external_id=external_id,
+                        session=session)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
@@ -1281,7 +1290,7 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
-                        media=None, topup_id=None, msg_type=INBOX):
+                        media=None, topup_id=None, msg_type=INBOX, session=None):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
@@ -1382,6 +1391,7 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         priority=priority,
                         media=media,
+                        session=session,
                         has_template_error=len(errors) > 0)
 
         if topup_id is not None:
@@ -1411,7 +1421,7 @@ class Msg(models.Model):
             if recipient.scheme in resolved_schemes:
                 contact = recipient.contact
                 contact_urn = recipient
-        elif isinstance(recipient, basestring):
+        elif isinstance(recipient, six.string_types):
             scheme, path = URN.to_parts(recipient)
             if scheme in resolved_schemes:
                 contact = Contact.get_or_create(org, user, urns=[recipient])
@@ -1559,10 +1569,12 @@ STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,
              'who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
-class SystemLabel(models.Model):
+class SystemLabel(SquashableModel):
     """
     Counts of messages/broadcasts/calls maintained by database level triggers
     """
+    SQUASH_OVER = ('org_id', 'label_type')
+
     TYPE_INBOX = 'I'
     TYPE_FLOWS = 'W'
     TYPE_ARCHIVED = 'A'
@@ -1571,8 +1583,6 @@ class SystemLabel(models.Model):
     TYPE_FAILED = 'X'
     TYPE_SCHEDULED = 'E'
     TYPE_CALLS = 'C'
-
-    LAST_SQUASH_KEY = 'last_systemlabel_squash'
 
     TYPE_CHOICES = ((TYPE_INBOX, "Inbox"),
                     (TYPE_FLOWS, "Flows"),
@@ -1590,29 +1600,16 @@ class SystemLabel(models.Model):
     count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
 
     @classmethod
-    def squash_counts(cls):
-        # get the id of the last count we squashed
-        r = get_redis_connection()
-        last_squash = r.get(SystemLabel.LAST_SQUASH_KEY)
-        if not last_squash:
-            last_squash = 0
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH deleted as (
+            DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("org_id", "label_type", "count", "is_squashed")
+        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+        """ % {'table': cls._meta.db_table}
 
-        # get the unique systemlabel ids for all new ones
-        start = time.time()
-        squash_count = 0
-        for count in SystemLabel.objects.filter(id__gt=last_squash).order_by('org_id', 'label_type').distinct('org_id', 'label_type'):
-            # perform our atomic squash in SQL by calling our squash method
-            with connection.cursor() as c:
-                c.execute("SELECT temba_squash_systemlabel(%s, %s);", (count.org_id, count.label_type))
-
-            squash_count += 1
-
-        # insert our new top squashed id
-        max_id = SystemLabel.objects.all().order_by('-id').first()
-        if max_id:
-            r.set(SystemLabel.LAST_SQUASH_KEY, max_id.id)
-
-        print "Squashed system label counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
+        return sql, (distinct_set.org_id, distinct_set.label_type) * 2
 
     @classmethod
     def create_all(cls, org):
@@ -1710,6 +1707,7 @@ class UserLabelManager(models.Manager):
         return super(UserLabelManager, self).get_queryset().filter(label_type=Label.TYPE_LABEL)
 
 
+@six.python_2_unicode_compatible
 class Label(TembaModel):
     """
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
@@ -1747,7 +1745,7 @@ class Label(TembaModel):
             raise ValueError("Invalid label name: %s" % name)
 
         if folder and not folder.is_folder():  # pragma: needs cover
-            raise ValueError("%s is not a label folder" % unicode(folder))
+            raise ValueError("%s is not a label folder" % six.text_type(folder))
 
         label = cls.label_objects.filter(org=org, name__iexact=name).first()
         if label:
@@ -1851,9 +1849,9 @@ class Label(TembaModel):
     def release(self):
         self.delete()
 
-    def __unicode__(self):
+    def __str__(self):
         if self.folder:
-            return "%s > %s" % (unicode(self.folder), self.name)
+            return "%s > %s" % (six.text_type(self.folder), self.name)
         return self.name
 
     class Meta:
@@ -1873,7 +1871,7 @@ class MsgIterator(object):
         self.max_obj_num = max_obj_num
 
     def _setup(self):
-        for i in xrange(0, len(self._ids), self.max_obj_num):
+        for i in six.moves.xrange(0, len(self._ids), self.max_obj_num):
             chunk_queryset = Msg.objects.filter(id__in=self._ids[i:i + self.max_obj_num])
 
             if self._order_by:
@@ -1892,10 +1890,10 @@ class MsgIterator(object):
         return self
 
     def next(self):
-        return self._generator.next()
+        return next(self._generator)
 
 
-class ExportMessagesTask(SmartModel):
+class ExportMessagesTask(BaseExportTask):
     """
     Wrapper for handling exports of raw messages. This will export all selected messages in
     an Excel spreadsheet, adding sheets as necessary to fall within the guidelines of Excel 97
@@ -1904,7 +1902,9 @@ class ExportMessagesTask(SmartModel):
     When the export is done, we store the file on the server and send an e-mail notice with a
     link to download the results.
     """
-    org = models.ForeignKey(Org, help_text=_("The organization of the user."))
+    analytics_key = 'msg_export'
+    email_subject = "Your messages export is ready"
+    email_template = 'msgs/email/msg_export_download'
 
     groups = models.ManyToManyField(ContactGroup)
 
@@ -1914,48 +1914,21 @@ class ExportMessagesTask(SmartModel):
 
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
 
-    task_id = models.CharField(null=True, max_length=64)
-
-    is_finished = models.BooleanField(default=False, help_text=_("Whether this export is finished running"))
-
-    uuid = models.CharField(max_length=36, null=True, help_text=_("The uuid used to name the resulting export file"))
-
-    def start_export(self):  # pragma: needs cover
-        """
-        Starts our export, wrapping it in a try block to make sure we mark it as finished when complete.
-        """
-        try:
-            start = time.time()
-            self.do_export()
-        finally:
-            elapsed = time.time() - start
-            analytics.track(self.created_by.username, 'temba.msg_export_latency', properties=dict(value=elapsed))
-
-            self.is_finished = True
-            self.save(update_fields=['is_finished'])
-
-    def do_export(self):
+    def write_export(self):
         from openpyxl import Workbook
-        from openpyxl.writer.write_only import WriteOnlyCell
-        from openpyxl.utils.cell import get_column_letter
 
         book = Workbook(write_only=True)
-        max_rows = 1048576
-
-        small_width = 15
-        medium_width = 20
-        large_width = 100
 
         fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Contact UUID', 'Direction', 'Text', 'Labels', "Status"]
-        fields_col_width = [medium_width,  # Date
-                            medium_width,  # Contact
-                            small_width,   # Contact Type
-                            medium_width,  # Name
-                            medium_width,  # Contact UUID
-                            small_width,   # Direction
-                            large_width,   # Text
-                            medium_width,  # Labels
-                            small_width]   # Status
+        fields_col_width = [self.WIDTH_MEDIUM,  # Date
+                            self.WIDTH_MEDIUM,  # Contact
+                            self.WIDTH_SMALL,   # Contact Type
+                            self.WIDTH_MEDIUM,  # Name
+                            self.WIDTH_MEDIUM,  # Contact UUID
+                            self.WIDTH_SMALL,   # Direction
+                            self.WIDTH_LARGE,   # Text
+                            self.WIDTH_MEDIUM,  # Labels
+                            self.WIDTH_SMALL]   # Status
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on')
 
@@ -1979,16 +1952,10 @@ class ExportMessagesTask(SmartModel):
 
         messages_sheet_number = 1
 
-        current_messages_sheet = book.create_sheet(unicode(_("Messages %d" % messages_sheet_number)))
-        sheet_row = []
-        for col in range(1, len(fields) + 1):
-            index = col - 1
-            field = fields[index]
-            cell = WriteOnlyCell(current_messages_sheet, value=unicode(field))
-            sheet_row.append(cell)
-            current_messages_sheet.column_dimensions[get_column_letter(col)].width = fields_col_width[index]
+        current_messages_sheet = book.create_sheet(six.text_type(_("Messages %d" % messages_sheet_number)))
 
-        current_messages_sheet.append(sheet_row)
+        self.set_sheet_column_widths(current_messages_sheet, fields_col_width)
+        self.append_row(current_messages_sheet, fields)
 
         row = 2
         processed = 0
@@ -2001,22 +1968,13 @@ class ExportMessagesTask(SmartModel):
                                select_related=['contact', 'contact_urn'],
                                prefetch_related=[prefetch]):
 
-            if row >= max_rows:  # pragma: needs cover
+            if row >= self.MAX_EXCEL_ROWS:  # pragma: needs cover
                 messages_sheet_number += 1
-                current_messages_sheet = book.create_sheet(unicode(_("Messages %d" % messages_sheet_number)))
-                sheet_row = []
-                for col in range(len(fields)):
-                    field = fields[col]
-                    cell = WriteOnlyCell(current_messages_sheet, value=unicode(field))
-                    sheet_row.append(cell)
+                current_messages_sheet = book.create_sheet(six.text_type(_("Messages %d" % messages_sheet_number)))
 
-                current_messages_sheet.append(sheet_row)
+                self.append_row(current_messages_sheet, fields)
+                self.set_sheet_column_widths(current_messages_sheet, fields_col_width)
                 row = 2
-
-            contact_name = clean_string(msg.contact.name) if msg.contact.name else ''
-            contact_uuid = msg.contact.uuid
-            created_on = msg.created_on.astimezone(pytz.utc).replace(microsecond=0, tzinfo=None)
-            msg_labels = ", ".join(clean_string(msg_label.name) for msg_label in msg.labels.all())
 
             # only show URN path if org isn't anon and there is a URN
             if self.org.is_anon:  # pragma: needs cover
@@ -2028,60 +1986,35 @@ class ExportMessagesTask(SmartModel):
 
             urn_scheme = msg.contact_urn.scheme if msg.contact_urn else ''
 
-            sheet_row = []
-
-            text = clean_string(msg.text)
-
-            cell = WriteOnlyCell(current_messages_sheet, value=created_on)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=urn_path)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=urn_scheme)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=contact_name)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=contact_uuid)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=msg.get_direction_display())
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=text)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=msg_labels)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=msg.get_status_display())
-            sheet_row.append(cell)
-
-            current_messages_sheet.append(sheet_row)
+            self.append_row(current_messages_sheet, [
+                msg.created_on,
+                urn_path,
+                urn_scheme,
+                msg.contact.name,
+                msg.contact.uuid,
+                msg.get_direction_display(),
+                msg.text,
+                ", ".join(msg_label.name for msg_label in msg.labels.all()),
+                msg.get_status_display()
+            ])
 
             row += 1
             processed += 1
 
             if processed % 10000 == 0:  # pragma: needs cover
-                print "Export of %d msgs for %s - %d%% complete in %0.2fs" % \
-                      (len(all_message_ids), self.org.name, processed * 100 / len(all_message_ids), time.time() - start)
+                print("Export of %d msgs for %s - %d%% complete in %0.2fs" %
+                      (len(all_message_ids), self.org.name, processed * 100 / len(all_message_ids), time.time() - start))
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
         temp.flush()
+        return temp, 'xlsx'
 
-        self.uuid = str(uuid4())
-        self.save(update_fields=['uuid'])
 
-        # save as file asset associated with this task
-        from temba.assets.models import AssetType
-        from temba.assets.views import get_asset_url
-
-        store = AssetType.message_export.store
-        store.save(self.pk, File(temp), 'xlsx')
-
-        branding = self.org.get_branding()
-
-        subject = "Your messages export is ready"
-        template = 'msgs/email/msg_export_download'
-        download_url = branding['link'] + get_asset_url(AssetType.message_export, self.pk)
-
-        # force a gc
-        import gc
-        gc.collect()
-
-        send_template_email(self.created_by.username, subject, template, dict(link=download_url), branding)
+@register_asset_store
+class MessageExportAssetStore(BaseExportAssetStore):
+    model = ExportMessagesTask
+    key = 'message_export'
+    directory = 'message_exports'
+    permission = 'msgs.msg_export'
+    extensions = ('xlsx',)

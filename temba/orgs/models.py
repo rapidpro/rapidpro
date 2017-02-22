@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import calendar
 import json
@@ -7,6 +7,7 @@ import os
 import pycountry
 import random
 import regex
+import six
 import stripe
 import traceback
 
@@ -16,15 +17,15 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.contrib.auth.models import User, Group
-from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models, transaction, connection
+from django.db import models, transaction
 from django.db.models import Sum, F, Q
 from django.utils import timezone
+from temba.utils.email import send_simple_email, send_custom_smtp_email
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
 from django_redis import get_redis_connection
@@ -33,12 +34,13 @@ from requests import Session
 from smartmin.models import SmartModel
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.nexmo import NexmoClient
+
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
 from temba.utils import languages
 from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
-from temba.utils.email import send_template_email
 from temba.utils.currencies import currency_for_country
+from temba.utils.email import send_template_email
+from temba.utils.models import SquashableModel
 from temba.utils.timezones import timezone_to_country_code
 from timezone_field import TimeZoneField
 from twilio.rest import TwilioRestClient
@@ -92,9 +94,18 @@ ACCOUNT_TOKEN = 'ACCOUNT_TOKEN'
 NEXMO_KEY = 'NEXMO_KEY'
 NEXMO_SECRET = 'NEXMO_SECRET'
 NEXMO_UUID = 'NEXMO_UUID'
+NEXMO_APP_ID = 'NEXMO_APP_ID'
+NEXMO_APP_PRIVATE_KEY = 'NEXMO_APP_PRIVATE_KEY'
 
 TRANSFERTO_ACCOUNT_LOGIN = 'TRANSFERTO_ACCOUNT_LOGIN'
 TRANSFERTO_AIRTIME_API_TOKEN = 'TRANSFERTO_AIRTIME_API_TOKEN'
+
+SMTP_FROM_EMAIL = 'SMTP_FROM_EMAIL'
+SMTP_HOST = 'SMTP_HOST'
+SMTP_USERNAME = 'SMTP_USERNAME'
+SMTP_PASSWORD = 'SMTP_PASSWORD'
+SMTP_PORT = 'SMTP_PORT'
+SMTP_ENCRYPTION = 'SMTP_ENCRYPTION'
 
 ORG_STATUS = 'STATUS'
 SUSPENDED = 'suspended'
@@ -147,6 +158,7 @@ class OrgCache(Enum):
     credits = 2
 
 
+@six.python_2_unicode_compatible
 class Org(SmartModel):
     """
     An Org can have several users and is the main component that holds all Flows, Messages, Contacts, etc. Orgs
@@ -470,7 +482,7 @@ class Org(SmartModel):
                 scheme = contact_urn.scheme
 
                 # if URN has a previously used channel that is still active, use that
-                if contact_urn.channel and contact_urn.channel.is_active and role == Channel.ROLE_SEND:
+                if contact_urn.channel and contact_urn.channel.is_active:
                     previous_sender = self.get_channel_delegate(contact_urn.channel, role)
                     if previous_sender:
                         return previous_sender
@@ -617,7 +629,7 @@ class Org(SmartModel):
             return channel_countries
 
         channel_country_codes = self.channels.filter(is_active=True).exclude(country=None)
-        channel_country_codes = channel_country_codes.values_list('country', flat=True).distinct()
+        channel_country_codes = set(channel_country_codes.values_list('country', flat=True))
 
         for country_code in channel_country_codes:
             country_obj = pycountry.countries.get(alpha2=country_code)
@@ -667,6 +679,59 @@ class Org(SmartModel):
                     pending = Channel.get_pending_messages(self)
                     Msg.send_messages(pending)
 
+    def add_smtp_config(self, from_email, host, username, password, port, encryption, user):
+        smtp_config = {SMTP_FROM_EMAIL: from_email.strip(),
+                       SMTP_HOST: host, SMTP_USERNAME: username, SMTP_PASSWORD: password,
+                       SMTP_PORT: port, SMTP_ENCRYPTION: encryption}
+
+        config = self.config_json()
+        config.update(smtp_config)
+        self.config = json.dumps(config)
+        self.modified_by = user
+        self.save()
+
+    def remove_smtp_config(self, user):
+        if self.config:
+            config = self.config_json()
+            config.pop(SMTP_FROM_EMAIL)
+            config.pop(SMTP_HOST)
+            config.pop(SMTP_USERNAME)
+            config.pop(SMTP_PASSWORD)
+            config.pop(SMTP_PORT)
+            config.pop(SMTP_ENCRYPTION)
+            self.config = json.dumps(config)
+            self.modified_by = user
+            self.save()
+
+    def has_smtp_config(self):
+        if self.config:
+            config = self.config_json()
+            smtp_from_email = config.get(SMTP_FROM_EMAIL, None)
+            smtp_host = config.get(SMTP_HOST, None)
+            smtp_username = config.get(SMTP_USERNAME, None)
+            smtp_password = config.get(SMTP_PASSWORD, None)
+            smtp_port = config.get(SMTP_PORT, None)
+
+            return smtp_from_email and smtp_host and smtp_username and smtp_password and smtp_port
+        else:
+            return False
+
+    def email_action_send(self, recipients, subject, body):
+        if self.has_smtp_config():
+            config = self.config_json()
+            smtp_from_email = config.get(SMTP_FROM_EMAIL, None)
+            smtp_host = config.get(SMTP_HOST, None)
+            smtp_port = config.get(SMTP_PORT, None)
+            smtp_username = config.get(SMTP_USERNAME, None)
+            smtp_password = config.get(SMTP_PASSWORD, None)
+            use_tls = config.get(SMTP_ENCRYPTION, None) == 'T' or None
+
+            send_custom_smtp_email(recipients, subject, body, smtp_from_email,
+                                   smtp_host, smtp_port, smtp_username, smtp_password,
+                                   use_tls)
+        else:
+            send_simple_email(recipients, subject, body, from_email=settings.FLOW_FROM_EMAIL)
+
     def has_airtime_transfers(self):
         from temba.airtime.models import AirtimeTransfer
         return AirtimeTransfer.objects.filter(org=self).exists()
@@ -701,8 +766,28 @@ class Org(SmartModel):
             self.save()
 
     def connect_nexmo(self, api_key, api_secret, user):
+        from nexmo import Client as NexmoClient
+
         nexmo_uuid = str(uuid4())
         nexmo_config = {NEXMO_KEY: api_key.strip(), NEXMO_SECRET: api_secret.strip(), NEXMO_UUID: nexmo_uuid}
+        client = NexmoClient(key=nexmo_config[NEXMO_KEY], secret=nexmo_config[NEXMO_SECRET])
+        temba_host = settings.TEMBA_HOST.lower()
+
+        app_name = "%s/%s" % (temba_host, nexmo_uuid)
+
+        answer_url = "https://%s%s" % (temba_host, reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]))
+
+        event_url = "https://%s%s" % (temba_host, reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]))
+
+        params = dict(name=app_name, type='voice', answer_url=answer_url, answer_method='POST',
+                      event_url=event_url, event_method='POST')
+
+        response = client.create_application(params=params)
+        app_id = response.get('id', None)
+        private_key = response.get("keys", dict()).get("private_key", None)
+
+        nexmo_config[NEXMO_APP_ID] = app_id
+        nexmo_config[NEXMO_APP_PRIVATE_KEY] = private_key
 
         config = self.config_json()
         config.update(nexmo_config)
@@ -733,6 +818,8 @@ class Org(SmartModel):
                                                    voice_url=app_url,
                                                    voice_fallback_url=fallback_url,
                                                    voice_fallback_method='GET',
+                                                   status_callback=app_url,
+                                                   status_callback_method='POST',
                                                    sms_url=app_url,
                                                    sms_method="POST")
 
@@ -827,11 +914,15 @@ class Org(SmartModel):
 
     def get_nexmo_client(self):
         config = self.config_json()
+        from temba.ivr.clients import NexmoClient
+
         if config:
             api_key = config.get(NEXMO_KEY, None)
             api_secret = config.get(NEXMO_SECRET, None)
+            app_id = config.get(NEXMO_APP_ID, None)
+            app_private_key = config.get(NEXMO_APP_PRIVATE_KEY, None)
             if api_key and api_secret:
-                return NexmoClient(api_key, api_secret)
+                return NexmoClient(api_key, api_secret, app_id, app_private_key, org=self)
 
         return None
 
@@ -973,7 +1064,7 @@ class Org(SmartModel):
         @returns Iterable of matching boundaries
         """
         # no country? bail
-        if not self.country or not isinstance(location_string, basestring):
+        if not self.country or not isinstance(location_string, six.string_types):
             return []
 
         # now look up the boundary by full name
@@ -1086,7 +1177,7 @@ class Org(SmartModel):
                                created_by=self.created_by, modified_by=self.modified_by)
         self.all_groups.create(name='Blocked Contacts', group_type=ContactGroup.TYPE_BLOCKED,
                                created_by=self.created_by, modified_by=self.modified_by)
-        self.all_groups.create(name='Failed Contacts', group_type=ContactGroup.TYPE_STOPPED,
+        self.all_groups.create(name='Stopped Contacts', group_type=ContactGroup.TYPE_STOPPED,
                                created_by=self.created_by, modified_by=self.modified_by)
 
     def create_sample_flows(self, api_url):
@@ -1367,7 +1458,7 @@ class Org(SmartModel):
                     break
 
             # update items in the database with their new topups
-            for topup, items in new_topup_items.iteritems():
+            for topup, items in six.iteritems(new_topup_items):
                 Msg.objects.filter(id__in=[item.pk for item in items if isinstance(item, Msg)]).update(topup=topup)
 
         # deactive all our credit alerts
@@ -1713,7 +1804,7 @@ class Org(SmartModel):
 
         return getattr(user, '_org', None)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
 
@@ -1812,6 +1903,7 @@ def get_stripe_credentials():
     return (public_key, private_key)
 
 
+@six.python_2_unicode_compatible
 class Language(SmartModel):
     """
     A Language that has been added to the org. In the end and language is just an iso_code and name
@@ -1855,7 +1947,7 @@ class Language(SmartModel):
 
         return default_text
 
-    def __unicode__(self):  # pragma: needs cover
+    def __str__(self):  # pragma: needs cover
         return '%s' % self.name
 
 
@@ -1934,6 +2026,7 @@ class UserSettings(models.Model):
             return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
 
 
+@six.python_2_unicode_compatible
 class TopUp(SmartModel):
     """
     TopUps are used to track usage across the platform. Each TopUp represents a certain number of
@@ -2062,22 +2155,21 @@ class TopUp(SmartModel):
         """
         return self.credits - self.get_used()
 
-    def __unicode__(self):  # pragma: needs cover
+    def __str__(self):  # pragma: needs cover
         return "%s Credits" % self.credits
 
 
-class Debit(models.Model):
+class Debit(SquashableModel):
     """
     Transactional history of credits allocated to other topups or chunks of archived messages
     """
+    SQUASH_OVER = ('topup_id',)
 
     TYPE_ALLOCATION = 'A'
     TYPE_PURGE = 'P'
 
     DEBIT_TYPES = ((TYPE_ALLOCATION, 'Allocation'),
                    (TYPE_PURGE, 'Purge'))
-
-    LAST_SQUASH_KEY = 'last_debit_squash'
 
     topup = models.ForeignKey(TopUp, related_name="debits", help_text=_("The topup these credits are applied against"))
 
@@ -2096,58 +2188,43 @@ class Debit(models.Model):
                                       help_text="When this item was originally created")
 
     @classmethod
-    def squash_purge_debits(cls):
-        last_squash_id = cache.get(cls.LAST_SQUASH_KEY, 0)
-        unsquashed_topups = cls.objects.filter(pk__gt=last_squash_id, debit_type=cls.TYPE_PURGE)
-        unsquashed_topups = unsquashed_topups.values_list('topup', flat=True).distinct('topup')
+    def get_unsquashed(cls):
+        return super(Debit, cls).get_unsquashed().filter(debit_type=cls.TYPE_PURGE)
 
-        for topup_id in unsquashed_topups:
-            with connection.cursor() as cursor:
-                sql = """
-                WITH removed as (
-                    DELETE FROM orgs_debit WHERE "topup_id" = %s AND debit_type = 'P' RETURNING "amount"
-                )
-                INSERT INTO orgs_debit("topup_id", "amount", "debit_type", "created_on")
-                VALUES (%s, GREATEST(0, (SELECT SUM("amount") FROM removed)), 'P', %s);"""
+    @classmethod
+    def get_squash_query(cls, distinct_set):
+        sql = """
+            WITH removed as (
+                DELETE FROM %(table)s WHERE "topup_id" = %%s AND debit_type = 'P' RETURNING "amount"
+            )
+            INSERT INTO %(table)s("topup_id", "amount", "debit_type", "created_on", "is_squashed")
+            VALUES (%%s, GREATEST(0, (SELECT SUM("amount") FROM removed)), 'P', %%s, TRUE);
+        """ % {'table': cls._meta.db_table}
 
-                cursor.execute(sql, [topup_id, topup_id, timezone.now()])
-
-        max_id = cls.objects.filter(debit_type=Debit.TYPE_PURGE).order_by('-id').values_list('id', flat=True).first()
-        if max_id:
-            cache.set(cls.LAST_SQUASH_KEY, max_id)
+        return sql, (distinct_set.topup_id, distinct_set.topup_id, timezone.now())
 
 
-class TopUpCredits(models.Model):
+class TopUpCredits(SquashableModel):
     """
     Used to track number of credits used on a topup, mostly maintained by triggers on Msg insertion.
     """
+    SQUASH_OVER = ('topup_id',)
+
     topup = models.ForeignKey(TopUp,
                               help_text=_("The topup these credits are being used against"))
     used = models.IntegerField(help_text=_("How many credits were used, can be negative"))
 
-    LAST_SQUASH_KEY = 'last_topupcredits_squash'
-
     @classmethod
-    def squash_credits(cls):
-        # get the id of the last count we squashed
-        r = get_redis_connection()
-        last_squash = r.get(TopUpCredits.LAST_SQUASH_KEY)
-        if not last_squash:
-            last_squash = 0
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH deleted as (
+            DELETE FROM %(table)s WHERE "topup_id" = %%s RETURNING "used"
+        )
+        INSERT INTO %(table)s("topup_id", "used", "is_squashed")
+        VALUES (%%s, GREATEST(0, (SELECT SUM("used") FROM deleted)), TRUE);
+        """ % {'table': cls._meta.db_table}
 
-        # get the unique flow ids for all new ones
-        squash_count = 0
-        for credits in TopUpCredits.objects.filter(id__gt=last_squash).order_by('topup_id').distinct('topup_id'):
-            # perform our atomic squash in SQL by calling our squash method
-            with connection.cursor() as c:
-                c.execute("SELECT temba_squash_topupcredits(%s);", (credits.topup_id,))
-
-            squash_count += 1
-
-        # insert our new top squashed id
-        max_id = TopUpCredits.objects.all().order_by('-id').first()
-        if max_id:
-            r.set(TopUpCredits.LAST_SQUASH_KEY, max_id.id)
+        return sql, (distinct_set.topup_id,) * 2
 
 
 class CreditAlert(SmartModel):
@@ -2169,7 +2246,7 @@ class CreditAlert(SmartModel):
         if CreditAlert.objects.filter(is_active=True, org=org, alert_type=alert_type):  # pragma: needs cover
             return None
 
-        print "triggering %s credits alert type for %s" % (alert_type, org.name)
+        print("triggering %s credits alert type for %s" % (alert_type, org.name))
 
         admin = org.get_org_admins().first()
 

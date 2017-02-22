@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import geojson
 import regex
@@ -6,17 +6,18 @@ import regex
 from zipfile import ZipFile
 from django.contrib.gis.geos import Polygon, MultiPolygon
 from django.core.management.base import BaseCommand
-from optparse import make_option
 from temba.locations.models import AdminBoundary, COUNTRY_LEVEL, STATE_LEVEL, DISTRICT_LEVEL
 
 
 class Command(BaseCommand):  # pragma: no cover
-    option_list = BaseCommand.option_list + (
-        make_option('--country', '-c', dest='country', default=None,
-                    help="Only process the boundary files for this country osm id."),
-    )
-    args = '<file1.zip | 49915admin1.json.. >'
     help = 'Import our geojson zip file format, updating all our OSM data accordingly.'
+
+    def add_arguments(self, parser):
+        parser.add_argument('files', nargs='+')
+        parser.add_argument('--country',
+                            dest='country',
+                            default=None,
+                            help="Only process the boundary files for this country osm id")
 
     def import_file(self, filename, file):
         admin_json = geojson.loads(file.read())
@@ -44,7 +45,7 @@ class Command(BaseCommand):  # pragma: no cover
                 level = int(match.group(1))
                 is_simplified = True if match.group(2) else False
             elif not match:
-                print "Skipping '%s', doesn't match file pattern." % filename
+                print("Skipping '%s', doesn't match file pattern." % filename)
 
         # for each of our features
         for feature in admin_json['features']:
@@ -106,13 +107,13 @@ class Command(BaseCommand):  # pragma: no cover
 
             # if this is an update, just update with those fields
             if boundary:
-                print " ** updating %s (%s)" % (name, osm_id)
+                print(" ** updating %s (%s)" % (name, osm_id))
                 boundary = boundary.first()
                 boundary.update(**kwargs)
 
             # otherwise, this is new, so create it
             else:
-                print " ** adding %s (%s)" % (name, osm_id)
+                print(" ** adding %s (%s)" % (name, osm_id))
                 AdminBoundary.objects.create(**kwargs)
 
             # keep track of this osm_id
@@ -126,15 +127,15 @@ class Command(BaseCommand):  # pragma: no cover
                 country.get_descendants().filter(level=level).exclude(osm_id__in=seen_osm_ids).delete()
 
     def handle(self, *args, **options):
-        filenames = []
+        files = options['files']
 
         zipfile = None
-        if args[0].endswith(".zip"):
-            zipfile = ZipFile(args[0], 'r')
+        if files[0].endswith(".zip"):
+            zipfile = ZipFile(files[0], 'r')
             filenames = zipfile.namelist()
 
         else:
-            filenames = list(args)
+            filenames = list(files)
 
         # are we filtering by a prefix?
         prefix = ''
@@ -150,7 +151,7 @@ class Command(BaseCommand):  # pragma: no cover
             # if it ends in json, then it is geojson, try to parse it
             if filename.startswith(prefix) and filename.endswith('json'):
                 # read the file entirely
-                print "=== parsing %s" % filename
+                print("=== parsing %s" % filename)
 
                 # if we are reading from a zipfile, read it from there
                 if zipfile:
