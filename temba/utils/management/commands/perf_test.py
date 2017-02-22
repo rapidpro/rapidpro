@@ -5,7 +5,6 @@ import json
 import sys
 import time
 
-from collections import OrderedDict
 from datetime import datetime
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -14,7 +13,7 @@ from django.utils.http import urlquote_plus
 from temba.contacts.models import ContactGroup
 from temba.orgs.models import Org
 
-# default number of times to request each URL to determine min/max times
+# default number of times per org to request each URL to determine min/max times
 DEFAULT_NUM_REQUESTS = 3
 
 # default file to save timing results to
@@ -66,8 +65,7 @@ TEST_URLS = (
 
 
 class URLResult(object):
-    def __init__(self, org, url, times, prev_times):
-        self.org = org
+    def __init__(self, url, times, prev_times):
         self.url = url
         self.times = times
 
@@ -90,7 +88,7 @@ class URLResult(object):
         return not (self.exceeds_maximum or self.exceeds_change)
 
     def as_json(self):
-        return {'org': self.org.id, 'url': self.url, 'times': self.times, 'pass': self.is_pass()}
+        return {'url': self.url, 'times': self.times, 'pass': self.is_pass()}
 
 
 class Command(BaseCommand):  # pragma: no cover
@@ -117,57 +115,56 @@ class Command(BaseCommand):  # pragma: no cover
 
         test_orgs = [Org.objects.first(), Org.objects.last()]
 
-        tests = []
+        results = self.run_tests(TEST_URLS, test_orgs, url_include_pattern, num_requests, prev_times)
 
-        for org in test_orgs:
-            tests += self.test_with_org(org, url_include_pattern, num_requests, prev_times)
+        self.save_results(results_file, started, results)
 
-        self.save_results(results_file, started, tests)
-
-        if any([not t.is_pass() for t in tests]):
+        if any([not r.is_pass() for r in results]):
             sys.exit(1)
 
-    def test_with_org(self, org, url_include_pattern, num_requests, prev_times):
-        self.stdout.write(self.style.MIGRATE_HEADING("Testing with org #%d" % org.id))
+    def run_tests(self, urls, orgs, url_include_pattern, requests_per_org, prev_times):
+        # build a URL context for each org
+        url_context_by_org = {}
+        for org in orgs:
+            url_context_by_org[org] = {}
+            for key, value in URL_CONTEXT_TEMPLATE.items():
+                url_context_by_org[org][key] = value(org) if callable(value) else value
 
-        url_context = {}
-        for key, value in URL_CONTEXT_TEMPLATE.items():
-            url_context[key] = value(org) if callable(value) else value
-
-        # login in as an org administrator
-        self.client.force_login(org.administrators.first())
-
-        tests = []
-
-        for url in TEST_URLS:
-            url = url.format(**url_context)
-
+        results = []
+        for url in urls:
             if url_include_pattern and not fnmatch.fnmatch(url, url_include_pattern):
                 continue
 
-            self.stdout.write(" > %s " % url, ending='')
+            prev_url_times = prev_times.get(url)
 
-            times = self.request_times(url, num_requests)
-            prev_url_times = prev_times.get((org.id, url))
+            results.append(self.test_url(url, orgs, url_context_by_org, requests_per_org, prev_url_times))
 
-            result = URLResult(org, url, times, prev_url_times)
-            tests.append(result)
+        return results
 
-            self.stdout.write(self.format_result(result))
-
-        return tests
-
-    def request_times(self, url, num_requests):
+    def test_url(self, url, orgs, org_contexts, requests_per_org, prev_times):
         """
-        Makes multiple requests to the given URL and returns the times
+        Test a single URL for the given orgs
         """
-        times = []
-        for r in range(num_requests):
-            start_time = time.time()
-            response = self.client.get(url)
-            assert response.status_code == 200
-            times.append(time.time() - start_time)
-        return times
+        self.stdout.write(" > %s " % url, ending='')
+
+        url_times = []
+
+        for org in orgs:
+            url = url.format(**org_contexts[org])
+
+            # login in as an org administrator
+            self.client.force_login(org.administrators.first())
+
+            for r in range(requests_per_org):
+                start_time = time.time()
+                response = self.client.get(url)
+                assert response.status_code == 200
+                url_times.append(time.time() - start_time)
+
+        result = URLResult(url, url_times, prev_times)
+
+        self.stdout.write(self.format_result(result))
+        return result
 
     def format_result(self, result):
         range_str = "%.3f...%.3f" % (result.min, result.max)
@@ -188,16 +185,16 @@ class Command(BaseCommand):  # pragma: no cover
     def load_previous_times(self, results_file):
         try:
             with open(results_file, 'r') as f:
-                times_by_org_and_url = OrderedDict()
-                for test in json.load(f)['tests']:
-                    times_by_org_and_url[(test['org'], test['url'])] = test['times']
-                return times_by_org_and_url
+                times_by_url = {}
+                for test in json.load(f)['results']:
+                    times_by_url[test['url']] = test['times']
+                return times_by_url
         except (IOError, ValueError, KeyError):
             return {}
 
-    def save_results(self, results_file, started, tests):
+    def save_results(self, results_file, started, results):
         with open(results_file, 'w') as f:
             json.dump({
                 'started': started.isoformat(),
-                'tests': [t.as_json() for t in tests]
+                'results': [r.as_json() for r in results]
             }, f, indent=4)
