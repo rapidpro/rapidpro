@@ -3090,7 +3090,7 @@ class FlowStep(models.Model):
         steps = steps.order_by('-pk')
 
         # optimize lookups
-        return steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org')
+        return steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org', 'run__session')
 
     def release(self):
         if not self.contact.is_test:
