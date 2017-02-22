@@ -559,10 +559,16 @@ class TelegramHandler(BaseChannelHandler):
                     extension = url.rpartition('.')[2]
                     response = requests.get(url)
 
+                    # attempt to determine our content type using magic bytes
+                    content_type = None
                     try:
                         m = magic.Magic(mime=True)
                         content_type = m.from_buffer(response.content)
                     except:
+                        pass
+
+                    # fallback on the content type in our response header
+                    if not content_type or content_type == 'application/octet-stream':
                         content_type = response.headers['Content-Type']
 
                     temp = NamedTemporaryFile(delete=True)
