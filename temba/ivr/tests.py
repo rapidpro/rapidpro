@@ -409,6 +409,7 @@ class IVRTests(FlowFileTest):
             # make sure we only called to start the call once
             self.assertEqual(1, start_call.call_count)
 
+            # since we are an ivr flow, we aren't complete until the provider notifies us
             run.refresh_from_db()
             self.assertFalse(run.is_completed())
 
