@@ -220,9 +220,13 @@ class Broadcast(models.Model):
     purged = models.BooleanField(default=False,
                                  help_text="If the messages for this broadcast have been purged")
 
+    media_dict = models.TextField(verbose_name=_("Media"),
+                                  help_text=_("The localized versions of the media"), null=True)
+
     @classmethod
-    def create(cls, org, user, text, recipients, channel=None, **kwargs):
-        create_args = dict(org=org, text=text, channel=channel, created_by=user, modified_by=user)
+    def create(cls, org, user, text, recipients, channel=None, media_dict=None, **kwargs):
+        create_args = dict(org=org, text=text, channel=channel, media_dict=media_dict, created_by=user,
+                           modified_by=user)
         create_args.update(kwargs)
         broadcast = Broadcast.objects.create(**create_args)
         broadcast.update_recipients(recipients)
@@ -380,6 +384,11 @@ class Broadcast(models.Model):
             return []
         return get_cacheable_attr(self, '_translations', lambda: json.loads(self.language_dict))
 
+    def get_media_translations(self):
+        if not self.media_dict:
+            return dict()
+        return get_cacheable_attr(self, '_media_translations', lambda: json.loads(self.media_dict))
+
     def get_translated_text(self, contact, org=None):
         """
         Gets the appropriate translation for the given contact. base_language may be provided
@@ -387,6 +396,14 @@ class Broadcast(models.Model):
         translations = self.get_translations()
         preferred_languages = self.get_preferred_languages(contact, self.base_language, org)
         return Language.get_localized_text(translations, preferred_languages, self.text)
+
+    def get_translated_media(self, contact, org=None):
+        """
+        Gets the appropriate media for the given contact. base_language may be provided
+        """
+        media_translations = self.get_media_translations()
+        preferred_languages = self.get_preferred_languages(contact, self.base_language, org)
+        return Language.get_localized_text(media_translations, preferred_languages, None)
 
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
              created_on=None, partial_recipients=None, run_map=None):
@@ -440,6 +457,10 @@ class Broadcast(models.Model):
             # get the appropriate translation for this contact
             text = self.get_translated_text(contact)
 
+            media = None
+            if self.media_dict:
+                media = self.get_translated_media(contact)
+
             # add in our parent context if the message references @parent
             if run_map:
                 run = run_map.get(recipient.pk, None)
@@ -465,6 +486,7 @@ class Broadcast(models.Model):
                                           status=status,
                                           msg_type=msg_type,
                                           insert_object=False,
+                                          media=media,
                                           priority=priority,
                                           created_on=created_on)
 
