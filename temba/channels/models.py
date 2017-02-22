@@ -3493,6 +3493,7 @@ class ChannelSession(SmartModel):
     TRIGGERED = 'T'
     INTERRUPTED = 'X'
     INITIATED = 'A'
+    ENDING = 'E'
 
     DONE = [COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED, INTERRUPTED]
 
@@ -3517,7 +3518,8 @@ class ChannelSession(SmartModel):
                       (CANCELED, "Canceled"),
                       (INTERRUPTED, "Interrupted"),
                       (TRIGGERED, "Triggered"),
-                      (INITIATED, "Initiated"))
+                      (INITIATED, "Initiated"),
+                      (ENDING, "Ending"))
 
     external_id = models.CharField(max_length=255,
                                    help_text="The external id for this session, our twilio id usually")
