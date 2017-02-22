@@ -5198,7 +5198,7 @@ class ReplyAction(Action):
     @classmethod
     def from_json(cls, org, json_obj):
         # assert we have some kind of message in this reply
-        msg = json_obj.get(ReplyAction.MESSAGE)
+        msg = json_obj.get(cls.MESSAGE)
         if isinstance(msg, dict):
             if not msg:
                 raise FlowException("Invalid reply action, empty message dict")
@@ -5208,10 +5208,10 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
 
-        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE))
+        return cls(msg=json_obj.get(cls.MESSAGE))
 
     def as_json(self):
-        return dict(type=ReplyAction.TYPE, msg=self.msg)
+        return dict(type=self.TYPE, msg=self.msg)
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         reply = None
