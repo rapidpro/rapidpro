@@ -1938,11 +1938,16 @@ class Channel(TembaModel):
         is_ussd = channel.channel_type in Channel.USSD_CHANNELS
         channel.config['transport_name'] = 'ussd_transport' if is_ussd else 'mtech_ng_smpp_transport'
 
-        # TODO: session event should be `close` if this is the last outgoing message in the flow
+        session_event = None
+        if is_ussd:
+            if msg.session.should_end:
+                session_event = "close"
+            else:
+                session_event = "resume"
 
         payload = dict(message_id=msg.id,
                        in_reply_to=None,
-                       session_event="resume" if is_ussd else None,
+                       session_event=session_event,
                        to_addr=msg.urn_path,
                        from_addr=channel.address,
                        content=text,
