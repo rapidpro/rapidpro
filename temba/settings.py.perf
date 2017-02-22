@@ -1,8 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 # -----------------------------------------------------------------------------------
-# Sample RapidPro settings file, this should allow you to deploy RapidPro locally on
-# a PostgreSQL database.
+# Sample RapidPro settings file for performance testing.
 #
 # The following are requirements:
 #     - a postgreSQL database named 'temba', with a user name 'temba' and
@@ -15,10 +14,18 @@ import warnings
 from .settings_common import *  # noqa
 
 # -----------------------------------------------------------------------------------
-# Used when creating callbacks for Twilio, Nexmo etc..
+# Mimic a production instance - disable debuging and enable compression
 # -----------------------------------------------------------------------------------
-HOSTNAME = 'rapidpro.ngrok.com'
-TEMBA_HOST = 'rapidpro.ngrok.com'
+
+DEBUG = False
+TEMPLATES[0]['OPTIONS']['debug'] = False
+
+COMPRESS_ENABLED = True
+COMPRESS_OFFLINE = True
+
+ALLOWED_HOSTS = ('testserver',)
+INTERNAL_IPS = ('127.0.0.1',)
+
 
 # -----------------------------------------------------------------------------------
 # Redis & Cache Configuration (we expect a Redis instance on localhost)
@@ -51,25 +58,11 @@ DATABASES = {
     }
 }
 
-INTERNAL_IPS = ('127.0.0.1',)
 
 # -----------------------------------------------------------------------------------
 # Load development apps
 # -----------------------------------------------------------------------------------
 INSTALLED_APPS = INSTALLED_APPS + ('storages',)
-# INSTALLED_APPS = INSTALLED_APPS + ('debug_toolbar', )
-
-# -----------------------------------------------------------------------------------
-# In development, add in extra logging for exceptions and the debug toolbar
-# -----------------------------------------------------------------------------------
-MIDDLEWARE_CLASSES = ('temba.middleware.ExceptionMiddleware',) + MIDDLEWARE_CLASSES
-
-# -----------------------------------------------------------------------------------
-# In development, perform background tasks in the web thread (synchronously)
-# -----------------------------------------------------------------------------------
-CELERY_ALWAYS_EAGER = True
-CELERY_EAGER_PROPAGATES_EXCEPTIONS = True
-BROKER_BACKEND = 'memory'
 
 # -----------------------------------------------------------------------------------
 # This setting throws an exception if a naive datetime is used anywhere. (they should

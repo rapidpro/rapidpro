@@ -7,7 +7,6 @@ import sys
 import time
 
 from datetime import datetime
-from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.test import Client
 from django.utils.http import urlquote_plus
@@ -102,11 +101,6 @@ class Command(BaseCommand):  # pragma: no cover
         parser.add_argument('--results-html', type=str, action='store', dest='results_html', default=None)
 
     def handle(self, url_include_pattern, num_requests, results_file, results_html, *args, **options):
-        # override some settings so that we behave more like a production instance
-        settings.ALLOWED_HOSTS = ('testserver',)
-        settings.DEBUG = False
-        settings.TEMPLATES[0]['OPTIONS']['debug'] = False
-
         self.client = Client()
         started = datetime.utcnow()
 
