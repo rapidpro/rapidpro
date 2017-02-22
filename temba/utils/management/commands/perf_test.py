@@ -96,11 +96,12 @@ class Command(BaseCommand):  # pragma: no cover
 
     def add_arguments(self, parser):
         parser.add_argument('--include', type=str, action='store', dest='url_include_pattern', default=None)
+        parser.add_argument('--orgs', type=str, action='store', dest='org_ids', default=None)
         parser.add_argument('--num-requests', type=int, action='store', dest='num_requests', default=DEFAULT_NUM_REQUESTS)
         parser.add_argument('--results-file', type=str, action='store', dest='results_file', default=DEFAULT_RESULTS_FILE)
         parser.add_argument('--results-html', type=str, action='store', dest='results_html', default=None)
 
-    def handle(self, url_include_pattern, num_requests, results_file, results_html, *args, **options):
+    def handle(self, url_include_pattern, org_ids, num_requests, results_file, results_html, *args, **options):
         self.client = Client()
         started = datetime.utcnow()
 
@@ -109,7 +110,11 @@ class Command(BaseCommand):  # pragma: no cover
         if not prev_times:
             self.stdout.write(self.style.WARNING("No previous results found for change calculation"))
 
-        test_orgs = [Org.objects.first(), Org.objects.last()]
+        if org_ids:
+            test_orgs = list(Org.objects.filter(id__in=org_ids.split(',')).order_by('id'))
+        else:
+            test_orgs = [Org.objects.first(), Org.objects.last()]
+
         test_urls = [u for u in TEST_URLS if not url_include_pattern or fnmatch.fnmatch(u, url_include_pattern)]
 
         results = []
@@ -135,7 +140,7 @@ class Command(BaseCommand):  # pragma: no cover
         """
         Tests the given URLs for the given org
         """
-        self.stdout.write(self.style.MIGRATE_HEADING("Testing org #%d" % org.id))
+        self.stdout.write(self.style.MIGRATE_HEADING("Testing org #%d (%d contacts)" % (org.id, org.org_contacts.count())))
 
         # build a URL context for this org
         url_context = {}
