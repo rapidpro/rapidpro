@@ -110,58 +110,64 @@ class Command(BaseCommand):  # pragma: no cover
             self.stdout.write(self.style.WARNING("No previous results found for change calculation"))
 
         test_orgs = [Org.objects.first(), Org.objects.last()]
+        test_urls = [u for u in TEST_URLS if not url_include_pattern or fnmatch.fnmatch(u, url_include_pattern)]
 
-        results = self.run_tests(TEST_URLS, test_orgs, url_include_pattern, num_requests, prev_times)
+        results = []
+
+        for org in test_orgs:
+            # look for previous times for this org
+            prev_org_times = prev_times.get(org.id, {})
+
+            results.append(self.test_org(org, test_urls, num_requests, prev_org_times))
 
         self.save_results(results_file, started, results)
 
         if results_html:
             self.save_html_results(results_html, results)
 
-        if any([not r.is_pass() for r in results]):
-            sys.exit(1)
+        # exit with no-zero code if any test for any org failed
+        for result in results:
+            for test in result['tests']:
+                if not test.is_pass():
+                    sys.exit(1)
 
-    def run_tests(self, urls, orgs, url_include_pattern, requests_per_org, prev_times):
+    def test_org(self, org, urls, num_requests, prev_times):
         """
-        Tests the given URLs for the given orgs
+        Tests the given URLs for the given org
         """
-        # build a URL context for each org
-        url_context_by_org = {}
-        for org in orgs:
-            url_context_by_org[org] = {}
-            for key, value in URL_CONTEXT_TEMPLATE.items():
-                url_context_by_org[org][key] = value(org) if callable(value) else value
+        self.stdout.write(self.style.MIGRATE_HEADING("Testing org #%d" % org.id))
 
-        results = []
+        # build a URL context for this org
+        url_context = {}
+        for key, value in URL_CONTEXT_TEMPLATE.items():
+            url_context[key] = value(org) if callable(value) else value
+
+        # login in as an org administrator
+        self.client.force_login(org.administrators.first())
+
+        tests = []
         for url in urls:
-            if url_include_pattern and not fnmatch.fnmatch(url, url_include_pattern):
-                continue
+            formatted_url = url.format(**url_context)
 
-            prev_url_times = prev_times.get(url)
+            prev_url_times = prev_times.get(formatted_url)
 
-            results.append(self.test_url(url, orgs, url_context_by_org, requests_per_org, prev_url_times))
+            tests.append(self.test_url(formatted_url, num_requests, prev_url_times))
 
-        return results
+        return {'org': org, 'tests': tests}
 
-    def test_url(self, url, orgs, org_contexts, requests_per_org, prev_times):
+    def test_url(self, url, num_requests, prev_times):
         """
-        Test a single URL for the given orgs
+        Test a single URL
         """
         self.stdout.write(" > %s " % url, ending='')
 
         url_times = []
 
-        for org in orgs:
-            formatted_url = url.format(**org_contexts[org])
-
-            # login in as an org administrator
-            self.client.force_login(org.administrators.first())
-
-            for r in range(requests_per_org):
-                start_time = time.time()
-                response = self.client.get(formatted_url)
-                assert response.status_code == 200
-                url_times.append(time.time() - start_time)
+        for r in range(num_requests):
+            start_time = time.time()
+            response = self.client.get(url)
+            assert response.status_code == 200
+            url_times.append(time.time() - start_time)
 
         result = URLResult(url, url_times, prev_times)
 
@@ -193,10 +199,12 @@ class Command(BaseCommand):  # pragma: no cover
         """
         try:
             with open(results_file, 'r') as f:
-                times_by_url = {}
-                for test in json.load(f)['results']:
-                    times_by_url[test['url']] = test['times']
-                return times_by_url
+                org_times = {}
+                for result in json.load(f)['results']:
+                    org_times[result['org']] = {}
+                    for test in result['tests']:
+                        org_times[result['org']][test['url']] = test['times']
+                return org_times
         except (IOError, ValueError, KeyError):
             return {}
 
@@ -204,41 +212,52 @@ class Command(BaseCommand):  # pragma: no cover
         with open(path, 'w') as f:
             json.dump({
                 'started': started.isoformat(),
-                'results': [r.as_json() for r in results]
+                'results': [
+                    {'org': r['org'].id, 'tests': [t.as_json() for t in r['tests']]} for r in results
+                ]
             }, f, indent=4)
 
     def save_html_results(self, path, results):
-        header = """<table style="font-family: Arial, Helvetica, sans-serif; border-spacing: 0; border-collapse: separate;">
-        <tr>
+        header = """<table style="font-family: Arial, Helvetica, sans-serif; border-spacing: 0; border-collapse: separate;">"""
+        footer = """</table>"""
+        with open(path, 'w') as f:
+            f.write(header)
+            for result in results:
+                self.write_org_html(f, result['org'], result['tests'])
+
+            f.write(footer)
+
+    def write_org_html(self, f, org, tests):
+        f.write("""
+        <tr style="background-color: #2f4970; color: white">
+            <th style="padding: 5px" colspan="5">Org #%d</th>
+        </tr>
+        <tr style="background-color: #f2f6fc; color: #2f4970">
             <th style="padding: 5px; text-align: left">URL</th>
             <th style="padding: 5px">Min (secs)</th>
             <th style="padding: 5px">Max (secs)</th>
             <th style="padding: 5px">Change (secs)</th>
-            <th style="padding: 5px">Change (%)</th>
+            <th style="padding: 5px">Change (%%)</th>
         </tr>
-        """
-        footer = """</table>"""
+        """ % org.id)
 
-        with open(path, 'w') as f:
-            f.write(header)
-            for result in results:
-                if result.change:
-                    arrow = '&#8593; ' if result.change > 0 else '&#8595; '
-                    change = '%s %.3f' % (arrow, result.change)
-                    percentage_change = '%d' % result.percentage_change
-                else:
-                    change = ''
-                    percentage_change = ''
+        for test in tests:
+            if test.change:
+                arrow = '&#8593; ' if test.change > 0 else '&#8595; '
+                change = '%s %.3f' % (arrow, test.change)
+                percentage_change = '%d' % test.percentage_change
+            else:
+                change = ''
+                percentage_change = ''
 
-                row_bg = 'dbffe3' if result.is_pass() else 'ffe0e0'
-                max_bg = 'ffafaf' if result.exceeds_maximum else row_bg
-                change_bg = 'ffafaf' if result.exceeds_change else row_bg
+            row_bg = 'dbffe3' if test.is_pass() else 'ffe0e0'
+            max_bg = 'ffafaf' if test.exceeds_maximum else row_bg
+            change_bg = 'ffafaf' if test.exceeds_change else row_bg
 
-                f.write('<tr style="background-color: #%s">' % row_bg)
-                f.write('<td style="padding: 5px">%s</td>' % result.url)
-                f.write('<td style="padding: 5px">%.3f</td>' % result.min)
-                f.write('<td style="padding: 5px; background-color: #%s">%.3f</td>' % (max_bg, result.max))
-                f.write('<td style="padding: 5px">%s</td>' % change)
-                f.write('<td style="padding: 5px; background-color: #%s"">%s</td>' % (change_bg, percentage_change))
-                f.write('</tr>')
-            f.write(footer)
+            f.write('<tr style="background-color: #%s">' % row_bg)
+            f.write('<td style="padding: 5px">%s</td>' % test.url)
+            f.write('<td style="padding: 5px">%.3f</td>' % test.min)
+            f.write('<td style="padding: 5px; background-color: #%s">%.3f</td>' % (max_bg, test.max))
+            f.write('<td style="padding: 5px">%s</td>' % change)
+            f.write('<td style="padding: 5px; background-color: #%s"">%s</td>' % (change_bg, percentage_change))
+            f.write('</tr>')
