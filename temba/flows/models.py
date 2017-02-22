@@ -2706,7 +2706,7 @@ class FlowRun(models.Model):
         If our run should be completed when we leave the last node
         """
         # we let parent runs over ivr get closed by the provider
-        return self.is_ivr() and not self.parent
+        return self.is_ivr() and not self.parent and not self.session.is_done()
 
     def resume_after_timeout(self, expired_timeout):
         """

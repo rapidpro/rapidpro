@@ -725,13 +725,21 @@ class IVRTests(FlowFileTest):
                              text="In the child flow you picked Red. I think that is a fine choice.")
                         in response_json)
 
-        response = self.client.post(callback_url, content_type='application/json',
-                                    data=json.dumps(dict(dtmf='')))
+        # our flow should remain active until we get completion
+        self.assertEqual(1, FlowRun.objects.filter(is_active=True).count())
 
-        response_json = json.loads(response.content)
+        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+        post_data = dict()
+        post_data['status'] = 'completed'
+        post_data['duration'] = '0'
+        post_data['uuid'] = call.external_id
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]) + '?has_event=1',
+                                    json.dumps(post_data), content_type="application/json")
 
-        self.assertEqual(response_json, [])
+        self.assertContains(response, 'Updated call status')
 
+        # now that we got notfied from the provider, we have no active runs
+        self.assertEqual(0, FlowRun.objects.filter(is_active=True).count())
         mock_create_call.assert_called_once()
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
