@@ -557,7 +557,7 @@ class Flow(TembaModel):
                         else:
                             return False
                 return True
-        else:  # actionset
+        elif start_node.get_step_type() == FlowStep.TYPE_ACTION_SET:
             if start_node.is_messaging:
                 return False
             else:
@@ -623,7 +623,6 @@ class Flow(TembaModel):
 
         # lookup our next destination
         handled = False
-        close_session = False
 
         while destination:
             result = {"handled": False}
@@ -691,10 +690,6 @@ class Flow(TembaModel):
         if msgs and trigger_send:
             msgs.sort(key=lambda message: message.created_on)
             Msg.objects.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
-
-            # TODO: take last message and mark it as last if close_session == True
-            if close_session:
-                pass
 
             run.flow.org.trigger_send(msgs)
 
