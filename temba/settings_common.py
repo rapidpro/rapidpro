@@ -12,6 +12,7 @@ from django.utils.translation import ugettext_lazy as _
 # Default to debugging
 # -----------------------------------------------------------------------------------
 DEBUG = os.getenv('DEBUG')
+ALLOWED_HOSTS=['*']
 
 # -----------------------------------------------------------------------------------
 # Sets TESTING to True if this configuration is read during a unit test
