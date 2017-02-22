@@ -93,7 +93,8 @@ app.directive "ussd", [ "$rootScope", "$log", "Flow", "utils", ($rootScope, $log
 #============================================================================
 # Simple directive for displaying a localized textarea with a char counter
 #============================================================================
-app.directive "sms", [ "$log", "Flow", ($log, Flow) ->
+app.directive "msg", [ "$log", "Flow", ($log, Flow) ->
+
   link = (scope, element, attrs) ->
 
     scope.showCounter = true
@@ -114,17 +115,17 @@ app.directive "sms", [ "$log", "Flow", ($log, Flow) ->
     scope.$watch (->scope.message), scope.countCharacters
 
     # determine the initial message based on the current language
-    if scope.sms
-      scope.message = scope.sms[Flow.flow.base_language]
+    if scope.msg
+      scope.message = scope.msg[Flow.flow.base_language]
       if not scope.message
         scope.message = ""
 
   return {
-    templateUrl: "/partials/sms_directive"
+    templateUrl: "/partials/msg_directive"
     restrict: "A"
     link: link
     scope: {
-      sms: '='
+      msg: '='
       message: '='
     }
   }
