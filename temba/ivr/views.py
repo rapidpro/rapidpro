@@ -116,10 +116,10 @@ class CallHandler(View):
                 save_media = '1' == request.GET.get('save_media', '0')
                 if media_url:
                     if save_media:
-                        saved_media_url = client.download_media(media_url)
+                        saved_media_url = client.download_media(call, media_url)
                         cache.delete('last_call:media_url:%d' % call.pk)
                     else:
-                        response_msg = 'Saved media for call %s' % call.external_id
+                        response_msg = 'Saved media URL for call %s' % call.external_id
                         response = dict(message=response_msg)
                         ChannelLog.log_ivr_interaction(call, response_msg, request_body, json.dumps(response),
                                                        request_path, request_method)
