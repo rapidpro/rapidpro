@@ -2832,8 +2832,13 @@ class ActionTest(TembaTest):
         self.assertEqual(broadcast.get_messages().count(), 1)
         msg = broadcast.get_messages().first()
         self.assertEqual(msg.contact, self.contact2)
-        self.assertEqual(msg.text, msg.body)
+        self.assertEqual(msg.text, msg_body)
         self.assertEqual(msg.media, "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'attachments/picture.jpg'))
+
+        # also send if we have empty message but have an attachment
+        action = SendAction(dict(base=""), [], [self.contact], [], dict(base='attachments/picture.jpg'))
+        action.execute(run, None, None)
+        self.assertEqual(Broadcast.objects.all().count(), 3)
 
     def test_variable_contact_parsing(self):
         groups = dict(groups=[dict(id=-1)])
