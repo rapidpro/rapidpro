@@ -3311,7 +3311,7 @@ class ChannelCountTest(TembaTest):
         # ok, test outgoing now
         real_contact = Contact.get_or_create(self.org, self.admin, urns=['tel:+250788111222'])
         msg = Msg.create_outgoing(self.org, self.admin, real_contact, "Real Message", channel=self.channel)
-        ChannelLog.objects.create(channel=self.channel, msg=msg, description="Unable to send", is_error=True)
+        log = ChannelLog.objects.create(channel=self.channel, msg=msg, description="Unable to send", is_error=True)
 
         # squash our counts
         squash_channelcounts()
@@ -3320,7 +3320,11 @@ class ChannelCountTest(TembaTest):
         self.assertEqual(ChannelCount.objects.filter(count_type=ChannelCount.SUCCESS_LOG_TYPE).count(), 0)
         self.assertEqual(ChannelCount.objects.filter(count_type=ChannelCount.ERROR_LOG_TYPE).count(), 1)
 
-        # deleting a message still doesn't decrement the count
+        # delete our log, should decrement our count
+        log.delete()
+        self.assertEqual(0, self.channel.get_count([ChannelCount.ERROR_LOG_TYPE]))
+
+        # deleting a message doesn't decrement the count
         msg.delete()
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
 
@@ -5883,9 +5887,9 @@ class TwilioTest(TembaTest):
             # delete our error entries
             ChannelLog.objects.filter(is_error=True).delete()
 
-            # our channel counts should be unaffected
+            # our channel counts should be updated
             self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(2, self.channel.get_error_log_count())
+            self.assertEquals(0, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
 
 
@@ -6030,9 +6034,9 @@ class TwilioMessagingServiceTest(TembaTest):
             # delete our error entry
             ChannelLog.objects.filter(is_error=True).delete()
 
-            # our channel counts should be unaffected
+            # our channel counts should be updated
             self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(1, self.channel.get_error_log_count())
+            self.assertEquals(0, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
 
 

@@ -247,10 +247,6 @@
                     -trans "ERRORS"
                   {{ channel.get_error_log_count|intcomma }}
 
-                  -if 'S' in object.role
-                    %a{ href:"{% url 'channels.channellog_list' %}?channel={{object.get_sender.id}}" }
-                      -trans "View Log"
-
         .span10.strong-max-750
           %div#chart1
           -if ivr_count
