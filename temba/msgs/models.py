@@ -938,6 +938,23 @@ class Msg(models.Model):
         else:
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
+    @classmethod
+    def get_media_attachment(cls, msg):
+        attachment_type = None
+        attachment_url = None
+
+        if msg.media:
+            attachment_url = msg.media
+
+            if attachment_url.endswith('wav') or attachment_url.endswith('mp3'):
+                attachment_type = 'audio'
+            elif attachment_url.endswith('mp4'):
+                attachment_type = 'video'
+            elif attachment_url.endswith('jpg'):
+                attachment_type = 'image'
+
+        return attachment_url, attachment_type
+
     def as_json(self):
         return dict(direction=self.direction,
                     text=self.text,
@@ -1172,7 +1189,7 @@ class Msg(models.Model):
                     text=self.text, urn_path=self.contact_urn.path,
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
-                    status=self.status, direction=self.direction,
+                    status=self.status, direction=self.direction, media=self.media,
                     external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
                     created_on=self.created_on, modified_on=self.modified_on)
