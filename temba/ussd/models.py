@@ -4,6 +4,7 @@ import six
 
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from django.contrib.auth.models import User
 from temba.channels.models import ChannelSession
 from temba.contacts.models import Contact, URN, ContactURN
@@ -49,6 +50,7 @@ class USSDSession(ChannelSession):
     def mark_ended(self):  # session has successfully ended
         if self.status != self.COMPLETED:
             self.status = self.COMPLETED
+            self.ended_on = timezone.now()
             self.save()
 
     def start_session_async(self, flow):
