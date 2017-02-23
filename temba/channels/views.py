@@ -34,6 +34,7 @@ from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRE
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
+from temba.channels.models import ChannelSession
 from temba.utils import analytics, non_atomic_when_eager, on_transaction_commit
 from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import timezone_to_country_code
@@ -57,6 +58,7 @@ RELAYER_TYPE_ICONS = {Channel.TYPE_ANDROID: "icon-channel-android",
                       Channel.TYPE_TWITTER: "icon-twitter",
                       Channel.TYPE_TELEGRAM: "icon-telegram",
                       Channel.TYPE_FACEBOOK: "icon-facebook-official",
+                      Channel.TYPE_FCM: "icon-fcm",
                       Channel.TYPE_VIBER: "icon-viber"}
 
 SESSION_TWITTER_TOKEN = 'twitter_oauth_token'
@@ -873,7 +875,7 @@ class UpdateTwitterForm(UpdateChannelForm):
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
-               'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration', 'claim_external',
+               'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration', 'claim_external', 'claim_fcm',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
@@ -1273,6 +1275,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         class BulkSenderForm(forms.Form):
             connection = forms.CharField(max_length=2, widget=forms.HiddenInput, required=False)
+            channel = forms.IntegerField(widget=forms.HiddenInput, required=False)
 
             def __init__(self, *args, **kwargs):
                 self.org = kwargs['org']
@@ -1285,8 +1288,15 @@ class ChannelCRUDL(SmartCRUDL):
                     raise forms.ValidationError(_("A connection to a Nexmo account is required"))
                 return connection
 
+            def clean_channel(self):
+                channel = self.cleaned_data['channel']
+                channel = self.org.channels.filter(pk=channel).first()
+                if not channel:
+                    raise forms.ValidationError("Can't add sender for that number")
+                return channel
+
         form_class = BulkSenderForm
-        fields = ('connection', )
+        fields = ('connection', 'channel')
 
         def get_form_kwargs(self, *args, **kwargs):
             form_kwargs = super(ChannelCRUDL.CreateBulkSender, self).get_form_kwargs(*args, **kwargs)
@@ -1294,16 +1304,9 @@ class ChannelCRUDL(SmartCRUDL):
             return form_kwargs
 
         def form_valid(self, form):
-
-            # make sure they own the channel
-            channel = self.request.GET.get('channel', None)
-            if channel:
-                channel = self.request.user.get_org().channels.filter(pk=channel).first()
-            if not channel:  # pragma: needs cover
-                raise forms.ValidationError("Can't add sender for that number")
-
             user = self.request.user
 
+            channel = form.cleaned_data['channel']
             Channel.add_send_channel(user, channel)
             return super(ChannelCRUDL.CreateBulkSender, self).form_valid(form)
 
@@ -2307,6 +2310,35 @@ class ChannelCRUDL(SmartCRUDL):
             context['twitter_auth_url'] = auth['auth_url']
             return context
 
+    class ClaimFcm(OrgPermsMixin, SmartFormView):
+        class ClaimFcmForm(forms.Form):
+            title = forms.CharField(label=_('Notification title'))
+            key = forms.CharField(label=_('FCM Key'), help_text=_("The key provided on the the Firebase Console "
+                                                                  "when you created your app."))
+            send_notification = forms.CharField(label=_('Send notification'), required=False,
+                                                help_text=_("Check if you want this channel to send notifications "
+                                                            "to contacts."),
+                                                widget=forms.CheckboxInput())
+
+        form_class = ClaimFcmForm
+        fields = ('title', 'key', 'send_notification',)
+        title = _("Connect Firebase Cloud Messaging")
+        success_url = "id@channels.channel_configuration"
+
+        def form_valid(self, form):
+            cleaned_data = form.cleaned_data
+            data = {
+                Channel.CONFIG_FCM_TITLE: cleaned_data.get('title'),
+                Channel.CONFIG_FCM_KEY: cleaned_data.get('key')
+            }
+
+            if cleaned_data.get('send_notification') == 'True':
+                data[Channel.CONFIG_FCM_NOTIFICATION] = True
+
+            self.object = Channel.add_fcm_channel(org=self.request.user.get_org(), user=self.request.user, data=data)
+
+            return super(ChannelCRUDL.ClaimFcm, self).form_valid(form)
+
     class ClaimFacebook(OrgPermsMixin, SmartFormView):
         class FacebookForm(forms.Form):
             page_access_token = forms.CharField(min_length=43, required=True,
@@ -2985,7 +3017,7 @@ class ChannelEventCRUDL(SmartCRUDL):
 
 class ChannelLogCRUDL(SmartCRUDL):
     model = ChannelLog
-    actions = ('list', 'read')
+    actions = ('list', 'read', 'session')
 
     class List(OrgPermsMixin, SmartListView):
         fields = ('channel', 'description', 'created_on')
@@ -2994,16 +3026,25 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             channel = Channel.objects.get(pk=self.request.GET['channel'])
-            events = ChannelLog.objects.filter(channel=channel).order_by('-created_on').select_related('msg__contact', 'msg')
+
+            if self.request.GET.get('sessions'):
+                logs = ChannelLog.objects.filter(channel=channel).exclude(session=None).values_list('session_id', flat=True)
+                events = ChannelSession.objects.filter(id__in=logs).order_by('-created_on')
+            else:
+                events = ChannelLog.objects.filter(channel=channel, session=None).order_by('-created_on').select_related('msg__contact', 'msg')
+                events.count = lambda: channel.get_non_ivr_count()
 
             # monkey patch our queryset for the total count
-            events.count = lambda: channel.get_log_count()
+
             return events
 
         def get_context_data(self, **kwargs):
             context = super(ChannelLogCRUDL.List, self).get_context_data(**kwargs)
             context['channel'] = Channel.objects.get(pk=self.request.GET['channel'])
             return context
+
+    class Session(ChannelCRUDL.AnonMixin, SmartReadView):
+        model = ChannelSession
 
     class Read(ChannelCRUDL.AnonMixin, SmartReadView):
         fields = ('description', 'created_on')

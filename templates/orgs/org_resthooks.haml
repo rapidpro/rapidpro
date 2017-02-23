@@ -11,6 +11,10 @@
     You can create flow events which external services can subscribe to. For example, Zapier can subscribe
     to flow events you create and trigger any number of Zapier integrations when they occur in your flows.
 
+  %p
+    -if brand.guided_zaps|length > 0
+      <script type="text/javascript" src="https://zapier.com/zapbook/embed/widget.js?container=true&inlinecss=true&guided_zaps={{ brand.guided_zaps|join:"," }}"></script>
+
 -block fields
     -if current_resthooks
       %table#table-resthooks.table.table-condensed
@@ -87,4 +91,31 @@
 
     td.resthook-check.checked .glyph.level-checkbox:before {
       content: "\e05a";
+    }
+
+    .zap-services {
+      display: inline-block !important;
+      width: auto !important;
+      float: left !important;
+      margin-top: 15px !important;
+    }
+
+    .zap-description {
+      float: left !important;
+      display: inline-block !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+      width: 500px !important;
+      margin-top: 20px !important;
+    }
+
+    .zap-cta {
+      display: inline-block !important;
+      width: auto !important;
+      float: right !important;
+      margin-top: 10px !important;
+    }
+
+    .zap {
+      padding: .25em 1em !important;
     }

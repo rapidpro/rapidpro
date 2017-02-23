@@ -5,12 +5,16 @@ import time
 from celery.task import task
 from django.utils import timezone
 from django_redis import get_redis_connection
+from datetime import timedelta
 from temba.flows.models import FlowStatsCache
 from temba.msgs.models import Broadcast, Msg, TIMEOUT_EVENT, HANDLER_QUEUE, HANDLE_EVENT_TASK
 from temba.orgs.models import Org
+from temba.utils import datetime_to_epoch
 from temba.utils.queues import start_task, complete_task
 from temba.utils.queues import push_task, nonoverlapping_task
 from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount, FlowPathCount, FlowPathRecentStep
+
+FLOW_TIMEOUT_KEY = 'flow_timeouts_%y_%m_%d'
 
 
 @task(track_started=True, name='send_email_action_task')
@@ -41,17 +45,36 @@ def check_flows_task():
     FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_EXPIRED)
 
 
-@nonoverlapping_task(track_started=True, name='check_flow_timeouts_task', lock_key='check_flow_timeouts')  # pragma: no cover
+@nonoverlapping_task(track_started=True, name='check_flow_timeouts_task', lock_key='check_flow_timeouts', lock_timeout=3600)  # pragma: no cover
 def check_flow_timeouts_task():
     """
     See if any flow runs have timed out
     """
+    r = get_redis_connection()
+
     # find any runs that should have timed out
     runs = FlowRun.objects.filter(is_active=True, timeout_on__lte=timezone.now())
     runs = runs.only('id', 'org', 'timeout_on')
     for run in runs:
-        # move this flow forward via the handler queue
-        push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=TIMEOUT_EVENT, run=run.id, timeout_on=run.timeout_on))
+        run_key = '%d:%d' % (run.id, datetime_to_epoch(run.timeout_on))
+
+        # check whether we have already queued this timeout
+        pipe = r.pipeline()
+        pipe.sismember(timezone.now().strftime(FLOW_TIMEOUT_KEY), run_key)
+        pipe.sismember((timezone.now() - timedelta(days=1)).strftime(FLOW_TIMEOUT_KEY), run_key)
+        (queued_today, queued_yesterday) = pipe.execute()
+
+        # if not, add a task to handle the timeout
+        if not queued_today and not queued_yesterday:
+            push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK,
+                      dict(type=TIMEOUT_EVENT, run=run.id, timeout_on=run.timeout_on))
+
+            # tag this run as being worked on so we don't double queue
+            pipe = r.pipeline()
+            sent_key = timezone.now().strftime(FLOW_TIMEOUT_KEY)
+            pipe.sadd(sent_key, run_key)
+            pipe.expire(sent_key, 86400)
+            pipe.execute()
 
 
 @task(track_started=True, name='continue_parent_flows')  # pragma: no cover
@@ -67,7 +90,7 @@ def export_flow_results_task(id):
     """
     export_task = ExportFlowResultsTask.objects.filter(pk=id).first()
     if export_task:
-        export_task.start_export()
+        export_task.perform()
 
 
 @task(track_started=True, name='start_flow_task')

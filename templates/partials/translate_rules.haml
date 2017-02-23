@@ -36,7 +36,7 @@
           .translate
             .translate-from
               [[rule._translation.category.from]]
-            %input{ng-model:"rule._translation.category.to",type:"text",class:"translate-to"}
+            %input{ng-model:"rule._translation.category.to",type:"text",class:"translate-to",maxlength:"36"}
       .modal-footer
         %button{ng-click:"cancel()",class:"btn btn-secondary"}
           -trans "Cancel"

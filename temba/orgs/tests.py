@@ -1537,6 +1537,25 @@ class OrgTest(TembaTest):
                 self.assertEquals(self.org.config_json()['NEXMO_KEY'], 'key')
                 self.assertEquals(self.org.config_json()['NEXMO_SECRET'], 'secret')
 
+                nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['answer_url'],
+                                  "https://%s%s" % (settings.TEMBA_HOST.lower(),
+                                                    reverse('handlers.nexmo_call_handler', args=['answer',
+                                                                                                 nexmo_uuid])))
+
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['event_url'],
+                                  "https://%s%s" % (settings.TEMBA_HOST.lower(),
+                                                    reverse('handlers.nexmo_call_handler', args=['event',
+                                                                                                 nexmo_uuid])))
+
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['answer_method'], 'POST')
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['event_method'], 'POST')
+
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['type'], 'voice')
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['name'],
+                                  "%s/%s" % (settings.TEMBA_HOST.lower(), nexmo_uuid))
+
                 nexmo_account_url = reverse('orgs.org_nexmo_account')
                 response = self.client.get(nexmo_account_url)
                 self.assertEquals("key", response.context['api_key'])
@@ -1652,21 +1671,6 @@ class OrgTest(TembaTest):
             # plivo should be added to the session
             self.assertEquals(self.client.session[Channel.CONFIG_PLIVO_AUTH_ID], 'auth-id')
             self.assertEquals(self.client.session[Channel.CONFIG_PLIVO_AUTH_TOKEN], 'auth-token')
-
-    def test_download(self):
-        response = self.client.get('/org/download/messages/123/')
-        self.assertLoginRedirect(response)
-
-        self.login(self.admin)
-
-        response = self.client.get('/org/download/messages/123/')
-        self.assertRedirect(response, '/assets/download/message_export/123/')
-
-        response = self.client.get('/org/download/contacts/123/')
-        self.assertRedirect(response, '/assets/download/contact_export/123/')
-
-        response = self.client.get('/org/download/flows/123/')
-        self.assertRedirect(response, '/assets/download/results_export/123/')
 
     def test_tiers(self):
 

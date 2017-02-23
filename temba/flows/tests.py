@@ -656,10 +656,9 @@ class FlowTest(TembaTest):
         self.assertContains(response, "already an export in progress")
 
         # ok, mark that one as finished and try again
-        blocking_export.is_finished = True
-        blocking_export.save()
+        blocking_export.update_status(ExportFlowResultsTask.STATUS_COMPLETE)
 
-        with self.assertNumQueries(49):
+        with self.assertNumQueries(50):
             workbook = self.export_flow_results(self.flow)
 
         tz = self.org.timezone
@@ -752,7 +751,7 @@ class FlowTest(TembaTest):
                                             "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(49):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -779,7 +778,7 @@ class FlowTest(TembaTest):
         # insert a duplicate age field, this can happen due to races
         Value.objects.create(org=self.org, contact=self.contact, contact_field=age, string_value='36', decimal_value='36')
 
-        with self.assertNumQueries(53):
+        with self.assertNumQueries(54):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
                                                 contact_fields=[age])
 
@@ -1861,24 +1860,33 @@ class FlowTest(TembaTest):
         twilio.delete()
 
         # create a new regular flow
-        response = self.client.post(reverse('flows.flow_create'), dict(name='Flow', flow_type='F', expires_after_minutes=5), follow=True)
+        response = self.client.post(reverse('flows.flow_create'), dict(name='Flow', flow_type='F'), follow=True)
         flow1 = Flow.objects.get(org=self.org, name="Flow")
         # add a trigger on this flow
         Trigger.objects.create(org=self.org, keyword='unique', flow=flow1,
                                created_by=self.admin, modified_by=self.admin)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(flow1.flow_type, 'F')
-        self.assertEqual(flow1.expires_after_minutes, 5)
+        self.assertEqual(flow1.expires_after_minutes, 10080)
 
         # create a new surveyor flow
-        self.client.post(reverse('flows.flow_create'), dict(name='Surveyor Flow', expires_after_minutes=5, flow_type='S'), follow=True)
+        self.client.post(reverse('flows.flow_create'), dict(name='Surveyor Flow', flow_type='S'), follow=True)
         flow2 = Flow.objects.get(org=self.org, name="Surveyor Flow")
         self.assertEqual(flow2.flow_type, 'S')
-        self.assertEqual(flow2.expires_after_minutes, 5)
+        self.assertEqual(flow2.expires_after_minutes, 10080)
 
         # make sure we don't get a start flow button for Android Surveys
         response = self.client.get(reverse('flows.flow_editor', args=[flow2.uuid]))
         self.assertNotContains(response, "broadcast-rulesflow btn-primary")
+
+        # create a new voice flow
+        response = self.client.post(reverse('flows.flow_create'), dict(name='Voice Flow', flow_type='V'), follow=True)
+        voice_flow = Flow.objects.get(org=self.org, name="Voice Flow")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(voice_flow.flow_type, 'V')
+
+        # default expiration for voice is shorter
+        self.assertEqual(voice_flow.expires_after_minutes, 5)
 
         # test flows with triggers
         # create a new flow with one unformatted keyword
@@ -1903,7 +1911,6 @@ class FlowTest(TembaTest):
 
         response = self.client.post(reverse('flows.flow_create'), post_data)
         self.assertTrue(response.context['form'].errors)
-        print(response.context['form'].errors['keyword_triggers'])
         self.assertTrue('The keywords "this, unique" are already used for another flow' in response.context['form'].errors['keyword_triggers'])
         trigger.delete()
 
@@ -1920,6 +1927,34 @@ class FlowTest(TembaTest):
         self.assertEqual(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[flow3.uuid]))
         self.assertEqual(response.context['object'].triggers.count(), 3)
 
+        # update expiration for voice flow
+        post_data = dict()
+        response = self.client.get(reverse('flows.flow_update', args=[voice_flow.pk]), post_data, follow=True)
+
+        choices = response.context['form'].fields['expires_after_minutes'].choices
+        self.assertEqual(7, len(choices))
+        self.assertEqual(1, choices[0][0])
+        self.assertEqual(2, choices[1][0])
+        self.assertEqual(3, choices[2][0])
+        self.assertEqual(4, choices[3][0])
+        self.assertEqual(5, choices[4][0])
+        self.assertEqual(10, choices[5][0])
+        self.assertEqual(15, choices[6][0])
+
+        # try updating with an sms type expiration to make sure it's restricted for voice flows
+        post_data['expires_after_minutes'] = 60 * 12
+        post_data['name'] = 'Voice Flow'
+        response = self.client.post(reverse('flows.flow_update', args=[voice_flow.pk]), post_data, follow=True)
+        voice_flow.refresh_from_db()
+        self.assertEqual(5, voice_flow.expires_after_minutes)
+
+        # now do a valid value for voice
+        post_data['expires_after_minutes'] = 3
+        response = self.client.post(reverse('flows.flow_update', args=[voice_flow.pk]), post_data, follow=True)
+
+        voice_flow.refresh_from_db()
+        self.assertEqual(3, voice_flow.expires_after_minutes)
+
         # update flow triggers
         post_data = dict()
         post_data['name'] = "Flow With Keyword Triggers"
@@ -1935,7 +1970,7 @@ class FlowTest(TembaTest):
         self.assertEquals(flow3.triggers.filter(is_archived=False).count(), 3)
         self.assertEquals(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
 
-        # update flow with unformated keyword
+        # update flow with unformatted keyword
         post_data['keyword_triggers'] = "it,changes,every thing"
         response = self.client.post(reverse('flows.flow_update', args=[flow3.pk]), post_data)
         self.assertTrue(response.context['form'].errors)
@@ -1987,7 +2022,7 @@ class FlowTest(TembaTest):
 
         # check flow listing
         response = self.client.get(reverse('flows.flow_list'))
-        self.assertEqual(list(response.context['object_list']), [flow1, flow3, flow2, self.flow])  # by last modified
+        self.assertEqual(list(response.context['object_list']), [flow1, flow3, voice_flow, flow2, self.flow])  # by last modified
 
         # start a contact on that flow
         flow = flow1
@@ -3253,7 +3288,7 @@ class ActionTest(TembaTest):
 
         # check webhook was called with correct payload
         mock_requests_post.assert_called_once_with('http://example.com/callback.php',
-                                                   headers={'User-agent': "RapidPro"},
+                                                   headers={'User-agent': 'RapidPro'},
                                                    data={'run': run.pk,
                                                          'phone': u'+250788382382',
                                                          'contact': self.contact.uuid,
@@ -5129,7 +5164,7 @@ class FlowsTest(FlowFileTest):
 
         # now interrupt the child flow
         run = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by('-created_on').first()
-        FlowRun.bulk_exit([run], FlowRun.EXIT_TYPE_INTERRUPTED)
+        FlowRun.bulk_exit(FlowRun.objects.filter(id=run.id), FlowRun.EXIT_TYPE_INTERRUPTED)
 
         # all flows should have finished
         self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
@@ -5156,7 +5191,7 @@ class FlowsTest(FlowFileTest):
 
         # now expire out of the child flow
         run = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by('-created_on').first()
-        FlowRun.bulk_exit([run], FlowRun.EXIT_TYPE_EXPIRED)
+        FlowRun.bulk_exit(FlowRun.objects.filter(id=run.id), FlowRun.EXIT_TYPE_EXPIRED)
 
         # all flows should have finished
         self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
@@ -6472,7 +6507,7 @@ class TimeoutTest(FlowFileTest):
         last_msg.sent_on = timezone.now() - timedelta(minutes=5)
         last_msg.save()
 
-        time.sleep(.5)
+        time.sleep(1)
 
         # ok, change our timeout to the past
         timeout = timezone.now()
@@ -6491,6 +6526,51 @@ class TimeoutTest(FlowFileTest):
         self.assertIsNone(run.timeout_on)
         current_step = run.steps.order_by('-id').first()
         self.assertEqual(current_step.step_uuid, start_step.step_uuid)
+
+        # check that we can't be double queued by manually moving our timeout back
+        with patch('temba.utils.queues.push_task') as mock_push:
+            FlowRun.objects.all().update(timeout_on=timeout)
+            check_flow_timeouts_task()
+
+            self.assertEqual(0, mock_push.call_count)
+
+    def test_timeout_race(self):
+        # start one flow
+        flow1 = self.get_flow('timeout')
+        flow1.start([], [self.contact])
+        run1 = FlowRun.objects.get(flow=flow1, contact=self.contact)
+
+        # start another flow
+        flow2 = self.get_flow('multi_timeout')
+        flow2.start([], [self.contact])
+
+        # reactivate our first run (not usually possible to have both active)
+        run1.is_active = True
+        run1.save()
+
+        # remove our timeout rule on our second flow
+        flow_json = flow2.as_json()
+        del flow_json['rule_sets'][0]['rules'][-1]
+        flow2.update(flow_json)
+
+        # mark our last message as sent
+        last_msg = run1.get_last_msg(OUTGOING)
+        last_msg.sent_on = timezone.now() - timedelta(minutes=5)
+        last_msg.save()
+
+        time.sleep(.5)
+
+        # ok, change our timeout to the past
+        timeout = timezone.now()
+        run1.timeout_on = timezone.now()
+        run1.save(update_fields=['timeout_on'])
+
+        # process our timeout
+        run1.resume_after_timeout(timeout)
+
+        # should have cleared the timeout, run2 is the active one now
+        run1.refresh_from_db()
+        self.assertIsNone(run1.timeout_on)
 
     def test_timeout_loop(self):
         from temba.flows.tasks import check_flow_timeouts_task
@@ -6556,6 +6636,7 @@ class TimeoutTest(FlowFileTest):
 
         # nothing should have changed as we haven't yet sent our msg
         self.assertTrue(run.is_active)
+        time.sleep(1)
 
         # ok, mark our message as sent, but only two minutes ago
         last_msg = run.get_last_msg(OUTGOING)
@@ -6572,6 +6653,8 @@ class TimeoutTest(FlowFileTest):
         # ok, finally mark our message sent a while ago
         last_msg.sent_on = timezone.now() - timedelta(minutes=10)
         last_msg.save()
+
+        time.sleep(1)
         FlowRun.objects.all().update(timeout_on=timezone.now())
         check_flow_timeouts_task()
         run.refresh_from_db()
@@ -6631,7 +6714,7 @@ class TimeoutTest(FlowFileTest):
         self.assertTrue(run.is_active)
         self.assertTrue(timezone.now() - timedelta(minutes=1) < run.timeout_on > timezone.now() + timedelta(minutes=4))
 
-        time.sleep(.5)
+        time.sleep(1)
 
         # ok, change our timeout to the past
         FlowRun.objects.all().update(timeout_on=timezone.now())

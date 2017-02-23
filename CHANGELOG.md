@@ -1,3 +1,39 @@
+v3.0.62
+----------
+ * Fix preferred channels for non-msg channels
+
+v3.0.61
+----------
+ * Make migrations to populate new export task fields non-atomic
+ * Add indexes for admin boundaries and aliases
+ * Nexmo: make sure calls are ended on hangup, log hangups and media
+ * Fix inbound calls on Nexmo to use conversation_uuid
+ * Style tweaks for zapier widget
+ * Use shorter timeout for IVR
+ * Issue hangups on expiration during IVR runs
+ * Catch all exceptions and log them when initiating call
+ * Fix update status for Nexmo calls
+
+v3.0.48
+----------
+ * Add channel session log page
+ * Use brand variable for zaps to show
+ * Additional logging for nexmo
+ * Increase non-overlap on timeout queueing, never double queue single timeout
+ * Fix broken timeout handling when there is a race
+ * Make field_keys a required parameter
+ * Speed up the contact import by handling contact update at once after all the fields are set
+
+v3.0.47
+----------
+ * Add channel log for Nexmo call initiation
+ * Fix import-geojson management command
+
+v3.0.46
+----------
+ * Fix Contact.search so it doesn't evaluate the base_query
+ * Enable searching in groups and blocked/stopped contacts
+
 v3.0.45
 ----------
  * Fix absolute positioning for account creation form

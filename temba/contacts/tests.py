@@ -1700,20 +1700,18 @@ class ContactTest(TembaTest):
         self.assertEquals(group_analytic_json['name'], "Joe and Frank")
         self.assertEquals(2, group_analytic_json['count'])
 
-        # list contacts as a user not in the organization
+        # try to list contacts as a user not in the organization
         self.login(self.user1)
         response = self.client.get(list_url)
         self.assertEquals(302, response.status_code)
 
-        self.viewer = self.create_user("Viewer")
-        self.org.viewers.add(self.viewer)
-        self.viewer.set_org(self.org)
-
-        self.login(self.viewer)
+        # login as an org viewer
+        self.login(self.user)
 
         response = self.client.get(list_url)
         self.assertContains(response, "Joe Blow")
         self.assertContains(response, "Frank Smith")
+        self.assertContains(response, "Billy Nophone")
         self.assertContains(response, "Joe and Frank")
         self.assertEquals(response.context['actions'], ('label', 'block'))
 
@@ -1744,10 +1742,8 @@ class ContactTest(TembaTest):
         # list the contacts as a manager of the organization
         self.login(self.admin)
         response = self.client.get(list_url)
-        self.assertContains(response, "Joe Blow")
-        self.assertContains(response, "Frank Smith")
-        self.assertContains(response, "Joe and Frank")
-        self.assertEquals(response.context['actions'], ('label', 'block'))
+        self.assertEqual(list(response.context['object_list']), [self.voldemort, self.billy, self.frank, self.joe])
+        self.assertEqual(response.context['actions'], ('label', 'block'))
 
         # this just_joe group has one contact and joe_and_frank group has two contacts
         self.assertEquals(len(self.just_joe.contacts.all()), 1)
@@ -1832,7 +1828,7 @@ class ContactTest(TembaTest):
         self.client.post(joe_and_frank_filter_url, post_data)
         self.assertEquals(self.joe.user_groups.filter(is_active=True).count(), 2)
 
-        # Now archive Joe
+        # Now block Joe
         post_data = dict()
         post_data['action'] = 'block'
         post_data['objects'] = self.joe.id
@@ -1854,14 +1850,14 @@ class ContactTest(TembaTest):
 
         response = self.client.get(stopped_url)
         self.assertEquals(1, len(response.context['object_list']))
-        self.assertEquals(1, response.context['object_list'].count())  # from cache
+        self.assertEquals(1, response.context['object_list'].count())  # from ContactGroupCount
 
         # receiving an incoming message removes us from stopped
         Msg.create_incoming(self.channel, str(self.frank.get_urn('tel')), "Incoming message")
 
         response = self.client.get(stopped_url)
         self.assertEquals(0, len(response.context['object_list']))
-        self.assertEquals(0, response.context['object_list'].count())  # from cache
+        self.assertEquals(0, response.context['object_list'].count())  # from ContactGroupCount
 
         self.frank.refresh_from_db()
         self.assertFalse(self.frank.is_stopped)
@@ -1877,7 +1873,7 @@ class ContactTest(TembaTest):
 
         response = self.client.get(stopped_url)
         self.assertEquals(0, len(response.context['object_list']))
-        self.assertEquals(0, response.context['object_list'].count())  # from cache
+        self.assertEquals(0, response.context['object_list'].count())  # from ContactGroupCount
 
         self.frank.refresh_from_db()
         self.assertFalse(self.frank.is_stopped)
@@ -1885,14 +1881,20 @@ class ContactTest(TembaTest):
         # add him back to joe and frank
         self.joe_and_frank.contacts.add(self.frank)
 
-        # Now let's visit the archived contacts page
+        # Now let's visit the blocked contacts page
         blocked_url = reverse('contacts.contact_blocked')
 
-        # archived contact are not on the list page
-        post_data = dict()
-        post_data['action'] = 'unblock'
-        post_data['objects'] = self.joe.id
-        self.client.post(blocked_url, post_data, follow=True)
+        self.billy.block(self.admin)
+
+        response = self.client.get(blocked_url)
+        self.assertEqual(list(response.context['object_list']), [self.billy, self.joe])
+
+        # can search blocked contacts from this page
+        response = self.client.get(blocked_url + '?search=Joe')
+        self.assertEqual(list(response.context['object_list']), [self.joe])
+
+        # can unblock contacts from this page
+        self.client.post(blocked_url, {'action': 'unblock', 'objects': self.joe.id}, follow=True)
 
         # and check that Joe is restored to the contact list but the group not restored
         response = self.client.get(list_url)
@@ -2509,12 +2511,27 @@ class ContactTest(TembaTest):
                                  dict(records=1, errors=2, creates=0, updates=1,
                                       error_messages=[dict(line=3,
                                                            error="Missing any valid URNs; at least one among phone, "
-                                                                 "facebook, twitter, viber, line, telegram, email, external should be provided"),
+                                                                 "facebook, twitter, viber, line, telegram, email, external, fcm should be provided"),
                                                       dict(line=4, error="Invalid Phone number 12345")]))
 
         # import a spreadsheet with a name and a twitter columns only
         self.assertContactImport('%s/test_imports/sample_contacts_twitter.xls' % settings.MEDIA_ROOT,
                                  dict(records=3, errors=0, error_messages=[], creates=3, updates=0))
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+
+        self.assertContactImport('%s/test_imports/sample_contacts_bad_unicode.xls' % settings.MEDIA_ROOT,
+                                 dict(records=2, errors=0, creates=2, updates=0, error_messages=[]))
+
+        self.assertEquals(1, Contact.objects.filter(name='John Doe').count())
+        self.assertEquals(1, Contact.objects.filter(name='Mary Smith').count())
+
+        contact = Contact.objects.filter(name='John Doe').first()
+        contact2 = Contact.objects.filter(name='Mary Smith').first()
+
+        self.assertEqual(list(contact.get_urns().values_list('path', flat=True)), ['+250788123123'])
+        self.assertEqual(list(contact2.get_urns().values_list('path', flat=True)), ['+250788345345'])
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
@@ -2565,7 +2582,7 @@ class ContactTest(TembaTest):
                                      dict(records=3, errors=1, creates=1, updates=2,
                                           error_messages=[dict(line=3,
                                                           error="Missing any valid URNs; at least one among phone, "
-                                                                "facebook, twitter, viber, line, telegram, email, external should be provided")]))
+                                                                "facebook, twitter, viber, line, telegram, email, external, fcm should be provided")]))
 
             # lock for creates only
             self.assertEquals(mock_lock.call_count, 1)
@@ -2632,7 +2649,7 @@ class ContactTest(TembaTest):
                                      dict(records=3, errors=1, creates=1, updates=2,
                                           error_messages=[dict(line=3,
                                                           error="Missing any valid URNs; at least one among phone, "
-                                                                "facebook, twitter, viber, line, telegram, email, external should be provided")]))
+                                                                "facebook, twitter, viber, line, telegram, email, external, fcm should be provided")]))
 
             # only lock for create
             self.assertEquals(mock_lock.call_count, 1)
@@ -2762,14 +2779,14 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
-                             '"Twitter", "Viber", "Line", "Telegram", "Email", "External" should be included.')
+                             '"Twitter", "Viber", "Line", "Telegram", "Email", "External", "Fcm" should be included.')
 
         csv_file = open('%s/test_imports/sample_contacts_missing_name_phone_headers.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
-                             '"Twitter", "Viber", "Line", "Telegram", "Email", "External" should be included.')
+                             '"Twitter", "Viber", "Line", "Telegram", "Email", "External", "Fcm" should be included.')
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
@@ -2958,6 +2975,45 @@ class ContactTest(TembaTest):
 
         contact1 = Contact.objects.all().order_by('name')[0]
         self.assertEquals(contact1.get_field_raw('startdate'), '31-12-2014 10:00')
+
+    def test_contact_import_handle_update_contact(self):
+        self.login(self.admin)
+        self.create_campaign()
+
+        ballers = self.create_group("Ballers", query='team has ball')
+
+        self.campaign.group = ballers
+        self.campaign.save()
+
+        self.assertEqual(self.campaign.group, ballers)
+
+        response = self.assertContactImport(
+            '%s/test_imports/sample_contacts_with_extra_field_date_planting.xls' % settings.MEDIA_ROOT,
+            None, task_customize=True)
+
+        customize_url = reverse('contacts.contact_customize', args=[response.context['task'].pk])
+
+        post_data = dict()
+        post_data['column_planting_date_include'] = 'on'
+        post_data['column_planting_date_type'] = 'D'
+        post_data['column_planting_date_label'] = 'Planting Date'
+
+        post_data['column_team_include'] = 'on'
+        post_data['column_team_type'] = 'T'
+        post_data['column_team_label'] = 'Team'
+
+        response = self.client.post(customize_url, post_data, follow=True)
+        self.assertEquals(response.context['results'], dict(records=1, errors=0, error_messages=[], creates=0,
+                                                            updates=1))
+
+        contact1 = Contact.objects.filter(name='John Blow').first()
+        self.assertEquals(contact1.get_field_raw('planting_date'), '31-12-2020 10:00')
+        self.assertEquals(contact1.get_field_raw('team'), 'Ballers')
+
+        event_fire = EventFire.objects.filter(event=self.message_event, contact=contact1,
+                                              event__campaign__group__in=[ballers]).first()
+        contact1_planting_date = contact1.get_field('planting_date').datetime_value.replace(second=0, microsecond=0)
+        self.assertEquals(event_fire.scheduled, contact1_planting_date + timedelta(days=7))
 
     def test_contact_import_with_languages(self):
         self.create_contact(name="Eric", number="+250788382382")
@@ -3270,7 +3326,7 @@ class ContactTest(TembaTest):
             self.frank.set_field(self.user, 'joined', '1/1/2014')
 
             # create more groups based on fields (checks that contacts are added correctly on group create)
-            men_group = self.create_group("Girls", query='gender = "male" AND age >= 18')
+            men_group = self.create_group("Boys", query='gender = "male" AND age >= 18')
             women_group = self.create_group("Girls", query='gender = "female" AND age >= 18')
 
             joe_flow = self.create_flow()
@@ -3552,10 +3608,9 @@ class ContactFieldTest(TembaTest):
         self.assertContains(response, "already an export in progress")
 
         # ok, mark that one as finished and try again
-        blocking_export.is_finished = True
-        blocking_export.save()
+        blocking_export.update_status(ExportContactsTask.STATUS_COMPLETE)
 
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(38):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
@@ -3579,7 +3634,7 @@ class ContactFieldTest(TembaTest):
         contact4 = self.create_contact('Stephen', '+12078778899', twitter='stephen')
         ContactURN.create(self.org, contact, 'tel:+12062233445')
 
-        with self.assertNumQueries(37):
+        with self.assertNumQueries(38):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
@@ -3769,7 +3824,7 @@ class ContactFieldTest(TembaTest):
 
         response_json = response.json()
 
-        self.assertEquals(len(response_json), 42)
+        self.assertEquals(len(response_json), 43)
         self.assertEquals(response_json[0]['label'], 'Full name')
         self.assertEquals(response_json[0]['key'], 'name')
         self.assertEquals(response_json[1]['label'], 'Phone number')
@@ -3788,22 +3843,24 @@ class ContactFieldTest(TembaTest):
         self.assertEquals(response_json[7]['key'], 'mailto')
         self.assertEquals(response_json[8]['label'], 'External identifier')
         self.assertEquals(response_json[8]['key'], 'ext')
-        self.assertEquals(response_json[9]['label'], 'Groups')
-        self.assertEquals(response_json[9]['key'], 'groups')
-        self.assertEquals(response_json[10]['label'], 'First')
-        self.assertEquals(response_json[10]['key'], 'first')
-        self.assertEquals(response_json[11]['label'], 'label0')
-        self.assertEquals(response_json[11]['key'], 'key0')
+        self.assertEquals(response_json[9]['label'], 'Firebase Cloud Messaging identifier')
+        self.assertEquals(response_json[9]['key'], 'fcm')
+        self.assertEquals(response_json[10]['label'], 'Groups')
+        self.assertEquals(response_json[10]['key'], 'groups')
+        self.assertEquals(response_json[11]['label'], 'First')
+        self.assertEquals(response_json[11]['key'], 'first')
+        self.assertEquals(response_json[12]['label'], 'label0')
+        self.assertEquals(response_json[12]['key'], 'key0')
 
         ContactField.objects.filter(org=self.org, key='key0').update(label='AAAA')
 
         response = self.client.get(contact_field_json_url)
         response_json = response.json()
 
-        self.assertEquals(response_json[10]['label'], 'AAAA')
-        self.assertEquals(response_json[10]['key'], 'key0')
-        self.assertEquals(response_json[11]['label'], 'First')
-        self.assertEquals(response_json[11]['key'], 'first')
+        self.assertEquals(response_json[11]['label'], 'AAAA')
+        self.assertEquals(response_json[11]['key'], 'key0')
+        self.assertEquals(response_json[12]['label'], 'First')
+        self.assertEquals(response_json[12]['key'], 'first')
 
 
 class URNTest(TembaTest):

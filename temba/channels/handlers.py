@@ -22,7 +22,7 @@ from django.views.generic import View
 from guardian.utils import get_anonymous_user
 from requests import Request
 from temba.api.models import WebHookEvent, SMS_RECEIVED
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
@@ -991,20 +991,73 @@ class NexmoCallHandler(BaseChannelHandler):
 
         action = kwargs['action'].lower()
 
-        # nexmo fires a test request at our URL with no arguments, return 200 so they take our URL as valid
-        if action == 'answer' and not self.get_param('nexmo_caller_id', None):
-            return HttpResponse("No to parameter, ignoring")
+        request_body = request.body
+        request_path = request.get_full_path()
+        request_method = request.method
 
         request_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid__iexact=request_uuid, is_active=True, channel_type=Channel.TYPE_NEXMO).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("No channel to answer call for UUID: %s" % request_uuid, status=404)
+        if action == 'event':
+            if not request_body:
+                return HttpResponse('')
+
+            body_json = json.loads(request_body)
+            status = body_json.get('status', None)
+            duration = body_json.get('duration', None)
+            call_uuid = body_json.get('uuid', None)
+            conversation_uuid = body_json.get('conversation_uuid', None)
+
+            if call_uuid is None:
+                return HttpResponse("Missing uuid parameter, ignoring")
+
+            call = IVRCall.objects.filter(external_id=call_uuid).first()
+            if not call:
+                # try looking up by the conversation uuid (inbound calls start with that)
+                call = IVRCall.objects.filter(external_id=conversation_uuid).first()
+                if call:
+                    call.external_id = call_uuid
+                    call.save()
+                else:
+                    response = dict(message="Call not found for %s" % call_uuid)
+                    return JsonResponse(response)
+
+            channel = call.channel
+            channel_type = channel.channel_type
+            call.update_status(status, duration, channel_type)
+            call.save()
+
+            response = dict(message="Updated call status",
+                            call=dict(status=call.get_status_display(), duration=call.duration))
+            ChannelLog.log_ivr_interaction(call,
+                                           "Updated call %s status to %s" % (call.external_id,
+                                                                             call.get_status_display()),
+                                           request_body, json.dumps(response), request_path, request_method)
+            return JsonResponse(response)
 
         if action == 'answer':
+            if not request_body:
+                return HttpResponse('')
 
-            from_number = self.get_param('nexmo_caller_id')
-            external_id = self.get_param('nexmo_call_id')
+            body_json = json.loads(request_body)
+            from_number = body_json.get('from', None)
+            channel_number = body_json.get('to', None)
+            external_id = body_json.get('conversation_uuid', None)
+
+            if not from_number or not channel_number or not external_id:
+                return HttpResponse("Missing parameters, Ignoring")
+
+            # look up the channel
+            address_q = Q(address=channel_number) | Q(address=('+' + channel_number))
+            channel = Channel.objects.filter(address_q).filter(is_active=True,
+                                                               channel_type=Channel.TYPE_NEXMO).exclude(org=None).first()
+
+            # make sure we got one, and that it matches the key for our org
+            org_uuid = None
+            if channel:
+                org_uuid = channel.org.config_json().get(NEXMO_UUID, None)
+
+            if not channel or org_uuid != request_uuid:
+                return HttpResponse("Channel not found for number: %s" % channel_number, status=404)
 
             urn = URN.from_tel(from_number)
             contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], channel=channel)
@@ -1017,7 +1070,11 @@ class NexmoCallHandler(BaseChannelHandler):
 
                 FlowRun.create(flow, contact.pk, session=call)
                 response = Flow.handle_call(call)
-                return HttpResponse(unicode(response))
+
+                ChannelLog.log_ivr_interaction(call, "Response for received call %s" % call.external_id, request_body,
+                                               six.text_type(response),
+                                               request_path, request_method)
+                return JsonResponse(json.loads(six.text_type(response)), safe=False)
             else:
                 # we don't have an inbound trigger to deal with this call.
                 response = channel.generate_ivr_response()
@@ -1032,12 +1089,7 @@ class NexmoCallHandler(BaseChannelHandler):
                 Trigger.catch_triggers(contact, Trigger.TYPE_MISSED_CALL, channel)
 
                 # either way, we need to hangup now
-                return HttpResponse(unicode(response))
-
-        if action == 'event':
-            # event are handled by call event webhook
-            # this url is just required to be able to create the nexmo application
-            return HttpResponse('')
+                return JsonResponse(json.loads(six.text_type(response)), safe=False)
 
 
 class NexmoHandler(BaseChannelHandler):
@@ -2568,3 +2620,60 @@ class ViberPublicHandler(BaseChannelHandler):
 
         else:  # pragma: no cover
             return HttpResponse("Not handled, unknown event: %s" % event, status=400)
+
+
+class FCMHandler(BaseChannelHandler):
+
+    url = r'^fcm/(?P<action>register|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.fcm_handler'
+
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("Must be called as a POST", status=405)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+
+        channel_uuid = kwargs['uuid']
+
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_FCM).exclude(
+            org=None).first()
+
+        if not channel:
+            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
+
+        action = kwargs['action']
+
+        try:
+            if action == 'receive':
+                if not self.get_param('from') or not self.get_param('msg') or not self.get_param('fcm_token'):
+                    return HttpResponse("Missing parameters, requires 'from', 'msg' and 'fcm_token'", status=400)
+
+                date = self.get_param('date', self.get_param('time', None))
+                if date:
+                    date = json_date_to_datetime(date)
+
+                fcm_urn = URN.from_fcm(self.get_param('from'))
+                fcm_token = self.get_param('fcm_token')
+                name = self.get_param('name', None)
+                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[fcm_urn],
+                                                channel=channel, auth=fcm_token)
+
+                sms = Msg.create_incoming(channel, fcm_urn, self.get_param('msg'), date=date, contact=contact)
+                return HttpResponse("Msg Accepted: %d" % sms.id)
+
+            elif action == 'register':
+                if not self.get_param('urn') or not self.get_param('fcm_token'):
+                    return HttpResponse("Missing parameters, requires 'urn' and 'fcm_token'", status=400)
+
+                fcm_urn = URN.from_fcm(self.get_param('urn'))
+                fcm_token = self.get_param('fcm_token')
+                name = self.get_param('name', None)
+                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[fcm_urn],
+                                                channel=channel, auth=fcm_token)
+                return HttpResponse(json.dumps({'contact_uuid': contact.uuid}), content_type='application/json')
+
+            else:  # pragma: no cover
+                return HttpResponse("Not handled, unknown action", status=400)
+
+        except Exception as e:  # pragma: no cover
+            return HttpResponse(e.args, status=400)
