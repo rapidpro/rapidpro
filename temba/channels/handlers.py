@@ -564,7 +564,7 @@ class TelegramHandler(BaseChannelHandler):
                     try:
                         m = magic.Magic(mime=True)
                         content_type = m.from_buffer(response.content)
-                    except:
+                    except:  # pragma: no cover
                         pass
 
                     # fallback on the content type in our response header
