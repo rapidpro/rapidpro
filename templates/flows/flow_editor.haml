@@ -376,7 +376,7 @@
                   .missing{ng-hide:'action._translation'}
                     -trans "Click here to add a message"
 
-                  %span.reply{ng-show:'action.type == "reply"'}
+                  %span.reply{ng-show:'action.type == "reply" || action.type == "send"'}
 
                     .upload-button.icon-upload{ng-hide:'action._translation_media || action.uploading', ng-file-select:'onFileSelect($files, action_set, action);', ng-click:'$event.stopPropagation();' }
 

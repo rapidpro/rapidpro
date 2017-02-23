@@ -197,7 +197,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       return
 
     # if we have an attachement already, confirm they want to replace it
-    if action.type == 'reply' and action._translation_media
+    if action.type in ['reply', 'send'] and action._translation_media
       modal = showDialog('Overwrite Attachment', 'This step already has a attacment, would you like to replace this attachment with ' + file.name + '?', 'Overwrite Attachemnt', false)
       modal.result.then (value) ->
         if value == 'ok'
@@ -212,7 +212,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     if action.type == 'say'
       uploadURL = window.uploadURL
 
-    if action.type == 'reply'
+    if action.type in ['reply', 'send']
       uploadURL = window.uploadMediaURL
 
     if not uploadURL
@@ -233,7 +233,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           action.recording = {}
         action.recording[Flow.language.iso_code] = data['path']
 
-      if action.type  == 'reply'
+      if action.type in ['reply', 'send']
         if not action.media
           action.media = {}
         action.media[Flow.language.iso_code] = data['path']
