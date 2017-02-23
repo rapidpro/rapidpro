@@ -3674,12 +3674,12 @@ class ContactFieldTest(TembaTest):
             sheet = workbook.worksheets[0]
 
             # check our headers have 2 phone columns and Twitter
-            self.assertExcelRow(sheet, 0, ["UUID", "Name", "First", "Second", "Third"])
+            self.assertExcelRow(sheet, 0, ["ID", "UUID", "Name", "First", "Second", "Third"])
 
-            self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "", "", ""])
-            self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "One", "", "20-12-2015 08:30"])
-            self.assertExcelRow(sheet, 3, [contact3.uuid, "Luol Deng", "", "", ""])
-            self.assertExcelRow(sheet, 4, [contact4.uuid, "Stephen", "", "", ""])
+            self.assertExcelRow(sheet, 1, [contact2.id, contact2.uuid, "Adam Sumner", "", "", ""])
+            self.assertExcelRow(sheet, 2, [contact.id, contact.uuid, "Ben Haggerty", "One", "", "20-12-2015 08:30"])
+            self.assertExcelRow(sheet, 3, [contact3.id, contact3.uuid, "Luol Deng", "", "", ""])
+            self.assertExcelRow(sheet, 4, [contact4.id, contact4.uuid, "Stephen", "", "", ""])
 
             self.assertEqual(len(list(sheet.rows)), 5)  # no other contacts
 
