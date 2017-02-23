@@ -1530,6 +1530,11 @@ class Contact(TembaModel):
         contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False)
         contact_dict['groups'] = ",".join([_.name for _ in self.user_groups.all()])
         contact_dict['uuid'] = self.uuid
+
+        # anonymous orgs also get @contact.id
+        if org.is_anon:
+            contact_dict['id'] = self.id
+
         contact_dict[Contact.LANGUAGE] = self.language
 
         # add all URNs

@@ -3237,9 +3237,19 @@ class ContactTest(TembaTest):
         self.assertEquals("Joe Blow", message_context['__default__'])
         self.assertEquals("0781 111 111", message_context['tel'])
         self.assertEquals("Reporters", message_context['groups'])
+        self.assertFalse('id' in message_context)
 
         self.assertEqual("SeaHawks", message_context['team'])
         self.assertFalse('color' in message_context)
+
+        # switch our org to anonymous
+        self.org.is_anon = True
+        self.org.save()
+        self.joe.org.refresh_from_db()
+
+        message_context = self.joe.build_message_context()
+        self.assertEqual("********", message_context['tel'])
+        self.assertEqual(self.joe.id, message_context['id'])
 
     def test_urn_priority(self):
         bob = self.create_contact("Bob")
