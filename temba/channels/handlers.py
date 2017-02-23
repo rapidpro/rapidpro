@@ -7,6 +7,7 @@ import json
 import pytz
 import requests
 import six
+import magic
 import xml.etree.ElementTree as ET
 
 from datetime import datetime
@@ -557,7 +558,18 @@ class TelegramHandler(BaseChannelHandler):
                     url = 'https://api.telegram.org/file/bot%s/%s' % (auth_token, response_json['result']['file_path'])
                     extension = url.rpartition('.')[2]
                     response = requests.get(url)
-                    content_type = response.headers['Content-Type']
+
+                    # attempt to determine our content type using magic bytes
+                    content_type = None
+                    try:
+                        m = magic.Magic(mime=True)
+                        content_type = m.from_buffer(response.content)
+                    except:  # pragma: no cover
+                        pass
+
+                    # fallback on the content type in our response header
+                    if not content_type or content_type == 'application/octet-stream':
+                        content_type = response.headers['Content-Type']
 
                     temp = NamedTemporaryFile(delete=True)
                     temp.write(response.content)
