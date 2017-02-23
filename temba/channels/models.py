@@ -3016,9 +3016,6 @@ class Channel(TembaModel):
     def get_msg_count(self):
         return self.get_count([ChannelCount.INCOMING_MSG_TYPE, ChannelCount.OUTGOING_MSG_TYPE])
 
-    def get_ivr_count(self):
-        return self.get_count([ChannelCount.INCOMING_IVR_TYPE, ChannelCount.OUTGOING_IVR_TYPE])
-
     def get_log_count(self):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE, ChannelCount.ERROR_LOG_TYPE])
 
@@ -3028,8 +3025,11 @@ class Channel(TembaModel):
     def get_success_log_count(self):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE])
 
+    def get_ivr_log_count(self):
+        return ChannelLog.objects.filter(channel=self).exclude(session=None).count()
+
     def get_non_ivr_count(self):
-        return self.get_log_count() - self.get_ivr_count()
+        return self.get_log_count() - self.get_ivr_log_count()
 
     class Meta:
         ordering = ('-last_seen', '-pk')
