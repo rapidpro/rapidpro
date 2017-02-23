@@ -579,11 +579,13 @@ describe 'Controllers:', ->
         modalScope = $modalStack.getTop().value.modalScope
 
         expect(modalScope.validActionFilter(getAction('reply'))).toBe(true)
+        expect(modalScope.validActionFilter(getAction('end_ussd'))).toBe(false)
 
         # ivr only
         expect(modalScope.validActionFilter(getAction('say'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('play'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('api'))).toBe(true)
+        expect(modalScope.validActionFilter(getAction('end_ussd'))).toBe(false)
 
         # pretend we are a voice flow
         flowService.flow.flow_type = 'V'
@@ -591,6 +593,7 @@ describe 'Controllers:', ->
         expect(modalScope.validActionFilter(getAction('say'))).toBe(true)
         expect(modalScope.validActionFilter(getAction('play'))).toBe(true)
         expect(modalScope.validActionFilter(getAction('api'))).toBe(true)
+        expect(modalScope.validActionFilter(getAction('end_ussd'))).toBe(false)
 
         # now try a survey
         flowService.flow.flow_type = 'S'
@@ -598,13 +601,15 @@ describe 'Controllers:', ->
         expect(modalScope.validActionFilter(getAction('say'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('play'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('api'))).toBe(false)
+        expect(modalScope.validActionFilter(getAction('end_ussd'))).toBe(false)
 
         # USSD flow
         flowService.flow.flow_type = 'U'
-        expect(modalScope.validActionFilter(getAction('reply'))).toBe(true)
+        expect(modalScope.validActionFilter(getAction('reply'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('say'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('play'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('api'))).toBe(false)
+        expect(modalScope.validActionFilter(getAction('end_ussd'))).toBe(true)
 
       $timeout.flush()
 
