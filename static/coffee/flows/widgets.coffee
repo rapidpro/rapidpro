@@ -121,7 +121,7 @@ app.directive "msg", [ "$log", "Flow", ($log, Flow) ->
 
           # invalidate form if we ran out of chars
           modelController = element.find('textarea').controller('ngModel')
-          modelController.$setValidity 'message', scope.characters >= 0
+          modelController?.$setValidity 'message', scope.characters >= 0
       else
         scope.messages = 0
         scope.characters = messageLength
