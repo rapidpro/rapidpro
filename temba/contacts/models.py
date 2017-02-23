@@ -2328,7 +2328,7 @@ class ExportContactsTask(BaseExportTask):
 
         # anon orgs also get an ID column that is just the PK
         if self.org.is_anon:
-            fields = [dict(label='ID', key=Contact.id, id=0, field=None, urn_scheme=None)] + fields
+            fields = [dict(label='ID', key=Contact.ID, id=0, field=None, urn_scheme=None)] + fields
 
         scheme_counts = dict()
         if not self.org.is_anon:
@@ -2400,7 +2400,7 @@ class ExportContactsTask(BaseExportTask):
                         elif field['key'] == Contact.UUID:
                             field_value = contact.uuid
                         elif field['key'] == Contact.ID:
-                            field_value = contact.id
+                            field_value = six.text_type(contact.id)
                         elif field['urn_scheme'] is not None:
                             contact_urns = contact.get_urns()
                             scheme_urns = []
