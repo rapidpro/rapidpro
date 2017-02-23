@@ -9,7 +9,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0061_channelcount_is_squashed'),
+        ('channels', '0062_auto_20170208_1450'),
     ]
 
     operations = [
