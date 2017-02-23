@@ -2770,6 +2770,7 @@ class ActionTest(TembaTest):
         action_json = action.as_json()
         action = SendAction.from_json(self.org, action_json)
         self.assertEqual(action.msg['base'], msg_body)
+        self.assertEqual(action.media, dict())
 
         broadcast = Broadcast.objects.get()
         self.assertEqual(broadcast.get_messages().count(), 1)
@@ -2811,6 +2812,28 @@ class ActionTest(TembaTest):
         updated_action = SendAction.from_json(self.org, action.as_json())
         self.assertTrue(updated_action.groups)
         self.assertFalse(self.other_group.pk in [g.pk for g in updated_action.groups])
+
+        # test send MMS to someone else
+        run = FlowRun.create(self.flow, self.contact.pk)
+        msg_body = 'I am an MMS message'
+
+        action = SendAction(dict(base=msg_body), [], [self.contact2], [], dict(base='attachments/picture.jpg'))
+        action.execute(run, None, None)
+
+        action_json = action.as_json()
+        action = SendAction.from_json(self.org, action_json)
+        self.assertEqual(action.msg['base'], msg_body)
+        self.assertEqual(action.media['base'], 'attachments/picture.jpg')
+
+        self.assertEqual(Broadcast.objects.all().count(), 2)  # new broadcast with media
+
+        broadcast = Broadcast.objects.all().order_by('-created_on').first()
+        self.assertEqual(broadcast.media_dict, json.dumps(dict(base='attachments/picture.jpg')))
+        self.assertEqual(broadcast.get_messages().count(), 1)
+        msg = broadcast.get_messages().first()
+        self.assertEqual(msg.contact, self.contact2)
+        self.assertEqual(msg.text, msg.body)
+        self.assertEqual(msg.media, "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'attachments/picture.jpg'))
 
     def test_variable_contact_parsing(self):
         groups = dict(groups=[dict(id=-1)])

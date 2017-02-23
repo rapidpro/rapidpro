@@ -5616,9 +5616,11 @@ class SendAction(VariableContactAction):
     """
     TYPE = 'send'
     MESSAGE = 'msg'
+    MEDIA = 'media'
 
-    def __init__(self, msg, groups, contacts, variables):
+    def __init__(self, msg, groups, contacts, variables, media=None):
         self.msg = msg
+        self.media = media if media else {}
         super(SendAction, self).__init__(groups, contacts, variables)
 
     @classmethod
@@ -5627,16 +5629,18 @@ class SendAction(VariableContactAction):
         contacts = VariableContactAction.parse_contacts(org, json_obj)
         variables = VariableContactAction.parse_variables(org, json_obj)
 
-        return SendAction(json_obj.get(SendAction.MESSAGE), groups, contacts, variables)
+        return SendAction(json_obj.get(SendAction.MESSAGE), groups, contacts, variables,
+                          json_obj.get(SendAction.MEDIA, None))
 
     def as_json(self):
         contact_ids = [dict(uuid=_.uuid) for _ in self.contacts]
         group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
-        return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables)
+        return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables,
+                    media=self.media)
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
-        if self.msg:
+        if self.msg or self.media:
             flow = run.flow
             message_context = flow.build_message_context(run.contact, msg)
 
@@ -5652,14 +5656,19 @@ class SendAction(VariableContactAction):
 
                 message_text = run.flow.get_localized_text(self.msg)
 
-                # no message text? then no-op
-                if not message_text:
+                media_dict = None
+                if self.media:
+                    media_dict = json.dumps(self.media)
+
+                # no message text and no media_dict? then no-op
+                if not message_text and not media_dict:
                     return list()
 
                 recipients = groups + contacts
 
                 broadcast = Broadcast.create(flow.org, flow.modified_by, message_text, recipients,
-                                             language_dict=language_dict, base_language=flow.base_language)
+                                             media_dict=media_dict, language_dict=language_dict,
+                                             base_language=flow.base_language)
                 broadcast.send(trigger_send=False, message_context=message_context)
                 return list(broadcast.get_messages())
 
