@@ -5887,9 +5887,9 @@ class TwilioTest(TembaTest):
             # delete our error entries
             ChannelLog.objects.filter(is_error=True).delete()
 
-            # our channel counts should be unaffected
+            # our channel counts should be updated
             self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(2, self.channel.get_error_log_count())
+            self.assertEquals(0, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
 
 
@@ -6034,9 +6034,9 @@ class TwilioMessagingServiceTest(TembaTest):
             # delete our error entry
             ChannelLog.objects.filter(is_error=True).delete()
 
-            # our channel counts should be unaffected
+            # our channel counts should be updated
             self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(1, self.channel.get_error_log_count())
+            self.assertEquals(0, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
 
 

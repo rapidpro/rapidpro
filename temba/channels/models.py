@@ -3016,6 +3016,9 @@ class Channel(TembaModel):
     def get_msg_count(self):
         return self.get_count([ChannelCount.INCOMING_MSG_TYPE, ChannelCount.OUTGOING_MSG_TYPE])
 
+    def get_ivr_count(self):
+        return self.get_count([ChannelCount.INCOMING_IVR_TYPE, ChannelCount.OUTGOING_IVR_TYPE])
+
     def get_log_count(self):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE, ChannelCount.ERROR_LOG_TYPE])
 
