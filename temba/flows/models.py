@@ -33,7 +33,7 @@ from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING, DELIVERED
 from temba.msgs.models import OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
@@ -640,7 +640,7 @@ class Flow(TembaModel):
         # send any messages generated
         if msgs and trigger_send:
             msgs.sort(key=lambda message: message.created_on)
-            Msg.objects.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
+            Msg.objects.filter(id__in=[m.id for m in msgs], msg_type=FLOW).exclude(status=DELIVERED).update(status=PENDING)
             run.flow.org.trigger_send(msgs)
 
         return handled, msgs

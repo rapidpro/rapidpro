@@ -20,7 +20,7 @@ from temba.channels.models import Channel, ChannelLog, ChannelSession
 from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep
 from temba.ivr.clients import IVRException
-from temba.msgs.models import Msg, IVR
+from temba.msgs.models import Msg, IVR, OUTGOING, PENDING
 from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator, MockResponse
 from temba.ivr.models import IVRCall
 
@@ -792,7 +792,8 @@ class IVRTests(FlowFileTest):
     def test_ivr_flow(self):
         from temba.orgs.models import ACCOUNT_TOKEN, ACCOUNT_SID
 
-        # should be able to create an ivr flow        self.assertTrue(self.org.supports_ivr())
+        # should be able to create an ivr flow
+        self.assertTrue(self.org.supports_ivr())
         self.assertTrue(self.admin.groups.filter(name="Beta"))
         self.assertContains(self.client.get(reverse('flows.flow_create')), 'Phone Call')
 
@@ -947,6 +948,9 @@ class IVRTests(FlowFileTest):
         # and we've exited the flow
         step = FlowStep.objects.all().order_by('-pk').first()
         self.assertTrue(step.left_on)
+
+        # we shouldn't have any outbound pending messages, they are all considered delivered
+        self.assertEqual(0, Msg.objects.filter(direction=OUTGOING, status=PENDING, msg_type=IVR).count())
 
         # test other our call status mappings
         def test_status_update(call_to_update, twilio_status, temba_status, channel_type):
