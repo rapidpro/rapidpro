@@ -175,10 +175,11 @@
                         %td.hide
                           .value-labels
                             %nobr
-                              - for group in object.user_groups.all
-                                %span.label.label-info.lbl{ data-id: '{{group.id}}'}
-                                  %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
-                                    {{group.name}}
+                              - for group in object.all_groups.all
+                                - if group.group_type == 'U'
+                                  %span.label.label-info.lbl{ data-id: '{{group.id}}'}
+                                    %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
+                                      {{group.name}}
 
                     -empty
                       %tr
