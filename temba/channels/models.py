@@ -3028,7 +3028,7 @@ class Channel(TembaModel):
     def get_ivr_log_count(self):
         return ChannelLog.objects.filter(channel=self).exclude(session=None).count()
 
-    def get_non_ivr_count(self):
+    def get_non_ivr_log_count(self):
         return self.get_log_count() - self.get_ivr_log_count()
 
     class Meta:
