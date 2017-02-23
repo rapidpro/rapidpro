@@ -1337,7 +1337,7 @@ class FlowCRUDL(SmartCRUDL):
                                                     contact=test_contact,
                                                     date=timezone.now(),
                                                     message_id=str(randint(0, 1000)),
-                                                    external_id=str(randint(0, 1000)),
+                                                    external_id='test',
                                                     org=user.get_org(),
                                                     status=status)
                     else:
