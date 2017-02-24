@@ -851,7 +851,7 @@ class IVRTests(FlowFileTest):
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
         call.refresh_from_db()
-        self.assertEqual(20, call.get_duration())
+        self.assertEqual(timedelta(seconds=20), call.get_duration())
 
         # force a duration calculation
         call.duration = None
@@ -887,7 +887,7 @@ class IVRTests(FlowFileTest):
         # we should have an outbound ivr call now
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
 
-        self.assertEquals(0, call.get_duration())
+        self.assertEquals(timedelta(seconds=0), call.get_duration())
         self.assertIsNotNone(call)
         self.assertEquals('CallSid', call.external_id)
 
@@ -1032,7 +1032,7 @@ class IVRTests(FlowFileTest):
         call.save()
         call.refresh_from_db()
         self.assertIsNotNone(call.get_duration())
-        self.assertEqual(call.get_duration(), 30)
+        self.assertEqual(timedelta(seconds=30), call.get_duration())
 
         # even if no duration is set with started_on
         call.duration = None
@@ -1040,7 +1040,7 @@ class IVRTests(FlowFileTest):
         call.save()
         call.refresh_from_db()
         self.assertIsNotNone(call.get_duration())
-        self.assertEqual(call.get_duration(), 23)
+        self.assertEqual(timedelta(seconds=23), call.get_duration())
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -1068,7 +1068,7 @@ class IVRTests(FlowFileTest):
         # we should have an outbound ivr call now
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
 
-        self.assertEquals(0, call.get_duration())
+        self.assertEquals(timedelta(seconds=0), call.get_duration())
         self.assertIsNotNone(call)
         self.assertEquals('CallSid', call.external_id)
 

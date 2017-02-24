@@ -8,7 +8,7 @@ from ...campaigns.models import Campaign
 from ...flows.models import Flow
 from ...triggers.models import Trigger
 
-TIMESINCE_CHUNKS = (
+TIME_SINCE_CHUNKS = (
     (60 * 60 * 24 * 365, ungettext_lazy('%d year', '%d years')),
     (60 * 60 * 24 * 30, ungettext_lazy('%d month', '%d months')),
     (60 * 60 * 24 * 7, ungettext_lazy('%d week', '%d weeks')),
@@ -90,14 +90,14 @@ def delta_filter(delta):
         if since <= 0:
             # d is in the future compared to now, stop processing.
             return ugettext('0 minutes')
-        for i, (seconds, name) in enumerate(TIMESINCE_CHUNKS):
+        for i, (seconds, name) in enumerate(TIME_SINCE_CHUNKS):
             count = since // seconds
             if count != 0:
                 break
         result = name % count
-        if i + 1 < len(TIMESINCE_CHUNKS):
+        if i + 1 < len(TIME_SINCE_CHUNKS):
             # Now get the second item
-            seconds2, name2 = TIMESINCE_CHUNKS[i + 1]
+            seconds2, name2 = TIME_SINCE_CHUNKS[i + 1]
             count2 = (since - (seconds * count)) // seconds2
             if count2 != 0:
                 result += ugettext(', ') + name2 % count2

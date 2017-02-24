@@ -172,7 +172,7 @@ class IVRCall(ChannelSession):
         if not duration:
             duration = 0
 
-        return timedelta(seconds=self.duration)
+        return timedelta(seconds=duration)
 
     def get_last_log(self):
         """
