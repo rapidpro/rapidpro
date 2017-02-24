@@ -3032,7 +3032,7 @@ class ChannelLogCRUDL(SmartCRUDL):
                 events = ChannelSession.objects.filter(id__in=logs).order_by('-created_on')
             else:
                 events = ChannelLog.objects.filter(channel=channel, session=None).order_by('-created_on').select_related('msg__contact', 'msg')
-                events.count = lambda: channel.get_non_ivr_count()
+                events.count = lambda: channel.get_non_ivr_log_count()
 
             # monkey patch our queryset for the total count
 

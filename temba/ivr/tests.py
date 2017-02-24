@@ -20,7 +20,7 @@ from temba.channels.models import Channel, ChannelLog, ChannelSession
 from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep
 from temba.ivr.clients import IVRException
-from temba.msgs.models import Msg, IVR
+from temba.msgs.models import Msg, IVR, OUTGOING, PENDING
 from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator, MockResponse
 from temba.ivr.models import IVRCall
 
@@ -457,6 +457,7 @@ class IVRTests(FlowFileTest):
 
             # back down to our original run
             self.assertEqual(1, FlowRun.objects.filter(is_active=True).count())
+            run = FlowRun.objects.filter(is_active=True).first()
 
             response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]) + '?resume=1', post_data)
             self.assertContains(response, 'In the child flow you picked Red.')
@@ -464,6 +465,10 @@ class IVRTests(FlowFileTest):
 
             # make sure we only called to start the call once
             self.assertEqual(1, start_call.call_count)
+
+            # since we are an ivr flow, we aren't complete until the provider notifies us
+            run.refresh_from_db()
+            self.assertFalse(run.is_completed())
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -777,13 +782,21 @@ class IVRTests(FlowFileTest):
                              text="In the child flow you picked Red. I think that is a fine choice.")
                         in response_json)
 
-        response = self.client.post(callback_url, content_type='application/json',
-                                    data=json.dumps(dict(dtmf='')))
+        # our flow should remain active until we get completion
+        self.assertEqual(1, FlowRun.objects.filter(is_active=True).count())
 
-        response_json = json.loads(response.content)
+        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+        post_data = dict()
+        post_data['status'] = 'completed'
+        post_data['duration'] = '0'
+        post_data['uuid'] = call.external_id
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]) + '?has_event=1',
+                                    json.dumps(post_data), content_type="application/json")
 
-        self.assertEqual(response_json, [])
+        self.assertContains(response, 'Updated call status')
 
+        # now that we got notfied from the provider, we have no active runs
+        self.assertEqual(0, FlowRun.objects.filter(is_active=True).count())
         mock_create_call.assert_called_once()
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
@@ -792,7 +805,8 @@ class IVRTests(FlowFileTest):
     def test_ivr_flow(self):
         from temba.orgs.models import ACCOUNT_TOKEN, ACCOUNT_SID
 
-        # should be able to create an ivr flow        self.assertTrue(self.org.supports_ivr())
+        # should be able to create an ivr flow
+        self.assertTrue(self.org.supports_ivr())
         self.assertTrue(self.admin.groups.filter(name="Beta"))
         self.assertContains(self.client.get(reverse('flows.flow_create')), 'Phone Call')
 
@@ -947,6 +961,9 @@ class IVRTests(FlowFileTest):
         # and we've exited the flow
         step = FlowStep.objects.all().order_by('-pk').first()
         self.assertTrue(step.left_on)
+
+        # we shouldn't have any outbound pending messages, they are all considered delivered
+        self.assertEqual(0, Msg.objects.filter(direction=OUTGOING, status=PENDING, msg_type=IVR).count())
 
         # test other our call status mappings
         def test_status_update(call_to_update, twilio_status, temba_status, channel_type):
@@ -1267,13 +1284,15 @@ class IVRTests(FlowFileTest):
         post_data['conversation_uuid'] = 'ext-id'
         post_data['uuid'] = 'call-ext-id'
 
-        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]),
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]) + '?has_event=1',
                                     json.dumps(post_data), content_type="application/json")
 
         call = IVRCall.objects.get()
+        run = call.runs.all().first()
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "Updated call status")
         self.assertEquals(call.status, IVRCall.COMPLETED)
+        self.assertTrue(run.is_completed())
 
         self.assertEqual(ChannelLog.objects.all().count(), 2)
         channel_log = ChannelLog.objects.last()

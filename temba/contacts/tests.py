@@ -3329,9 +3329,19 @@ class ContactTest(TembaTest):
         self.assertEquals("Joe Blow", message_context['__default__'])
         self.assertEquals("0781 111 111", message_context['tel'])
         self.assertEquals("Reporters", message_context['groups'])
+        self.assertFalse('id' in message_context)
 
         self.assertEqual("SeaHawks", message_context['team'])
         self.assertFalse('color' in message_context)
+
+        # switch our org to anonymous
+        self.org.is_anon = True
+        self.org.save()
+        self.joe.org.refresh_from_db()
+
+        message_context = self.joe.build_message_context()
+        self.assertEqual("********", message_context['tel'])
+        self.assertEqual(self.joe.id, message_context['id'])
 
     def test_urn_priority(self):
         bob = self.create_contact("Bob")
@@ -3766,12 +3776,12 @@ class ContactFieldTest(TembaTest):
             sheet = workbook.worksheets[0]
 
             # check our headers have 2 phone columns and Twitter
-            self.assertExcelRow(sheet, 0, ["UUID", "Name", "First", "Second", "Third"])
+            self.assertExcelRow(sheet, 0, ["ID", "UUID", "Name", "First", "Second", "Third"])
 
-            self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "", "", ""])
-            self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "One", "", "20-12-2015 08:30"])
-            self.assertExcelRow(sheet, 3, [contact3.uuid, "Luol Deng", "", "", ""])
-            self.assertExcelRow(sheet, 4, [contact4.uuid, "Stephen", "", "", ""])
+            self.assertExcelRow(sheet, 1, [six.text_type(contact2.id), contact2.uuid, "Adam Sumner", "", "", ""])
+            self.assertExcelRow(sheet, 2, [six.text_type(contact.id), contact.uuid, "Ben Haggerty", "One", "", "20-12-2015 08:30"])
+            self.assertExcelRow(sheet, 3, [six.text_type(contact3.id), contact3.uuid, "Luol Deng", "", "", ""])
+            self.assertExcelRow(sheet, 4, [six.text_type(contact4.id), contact4.uuid, "Stephen", "", "", ""])
 
             self.assertEqual(len(list(sheet.rows)), 5)  # no other contacts
 
