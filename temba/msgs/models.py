@@ -458,12 +458,11 @@ class Broadcast(models.Model):
             text = self.get_translated_text(contact)
 
             media = None
-            if self.media_dict:
-                attachment_media = self.get_translated_media(contact)
+            attachment_media = self.get_translated_media(contact)
 
-                # if we have a localized media, create the url
-                if attachment_media:
-                    media = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, attachment_media)
+            # if we have a localized media, create the url
+            if attachment_media:
+                media = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, attachment_media)
 
             # add in our parent context if the message references @parent
             if run_map:
