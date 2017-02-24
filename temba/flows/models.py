@@ -1632,8 +1632,12 @@ class Flow(TembaModel):
             if isinstance(send_action.msg, dict):
                 language_dict = json.dumps(send_action.msg)
 
-            if message_text:
-                broadcast = Broadcast.create(self.org, self.created_by, message_text, [],
+            media_dict = None
+            if send_action.media:
+                media_dict = json.dumps(send_action.media)
+
+            if message_text or media_dict:
+                broadcast = Broadcast.create(self.org, self.created_by, message_text, [], media_dict=media_dict,
                                              language_dict=language_dict, base_language=self.base_language)
                 broadcast.update_contacts(all_contact_ids)
 

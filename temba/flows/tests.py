@@ -4847,6 +4847,17 @@ class FlowsTest(FlowFileTest):
         self.send('split')
         self.assertEqual('You are in Group B', Msg.objects.filter(direction='O').order_by('-created_on')[1].text)
 
+    def test_mms_first_action(self):
+        flow = self.get_flow('mms_first_action')
+
+        runs = flow.start_msg_flow([self.contact.id])
+        self.assertEquals(1, len(runs))
+        self.assertEquals(1, self.contact.msgs.all().count())
+        self.assertEquals('Hey', self.contact.msgs.all()[0].text)
+        self.assertEquals("https://%s/%s" % (settings.AWS_BUCKET_DOMAIN,
+                                             "attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg"),
+                          self.contact.msgs.all()[0].media)
+
     def test_substitution(self):
         flow = self.get_flow('substitution')
 
