@@ -2014,7 +2014,8 @@ class Channel(TembaModel):
         channel.config['transport_name'] = 'ussd_transport' if is_ussd else 'mtech_ng_smpp_transport'
 
         payload = dict(message_id=msg.id,
-                       in_reply_to=None,
+                       in_reply_to=(msg.response_to.external_id
+                                    if msg.response_to_id else None),
                        session_event="resume" if is_ussd else None,
                        to_addr=msg.urn_path,
                        from_addr=channel.address,
