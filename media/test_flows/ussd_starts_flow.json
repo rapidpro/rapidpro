@@ -1,0 +1,197 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "https://app.rapidpro.io", 
+  "flows": [
+    {
+      "base_language": "base", 
+      "action_sets": [
+        {
+          "y": 143, 
+          "x": 496, 
+          "destination": null, 
+          "uuid": "1d826b05-7020-4c69-90d8-3e76bd83ef9b", 
+          "actions": [
+            {
+              "type": "trigger-flow", 
+              "variables": [], 
+              "flow": {
+                "name": "Registration Flow", 
+                "uuid": "08b71d82-1597-42af-a29d-ac204386dab0"
+              }, 
+              "groups": [
+                {
+                  "name": "Group Chat", 
+                  "uuid": "8a675dad-2b4a-4f6e-b507-11fa8943c3b7"
+                }
+              ], 
+              "contacts": []
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "U", 
+      "entry": "c360542e-9434-4e87-bd87-2c8592ac0a03", 
+      "rule_sets": [
+        {
+          "uuid": "c360542e-9434-4e87-bd87-2c8592ac0a03", 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "All Responses"
+              }, 
+              "destination": "1d826b05-7020-4c69-90d8-3e76bd83ef9b", 
+              "uuid": "af3ed044-5a34-4b63-aaf3-fe0060138934", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "interrupted", 
+                "type": "interrupted_status"
+              }, 
+              "category": {
+                "base": "Interrupted"
+              }, 
+              "destination": null, 
+              "uuid": "ed649e57-6782-4000-85c2-9bdc6410038d"
+            }
+          ], 
+          "ruleset_type": "wait_menu", 
+          "label": "mother number", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 0, 
+          "x": 100, 
+          "config": {
+            "ussd_message": {
+              "base": "Hello, please provide the phone number of the person you would like to register."
+            }
+          }
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 15, 
+        "uuid": "cd71baf5-bc79-4969-abef-84ee59b2fd83", 
+        "name": "USSD flow", 
+        "saved_on": "2017-02-23T20:44:33.626421Z"
+      }
+    }, 
+    {
+      "base_language": "base", 
+      "action_sets": [
+        {
+          "y": 180, 
+          "x": 199, 
+          "destination": "a6e44bd1-ed97-41ce-8162-e67567d9f2a7", 
+          "uuid": "d4e8402b-dafa-4b63-9f19-bbf93b576b36", 
+          "actions": [
+            {
+              "field": "tel_e164", 
+              "type": "save", 
+              "value": "@flow.msisdn.text", 
+              "label": "Phone Number"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "U", 
+      "entry": "6d5b1a1e-a7c1-4879-896f-746c0498acc2", 
+      "rule_sets": [
+        {
+          "uuid": "6d5b1a1e-a7c1-4879-896f-746c0498acc2", 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "All Responses"
+              }, 
+              "destination": "d4e8402b-dafa-4b63-9f19-bbf93b576b36", 
+              "uuid": "beba59c4-0e29-470c-a3d1-8ac50f45c696", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "interrupted", 
+                "type": "interrupted_status"
+              }, 
+              "category": {
+                "base": "Interrupted"
+              }, 
+              "destination": null, 
+              "uuid": "daca67ca-1f21-43f8-9c08-ee5ad2233c5d"
+            }
+          ], 
+          "ruleset_type": "wait_ussd", 
+          "label": "msisdn", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 0, 
+          "x": 100, 
+          "config": {
+            "ussd_message": {
+              "base": "Hi there!"
+            }
+          }
+        }, 
+        {
+          "uuid": "a6e44bd1-ed97-41ce-8162-e67567d9f2a7", 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "All Responses"
+              }, 
+              "uuid": "5272aca0-8787-4efc-810d-160d539fed19"
+            }, 
+            {
+              "test": {
+                "test": "interrupted", 
+                "type": "interrupted_status"
+              }, 
+              "category": {
+                "base": "Interrupted"
+              }, 
+              "destination": null, 
+              "uuid": "2a6bfd98-e789-4e4f-bb5d-cb4a0a02003c"
+            }
+          ], 
+          "ruleset_type": "wait_ussd", 
+          "label": "Response 2", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 339, 
+          "x": 318, 
+          "config": {
+            "ussd_message": {
+              "base": "Phone number has been updated."
+            }
+          }
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 8, 
+        "uuid": "08b71d82-1597-42af-a29d-ac204386dab0", 
+        "name": "Registration Flow", 
+        "saved_on": "2017-02-23T20:43:00.579766Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

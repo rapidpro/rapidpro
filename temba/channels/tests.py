@@ -4623,9 +4623,20 @@ class VumiTest(TembaTest):
                 mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+                data = msg.as_task_json()
+                data.update({
+                    'response_to_id': 'pk',
+                    'response_to': dict_to_struct('MsgStruct', {
+                        'external_id': 'vumi-message-id'
+                    })
+                })
+                Channel.send_message(dict_to_struct('MsgStruct', data))
 
                 self.assertEqual(mock.call_args[0][0], 'https://go.vumi.org/api/v1/go/http_api_nostream/key/messages.json')
+                [call] = mock.call_args_list
+                (args, kwargs) = call
+                payload = json.loads(kwargs['data'])
+                self.assertEquals(payload['in_reply_to'], 'vumi-message-id')
 
                 # check the status of the message is now sent
                 msg.refresh_from_db()
