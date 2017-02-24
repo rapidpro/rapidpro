@@ -1792,7 +1792,7 @@ class Channel(TembaModel):
             'mobile_number': msg.urn_path.lstrip('+'),
             'shortcode': channel.address,
             'message_id': msg.id,
-            'message': msg.text,
+            'message': text,
             'request_cost': 'FREE',
             'client_id': channel.config[Channel.CONFIG_USERNAME],
             'secret_key': channel.config[Channel.CONFIG_PASSWORD]
@@ -1984,7 +1984,7 @@ class Channel(TembaModel):
         # tell Start to attempt to deliver this message for up to 12 hours
         post_body = post_body.replace("$$VALIDITY$$", quoteattr("+12 hours"))
         post_body = post_body.replace("$$TO$$", escape(msg.urn_path))
-        post_body = post_body.replace("$$BODY$$", escape(msg.text))
+        post_body = post_body.replace("$$BODY$$", escape(text))
         post_body = post_body.encode('utf8')
 
         url = 'http://bulk.startmobile.com.ua/clients.php'
