@@ -1248,7 +1248,7 @@ class ContactTest(TembaTest):
                                contact_urn=self.joe.urns.all().first())
 
         # fetch our contact history
-        with self.assertNumQueries(65):
+        with self.assertNumQueries(66):
             response = self.fetch_protected(url, self.admin)
 
         # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -1411,11 +1411,11 @@ class ContactTest(TembaTest):
 
         # outgoing voice
         msg.msg_type = 'V'
-        self.assertEquals('<span class="glyph icon-phone"></span>', activity_icon(msg))
+        self.assertEquals('<span class="glyph icon-call-outgoing"></span>', activity_icon(msg))
 
         # incoming voice
         msg.direction = 'I'
-        self.assertEquals('<span class="glyph icon-phone"></span>', activity_icon(msg))
+        self.assertEquals('<span class="glyph icon-call-incoming"></span>', activity_icon(msg))
 
         # simulate a broadcast to 5 people
         from temba.msgs.models import Broadcast
