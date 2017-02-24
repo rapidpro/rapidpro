@@ -1,11 +1,12 @@
 from __future__ import absolute_import, unicode_literals
 
+from datetime import timedelta
 from django.db import models
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
-from temba.channels.models import ChannelSession, Channel
+from temba.channels.models import ChannelSession, Channel, ChannelLog
 from temba.utils import on_transaction_commit
 
 
@@ -171,4 +172,11 @@ class IVRCall(ChannelSession):
         if not duration:
             duration = 0
 
-        return duration
+        return timedelta(seconds=self.duration)
+
+    def get_last_log(self):
+        """
+        Gets the last channel log for this message. Performs sorting in Python to ease pre-fetching.
+        """
+        sorted_logs = sorted(ChannelLog.objects.filter(session=self), key=lambda l: l.created_on, reverse=True)
+        return sorted_logs[0] if sorted_logs else None

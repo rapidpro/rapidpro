@@ -392,18 +392,30 @@ class IVRTests(FlowFileTest):
         for msg in messages:
             self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' is not attached to exactly one step" % msg.text)
 
-        mock_create_call.side_effect = Exception('Kab00m!')
+        # create a valid call first
+        flow.start([], [contact], restart_participants=True)
 
+        # now create an errored call
+        mock_create_call.side_effect = Exception('Kab00m!')
         nexmo_client = self.org.get_nexmo_client()
         with self.assertRaises(IVRException):
             nexmo_client.start_call(call, '+13603621737', self.channel.address, None)
 
+        call.refresh_from_db()
+        self.assertEqual(ChannelSession.FAILED, call.status)
+
         # check that our channel logs are there
         response = self.client.get(reverse("channels.channellog_list") + '?channel=%d&sessions=1' % self.channel.id)
-        self.assertContains(response, "0:00:15")
+        self.assertContains(response, "15 seconds")
+        self.assertContains(response, "2 results")
 
+        # our channel logs with the error flag
+        response = self.client.get(reverse("channels.channellog_list") + '?channel=%d&sessions=1&errors=1' % self.channel.id)
+        self.assertContains(response, "warning")
+        self.assertContains(response, "1 result")
+
+        # view the errored call read page
         response = self.client.get(reverse("channels.channellog_session", args=[call.id]))
-        self.assertContains(response, "lasted 0:00:15")
         self.assertContains(response, "https://api.nexmo.com/v1/calls")
         self.assertContains(response, "Kab00m!")
 
