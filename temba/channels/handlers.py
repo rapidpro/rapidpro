@@ -7,6 +7,7 @@ import json
 import pytz
 import requests
 import six
+import magic
 import xml.etree.ElementTree as ET
 
 from datetime import datetime
@@ -24,7 +25,7 @@ from requests import Request
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import Contact, URN
-from temba.flows.models import Flow, FlowRun
+from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, OUTGOING
 from temba.triggers.models import Trigger
@@ -557,7 +558,18 @@ class TelegramHandler(BaseChannelHandler):
                     url = 'https://api.telegram.org/file/bot%s/%s' % (auth_token, response_json['result']['file_path'])
                     extension = url.rpartition('.')[2]
                     response = requests.get(url)
-                    content_type = response.headers['Content-Type']
+
+                    # attempt to determine our content type using magic bytes
+                    content_type = None
+                    try:
+                        m = magic.Magic(mime=True)
+                        content_type = m.from_buffer(response.content)
+                    except:  # pragma: no cover
+                        pass
+
+                    # fallback on the content type in our response header
+                    if not content_type or content_type == 'application/octet-stream':
+                        content_type = response.headers['Content-Type']
 
                     temp = NamedTemporaryFile(delete=True)
                     temp.write(response.content)
@@ -1032,6 +1044,15 @@ class NexmoCallHandler(BaseChannelHandler):
                                            "Updated call %s status to %s" % (call.external_id,
                                                                              call.get_status_display()),
                                            request_body, json.dumps(response), request_path, request_method)
+
+            if call.status == IVRCall.COMPLETED:
+                # if our call is completed, hangup
+                runs = FlowRun.objects.filter(session=call)
+                for run in runs:
+                    if not run.is_completed():
+                        final_step = FlowStep.objects.filter(run=run).order_by('-arrived_on').first()
+                        run.set_completed(final_step=final_step)
+
             return JsonResponse(response)
 
         if action == 'answer':

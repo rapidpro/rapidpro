@@ -619,7 +619,7 @@ class MockResponse(object):
         self.headers = headers if headers else {}
 
         # mock up a request object on our response as well
-        self.request = dict_to_struct('MockRequest', dict(method=method, url=url))
+        self.request = dict_to_struct('MockRequest', dict(method=method, url=url, body='request body'))
 
     def add_header(self, key, value):
         self.headers[key] = value
