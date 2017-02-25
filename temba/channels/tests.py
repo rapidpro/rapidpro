@@ -4611,9 +4611,16 @@ class VumiTest(TembaTest):
         self.assertEquals(DELIVERED, msg.status)
 
     def test_send(self):
+        inbound = Msg.create_incoming(
+            self.channel, "tel:+250788383383", "Send an inbound message",
+            external_id='vumi-message-id')
+
         joe = self.create_contact("Joe", "+250788383383")
         self.create_group("Reporters", [joe])
         msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg.response_to = inbound
+        msg.save()
+
         r = get_redis_connection()
 
         try:
@@ -4623,14 +4630,7 @@ class VumiTest(TembaTest):
                 mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
 
                 # manually send it off
-                data = msg.as_task_json()
-                data.update({
-                    'response_to_id': 'pk',
-                    'response_to': dict_to_struct('MsgStruct', {
-                        'external_id': 'vumi-message-id'
-                    })
-                })
-                Channel.send_message(dict_to_struct('MsgStruct', data))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 self.assertEqual(mock.call_args[0][0], 'https://go.vumi.org/api/v1/go/http_api_nostream/key/messages.json')
                 [call] = mock.call_args_list
