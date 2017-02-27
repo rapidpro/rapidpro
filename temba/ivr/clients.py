@@ -67,7 +67,7 @@ class NexmoClient(NexmoCli):
             call.save()
             raise IVRException(_("Nexmo call failed, with error %s") % six.text_type(e.message))
 
-    def download_media(self, media_url):
+    def download_media(self, call, media_url):
         """
         Fetches the recording and stores it with the provided recording_id
         :param media_url: the url where the media lives
@@ -103,6 +103,11 @@ class NexmoClient(NexmoCli):
             temp.write(response.content)
             temp.flush()
 
+            request = response.request
+            ChannelLog.log_ivr_interaction(call, "Successfully downloaded media for call %s" % call.external_id,
+                                           request.body, response.content, request.url,
+                                           request.method, status_code=response.status_code)
+
             return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
 
         return None
@@ -118,7 +123,8 @@ class NexmoClient(NexmoCli):
             if call_id:
                 call = IVRCall.objects.filter(external_id=call_id).first()
                 if call:
-                    ChannelLog.log_ivr_interaction(call, "Nexmo call update", request.body, response.content, request.url,
+                    ChannelLog.log_ivr_interaction(call, "Nexmo call update", request.body, response.content,
+                                                   request.url,
                                                    request.method, status_code=response.status_code)
         except:
             pass

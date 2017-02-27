@@ -443,6 +443,7 @@ class Contact(TembaModel):
     PHONE = 'phone'
     UUID = 'uuid'
     GROUPS = 'groups'
+    ID = 'id'
 
     # reserved contact fields
     RESERVED_FIELDS = [
@@ -1529,6 +1530,11 @@ class Contact(TembaModel):
         contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False)
         contact_dict['groups'] = ",".join([_.name for _ in self.user_groups.all()])
         contact_dict['uuid'] = self.uuid
+
+        # anonymous orgs also get @contact.id
+        if org.is_anon:
+            contact_dict['id'] = self.id
+
         contact_dict[Contact.LANGUAGE] = self.language
 
         # add all URNs
@@ -2320,6 +2326,10 @@ class ExportContactsTask(BaseExportTask):
         fields = [dict(label='UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
                   dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
 
+        # anon orgs also get an ID column that is just the PK
+        if self.org.is_anon:
+            fields = [dict(label='ID', key=Contact.ID, id=0, field=None, urn_scheme=None)] + fields
+
         scheme_counts = dict()
         if not self.org.is_anon:
             active_urn_schemes = [c[0] for c in ContactURN.SCHEME_CHOICES]
@@ -2389,6 +2399,8 @@ class ExportContactsTask(BaseExportTask):
                             field_value = contact.name
                         elif field['key'] == Contact.UUID:
                             field_value = contact.uuid
+                        elif field['key'] == Contact.ID:
+                            field_value = six.text_type(contact.id)
                         elif field['urn_scheme'] is not None:
                             contact_urns = contact.get_urns()
                             scheme_urns = []

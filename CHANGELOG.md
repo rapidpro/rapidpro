@@ -1,3 +1,13 @@
+v3.0.64
+----------
+ * Add ID column to anonymous org contact exports, also add @contact.id field in message context
+ * Fix counts for channel log elements
+ * Only have one link on channel page for sending log
+ * Attempt to determine file types for msg attachments using libmagic
+ * Deactivate runs on hangups, Keep ivr runs open on exit
+ * Add log for nexmo media download
+ * Add new perf_test command to run performance tests on database generated with make_test_db
+
 v3.0.62
 ----------
  * Fix preferred channels for non-msg channels
