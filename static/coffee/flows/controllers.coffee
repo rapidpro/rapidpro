@@ -188,11 +188,11 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       return
 
     if action.type in ['reply', 'send'] and file.type not in ['audio/wav', 'audio/x-wav', 'audio/mp3','video/mp4', 'image/jpeg']
-      showDialog('Wrong File Type', 'Only supported formats are JPG for images, WAV and MP3 for audios and MP4 for videos. Please choose another file and try again.')
+      showDialog('Wrong File Type', 'Supported formats are JPG for images, WAV and MP3 for audios and MP4 for videos. Please choose another file and try again.')
       return
 
     if action.type in ['reply', 'send'] and (file.size > 20000000 or (file.name.endsWith('.jpg') and file.size > 5000000))
-      showDialog('Wrong File Size', "The file size should be less than 20MB and less than 5MB for images. Please choose another file and try again.")
+      showDialog('Wrong File Size', "The file size should be less than 5MB for images and less than 20MB for audio and video files. Please choose another file and try again.")
       return
 
     # if we have a recording already, confirm they want to replace it
@@ -206,7 +206,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
     # if we have an attachement already, confirm they want to replace it
     if action.type in ['reply', 'send'] and action._translation_media
-      modal = showDialog('Overwrite Attachment', 'This step already has a attachment, would you like to replace this attachment with ' + file.name + '?', 'Overwrite Attachemnt', false)
+      modal = showDialog('Overwrite Attachment', 'This step already has an attachment, would you like to replace this attachment with ' + file.name + '?', 'Overwrite Attachemnt', false)
       modal.result.then (value) ->
         if value == 'ok'
           action._translation_media = null
