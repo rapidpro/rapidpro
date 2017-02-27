@@ -215,7 +215,7 @@ def history_class(item):
         if isinstance(item, IVRCall):
             if item.status == IVRCall.FAILED:
                 css = '%s %s' % (css, 'warning')
-    return css
+    return css.strip()
 
 
 @register.filter

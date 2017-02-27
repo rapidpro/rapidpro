@@ -84,12 +84,11 @@ def delta_filter(delta):
     if not delta:
         return ''
     try:
-
         # ignore microseconds
         since = delta.days * 24 * 60 * 60 + delta.seconds
         if since <= 0:
             # d is in the future compared to now, stop processing.
-            return ugettext('0 minutes')
+            return ugettext('0 seconds')
         for i, (seconds, name) in enumerate(TIME_SINCE_CHUNKS):
             count = since // seconds
             if count != 0:
@@ -103,7 +102,7 @@ def delta_filter(delta):
                 result += ugettext(', ') + name2 % count2
         return result
 
-    except (ValueError, TypeError):
+    except Exception:
         return ''
 
 
