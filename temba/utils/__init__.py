@@ -419,16 +419,6 @@ class PageableQuery(object):
         return self._count
 
 
-def non_atomic_when_eager(view_func):
-    """
-    Decorator which disables atomic requests for a view/dispatch function when celery is running in eager mode
-    """
-    if getattr(settings, 'CELERY_ALWAYS_EAGER', False):
-        return transaction.non_atomic_requests(view_func)
-    else:
-        return view_func
-
-
 def non_atomic_gets(view_func):
     """
     Decorator which disables atomic requests for a view/dispatch function when the request method is GET. Works in

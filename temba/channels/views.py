@@ -35,7 +35,7 @@ from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.channels.models import ChannelSession
-from temba.utils import analytics, non_atomic_when_eager, on_transaction_commit
+from temba.utils import analytics, on_transaction_commit
 from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import timezone_to_country_code
 from twilio import TwilioRestException
@@ -2256,14 +2256,6 @@ class ChannelCRUDL(SmartCRUDL):
             return org
 
     class ClaimTwitter(OrgPermsMixin, SmartTemplateView):
-
-        @non_atomic_when_eager
-        def dispatch(self, *args, **kwargs):
-            """
-            Decorated with @non_atomic_when_eager so that channel object is always committed to database before Mage
-            tries to access it
-            """
-            return super(ChannelCRUDL.ClaimTwitter, self).dispatch(*args, **kwargs)
 
         def pre_process(self, *args, **kwargs):
             response = super(ChannelCRUDL.ClaimTwitter, self).pre_process(*args, **kwargs)
