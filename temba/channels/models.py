@@ -2977,7 +2977,12 @@ class Channel(TembaModel):
                 time.sleep(1 / float(max_tps))
 
         text = msg.text
-        if channel.channel_type not in Channel.MMS_CHANNELS:
+
+        append_link = channel.channel_type not in Channel.MMS_CHANNELS
+        append_link = append_link or (channel.channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_TWIML,
+                                                               Channel.TYPE_TWILIO_MESSAGING_SERVICE] and
+                                      channel.country not in ['CA', 'US'])
+        if append_link:
             text = Msg.text_with_attachment(msg)
         parts = Msg.get_text_parts(text, type_settings['max_length'])
 
@@ -2988,8 +2993,9 @@ class Channel(TembaModel):
             try:
                 channel_type = channel.channel_type
 
-                if len(parts) == sent_count and channel_type in Channel.MMS_CHANNELS:
-                    attachment_url, attachment_type = Msg.get_media_attachment(msg)
+                if len(parts) == sent_count:
+                    if not append_link:
+                        attachment_url, attachment_type = Msg.get_media_attachment(msg)
 
                 # never send in debug unless overridden
                 if not settings.SEND_MESSAGES:
