@@ -6349,8 +6349,8 @@ class TwilioTest(TembaTest):
             self.assertEquals(WIRED, msg.status)
             self.assertTrue(msg.sent_on)
 
-            self.assertEquals(mock.call_args[1]['media_url'], ['https://example.com/attachments/pic.jpg'])
-            self.assertEquals(mock.call_args[1]['body'], "Test message")
+            self.assertEquals(mock.call_args[1]['media_url'], [])
+            self.assertEquals(mock.call_args[1]['body'], "Test message https://example.com/attachments/pic.jpg")
 
             self.clear_cache()
 
@@ -6367,6 +6367,25 @@ class TwilioTest(TembaTest):
             self.assertEquals(response.status_code, 200)
             msg.refresh_from_db()
             self.assertEquals(msg.status, DELIVERED)
+
+            self.channel.country = 'US'
+            self.channel.save()
+            self.clear_cache()
+
+            msg = joe.send("MT", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message is now sent
+            msg.refresh_from_db()
+            self.assertEquals(WIRED, msg.status)
+            self.assertTrue(msg.sent_on)
+
+            self.assertEquals(mock.call_args[1]['media_url'], ['https://example.com/attachments/pic.jpg'])
+            self.assertEquals(mock.call_args[1]['body'], "MT")
+
+            self.clear_cache()
 
 
 class TwilioMessagingServiceTest(TembaTest):

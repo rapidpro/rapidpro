@@ -952,9 +952,9 @@ class Channel(TembaModel):
         # also save our org config, as it has twilio and nexmo keys
         org_config = self.org.config_json()
 
-        return dict(id=self.id, org=self.org_id, country=str(self.country), address=self.address, uuid=self.uuid,
-                    secret=self.secret, channel_type=self.channel_type, name=self.name, config=self.config_json(),
-                    org_config=org_config)
+        return dict(id=self.id, org=self.org_id, country=six.text_type(self.country), address=self.address,
+                    uuid=self.uuid, secret=self.secret, channel_type=self.channel_type, name=self.name,
+                    config=self.config_json(), org_config=org_config)
 
     def build_registration_command(self):
         # create a claim code if we don't have one
@@ -2570,8 +2570,10 @@ class Channel(TembaModel):
 
         attachment_url, attachment_type = Msg.get_media_attachment(msg)
         media_url = []
-        if attachment_url:
+        if attachment_url and channel.country in ['CA', 'US']:
             media_url.append(attachment_url)
+        elif attachment_url:
+            text += " " + attachment_url
 
         try:
             if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
