@@ -33,7 +33,7 @@ from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING, DELIVERED
 from temba.msgs.models import OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
@@ -404,7 +404,7 @@ class Flow(TembaModel):
         # what we will send back
         voice_response = call.channel.generate_ivr_response()
 
-        if run is None:
+        if run is None:  # pragma: no cover
             voice_response.hangup()
             return voice_response
 
@@ -640,7 +640,7 @@ class Flow(TembaModel):
         # send any messages generated
         if msgs and trigger_send:
             msgs.sort(key=lambda message: message.created_on)
-            Msg.objects.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
+            Msg.objects.filter(id__in=[m.id for m in msgs]).exclude(status=DELIVERED).update(status=PENDING)
             run.flow.org.trigger_send(msgs)
 
         return handled, msgs
@@ -733,7 +733,6 @@ class Flow(TembaModel):
                 # run was interrupted and interrupt state not handled (not connected)
                 run.set_interrupted(final_step=step)
             else:
-                # log it for our test contacts
                 run.set_completed(final_step=step)
 
             return dict(handled=True, destination=None, destination_type=None)
@@ -2700,6 +2699,19 @@ class FlowRun(models.Model):
                     # finally, trigger our parent flow
                     Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
 
+    def is_ivr(self):
+        """
+        If this run is over an IVR session
+        """
+        return self.session and self.session.is_ivr()
+
+    def keep_active_on_exit(self):
+        """
+        If our run should be completed when we leave the last node
+        """
+        # we let parent runs over ivr get closed by the provider
+        return self.is_ivr() and not self.parent and not self.session.is_done()
+
     def resume_after_timeout(self, expired_timeout):
         """
         Resumes a flow that is at a ruleset that has timed out
@@ -2781,11 +2793,12 @@ class FlowRun(models.Model):
             self.flow.remove_active_for_step(final_step)
 
         # mark this flow as inactive
-        self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
-        self.exited_on = completed_on
-        self.modified_on = now
-        self.is_active = False
-        self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
+        if not self.keep_active_on_exit():
+            self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
+            self.exited_on = completed_on
+            self.modified_on = now
+            self.is_active = False
+            self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
         # let our parent know we finished
         if self.contact.is_test:
