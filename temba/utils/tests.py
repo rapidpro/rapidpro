@@ -7,7 +7,7 @@ import pytz
 import six
 
 from celery.app.task import Task
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User, Group
@@ -266,6 +266,23 @@ class TemplateTagTest(TembaTest):
 
         # round up
         self.assertEquals("2 min", format_seconds(100))
+
+    def test_delta(self):
+        from temba.utils.templatetags.temba import delta_filter
+
+        # empty
+        self.assertEqual('', delta_filter(timedelta(seconds=0)))
+
+        # in the future
+        self.assertEqual('0 seconds', delta_filter(timedelta(seconds=-10)))
+
+        # some valid times
+        self.assertEqual('2 minutes, 40 seconds', delta_filter(timedelta(seconds=160)))
+        self.assertEqual('5 minutes', delta_filter(timedelta(seconds=300)))
+        self.assertEqual('10 minutes, 1 second', delta_filter(timedelta(seconds=601)))
+
+        # non-delta arg
+        self.assertEqual('', delta_filter('Invalid'))
 
 
 class CacheTest(TembaTest):

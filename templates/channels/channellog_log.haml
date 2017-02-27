@@ -1,0 +1,21 @@
+.log<
+  .summary{id:"{{log.id}}"}
+    .time.pull-right
+      {{log.created_on|date:"M j, Y g:i:s a"}}
+
+    -if log.response_status
+      %span.status-code
+        {{ log.response_status }}
+    %span.url
+      %span.method= log.method
+      -if log.method == 'GET'
+        {{ log.get_url_host }}
+      -else
+        {{ log.url }}
+  .details.hide
+    %pre.prettyprint.request<
+      :plain
+        {{ log.get_request_formatted|default:"" }}
+    %pre.prettyprint.response<
+      :plain
+        {{log.get_response_formatted}}

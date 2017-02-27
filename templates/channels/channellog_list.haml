@@ -1,5 +1,5 @@
 {% extends "smartmin/list.html" %}
--load i18n contacts
+-load i18n contacts smartmin
 
 -block page-title
   -trans "Channel Events"
@@ -7,19 +7,24 @@
 -block title
   .medium-help.icon-cloud-upload{ style:'float:left;' }
   %h2.header-margin
-    -trans "Recent Channel Events"
+    -if request.GET.sessions and channel.supports_ivr
+      -trans "Call Log"
+    -else
+      -trans "Recent Channel Events"
   %h5.header-margin
-    -trans "Channel:"
-      %a{ href:"{% url 'channels.channel_read' channel.uuid %}" }
-        {{ channel }}
+    {{channel.get_channel_type_display}}
+    -trans "Channel: "
+    %a{ href:"{% url 'channels.channel_read' channel.uuid %}" }
+      {{ channel }}
 
 -block gear-menu
   -if request.GET.sessions
     %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list'%}?channel={{channel.pk}}"}
-      Messages
+      -trans "Message Log"
   -else
-    %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list'%}?channel={{channel.pk}}&sessions=1"}
-      Sessions
+    -if channel.supports_ivr
+      %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list'%}?channel={{channel.pk}}&sessions=1"}
+        -trans "Call Log"
 
 -block table
 
@@ -27,15 +32,15 @@
     %thead
       %tr
         %th{ style:'width:120px' }
-          -trans "Destination"
         %th
-          -trans "Description"
-        %th{ style:'width:100px;text-align:right;a'}
-          -trans "Time"
+        -if request.GET.sessions
+          %th{ style:'width:150px' }
+
+        %th{ style:'width:160px;text-align:right;'}
 
       -for obj in object_list
         -if request.GET.sessions
-          %tr
+          %tr{class:"{%if obj.status == 'F'%}warning{%endif%}"}
             -if user_org.is_anon
               %td= obj.contact|tel:user_org
               %td
@@ -46,32 +51,39 @@
               %td{ style:'text-align: right', nowrap:'true' }= obj.created_on
             -else
               %td.clickable
-                %a{ href:'{% url "channels.channellog_session" obj.pk %}' }
+                %a{ href:'{% url "contacts.contact_read" obj.contact.uuid %}' }
                   {{obj.contact|tel:user_org}}
-              %td.clickable
-                %a{ href:'{% url "channels.channellog_session" obj.pk %}' }
 
+              %td.clickable
+                %a{ href:'{% url "channels.channellog_session" obj.pk %}' }><
                   -if obj.direction == 'I'
                     -trans "Incoming"
                   -else
                     -trans "Outgoing"
-
                   -if obj.session_type == 'F'
                     -if obj.is_done
-                      -trans "phone call for "
-                      {{obj.get_duration}}
+                      -trans "phone call"
                     -else
                       -trans "phone call in progress"
                   -else
                     USSD session for {{obj.get_duration}}
-              %td{ style:'text-align: right', nowrap:'true' }= obj.created_on
 
+              %td.clickable{ style:'text-align: right', nowrap:'true' }
+                %a{ href:'{% url "channels.channellog_session" obj.pk %}' }><
+                  -if obj.get_duration
+                    {{obj.get_duration|delta}}
+                  -else
+                    {{obj.get_status_display}}
+
+              %td{ style:'text-align: right', nowrap:'true' }
+                {{obj.created_on|date:"M d, Y, H:m:s"}}
         -else
-          %tr{ class:"{% if obj.is_error %}channel-error{% endif %}" }
+          %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
             -if user_org.is_anon
               %td= obj.msg.contact|tel:user_org
               %td= obj.description
-              %td{ style:'text-align: right', nowrap:'true' }= obj.created_on
+              %td{ style:'text-align: right', nowrap:'true' }
+                {{obj.created_on}}
             -else
               %td.clickable
                 %a{ href:'{% url "channels.channellog_read" obj.pk %}' }
@@ -81,4 +93,5 @@
                     {{obj.session.contact|tel:user_org}}
               %td.clickable
                 %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.description
-              %td{ style:'text-align: right', nowrap:'true' }= obj.created_on
+              %td{ style:'text-align: right', nowrap:'true' }
+                {{obj.created_on}}
