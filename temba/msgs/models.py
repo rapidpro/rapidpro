@@ -938,6 +938,14 @@ class Msg(models.Model):
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
     @classmethod
+    def text_with_attachment(cls, msg):
+        text = msg.text
+        attachment_url, attachment_type = Msg.get_media_attachment(msg)
+        if attachment_url:
+            text += " " + attachment_url
+        return text
+
+    @classmethod
     def get_media_attachment(cls, msg):
         attachment_type = None
         attachment_url = None

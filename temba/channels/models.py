@@ -1211,9 +1211,7 @@ class Channel(TembaModel):
         from temba.msgs.models import Msg, WIRED
         start = time.time()
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         url = 'https://fcm.googleapis.com/fcm/send'
         title = channel.config.get(Channel.CONFIG_FCM_TITLE)
@@ -1271,9 +1269,7 @@ class Channel(TembaModel):
         from temba.msgs.models import Msg, WIRED
         from temba.utils import gsm7
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         # build our callback dlr url, jasmin will call this when our message is sent or delivered
         dlr_url = 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.jasmin_handler', args=['status', channel.uuid]))
@@ -1332,9 +1328,7 @@ class Channel(TembaModel):
     def send_junebug_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         # the event url Junebug will relay events to
         event_url = 'https://%s%s' % (
@@ -1469,9 +1463,7 @@ class Channel(TembaModel):
     def send_line_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         channel_access_token = channel.config.get(Channel.CONFIG_AUTH_TOKEN)
 
@@ -1509,9 +1501,7 @@ class Channel(TembaModel):
     def send_mblox_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         # build our payload
         payload = dict()
@@ -1581,9 +1571,7 @@ class Channel(TembaModel):
     def send_kannel_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         # build our callback dlr url, kannel will call this when our message is sent or delivered
         dlr_url = 'https://%s%s?id=%d&status=%%d' % (settings.HOSTNAME, reverse('handlers.kannel_handler', args=['status', channel.uuid]), msg.id)
@@ -1665,9 +1653,7 @@ class Channel(TembaModel):
     def send_shaqodoon_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         # requests are signed with a key built as follows:
         # signing_key = md5(username|password|from|to|msg|key|current_date)
@@ -1722,9 +1708,7 @@ class Channel(TembaModel):
     def send_external_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         payload = {
             'id': str(msg.id),
@@ -1783,9 +1767,7 @@ class Channel(TembaModel):
     def send_chikka_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         payload = {
             'message_type': 'SEND',
@@ -1865,9 +1847,7 @@ class Channel(TembaModel):
     def send_high_connection_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         payload = {
             'accountid': channel.config[Channel.CONFIG_USERNAME],
@@ -1913,9 +1893,7 @@ class Channel(TembaModel):
     def send_blackmyna_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         payload = {
             'address': msg.urn_path,
@@ -1968,9 +1946,7 @@ class Channel(TembaModel):
     def send_start_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         post_body = u"""
           <message>
@@ -2030,9 +2006,7 @@ class Channel(TembaModel):
     def send_smscentral_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         # strip a leading +
         mobile = msg.urn_path[1:] if msg.urn_path.startswith('+') else msg.urn_path
@@ -2073,9 +2047,7 @@ class Channel(TembaModel):
         from temba.msgs.models import Msg, WIRED
         from temba.contacts.models import Contact
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         is_ussd = channel.channel_type in Channel.USSD_CHANNELS
         channel.config['transport_name'] = 'ussd_transport' if is_ussd else 'mtech_ng_smpp_transport'
@@ -2150,9 +2122,7 @@ class Channel(TembaModel):
     def send_globe_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         payload = {
             'address': msg.urn_path.lstrip('+'),
@@ -2199,9 +2169,7 @@ class Channel(TembaModel):
         from temba.msgs.models import Msg, SENT
         from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         client = NexmoClient(channel.org_config[NEXMO_KEY], channel.org_config[NEXMO_SECRET],
                              channel.org_config[NEXMO_APP_ID], channel.org_config[NEXMO_APP_PRIVATE_KEY])
@@ -2229,9 +2197,7 @@ class Channel(TembaModel):
         from temba.msgs.models import Msg, SENT
         from temba.contacts.models import Contact
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         # build our message dict
         params = dict(origin=channel.address.lstrip('+'),
@@ -2296,9 +2262,7 @@ class Channel(TembaModel):
 
         url = API_URL
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         # build our message dict
         message = dict(sender=channel.address.lstrip('+'),
@@ -2363,9 +2327,7 @@ class Channel(TembaModel):
     def send_hub9_or_dartmedia_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, SENT
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         # http://175.103.48.29:28078/testing/smsmt.php?
         #   userid=xxx
@@ -2450,9 +2412,7 @@ class Channel(TembaModel):
     def send_zenvia_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         # Zenvia accepts messages via a GET
         # http://www.zenvia360.com.br/GatewayIntegration/msgSms.do?dispatch=send&account=temba&
@@ -2502,9 +2462,7 @@ class Channel(TembaModel):
     def send_africas_talking_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, SENT
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         payload = dict(username=channel.config['username'],
                        to=msg.urn_path,
@@ -2573,7 +2531,7 @@ class Channel(TembaModel):
         if attachment_url and channel.country in ['CA', 'US']:
             media_url.append(attachment_url)
         elif attachment_url:
-            text += " " + attachment_url
+            text = Msg.text_with_attachment(msg)
 
         try:
             if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
@@ -2672,9 +2630,7 @@ class Channel(TembaModel):
         twitter = Twython(consumer_key, consumer_secret, oauth_token, oauth_token_secret)
         start = time.time()
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         try:
             dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
@@ -2724,9 +2680,7 @@ class Channel(TembaModel):
         else:
             unicode_switch = 0
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         url = 'https://api.clickatell.com/http/sendmsg'
         payload = {'api_id': channel.config[Channel.CONFIG_API_ID],
@@ -2776,9 +2730,7 @@ class Channel(TembaModel):
         import plivo
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         # url used for logs and exceptions
         url = 'https://api.plivo.com/v1/Account/%s/Message/' % channel.config[Channel.CONFIG_PLIVO_AUTH_ID]
@@ -2822,9 +2774,7 @@ class Channel(TembaModel):
     def send_m3tech_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         # determine our encoding
         encoding, text = Channel.determine_encoding(text, replace=True)
@@ -2897,9 +2847,7 @@ class Channel(TembaModel):
     def send_viber_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         url = 'https://services.viber.com/vibersrvc/1/send_message'
         payload = {'service_id': int(channel.address),
@@ -2953,9 +2901,7 @@ class Channel(TembaModel):
     def send_viber_public_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
+        text = Msg.text_with_attachment(msg)
 
         url = 'https://chatapi.viber.com/pa/send_message'
         payload = dict(auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
