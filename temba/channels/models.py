@@ -2013,10 +2013,8 @@ class Channel(TembaModel):
         is_ussd = channel.channel_type in Channel.USSD_CHANNELS
         channel.config['transport_name'] = 'ussd_transport' if is_ussd else 'mtech_ng_smpp_transport'
 
-        if msg.response_to_id:
-            in_reply_to = Msg.objects.get(pk=msg.response_to_id).external_id
-        else:
-            in_reply_to = None
+        in_reply_to = Msg.objects.values_list(
+            'external_id', flat=True).get(pk=msg.response_to_id)
 
         payload = dict(message_id=msg.id,
                        in_reply_to=in_reply_to,
