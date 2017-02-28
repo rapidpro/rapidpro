@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function, unicode_literals
 
 import json
 from urllib import urlencode
@@ -55,7 +55,6 @@ class LoggingResource(Resource):
 
         event = HttpEvent(method, uri, data)
         self.events.append(event)
-
         resp = make_twilio_request(method, uri, auth=self.auth, **kwargs)
 
         event.url = resp.url

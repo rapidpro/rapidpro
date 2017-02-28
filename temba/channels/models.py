@@ -793,7 +793,7 @@ class Channel(TembaModel):
                                  headers={'Content-Type': 'application/json'})
 
         if response.status_code != 200:  # pragma: no cover
-            raise Exception(_("Unable to update call to action: %s" % response.content))
+            raise Exception(_("Unable to update call to action: %s" % response.text))
 
     def get_delegate(self, role):
         """
@@ -1241,10 +1241,10 @@ class Channel(TembaModel):
 
         try:
             response = requests.post(url, data=payload, headers=headers, timeout=5)
-            result = json.loads(response.content) if response.status_code == 200 else None
+            result = json.loads(response.text) if response.status_code == 200 else None
 
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
         except Exception as e:  # pragma: no cover
             raise SendException(unicode(e), event, start=start)
 
@@ -1289,7 +1289,7 @@ class Channel(TembaModel):
         try:
             response = requests.get(channel.config[Channel.CONFIG_SEND_URL], verify=True, params=payload, timeout=15)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
 
         except Exception as e:
             raise SendException(six.text_type(e),
@@ -1338,7 +1338,7 @@ class Channel(TembaModel):
                       channel.config[Channel.CONFIG_PASSWORD]))
 
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
 
         except Exception as e:
             raise SendException(unicode(e), event=event, start=start)
@@ -1349,8 +1349,7 @@ class Channel(TembaModel):
 
         data = response.json()
         message_id = data['result']['id']
-        Channel.success(
-            channel, msg, WIRED, start, event=event, external_id=message_id)
+        Channel.success(channel, msg, WIRED, start, event=event, external_id=message_id)
 
     @classmethod
     def send_facebook_message(cls, channel, msg, text):
@@ -1378,7 +1377,7 @@ class Channel(TembaModel):
         try:
             response = requests.post(url, payload, params=params, headers=headers, timeout=15)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
 
@@ -1439,7 +1438,7 @@ class Channel(TembaModel):
             response.json()
 
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
 
@@ -1473,7 +1472,7 @@ class Channel(TembaModel):
         try:
             response = requests.post(url, request_body, headers=headers, timeout=15)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
         except Exception as e:  # pragma: no cover
             raise SendException(six.text_type(e), event=event, start=start)
 
@@ -1568,7 +1567,7 @@ class Channel(TembaModel):
                 response = requests.get(url, verify=False, params=payload, timeout=15)
 
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
 
@@ -1599,7 +1598,7 @@ class Channel(TembaModel):
             # these guys use a self signed certificate
             response = requests.get(url, headers=TEMBA_HEADERS, timeout=15, verify=False)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
 
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
@@ -1623,7 +1622,7 @@ class Channel(TembaModel):
         event = HttpEvent('GET', 'http://fake')
 
         # record the message as sent
-        Channel.success(channel, msg, WIRED, start, event)
+        Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
     def send_external_message(cls, channel, msg, text):
@@ -1662,7 +1661,7 @@ class Channel(TembaModel):
                 response = requests.get(url, headers=headers, timeout=5)
 
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
 
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
@@ -1709,7 +1708,7 @@ class Channel(TembaModel):
         try:
             response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
 
@@ -1729,7 +1728,7 @@ class Channel(TembaModel):
 
                     response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
                     event.status_code = response.status_code
-                    event.response_body = response.content
+                    event.response_body = response.text
 
                     log_payload = payload.copy()
                     log_payload['secret_key'] = 'x' * len(log_payload['secret_key'])
@@ -1768,7 +1767,7 @@ class Channel(TembaModel):
         try:
             response = requests.get(url, headers=TEMBA_HEADERS, timeout=30)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
 
@@ -1802,7 +1801,7 @@ class Channel(TembaModel):
             #   "id" : Unique_identifier (universally unique identifier UUID)
             # }]
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
 
             response_json = response.json()
 
@@ -1823,6 +1822,7 @@ class Channel(TembaModel):
     def send_start_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
+        url = 'http://bulk.startmobile.com.ua/clients.php'
         post_body = u"""
           <message>
             <service id="single" source=$$FROM$$ validity=$$VALIDITY$$/>
@@ -1836,11 +1836,9 @@ class Channel(TembaModel):
         post_body = post_body.replace("$$VALIDITY$$", quoteattr("+12 hours"))
         post_body = post_body.replace("$$TO$$", escape(msg.urn_path))
         post_body = post_body.replace("$$BODY$$", escape(msg.text))
-        post_body = post_body.encode('utf8')
-
-        url = 'http://bulk.startmobile.com.ua/clients.php'
-
         event = HttpEvent('POST', url, post_body)
+
+        post_body = post_body.encode('utf8')
 
         start = time.time()
         try:
@@ -1854,7 +1852,7 @@ class Channel(TembaModel):
                                      timeout=30)
 
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
 
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
@@ -1892,7 +1890,7 @@ class Channel(TembaModel):
         try:
             response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=30)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
 
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
@@ -1901,7 +1899,7 @@ class Channel(TembaModel):
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
                                 event=event, start=start)
 
-        Channel.success(channel, msg, WIRED, start, event)
+        Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
     def send_vumi_message(cls, channel, msg, text):
@@ -1946,7 +1944,7 @@ class Channel(TembaModel):
                                     auth=(channel.config['account_key'], channel.config['access_token']))
 
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
 
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
@@ -1995,7 +1993,7 @@ class Channel(TembaModel):
                                      headers=headers,
                                      timeout=5)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
 
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
@@ -2065,7 +2063,7 @@ class Channel(TembaModel):
             try:
                 response = requests.get(url, headers=TEMBA_HEADERS, timeout=5)
                 event.status_code = response.status_code
-                event.response_body = response.content
+                event.response_body = response.text
 
                 response_qs = urlparse.parse_qs(response.text)
             except Exception:
@@ -2127,7 +2125,7 @@ class Channel(TembaModel):
         try:
             response = requests.post(url, data=payload_json, headers=headers, timeout=5)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
         except Exception:  # pragma: no cover
             try:
                 # we failed to connect, try our backup URL
@@ -2136,7 +2134,7 @@ class Channel(TembaModel):
                 events.append(event)
                 response = requests.post(url, data=payload_json, headers=headers, timeout=5)
                 event.status_code = response.status_code
-                event.response_body = response.content
+                event.response_body = response.text
             except Exception as e:
                 payload['authentication']['password'] = 'x' * len(payload['authentication']['password'])
                 raise SendException(u"Unable to send message: %s" % six.text_type(e),
@@ -2193,7 +2191,7 @@ class Channel(TembaModel):
         try:
             response = requests.get(send_url, headers=TEMBA_HEADERS, timeout=15)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
             if not response:  # pragma: no cover
                 raise SendException("Unable to send message",
                                     event=event, start=start)
@@ -2252,7 +2250,7 @@ class Channel(TembaModel):
         try:
             response = requests.get(zenvia_url, params=payload, headers=headers, timeout=5)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
 
         except Exception as e:
             raise SendException(u"Unable to send message: %s" % six.text_type(e),
@@ -2267,7 +2265,7 @@ class Channel(TembaModel):
         if response_code != 0:
             raise Exception("Got non-zero response from Zenvia: %s" % response.text)
 
-        Channel.success(channel, msg, WIRED, start, event)
+        Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
     def send_africas_talking_message(cls, channel, msg, text):
@@ -2294,7 +2292,7 @@ class Channel(TembaModel):
             response = requests.post(api_url,
                                      data=payload, headers=headers, timeout=5)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
         except Exception as e:
             raise SendException(u"Unable to send message: %s" % six.text_type(e),
                                 event=event, start=start)
@@ -2327,7 +2325,7 @@ class Channel(TembaModel):
 
         start = time.time()
 
-        if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
+        if channel.channel_type == Channel.TYPE_TWIML:
             config = channel.config
             client = TembaTwilioRestClient(config.get(ACCOUNT_SID), config.get(ACCOUNT_TOKEN),
                                            base=config.get(Channel.CONFIG_SEND_URL))
@@ -2361,6 +2359,9 @@ class Channel(TembaModel):
 
             raise SendException(e.msg, events=client.messages.events, fatal=fatal)
 
+        except Exception as e:
+            raise SendException(six.text_type(e), events=client.messages.events)
+
     @classmethod
     def send_telegram_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
@@ -2376,7 +2377,7 @@ class Channel(TembaModel):
         try:
             response = requests.post(send_url, post_body)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
 
             external_id = response.json()['result']['message_id']
         except Exception as e:
@@ -2463,7 +2464,7 @@ class Channel(TembaModel):
         try:
             response = requests.get(url, params=payload, headers=TEMBA_HEADERS, timeout=5)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
 
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
@@ -2550,7 +2551,7 @@ class Channel(TembaModel):
         try:
             response = requests.get(url, params=payload, headers=TEMBA_HEADERS, timeout=5)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
 
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
@@ -2596,7 +2597,7 @@ class Channel(TembaModel):
         try:
             response = requests.post(url, json=payload, headers=headers, timeout=5)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
 
             response_json = response.json()
         except Exception as e:
@@ -2635,7 +2636,7 @@ class Channel(TembaModel):
         try:
             response = requests.post(url, json=payload, headers=headers, timeout=5)
             event.status_code = response.status_code
-            event.response_body = response.content
+            event.response_body = response.text
 
             response_json = response.json()
         except Exception as e:

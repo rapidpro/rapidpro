@@ -66,15 +66,17 @@ class NexmoClient(nx.Client):
         log_params['api_secret'] = 'x' * len(log_params['api_secret'])
         log_url = NexmoClient.SEND_URL + '?' + urlencode(log_params)
 
-        event = HttpEvent('GET', log_url, log_params)
+        event = HttpEvent('GET', log_url)
 
         try:
             response = requests.get(NexmoClient.SEND_URL, params=params)
+            event.status_code = response.status_code
+            event.response_body = response.text
+
             response_json = response.json()
             messages = response_json.get('messages', [])
         except:
-            raise SendException(u"Failed sending message: %s" % response.text,
-                                event=event)
+            raise SendException(u"Failed sending message: %s" % response.text, event=event)
 
         if not messages or int(messages[0]['status']) != 0:
             raise SendException(u"Failed sending message, received error status [%s]" % messages[0]['status'],

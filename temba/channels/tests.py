@@ -5055,7 +5055,7 @@ class BlackmynaTest(TembaTest):
                 # we should have "Error" in our error log
                 log = ChannelLog.objects.filter(msg=msg).order_by('-pk')[0]
                 self.assertEquals("Error", log.response)
-                self.assertEquals(503, log.response_status)
+                self.assertEquals(200, log.response_status)
 
         finally:
             settings.SEND_MESSAGES = False
@@ -5815,8 +5815,8 @@ class TwilioTest(TembaTest):
         msg = joe.send("Test message", self.admin, trigger_send=False)
 
         with self.settings(SEND_MESSAGES=True):
-            with patch('twilio.rest.resources.messages.Messages.create') as mock:
-                mock.return_value = "Sent"
+            with patch('twilio.rest.resources.make_twilio_request') as mock:
+                mock.return_value = MockResponse(200, '{ "account_sid": "ac1232", "sid": "12345"}')
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -5842,8 +5842,7 @@ class TwilioTest(TembaTest):
                 msg.refresh_from_db()
                 self.assertEquals(msg.status, DELIVERED)
 
-            with patch('twilio.rest.resources.messages.Messages.create') as mock:
-                mock.side_effect = Exception("Failed to send message")
+                mock.side_effect = Exception("Request Timeout")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -5854,7 +5853,6 @@ class TwilioTest(TembaTest):
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
-            with patch('twilio.rest.resources.messages.Messages.create') as mock:
                 mock.side_effect = TwilioRestException(400, "https://twilio.com/", "User has opted out", code=21610)
 
                 # manually send it off
@@ -5882,7 +5880,7 @@ class TwilioTest(TembaTest):
             response = self.client.get(reverse('channels.channellog_read', args=[ChannelLog.objects.all()[1].pk]))
 
             # check that it contains the log of our exception
-            self.assertContains(response, "Failed to send message")
+            self.assertContains(response, "Request Timeout")
 
             # delete our error entries
             ChannelLog.objects.filter(is_error=True).delete()
@@ -5970,8 +5968,8 @@ class TwilioMessagingServiceTest(TembaTest):
         with self.settings(SEND_MESSAGES=True):
             settings.SEND_MESSAGES = True
 
-            with patch('twilio.rest.resources.Messages.create') as mock:
-                mock.return_value = "Sent"
+            with patch('twilio.rest.resources.make_twilio_request') as mock:
+                mock.return_value = MockResponse(200, '{ "account_sid": "ac1232", "sid": "12345"}')
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -5997,7 +5995,6 @@ class TwilioMessagingServiceTest(TembaTest):
                 msg.refresh_from_db()
                 self.assertEquals(msg.status, DELIVERED)
 
-            with patch('twilio.rest.resources.Messages.create') as mock:
                 mock.side_effect = Exception("Failed to send message")
 
                 # manually send it off
