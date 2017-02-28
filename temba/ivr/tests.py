@@ -947,7 +947,7 @@ class IVRTests(FlowFileTest):
         # don't press any numbers, but # instead
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]) + "?empty=1", dict())
         self.assertContains(response, '<Say>Press one, two, or three. Thanks.</Say>')
-        self.assertEquals(4, self.org.get_credits_used())
+        self.assertEquals(3, self.org.get_credits_used())
 
         # press the number 4 (unexpected)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=4))
@@ -957,17 +957,17 @@ class IVRTests(FlowFileTest):
         self.assertEqual('H', msg.status)
 
         self.assertContains(response, '<Say>Press one, two, or three. Thanks.</Say>')
-        self.assertEquals(6, self.org.get_credits_used())
+        self.assertEquals(5, self.org.get_credits_used())
 
         # two more messages, one inbound and it's response
-        self.assertEquals(5, Msg.objects.filter(msg_type=IVR).count())
+        self.assertEquals(4, Msg.objects.filter(msg_type=IVR).count())
 
         # now let's have them press the number 3 (for maybe)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=3))
         self.assertContains(response, '<Say>This might be crazy.</Say>')
         messages = Msg.objects.filter(msg_type=IVR).order_by('pk')
-        self.assertEquals(7, messages.count())
-        self.assertEquals(8, self.org.get_credits_used())
+        self.assertEquals(6, messages.count())
+        self.assertEquals(7, self.org.get_credits_used())
 
         for msg in messages:
             self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' not attached to step" % msg.text)
