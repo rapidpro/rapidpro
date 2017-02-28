@@ -33,4 +33,10 @@ class Migration(migrations.Migration):
             name='modified_on',
             field=models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was last modified'),
         ),
+        migrations.AlterField(
+            model_name='broadcast',
+            name='created_on',
+            field=models.DateTimeField(blank=True, db_index=True, default=django.utils.timezone.now, editable=False,
+                                       help_text='When this broadcast was created'),
+        ),
     ]
