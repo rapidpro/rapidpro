@@ -421,7 +421,7 @@ class Flow(TembaModel):
 
         # create a message to hold our inbound message
         from temba.msgs.models import IVR
-        if text is not None or saved_media_url:
+        if text or saved_media_url:
 
             # we don't have text for media, so lets use the media value there too
             if saved_media_url and ':' in saved_media_url:

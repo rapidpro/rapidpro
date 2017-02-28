@@ -650,6 +650,25 @@ class IVRTests(FlowFileTest):
         # make sure we have a redirect to deal with empty responses
         self.assertContains(response, 'empty=1')
 
+        # only have our initial outbound message
+        self.assertEqual(1, Msg.objects.all().count())
+
+        # simulate a gather timeout
+        post_data['Digits'] = ''
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]) + '?empty=1', post_data)
+
+        expiration = call.runs.all().first().expires_on
+
+        # we should be routed through 'other' case
+        self.assertContains(response, 'Please enter a number')
+
+        # should now only have two outbound messages and no inbound ones
+        self.assertEqual(2, Msg.objects.filter(direction='O').count())
+        self.assertEqual(0, Msg.objects.filter(direction='I').count())
+
+        # verify that our expiration didn't change by way of the timeout
+        self.assertEqual(expiration, call.runs.all().first().expires_on)
+
     @patch('nexmo.Client.create_application')
     @patch('nexmo.Client.create_call')
     def test_ivr_digital_gather_with_nexmo(self, mock_create_call, mock_create_application):
