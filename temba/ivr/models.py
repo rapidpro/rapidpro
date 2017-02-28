@@ -178,5 +178,7 @@ class IVRCall(ChannelSession):
         """
         Gets the last channel log for this message. Performs sorting in Python to ease pre-fetching.
         """
-        sorted_logs = sorted(ChannelLog.objects.filter(session=self), key=lambda l: l.created_on, reverse=True)
+        sorted_logs = None
+        if self.channel.is_active:
+            sorted_logs = sorted(ChannelLog.objects.filter(session=self), key=lambda l: l.created_on, reverse=True)
         return sorted_logs[0] if sorted_logs else None
