@@ -1558,10 +1558,18 @@ class Org(SmartModel):
                            amount=bundle['dollars'],
                            credits=bundle['credits'],
                            remaining=remaining,
-                           org=self.name,
-                           cc_last4=charge.card.last4,
-                           cc_type=charge.card.type,
-                           cc_name=charge.card.name)
+                           org=self.name)
+
+            # card
+            if getattr(charge, 'card', None):
+                context['cc_last4'] = charge.card.last4
+                context['cc_type'] = charge.card.type
+                context['cc_name'] = charge.card.name
+
+            # bitcoin
+            else:
+                context['cc_type'] = 'bitcoin'
+                context['cc_name'] = charge.source.bitcoin.address
 
             branding = self.get_branding()
 
@@ -1582,7 +1590,7 @@ class Org(SmartModel):
 
         except Exception as e:
             traceback.print_exc(e)
-            raise ValidationError(_("Sorry, we were unable to charge your card, please try again later or contact us."))
+            raise ValidationError(_("Sorry, we were unable to process your payment, please try again later or contact us."))
 
     def account_value(self):
         """
