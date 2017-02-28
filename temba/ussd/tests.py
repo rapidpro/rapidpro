@@ -161,7 +161,10 @@ class VumiUssdTest(TembaTest):
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
         self.create_group("Reporters", [joe])
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        inbound = Msg.create_incoming(
+            self.channel, "tel:+250788383383", "Send an inbound message",
+            external_id='vumi-message-id')
+        msg = inbound.reply("Test message", self.admin, trigger_send=False)
 
         # our outgoing message
         msg.refresh_from_db()
@@ -199,7 +202,10 @@ class VumiUssdTest(TembaTest):
     def test_send_default_url(self):
         joe = self.create_contact("Joe", "+250788383383")
         self.create_group("Reporters", [joe])
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        inbound = Msg.create_incoming(
+            self.channel, "tel:+250788383383", "Send an inbound message",
+            external_id='vumi-message-id')
+        msg = inbound.reply("Test message", self.admin, trigger_send=False)
 
         # our outgoing message
         msg.refresh_from_db()
@@ -213,7 +219,6 @@ class VumiUssdTest(TembaTest):
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
-                mock.assert_called()
                 self.assertEqual(mock.call_args[0][0],
                                  'https://go.vumi.org/api/v1/go/http_api_nostream/key/messages.json')
 
@@ -225,7 +230,10 @@ class VumiUssdTest(TembaTest):
     def test_ack(self):
         joe = self.create_contact("Joe", "+250788383383")
         self.create_group("Reporters", [joe])
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        inbound = Msg.create_incoming(
+            self.channel, "tel:+250788383383", "Send an inbound message",
+            external_id='vumi-message-id')
+        msg = inbound.reply("Test message", self.admin, trigger_send=False)
 
         # our outgoing message
         msg.refresh_from_db()
@@ -274,7 +282,10 @@ class VumiUssdTest(TembaTest):
     def test_nack(self):
         joe = self.create_contact("Joe", "+250788383383")
         self.create_group("Reporters", [joe])
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        inbound = Msg.create_incoming(
+            self.channel, "tel:+250788383383", "Send an inbound message",
+            external_id='vumi-message-id')
+        msg = inbound.reply("Test message", self.admin, trigger_send=False)
 
         # our outgoing message
         msg.refresh_from_db()
