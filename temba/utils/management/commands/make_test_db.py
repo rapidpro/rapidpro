@@ -90,11 +90,12 @@ class Command(BaseCommand):
 
         if seed is None:
             seed = random.randrange(0, 65536)
-        random.seed(seed)
+
+        self.random = random.Random(seed)
 
         # monkey patch uuid4 so it returns the same UUIDs for the same seed
         from temba.utils import models
-        models.uuid4 = lambda: uuid.UUID(int=random.getrandbits(128))
+        models.uuid4 = lambda: uuid.UUID(int=self.random.getrandbits(128))
 
         self._log("Generating random test database (seed=%d)...\n" % seed)
 
@@ -161,11 +162,11 @@ class Command(BaseCommand):
         self._log("Creating %d orgs... " % num_total)
 
         org_names = ['%s %s' % (o1, o2) for o2 in ORG_NAMES[1] for o1 in ORG_NAMES[0]]
-        random.shuffle(org_names)
+        self.random.shuffle(org_names)
 
         orgs = []
         for o in range(num_total):
-            orgs.append(Org(name=org_names[o % len(org_names)], timezone=random.choice(pytz.all_timezones),
+            orgs.append(Org(name=org_names[o % len(org_names)], timezone=self.random.choice(pytz.all_timezones),
                             brand='rapidpro.io', country=country,
                             created_on=self.db_begins_on, created_by=superuser, modified_by=superuser))
         Org.objects.bulk_create(orgs)
@@ -284,7 +285,7 @@ class Command(BaseCommand):
                     user = org.cache['users'][0]
                     name = self.random_choice(names)
                     gender = self.random_choice(('M', 'F'))
-                    age = random.randint(16, 80)
+                    age = self.random.randint(16, 80)
                     joined = self.random_date()
                     is_stopped = self.probability(CONTACT_IS_STOPPED_PROB)
                     is_blocked = self.probability(CONTACT_IS_BLOCKED_PROB)
@@ -334,7 +335,7 @@ class Command(BaseCommand):
                                             string_value=location[2].name, location_value=location[2]))
 
                     # place contact in a biased sample of their org's groups
-                    for g in range(random.randrange(len(org.cache['groups']))):
+                    for g in range(self.random.randrange(len(org.cache['groups']))):
                         add_to_group(org.cache['groups'][g])
 
                 Contact.objects.bulk_create(contacts)
@@ -374,9 +375,11 @@ class Command(BaseCommand):
             cursor.execute('SELECT last_value FROM %s_id_seq' % model._meta.db_table)
             return cursor.fetchone()[0]
 
-    @staticmethod
-    def probability(prob):
-        return random.random() < prob
+    def probability(self, prob):
+        return self.random.random() < prob
+
+    def random_choice(self, seq, bias=1.0):
+        return seq[int(math.pow(self.random.random(), bias) * len(seq))]
 
     def random_org(self, orgs):
         """
@@ -384,12 +387,7 @@ class Command(BaseCommand):
         """
         return self.random_choice(orgs, bias=self.org_bias)
 
-    @staticmethod
-    def random_choice(seq, bias=1.0):
-        return seq[int(math.pow(random.random(), bias) * len(seq))]
-
-    @staticmethod
-    def random_date(start=None, end=None):
+    def random_date(self, start=None, end=None):
         if not end:
             end = now()
         if not start:
@@ -398,7 +396,7 @@ class Command(BaseCommand):
         if start == end:
             return end
 
-        return ms_to_datetime(random.randrange(datetime_to_ms(start), datetime_to_ms(end)))
+        return ms_to_datetime(self.random.randrange(datetime_to_ms(start), datetime_to_ms(end)))
 
     def timeline_date(self, dist):
         """

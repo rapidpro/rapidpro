@@ -1496,7 +1496,7 @@ class MakeTestDBTest(SimpleTestCase):
         AdminBoundary.objects.all().delete()
 
     def test_command(self):
-        call_command('make_test_db', num_orgs=2, num_contacts=13, seed=123456)
+        call_command('make_test_db', num_orgs=2, num_contacts=12, seed=123456)
 
         org_1, org_2 = list(Org.objects.order_by('id'))
 
@@ -1504,7 +1504,7 @@ class MakeTestDBTest(SimpleTestCase):
         self.assertEqual(ContactField.objects.count(), 12)  # 6 per org
         self.assertEqual(ContactGroup.user_groups.count(), 20)  # 10 per org
         self.assertEqual(Contact.objects.filter(is_test=True).count(), 8)  # 1 for each user
-        self.assertEqual(Contact.objects.filter(is_test=False).count(), 5)
+        self.assertEqual(Contact.objects.filter(is_test=False).count(), 4)
 
         org_1_all_contacts = ContactGroup.system_groups.get(org=org_1, name="All Contacts")
 
