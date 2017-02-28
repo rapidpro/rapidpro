@@ -104,8 +104,8 @@ class Command(BaseCommand):
         self.org_bias = math.log(1.0 / num_orgs, 0.5)
 
         # The timespan being simulated by this database
-        self.db_begins_on = now() - timedelta(days=CONTENT_AGE)
         self.db_ends_on = now()
+        self.db_begins_on = self.db_ends_on - timedelta(days=CONTENT_AGE)
 
         start = time.time()
 
@@ -390,10 +390,10 @@ class Command(BaseCommand):
 
     @staticmethod
     def random_date(start=None, end=None):
-        if not start:
-            start = now() - timedelta(days=365)
         if not end:
             end = now()
+        if not start:
+            start = end - timedelta(days=365)
 
         if start == end:
             return end
