@@ -4611,15 +4611,12 @@ class VumiTest(TembaTest):
         self.assertEquals(DELIVERED, msg.status)
 
     def test_send(self):
+        joe = self.create_contact("Joe", "+250788383383")
+        self.create_group("Reporters", [joe])
         inbound = Msg.create_incoming(
             self.channel, "tel:+250788383383", "Send an inbound message",
             external_id='vumi-message-id')
-
-        joe = self.create_contact("Joe", "+250788383383")
-        self.create_group("Reporters", [joe])
-        msg = joe.send("Test message", self.admin, trigger_send=False)
-        msg.response_to = inbound
-        msg.save()
+        msg = inbound.reply("Test message", self.admin, trigger_send=False)
 
         r = get_redis_connection()
 
