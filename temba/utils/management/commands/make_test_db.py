@@ -25,6 +25,9 @@ from temba.utils import chunk_list, ms_to_datetime, datetime_to_str, datetime_to
 from temba.values.models import Value
 
 
+# maximum age in days of database content
+CONTENT_AGE = 3 * 365
+
 # every user will have this password including the superuser
 USER_PASSWORD = "Qwerty123"
 
@@ -100,6 +103,10 @@ class Command(BaseCommand):
         # allocated is (1/N) ^ (1/bias). This sets the bias so that the first org will get ~50% of the content:
         self.org_bias = math.log(1.0 / num_orgs, 0.5)
 
+        # The timespan being simulated by this database
+        self.db_begins_on = now() - timedelta(days=CONTENT_AGE)
+        self.db_ends_on = now()
+
         start = time.time()
 
         superuser = User.objects.create_superuser("root", "root@example.com", "password")
@@ -126,12 +133,6 @@ class Command(BaseCommand):
             raise CommandError("Run migrate command first to create database tables")
         if has_data:
             raise CommandError("Can only be run on an empty database")
-
-    def random_org(self, orgs):
-        """
-        Returns a random org with bias toward the orgs with the lowest indexes
-        """
-        return self.random_choice(orgs, bias=self.org_bias)
 
     def load_locations(self, path):
         """
@@ -166,7 +167,7 @@ class Command(BaseCommand):
         for o in range(num_total):
             orgs.append(Org(name=org_names[o % len(org_names)], timezone=random.choice(pytz.all_timezones),
                             brand='rapidpro.io', country=country,
-                            created_by=superuser, modified_by=superuser))
+                            created_on=self.db_begins_on, created_by=superuser, modified_by=superuser))
         Org.objects.bulk_create(orgs)
         orgs = list(Org.objects.order_by('id'))
 
@@ -288,6 +289,8 @@ class Command(BaseCommand):
                     is_stopped = self.probability(CONTACT_IS_STOPPED_PROB)
                     is_blocked = self.probability(CONTACT_IS_BLOCKED_PROB)
                     is_active = self.probability(1 - CONTACT_IS_DELETED_PROB)
+                    created_on = self.timeline_date(float(num_test_contacts + c) / num_total)
+                    modified_on = self.random_date(created_on, self.db_ends_on)
 
                     if is_active:
                         if not is_blocked and not is_stopped:
@@ -299,7 +302,8 @@ class Command(BaseCommand):
 
                     contacts.append(Contact(org=org, name=name, language=self.random_choice(CONTACT_LANGS),
                                             is_stopped=is_stopped, is_blocked=is_blocked, is_active=is_active,
-                                            created_by=user, modified_by=user))
+                                            created_by=user, created_on=created_on,
+                                            modified_by=user, modified_on=modified_on))
 
                     if self.probability(CONTACT_HAS_TEL_PROB):
                         phone = '+2507%08d' % c
@@ -374,6 +378,12 @@ class Command(BaseCommand):
     def probability(prob):
         return random.random() < prob
 
+    def random_org(self, orgs):
+        """
+        Returns a random org with bias toward the orgs with the lowest indexes
+        """
+        return self.random_choice(orgs, bias=self.org_bias)
+
     @staticmethod
     def random_choice(seq, bias=1.0):
         return seq[int(math.pow(random.random(), bias) * len(seq))]
@@ -385,7 +395,18 @@ class Command(BaseCommand):
         if not end:
             end = now()
 
+        if start == end:
+            return end
+
         return ms_to_datetime(random.randrange(datetime_to_ms(start), datetime_to_ms(end)))
+
+    def timeline_date(self, dist):
+        """
+        Converts a 0..1 distance into a date on this database's overall timeline
+        """
+        seconds_span = (self.db_ends_on - self.db_begins_on).total_seconds()
+
+        return self.db_begins_on + timedelta(seconds=(seconds_span * dist))
 
     @staticmethod
     def peak_memory():
