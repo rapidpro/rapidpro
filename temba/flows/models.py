@@ -849,6 +849,10 @@ class Flow(TembaModel):
         """
         Removes all flow runs, values and steps for a flow.
         """
+
+        # any outstanding active runs should interrupted
+        FlowRun.bulk_exit(self.runs.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
+
         # grab the ids of all our runs
         run_ids = self.runs.all().values_list('id', flat=True)
 
