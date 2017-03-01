@@ -6383,7 +6383,7 @@ class TelegramTest(TembaTest):
                     get.return_value = MockResponse(200, "Fake image bits", headers={"Content-Type": content_type})
 
                     response = self.client.post(receive_url, data, content_type='application/json', post_data=data)
-                    self.assertEquals(200, response.status_code)
+                    self.assertEquals(201, response.status_code)
 
                     # should have a media message now with an image
                     msgs = Msg.objects.all().order_by('-pk')
