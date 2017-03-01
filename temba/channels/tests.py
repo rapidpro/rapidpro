@@ -3717,7 +3717,7 @@ class ExternalTest(TembaTest):
         self.login(self.admin)
         log_item = ChannelLog.objects.all().order_by('created_on').first()
         response = self.client.get(reverse('channels.channellog_read', args=[log_item.pk]))
-        self.assertEquals(response.context['object'].description, 'Successfully Delivered')
+        self.assertEquals(response.context['object'].description, 'Successfully delivered')
 
         # make sure we can't see it as anon
         self.org.is_anon = True
@@ -3729,7 +3729,7 @@ class ExternalTest(TembaTest):
         # change our admin to be a CS rep, see if they can see the page
         self.admin.groups.add(Group.objects.get(name='Customer Support'))
         response = self.client.get(reverse('channels.channellog_read', args=[log_item.pk]))
-        self.assertEquals(response.context['object'].description, 'Successfully Delivered')
+        self.assertEquals(response.context['object'].description, 'Successfully delivered')
 
 
 class VerboiceTest(TembaTest):
@@ -6289,7 +6289,7 @@ class TelegramTest(TembaTest):
 
         receive_url = reverse('handlers.telegram_handler', args=[self.channel.uuid])
         response = self.client.post(receive_url, data, content_type='application/json', post_data=data)
-        self.assertEquals(200, response.status_code)
+        self.assertEquals(201, response.status_code)
 
         # and we should have a new message
         msg1 = Msg.objects.get()
@@ -6311,7 +6311,7 @@ class TelegramTest(TembaTest):
                     get.return_value = MockResponse(200, "Fake image bits", headers={"Content-Type": content_type})
 
                     response = self.client.post(receive_url, data, content_type='application/json', post_data=data)
-                    self.assertEquals(200, response.status_code)
+                    self.assertEquals(201, response.status_code)
 
                     # should have a media message now with an image
                     msgs = Msg.objects.all().order_by('-pk')
@@ -6521,7 +6521,7 @@ class TelegramTest(TembaTest):
         # post.return_value = MockResponse(200, json.dumps(dict(ok="true", result=dict(file_path=file_path))))
         Msg.objects.all().delete()
         response = self.client.post(receive_url, location_data, content_type='application/json', post_data=location_data)
-        self.assertEquals(200, response.status_code)
+        self.assertEquals(201, response.status_code)
 
         # should have a media message now with an image
         msgs = Msg.objects.all().order_by('-created_on')

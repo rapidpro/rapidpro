@@ -5,7 +5,7 @@ from urllib import urlencode
 
 import six
 
-from twilio.rest import Messages
+from twilio.rest import Messages, Calls
 from twilio.rest import TwilioRestClient
 from twilio.rest import UNSET_TIMEOUT
 from twilio.rest.resources import Resource
@@ -67,6 +67,12 @@ class LoggingResource(Resource):
             return resp, json.loads(resp.content)
 
 
+class LoggingCalls(LoggingResource, Calls):
+
+    def __init__(self, *args, **kwargs):
+        super(LoggingCalls, self).__init__(*args, **kwargs)
+
+
 class LoggingMessages(LoggingResource, Messages):
 
     def __init__(self, *args, **kwargs):
@@ -80,3 +86,4 @@ class TembaTwilioRestClient(TwilioRestClient):
 
         # replace endpoints we want logging for
         self.messages = LoggingMessages(self.account_uri, self.auth, self.timeout)
+        self.calls = LoggingCalls(self.account_uri, self.auth, self.timeout)

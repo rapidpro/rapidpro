@@ -615,6 +615,7 @@ class MockResponse(object):
     def __init__(self, status_code, text, method='GET', url='http://foo.com/', headers=None):
         self.text = text
         self.content = text
+        self.body = text
         self.status_code = status_code
         self.headers = headers if headers else {}
         self.url = url
@@ -747,7 +748,7 @@ class MockTwilioClient(TwilioClient):
 
     class MockCalls(object):
         def __init__(self):
-            pass
+            self.events = []
 
         def create(self, to=None, from_=None, url=None, status_callback=None):
             return MockTwilioClient.MockCall(to=to, from_=from_, url=url, status_callback=status_callback)

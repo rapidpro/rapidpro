@@ -17,4 +17,4 @@ class HttpEvent(object):
         return self.__str__()
 
     def __str__(self):
-        return "%s %s %d %s %s" % (self.method, self.url, self.status_code, self.response_body, self.request_body)
+        return "%s %s %s %s %s" % (self.method, self.url, self.status_code, self.response_body, self.request_body)
