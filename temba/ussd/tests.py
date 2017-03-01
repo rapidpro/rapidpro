@@ -467,7 +467,7 @@ class VumiUssdTest(TembaTest):
 
         from_addr = "+250788383383"
         data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr=from_addr,
-                    content="0825551234", to_addr="*113#", transport_type='ussd')
+                    content="250788123123", to_addr="*113#", transport_type='ussd')
 
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
@@ -479,5 +479,5 @@ class VumiUssdTest(TembaTest):
         self.assertEqual("Thank you", msg.text)
 
         # Check the new contact was created
-        new_contact = Contact.from_urn(self.org, "tel:+27825551234")
+        new_contact = Contact.from_urn(self.org, "tel:+250788123123")
         self.assertIsNotNone(new_contact)
