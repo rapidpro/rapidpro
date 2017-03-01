@@ -6593,7 +6593,7 @@ class TelegramTest(TembaTest):
         # post.return_value = MockResponse(200, json.dumps(dict(ok="true", result=dict(file_path=file_path))))
         Msg.objects.all().delete()
         response = self.client.post(receive_url, location_data, content_type='application/json', post_data=location_data)
-        self.assertEquals(200, response.status_code)
+        self.assertEquals(201, response.status_code)
 
         # should have a media message now with an image
         msgs = Msg.objects.all().order_by('-created_on')

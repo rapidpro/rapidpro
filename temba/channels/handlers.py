@@ -606,7 +606,7 @@ class TelegramHandler(BaseChannelHandler):
         body = json.loads(request.body)
 
         if 'message' not in body:
-            return make_response('No "message" found in payload', status=400)
+            return make_response('No "message" found in payload', status_code=400)
 
         # look up the contact
         telegram_id = str(body['message']['from']['id'])
