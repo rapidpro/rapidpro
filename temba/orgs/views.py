@@ -2088,6 +2088,7 @@ class OrgCRUDL(SmartCRUDL):
                 airtime_api_token = form.cleaned_data['airtime_api_token']
 
                 org.connect_transferto(account_login, airtime_api_token, user)
+                org.refresh_transferto_account_currency()
                 return super(OrgCRUDL.TransferToAccount, self).form_valid(form)
 
     class TwilioAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
