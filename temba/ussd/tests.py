@@ -454,6 +454,7 @@ class VumiUssdTest(TembaTest):
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
         child_flow = self.get_flow('ussd_subflow_child')
         flow = self.get_flow('ussd_subflow_parent', dict(NEW_CONTACT_FLOW_ID=child_flow.uuid))
+        self.assertEquals(0, flow.runs.all().count())
 
         trigger, _ = Trigger.objects.get_or_create(channel=self.channel, keyword=ussd_code, flow=flow,
                                                    created_by=self.user, modified_by=self.user, org=self.org,
