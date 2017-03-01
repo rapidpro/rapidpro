@@ -1,3 +1,7 @@
+v3.0.67
+----------
+ * Fix Nexmo logging
+
 v3.0.66
 ----------
  * Increased send and receive channel logging for Nexmo, Twilio, Twitter and Telegram 
