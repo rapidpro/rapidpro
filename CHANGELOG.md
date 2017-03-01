@@ -1,3 +1,7 @@
+v3.0.65
+----------
+ * Uniform call and message logs
+
 v3.0.64
 ----------
  * Add ID column to anonymous org contact exports, also add @contact.id field in message context

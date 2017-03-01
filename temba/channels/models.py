@@ -760,7 +760,7 @@ class Channel(TembaModel):
         # otherwise, this is unicode
         return Encoding.UNICODE, text
 
-    def has_sending_log(self):
+    def has_channel_log(self):
         return self.channel_type != Channel.TYPE_ANDROID
 
     def has_configuration_page(self):
@@ -3023,13 +3023,13 @@ class Channel(TembaModel):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE, ChannelCount.ERROR_LOG_TYPE])
 
     def get_error_log_count(self):
-        return self.get_count([ChannelCount.ERROR_LOG_TYPE])
+        return self.get_count([ChannelCount.ERROR_LOG_TYPE]) + self.get_ivr_log_count()
 
     def get_success_log_count(self):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE])
 
     def get_ivr_log_count(self):
-        return ChannelLog.objects.filter(channel=self).exclude(session=None).count()
+        return ChannelLog.objects.filter(channel=self).exclude(session=None).order_by('session').distinct('session').count()
 
     def get_non_ivr_log_count(self):
         return self.get_log_count() - self.get_ivr_log_count()
@@ -3314,7 +3314,15 @@ class ChannelLog(models.Model):
                                   response_status=status_code,
                                   description=description[:255])
 
+    def get_url_host(self):
+        parsed = urlparse.urlparse(self.url)
+        return '%s://%s%s' % (parsed.scheme, parsed.hostname, parsed.path)
+
     def get_request_formatted(self):
+
+        if self.method == 'GET':
+            parsed = urlparse.urlparse(self.url)
+            self.request = parsed.query
         try:
             return json.dumps(json.loads(self.request), indent=2)
         except:
@@ -3324,6 +3332,8 @@ class ChannelLog(models.Model):
         try:
             return json.dumps(json.loads(self.response), indent=2)
         except:
+            if not self.response:
+                self.response = self.description
             return self.response
 
 

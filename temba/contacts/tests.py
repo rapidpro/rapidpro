@@ -1339,7 +1339,7 @@ class ContactTest(TembaTest):
                                contact_urn=self.joe.urns.all().first())
 
         # fetch our contact history
-        with self.assertNumQueries(65):
+        with self.assertNumQueries(66):
             response = self.fetch_protected(url, self.admin)
 
         # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -1479,10 +1479,19 @@ class ContactTest(TembaTest):
         event.unit = 'M'
         self.assertEquals("1 minute before Planting Date", event_time(event))
 
-    def test_activity_icon(self):
-        msg = Msg.create_incoming(self.channel, 'tel:+1234', "Inbound message")
+    def test_activity_tags(self):
 
-        from temba.contacts.templatetags.contacts import activity_icon
+        contact = self.create_contact('Joe Blow', 'tel:+1234')
+        msg = Msg.create_incoming(self.channel, 'tel:+1234', "Inbound message")
+        call = IVRCall.create_incoming(self.channel, contact, contact.urns.all().first(),
+                                       self.admin, self.admin)
+
+        from temba.contacts.templatetags.contacts import activity_icon, history_class
+
+        self.assertEquals('non-msg', history_class(call))
+
+        call.status = IVRCall.FAILED
+        self.assertEquals('non-msg warning', history_class(call))
 
         # inbound
         self.assertEquals('<span class="glyph icon-bubble-user"></span>', activity_icon(msg))
@@ -1499,14 +1508,17 @@ class ContactTest(TembaTest):
         # failed
         msg.status = 'F'
         self.assertEquals('<span class="glyph icon-bubble-notification"></span>', activity_icon(msg))
+        self.assertEquals('msg warning', history_class(msg))
 
         # outgoing voice
         msg.msg_type = 'V'
-        self.assertEquals('<span class="glyph icon-phone"></span>', activity_icon(msg))
+        self.assertEquals('<span class="glyph icon-call-outgoing"></span>', activity_icon(msg))
+        self.assertEquals('msg warning', history_class(msg))
 
         # incoming voice
         msg.direction = 'I'
-        self.assertEquals('<span class="glyph icon-phone"></span>', activity_icon(msg))
+        self.assertEquals('<span class="glyph icon-call-incoming"></span>', activity_icon(msg))
+        self.assertEquals('msg warning', history_class(msg))
 
         # simulate a broadcast to 5 people
         from temba.msgs.models import Broadcast

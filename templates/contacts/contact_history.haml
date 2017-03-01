@@ -11,11 +11,17 @@
               .recording{onClick:'playMessage("{{item.pk}}");'}
                 %audio{id:'message-{{item.pk}}', type:"{{media_content_type}}", src:'{{media_url}}'}
                 .play
-                  .icon-phone{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
+                  -if item.direction == 'O'
+                    .icon-call-outgoing{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
+                  -else
+                    .icon-call-incoming{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
                 .stop.hide
                   .icon-nav-channels-inverted
             -else
-              .icon-phone.greyed
+              -if item.direction == 'O'
+                .icon-call-outgoing.greyed
+              -else
+                .icon-call-incoming.greyed
           -else
             %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
             -if media_type == 'geo'
@@ -29,15 +35,7 @@
 
         -else
           %span.det{title:'{% if item.channel %}{{item.channel.get_channel_type_name}} {{item.channel.get_name}}{% endif %}'}
-            -if not user_org.is_anon or perms.contacts.contact_break_anon
-              -with item.get_last_log as log
-                -if log
-                  %a{href:"{% url 'channels.channellog_read' log.pk%}"}
-                    {{item|activity_icon}}
-                -else
-                  {{item|activity_icon}}
-            -else
-              {{item|activity_icon}}
+            {{item|activity_icon}}
 
       %td.details.wrapped
         -if item.event_type
@@ -49,7 +47,10 @@
 
         -elif item.session_type
           -with item as call
-            {{call.get_status_display}}
+            -if call.status == 'D'
+              -trans "Call Started"
+            -else
+              {{call.get_status_display}}
 
         -elif item.flow
           -with item as run
@@ -169,6 +170,17 @@
           {{item.created_on|gmail_time}}
         %span.long.hide
           {{item.created_on}}
+
+      .log-icon
+        -if not user_org.is_anon or perms.contacts.contact_break_anon
+          -with item.get_last_log as log
+            -if log
+              -if log.session
+                %a{href:"{% url 'channels.channellog_session' log.session.id %}"}
+                  .icon-docs-2
+              -else
+                %a{href:"{% url 'channels.channellog_read' log.id %}"}
+                  .icon-docs-2
 
 -if has_older and not recent
   %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{after}}&before={{before}}", 

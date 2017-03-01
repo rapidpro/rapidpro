@@ -556,13 +556,13 @@ class Contact(TembaModel):
             event_fire.created_on = event_fire.fired
 
         # and the contact's failed IVR calls
-        error_calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
-            IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED
+        calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
+            IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED
         ])
-        error_calls = error_calls.select_related('channel')
+        calls = calls.select_related('channel')
 
         # chain them all together in the same list and sort by time
-        activity = chain(msgs, broadcasts, runs, exited_runs, event_fires, channel_events, error_calls)
+        activity = chain(msgs, broadcasts, runs, exited_runs, event_fires, channel_events, calls)
         return sorted(activity, key=lambda i: i.created_on, reverse=True)
 
     def get_field(self, key):
