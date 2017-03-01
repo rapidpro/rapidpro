@@ -99,6 +99,7 @@ NEXMO_APP_PRIVATE_KEY = 'NEXMO_APP_PRIVATE_KEY'
 
 TRANSFERTO_ACCOUNT_LOGIN = 'TRANSFERTO_ACCOUNT_LOGIN'
 TRANSFERTO_AIRTIME_API_TOKEN = 'TRANSFERTO_AIRTIME_API_TOKEN'
+TRANSFERTO_ACCOUNT_CURRENCY = 'TRANSFERTO_ACCOUNT_CURRENCY'
 
 SMTP_FROM_EMAIL = 'SMTP_FROM_EMAIL'
 SMTP_HOST = 'SMTP_HOST'
@@ -746,6 +747,20 @@ class Org(SmartModel):
         self.modified_by = user
         self.save()
 
+    def refresh_transferto_account_currency(self):
+        config = self.config_json()
+        account_login = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
+        airtime_api_token = config.get(TRANSFERTO_AIRTIME_API_TOKEN, None)
+
+        from temba.airtime.models import AirtimeTransfer
+        response = AirtimeTransfer.post_transferto_api_response(account_login, airtime_api_token,
+                                                                action='check_wallet')
+        parsed_response = AirtimeTransfer.parse_transferto_response(response.content)
+        account_currency = parsed_response.get('currency', '')
+        config.update({TRANSFERTO_ACCOUNT_CURRENCY: account_currency})
+        self.config = json.dumps(config)
+        self.save()
+
     def is_connected_to_transferto(self):
         if self.config:
             config = self.config_json()
@@ -761,6 +776,7 @@ class Org(SmartModel):
             config = self.config_json()
             config[TRANSFERTO_ACCOUNT_LOGIN] = ''
             config[TRANSFERTO_AIRTIME_API_TOKEN] = ''
+            config[TRANSFERTO_ACCOUNT_CURRENCY] = ''
             self.config = json.dumps(config)
             self.modified_by = user
             self.save()
