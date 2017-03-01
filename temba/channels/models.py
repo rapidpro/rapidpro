@@ -37,9 +37,9 @@ from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
 from temba.utils.http import HttpEvent
 from temba.utils.nexmo import NexmoClient, NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid
+from temba.utils.twitter import TembaTwython
 from time import sleep
 from twilio import twiml, TwilioRestException
-from twython import Twython
 from urllib import quote_plus
 from xml.sax.saxutils import quoteattr, escape
 
@@ -2395,19 +2395,15 @@ class Channel(TembaModel):
         oauth_token = channel.config['oauth_token']
         oauth_token_secret = channel.config['oauth_token_secret']
 
-        log_data = urlencode(dict(screen_name=msg.urn_path, text=text))
-        twitter = Twython(consumer_key, consumer_secret, oauth_token, oauth_token_secret)
-        event = HttpEvent('POST', 'https://api.twitter.com/1.1/direct_messages/new.json', log_data)
+        twitter = TembaTwython(consumer_key, consumer_secret, oauth_token, oauth_token_secret)
 
         start = time.time()
 
         try:
             # TODO: Wrap in such a way that we can get full request/response details
             dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
-            event.status_code = 201
         except Exception as e:
             error_code = getattr(e, 'error_code', 400)
-            event.status_code = error_code
             fatal = False
 
             if error_code == 404:  # handle doesn't exist
@@ -2423,10 +2419,10 @@ class Channel(TembaModel):
                 contact = Contact.objects.get(id=msg.contact)
                 contact.stop(contact.modified_by)
 
-            raise SendException(str(e), event=event, fatal=fatal, start=start)
+            raise SendException(str(e), events=twitter.events, fatal=fatal, start=start)
 
         external_id = dm['id']
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
+        Channel.success(channel, msg, WIRED, start, events=twitter.events, external_id=external_id)
 
     @classmethod
     def send_clickatell_message(cls, channel, msg, text):
