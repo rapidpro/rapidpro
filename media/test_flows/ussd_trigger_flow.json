@@ -7,22 +7,65 @@
       "base_language": "base",
       "action_sets": [
         {
+          "y": 9,
+          "x": 137,
+          "destination": "75ceba3c-dd2f-48a4-ad83-0dfe9e14147c",
+          "uuid": "7c40fb93-bf16-484c-bc11-16e2cc7dffdd",
+          "actions": [
+            {
+              "field": "source",
+              "type": "save",
+              "value": "USSD",
+              "label": "source"
+            }
+          ]
+        },
+        {
+          "y": 184,
+          "x": 245,
+          "destination": null,
+          "uuid": "75ceba3c-dd2f-48a4-ad83-0dfe9e14147c",
+          "actions": [
+            {
+              "msg": {
+                "base": "Welcome"
+              },
+              "type": "reply"
+            }
+          ]
+        }
+      ],
+      "version": 10,
+      "flow_type": "F",
+      "entry": "7c40fb93-bf16-484c-bc11-16e2cc7dffdd",
+      "rule_sets": [],
+      "metadata": {
+        "expires": 10080,
+        "revision": 26,
+        "uuid": "6c646e21-7272-4cea-a12d-8a4c88a702ea",
+        "name": "Child flow",
+        "saved_on": "2017-03-01T14:43:10.809619Z"
+      }
+    },
+    {
+      "base_language": "base",
+      "action_sets": [
+        {
           "y": 214,
           "x": 97,
-          "destination": "3ff89a9b-6d1f-4ac8-bb62-a89ee28c3039",
-          "uuid": "393df880-f149-4041-9d46-e5b2538b48fc",
+          "destination": "798a0005-2f82-43c2-a3e6-44a466709665",
+          "uuid": "820e3409-ccdd-4ca3-9e16-2326c5b05538",
           "actions": [
             {
               "type": "trigger-flow",
               "variables": [
                 {
-                  "id": "@flow.phone",
-                  "name": "@flow.phone"
+                  "id": "@flow.phone"
                 }
               ],
               "flow": {
-                "name": "Subflow child",
-                "uuid": "NEW_CONTACT_FLOW_ID"
+                "name": "Child flow",
+                "uuid": "6c646e21-7272-4cea-a12d-8a4c88a702ea"
               },
               "groups": [],
               "contacts": []
@@ -32,10 +75,10 @@
       ],
       "version": 10,
       "flow_type": "U",
-      "entry": "5065745a-ccfa-45b8-9240-7388a9f5b26e",
+      "entry": "90292b5e-e85c-49f6-a077-151141a9acdc",
       "rule_sets": [
         {
-          "uuid": "5065745a-ccfa-45b8-9240-7388a9f5b26e",
+          "uuid": "90292b5e-e85c-49f6-a077-151141a9acdc",
           "rules": [
             {
               "test": {
@@ -44,8 +87,8 @@
               "category": {
                 "base": "phone"
               },
-              "destination": "393df880-f149-4041-9d46-e5b2538b48fc",
-              "uuid": "4c3500a8-0910-4906-9f86-26b63db50385",
+              "destination": "820e3409-ccdd-4ca3-9e16-2326c5b05538",
+              "uuid": "5baac263-8cc2-43ac-a1bf-872ad284c30c",
               "destination_type": "A"
             },
             {
@@ -56,8 +99,8 @@
               "category": {
                 "base": "Other"
               },
-              "destination": "3ff89a9b-6d1f-4ac8-bb62-a89ee28c3039",
-              "uuid": "25973010-7efa-46fd-9887-347e5acedab0",
+              "destination": "798a0005-2f82-43c2-a3e6-44a466709665",
+              "uuid": "d830c506-956f-4bbe-8663-4324ae04e217",
               "destination_type": "R"
             },
             {
@@ -69,7 +112,7 @@
                 "base": "Interrupted"
               },
               "destination": null,
-              "uuid": "d1c9f643-7d7d-4b75-80ea-72a0e98141f7"
+              "uuid": "8bf6d25b-72ad-4971-b66b-c0fdfa20e66c"
             }
           ],
           "ruleset_type": "wait_ussd",
@@ -86,7 +129,7 @@
           }
         },
         {
-          "uuid": "3ff89a9b-6d1f-4ac8-bb62-a89ee28c3039",
+          "uuid": "798a0005-2f82-43c2-a3e6-44a466709665",
           "rules": [
             {
               "test": {
@@ -96,7 +139,7 @@
               "category": {
                 "base": "All Responses"
               },
-              "uuid": "9c5291c8-5de1-4721-a852-fef35c56b889"
+              "uuid": "f579c75c-6664-4d16-80c2-62643e68503a"
             },
             {
               "test": {
@@ -107,7 +150,7 @@
                 "base": "Interrupted"
               },
               "destination": null,
-              "uuid": "5cad1b99-e675-48df-9c1d-b4de0ed6d8c4"
+              "uuid": "7bada791-796a-4c99-a954-ae5cd80922b5"
             }
           ],
           "ruleset_type": "wait_ussd",
@@ -126,10 +169,10 @@
       ],
       "metadata": {
         "expires": 10080,
-        "revision": 10,
+        "revision": 37,
         "uuid": "745fe5f7-b300-449b-b72b-3957bdae75b8",
         "name": "USSD parent",
-        "saved_on": "2017-03-01T07:03:54.552341Z"
+        "saved_on": "2017-03-01T14:43:27.517294Z"
       }
     }
   ],

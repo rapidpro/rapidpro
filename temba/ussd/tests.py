@@ -445,15 +445,14 @@ class VumiUssdTest(TembaTest):
         self.assertIsInstance(session.ended_on, datetime)
         self.assertEqual(session.status, USSDSession.INTERRUPTED)
 
-    def test_ussd_subflow(self):
+    def test_ussd_trigger_flow(self):
         # start a session
         callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
         ussd_code = "*111#"
         data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
                     content="None", transport_type='ussd', session_event="new", to_addr=ussd_code)
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-        child_flow = self.get_flow('ussd_subflow_child')
-        flow = self.get_flow('ussd_subflow_parent', dict(NEW_CONTACT_FLOW_ID=child_flow.uuid))
+        flow = self.get_flow('ussd_trigger_flow')
         self.assertEquals(0, flow.runs.all().count())
 
         trigger, _ = Trigger.objects.get_or_create(channel=self.channel, keyword=ussd_code, flow=flow,
