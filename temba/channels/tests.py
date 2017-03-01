@@ -5812,56 +5812,67 @@ class TwilioTest(TembaTest):
         self.org.save()
 
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         with self.settings(SEND_MESSAGES=True):
             with patch('twilio.rest.resources.make_twilio_request') as mock:
-                mock.return_value = MockResponse(200, '{ "account_sid": "ac1232", "sid": "12345"}')
+                for channel_type in ['T', 'TMS']:
+                    ChannelLog.objects.all().delete()
+                    Msg.objects.all().delete()
 
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+                    msg = joe.send("Test message", self.admin, trigger_send=False)
 
-                # check the status of the message is now sent
-                msg.refresh_from_db()
-                self.assertEquals(WIRED, msg.status)
-                self.assertTrue(msg.sent_on)
+                    self.channel.channel_type = channel_type
+                    if channel_type == 'TMS':
+                        self.channel.config = json.dumps(dict(messaging_service_sid="MSG-SERVICE-SID"))
+                    self.channel.save()
 
-                self.clear_cache()
+                    mock.return_value = MockResponse(200, '{ "account_sid": "ac1232", "sid": "12345"}')
+                    mock.side_effect = None
 
-                # handle the status callback
-                callback_url = Channel.build_twilio_callback_url(msg.pk)
+                    # manually send it off
+                    Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
-                client = self.org.get_twilio_client()
-                validator = RequestValidator(client.auth[1])
-                post_data = dict(SmsStatus='delivered', To='+250788383383')
-                signature = validator.compute_signature(callback_url, post_data)
+                    # check the status of the message is now sent
+                    msg.refresh_from_db()
+                    self.assertEquals(WIRED, msg.status)
+                    self.assertTrue(msg.sent_on)
 
-                response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+                    self.clear_cache()
 
-                self.assertEquals(response.status_code, 200)
-                msg.refresh_from_db()
-                self.assertEquals(msg.status, DELIVERED)
+                    # handle the status callback
+                    callback_url = Channel.build_twilio_callback_url(msg.pk)
 
-                mock.side_effect = Exception("Request Timeout")
+                    client = self.org.get_twilio_client()
+                    validator = RequestValidator(client.auth[1])
+                    post_data = dict(SmsStatus='delivered', To='+250788383383')
+                    signature = validator.compute_signature(callback_url, post_data)
 
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+                    response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
-                # message should be marked as an error
-                msg.refresh_from_db()
-                self.assertEquals(ERRORED, msg.status)
-                self.assertEquals(1, msg.error_count)
-                self.assertTrue(msg.next_attempt)
+                    self.assertEquals(response.status_code, 200)
+                    msg.refresh_from_db()
+                    self.assertEquals(msg.status, DELIVERED)
 
-                mock.side_effect = TwilioRestException(400, "https://twilio.com/", "User has opted out", code=21610)
+                    mock.side_effect = Exception("Request Timeout")
 
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+                    # manually send it off
+                    Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
-                # message should be marked as failed and the contact should be stopped
-                msg.refresh_from_db()
-                self.assertEquals(FAILED, msg.status)
-                self.assertTrue(Contact.objects.get(id=msg.contact_id))
+                    # message should be marked as an error
+                    msg.refresh_from_db()
+                    self.assertEquals(ERRORED, msg.status)
+                    self.assertEquals(1, msg.error_count)
+                    self.assertTrue(msg.next_attempt)
+
+                    mock.side_effect = TwilioRestException(400, "https://twilio.com/", "User has opted out", code=21610)
+
+                    # manually send it off
+                    Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                    # message should be marked as failed and the contact should be stopped
+                    msg.refresh_from_db()
+                    self.assertEquals(FAILED, msg.status)
+                    self.assertTrue(Contact.objects.get(id=msg.contact_id))
 
             # check that our channel log works as well
             self.login(self.admin)
@@ -5952,89 +5963,6 @@ class TwilioMessagingServiceTest(TembaTest):
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
         self.assertEquals(400, response.status_code)
-
-    def test_send(self):
-        from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
-        org_config = self.org.config_json()
-        org_config[ACCOUNT_SID] = 'twilio_sid'
-        org_config[ACCOUNT_TOKEN] = 'twilio_token'
-        org_config[APPLICATION_SID] = 'twilio_sid'
-        self.org.config = json.dumps(org_config)
-        self.org.save()
-
-        joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
-
-        with self.settings(SEND_MESSAGES=True):
-            settings.SEND_MESSAGES = True
-
-            with patch('twilio.rest.resources.make_twilio_request') as mock:
-                mock.return_value = MockResponse(200, '{ "account_sid": "ac1232", "sid": "12345"}')
-
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                # check the status of the message is now sent
-                msg.refresh_from_db()
-                self.assertEquals(WIRED, msg.status)
-                self.assertTrue(msg.sent_on)
-
-                self.clear_cache()
-
-                # handle the status callback
-                callback_url = Channel.build_twilio_callback_url(msg.pk)
-
-                client = self.org.get_twilio_client()
-                validator = RequestValidator(client.auth[1])
-                post_data = dict(SmsStatus='delivered', To='+250788383383')
-                signature = validator.compute_signature(callback_url, post_data)
-
-                response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
-
-                self.assertEquals(response.status_code, 200)
-                msg.refresh_from_db()
-                self.assertEquals(msg.status, DELIVERED)
-
-                mock.side_effect = Exception("Failed to send message")
-
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                # message should be marked as an error
-                msg.refresh_from_db()
-                self.assertEquals(ERRORED, msg.status)
-                self.assertEquals(1, msg.error_count)
-                self.assertTrue(msg.next_attempt)
-
-            # check that our channel log works as well
-            self.login(self.admin)
-
-            response = self.client.get(reverse('channels.channellog_list') + "?channel=%d" % self.channel.pk)
-
-            # there should be two log items for the two times we sent
-            self.assertEquals(2, len(response.context['channellog_list']))
-
-            # of items on this page should be right as well
-            self.assertEquals(2, response.context['paginator'].count)
-
-            # the counts on our relayer should be correct as well
-            self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(1, self.channel.get_error_log_count())
-            self.assertEquals(1, self.channel.get_success_log_count())
-
-            # view the detailed information for one of them
-            response = self.client.get(reverse('channels.channellog_read', args=[ChannelLog.objects.all()[1].pk]))
-
-            # check that it contains the log of our exception
-            self.assertContains(response, "Failed to send message")
-
-            # delete our error entry
-            ChannelLog.objects.filter(is_error=True).delete()
-
-            # our channel counts should be updated
-            self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(0, self.channel.get_error_log_count())
-            self.assertEquals(1, self.channel.get_success_log_count())
 
 
 class ClickatellTest(TembaTest):
