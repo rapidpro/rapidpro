@@ -43,7 +43,7 @@ class NexmoClient(NexmoCli):
 
         # save an http event for logging later
         request = response.request
-        self.events.append(HttpEvent(request.method, request.url, request.body, response.status_code, response.body))
+        self.events.append(HttpEvent(request.method, request.url, request.body, response.status_code, response.text))
 
         # Nexmo client doesn't extend object, so can't call super
         if response.status_code == 401:
