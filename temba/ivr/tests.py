@@ -650,6 +650,25 @@ class IVRTests(FlowFileTest):
         # make sure we have a redirect to deal with empty responses
         self.assertContains(response, 'empty=1')
 
+        # only have our initial outbound message
+        self.assertEqual(1, Msg.objects.all().count())
+
+        # simulate a gather timeout
+        post_data['Digits'] = ''
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]) + '?empty=1', post_data)
+
+        expiration = call.runs.all().first().expires_on
+
+        # we should be routed through 'other' case
+        self.assertContains(response, 'Please enter a number')
+
+        # should now only have two outbound messages and no inbound ones
+        self.assertEqual(2, Msg.objects.filter(direction='O').count())
+        self.assertEqual(0, Msg.objects.filter(direction='I').count())
+
+        # verify that our expiration didn't change by way of the timeout
+        self.assertEqual(expiration, call.runs.all().first().expires_on)
+
     @patch('nexmo.Client.create_application')
     @patch('nexmo.Client.create_call')
     def test_ivr_digital_gather_with_nexmo(self, mock_create_call, mock_create_application):
@@ -928,7 +947,7 @@ class IVRTests(FlowFileTest):
         # don't press any numbers, but # instead
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]) + "?empty=1", dict())
         self.assertContains(response, '<Say>Press one, two, or three. Thanks.</Say>')
-        self.assertEquals(4, self.org.get_credits_used())
+        self.assertEquals(3, self.org.get_credits_used())
 
         # press the number 4 (unexpected)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=4))
@@ -938,17 +957,17 @@ class IVRTests(FlowFileTest):
         self.assertEqual('H', msg.status)
 
         self.assertContains(response, '<Say>Press one, two, or three. Thanks.</Say>')
-        self.assertEquals(6, self.org.get_credits_used())
+        self.assertEquals(5, self.org.get_credits_used())
 
         # two more messages, one inbound and it's response
-        self.assertEquals(5, Msg.objects.filter(msg_type=IVR).count())
+        self.assertEquals(4, Msg.objects.filter(msg_type=IVR).count())
 
         # now let's have them press the number 3 (for maybe)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=3))
         self.assertContains(response, '<Say>This might be crazy.</Say>')
         messages = Msg.objects.filter(msg_type=IVR).order_by('pk')
-        self.assertEquals(7, messages.count())
-        self.assertEquals(8, self.org.get_credits_used())
+        self.assertEquals(6, messages.count())
+        self.assertEquals(7, self.org.get_credits_used())
 
         for msg in messages:
             self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' not attached to step" % msg.text)
