@@ -12,6 +12,8 @@ import six
 from temba.utils.gsm7 import is_gsm7
 from django.utils.http import urlencode
 
+from temba.utils.http import HttpEvent
+
 
 class NexmoValidationError(Exception):
     pass
@@ -64,28 +66,24 @@ class NexmoClient(nx.Client):
         log_params['api_secret'] = 'x' * len(log_params['api_secret'])
         log_url = NexmoClient.SEND_URL + '?' + urlencode(log_params)
 
+        event = HttpEvent('GET', log_url)
+
         try:
             response = requests.get(NexmoClient.SEND_URL, params=params)
+            event.status_code = response.status_code
+            event.response_body = response.text
+
             response_json = response.json()
             messages = response_json.get('messages', [])
         except:
-            raise SendException(u"Failed sending message: %s" % response.text,
-                                method=response.request.method,
-                                url=log_url,
-                                request=None,
-                                response=response.text,
-                                response_status=response.status_code)
+            raise SendException(u"Failed sending message: %s" % response.text, event=event)
 
         if not messages or int(messages[0]['status']) != 0:
             raise SendException(u"Failed sending message, received error status [%s]" % messages[0]['status'],
-                                method=response.request.method,
-                                url=log_url,
-                                request=None,
-                                response=response.text,
-                                response_status=response.status_code)
+                                event=event)
 
         else:
-            return messages[0]['message-id'], response
+            return messages[0]['message-id'], event
 
     def search_numbers(self, country, pattern):
         response = nx.Client.get_available_numbers(self, country_code=country, pattern=pattern, search_pattern=1,

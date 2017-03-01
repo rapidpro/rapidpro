@@ -118,6 +118,24 @@ class OrgPermsMixin(object):
         return self.has_org_perm(self.permission)
 
 
+class AnonMixin(OrgPermsMixin):
+    """
+    Mixin that makes sure that anonymous orgs cannot add channels (have no permission if anon)
+    """
+    def has_permission(self, request, *args, **kwargs):
+        org = self.derive_org()
+
+        # can this user break anonymity? then we are fine
+        if self.get_user().has_perm('contacts.contact_break_anon'):
+            return True
+
+        # otherwise if this org is anon, no go
+        if not org or org.is_anon:
+            return False
+        else:
+            return super(AnonMixin, self).has_permission(request, *args, **kwargs)
+
+
 class OrgObjPermsMixin(OrgPermsMixin):
 
     def get_object_org(self):
