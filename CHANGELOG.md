@@ -1,3 +1,12 @@
+v3.0.66
+----------
+ * Increased send and receive channel logging for Nexmo, Twilio, Twitter and Telegram 
+ * Allow payments through Bitcoins
+ * Include TransferTo account currency when asking phone info to TransferTo
+ * Don't create inbound messages for gather timeouts, letting calls expire
+ * Don't show channel log for inactive channels on contact history
+ * Upgrade to latest smartmin which changes created_on/modified_on fields on SmartModels to be overridable
+
 v3.0.65
 ----------
  * Uniform call and message logs
