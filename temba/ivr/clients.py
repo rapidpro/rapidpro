@@ -17,6 +17,7 @@ from temba.channels.models import ChannelLog
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow
 from temba.ivr.models import IVRCall
+from temba.utils.http import HttpEvent
 from temba.utils.nexmo import NexmoClient as NexmoCli
 from twilio import TwilioRestException
 from twilio.rest import TwilioRestClient
@@ -33,9 +34,30 @@ class NexmoClient(NexmoCli):
     def __init__(self, api_key, api_secret, app_id, app_private_key, org=None):
         self.org = org
         NexmoCli.__init__(self, api_key, api_secret, app_id, app_private_key)
+        self.events = []
 
     def validate(self, request):
         return True
+
+    def parse(self, host, response):  # pragma: no cover
+
+        # save an http event for logging later
+        request = response.request
+        self.events.append(HttpEvent(request.method, request.url, request.body, response.status_code, response.body))
+
+        # Nexmo client doesn't extend object, so can't call super
+        if response.status_code == 401:
+            raise AuthenticationError
+        elif response.status_code == 204:  # pragma: no cover
+            return None
+        elif 200 <= response.status_code < 300:
+            return response.json()
+        elif 400 <= response.status_code < 500:  # pragma: no cover
+            message = "{code} response from {host}".format(code=response.status_code, host=host)
+            raise ClientError(message)
+        elif 500 <= response.status_code < 600:  # pragma: no cover
+            message = "{code} response from {host}".format(code=response.status_code, host=host)
+            raise ServerError(message)
 
     def start_call(self, call, to, from_, status_callback):
         url = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
@@ -53,16 +75,13 @@ class NexmoClient(NexmoCli):
             call_uuid = response.get('uuid', None)
             call.external_id = six.text_type(call_uuid)
             call.save()
-
-            ChannelLog.log_ivr_interaction(call, "Started Nexmo call %s" % call.external_id, json.dumps(params),
-                                           json.dumps(response), 'https://api.nexmo.com/v1/calls', 'POST')
+            for event in self.events:
+                ChannelLog.log_ivr_interaction(call, 'Started call', event)
 
         except Exception as e:
-            message = 'Failed Nexmo call'
-            if call.external_id:
-                message = '%s %s' % (message, call.external_id)
-            ChannelLog.log_ivr_interaction(call, message, json.dumps(params),
-                                           six.text_type(e), 'https://api.nexmo.com/v1/calls', 'POST')
+            event = HttpEvent('POST', 'https://api.nexmo.com/v1/calls', json.dumps(params), response_body=six.text_type(e))
+            ChannelLog.log_ivr_interaction(call, 'Call start failed', event, is_error=True)
+
             call.status = IVRCall.FAILED
             call.save()
             raise IVRException(_("Nexmo call failed, with error %s") % six.text_type(e.message))
@@ -104,46 +123,16 @@ class NexmoClient(NexmoCli):
             temp.flush()
 
             request = response.request
-            ChannelLog.log_ivr_interaction(call, "Successfully downloaded media for call %s" % call.external_id,
-                                           request.body, response.content, request.url,
-                                           request.method, status_code=response.status_code)
-
+            event = HttpEvent(request.method, request.url, request.body, response.status_code, response.content)
+            ChannelLog.log_ivr_interaction(call, "Downloaded media", event)
             return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
 
         return None
 
     def hangup(self, call):
-        return self.update_call(call.external_id, action='hangup', call_id=call.external_id)
-
-    def parse(self, host, response):
-        try:
-            request = response.request
-            request_body = json.loads(response.request.body)
-            call_id = request_body.get('call_id', None)
-            if call_id:
-                call = IVRCall.objects.filter(external_id=call_id).first()
-                if call:
-                    ChannelLog.log_ivr_interaction(call, "Nexmo call update", request.body, response.content,
-                                                   request.url,
-                                                   request.method, status_code=response.status_code)
-        except:
-            pass
-
-        # Nexmo client doesn't extend object, so can't call super
-        if response.status_code == 401:
-            raise AuthenticationError
-        elif response.status_code == 204:  # pragma: no cover
-            return None
-        elif 200 <= response.status_code < 300:
-            return response.json()
-        elif 400 <= response.status_code < 500:  # pragma: no cover
-            message = "{code} response from {host}".format(code=response.status_code, host=host)
-
-            raise ClientError(message)
-        elif 500 <= response.status_code < 600:  # pragma: no cover
-            message = "{code} response from {host}".format(code=response.status_code, host=host)
-
-            raise ServerError(message)
+        self.update_call(call.external_id, action='hangup', call_id=call.external_id)
+        for event in self.events:
+            ChannelLog.log_ivr_interaction(call, 'Hung up call', event)
 
 
 class TwilioClient(TwilioRestClient):
@@ -163,6 +152,10 @@ class TwilioClient(TwilioRestClient):
                                             status_callback=status_callback)
             call.external_id = six.text_type(twilio_call.sid)
             call.save()
+
+            for event in self.calls.events:
+                ChannelLog.log_ivr_interaction(call, 'Started call', event)
+
         except TwilioRestException as twilio_error:
             message = 'Twilio Error: %s' % twilio_error.msg
             if twilio_error.code == 20003:
@@ -219,7 +212,10 @@ class TwilioClient(TwilioRestClient):
         return None  # pragma: needs cover
 
     def hangup(self, call):
-        return self.calls.hangup(call.external_id)
+        response = self.calls.hangup(call.external_id)
+        for event in self.calls.events:
+            ChannelLog.log_ivr_interaction(call, 'Hung up call', event)
+        return response
 
 
 class VerboiceClient:  # pragma: needs cover

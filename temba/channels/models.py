@@ -1198,7 +1198,7 @@ class Channel(TembaModel):
             ChannelLog.objects.create(channel_id=msg.channel,
                                       msg_id=msg.id,
                                       is_error=False,
-                                      description='Successfully Delivered',
+                                      description='Successfully delivered',
                                       method=event.method,
                                       url=event.url,
                                       request=event.request_body,
@@ -3101,15 +3101,27 @@ class ChannelLog(models.Model):
                                   description=description[:255])
 
     @classmethod
-    def log_ivr_interaction(cls, call, description, request, response, url, method, is_error=False, status_code=None):
+    def log_message(cls, msg, description, event, is_error=False):
+        ChannelLog.objects.create(channel_id=msg.channel_id,
+                                  msg=msg,
+                                  request=event.request_body,
+                                  response=event.response_body,
+                                  url=event.url,
+                                  method=event.method,
+                                  is_error=is_error,
+                                  response_status=event.status_code,
+                                  description=description[:255])
+
+    @classmethod
+    def log_ivr_interaction(cls, call, description, event, is_error=False):
         ChannelLog.objects.create(channel_id=call.channel_id,
                                   session_id=call.id,
-                                  request=request,
-                                  response=response,
-                                  url=url,
-                                  method=method,
+                                  request=str(event.request_body),
+                                  response=str(event.response_body),
+                                  url=event.url,
+                                  method=event.method,
                                   is_error=is_error,
-                                  response_status=status_code,
+                                  response_status=event.status_code,
                                   description=description[:255])
 
     def get_url_host(self):
@@ -3119,8 +3131,15 @@ class ChannelLog(models.Model):
     def get_request_formatted(self):
 
         if self.method == 'GET':
-            parsed = urlparse.urlparse(self.url)
-            self.request = parsed.query
+            return self.url
+        else:
+            try:
+                # for POSTs, check first for json
+                json.loads(self.request)
+            except:
+                # if it isn't json, cat all the key values
+                return '\n\n'.join(['%s:\n"%s"' % (k, '\n'.join(v)) for k, v in six.iteritems(urlparse.parse_qs(self.request))])
+
         try:
             return json.dumps(json.loads(self.request), indent=2)
         except:

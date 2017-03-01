@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from temba.channels.models import Channel, ChannelLog
 from temba.ivr.models import IVRCall
+from temba.utils.http import HttpEvent
 from temba.flows.models import Flow, FlowRun, FlowStep
 
 
@@ -113,25 +114,27 @@ class CallHandler(View):
                         saved_media_url = client.download_media(call, media_url)
                         cache.delete('last_call:media_url:%d' % call.pk)
                     else:
-                        response_msg = 'Saved media URL for call %s' % call.external_id
+                        response_msg = 'Saved media url'
                         response = dict(message=response_msg)
-                        ChannelLog.log_ivr_interaction(call, response_msg, request_body, json.dumps(response),
-                                                       request_path, request_method)
+
+                        event = HttpEvent(request_method, request_path, request_body, 200, json.dumps(response))
+                        ChannelLog.log_ivr_interaction(call, response_msg, event)
                         return JsonResponse(response)
 
             if not has_event and call.status not in IVRCall.DONE or hangup:
                 if call.is_ivr():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup, resume=resume)
+                    event = HttpEvent(request_method, request_path, request_body, 200, six.text_type(response))
                     if channel_type in Channel.NCCO_CHANNELS:
-                        ChannelLog.log_ivr_interaction(call, "Response for call %s" % call.external_id, request_body,
-                                                       six.text_type(response),
-                                                       request_path, request_method)
+                        ChannelLog.log_ivr_interaction(call, "Incoming request for call", event)
+
+                        # TODO: what's special here that this needs to be different?
                         return JsonResponse(json.loads(six.text_type(response)), safe=False)
 
-                    ChannelLog.log_ivr_interaction(call, "Response for call %s" % call.external_id, request_body, six.text_type(response),
-                                                   request_path, request_method)
+                    ChannelLog.log_ivr_interaction(call, "Incoming request for call", event)
                     return HttpResponse(six.text_type(response))
             else:
+
                 if call.status == IVRCall.COMPLETED:
                     # if our call is completed, hangup
                     runs = FlowRun.objects.filter(session=call)
@@ -140,20 +143,19 @@ class CallHandler(View):
                             final_step = FlowStep.objects.filter(run=run).order_by('-arrived_on').first()
                             run.set_completed(final_step=final_step)
 
-                response = dict(message="Updated call status",
+                response = dict(description="Updated call status",
                                 call=dict(status=call.get_status_display(), duration=call.duration))
-                ChannelLog.log_ivr_interaction(call, "Updated call %s status to %s" % (call.external_id, call.get_status_display()),
-                                               request_body, json.dumps(response), request_path, request_method)
+
+                event = HttpEvent(request_method, request_path, request_body, 200, json.dumps(response))
+                ChannelLog.log_ivr_interaction(call, "Updated call status", event)
                 return JsonResponse(response)
 
         else:  # pragma: no cover
 
-            error_message = "Invalid request signature"
-            if call.external_id:
-                error_message = '%s for call %s' % (error_message, call.external_id)
-            ChannelLog.log_ivr_interaction(call, error_message, request_body, error_message,
-                                           request_path, request_method, is_error=True)
+            error = 'Invalid request signature'
+            event = HttpEvent(request_method, request_path, request_body, 200, error)
+            ChannelLog.log_ivr_interaction(call, error, event, is_error=True)
             # raise an exception that things weren't properly signed
-            raise ValidationError(error_message)
+            raise ValidationError(error)
 
         return JsonResponse(dict(message="Unhandled"))  # pragma: no cover

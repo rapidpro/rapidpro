@@ -33,6 +33,7 @@ from temba.ussd.models import USSDSession
 from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
+from temba.utils.http import HttpEvent
 from twilio import twiml
 from .tasks import fb_channel_subscribe
 
@@ -578,6 +579,24 @@ class TelegramHandler(BaseChannelHandler):
                     return '%s:%s' % (content_type, channel.org.save_media(File(temp), extension))
 
     def post(self, request, *args, **kwargs):
+
+        request_body = request.body
+        request_method = request.method
+        request_path = request.get_full_path()
+
+        def make_response(description, msg=None, status_code=None):
+            response_body = dict(description=description)
+            if msg:
+                log(msg, 'Incoming message', json.dumps(response_body))
+
+            if not status_code:
+                status_code = 201
+            return JsonResponse(response_body, status=status_code)
+
+        def log(msg, description, response_body):
+            event = HttpEvent(request_method, request_path, request_body, 200, response_body)
+            ChannelLog.log_message(msg, description, event)
+
         channel_uuid = kwargs['uuid']
         channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_TELEGRAM).exclude(org=None).first()
 
@@ -587,7 +606,7 @@ class TelegramHandler(BaseChannelHandler):
         body = json.loads(request.body)
 
         if 'message' not in body:
-            return HttpResponse("No 'message' found in payload", status=400)
+            return make_response('No "message" found in payload', status=400)
 
         # look up the contact
         telegram_id = str(body['message']['from']['id'])
@@ -614,9 +633,12 @@ class TelegramHandler(BaseChannelHandler):
         msg_date = datetime.utcfromtimestamp(body['message']['date']).replace(tzinfo=pytz.utc)
 
         def create_media_message(body, name):
+            msg = None
+
             # if we have a caption add it
             if 'caption' in body['message']:
-                Msg.create_incoming(channel, urn, body['message']['caption'], date=msg_date)
+                msg = Msg.create_incoming(channel, urn, body['message']['caption'], date=msg_date)
+                log(msg, 'Inbound message', json.dumps(dict(description='Message accepted')))
 
             # pull out the media body, download it and create our msg
             if name in body['message']:
@@ -631,9 +653,12 @@ class TelegramHandler(BaseChannelHandler):
                 # if we got a media URL for this attachment, save it away
                 if media_url:
                     url = media_url.partition(':')[2]
-                    Msg.create_incoming(channel, urn, url, date=msg_date, media=media_url)
+                    msg = Msg.create_incoming(channel, urn, url, date=msg_date, media=media_url)
+                    log(msg, 'Incoming media', json.dumps(dict(description='Message accepted')))
 
-            return HttpResponse("Message Accepted")
+            # this one's a little kludgy cause we might create more than
+            # one message, so we need to log them both above instead
+            return make_response("Message accepted")
 
         if 'sticker' in body['message']:
             return create_media_message(body, 'sticker')
@@ -657,7 +682,7 @@ class TelegramHandler(BaseChannelHandler):
                     msg_text = '%s (%s)' % (msg_text, body['message']['venue']['title'])
             media_url = 'geo:%s' % location
             msg = Msg.create_incoming(channel, urn, msg_text, date=msg_date, media=media_url)
-            return HttpResponse("Message Accepted: %d" % msg.id)
+            return make_response('Message accepted', msg)
 
         if 'photo' in body['message']:
             create_media_message(body, 'photo')
@@ -677,9 +702,9 @@ class TelegramHandler(BaseChannelHandler):
         # skip if there is no message block (could be a sticker or voice)
         if 'text' in body['message']:
             msg = Msg.create_incoming(channel, urn, body['message']['text'], date=msg_date)
-            return HttpResponse("Message Accepted: %d" % msg.id)
+            return make_response('Message accepted', msg)
 
-        return HttpResponse("No message, ignored.")
+        return make_response("Ignored, nothing provided in payload to create a message")
 
 
 class InfobipHandler(BaseChannelHandler):
@@ -1038,12 +1063,11 @@ class NexmoCallHandler(BaseChannelHandler):
             call.update_status(status, duration, channel_type)
             call.save()
 
-            response = dict(message="Updated call status",
+            response = dict(description="Updated call status",
                             call=dict(status=call.get_status_display(), duration=call.duration))
-            ChannelLog.log_ivr_interaction(call,
-                                           "Updated call %s status to %s" % (call.external_id,
-                                                                             call.get_status_display()),
-                                           request_body, json.dumps(response), request_path, request_method)
+
+            event = HttpEvent(request_method, request_path, request_body, 200, json.dumps(response))
+            ChannelLog.log_ivr_interaction(call, "Updated call status", event)
 
             if call.status == IVRCall.COMPLETED:
                 # if our call is completed, hangup
@@ -1092,9 +1116,8 @@ class NexmoCallHandler(BaseChannelHandler):
                 FlowRun.create(flow, contact.pk, session=call)
                 response = Flow.handle_call(call)
 
-                ChannelLog.log_ivr_interaction(call, "Response for received call %s" % call.external_id, request_body,
-                                               six.text_type(response),
-                                               request_path, request_method)
+                event = HttpEvent(request_method, request_path, request_body, 200, six.text_type(response))
+                ChannelLog.log_ivr_interaction(call, "Incoming request for call", event)
                 return JsonResponse(json.loads(six.text_type(response)), safe=False)
             else:
                 # we don't have an inbound trigger to deal with this call.
