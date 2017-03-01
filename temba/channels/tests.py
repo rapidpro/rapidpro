@@ -453,9 +453,8 @@ class ChannelTest(TembaTest):
 
         # replace existing channels with a single Android device
         Channel.objects.update(is_active=False)
-        channel = Channel.create(self.org, self.user, None, Channel.TYPE_ANDROID, None, "+250781112222", gcm_id="asdf", secret="asdf")
-        channel.created_on = timezone.now() - timedelta(hours=2)
-        channel.save()
+        channel = Channel.create(self.org, self.user, None, Channel.TYPE_ANDROID, None, "+250781112222",
+                                 gcm_id="asdf", secret="asdf", created_on=(timezone.now() - timedelta(hours=2)))
 
         response = self.client.get('/', Follow=True)
         self.assertNotIn('delayed_syncevents', response.context)

@@ -2717,8 +2717,7 @@ class FlowRun(models.Model):
         # this timeout is invalid, clear it
         if not last_step or last_step.run != self:
             self.timeout_on = None
-            self.modified_on = timezone.now()
-            self.save(update_fields=['timeout_on', 'modified_on'])
+            self.save(update_fields=('timeout_on', 'modified_on'))
             return
 
         node = last_step.get_step()
@@ -2731,8 +2730,7 @@ class FlowRun(models.Model):
             # has changed out from under us and no longer has a timeout, clear our run's timeout_on
             if not timeout and abs(expired_timeout - self.timeout_on) < timedelta(milliseconds=1):
                 self.timeout_on = None
-                self.modified_on = timezone.now()
-                self.save(update_fields=['timeout_on', 'modified_on'])
+                self.save(update_fields=('timeout_on', 'modified_on'))
 
             # this is a valid timeout, deal with it
             else:
@@ -2792,7 +2790,6 @@ class FlowRun(models.Model):
         if not self.keep_active_on_exit():
             self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
             self.exited_on = completed_on
-            self.modified_on = now
             self.is_active = False
             self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
@@ -2827,7 +2824,6 @@ class FlowRun(models.Model):
         # mark this flow as inactive
         self.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
         self.exited_on = now
-        self.modified_on = now
         self.is_active = False
         self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
@@ -2837,11 +2833,9 @@ class FlowRun(models.Model):
         """
         if not minutes and self.timeout_on:
             self.timeout_on = None
-            self.modified_on = now
             self.save(update_fields=['timeout_on', 'modified_on'])
         elif minutes:
             self.timeout_on = now + timedelta(minutes=minutes)
-            self.modified_on = now
             self.save(update_fields=['timeout_on', 'modified_on'])
 
     def update_expiration(self, point_in_time):
@@ -2853,7 +2847,6 @@ class FlowRun(models.Model):
             if not point_in_time:
                 point_in_time = now
             self.expires_on = point_in_time + timedelta(minutes=self.flow.expires_after_minutes)
-            self.modified_on = now
 
             # save our updated fields
             self.save(update_fields=['expires_on', 'modified_on'])

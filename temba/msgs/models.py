@@ -208,7 +208,7 @@ class Broadcast(models.Model):
     created_by = models.ForeignKey(User, related_name="%(app_label)s_%(class)s_creations",
                                    help_text="The user which originally created this item")
 
-    created_on = models.DateTimeField(auto_now_add=True, db_index=True,
+    created_on = models.DateTimeField(default=timezone.now, blank=True, editable=False, db_index=True,
                                       help_text=_("When this broadcast was created"))
 
     modified_by = models.ForeignKey(User, related_name="%(app_label)s_%(class)s_modifications",
@@ -750,7 +750,6 @@ class Msg(models.Model):
 
         if msg.contact.is_blocked:
             msg.visibility = Msg.VISIBILITY_ARCHIVED
-            msg.modified_on = timezone.now()
             msg.save(update_fields=['visibility', 'modified_on'])
         else:
             for handler in handlers:
@@ -849,7 +848,6 @@ class Msg(models.Model):
             update_fields.append('msg_type')
 
         msg.status = HANDLED
-        msg.modified_on = timezone.now()
 
         # make sure we don't overwrite any async message changes by only saving specific fields
         msg.save(update_fields=update_fields)
@@ -871,7 +869,6 @@ class Msg(models.Model):
                 analytics.gauge('temba.msg_failed_%s' % channel.channel_type.lower())
         else:
             msg.status = ERRORED
-            msg.modified_on = timezone.now()
             msg.next_attempt = timezone.now() + timedelta(minutes=5 * msg.error_count)
 
             if isinstance(msg, Msg):
@@ -1056,7 +1053,6 @@ class Msg(models.Model):
 
         elif keyword == 'mt_dlvd':
             self.status = DELIVERED
-            self.modified_on = timezone.now()
             handled = True
             WebHookEvent.trigger_sms_event(SMS_DELIVERED, self, date)
 
@@ -1116,7 +1112,6 @@ class Msg(models.Model):
 
         # mark ourselves as resent
         self.status = RESENT
-        self.modified_on = now
         self.topup = None
         self.save()
 
@@ -1436,7 +1431,6 @@ class Msg(models.Model):
         Update the message status to FAILED
         """
         self.status = FAILED
-        self.modified_on = timezone.now()
         self.save(update_fields=('status', 'modified_on'))
 
         Channel.track_status(self.channel, "Failed")
@@ -1448,7 +1442,6 @@ class Msg(models.Model):
         now = timezone.now()
         self.status = SENT
         self.sent_on = now
-        self.modified_on = now
         self.save(update_fields=('status', 'sent_on', 'modified_on'))
 
         Channel.track_status(self.channel, "Sent")
@@ -1458,7 +1451,6 @@ class Msg(models.Model):
         Update the message status to DELIVERED
         """
         self.status = DELIVERED
-        self.modified_on = timezone.now()
         if not self.sent_on:
             self.sent_on = timezone.now()
         self.save(update_fields=('status', 'modified_on', 'sent_on'))
@@ -1473,7 +1465,6 @@ class Msg(models.Model):
             raise ValueError("Can only archive incoming non-test messages")
 
         self.visibility = Msg.VISIBILITY_ARCHIVED
-        self.modified_on = timezone.now()
         self.save(update_fields=('visibility', 'modified_on'))
 
     @classmethod
@@ -1497,8 +1488,6 @@ class Msg(models.Model):
             raise ValueError("Can only restore incoming non-test messages")
 
         self.visibility = Msg.VISIBILITY_VISIBLE
-        self.modified_on = timezone.now()
-
         self.save(update_fields=('visibility', 'modified_on'))
 
     def release(self):
@@ -1507,8 +1496,6 @@ class Msg(models.Model):
         """
         self.visibility = Msg.VISIBILITY_DELETED
         self.text = ""
-        self.modified_on = timezone.now()
-
         self.save(update_fields=('visibility', 'text', 'modified_on'))
 
         # remove labels
