@@ -5602,6 +5602,26 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(mock_post_transferto.call_count, 0)
         mock_post_transferto.reset_mock()
 
+    def test_ussd_subflow(self):
+        child_flow = self.get_flow('ussd_subflow_child')
+        parent_flow = self.get_flow('ussd_subflow_parent', dict(NEW_CONTACT_FLOW_ID=child_flow.uuid))
+
+        parent_flow.start(groups=[], contacts=[self.contact], restart_participants=True)
+
+        msg = Msg.objects.filter(contact=self.contact).first()
+        self.assertEqual("Please enter a phone number", msg.text)
+
+        # this should launch the child flow
+        self.send_message(parent_flow, "0825551234", assert_reply=True)
+        msg = Msg.objects.filter(contact=self.contact).order_by('-created_on').first()
+
+        # We should get the final message
+        self.assertEqual("Thank you", msg.text)
+
+        # Check the new contact was created
+        new_contact = Contact.from_urn(self.org, "tel:+27825551234")
+        self.assertIsNotNone(new_contact)
+
 
 class FlowMigrationTest(FlowFileTest):
 
