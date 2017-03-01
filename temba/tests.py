@@ -619,6 +619,7 @@ class MockResponse(object):
         self.status_code = status_code
         self.headers = headers if headers else {}
         self.url = url
+        self.cookies = dict()
 
         # mock up a request object on our response as well
         self.request = dict_to_struct('MockRequest', dict(method=method, url=url, body='request body'))

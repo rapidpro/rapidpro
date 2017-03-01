@@ -6825,8 +6825,8 @@ class TwitterTest(TembaTest):
         try:
             settings.SEND_MESSAGES = True
 
-            with patch('twython.Twython.send_direct_message') as mock:
-                mock.return_value = dict(id=1234567890)
+            with patch('requests.sessions.Session.post') as mock:
+                mock.return_value = MockResponse(200, json.dumps(dict(id=1234567890)))
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -6844,7 +6844,7 @@ class TwitterTest(TembaTest):
 
             ChannelLog.objects.all().delete()
 
-            with patch('twython.Twython.send_direct_message') as mock:
+            with patch('requests.sessions.Session.post') as mock:
                 mock.side_effect = TwythonError("Failed to send message")
 
                 # manually send it off
@@ -6861,7 +6861,7 @@ class TwitterTest(TembaTest):
 
             ChannelLog.objects.all().delete()
 
-            with patch('twython.Twython.send_direct_message') as mock:
+            with patch('requests.sessions.Session.post') as mock:
                 mock.side_effect = TwythonError("Different 403 error.", error_code=403)
 
                 # manually send it off
@@ -6881,7 +6881,7 @@ class TwitterTest(TembaTest):
                 # should record the right error
                 self.assertTrue(ChannelLog.objects.get(msg=msg).description.find("Different 403 error") >= 0)
 
-            with patch('twython.Twython.send_direct_message') as mock:
+            with patch('requests.sessions.Session.post') as mock:
                 mock.side_effect = TwythonError("You cannot send messages to users who are not following you.",
                                                 error_code=403)
 
@@ -6904,7 +6904,7 @@ class TwitterTest(TembaTest):
             joe.save()
             testers.update_contacts(self.user, [joe], add=True)
 
-            with patch('twython.Twython.send_direct_message') as mock:
+            with patch('requests.sessions.Session.post') as mock:
                 mock.side_effect = TwythonError("There was an error sending your message: You can't send direct messages to this user right now.",
                                                 error_code=403)
 
@@ -6927,7 +6927,7 @@ class TwitterTest(TembaTest):
             joe.save()
             testers.update_contacts(self.user, [joe], add=True)
 
-            with patch('twython.Twython.send_direct_message') as mock:
+            with patch('requests.sessions.Session.post') as mock:
                 mock.side_effect = TwythonError("Sorry, that page does not exist.", error_code=404)
 
                 # manually send it off
