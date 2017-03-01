@@ -3128,13 +3128,6 @@ class ChannelLog(models.Model):
 
         if self.method == 'GET':
             return self.url
-        else:
-            try:
-                # for POSTs, check first for json
-                json.loads(self.request)
-            except:
-                # if it isn't json, cat all the key values
-                return '\n\n'.join(['%s:\n"%s"' % (k, '\n'.join(v)) for k, v in six.iteritems(urlparse.parse_qs(self.request))])
 
         try:
             return json.dumps(json.loads(self.request), indent=2)

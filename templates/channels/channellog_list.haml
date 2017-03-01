@@ -44,9 +44,9 @@
             %td.clickable
               -if not user_org.is_anon or perms.contacts.contact_break_anon
                 %a{ href:'{% url "contacts.contact_read" obj.contact.uuid %}' }
-                  {{obj.session.contact_urn}}
+                  {{obj.contact_urn.get_display}}
               -else
-                {{obj.session.contact_urn}}
+                {{obj.contact_urn.get_display}}
 
             %td.clickable
               %a{ href:'{% url "channels.channellog_session" obj.pk %}' }><
