@@ -38,7 +38,7 @@ from .email import send_simple_email
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .currencies import currency_for_country
-from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
+from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, non_atomic_gets, clean_string
 from . import datetime_to_str, chunk_list, get_country_code_by_name, datetime_to_epoch, date_to_utc_range
@@ -173,26 +173,6 @@ class InitTest(TembaTest):
         rs = random_string(1000)
         self.assertEquals(1000, len(rs))
         self.assertFalse('1' in rs or 'I' in rs or '0' in rs or 'O' in rs)
-
-    def test_non_atomic_when_eager(self):
-        settings.CELERY_ALWAYS_EAGER = False
-
-        @non_atomic_when_eager
-        def dispatch_func1(*args, **kwargs):
-            return args[0] + kwargs['arg2']
-
-        settings.CELERY_ALWAYS_EAGER = True
-
-        @non_atomic_when_eager
-        def dispatch_func2(*args, **kwargs):
-            return args[0] + kwargs['arg2']
-
-        self.assertFalse(hasattr(dispatch_func1, '_non_atomic_requests'))
-        self.assertIsNotNone(dispatch_func2._non_atomic_requests)
-
-        # check that both functions call correctly
-        self.assertEqual(dispatch_func1(1, arg2=2), 3)
-        self.assertEqual(dispatch_func2(1, arg2=2), 3)
 
     def test_non_atomic_gets(self):
         @non_atomic_gets
@@ -1514,8 +1494,8 @@ class MakeTestDBTest(SimpleTestCase):
 
         org_1_all_contacts = ContactGroup.system_groups.get(org=org_1, name="All Contacts")
 
-        self.assertEqual(org_1_all_contacts.contacts.count(), 2)
-        self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(2,)])
+        self.assertEqual(org_1_all_contacts.contacts.count(), 3)
+        self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(3,)])
 
         # same seed should generate objects with same UUIDs
         self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'cec602da-1406-e378-df14-b8d4a99b7cc4')
