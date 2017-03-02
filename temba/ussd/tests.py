@@ -13,6 +13,7 @@ from django.utils import timezone
 from django_redis import get_redis_connection
 
 from temba.channels.models import Channel
+from temba.contacts.models import Contact
 from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING
 from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
@@ -455,3 +456,40 @@ class VumiUssdTest(TembaTest):
         session = USSDSession.objects.get()
         self.assertIsInstance(session.ended_on, datetime)
         self.assertEqual(session.status, USSDSession.INTERRUPTED)
+
+    def test_ussd_trigger_flow(self):
+        # start a session
+        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
+        ussd_code = "*111#"
+        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
+                    content="None", transport_type='ussd', session_event="new", to_addr=ussd_code)
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        flow = self.get_flow('ussd_trigger_flow')
+        self.assertEquals(0, flow.runs.all().count())
+
+        trigger, _ = Trigger.objects.get_or_create(channel=self.channel, keyword=ussd_code, flow=flow,
+                                                   created_by=self.user, modified_by=self.user, org=self.org,
+                                                   trigger_type=Trigger.TYPE_USSD_PULL)
+
+        # now we added the trigger, let's reinitiate the session
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        msg = Msg.objects.all().first()
+        self.assertEqual("Please enter a phone number", msg.text)
+
+        from_addr = "+250788383383"
+        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr=from_addr,
+                    content="250788123123", to_addr="*113#", transport_type='ussd')
+
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+
+        msg = Msg.objects.all().order_by('-created_on').first()
+
+        # We should get the final message
+        self.assertEqual("Thank you", msg.text)
+
+        # Check the new contact was created
+        new_contact = Contact.from_urn(self.org, "tel:+250788123123")
+        self.assertIsNotNone(new_contact)
