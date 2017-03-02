@@ -3733,7 +3733,7 @@ class FlowRevision(SmartModel):
         # show our flow user differently
         if self.created_by == get_flow_user():
             name = _('System Update')
-            email = 'support@textit.in'
+            email = self.flow.org.get_branding().get('support_email')
 
         return dict(user=dict(email=email, name=name),
                     created_on=datetime_to_str(self.created_on),
