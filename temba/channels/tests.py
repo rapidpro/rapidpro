@@ -5813,7 +5813,7 @@ class TwilioTest(TembaTest):
         joe = self.create_contact("Joe", "+250788383383")
 
         with self.settings(SEND_MESSAGES=True):
-            with patch('twilio.rest.resources.make_twilio_request') as mock:
+            with patch('twilio.rest.resources.base.make_request') as mock:
                 for channel_type in ['T', 'TMS']:
                     ChannelLog.objects.all().delete()
                     Msg.objects.all().delete()

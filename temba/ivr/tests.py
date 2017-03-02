@@ -127,6 +127,35 @@ class IVRTests(FlowFileTest):
         self.assertEquals(log.text, 'Call ended. Could not authenticate with your Twilio account. '
                                     'Check your token and try again.')
 
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_call_logging(self):
+        with patch('temba.orgs.models.TwilioRestClient', MockTwilioClient):
+            # create our ivr setup
+            self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+            self.org.save()
+
+        with patch('twilio.rest.resources.base.make_request') as mock:
+            mock.return_value = MockResponse(200, '{"sid": "CAa346467ca321c71dbd5e12f627deb854"}')
+            self.import_file('capture_recording')
+            flow = Flow.objects.filter(name='Capture Recording').first()
+
+            # start our flow
+            contact = self.create_contact('Chuck D', number='+13603621737')
+            flow.start([], [contact])
+
+            # should have a channel log for starting the call
+            log = ChannelLog.objects.get(is_error=False)
+            self.assertEqual(log.response, mock.return_value.text)
+
+            # expire our flow, causing the call to hang up
+            mock.return_value = MockResponse(200, '{"sid": "CAa346467ca321c71dbd5e12f627deb855"}')
+            run = flow.runs.get()
+            run.expire()
+
+            # two channel logs now
+            log = ChannelLog.objects.exclude(id=log.id).get(is_error=False)
+            self.assertEqual(log.response, mock.return_value.text)
+
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
