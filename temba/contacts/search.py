@@ -262,54 +262,67 @@ class Condition(QueryNode):
             raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
 
     def _build_text_field_params(self, field):
-        lookup = self.TEXT_LOOKUPS.get(self.comparator)
-        if not lookup:
-            raise SearchException("Unsupported comparator %s for text field" % self.comparator)
+        if isinstance(self.value, list):
+            lookup = self.TEXT_LOOKUPS.get(self.comparator)
+            if not lookup:
+                raise SearchException("Unsupported comparator %s for text field" % self.comparator)
 
-        return {'field_and_string_value': '%d|%s' % (field.id, self.value.upper())}
+            return {'field_and_string_value__in': ['%d|%s' % (field.id, v.upper()) for v in self.value]}
+        else:
+            return {'field_and_string_value': '%d|%s' % (field.id, self.value.upper())}
 
     def _build_decimal_field_params(self, field):
-        lookup = self.DECIMAL_LOOKUPS.get(self.comparator)
-        if not lookup:
-            raise SearchException("Unsupported comparator %s for decimal field" % self.comparator)
+        if isinstance(self.value, list):
+            return {'contact_field': field, 'decimal_value__in': [self._parse_decimal(v) for v in self.value]}
+        else:
+            lookup = self.DECIMAL_LOOKUPS.get(self.comparator)
+            if not lookup:
+                raise SearchException("Unsupported comparator %s for decimal field" % self.comparator)
 
-        try:
-            value = Decimal(self.value)
-        except Exception:
-            raise SearchException("Can't convert '%s' to a decimal" % self.value)
-
-        return {'contact_field': field, 'decimal_value__%s' % lookup: value}
+            return {'contact_field': field, 'decimal_value__%s' % lookup: self._parse_decimal(self.value)}
 
     def _build_datetime_field_params(self, field):
-        lookup = self.DATETIME_LOOKUPS.get(self.comparator)
-        if not lookup:
-            raise SearchException("Unsupported comparator %s for datetime field" % self.comparator)
+        if isinstance(self.value, list):
+            queries = []
+            for v in self.value:
+                cond = Condition(self.prop, self.comparator, v)
+                queries.append(Q(**cond._build_datetime_field_params(field)))
+            return self.get_base_value_query().filter(reduce(operator.or_, queries))
+        else:
+            lookup = self.DATETIME_LOOKUPS.get(self.comparator)
+            if not lookup:
+                raise SearchException("Unsupported comparator %s for datetime field" % self.comparator)
 
-        # parse as localized date
-        local_date = str_to_datetime(self.value, field.org.timezone, field.org.get_dayfirst(), fill_time=False)
-        if not local_date:
-            raise SearchException("Unable to parse date: %s" % self.value)
+            # parse as localized date
+            local_date = str_to_datetime(self.value, field.org.timezone, field.org.get_dayfirst(), fill_time=False)
+            if not local_date:
+                raise SearchException("Unable to parse date: %s" % self.value)
 
-        # get the range of UTC datetimes for this local date
-        utc_range = date_to_utc_range(local_date.date(), field.org)
+            # get the range of UTC datetimes for this local date
+            utc_range = date_to_utc_range(local_date.date(), field.org)
 
-        if lookup == '<equal>':
-            return {'contact_field': field, 'datetime_value__gte': utc_range[0], 'datetime_value__lt': utc_range[1]}
-        elif lookup == 'lt':
-            return {'contact_field': field, 'datetime_value__lt': utc_range[0]}
-        elif lookup == 'lte':
-            return {'contact_field': field, 'datetime_value__lt': utc_range[1]}
-        elif lookup == 'gt':
-            return {'contact_field': field, 'datetime_value__gte': utc_range[1]}
-        elif lookup == 'gte':
-            return {'contact_field': field, 'datetime_value__gte': utc_range[0]}
+            if lookup == '<equal>':
+                return {'contact_field': field, 'datetime_value__gte': utc_range[0], 'datetime_value__lt': utc_range[1]}
+            elif lookup == 'lt':
+                return {'contact_field': field, 'datetime_value__lt': utc_range[0]}
+            elif lookup == 'lte':
+                return {'contact_field': field, 'datetime_value__lt': utc_range[1]}
+            elif lookup == 'gt':
+                return {'contact_field': field, 'datetime_value__gte': utc_range[1]}
+            elif lookup == 'gte':
+                return {'contact_field': field, 'datetime_value__gte': utc_range[0]}
 
     def _build_location_field_params(self, field):
         lookup = self.LOCATION_LOOKUPS.get(self.comparator)
         if not lookup:
             raise SearchException("Unsupported comparator %s for location field" % self.comparator)
 
-        locations = AdminBoundary.objects.filter(**{'name__%s' % lookup: self.value}).values('id')
+        if isinstance(self.value, list):
+            location_query = reduce(operator.or_, [Q(**{'name__%s' % lookup: v}) for v in self.value])
+        else:
+            location_query = Q(**{'name__%s' % lookup: self.value})
+
+        locations = AdminBoundary.objects.filter(location_query)
 
         return {'contact_field': field, 'location_value__in': locations}
 
@@ -318,6 +331,13 @@ class Condition(QueryNode):
         return Value.objects.annotate(
             field_and_string_value=Concat('contact_field_id', Val('|'), Upper('string_value'), output_field=CharField())
         ).values('contact_id')
+
+    @staticmethod
+    def _parse_decimal(val):
+        try:
+            return Decimal(val)
+        except Exception:
+            raise SearchException("Can't convert '%s' to a decimal" % val)
 
     def __eq__(self, other):
         return isinstance(other, Condition) and self.prop == other.prop and self.comparator == other.comparator and self.value == other.value
@@ -417,12 +437,16 @@ class SinglePropCombination(BoolCombination):
         prop_type, prop_obj = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
+            # a sequence of OR'd equality checks can be further optimized (e.g. `a = 1 OR a = 2` as `a IN (1, 2)`)
+            if self.op == BoolCombination.OR and all([child.comparator == '=' for child in self.children]):
+                in_condition = Condition(self.prop, '=', [c.value for c in self.children])
+                return in_condition.as_query(org, prop_map)
+
+            # otherwise just combine the Value sub-queries into a single one
             value_queries = []
             for child in self.children:
                 params = child.build_value_query_params(prop_obj)
                 value_queries.append(Q(**params))
-
-            # TODO optimize `a = 1 OR a = 2` to `a IN (1, 2)`
 
             value_query = reduce(self.op, value_queries)
 
