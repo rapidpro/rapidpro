@@ -7877,6 +7877,22 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         self.assertEquals(data["from"], msg.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(msg.session.status, USSDSession.TRIGGERED)
 
+    def test_receive_ussd_no_sesion(self):
+        from temba.ussd.models import USSDSession
+        from temba.channels.handlers import JunebugHandler
+
+        # Delete the trigger to prevent the sesion from being created
+        self.trigger.delete()
+
+        data = self.mk_ussd_msg(content="événement", to=self.starcode)
+        callback_url = reverse('handlers.junebug_handler',
+                               args=['inbound', self.channel.uuid])
+        response = self.client.post(callback_url, json.dumps(data),
+                                    content_type='application/json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['status'], JunebugHandler.NACK)
+
     def test_send_ussd_continue_session(self):
         joe = self.create_contact("Joe", "+250788383383")
         self.create_group("Reporters", [joe])
