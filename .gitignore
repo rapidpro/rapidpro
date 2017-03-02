@@ -92,6 +92,7 @@ htmlcov/
 .tox/
 .coverage
 .cache
+.perf_results
 nosetests.xml
 coverage.xml
 js-coverage/

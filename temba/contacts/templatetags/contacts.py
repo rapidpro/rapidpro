@@ -29,8 +29,8 @@ ACTIVITY_ICONS = {
     'Failed': 'icon-bubble-notification',
     'Delivered': 'icon-bubble-check',
     'Call': 'icon-phone',
-    'IVRCall': 'icon-phone',
-    'DTMF': 'icon-phone',
+    'IVRCall': 'icon-call-outgoing',
+    'DTMF': 'icon-call-incoming',
     'Expired': 'icon-clock',
     'Interrupted': 'icon-warning',
     'Completed': 'icon-checkmark'
@@ -44,11 +44,6 @@ def contact_field(contact, arg):
         return value
     else:  # pragma: no cover
         return None
-
-
-@register.filter
-def tel(contact, org):
-    return contact.get_urn_display(org=org, scheme=TEL_SCHEME)
 
 
 @register.filter
@@ -199,16 +194,23 @@ def activity_icon(item):
 @register.filter
 def history_class(item):
     css = ''
-    from temba.msgs.models import Msg
+    from temba.msgs.models import Msg, ERRORED, FAILED
+    from temba.ivr.models import IVRCall
+
     if isinstance(item, Msg):
         if item.media and item.media[:6] == 'video:':
             css = '%s %s' % (css, 'video')
         if item.direction or item.recipient_count:
             css = '%s %s' % (css, 'msg')
+        if item.status in (ERRORED, FAILED):
+            css = '%s %s' % (css, 'warning')
     else:
         css = '%s %s' % (css, 'non-msg')
 
-    return css
+        if isinstance(item, IVRCall):
+            if item.status == IVRCall.FAILED:
+                css = '%s %s' % (css, 'warning')
+    return css.strip()
 
 
 @register.filter

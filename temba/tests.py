@@ -615,11 +615,15 @@ class MockResponse(object):
     def __init__(self, status_code, text, method='GET', url='http://foo.com/', headers=None):
         self.text = text
         self.content = text
+        self.body = text
         self.status_code = status_code
         self.headers = headers if headers else {}
+        self.url = url
+        self.ok = True
+        self.cookies = dict()
 
         # mock up a request object on our response as well
-        self.request = dict_to_struct('MockRequest', dict(method=method, url=url))
+        self.request = dict_to_struct('MockRequest', dict(method=method, url=url, body='request body'))
 
     def add_header(self, key, value):
         self.headers[key] = value
@@ -745,7 +749,7 @@ class MockTwilioClient(TwilioClient):
 
     class MockCalls(object):
         def __init__(self):
-            pass
+            self.events = []
 
         def create(self, to=None, from_=None, url=None, status_callback=None):
             return MockTwilioClient.MockCall(to=to, from_=from_, url=url, status_callback=status_callback)

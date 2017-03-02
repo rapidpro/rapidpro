@@ -33,9 +33,9 @@ from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, T
 from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
-from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
+from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin, AnonMixin
 from temba.channels.models import ChannelSession
-from temba.utils import analytics, non_atomic_when_eager, on_transaction_commit
+from temba.utils import analytics, on_transaction_commit
 from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import timezone_to_country_code
 from twilio import TwilioRestException
@@ -883,23 +883,6 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
                'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist')
     permissions = True
-
-    class AnonMixin(OrgPermsMixin):
-        """
-        Mixin that makes sure that anonymous orgs cannot add channels (have no permission if anon)
-        """
-        def has_permission(self, request, *args, **kwargs):
-            org = self.derive_org()
-
-            # can this user break anonymity? then we are fine
-            if self.get_user().has_perm('contacts.contact_break_anon'):
-                return True
-
-            # otherwise if this org is anon, no go
-            if not org or org.is_anon:
-                return False
-            else:
-                return super(ChannelCRUDL.AnonMixin, self).has_permission(request, *args, **kwargs)
 
     class Read(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = 'uuid'
@@ -2257,14 +2240,6 @@ class ChannelCRUDL(SmartCRUDL):
 
     class ClaimTwitter(OrgPermsMixin, SmartTemplateView):
 
-        @non_atomic_when_eager
-        def dispatch(self, *args, **kwargs):
-            """
-            Decorated with @non_atomic_when_eager so that channel object is always committed to database before Mage
-            tries to access it
-            """
-            return super(ChannelCRUDL.ClaimTwitter, self).dispatch(*args, **kwargs)
-
         def pre_process(self, *args, **kwargs):
             response = super(ChannelCRUDL.ClaimTwitter, self).pre_process(*args, **kwargs)
 
@@ -3030,11 +3005,12 @@ class ChannelLogCRUDL(SmartCRUDL):
             if self.request.GET.get('sessions'):
                 logs = ChannelLog.objects.filter(channel=channel).exclude(session=None).values_list('session_id', flat=True)
                 events = ChannelSession.objects.filter(id__in=logs).order_by('-created_on')
+
+                if self.request.GET.get('errors'):
+                    events = events.filter(status=ChannelSession.FAILED)
             else:
                 events = ChannelLog.objects.filter(channel=channel, session=None).order_by('-created_on').select_related('msg__contact', 'msg')
-                events.count = lambda: channel.get_non_ivr_count()
-
-            # monkey patch our queryset for the total count
+                events.count = lambda: channel.get_non_ivr_log_count()
 
             return events
 
@@ -3043,10 +3019,10 @@ class ChannelLogCRUDL(SmartCRUDL):
             context['channel'] = Channel.objects.get(pk=self.request.GET['channel'])
             return context
 
-    class Session(ChannelCRUDL.AnonMixin, SmartReadView):
+    class Session(AnonMixin, SmartReadView):
         model = ChannelSession
 
-    class Read(ChannelCRUDL.AnonMixin, SmartReadView):
+    class Read(AnonMixin, SmartReadView):
         fields = ('description', 'created_on')
 
         def derive_queryset(self, **kwargs):

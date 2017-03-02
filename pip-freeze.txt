@@ -89,6 +89,7 @@ PyJWT==1.4.2
 pyparsing==2.1.10
 python-dateutil==2.2
 python-gcm==0.1.5
+python-magic==0.4.12
 python-telegram-bot==3.3b1
 pytz==2016.4
 PyYAML==3.11
@@ -103,7 +104,7 @@ rsa==3.4.2
 selenium==2.31.0
 simplejson==3.4.1
 six==1.10.0
-smartmin==1.10.5
+smartmin==1.10.6
 sqlparse==0.2.2
 stop-words==2015.2.23.1
 stripe==1.11.0

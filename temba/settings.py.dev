@@ -45,15 +45,11 @@ DATABASES = {
         'HOST': 'localhost',
         'PORT': '',
         'ATOMIC_REQUESTS': True,
+        'CONN_MAX_AGE': 60,
         'OPTIONS': {
         }
     }
 }
-
-# reuse our connections for up to 60 seconds
-DATABASES['default']['CONN_MAX_AGE'] = 60
-DATABASES['default']['ATOMIC_REQUESTS'] = True
-DATABASES['default']['ENGINE'] = 'django.contrib.gis.db.backends.postgis'
 
 INTERNAL_IPS = ('127.0.0.1',)
 

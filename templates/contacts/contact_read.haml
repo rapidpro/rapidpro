@@ -210,6 +210,18 @@
 
     {% lessblock %}
       :plain
+        .time {
+          margin-right: 12px;
+        }
+        .log-icon {
+          position: absolute;
+          right: 40px;
+          margin-top: -12px;
+          a {
+            color: rgba(0,0,0,.3);
+          }
+        }
+
         .show-all {
           margin-top:-10px;
           margin-right:18px;
@@ -309,7 +321,7 @@
           }
 
           .created_on {
-            width: 160px;
+            width: 180px;
             font-size:13px;
             line-height:13px;
             border: 0px solid;
@@ -328,7 +340,7 @@
               margin-top:16px;
               font-size:14px;
               line-height:0;
-              color: @flat-darkwhite;
+              color: rgba(0,0,0,.20);
               padding: 5px;
 
               &.boost {
