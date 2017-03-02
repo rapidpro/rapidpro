@@ -1,27 +1,14 @@
 v3.0.69
 ----------
  * Add ID column to result exports for anon orgs
-
-v3.0.68
-----------
  * Deactivate runs when releasing flows
  * Fix urn display for call log
-
-v3.0.67
-----------
- * Fix Nexmo logging
-
-v3.0.66
-----------
  * Increased send and receive channel logging for Nexmo, Twilio, Twitter and Telegram 
  * Allow payments through Bitcoins
  * Include TransferTo account currency when asking phone info to TransferTo
  * Don't create inbound messages for gather timeouts, letting calls expire
  * Don't show channel log for inactive channels on contact history
  * Upgrade to latest smartmin which changes created_on/modified_on fields on SmartModels to be overridable
-
-v3.0.65
-----------
  * Uniform call and message logs
 
 v3.0.64
