@@ -77,6 +77,7 @@ class Channel(TembaModel):
     TYPE_INFOBIP = 'IB'
     TYPE_JASMIN = 'JS'
     TYPE_JUNEBUG = 'JN'
+    TYPE_JUNEBUG_USSD = 'JNU'
     TYPE_KANNEL = 'KN'
     TYPE_LINE = 'LN'
     TYPE_M3TECH = 'M3'
@@ -170,6 +171,7 @@ class Channel(TembaModel):
         TYPE_INFOBIP: dict(scheme='tel', max_length=1600),
         TYPE_JASMIN: dict(scheme='tel', max_length=1600),
         TYPE_JUNEBUG: dict(scheme='tel', max_length=1600),
+        TYPE_JUNEBUG_USSD: dict(scheme='tel', max_length=1600),
         TYPE_KANNEL: dict(scheme='tel', max_length=1600),
         TYPE_LINE: dict(scheme='line', max_length=1600),
         TYPE_M3TECH: dict(scheme='tel', max_length=160),
@@ -208,6 +210,7 @@ class Channel(TembaModel):
                     (TYPE_INFOBIP, "Infobip"),
                     (TYPE_JASMIN, "Jasmin"),
                     (TYPE_JUNEBUG, "Junebug"),
+                    (TYPE_JUNEBUG_USSD, "Junebug USSD"),
                     (TYPE_KANNEL, "Kannel"),
                     (TYPE_LINE, "Line"),
                     (TYPE_M3TECH, "M3 Tech"),
@@ -231,7 +234,7 @@ class Channel(TembaModel):
                     (TYPE_ZENVIA, "Zenvia"))
 
     # list of all USSD channels
-    USSD_CHANNELS = [TYPE_VUMI_USSD]
+    USSD_CHANNELS = [TYPE_VUMI_USSD, TYPE_JUNEBUG_USSD]
 
     TWIML_CHANNELS = [TYPE_TWILIO, TYPE_VERBOICE, TYPE_TWIML]
 
@@ -1322,7 +1325,7 @@ class Channel(TembaModel):
 
     @classmethod
     def send_junebug_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
+        from temba.msgs.models import WIRED, Msg
 
         # the event url Junebug will relay events to
         event_url = 'https://%s%s' % (
@@ -1330,20 +1333,36 @@ class Channel(TembaModel):
             reverse('handlers.junebug_handler',
                     args=['event', channel.uuid]))
 
+        is_ussd = channel.channel_type in Channel.USSD_CHANNELS
+
         # build our payload
         payload = dict()
-        payload['to'] = msg.urn_path
         payload['from'] = channel.address
         payload['event_url'] = event_url
         payload['content'] = text
 
+        if is_ussd:
+            external_id, session_status = Msg.objects.values_list(
+                'response_to__external_id', 'session__status'
+            ).get(pk=msg.id)
+            # NOTE: Only one of `to` or `reply_to` may be specified
+            payload['reply_to'] = external_id
+            payload['channel_data'] = {
+                'continue_session': session_status not in ChannelSession.DONE,
+            }
+        else:
+            payload['to'] = msg.urn_path
+
         log_url = channel.config[Channel.CONFIG_SEND_URL]
         start = time.time()
+
+        headers = {'Content-Type': 'application/json'}
+        headers.update(TEMBA_HEADERS)
 
         try:
             response = requests.post(
                 channel.config[Channel.CONFIG_SEND_URL], verify=True,
-                json=payload, timeout=15,
+                json=payload, timeout=15, headers=headers,
                 auth=(channel.config[Channel.CONFIG_USERNAME],
                       channel.config[Channel.CONFIG_PASSWORD]))
         except Exception as e:
@@ -3061,6 +3080,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_INFOBIP: Channel.send_infobip_message,
                   Channel.TYPE_JASMIN: Channel.send_jasmin_message,
                   Channel.TYPE_JUNEBUG: Channel.send_junebug_message,
+                  Channel.TYPE_JUNEBUG_USSD: Channel.send_junebug_message,
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,
                   Channel.TYPE_LINE: Channel.send_line_message,
                   Channel.TYPE_M3TECH: Channel.send_m3tech_message,
