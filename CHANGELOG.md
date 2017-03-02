@@ -1,3 +1,7 @@
+v3.0.69
+----------
+ * Add ID column to result exports for anon orgs
+
 v3.0.68
 ----------
  * Deactivate runs when releasing flows
