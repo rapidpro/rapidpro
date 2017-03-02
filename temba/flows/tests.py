@@ -2022,7 +2022,7 @@ class FlowTest(TembaTest):
 
         # check flow listing
         response = self.client.get(reverse('flows.flow_list'))
-        self.assertEqual(list(response.context['object_list']), [flow1, flow3, voice_flow, flow2, self.flow])  # by last modified
+        self.assertEqual(list(response.context['object_list']), [flow3, voice_flow, flow2, flow1, self.flow])  # by saved_on
 
         # start a contact on that flow
         flow = flow1
