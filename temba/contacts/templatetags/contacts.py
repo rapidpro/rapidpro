@@ -47,11 +47,6 @@ def contact_field(contact, arg):
 
 
 @register.filter
-def tel(contact, org):
-    return contact.get_urn_display(org=org, scheme=TEL_SCHEME)
-
-
-@register.filter
 def short_name(contact, org):
     return contact.get_display(org, short=True)
 
