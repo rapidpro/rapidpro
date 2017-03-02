@@ -24,6 +24,7 @@
 @z-action-controls: 800;
 @z-source: 900;
 @z-activity: 980;
+@z-action-media: 985;
 @z-sticky-notes: 990;
 @z-endpoint: 997;
 @z-status-message: 998;
@@ -193,6 +194,24 @@
 
     &.recents {
       z-index: @z-recent-messages;
+    }
+
+    .action-media {
+      position:absolute;
+      background: rgba(240,240,240,.95);
+      z-index:@z-action-media;
+      margin-top: -20px;
+      margin-left: 200px;
+      .drop-shadow(0,0, 2px, 2px, .1);
+      .rounded-corners(5px);
+
+      &.action-media-image {
+        width: 120%;
+      }
+
+      &.action-media-audio {
+      }
+
     }
 
     .recent-messages {
@@ -617,6 +636,47 @@
   font-size: 15px;
   line-height: 18px;
   padding-bottom: 5px;
+
+  .attachment-media {
+    width: 100%;
+
+    &.video-js {
+      min-height: 300px;
+    }
+
+  }
+}
+
+.modal.attachment-viewer {
+  margin-top: 100px;
+
+  .modal-body {
+    button.close {
+      font-size: 14px;
+      margin-right: -12px;
+      margin-top: -20px;
+    }
+
+    a.download-btn {
+      color: #444;
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      font-size: 20px;
+      background: #FFF;
+      border: 0;
+      width: 30px;
+      height: 30px;
+      cursor: pointer;
+      line-height: 30px;
+      text-align: center;
+      vertical-align: middle;
+      display: block;
+      text-decoration: none;
+    }
+
+  }
+
 }
 
 .modal.error {
@@ -697,7 +757,7 @@
     }
   }
 
-  .say {
+  .say, .reply {
 
     .drop-overlay {
       height: 100%;
@@ -715,7 +775,7 @@
         width: 158px;
         text-align: center;
         margin: auto;
-        padding-top: 10px;
+        padding-top: 12px;
         line-height: 15px;
       }
     }
@@ -725,7 +785,7 @@
       .bg-gradient(@color-say, @color-say - #101010);
     }
 
-    .play-button {
+    .play-button, .viewer-button {
       font-size:22px;
       position: absolute;
       right: 5px;
@@ -734,6 +794,10 @@
       &:hover {
         color: @flat-blue
       }
+    }
+
+    .viewer-button {
+      font-size: 12px;
     }
 
     .uploading {

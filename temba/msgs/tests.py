@@ -1892,6 +1892,34 @@ class BroadcastLanguageTest(TembaTest):
         self.assertEquals(eng_msg, Msg.objects.get(contact=self.greg).text)
         self.assertEquals(fre_msg, Msg.objects.get(contact=self.wilbert).text)
 
+        eng_msg = "Please see attachment"
+        fre_msg = "SVP regardez l'attachement."
+
+        eng_attachment = 'attachments/eng_picture.jpg'
+        fre_attachment = 'attachments/fre_picture.jpg'
+
+        # now create a broadcast with a couple contacts, one with an explicit language, the other not
+        bcast = Broadcast.create(self.org, self.admin, "This is my new message with attachment",
+                                 [self.francois, self.greg, self.wilbert],
+                                 language_dict=json.dumps(dict(eng=eng_msg, fre=fre_msg)),
+                                 media_dict=json.dumps(dict(eng=eng_attachment, fre=fre_attachment)))
+
+        bcast.send()
+
+        francois_mms = Msg.objects.filter(contact=self.francois).order_by('-created_on').first()
+        greg_mms = Msg.objects.filter(contact=self.greg).order_by('-created_on').first()
+        wilbert_mms = Msg.objects.filter(contact=self.wilbert).order_by('-created_on').first()
+
+        # assert the right language was used for each contact on both text and media
+        self.assertEquals(fre_msg, francois_mms.text)
+        self.assertEquals("https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment), francois_mms.media)
+
+        self.assertEquals(eng_msg, greg_mms.text)
+        self.assertEquals("https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, eng_attachment), greg_mms.media)
+
+        self.assertEquals(fre_msg, wilbert_mms.text)
+        self.assertEquals("https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment), wilbert_mms.media)
+
 
 class SystemLabelTest(TembaTest):
     def test_get_counts(self):

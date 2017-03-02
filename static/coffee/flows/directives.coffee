@@ -162,6 +162,11 @@ app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
           if action._translation_recording
             action._translation_recording = window.mediaURL + action._translation_recording
 
+        if action.media
+          action._translation_media = action.media[iso_code]
+          if action._translation_media
+            action._translation_media = window.mediaURL + action._translation_media
+
         if action._translation is undefined
           action._translation = action.msg[baseLanguage]
           action._missingTranslation = true

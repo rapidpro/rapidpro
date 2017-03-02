@@ -1635,8 +1635,12 @@ class Flow(TembaModel):
             if isinstance(send_action.msg, dict):
                 language_dict = json.dumps(send_action.msg)
 
-            if message_text:
-                broadcast = Broadcast.create(self.org, self.created_by, message_text, [],
+            media_dict = None
+            if send_action.media:
+                media_dict = json.dumps(send_action.media)
+
+            if message_text or media_dict:
+                broadcast = Broadcast.create(self.org, self.created_by, message_text, [], media_dict=media_dict,
                                              language_dict=language_dict, base_language=self.base_language)
                 broadcast.update_contacts(all_contact_ids)
 
@@ -5031,9 +5035,11 @@ class ReplyAction(Action):
     """
     TYPE = 'reply'
     MESSAGE = 'msg'
+    MEDIA = 'media'
 
-    def __init__(self, msg=None):
+    def __init__(self, msg=None, media=None):
         self.msg = msg
+        self.media = media if media else {}
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5048,28 +5054,43 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
 
-        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE))
+        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE), media=json_obj.get(ReplyAction.MEDIA, None))
 
     def as_json(self):
-        return dict(type=ReplyAction.TYPE, msg=self.msg)
+        return dict(type=ReplyAction.TYPE, msg=self.msg, media=self.media)
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         reply = None
 
-        if self.msg:
+        if self.msg or self.media:
             user = get_flow_user()
-            text = run.flow.get_localized_text(self.msg, run.contact)
+
+            text = ''
+            if self.msg:
+                text = run.flow.get_localized_text(self.msg, run.contact)
+
+            media = None
+            if self.media:
+                # localize our media attachment
+                attachment = run.flow.get_localized_text(self.media, run.contact)
+
+                # if we have a localized media, create the url
+                if attachment:  # pragma: needs cover
+                    media = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, attachment)
 
             if offline_on:
                 reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
-                                            created_on=offline_on, response_to=msg)
+                                            created_on=offline_on, response_to=msg, media=media)
             else:
                 context = run.flow.build_message_context(run.contact, msg)
+
                 try:
                     if msg:
-                        reply = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session)
+                        reply = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session,
+                                          media=media)
                     else:
-                        reply = run.contact.send(text, user, trigger_send=False, message_context=context, session=run.session)
+                        reply = run.contact.send(text, user, trigger_send=False, message_context=context,
+                                                 session=run.session, media=media)
                 except UnreachableException:
                     pass
 
@@ -5609,9 +5630,11 @@ class SendAction(VariableContactAction):
     """
     TYPE = 'send'
     MESSAGE = 'msg'
+    MEDIA = 'media'
 
-    def __init__(self, msg, groups, contacts, variables):
+    def __init__(self, msg, groups, contacts, variables, media=None):
         self.msg = msg
+        self.media = media if media else {}
         super(SendAction, self).__init__(groups, contacts, variables)
 
     @classmethod
@@ -5620,16 +5643,18 @@ class SendAction(VariableContactAction):
         contacts = VariableContactAction.parse_contacts(org, json_obj)
         variables = VariableContactAction.parse_variables(org, json_obj)
 
-        return SendAction(json_obj.get(SendAction.MESSAGE), groups, contacts, variables)
+        return SendAction(json_obj.get(SendAction.MESSAGE), groups, contacts, variables,
+                          json_obj.get(SendAction.MEDIA, None))
 
     def as_json(self):
         contact_ids = [dict(uuid=_.uuid) for _ in self.contacts]
         group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
-        return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables)
+        return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables,
+                    media=self.media)
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
-        if self.msg:
+        if self.msg or self.media:
             flow = run.flow
             message_context = flow.build_message_context(run.contact, msg)
 
@@ -5645,14 +5670,19 @@ class SendAction(VariableContactAction):
 
                 message_text = run.flow.get_localized_text(self.msg)
 
-                # no message text? then no-op
-                if not message_text:
+                media_dict = None
+                if self.media:
+                    media_dict = json.dumps(self.media)
+
+                # no message text and no media_dict? then no-op
+                if not message_text and not media_dict:
                     return list()
 
                 recipients = groups + contacts
 
                 broadcast = Broadcast.create(flow.org, flow.modified_by, message_text, recipients,
-                                             language_dict=language_dict, base_language=flow.base_language)
+                                             media_dict=media_dict, language_dict=language_dict,
+                                             base_language=flow.base_language)
                 broadcast.send(trigger_send=False, message_context=message_context)
                 return list(broadcast.get_messages())
 
