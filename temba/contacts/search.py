@@ -7,13 +7,23 @@ import six
 
 from collections import OrderedDict
 from decimal import Decimal
-from django.db.models import Q
+from django.db.models import Q, Func, Value as Val, CharField
+from django.db.models.functions import Upper
 from functools import reduce
 from ply import yacc
 from temba.locations.models import AdminBoundary
 from temba.utils import str_to_datetime, date_to_utc_range
 from temba.values.models import Value
 from .models import ContactField, ContactURN
+
+
+class Concat(Func):
+    """
+    The Django Concat implementation splits arguments into pairs but we need to match the expression used on the index
+    which is (contact_field_id || '|' || UPPER(string_value))
+    """
+    template = '(%(expressions)s)'
+    arg_joiner = ' || '
 
 
 class SearchException(Exception):
@@ -156,7 +166,9 @@ class QueryNode(object):
 class Condition(QueryNode):
     IMPLICIT_PROP = '*'
 
-    TEXT_LOOKUPS = {'=': 'iexact', '~': 'icontains'}
+    ATTR_OR_URN_LOOKUPS = {'=': 'iexact', '~': 'icontains'}
+
+    TEXT_LOOKUPS = {'=': 'iexact'}
 
     DECIMAL_LOOKUPS = {
         '=': 'exact',
@@ -221,21 +233,21 @@ class Condition(QueryNode):
         return name_query | urn_query
 
     def _build_attr_query(self, attr):
-        lookup = self.TEXT_LOOKUPS.get(self.comparator)
+        lookup = self.ATTR_OR_URN_LOOKUPS.get(self.comparator)
         if not lookup:
             raise SearchException("Unsupported comparator %s for contact attribute" % self.comparator)
 
         return Q(**{'%s__%s' % (attr, lookup): self.value})
 
     def _build_urn_query(self, scheme):
-        lookup = self.TEXT_LOOKUPS.get(self.comparator)
+        lookup = self.ATTR_OR_URN_LOOKUPS.get(self.comparator)
         if not lookup:
             raise SearchException("Unsupported comparator %s for URN" % self.comparator)
 
         return Q(id__in=ContactURN.objects.filter(**{'scheme': scheme, 'path__%s' % lookup: self.value}).values('contact_id'))
 
     def _build_value_query(self, field):
-        return Q(id__in=Value.objects.filter(**self.build_value_query_params(field)).values('contact_id'))
+        return Q(id__in=self.get_base_value_query().filter(**self.build_value_query_params(field)))
 
     def build_value_query_params(self, field):
         if field.value_type == Value.TYPE_TEXT:
@@ -254,7 +266,7 @@ class Condition(QueryNode):
         if not lookup:
             raise SearchException("Unsupported comparator %s for text field" % self.comparator)
 
-        return {'contact_field': field, 'string_value__%s' % lookup: self.value}
+        return {'field_and_string_value': '%d|%s' % (field.id, self.value.upper())}
 
     def _build_decimal_field_params(self, field):
         lookup = self.DECIMAL_LOOKUPS.get(self.comparator)
@@ -300,6 +312,12 @@ class Condition(QueryNode):
         locations = AdminBoundary.objects.filter(**{'name__%s' % lookup: self.value}).values('id')
 
         return {'contact_field': field, 'location_value__in': locations}
+
+    @staticmethod
+    def get_base_value_query():
+        return Value.objects.annotate(
+            field_and_string_value=Concat('contact_field_id', Val('|'), Upper('string_value'), output_field=CharField())
+        ).values('contact_id')
 
     def __eq__(self, other):
         return isinstance(other, Condition) and self.prop == other.prop and self.comparator == other.comparator and self.value == other.value
@@ -402,14 +420,13 @@ class SinglePropCombination(BoolCombination):
             value_queries = []
             for child in self.children:
                 params = child.build_value_query_params(prop_obj)
-                del params['contact_field']
                 value_queries.append(Q(**params))
 
             # TODO optimize `a = 1 OR a = 2` to `a IN (1, 2)`
 
-            value_query = Q(contact_field=prop_obj) & reduce(self.op, value_queries)
+            value_query = reduce(self.op, value_queries)
 
-            return Q(id__in=Value.objects.filter(value_query).values('contact_id'))
+            return Q(id__in=Condition.get_base_value_query().filter(value_query).values('contact_id'))
 
         return super(SinglePropCombination, self).as_query(org, prop_map)
 
