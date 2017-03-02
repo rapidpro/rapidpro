@@ -2215,7 +2215,7 @@ class Flow(TembaModel):
                 else:  # pragma: needs cover
                     json_flow = self.as_json()
 
-                self.update(json_flow)
+                self.update(json_flow, user=get_flow_user())
                 self.refresh_from_db()
 
     def update(self, json_dict, user=None, force=False):
@@ -2241,17 +2241,27 @@ class Flow(TembaModel):
                 saved_on = json_dict.get(Flow.METADATA).get(Flow.SAVED_ON, None)
                 org = user.get_org()
 
-                if not saved_on or str_to_datetime(saved_on, org.timezone) < self.saved_on:
-                    saver = ""
-                    if self.saved_by.first_name:  # pragma: needs cover
-                        saver += "%s " % self.saved_by.first_name
-                    if self.saved_by.last_name:  # pragma: needs cover
-                        saver += "%s" % self.saved_by.last_name
+                # check our last save if we aren't the system flow user
+                if user != get_flow_user():
 
-                    if not saver:
-                        saver = self.saved_by.username
+                    last_save = self.saved_on
 
-                    return dict(status="unsaved", description="Flow NOT Saved", saved_on=datetime_to_str(self.saved_on), saved_by=saver)
+                    # if our last save was a system save, use the modified date
+                    # since they don't modify the saved_on
+                    if self.saved_by == get_flow_user():
+                        last_save = self.modified_on
+
+                    if not saved_on or str_to_datetime(saved_on, org.timezone) < last_save:
+                        saver = ""
+                        if self.saved_by.first_name:  # pragma: needs cover
+                            saver += "%s " % self.saved_by.first_name
+                        if self.saved_by.last_name:  # pragma: needs cover
+                            saver += "%s" % self.saved_by.last_name
+
+                        if not saver:
+                            saver = self.saved_by.username
+
+                        return dict(status="unsaved", description="Flow NOT Saved", saved_on=datetime_to_str(last_save), saved_by=saver)
 
             top_y = 0
             top_uuid = None
@@ -2461,7 +2471,11 @@ class Flow(TembaModel):
 
             if user:
                 self.saved_by = user
-            self.saved_on = timezone.now()
+
+            # if it's our migration user, don't update saved on
+            if user and user != get_flow_user():
+                self.saved_on = timezone.now()
+
             self.version_number = CURRENT_EXPORT_VERSION
             self.save()
 
@@ -3712,8 +3726,16 @@ class FlowRevision(SmartModel):
         return definition
 
     def as_json(self, include_definition=False):
-        return dict(user=dict(email=self.created_by.username,
-                    name=self.created_by.get_full_name()),
+
+        name = self.created_by.get_full_name()
+        email = self.created_by.username
+
+        # show our flow user differently
+        if self.created_by == get_flow_user():
+            name = _('System Update')
+            email = 'support@textit.in'
+
+        return dict(user=dict(email=email, name=name),
                     created_on=datetime_to_str(self.created_on),
                     id=self.pk,
                     version=self.spec_version,
