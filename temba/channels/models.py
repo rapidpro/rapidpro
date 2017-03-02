@@ -1342,10 +1342,9 @@ class Channel(TembaModel):
         log_url = channel.config[Channel.CONFIG_SEND_URL]
         start = time.time()
 
+        event = HttpEvent('POST', log_url, json.dumps(payload))
         headers = {'Content-Type': 'application/json'}
         headers.update(TEMBA_HEADERS)
-
-	event = HttpEvent('POST', log_url, json.dumps(payload))
 
         try:
             response = requests.post(
