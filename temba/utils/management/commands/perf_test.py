@@ -6,12 +6,14 @@ import json
 import sys
 import time
 
-from datetime import datetime
-from django.core.management.base import BaseCommand
+from datetime import datetime, timedelta
+from django.core.management.base import BaseCommand, CommandError
 from django.test import Client
+from django.utils.timezone import now
 from django.utils.http import urlquote_plus
 from temba.contacts.models import ContactGroup
 from temba.orgs.models import Org
+from temba.utils import datetime_to_str, get_datetime_format
 
 # default number of times per org to request each URL to determine min/max times
 DEFAULT_NUM_REQUESTS = 3
@@ -31,7 +33,8 @@ ALLOWED_CHANGE_PERCENTAGE = 5
 # a org specific context used in URL generation
 URL_CONTEXT_TEMPLATE = {
     'first-group': lambda org: ContactGroup.user_groups.filter(org=org).order_by('id').first().uuid,
-    'last-group': lambda org: ContactGroup.user_groups.filter(org=org).order_by('-id').first().uuid
+    'last-group': lambda org: ContactGroup.user_groups.filter(org=org).order_by('-id').first().uuid,
+    '1-year-ago': lambda org: datetime_to_str(now() - timedelta(days=365), get_datetime_format(org.get_dayfirst())[0])
 }
 
 TEST_URLS = (
@@ -52,8 +55,10 @@ TEST_URLS = (
     '/api/v2/org.json',
     '/contact/',
     '/contact/?search=' + urlquote_plus('gender=F'),
-    '/contact/?search=' + urlquote_plus('ward=Jebuaw or ward=Gumai or ward=Dundun or ward=Dinawa'),
-    '/contact/?search=' + urlquote_plus('gender=M and district=Faskari and age<30'),
+    '/contact/?search=' + urlquote_plus('district=Wudil or district=Anka or district=Zuru or district=Kaura or '
+                                        'district=Giwa or district=Kalgo or district=Shanga or district=Bunza'),
+    '/contact/?search=' + urlquote_plus('gender=M and state=Katsina and age<40 and joined>') + '{1-year-ago}',
+    '/contact/?search=' + urlquote_plus('(gender=M and district=Faskari) or (gender=F and district=Zuru)'),
     '/contact/blocked/',
     '/contact/stopped/',
     '/contact/filter/{first-group}/',
@@ -171,7 +176,10 @@ class Command(BaseCommand):  # pragma: no cover
         for r in range(num_requests):
             start_time = time.time()
             response = self.client.get(url)
-            assert response.status_code == 200
+
+            if response.status_code != 200:
+                raise CommandError("URL %s returned an unexpected %d response" % (url, response.status_code))
+
             url_times.append(int(1000 * (time.time() - start_time)))
 
         result = URLResult(url, url_times, prev_times)
