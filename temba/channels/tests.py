@@ -7878,7 +7878,6 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         self.assertEquals(msg.session.status, USSDSession.TRIGGERED)
 
     def test_receive_ussd_no_sesion(self):
-        from temba.ussd.models import USSDSession
         from temba.channels.handlers import JunebugHandler
 
         # Delete the trigger to prevent the sesion from being created
