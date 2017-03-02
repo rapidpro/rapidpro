@@ -1,3 +1,8 @@
+v3.0.70
+----------
+ * Allow USSD flows to start someone else in a flow
+ * Include reply to external_id for Vumi channel
+
 v3.0.69
 ----------
  * Add ID column to result exports for anon orgs
