@@ -2325,7 +2325,7 @@ class Channel(TembaModel):
 
         start = time.time()
 
-        if channel.channel_type == Channel.TYPE_TWIML:
+        if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
             config = channel.config
             client = TembaTwilioRestClient(config.get(ACCOUNT_SID), config.get(ACCOUNT_TOKEN),
                                            base=config.get(Channel.CONFIG_SEND_URL))
