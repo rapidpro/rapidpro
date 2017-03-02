@@ -41,57 +41,47 @@
       -for obj in object_list
         -if request.GET.sessions
           %tr{class:"{%if obj.status == 'F'%}warning{%endif%}"}
-            -if user_org.is_anon
-              %td= obj.contact|tel:user_org
-              %td
+            %td.clickable
+              -if not user_org.is_anon or perms.contacts.contact_break_anon
+                %a{ href:'{% url "contacts.contact_read" obj.contact.uuid %}' }
+                  {{obj.contact_urn.get_display}}
+              -else
+                {{obj.contact_urn.get_display}}
+
+            %td.clickable
+              %a{ href:'{% url "channels.channellog_session" obj.pk %}' }><
+                -if obj.direction == 'I'
+                  -trans "Incoming"
+                -else
+                  -trans "Outgoing"
                 -if obj.session_type == 'F'
-                  Phone call for {{obj.get_duration}}
+                  -if obj.is_done
+                    -trans "phone call"
+                  -else
+                    -trans "phone call in progress"
                 -else
                   USSD session for {{obj.get_duration}}
-              %td{ style:'text-align: right', nowrap:'true' }= obj.created_on
-            -else
-              %td.clickable
-                %a{ href:'{% url "contacts.contact_read" obj.contact.uuid %}' }
-                  {{obj.contact|tel:user_org}}
 
-              %td.clickable
-                %a{ href:'{% url "channels.channellog_session" obj.pk %}' }><
-                  -if obj.direction == 'I'
-                    -trans "Incoming"
-                  -else
-                    -trans "Outgoing"
-                  -if obj.session_type == 'F'
-                    -if obj.is_done
-                      -trans "phone call"
-                    -else
-                      -trans "phone call in progress"
-                  -else
-                    USSD session for {{obj.get_duration}}
+            %td.clickable{ style:'text-align: right', nowrap:'true' }
+              %a{ href:'{% url "channels.channellog_session" obj.pk %}' }><
+                -if obj.get_duration
+                  {{obj.get_duration|delta}}
+                -else
+                  {{obj.get_status_display}}
 
-              %td.clickable{ style:'text-align: right', nowrap:'true' }
-                %a{ href:'{% url "channels.channellog_session" obj.pk %}' }><
-                  -if obj.get_duration
-                    {{obj.get_duration|delta}}
-                  -else
-                    {{obj.get_status_display}}
-
-              %td{ style:'text-align: right', nowrap:'true' }
-                {{obj.created_on|date:"M d, Y, H:m:s"}}
+            %td{ style:'text-align: right', nowrap:'true' }
+              {{obj.created_on|date:"M d, Y, H:m:s"}}
         -else
           %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
-            -if user_org.is_anon
-              %td= obj.msg.contact|tel:user_org
-              %td= obj.description
-              %td{ style:'text-align: right', nowrap:'true' }
-                {{obj.created_on}}
-            -else
-              %td.clickable
-                %a{ href:'{% url "channels.channellog_read" obj.pk %}' }
-                  -if obj.msg
-                    {{obj.msg.contact|tel:user_org}}
-                  -elif obj.session
-                    {{obj.session.contact|tel:user_org}}
-              %td.clickable
+            %td.clickable
+              -if obj.msg.contact
+                %a{ href:'{% url "contacts.contact_read" obj.msg.contact.uuid %}' }
+                  {{obj.msg.contact_urn.get_display}}
+            %td.clickable
+              -if not user_org.is_anon or perms.contacts.contact_break_anon
                 %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.description
-              %td{ style:'text-align: right', nowrap:'true' }
-                {{obj.created_on}}
+              -else
+                {{obj.description}}
+
+            %td{ style:'text-align: right', nowrap:'true' }
+              {{obj.created_on}}

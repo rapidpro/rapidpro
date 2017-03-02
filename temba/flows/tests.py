@@ -5510,12 +5510,14 @@ class FlowsTest(FlowFileTest):
 
     @patch('temba.airtime.models.AirtimeTransfer.post_transferto_api_response')
     def test_airtime_trigger_event(self, mock_post_transferto):
-        mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
+        mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\ncurrency=USD\r\n"),
+                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
                                                               "product_list=5,10,20,30\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
         self.org.connect_transferto('mylogin', 'api_token', self.admin)
+        self.org.refresh_transferto_account_currency()
 
         flow = self.get_flow('airtime')
         runs = flow.start_msg_flow([self.contact.id])
@@ -5528,7 +5530,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(airtime.status, AirtimeTransfer.SUCCESS)
         self.assertEqual(airtime.contact, self.contact)
         self.assertEqual(airtime.message, "Airtime Transferred Successfully")
-        self.assertEqual(mock_post_transferto.call_count, 3)
+        self.assertEqual(mock_post_transferto.call_count, 4)
         mock_post_transferto.reset_mock()
 
         mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=Rwanda\r\n"
