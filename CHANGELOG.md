@@ -1,3 +1,8 @@
+v3.0.68
+----------
+ * Deactivate runs when releasing flows
+ * Fix urn display for call log
+
 v3.0.67
 ----------
  * Fix Nexmo logging
