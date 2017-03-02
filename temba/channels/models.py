@@ -1342,9 +1342,7 @@ class Channel(TembaModel):
         payload['content'] = text
 
         if is_ussd:
-            external_id, session_status = Msg.objects.values_list(
-                'response_to__external_id', 'session__status'
-            ).get(pk=msg.id)
+            external_id, session_status = Msg.objects.values_list('response_to__external_id', 'session__status').get(pk=msg.id)
             # NOTE: Only one of `to` or `reply_to` may be specified
             payload['reply_to'] = external_id
             payload['channel_data'] = {

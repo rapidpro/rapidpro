@@ -2980,6 +2980,62 @@ class ChannelClaimTest(TembaTest):
 
         self.assertContains(response, reverse('handlers.chikka_handler', args=[channel.uuid]))
 
+    def test_claim_junebug(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        response = self.client.get(reverse('channels.channel_claim_junebug'))
+        self.assertEquals(200, response.status_code)
+
+        post_data = {
+            "channel_type": Channel.TYPE_JUNEBUG,
+            "country": "ZA",
+            "number": "+273454325324",
+            "url": "http://example.com/messages.json",
+            "username": "foo",
+            "password": "bar",
+        }
+
+        response = self.client.post(reverse('channels.channel_claim_junebug'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertEquals(channel.country, post_data['country'])
+        self.assertEquals(channel.address, post_data['number'])
+        self.assertEquals(channel.config_json()['send_url'], post_data['url'])
+        self.assertEquals(channel.config_json()['username'], post_data['username'])
+        self.assertEquals(channel.config_json()['password'], post_data['password'])
+        self.assertEquals(channel.channel_type, Channel.TYPE_JUNEBUG)
+
+        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        self.assertRedirect(response, config_url)
+
+        response = self.client.get(config_url)
+        self.assertEquals(200, response.status_code)
+
+        self.assertContains(response, reverse('handlers.junebug_handler', args=['inbound', channel.uuid]))
+
+    def test_claim_junebug_ussd(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        response = self.client.get(reverse('channels.channel_claim_junebug'))
+        self.assertEquals(200, response.status_code)
+
+        post_data = {
+            "channel_type": Channel.TYPE_JUNEBUG_USSD,
+            "country": "ZA",
+            "number": "+273454325324",
+            "url": "http://example.com/messages.json",
+            "username": "foo",
+            "password": "bar",
+        }
+
+        response = self.client.post(reverse('channels.channel_claim_junebug'), post_data)
+
+        channel = Channel.objects.get()
+        self.assertEquals(channel.channel_type, Channel.TYPE_JUNEBUG_USSD)
+
     def test_claim_vumi_ussd(self):
         Channel.objects.all().delete()
         self.login(self.admin)

@@ -1705,12 +1705,16 @@ class ChannelCRUDL(SmartCRUDL):
 
     class ClaimJunebug(ClaimAuthenticatedExternal):
         class JunebugForm(forms.Form):
+            channel_type = forms.ChoiceField(choices=((Channel.TYPE_JUNEBUG, 'SMS'),
+                                                      (Channel.TYPE_JUNEBUG_USSD, 'USSD')),
+                                             label=_('Channel Type'),
+                                             help_text=_('The type of channel you are wanting to connect.'))
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
                                         help_text=_("The country this phone number is used in"))
             number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
                                      help_text=("The shortcode or phone number you are connecting."))
             url = forms.URLField(label=_("URL"),
-                                 help_text=_("The URL for the Junebug channel. ex: https://junebug.praekelt.org/jb/channels/3853bb51-d38a-4bca-b332-8a57c00f2a48"))
+                                 help_text=_("The URL for the Junebug channel. ex: https://junebug.praekelt.org/jb/channels/3853bb51-d38a-4bca-b332-8a57c00f2a48/messages.json"))
             username = forms.CharField(label=_("Username"),
                                        help_text=_("The username to be used to authenticate to Junebug"),
                                        required=False)
@@ -1721,7 +1725,23 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Connect Junebug")
         channel_type = Channel.TYPE_JUNEBUG
         form_class = JunebugForm
-        fields = ('country', 'number', 'url', 'username', 'password')
+        fields = ('channel_type', 'country', 'number', 'url', 'username', 'password')
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+
+            if not org:  # pragma: no cover
+                raise Exception("No org for this user, cannot claim")
+
+            data = form.cleaned_data
+            self.object = Channel.add_authenticated_external_channel(org, self.request.user,
+                                                                     self.get_submitted_country(data),
+                                                                     data['number'], data['username'],
+                                                                     data['password'], data['channel_type'],
+                                                                     data.get('url'))
+
+            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
+
 
     class ClaimMblox(ClaimAuthenticatedExternal):
         class MBloxForm(forms.Form):
