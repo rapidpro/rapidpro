@@ -5639,6 +5639,8 @@ class FlowMigrationTest(FlowFileTest):
                                           spec_version=7, revision=1,
                                           created_by=self.admin, modified_by=self.admin))
 
+        old_json = flow.as_json()
+
         saved_on = flow.saved_on
         modified_on = flow.modified_on
         flow.ensure_current_version()
@@ -5657,8 +5659,13 @@ class FlowMigrationTest(FlowFileTest):
         self.assertContains(response, 'System Update')
         self.assertEqual(2, len(response.json()))
 
-        # should still be able to save forward
-        flow.update(flow.as_json())
+        # attempt to save with old json, no bueno
+        failed = flow.update(old_json, user=self.admin)
+        self.assertEqual('unsaved', failed.get('status'))
+        self.assertEqual('System User', failed.get('saved_by'))
+
+        # now refresh and save a new version
+        flow.update(flow.as_json(), user=self.admin)
         self.assertEqual(3, flow.revisions.all().count())
         self.assertEqual(1, flow.revisions.filter(created_by=get_flow_user()).count())
 

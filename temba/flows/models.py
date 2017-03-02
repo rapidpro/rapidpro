@@ -2124,8 +2124,12 @@ class Flow(TembaModel):
 
         revision = self.revisions.all().order_by('-revision').first()
 
+        last_saved = self.saved_on
+        if self.saved_by == get_flow_user():
+            last_saved = self.modified_on
+
         metadata[Flow.NAME] = self.name
-        metadata[Flow.SAVED_ON] = datetime_to_str(self.saved_on)
+        metadata[Flow.SAVED_ON] = datetime_to_str(last_saved)
         metadata[Flow.REVISION] = revision.revision if revision else 1
         metadata[Flow.UUID] = self.uuid
         metadata[Flow.EXPIRES] = self.expires_after_minutes
@@ -2244,19 +2248,23 @@ class Flow(TembaModel):
                 # check our last save if we aren't the system flow user
                 if user != get_flow_user():
 
+                    migrated = self.saved_by == get_flow_user()
                     last_save = self.saved_on
 
-                    # if our last save was a system save, use the modified date
-                    # since they don't modify the saved_on
-                    if self.saved_by == get_flow_user():
+                    # use modified on if it was a migration
+                    if migrated:
                         last_save = self.modified_on
 
                     if not saved_on or str_to_datetime(saved_on, org.timezone) < last_save:
                         saver = ""
-                        if self.saved_by.first_name:  # pragma: needs cover
-                            saver += "%s " % self.saved_by.first_name
-                        if self.saved_by.last_name:  # pragma: needs cover
-                            saver += "%s" % self.saved_by.last_name
+
+                        if migrated:
+                            saver = 'System User'
+                        else:
+                            if self.saved_by.first_name:  # pragma: needs cover
+                                saver += "%s " % self.saved_by.first_name
+                            if self.saved_by.last_name:  # pragma: needs cover
+                                saver += "%s" % self.saved_by.last_name
 
                         if not saver:
                             saver = self.saved_by.username
