@@ -1,0 +1,180 @@
+{
+  "campaigns": [],
+  "version": 10,
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "base_language": "base",
+      "action_sets": [
+        {
+          "y": 9,
+          "x": 137,
+          "destination": "75ceba3c-dd2f-48a4-ad83-0dfe9e14147c",
+          "uuid": "7c40fb93-bf16-484c-bc11-16e2cc7dffdd",
+          "actions": [
+            {
+              "field": "source",
+              "type": "save",
+              "value": "USSD",
+              "label": "source"
+            }
+          ]
+        },
+        {
+          "y": 184,
+          "x": 245,
+          "destination": null,
+          "uuid": "75ceba3c-dd2f-48a4-ad83-0dfe9e14147c",
+          "actions": [
+            {
+              "msg": {
+                "base": "Welcome"
+              },
+              "type": "reply"
+            }
+          ]
+        }
+      ],
+      "version": 10,
+      "flow_type": "F",
+      "entry": "7c40fb93-bf16-484c-bc11-16e2cc7dffdd",
+      "rule_sets": [],
+      "metadata": {
+        "expires": 10080,
+        "revision": 26,
+        "uuid": "6c646e21-7272-4cea-a12d-8a4c88a702ea",
+        "name": "Child flow",
+        "saved_on": "2017-03-01T14:43:10.809619Z"
+      }
+    },
+    {
+      "base_language": "base",
+      "action_sets": [
+        {
+          "y": 214,
+          "x": 97,
+          "destination": "798a0005-2f82-43c2-a3e6-44a466709665",
+          "uuid": "820e3409-ccdd-4ca3-9e16-2326c5b05538",
+          "actions": [
+            {
+              "type": "trigger-flow",
+              "variables": [
+                {
+                  "id": "@flow.phone"
+                }
+              ],
+              "flow": {
+                "name": "Child flow",
+                "uuid": "6c646e21-7272-4cea-a12d-8a4c88a702ea"
+              },
+              "groups": [],
+              "contacts": []
+            }
+          ]
+        }
+      ],
+      "version": 10,
+      "flow_type": "U",
+      "entry": "90292b5e-e85c-49f6-a077-151141a9acdc",
+      "rule_sets": [
+        {
+          "uuid": "90292b5e-e85c-49f6-a077-151141a9acdc",
+          "rules": [
+            {
+              "test": {
+                "type": "phone"
+              },
+              "category": {
+                "base": "phone"
+              },
+              "destination": "820e3409-ccdd-4ca3-9e16-2326c5b05538",
+              "uuid": "5baac263-8cc2-43ac-a1bf-872ad284c30c",
+              "destination_type": "A"
+            },
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "base": "Other"
+              },
+              "destination": "798a0005-2f82-43c2-a3e6-44a466709665",
+              "uuid": "d830c506-956f-4bbe-8663-4324ae04e217",
+              "destination_type": "R"
+            },
+            {
+              "test": {
+                "test": "interrupted",
+                "type": "interrupted_status"
+              },
+              "category": {
+                "base": "Interrupted"
+              },
+              "destination": null,
+              "uuid": "8bf6d25b-72ad-4971-b66b-c0fdfa20e66c"
+            }
+          ],
+          "ruleset_type": "wait_ussd",
+          "label": "phone",
+          "operand": "@step.value",
+          "finished_key": null,
+          "response_type": "",
+          "y": 19,
+          "x": 127,
+          "config": {
+            "ussd_message": {
+              "base": "Please enter a phone number"
+            }
+          }
+        },
+        {
+          "uuid": "798a0005-2f82-43c2-a3e6-44a466709665",
+          "rules": [
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "base": "All Responses"
+              },
+              "uuid": "f579c75c-6664-4d16-80c2-62643e68503a"
+            },
+            {
+              "test": {
+                "test": "interrupted",
+                "type": "interrupted_status"
+              },
+              "category": {
+                "base": "Interrupted"
+              },
+              "destination": null,
+              "uuid": "7bada791-796a-4c99-a954-ae5cd80922b5"
+            }
+          ],
+          "ruleset_type": "wait_ussd",
+          "label": "Response 2",
+          "operand": "@step.value",
+          "finished_key": null,
+          "response_type": "",
+          "y": 157,
+          "x": 492,
+          "config": {
+            "ussd_message": {
+              "base": "Thank you"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "expires": 10080,
+        "revision": 37,
+        "uuid": "745fe5f7-b300-449b-b72b-3957bdae75b8",
+        "name": "USSD parent",
+        "saved_on": "2017-03-01T14:43:27.517294Z"
+      }
+    }
+  ],
+  "triggers": []
+}

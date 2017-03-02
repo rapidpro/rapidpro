@@ -33,7 +33,7 @@ from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING, DELIVERED
 from temba.msgs.models import OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
@@ -404,7 +404,7 @@ class Flow(TembaModel):
         # what we will send back
         voice_response = call.channel.generate_ivr_response()
 
-        if run is None:
+        if run is None:  # pragma: no cover
             voice_response.hangup()
             return voice_response
 
@@ -421,7 +421,7 @@ class Flow(TembaModel):
 
         # create a message to hold our inbound message
         from temba.msgs.models import IVR
-        if text is not None or saved_media_url:
+        if text or saved_media_url:
 
             # we don't have text for media, so lets use the media value there too
             if saved_media_url and ':' in saved_media_url:
@@ -640,7 +640,7 @@ class Flow(TembaModel):
         # send any messages generated
         if msgs and trigger_send:
             msgs.sort(key=lambda message: message.created_on)
-            Msg.objects.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
+            Msg.objects.filter(id__in=[m.id for m in msgs]).exclude(status=DELIVERED).update(status=PENDING)
             run.flow.org.trigger_send(msgs)
 
         return handled, msgs
@@ -733,7 +733,6 @@ class Flow(TembaModel):
                 # run was interrupted and interrupt state not handled (not connected)
                 run.set_interrupted(final_step=step)
             else:
-                # log it for our test contacts
                 run.set_completed(final_step=step)
 
             return dict(handled=True, destination=None, destination_type=None)
@@ -850,6 +849,10 @@ class Flow(TembaModel):
         """
         Removes all flow runs, values and steps for a flow.
         """
+
+        # any outstanding active runs should interrupted
+        FlowRun.bulk_exit(self.runs.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
+
         # grab the ids of all our runs
         run_ids = self.runs.all().values_list('id', flat=True)
 
@@ -2696,6 +2699,19 @@ class FlowRun(models.Model):
                     # finally, trigger our parent flow
                     Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
 
+    def is_ivr(self):
+        """
+        If this run is over an IVR session
+        """
+        return self.session and self.session.is_ivr()
+
+    def keep_active_on_exit(self):
+        """
+        If our run should be completed when we leave the last node
+        """
+        # we let parent runs over ivr get closed by the provider
+        return self.is_ivr() and not self.parent and not self.session.is_done()
+
     def resume_after_timeout(self, expired_timeout):
         """
         Resumes a flow that is at a ruleset that has timed out
@@ -2705,8 +2721,7 @@ class FlowRun(models.Model):
         # this timeout is invalid, clear it
         if not last_step or last_step.run != self:
             self.timeout_on = None
-            self.modified_on = timezone.now()
-            self.save(update_fields=['timeout_on', 'modified_on'])
+            self.save(update_fields=('timeout_on', 'modified_on'))
             return
 
         node = last_step.get_step()
@@ -2719,8 +2734,7 @@ class FlowRun(models.Model):
             # has changed out from under us and no longer has a timeout, clear our run's timeout_on
             if not timeout and abs(expired_timeout - self.timeout_on) < timedelta(milliseconds=1):
                 self.timeout_on = None
-                self.modified_on = timezone.now()
-                self.save(update_fields=['timeout_on', 'modified_on'])
+                self.save(update_fields=('timeout_on', 'modified_on'))
 
             # this is a valid timeout, deal with it
             else:
@@ -2777,11 +2791,11 @@ class FlowRun(models.Model):
             self.flow.remove_active_for_step(final_step)
 
         # mark this flow as inactive
-        self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
-        self.exited_on = completed_on
-        self.modified_on = now
-        self.is_active = False
-        self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
+        if not self.keep_active_on_exit():
+            self.exit_type = FlowRun.EXIT_TYPE_COMPLETED
+            self.exited_on = completed_on
+            self.is_active = False
+            self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
         # let our parent know we finished
         if self.contact.is_test:
@@ -2814,7 +2828,6 @@ class FlowRun(models.Model):
         # mark this flow as inactive
         self.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
         self.exited_on = now
-        self.modified_on = now
         self.is_active = False
         self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
@@ -2824,11 +2837,9 @@ class FlowRun(models.Model):
         """
         if not minutes and self.timeout_on:
             self.timeout_on = None
-            self.modified_on = now
             self.save(update_fields=['timeout_on', 'modified_on'])
         elif minutes:
             self.timeout_on = now + timedelta(minutes=minutes)
-            self.modified_on = now
             self.save(update_fields=['timeout_on', 'modified_on'])
 
     def update_expiration(self, point_in_time):
@@ -2840,7 +2851,6 @@ class FlowRun(models.Model):
             if not point_in_time:
                 point_in_time = now
             self.expires_on = point_in_time + timedelta(minutes=self.flow.expires_after_minutes)
-            self.modified_on = now
 
             # save our updated fields
             self.save(update_fields=['expires_on', 'modified_on'])
@@ -4034,8 +4044,12 @@ class ExportFlowResultsTask(BaseExportTask):
             sheet_row.append("Contact UUID")
             col_widths.append(self.WIDTH_MEDIUM)
 
-            sheet_row.append("URN")
-            col_widths.append(self.WIDTH_SMALL)
+            if org.is_anon:
+                sheet_row.append("ID")
+                col_widths.append(self.WIDTH_SMALL)
+            else:
+                sheet_row.append("URN")
+                col_widths.append(self.WIDTH_SMALL)
 
             sheet_row.append("Name")
             col_widths.append(self.WIDTH_MEDIUM)
@@ -4196,12 +4210,18 @@ class ExportFlowResultsTask(BaseExportTask):
 
                     if include_runs:
                         runs_sheet_row[padding + 0] = contact_uuid
-                        runs_sheet_row[padding + 1] = contact_urn_display
+                        if org.is_anon:
+                            runs_sheet_row[padding + 1] = run_step.contact.id
+                        else:
+                            runs_sheet_row[padding + 1] = contact_urn_display
                         runs_sheet_row[padding + 2] = contact_name
                         runs_sheet_row[padding + 3] = groups
 
                     merged_sheet_row[padding + 0] = contact_uuid
-                    merged_sheet_row[padding + 1] = contact_urn_display
+                    if org.is_anon:
+                        merged_sheet_row[padding + 1] = run_step.contact.id
+                    else:
+                        merged_sheet_row[padding + 1] = contact_urn_display
                     merged_sheet_row[padding + 2] = contact_name
                     merged_sheet_row[padding + 3] = groups
 
@@ -4278,7 +4298,11 @@ class ExportFlowResultsTask(BaseExportTask):
 
                             name = "Messages" if (msg_sheet_index + 1) <= 1 else "Messages (%d)" % (msg_sheet_index + 1)
                             msgs = book.create_sheet(name)
-                            headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"]
+                            if org.is_anon:
+                                headers = ["Contact UUID", "ID", "Name", "Date", "Direction", "Message", "Channel"]
+                            else:
+                                headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"]
+
                             col_widths = [self.WIDTH_MEDIUM, self.WIDTH_SMALL, self.WIDTH_MEDIUM, self.WIDTH_MEDIUM,
                                           self.WIDTH_SMALL, self.WIDTH_LARGE, self.WIDTH_MEDIUM]
                             msg_sheet_index += 1
@@ -4286,9 +4310,11 @@ class ExportFlowResultsTask(BaseExportTask):
                             self.set_sheet_column_widths(msgs, col_widths)
                             self.append_row(msgs, headers)
 
+                        urn_display = msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else ''
+
                         self.append_row(msgs, [
                             run_step.contact.uuid,
-                            msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else '',
+                            run_step.contact.id if org.is_anon else urn_display,
                             contact_name,
                             msg.created_on,
                             "IN" if msg.direction == INCOMING else "OUT",

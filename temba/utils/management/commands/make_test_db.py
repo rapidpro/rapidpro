@@ -25,6 +25,9 @@ from temba.utils import chunk_list, ms_to_datetime, datetime_to_str, datetime_to
 from temba.values.models import Value
 
 
+# maximum age in days of database content
+CONTENT_AGE = 3 * 365
+
 # every user will have this password including the superuser
 USER_PASSWORD = "Qwerty123"
 
@@ -87,11 +90,12 @@ class Command(BaseCommand):
 
         if seed is None:
             seed = random.randrange(0, 65536)
-        random.seed(seed)
+
+        self.random = random.Random(seed)
 
         # monkey patch uuid4 so it returns the same UUIDs for the same seed
         from temba.utils import models
-        models.uuid4 = lambda: uuid.UUID(int=random.getrandbits(128))
+        models.uuid4 = lambda: uuid.UUID(int=self.random.getrandbits(128))
 
         self._log("Generating random test database (seed=%d)...\n" % seed)
 
@@ -99,6 +103,10 @@ class Command(BaseCommand):
         # bias toward the beginning orgs. if there are N orgs, then the amount of content the first org will be
         # allocated is (1/N) ^ (1/bias). This sets the bias so that the first org will get ~50% of the content:
         self.org_bias = math.log(1.0 / num_orgs, 0.5)
+
+        # The timespan being simulated by this database
+        self.db_ends_on = now()
+        self.db_begins_on = self.db_ends_on - timedelta(days=CONTENT_AGE)
 
         start = time.time()
 
@@ -127,12 +135,6 @@ class Command(BaseCommand):
         if has_data:
             raise CommandError("Can only be run on an empty database")
 
-    def random_org(self, orgs):
-        """
-        Returns a random org with bias toward the orgs with the lowest indexes
-        """
-        return self.random_choice(orgs, bias=self.org_bias)
-
     def load_locations(self, path):
         """
         Loads admin boundary records from the given dump of that table
@@ -160,13 +162,13 @@ class Command(BaseCommand):
         self._log("Creating %d orgs... " % num_total)
 
         org_names = ['%s %s' % (o1, o2) for o2 in ORG_NAMES[1] for o1 in ORG_NAMES[0]]
-        random.shuffle(org_names)
+        self.random.shuffle(org_names)
 
         orgs = []
         for o in range(num_total):
-            orgs.append(Org(name=org_names[o % len(org_names)], timezone=random.choice(pytz.all_timezones),
+            orgs.append(Org(name=org_names[o % len(org_names)], timezone=self.random.choice(pytz.all_timezones),
                             brand='rapidpro.io', country=country,
-                            created_by=superuser, modified_by=superuser))
+                            created_on=self.db_begins_on, created_by=superuser, modified_by=superuser))
         Org.objects.bulk_create(orgs)
         orgs = list(Org.objects.order_by('id'))
 
@@ -283,11 +285,13 @@ class Command(BaseCommand):
                     user = org.cache['users'][0]
                     name = self.random_choice(names)
                     gender = self.random_choice(('M', 'F'))
-                    age = random.randint(16, 80)
+                    age = self.random.randint(16, 80)
                     joined = self.random_date()
                     is_stopped = self.probability(CONTACT_IS_STOPPED_PROB)
                     is_blocked = self.probability(CONTACT_IS_BLOCKED_PROB)
                     is_active = self.probability(1 - CONTACT_IS_DELETED_PROB)
+                    created_on = self.timeline_date(float(num_test_contacts + c) / num_total)
+                    modified_on = self.random_date(created_on, self.db_ends_on)
 
                     if is_active:
                         if not is_blocked and not is_stopped:
@@ -299,7 +303,8 @@ class Command(BaseCommand):
 
                     contacts.append(Contact(org=org, name=name, language=self.random_choice(CONTACT_LANGS),
                                             is_stopped=is_stopped, is_blocked=is_blocked, is_active=is_active,
-                                            created_by=user, modified_by=user))
+                                            created_by=user, created_on=created_on,
+                                            modified_by=user, modified_on=modified_on))
 
                     if self.probability(CONTACT_HAS_TEL_PROB):
                         phone = '+2507%08d' % c
@@ -330,7 +335,7 @@ class Command(BaseCommand):
                                             string_value=location[2].name, location_value=location[2]))
 
                     # place contact in a biased sample of their org's groups
-                    for g in range(random.randrange(len(org.cache['groups']))):
+                    for g in range(self.random.randrange(len(org.cache['groups']))):
                         add_to_group(org.cache['groups'][g])
 
                 Contact.objects.bulk_create(contacts)
@@ -370,22 +375,36 @@ class Command(BaseCommand):
             cursor.execute('SELECT last_value FROM %s_id_seq' % model._meta.db_table)
             return cursor.fetchone()[0]
 
-    @staticmethod
-    def probability(prob):
-        return random.random() < prob
+    def probability(self, prob):
+        return self.random.random() < prob
 
-    @staticmethod
-    def random_choice(seq, bias=1.0):
-        return seq[int(math.pow(random.random(), bias) * len(seq))]
+    def random_choice(self, seq, bias=1.0):
+        return seq[int(math.pow(self.random.random(), bias) * len(seq))]
 
-    @staticmethod
-    def random_date(start=None, end=None):
-        if not start:
-            start = now() - timedelta(days=365)
+    def random_org(self, orgs):
+        """
+        Returns a random org with bias toward the orgs with the lowest indexes
+        """
+        return self.random_choice(orgs, bias=self.org_bias)
+
+    def random_date(self, start=None, end=None):
         if not end:
             end = now()
+        if not start:
+            start = end - timedelta(days=365)
 
-        return ms_to_datetime(random.randrange(datetime_to_ms(start), datetime_to_ms(end)))
+        if start == end:
+            return end
+
+        return ms_to_datetime(self.random.randrange(datetime_to_ms(start), datetime_to_ms(end)))
+
+    def timeline_date(self, dist):
+        """
+        Converts a 0..1 distance into a date on this database's overall timeline
+        """
+        seconds_span = (self.db_ends_on - self.db_begins_on).total_seconds()
+
+        return self.db_begins_on + timedelta(seconds=(seconds_span * dist))
 
     @staticmethod
     def peak_memory():

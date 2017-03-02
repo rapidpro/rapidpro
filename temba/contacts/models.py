@@ -320,8 +320,7 @@ class ContactField(SmartModel):
             existing.is_active = False
             existing.show_in_table = False
             existing.modified_by = user
-            existing.modified_on = timezone.now()
-            existing.save()
+            existing.save(update_fields=('is_active', 'show_in_table', 'modified_by', 'modified_on'))
 
             # cancel any events on this
             from temba.campaigns.models import EventFire
@@ -373,7 +372,6 @@ class ContactField(SmartModel):
 
                 if changed:
                     field.modified_by = user
-                    field.modified_on = timezone.now()
                     field.save()
 
                     if update_events:
@@ -443,6 +441,7 @@ class Contact(TembaModel):
     PHONE = 'phone'
     UUID = 'uuid'
     GROUPS = 'groups'
+    ID = 'id'
 
     # reserved contact fields
     RESERVED_FIELDS = [
@@ -555,13 +554,13 @@ class Contact(TembaModel):
             event_fire.created_on = event_fire.fired
 
         # and the contact's failed IVR calls
-        error_calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
-            IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED
+        calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
+            IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED
         ])
-        error_calls = error_calls.select_related('channel')
+        calls = calls.select_related('channel')
 
         # chain them all together in the same list and sort by time
-        activity = chain(msgs, broadcasts, runs, exited_runs, event_fires, channel_events, error_calls)
+        activity = chain(msgs, broadcasts, runs, exited_runs, event_fires, channel_events, calls)
         return sorted(activity, key=lambda i: i.created_on, reverse=True)
 
     def get_field(self, key):
@@ -701,7 +700,6 @@ class Contact(TembaModel):
         self.set_cached_field_value(key, existing)
 
         self.modified_by = user
-        self.modified_on = timezone.now()
         self.save(update_fields=('modified_by', 'modified_on'))
 
         # update any groups or campaigns for this contact if not importing
@@ -833,7 +831,6 @@ class Contact(TembaModel):
                             updated_attrs.append(Contact.LANGUAGE)
 
                         if updated_attrs:
-                            contact.modified_on = timezone.now()
                             contact.modified_by = user
                             contact.save(update_fields=updated_attrs + ['modified_on', 'modified_by'])
 
@@ -884,7 +881,6 @@ class Contact(TembaModel):
 
                 if updated_attrs:
                     contact.modified_by = user
-                    contact.modified_on = timezone.now()
                     contact.save(update_fields=updated_attrs + ['modified_by', 'modified_on'])
 
             # otherwise create new contact with all URNs
@@ -1529,6 +1525,11 @@ class Contact(TembaModel):
         contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False)
         contact_dict['groups'] = ",".join([_.name for _ in self.user_groups.all()])
         contact_dict['uuid'] = self.uuid
+
+        # anonymous orgs also get @contact.id
+        if org.is_anon:
+            contact_dict['id'] = self.id
+
         contact_dict[Contact.LANGUAGE] = self.language
 
         # add all URNs
@@ -2320,6 +2321,10 @@ class ExportContactsTask(BaseExportTask):
         fields = [dict(label='UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
                   dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
 
+        # anon orgs also get an ID column that is just the PK
+        if self.org.is_anon:
+            fields = [dict(label='ID', key=Contact.ID, id=0, field=None, urn_scheme=None)] + fields
+
         scheme_counts = dict()
         if not self.org.is_anon:
             active_urn_schemes = [c[0] for c in ContactURN.SCHEME_CHOICES]
@@ -2389,6 +2394,8 @@ class ExportContactsTask(BaseExportTask):
                             field_value = contact.name
                         elif field['key'] == Contact.UUID:
                             field_value = contact.uuid
+                        elif field['key'] == Contact.ID:
+                            field_value = six.text_type(contact.id)
                         elif field['urn_scheme'] is not None:
                             contact_urns = contact.get_urns()
                             scheme_urns = []

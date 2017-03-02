@@ -1,80 +1,113 @@
 {
-  "version": 4,
+  "campaigns": [],
+  "version": 10,
+  "site": "https://textit.in",
   "flows": [
     {
-      "definition": {
-        "base_language": "eng",
-        "action_sets": [
-          {
-            "y": 0,
-            "x": 100,
-            "destination": "7cc4d533-5683-457c-81c0-1a03e2cfbef7",
-            "uuid": "56e82b72-d1f6-4b1d-8000-8af5655dadd0",
-            "actions": [
-              {
-                "recording": {
-                  "eng": null
-                },
-                "msg": {
-                  "eng": "Enter your phone number followed by the pound sign."
-                },
-                "type": "say",
-                "uuid": "8af6fd9a-43c4-4b64-a3d5-374921d12b0c"
-              }
-            ]
-          },
-          {
-            "y": 267,
-            "x": 100,
-            "destination": null,
-            "uuid": "bfd145fd-39f2-4b5c-b709-bb652b4aceb7",
-            "actions": [
-              {
-                "recording": {
-                  "eng": null
-                },
-                "msg": {
-                  "eng": "Thank you for the recording, I have recorded your number as @flow.phone"
-                },
-                "type": "say",
-                "uuid": "bcef13b7-ccff-4ae8-98e4-95de6d082805"
-              }
-            ]
-          }
-        ],
-        "last_saved": "2015-02-05T04:50:59.366437Z",
-        "entry": "56e82b72-d1f6-4b1d-8000-8af5655dadd0",
-        "rule_sets": [
-          {
-            "uuid": "7cc4d533-5683-457c-81c0-1a03e2cfbef7",
-            "webhook_action": null,
-            "rules": [
-              {
-                "test": {
-                  "type": "true"
-                },
-                "category": {
-                  "base": "All Responses",
-                  "eng": "All Responses"
-                },
-                "destination": "bfd145fd-39f2-4b5c-b709-bb652b4aceb7",
-                "uuid": "1aa6478b-738e-4821-b077-69af368b9757"
-              }
-            ],
-            "webhook": null,
-            "label": "Phone",
-            "operand": "@step.value",
-            "finished_key": "#",
-            "response_type": "K",
-            "y": 145,
-            "x": 85
-          }
-        ],
-        "metadata": {}
-      },
-      "id": 700, 
+      "base_language": "eng",
+      "action_sets": [
+        {
+          "y": 0,
+          "x": 100,
+          "destination": "c4c3b4d0-4372-4065-8d10-187736098bab",
+          "uuid": "c1ba734a-782d-4bb1-a67f-a2327834cbc4",
+          "actions": [
+            {
+              "recording": {
+                "eng": null
+              },
+              "msg": {
+                "eng": "Enter your phone number followed by the pound sign."
+              },
+              "type": "say",
+              "uuid": "bb34782d-3100-42b0-a4ad-2ff164e630f2"
+            }
+          ]
+        },
+        {
+          "y": 267,
+          "x": 100,
+          "destination": null,
+          "uuid": "e00f3e91-4849-46ff-9c4a-131534e4156d",
+          "actions": [
+            {
+              "recording": {
+                "eng": null
+              },
+              "msg": {
+                "eng": "Thank you for the recording, I have recorded your number as @flow.phone"
+              },
+              "type": "say",
+              "uuid": "f0bd0b20-7d52-4eff-9dbb-0b51ef28a350"
+            }
+          ]
+        },
+        {
+          "y": 72,
+          "x": 380,
+          "destination": "c4c3b4d0-4372-4065-8d10-187736098bab",
+          "uuid": "4ea947fa-3d40-400d-9881-a5f7accae04a",
+          "actions": [
+            {
+              "recording": null,
+              "msg": {
+                "eng": "Please enter a number."
+              },
+              "type": "say",
+              "uuid": "43845902-8274-43df-97d1-8267f731c263"
+            }
+          ]
+        }
+      ],
+      "version": 10,
       "flow_type": "V",
-      "name": "Gather Digits"
+      "entry": "c1ba734a-782d-4bb1-a67f-a2327834cbc4",
+      "rule_sets": [
+        {
+          "uuid": "c4c3b4d0-4372-4065-8d10-187736098bab",
+          "rules": [
+            {
+              "test": {
+                "type": "number"
+              },
+              "category": {
+                "eng": "numeric"
+              },
+              "destination": "e00f3e91-4849-46ff-9c4a-131534e4156d",
+              "uuid": "e7e42463-8ee3-41e6-a2ff-aa165fbd981e",
+              "destination_type": "A"
+            },
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "base": "All Responses",
+                "eng": "Other"
+              },
+              "destination": "4ea947fa-3d40-400d-9881-a5f7accae04a",
+              "uuid": "22aa4d15-c096-42b2-abcb-d13fac81dfa3",
+              "destination_type": "A"
+            }
+          ],
+          "ruleset_type": "wait_digits",
+          "label": "Phone",
+          "operand": "@step.value",
+          "finished_key": "#",
+          "response_type": "",
+          "y": 145,
+          "x": 85,
+          "config": {}
+        }
+      ],
+      "metadata": {
+        "uuid": "429f87d8-c5a3-4fde-a182-06b3cea7ff4d",
+        "expires": 720,
+        "saved_on": "2017-02-28T16:34:14.648526Z",
+        "name": "Gather Digits",
+        "revision": 8
+      }
     }
   ],
   "triggers": []
