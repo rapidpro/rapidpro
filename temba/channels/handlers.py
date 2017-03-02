@@ -1940,7 +1940,7 @@ class JunebugHandler(BaseChannelHandler):
             # Let Junebug know we're happy
             return JsonResponse({
                 'status': self.ACK,
-                'message_id': message.pk,
+                'message_ids': [message_obj.pk for message_obj in message]
             })
 
         # Handle an inbound message

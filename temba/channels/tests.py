@@ -7708,7 +7708,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
                                     content_type='application/json')
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, "OK")
+        self.assertEqual(response.json()['status'], 'ack')
 
         # load our message
         msg = Msg.objects.get()
