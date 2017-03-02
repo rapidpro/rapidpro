@@ -54,6 +54,8 @@ TEST_URLS = (
     '/api/v2/messages.json?folder=sent',
     '/api/v2/org.json',
     '/contact/',
+    '/contact/?search=2507001',
+    '/contact/?search=' + urlquote_plus('name is Dave or tel has 2507001'),
     '/contact/?search=' + urlquote_plus('gender=F'),
     '/contact/?search=' + urlquote_plus('district=Wudil or district=Anka or district=Zuru or district=Kaura or '
                                         'district=Giwa or district=Kalgo or district=Shanga or district=Bunza'),
@@ -66,6 +68,7 @@ TEST_URLS = (
     '/contact/filter/{last-group}/',
     '/contact/omnibox/?search=George',
     '/contact/omnibox/?search=07009',
+    '/org/home/'
 )
 
 
