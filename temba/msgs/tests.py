@@ -288,6 +288,15 @@ class MsgTest(TembaTest):
         must_return_none = Msg.create_outgoing(self.org, self.admin, "tel:" + self.channel.address, 'Infinite Loop')
         self.assertIsNone(must_return_none)
 
+        # must be failed for blocked contact
+        tel_contact.block(self.admin)
+        msg = Msg.create_outgoing(self.org, self.admin, tel_contact, "Hello 1")
+        self.assertEquals(msg.contact, tel_contact)
+        self.assertEquals(msg.contact_urn, tel_urn_obj)
+        self.assertEquals(msg.status, FAILED)
+
+        tel_contact.unblock(self.admin)
+
         # must be failed for stopped contact
         tel_contact.stop(self.admin)
         msg = Msg.create_outgoing(self.org, self.admin, tel_contact, "Hello 1")
