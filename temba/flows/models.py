@@ -1522,7 +1522,7 @@ class Flow(TembaModel):
             if not session:
                 contact = Contact.objects.filter(pk=contact_id, org=self.org).first()
                 contact_urn = contact.get_urn(TEL_SCHEME)
-                channel = self.org.get_send_channel(contact_urn=contact_urn)
+                channel = self.org.get_ussd_channel(contact_urn=contact_urn)
 
                 session = USSDSession.objects.create(channel=channel, contact=contact, contact_urn=contact_urn,
                                                      org=self.org, direction=USSDSession.USSD_PUSH,

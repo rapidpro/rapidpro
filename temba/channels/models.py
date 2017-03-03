@@ -138,6 +138,9 @@ class Channel(TembaModel):
     ROLE_RECEIVE = 'R'
     ROLE_CALL = 'C'
     ROLE_ANSWER = 'A'
+    ROLE_USSD = 'U'
+
+    DEFAULT_ROLE = ROLE_SEND + ROLE_RECEIVE
 
     # how many outgoing messages we will queue at once
     SEND_QUEUE_DEPTH = 500
@@ -286,7 +289,7 @@ class Channel(TembaModel):
     scheme = models.CharField(verbose_name="URN Scheme", max_length=8, default='tel',
                               help_text=_("The URN scheme this channel can handle"))
 
-    role = models.CharField(verbose_name="Channel Role", max_length=4, default=ROLE_SEND + ROLE_RECEIVE,
+    role = models.CharField(verbose_name="Channel Role", max_length=4, default=DEFAULT_ROLE,
                             help_text=_("The roles this channel can fulfill"))
 
     parent = models.ForeignKey('self', blank=True, null=True,
@@ -296,7 +299,7 @@ class Channel(TembaModel):
                            help_text=_("Any channel specific state data"))
 
     @classmethod
-    def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=ROLE_SEND + ROLE_RECEIVE, scheme=None, **kwargs):
+    def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=DEFAULT_ROLE, scheme=None, **kwargs):
         type_settings = Channel.CHANNEL_SETTINGS[channel_type]
         fixed_scheme = type_settings.get('scheme')
 
@@ -404,7 +407,7 @@ class Channel(TembaModel):
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number,
-                                           username, password, channel_type, url):
+                                           username, password, channel_type, url, role=DEFAULT_ROLE):
         try:
             parsed = phonenumbers.parse(phone_number, None)
             phone = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
@@ -413,10 +416,11 @@ class Channel(TembaModel):
             phone = phone_number
 
         config = dict(username=username, password=password, send_url=url)
-        return Channel.create(org, user, country, channel_type, name=phone, address=phone_number, config=config)
+        return Channel.create(org, user, country, channel_type, name=phone, address=phone_number, config=config,
+                              role=role)
 
     @classmethod
-    def add_config_external_channel(cls, org, user, country, address, channel_type, config, role=ROLE_SEND + ROLE_RECEIVE,
+    def add_config_external_channel(cls, org, user, country, address, channel_type, config, role=DEFAULT_ROLE,
                                     scheme='tel', parent=None):
         return Channel.create(org, user, country, channel_type, name=address, address=address,
                               config=config, role=role, scheme=scheme, parent=parent)
@@ -1321,7 +1325,7 @@ class Channel(TembaModel):
             reverse('handlers.junebug_handler',
                     args=['event', channel.uuid]))
 
-        is_ussd = channel.channel_type in Channel.USSD_CHANNELS
+        is_ussd = channel.channel_type == Channel.TYPE_JUNEBUG_USSD
 
         # build our payload
         payload = dict()

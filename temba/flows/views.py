@@ -1347,7 +1347,7 @@ class FlowCRUDL(SmartCRUDL):
                             status = USSDSession.INTERRUPTED
                         else:
                             status = None
-                        USSDSession.handle_incoming(test_contact.org.get_send_channel(contact_urn=test_contact.get_urn(TEL_SCHEME)),
+                        USSDSession.handle_incoming(test_contact.org.get_ussd_channel(contact_urn=test_contact.get_urn(TEL_SCHEME)),
                                                     test_contact.get_urn(TEL_SCHEME).path,
                                                     content=new_message,
                                                     date=timezone.now(),

@@ -1706,7 +1706,6 @@ class ChannelCRUDL(SmartCRUDL):
                                        required=False)
 
         title = _("Connect Junebug")
-        channel_type = Channel.TYPE_JUNEBUG
         form_class = JunebugForm
         fields = ('channel_type', 'country', 'number', 'url', 'username', 'password')
 
@@ -1717,11 +1716,18 @@ class ChannelCRUDL(SmartCRUDL):
                 raise Exception("No org for this user, cannot claim")
 
             data = form.cleaned_data
+
+            role = {
+                Channel.TYPE_JUNEBUG: Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
+                Channel.TYPE_JUNEBUG_USSD: Channel.ROLE_USSD,
+            }.get(data['channel_type'])
+
             self.object = Channel.add_authenticated_external_channel(org, self.request.user,
                                                                      self.get_submitted_country(data),
                                                                      data['number'], data['username'],
                                                                      data['password'], data['channel_type'],
-                                                                     data.get('url'))
+                                                                     data.get('url'),
+                                                                     role=role)
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
