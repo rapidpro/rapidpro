@@ -93,25 +93,25 @@ class ContactListView(OrgPermsMixin, SmartListView):
     """
     Base class for contact list views with contact folders and groups listed by the side
     """
+    system_group = None
     add_button = True
     paginate_by = 50
 
-    def pre_process(self, request, *args, **kwargs):
-        if hasattr(self, 'system_group'):
-            org = request.user.get_org()
-            self.queryset = ContactGroup.get_system_group_queryset(org, self.system_group)
+    def derive_group(self):
+        return ContactGroup.all_groups.get(org=self.request.user.get_org(), group_type=self.system_group)
 
     def get_queryset(self, **kwargs):
-        qs = super(ContactListView, self).get_queryset(**kwargs)
-        qs = qs.filter(is_test=False)
         org = self.request.user.get_org()
+        group = self.derive_group()
 
         # contact list views don't use regular field searching but use more complex contact searching
-        query = self.request.GET.get('search', None)
-        if query:
-            qs = Contact.search(org, query, qs)
+        search_query = self.request.GET.get('search', None)
+        if search_query:
+            qs = Contact.search(org, search_query, group)
+        else:
+            qs = group.contacts.all()
 
-        return qs.order_by('-pk').prefetch_related('all_groups')
+        return qs.filter(is_test=False).order_by('-pk').prefetch_related('all_groups')
 
     def order_queryset(self, queryset):
         """
@@ -125,15 +125,16 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
         # if there isn't a search filtering the queryset, we can replace the count function with a quick cache lookup to
         # speed up paging
-        if hasattr(self, 'system_group') and 'search' not in self.request.GET:
+        if self.system_group and 'search' not in self.request.GET:
             self.object_list.count = lambda: counts[self.system_group]
 
         context = super(ContactListView, self).get_context_data(**kwargs)
 
-        folders = [dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=reverse('contacts.contact_list')),
-                   dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse('contacts.contact_blocked')),
-                   dict(count=counts[ContactGroup.TYPE_STOPPED], label=_("Stopped"), url=reverse('contacts.contact_stopped')),
-                   ]
+        folders = [
+            dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=reverse('contacts.contact_list')),
+            dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse('contacts.contact_blocked')),
+            dict(count=counts[ContactGroup.TYPE_STOPPED], label=_("Stopped"), url=reverse('contacts.contact_stopped')),
+        ]
 
         groups_qs = ContactGroup.user_groups.filter(org=org).select_related('org')
         groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')

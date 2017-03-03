@@ -3084,7 +3084,7 @@ class ContactTest(TembaTest):
         self.create_campaign()
 
         self.create_field('team', "Team")
-        ballers = self.create_group("Ballers", query='team has ball')
+        ballers = self.create_group("Ballers", query='team = ballers')
 
         self.campaign.group = ballers
         self.campaign.save()

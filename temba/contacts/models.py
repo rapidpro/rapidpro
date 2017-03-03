@@ -964,17 +964,17 @@ class Contact(TembaModel):
         return test_contact
 
     @classmethod
-    def search(cls, org, query, base_queryset=None):
+    def search(cls, org, query, base_group=None):
         """
-        Performs a search of contacts based on a base queryset
+        Performs a search of contacts within a group (system or user)
         """
         from .search import contact_search, SearchException
 
-        if base_queryset is None:
-            base_queryset = Contact.objects.filter(org=org, is_active=True, is_test=False, is_blocked=False, is_stopped=False)
+        if base_group is None:
+            base_group = ContactGroup.all_groups.get(org=org, group_type=ContactGroup.TYPE_ALL)
 
         try:
-            return contact_search(org, query, base_queryset)
+            return contact_search(org, query, base_group.contacts.all())
         except SearchException:
             # TODO something better than swallowing search parse exceptions
             return Contact.objects.none()
@@ -2209,13 +2209,6 @@ class ContactGroup(TembaModel):
         For dynamic groups, determines whether the given contact belongs in the group
         """
         return self._get_dynamic_members().filter(pk=contact.pk).count() == 1
-
-    @classmethod
-    def get_system_group_queryset(cls, org, group_type):
-        if group_type == cls.TYPE_USER_DEFINED:  # pragma: no cover
-            raise ValueError("Can only get system group querysets")
-
-        return cls.all_groups.get(org=org, group_type=group_type).contacts.all()
 
     @classmethod
     def get_system_group_counts(cls, org, group_types=None):
