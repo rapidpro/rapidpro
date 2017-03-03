@@ -2406,7 +2406,7 @@ class ChannelCRUDL(SmartCRUDL):
     class List(OrgPermsMixin, SmartListView):
         title = _("Channels")
         fields = ('name', 'address', 'last_seen')
-        search_fields = ('name', 'number', 'org__created_by__email')
+        search_fields = ('name', 'address', 'org__created_by__email')
 
         def get_queryset(self, **kwargs):
             queryset = super(ChannelCRUDL.List, self).get_queryset(**kwargs)
