@@ -215,7 +215,7 @@ class Condition(QueryNode):
             if org.is_anon:
                 return Q(id=-1)
             else:
-                return self._build_urn_query(prop_obj)
+                return self._build_urn_query(org, prop_obj)
         else:
             return self._build_attr_query(prop_obj)
 
@@ -228,7 +228,8 @@ class Condition(QueryNode):
             except ValueError:
                 urn_query = Q(id=-1)
         else:
-            urn_query = Q(id__in=ContactURN.objects.filter(path__icontains=self.value).values('contact_id'))
+            urns = ContactURN.objects.filter(org=org, path__icontains=self.value)
+            urn_query = Q(id__in=urns.values('contact_id'))
 
         return name_query | urn_query
 
@@ -239,12 +240,13 @@ class Condition(QueryNode):
 
         return Q(**{'%s__%s' % (attr, lookup): self.value})
 
-    def _build_urn_query(self, scheme):
+    def _build_urn_query(self, org, scheme):
         lookup = self.ATTR_OR_URN_LOOKUPS.get(self.comparator)
         if not lookup:
             raise SearchException("Unsupported comparator %s for URN" % self.comparator)
 
-        return Q(id__in=ContactURN.objects.filter(**{'scheme': scheme, 'path__%s' % lookup: self.value}).values('contact_id'))
+        urns = ContactURN.objects.filter(**{'org': org, 'scheme': scheme, 'path__%s' % lookup: self.value})
+        return Q(id__in=urns.values('contact_id'))
 
     def _build_value_query(self, field):
         return Q(id__in=self.get_base_value_query().filter(**self.build_value_query_params(field)))
