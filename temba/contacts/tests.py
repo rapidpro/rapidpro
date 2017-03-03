@@ -626,6 +626,30 @@ class ContactTest(TembaTest):
                                     data=dict(name='Ben Haggerty', urn__tel__0="="))
         self.assertFormError(response, 'form', 'urn__tel__0', "Invalid input")
 
+    def test_block_contact_clear_triggers(self):
+        flow = self.get_flow('favorites')
+        trigger = Trigger.objects.create(org=self.org, flow=flow, keyword="join", created_by=self.admin,
+                                         modified_by=self.admin)
+        trigger.contacts.add(self.joe)
+
+        self.assertTrue(self.joe.trigger_set.all())
+
+        self.joe.block(self.admin)
+
+        self.assertFalse(self.joe.trigger_set.all())
+
+    def test_stop_contact_clear_triggers(self):
+        flow = self.get_flow('favorites')
+        trigger = Trigger.objects.create(org=self.org, flow=flow, keyword="join", created_by=self.admin,
+                                         modified_by=self.admin)
+        trigger.contacts.add(self.joe)
+
+        self.assertTrue(self.joe.trigger_set.all())
+
+        self.joe.stop(self.admin)
+
+        self.assertFalse(self.joe.trigger_set.all())
+
     def test_fail_and_block_and_release(self):
         msg1 = self.create_msg(text="Test 1", direction='I', contact=self.joe, msg_type='I', status='H')
         msg2 = self.create_msg(text="Test 2", direction='I', contact=self.joe, msg_type='F', status='H')
