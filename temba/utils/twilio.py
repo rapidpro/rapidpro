@@ -14,7 +14,7 @@ from twilio.rest.resources import make_twilio_request
 from temba.utils.http import HttpEvent
 
 
-def encode_atom(atom):
+def encode_atom(atom):  # pragma: no cover
     if isinstance(atom, (six.integer_types, six.binary_type)):
         return atom
     elif isinstance(atom, six.string_types):
@@ -24,7 +24,7 @@ def encode_atom(atom):
                          'binary, or string')
 
 
-class LoggingResource(Resource):
+class LoggingResource(Resource):  # pragma: no cover
 
     def __init__(self, *args, **kwargs):
         super(LoggingResource, self).__init__(*args, **kwargs)
@@ -67,19 +67,19 @@ class LoggingResource(Resource):
             return resp, json.loads(resp.content)
 
 
-class LoggingCalls(LoggingResource, Calls):
+class LoggingCalls(LoggingResource, Calls):  # pragma: no cover
 
     def __init__(self, *args, **kwargs):
         super(LoggingCalls, self).__init__(*args, **kwargs)
 
 
-class LoggingMessages(LoggingResource, Messages):
+class LoggingMessages(LoggingResource, Messages):  # pragma: nocover
 
     def __init__(self, *args, **kwargs):
         super(LoggingMessages, self).__init__(*args, **kwargs)
 
 
-class TembaTwilioRestClient(TwilioRestClient):
+class TembaTwilioRestClient(TwilioRestClient):  # pragma: no cover
 
     def __init__(self, *args, **kwargs):
         super(TembaTwilioRestClient, self).__init__(*args, **kwargs)
