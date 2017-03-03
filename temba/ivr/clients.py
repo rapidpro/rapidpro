@@ -19,8 +19,8 @@ from temba.flows.models import Flow
 from temba.ivr.models import IVRCall
 from temba.utils.http import HttpEvent
 from temba.utils.nexmo import NexmoClient as NexmoCli
+from temba.utils.twilio import TembaTwilioRestClient
 from twilio import TwilioRestException
-from twilio.rest import TwilioRestClient
 from twilio.util import RequestValidator
 from nexmo import AuthenticationError, ClientError, ServerError
 
@@ -135,7 +135,7 @@ class NexmoClient(NexmoCli):
             ChannelLog.log_ivr_interaction(call, 'Hung up call', event)
 
 
-class TwilioClient(TwilioRestClient):
+class TwilioClient(TembaTwilioRestClient):
 
     def __init__(self, account, token, org=None, **kwargs):
         self.org = org
