@@ -648,9 +648,9 @@
 }
 
 .modal.attachment-viewer {
-  margin-top: 100px;
-
   .modal-body {
+    max-height: 70%;
+
     button.close {
       font-size: 14px;
       margin-right: -12px;
@@ -675,8 +675,10 @@
       text-decoration: none;
     }
 
+    .attachment-media {
+      overflow: hidden;
+    }
   }
-
 }
 
 .modal.error {

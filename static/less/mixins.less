@@ -8,8 +8,8 @@
 .opacity (@opacity) {
     @opacityPercentage: @opacity * 100;
     opacity: @opacity;
-    -ms-filter: ~"progid:DXImageTransform.Microsoft.Alpha(opacity=(@{opacityPercentage}))";
-    filter: ~"alpha(opacity = (@{opacityPercentage}))";
+    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(opacity=(@{opacityPercentage}))";
+    filter: "alpha(opacity = (@{opacityPercentage}))";
 }
 
 .rotate(@rotations) {
@@ -18,7 +18,7 @@
   -moz-transform:rotate(@deg);    /* Firefox */
   -webkit-transform:rotate(@deg); /* Safari and Chrome */
   -o-transform:rotate(@deg);      /* Opera */
-  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=@rotations);
+  filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=@rotations)";
 }
 
 .flip-horizontal () {

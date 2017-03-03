@@ -1808,7 +1808,13 @@ class Org(SmartModel):
 
         path = '%s/%d/media/%s' % (settings.STORAGE_ROOT_DIR, self.pk, filename)
         location = default_storage.save(path, file)
-        return "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, location)
+
+        # force http for localhost
+        scheme = 'https'
+        if 'localhost' in settings.AWS_BUCKET_DOMAIN:
+            scheme = 'http'
+
+        return "%s://%s/%s" % (scheme, settings.AWS_BUCKET_DOMAIN, location)
 
     @classmethod
     def create_user(cls, email, password):
