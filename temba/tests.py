@@ -162,8 +162,8 @@ class TembaTest(SmartminTest):
 
             settings.DEBUG = False
 
-        from temba.flows.models import clear_flow_user
-        clear_flow_user()
+        from temba.flows.models import clear_flow_users
+        clear_flow_users()
 
     def clear_cache(self):
         """

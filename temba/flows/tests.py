@@ -88,8 +88,8 @@ class FlowTest(TembaTest):
         return load_workbook(filename=os.path.join(settings.MEDIA_ROOT, filename))
 
     def test_get_flow_user(self):
-        user = get_flow_user()
-        self.assertEqual(user.pk, get_flow_user().pk)
+        user = get_flow_user(self.org)
+        self.assertEqual(user.pk, get_flow_user(self.org).pk)
 
     def test_get_unique_name(self):
         flow1 = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Sheep Poll"), base_language='base')
@@ -5651,7 +5651,7 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(saved_on, flow.saved_on)
 
         # but should still create a revision using the flow user
-        self.assertEqual(1, flow.revisions.filter(created_by=get_flow_user()).count())
+        self.assertEqual(1, flow.revisions.filter(created_by=get_flow_user(self.org)).count())
 
         # should see the system user on our revision json
         self.login(self.admin)
@@ -5662,12 +5662,12 @@ class FlowMigrationTest(FlowFileTest):
         # attempt to save with old json, no bueno
         failed = flow.update(old_json, user=self.admin)
         self.assertEqual('unsaved', failed.get('status'))
-        self.assertEqual('System User', failed.get('saved_by'))
+        self.assertEqual('System Update', failed.get('saved_by'))
 
         # now refresh and save a new version
         flow.update(flow.as_json(), user=self.admin)
         self.assertEqual(3, flow.revisions.all().count())
-        self.assertEqual(1, flow.revisions.filter(created_by=get_flow_user()).count())
+        self.assertEqual(1, flow.revisions.filter(created_by=get_flow_user(self.org)).count())
 
     def test_migrate_malformed_single_message_flow(self):
 
