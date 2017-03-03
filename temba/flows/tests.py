@@ -611,6 +611,43 @@ class FlowTest(TembaTest):
         self.assertEquals(uuid(5), color['node'])
         self.assertEquals(incoming.text, color['text'])
 
+    def test_anon_export_results(self):
+        self.org.is_anon = True
+        self.org.save()
+
+        self.flow.update(self.definition)
+        (run1,) = self.flow.start([], [self.contact])
+
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
+        Flow.find_and_handle(msg)
+
+        workbook = self.export_flow_results(self.flow)
+        sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
+        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "ID", "Name", "Groups", "First Seen", "Last Seen",
+                                            "color (Category) - Color Flow",
+                                            "color (Value) - Color Flow",
+                                            "color (Text) - Color Flow"])
+
+        steps = FlowStep.objects.filter(run=run1, step_type='R')
+        c1_run1_first = steps.order_by('pk').first().arrived_on
+        c1_run1_last = steps.order_by('-pk').first().arrived_on
+
+        self.assertExcelRow(sheet_runs, 1, [self.contact.uuid, six.text_type(self.contact.id), "Eric", "", c1_run1_first,
+                                            c1_run1_last, "Orange", "orange", "orange"], self.org.timezone)
+
+        self.assertExcelRow(sheet_contacts, 0, ["Contact UUID", "ID", "Name", "Groups", "First Seen", "Last Seen",
+                                                "color (Category) - Color Flow",
+                                                "color (Value) - Color Flow",
+                                                "color (Text) - Color Flow"])
+
+        self.assertExcelRow(sheet_contacts, 1, [self.contact.uuid, six.text_type(self.contact.id), "Eric", "",
+                                                c1_run1_first, c1_run1_last, "Orange", "orange", "orange"], self.org.timezone)
+
+        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "ID", "Name", "Date", "Direction", "Message", "Channel"])
+        self.assertExcelRow(sheet_msgs, 2, [self.contact.uuid, six.text_type(self.contact.id), "Eric",
+                                            msg.created_on, "IN",
+                                            "orange", "Test Channel"], self.org.timezone)
+
     def test_export_results(self):
         # setup flow and start both contacts
 
