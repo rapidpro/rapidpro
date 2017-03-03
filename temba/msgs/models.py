@@ -1099,6 +1099,10 @@ class Msg(models.Model):
         # see if we should use a new channel
         channel = self.org.get_send_channel(contact_urn=self.contact_urn)
 
+        status = PENDING
+        if self.contact.is_stopped or self.contact.is_blocked:
+            status = FAILED
+
         cloned = Msg.objects.create(org=self.org,
                                     channel=channel,
                                     contact=self.contact,
@@ -1109,7 +1113,7 @@ class Msg(models.Model):
                                     response_to=self.response_to,
                                     direction=self.direction,
                                     topup_id=topup_id,
-                                    status=PENDING,
+                                    status=status,
                                     broadcast=self.broadcast)
 
         # mark ourselves as resent

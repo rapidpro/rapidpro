@@ -663,6 +663,35 @@ class MsgTest(TembaTest):
         self.assertEquals(msg2.contact, resent_msg.contact)
         self.assertEquals(PENDING, resent_msg.status)
 
+    def test_msg_resend(self):
+        msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "message number 1")
+        msg1.status = 'F'
+        msg1.save()
+
+        msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "messsage number 2")
+        msg2.status = 'F'
+        msg2.save()
+
+        # fail message on resend for blocked contact
+        self.joe.block(self.admin)
+
+        msg1.resend()
+
+        self.assertEqual(Msg.objects.filter(status=RESENT).count(), 1)
+        self.assertEqual(set(Msg.objects.filter(status=RESENT)), {msg1})
+        self.assertEqual(Msg.objects.filter(status=FAILED).count(), 2)
+
+        self.joe.unblock(self.admin)
+
+        # fail message on resend for stopped contact
+        self.joe.stop(self.admin)
+
+        msg2.resend()
+
+        self.assertEqual(Msg.objects.filter(status=RESENT).count(), 2)
+        self.assertEqual(set(Msg.objects.filter(status=RESENT)), {msg1, msg2})
+        self.assertEqual(Msg.objects.filter(status=FAILED).count(), 2)
+
     @patch('temba.utils.email.send_temba_email')
     def test_message_export(self, mock_send_temba_email):
         self.clear_storage()
