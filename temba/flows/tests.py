@@ -5735,10 +5735,6 @@ class FlowMigrationTest(FlowFileTest):
         # this is really just testing our rewriting of webhook rulesets
         webhook_flow = self.get_flow('dual_webhook')
 
-        print (webhook_flow.revisions.all().first().created_by)
-        print (webhook_flow.saved_by)
-        print (webhook_flow.__dict__)
-
         self.assertNotEqual(webhook_flow.modified_on, webhook_flow.saved_on)
 
         # get our definition out
