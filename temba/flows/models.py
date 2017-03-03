@@ -849,6 +849,10 @@ class Flow(TembaModel):
         """
         Removes all flow runs, values and steps for a flow.
         """
+
+        # any outstanding active runs should interrupted
+        FlowRun.bulk_exit(self.runs.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
+
         # grab the ids of all our runs
         run_ids = self.runs.all().values_list('id', flat=True)
 
@@ -4040,8 +4044,12 @@ class ExportFlowResultsTask(BaseExportTask):
             sheet_row.append("Contact UUID")
             col_widths.append(self.WIDTH_MEDIUM)
 
-            sheet_row.append("URN")
-            col_widths.append(self.WIDTH_SMALL)
+            if org.is_anon:
+                sheet_row.append("ID")
+                col_widths.append(self.WIDTH_SMALL)
+            else:
+                sheet_row.append("URN")
+                col_widths.append(self.WIDTH_SMALL)
 
             sheet_row.append("Name")
             col_widths.append(self.WIDTH_MEDIUM)
@@ -4202,12 +4210,18 @@ class ExportFlowResultsTask(BaseExportTask):
 
                     if include_runs:
                         runs_sheet_row[padding + 0] = contact_uuid
-                        runs_sheet_row[padding + 1] = contact_urn_display
+                        if org.is_anon:
+                            runs_sheet_row[padding + 1] = run_step.contact.id
+                        else:
+                            runs_sheet_row[padding + 1] = contact_urn_display
                         runs_sheet_row[padding + 2] = contact_name
                         runs_sheet_row[padding + 3] = groups
 
                     merged_sheet_row[padding + 0] = contact_uuid
-                    merged_sheet_row[padding + 1] = contact_urn_display
+                    if org.is_anon:
+                        merged_sheet_row[padding + 1] = run_step.contact.id
+                    else:
+                        merged_sheet_row[padding + 1] = contact_urn_display
                     merged_sheet_row[padding + 2] = contact_name
                     merged_sheet_row[padding + 3] = groups
 
@@ -4284,7 +4298,11 @@ class ExportFlowResultsTask(BaseExportTask):
 
                             name = "Messages" if (msg_sheet_index + 1) <= 1 else "Messages (%d)" % (msg_sheet_index + 1)
                             msgs = book.create_sheet(name)
-                            headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"]
+                            if org.is_anon:
+                                headers = ["Contact UUID", "ID", "Name", "Date", "Direction", "Message", "Channel"]
+                            else:
+                                headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"]
+
                             col_widths = [self.WIDTH_MEDIUM, self.WIDTH_SMALL, self.WIDTH_MEDIUM, self.WIDTH_MEDIUM,
                                           self.WIDTH_SMALL, self.WIDTH_LARGE, self.WIDTH_MEDIUM]
                             msg_sheet_index += 1
@@ -4292,9 +4310,11 @@ class ExportFlowResultsTask(BaseExportTask):
                             self.set_sheet_column_widths(msgs, col_widths)
                             self.append_row(msgs, headers)
 
+                        urn_display = msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else ''
+
                         self.append_row(msgs, [
                             run_step.contact.uuid,
-                            msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else '',
+                            run_step.contact.id if org.is_anon else urn_display,
                             contact_name,
                             msg.created_on,
                             "IN" if msg.direction == INCOMING else "OUT",

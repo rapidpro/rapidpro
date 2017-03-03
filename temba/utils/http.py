@@ -13,8 +13,8 @@ class HttpEvent(object):
     def __repr__(self):
         return self.__str__()
 
-    def __unicode__(self):
-        return self.__str__()
+    def __str__(self):  # pragma: no cover
+        return unicode(self).encode('utf-8')
 
-    def __str__(self):
+    def __unicode__(self):  # pragma: no cover
         return "%s %s %s %s %s" % (self.method, self.url, self.status_code, self.response_body, self.request_body)

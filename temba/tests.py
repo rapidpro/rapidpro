@@ -624,6 +624,7 @@ class MockResponse(object):
         self.status_code = status_code
         self.headers = headers if headers else {}
         self.url = url
+        self.ok = True
         self.cookies = dict()
 
         # mock up a request object on our response as well

@@ -4616,7 +4616,11 @@ class VumiTest(TembaTest):
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
         self.create_group("Reporters", [joe])
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        inbound = Msg.create_incoming(
+            self.channel, "tel:+250788383383", "Send an inbound message",
+            external_id='vumi-message-id')
+        msg = inbound.reply("Test message", self.admin, trigger_send=False)
+
         r = get_redis_connection()
 
         try:
@@ -4629,6 +4633,10 @@ class VumiTest(TembaTest):
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 self.assertEqual(mock.call_args[0][0], 'https://go.vumi.org/api/v1/go/http_api_nostream/key/messages.json')
+                [call] = mock.call_args_list
+                (args, kwargs) = call
+                payload = json.loads(kwargs['data'])
+                self.assertEquals(payload['in_reply_to'], 'vumi-message-id')
 
                 # check the status of the message is now sent
                 msg.refresh_from_db()
@@ -5813,7 +5821,7 @@ class TwilioTest(TembaTest):
         joe = self.create_contact("Joe", "+250788383383")
 
         with self.settings(SEND_MESSAGES=True):
-            with patch('twilio.rest.resources.make_twilio_request') as mock:
+            with patch('twilio.rest.resources.base.make_request') as mock:
                 for channel_type in ['T', 'TMS']:
                     ChannelLog.objects.all().delete()
                     Msg.objects.all().delete()
