@@ -1191,7 +1191,7 @@ class FlowCRUDL(SmartCRUDL):
                 rules = len(ruleset.get_rules())
                 ruleset.category = 'true' if rules > 1 else 'false'
 
-            runs = FlowRun.objects.filter(flow=flow, responded=True)
+            runs = FlowRun.objects.filter(flow=flow, responded=True).exclude(contact__is_test=True)
 
             # paginate
             modified_on = self.request.GET.get('modified_on', None)

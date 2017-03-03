@@ -3975,6 +3975,10 @@ class FlowsTest(FlowFileTest):
         pete = self.create_contact('Pete', '+12065553027')
         self.send_message(favorites, 'blue', contact=pete)
 
+        kobe = Contact.get_test_contact(self.admin)
+        self.send_message(favorites, 'green', contact=kobe)
+        self.send_message(favorites, 'skol', contact=kobe)
+
         self.login(self.admin)
         response = self.client.get(reverse('flows.flow_results', args=[favorites.pk]))
 
@@ -3985,12 +3989,14 @@ class FlowsTest(FlowFileTest):
 
         # fetch our intercooler rows for the run table
         response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
+        self.assertEqual(len(response.context['runs']), 2)
         self.assertEqual(200, response.status_code)
         self.assertContains(response, 'Jimmy')
         self.assertContains(response, 'red')
         self.assertContains(response, 'Red')
         self.assertContains(response, 'turbo')
         self.assertContains(response, 'Turbo King')
+        self.assertNotContains(response, 'skol')
 
         next_link = re.search('ic-append-from=\"(.*)\" ic-trigger-on', response.content).group(1)
         response = self.client.get(next_link)
