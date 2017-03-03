@@ -1314,6 +1314,9 @@ class Msg(models.Model):
             # if message has already been sent, recipient must be a tuple of contact and URN
             contact, contact_urn = recipient
 
+        if contact.is_stopped:
+            status = FAILED
+
         # no creation date?  set it to now
         if not created_on:
             created_on = timezone.now()
