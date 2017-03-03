@@ -295,6 +295,9 @@ class MsgTest(TembaTest):
         self.assertEquals(msg.contact_urn, tel_urn_obj)
         self.assertEquals(msg.status, FAILED)
 
+        self.assertTrue(msg.channel_logs.all().count(), 1)
+        self.assertEqual(msg.channel_logs.first().description, "Can't send message to blocked contact")
+
         tel_contact.unblock(self.admin)
 
         # must be failed for stopped contact
@@ -672,6 +675,8 @@ class MsgTest(TembaTest):
         msg2.status = 'F'
         msg2.save()
 
+        self.assertFalse(ChannelLog.objects.all())
+
         # fail message on resend for blocked contact
         self.joe.block(self.admin)
 
@@ -680,6 +685,8 @@ class MsgTest(TembaTest):
         self.assertEqual(Msg.objects.filter(status=RESENT).count(), 1)
         self.assertEqual(set(Msg.objects.filter(status=RESENT)), {msg1})
         self.assertEqual(Msg.objects.filter(status=FAILED).count(), 2)
+
+        self.assertTrue(ChannelLog.objects.all())
 
         self.joe.unblock(self.admin)
 

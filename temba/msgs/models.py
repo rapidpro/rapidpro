@@ -21,10 +21,10 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
-from temba.channels.models import Channel, ChannelEvent
+from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, dict_to_struct
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
@@ -1125,6 +1125,11 @@ class Msg(models.Model):
         if cloned.broadcast:
             cloned.broadcast.update()
 
+        if status == FAILED:
+            ChannelLog.log_error(dict_to_struct('MockMsg', cloned.as_task_json()),
+                                 "Can't send message to %s contact" % ("stopped" if cloned.contact.is_stopped
+                                                                       else "blocked"))
+
         # send our message
         self.org.trigger_send([cloned])
 
@@ -1401,7 +1406,13 @@ class Msg(models.Model):
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
 
-        return Msg.objects.create(**msg_args) if insert_object else Msg(**msg_args)
+        msg = Msg.objects.create(**msg_args) if insert_object else Msg(**msg_args)
+
+        if status == FAILED:
+            ChannelLog.log_error(dict_to_struct('MockMsg', msg.as_task_json()),
+                                 "Can't send message to %s contact" % ("stopped" if contact.is_stopped else "blocked"))
+
+        return msg
 
     @staticmethod
     def resolve_recipient(org, user, recipient, channel, role=Channel.ROLE_SEND):
