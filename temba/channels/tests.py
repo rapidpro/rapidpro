@@ -2593,6 +2593,7 @@ class ChannelClaimTest(TembaTest):
         post_data['url'] = url
         post_data['method'] = 'GET'
         post_data['scheme'] = 'tel'
+        post_data['content_type'] = Channel.CONTENT_TYPE_JSON
 
         response = self.client.post(reverse('channels.channel_claim_external'), post_data)
 
@@ -2601,8 +2602,9 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals('RW', channel.country)
         self.assertTrue(channel.uuid)
         self.assertEquals(post_data['number'], channel.address)
-        self.assertEquals(post_data['url'], channel.config_json()['send_url'])
-        self.assertEquals(post_data['method'], channel.config_json()['method'])
+        self.assertEquals(post_data['url'], channel.config_json()[Channel.CONFIG_SEND_URL])
+        self.assertEquals(post_data['method'], channel.config_json()[Channel.CONFIG_SEND_METHOD])
+        self.assertEquals(post_data['content_type'], channel.config_json()[Channel.CONFIG_CONTENT_TYPE])
         self.assertEquals(Channel.TYPE_EXTERNAL, channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
@@ -2618,15 +2620,25 @@ class ChannelClaimTest(TembaTest):
 
         # test substitution in our url
         self.assertEqual('http://test.com/send.php?from=5080&text=test&to=%2B250788383383',
-                         channel.build_send_url(url, {'from': "5080", 'text': "test", 'to': "+250788383383"}))
+                         channel.replace_variables(url, {'from': "5080", 'text': "test", 'to': "+250788383383"}))
 
         # test substitution with unicode
         self.assertEqual('http://test.com/send.php?from=5080&text=Reply+%E2%80%9C1%E2%80%9D+for+good&to=%2B250788383383',
-                         channel.build_send_url(url, {
+                         channel.replace_variables(url, {
                              'from': "5080",
                              'text': "Reply “1” for good",
                              'to': "+250788383383"
                          }))
+
+        # test substitution with XML encoding
+        body = "<xml>{{text}}</xml>"
+        self.assertEquals("<xml>Hello &amp; World</xml>",
+                          channel.replace_variables(body, dict(text="Hello & World"), Channel.CONTENT_TYPE_XML))
+
+        # test substitution with JSON encoding
+        body = "{ body: {{text}} }"
+        self.assertEquals("{ body: \"this is \\\"quote\\\"\" }",
+                          channel.replace_variables(body, dict(text="this is \"quote\""), Channel.CONTENT_TYPE_JSON))
 
     def test_clickatell(self):
         Channel.objects.all().delete()
@@ -3649,7 +3661,8 @@ class ExternalTest(TembaTest):
                 self.assertEqual(mock.call_args[1]['data'], 'text=Test+message&to=250788383383')
 
         self.channel.config = json.dumps({Channel.CONFIG_SEND_URL: 'http://foo.com/send',
-                                          Channel.CONFIG_SEND_BODY: 'text={{text}}&to={{to_no_plus}}',
+                                          Channel.CONFIG_SEND_BODY: '{ "text": {{text}}, "to": {{to_no_plus}} }',
+                                          Channel.CONFIG_CONTENT_TYPE: Channel.CONTENT_TYPE_JSON,
                                           Channel.CONFIG_SEND_METHOD: 'PUT'})
 
         self.channel.save()
@@ -3660,7 +3673,7 @@ class ExternalTest(TembaTest):
                 mock.return_value = MockResponse(200, "Sent")
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
                 self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
-                self.assertEqual(mock.call_args[1]['data'], 'text=Test+message&to=250788383383')
+                self.assertEqual(mock.call_args[1]['data'], '{ "text": "Test message", "to": "250788383383" }')
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
