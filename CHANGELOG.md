@@ -1,3 +1,9 @@
+v3.0.71
+----------
+ * Improvements to external channels to allow configuration against JSON and XML endpoints
+ * Exclude test contacts from flow results
+ * Update to latest smartmin to fix empty string searching
+
 v3.0.70
 ----------
  * Allow USSD flows to start someone else in a flow
