@@ -3674,6 +3674,7 @@ class ExternalTest(TembaTest):
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
                 self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
                 self.assertEqual(mock.call_args[1]['data'], '{ "text": "Test message", "to": "250788383383" }')
+                self.assertEqual(mock.call_args[1]['headers']['Content-Type'], "application/json")
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")

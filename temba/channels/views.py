@@ -2180,7 +2180,7 @@ class ChannelCRUDL(SmartCRUDL):
 
                 example_payload = {
                     'to': '+250788123123',
-                    'to_no_plus': '+250788123123',
+                    'to_no_plus': '250788123123',
                     'text': "Love is patient. Love is kind.",
                     'from': self.object.address,
                     'from_no_plus': self.object.address.lstrip('+'),

@@ -1674,7 +1674,7 @@ class Channel(TembaModel):
 
         headers = TEMBA_HEADERS.copy()
         content_type = channel.config.get(Channel.CONFIG_CONTENT_TYPE, Channel.CONTENT_TYPE_URLENCODED)
-        headers['Content-Type'] = content_type
+        headers['Content-Type'] = Channel.CONTENT_TYPES[content_type]
 
         event = HttpEvent(method, url)
 
