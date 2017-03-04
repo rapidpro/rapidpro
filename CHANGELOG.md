@@ -1,9 +1,5 @@
 v3.0.72
 ----------
- * Make sure right content-type header is sent for external channels
-
-v3.0.71
-----------
  * Improvements to external channels to allow configuration against JSON and XML endpoints
  * Exclude test contacts from flow results
  * Update to latest smartmin to fix empty string searching
