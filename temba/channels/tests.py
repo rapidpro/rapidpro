@@ -2635,6 +2635,9 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals("<xml>Hello &amp; World</xml>",
                           channel.replace_variables(body, dict(text="Hello & World"), Channel.CONTENT_TYPE_XML))
 
+        self.assertEquals("<xml>التوطين</xml>",
+                          channel.replace_variables(body, dict(text="التوطين"), Channel.CONTENT_TYPE_XML))
+
         # test substitution with JSON encoding
         body = "{ body: {{text}} }"
         self.assertEquals("{ body: \"this is \\\"quote\\\"\" }",
@@ -3675,6 +3678,25 @@ class ExternalTest(TembaTest):
                 self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
                 self.assertEqual(mock.call_args[1]['data'], '{ "text": "Test message", "to": "250788383383" }')
                 self.assertEqual(mock.call_args[1]['headers']['Content-Type'], "application/json")
+
+        self.channel.config = json.dumps({Channel.CONFIG_SEND_URL: 'http://foo.com/send',
+                                          Channel.CONFIG_SEND_BODY: '<msg><text>{{text}}</text><to>{{to_no_plus}}</to></msg>',
+                                          Channel.CONFIG_CONTENT_TYPE: Channel.CONTENT_TYPE_XML,
+                                          Channel.CONFIG_SEND_METHOD: 'PUT'})
+        self.channel.save()
+
+        arabic = "التوطين"
+        msg.text = arabic
+        msg.save()
+        self.clear_cache()
+
+        with self.settings(SEND_MESSAGES=True):
+            with patch('requests.put') as mock:
+                mock.return_value = MockResponse(200, "Sent")
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+                self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
+                self.assertEqual(mock.call_args[1]['data'], '<msg><text>التوطين</text><to>250788383383</to></msg>')
+                self.assertEqual(mock.call_args[1]['headers']['Content-Type'], Channel.CONTENT_TYPES[Channel.CONTENT_TYPE_XML])
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
