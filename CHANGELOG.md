@@ -1,3 +1,31 @@
+v3.0.70
+----------
+ * Allow USSD flows to start someone else in a flow
+ * Include reply to external_id for Vumi channel
+
+v3.0.69
+----------
+ * Add ID column to result exports for anon orgs
+ * Deactivate runs when releasing flows
+ * Fix urn display for call log
+ * Increased send and receive channel logging for Nexmo, Twilio, Twitter and Telegram 
+ * Allow payments through Bitcoins
+ * Include TransferTo account currency when asking phone info to TransferTo
+ * Don't create inbound messages for gather timeouts, letting calls expire
+ * Don't show channel log for inactive channels on contact history
+ * Upgrade to latest smartmin which changes created_on/modified_on fields on SmartModels to be overridable
+ * Uniform call and message logs
+
+v3.0.64
+----------
+ * Add ID column to anonymous org contact exports, also add @contact.id field in message context
+ * Fix counts for channel log elements
+ * Only have one link on channel page for sending log
+ * Attempt to determine file types for msg attachments using libmagic
+ * Deactivate runs on hangups, Keep ivr runs open on exit
+ * Add log for nexmo media download
+ * Add new perf_test command to run performance tests on database generated with make_test_db
+
 v3.0.62
 ----------
  * Fix preferred channels for non-msg channels

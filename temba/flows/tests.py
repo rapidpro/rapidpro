@@ -611,6 +611,43 @@ class FlowTest(TembaTest):
         self.assertEquals(uuid(5), color['node'])
         self.assertEquals(incoming.text, color['text'])
 
+    def test_anon_export_results(self):
+        self.org.is_anon = True
+        self.org.save()
+
+        self.flow.update(self.definition)
+        (run1,) = self.flow.start([], [self.contact])
+
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
+        Flow.find_and_handle(msg)
+
+        workbook = self.export_flow_results(self.flow)
+        sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
+        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "ID", "Name", "Groups", "First Seen", "Last Seen",
+                                            "color (Category) - Color Flow",
+                                            "color (Value) - Color Flow",
+                                            "color (Text) - Color Flow"])
+
+        steps = FlowStep.objects.filter(run=run1, step_type='R')
+        c1_run1_first = steps.order_by('pk').first().arrived_on
+        c1_run1_last = steps.order_by('-pk').first().arrived_on
+
+        self.assertExcelRow(sheet_runs, 1, [self.contact.uuid, six.text_type(self.contact.id), "Eric", "", c1_run1_first,
+                                            c1_run1_last, "Orange", "orange", "orange"], self.org.timezone)
+
+        self.assertExcelRow(sheet_contacts, 0, ["Contact UUID", "ID", "Name", "Groups", "First Seen", "Last Seen",
+                                                "color (Category) - Color Flow",
+                                                "color (Value) - Color Flow",
+                                                "color (Text) - Color Flow"])
+
+        self.assertExcelRow(sheet_contacts, 1, [self.contact.uuid, six.text_type(self.contact.id), "Eric", "",
+                                                c1_run1_first, c1_run1_last, "Orange", "orange", "orange"], self.org.timezone)
+
+        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "ID", "Name", "Date", "Direction", "Message", "Channel"])
+        self.assertExcelRow(sheet_msgs, 2, [self.contact.uuid, six.text_type(self.contact.id), "Eric",
+                                            msg.created_on, "IN",
+                                            "orange", "Test Channel"], self.org.timezone)
+
     def test_export_results(self):
         # setup flow and start both contacts
 
@@ -4912,6 +4949,9 @@ class FlowsTest(FlowFileTest):
         # should still have a run though
         self.assertEqual(flow.runs.count(), 1)
 
+        # but they should all be inactive
+        self.assertEqual(flow.runs.filter(is_active=True).count(), 0)
+
         # just no steps or values
         self.assertEqual(Value.objects.all().count(), 0)
         self.assertEqual(FlowStep.objects.all().count(), 0)
@@ -5540,12 +5580,14 @@ class FlowsTest(FlowFileTest):
 
     @patch('temba.airtime.models.AirtimeTransfer.post_transferto_api_response')
     def test_airtime_trigger_event(self, mock_post_transferto):
-        mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
+        mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\ncurrency=USD\r\n"),
+                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
                                                               "product_list=5,10,20,30\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
         self.org.connect_transferto('mylogin', 'api_token', self.admin)
+        self.org.refresh_transferto_account_currency()
 
         flow = self.get_flow('airtime')
         runs = flow.start_msg_flow([self.contact.id])
@@ -5558,7 +5600,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(airtime.status, AirtimeTransfer.SUCCESS)
         self.assertEqual(airtime.contact, self.contact)
         self.assertEqual(airtime.message, "Airtime Transferred Successfully")
-        self.assertEqual(mock_post_transferto.call_count, 3)
+        self.assertEqual(mock_post_transferto.call_count, 4)
         mock_post_transferto.reset_mock()
 
         mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=Rwanda\r\n"

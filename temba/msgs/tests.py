@@ -1290,19 +1290,15 @@ class BroadcastTest(TembaTest):
 
         # create an old broadcast which is a response to an incoming message
         incoming = self.create_msg(contact=self.joe, direction='I', text="Hello")
-        broadcast1 = Broadcast.create(self.org, self.user, "Noted", [self.joe])
+        broadcast1 = Broadcast.create(self.org, self.user, "Noted", [self.joe], created_on=long_ago)
         broadcast1.send(trigger_send=False, response_to=incoming)
-        broadcast1.created_on = long_ago
-        broadcast1.save()
 
         # create an old broadcast which is to several contacts
         broadcast2 = Broadcast.create(self.org, self.user, "Very old broadcast",
-                                      [self.joe_and_frank, self.kevin, self.lucy])
+                                      [self.joe_and_frank, self.kevin, self.lucy], created_on=long_ago)
         broadcast2.send(trigger_send=False)
-        broadcast2.created_on = long_ago
-        broadcast2.save()
 
-        print(repr([{'name': m.contact.name, 'status': m.status} for m in broadcast2.msgs.all()]))
+        # print(repr([{'name': m.contact.name, 'status': m.status} for m in broadcast2.msgs.all()]))
 
         # create a recent broadcast to same contacts
         broadcast3 = Broadcast.create(self.org, self.user, "New broadcast",
@@ -1312,18 +1308,14 @@ class BroadcastTest(TembaTest):
         # create an old broadcast for the other purgeable org
         Channel.create(self.org2, self.admin2, 'RW', 'A', name="Test Channel 2", address="+250785551313")
         hans = self.create_contact("Hans", "1234567")
-        broadcast4 = Broadcast.create(self.org2, self.admin2, "Old for org 2", [hans])
+        broadcast4 = Broadcast.create(self.org2, self.admin2, "Old for org 2", [hans], created_on=long_ago)
         broadcast4.send(trigger_send=False)
-        broadcast4.created_on = long_ago
-        broadcast4.save()
 
         # and one for the non-purgeable org
         Channel.create(org3, admin3, 'HU', 'A', name="Test Channel 3", address="+250785551314")
         george = self.create_contact("George", "1234568")
-        broadcast5 = Broadcast.create(org3, admin3, "Old for org 3", [george])
+        broadcast5 = Broadcast.create(org3, admin3, "Old for org 3", [george], created_on=long_ago)
         broadcast5.send(trigger_send=False)
-        broadcast5.created_on = long_ago
-        broadcast5.save()
 
         # mark all outgoing messages as sent except broadcast #2 to Joe
         Msg.objects.filter(direction='O').update(status='S')
@@ -1378,10 +1370,9 @@ class BroadcastTest(TembaTest):
 
         # create another old broadcast
         broadcast5 = Broadcast.create(self.org, self.admin, "Another old broadcast",
-                                      [self.joe_and_frank, self.kevin, self.lucy])
+                                      [self.joe_and_frank, self.kevin, self.lucy],
+                                      created_on=timezone.now() - timedelta(days=100))
         broadcast5.send(trigger_send=False)
-        broadcast5.created_on = timezone.now() - timedelta(days=100)
-        broadcast5.save()
 
         self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_OUTBOX], 4)
         self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 4)

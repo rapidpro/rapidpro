@@ -3,9 +3,20 @@ from django.template import TemplateSyntaxError
 from django.template.defaultfilters import register
 from django.conf import settings
 from django.core.urlresolvers import reverse
+from django.utils.translation import ugettext, ungettext_lazy
 from ...campaigns.models import Campaign
 from ...flows.models import Flow
 from ...triggers.models import Trigger
+
+TIME_SINCE_CHUNKS = (
+    (60 * 60 * 24 * 365, ungettext_lazy('%d year', '%d years')),
+    (60 * 60 * 24 * 30, ungettext_lazy('%d month', '%d months')),
+    (60 * 60 * 24 * 7, ungettext_lazy('%d week', '%d weeks')),
+    (60 * 60 * 24, ungettext_lazy('%d day', '%d days')),
+    (60 * 60, ungettext_lazy('%d hour', '%d hours')),
+    (60, ungettext_lazy('%d minute', '%d minutes')),
+    (1, ungettext_lazy('%d second', '%d seconds'))
+)
 
 
 @register.filter
@@ -65,6 +76,34 @@ def non_ssl_brand_url(context, url_name, args=None):
     if settings.HOSTNAME != "localhost":
         return "http://%s%s" % (hostname, path)
     return path  # pragma: needs cover
+
+
+@register.filter("delta", is_safe=False)
+def delta_filter(delta):
+    """Humanizes a timedelta object on template (i.e. "2 months, 2 weeks")."""
+    if not delta:
+        return ''
+    try:
+        # ignore microseconds
+        since = delta.days * 24 * 60 * 60 + delta.seconds
+        if since <= 0:
+            # d is in the future compared to now, stop processing.
+            return ugettext('0 seconds')
+        for i, (seconds, name) in enumerate(TIME_SINCE_CHUNKS):
+            count = since // seconds
+            if count != 0:
+                break
+        result = name % count
+        if i + 1 < len(TIME_SINCE_CHUNKS):
+            # Now get the second item
+            seconds2, name2 = TIME_SINCE_CHUNKS[i + 1]
+            count2 = (since - (seconds * count)) // seconds2
+            if count2 != 0:
+                result += ugettext(', ') + name2 % count2
+        return result
+
+    except Exception:
+        return ''
 
 
 def lessblock(parser, token):
