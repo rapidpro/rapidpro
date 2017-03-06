@@ -1,23 +1,34 @@
-v3.0.68
+v3.0.74
 ----------
+ * reduce number of lookup to DB
+
+v3.0.73
+----------
+ * Add test case for search URL against empty field value
+ * Fix sending vumi messages initiated from RapidPro without response to
+
+v3.0.72
+----------
+ * Improvements to external channels to allow configuration against JSON and XML endpoints
+ * Exclude test contacts from flow results
+ * Update to latest smartmin to fix empty string searching
+
+v3.0.70
+----------
+ * Allow USSD flows to start someone else in a flow
+ * Include reply to external_id for Vumi channel
+
+v3.0.69
+----------
+ * Add ID column to result exports for anon orgs
  * Deactivate runs when releasing flows
  * Fix urn display for call log
-
-v3.0.67
-----------
- * Fix Nexmo logging
-
-v3.0.66
-----------
  * Increased send and receive channel logging for Nexmo, Twilio, Twitter and Telegram 
  * Allow payments through Bitcoins
  * Include TransferTo account currency when asking phone info to TransferTo
  * Don't create inbound messages for gather timeouts, letting calls expire
  * Don't show channel log for inactive channels on contact history
  * Upgrade to latest smartmin which changes created_on/modified_on fields on SmartModels to be overridable
-
-v3.0.65
-----------
  * Uniform call and message logs
 
 v3.0.64
