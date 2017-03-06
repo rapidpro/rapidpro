@@ -1527,14 +1527,17 @@ class ChannelCRUDL(SmartCRUDL):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"), required=False,
                                         help_text=_("The country this phone number is used in"))
 
-            url = forms.URLField(max_length=1024, label=_("Send URL"),
-                                 help_text=_("The URL we will call when sending messages, with variable substitutions"))
-
             method = forms.ChoiceField(choices=(('POST', "HTTP POST"), ('GET', "HTTP GET"), ('PUT', "HTTP PUT")),
                                        help_text=_("What HTTP method to use when calling the URL"))
 
-            body = forms.CharField(max_length=1024, label=_("Request Body"), required=False,
-                                   help_text=_("The URL encoded form body, if any, with variable substitutions (only used for PUT or POST)"))
+            content_type = forms.ChoiceField(choices=Channel.CONTENT_TYPE_CHOICES,
+                                             help_text=_("The content type used when sending the request"))
+
+            url = forms.URLField(max_length=1024, label=_("Send URL"),
+                                 help_text=_("The URL we will call when sending messages, with variable substitutions"))
+
+            body = forms.CharField(max_length=2048, label=_("Request Body"), required=False, widget=forms.Textarea,
+                                   help_text=_("The request body if any, with variable substitutions (only used for PUT or POST)"))
 
         class EXSendClaimForm(forms.Form):
             url = forms.URLField(max_length=1024, label=_("Send URL"),
@@ -1589,7 +1592,12 @@ class ChannelCRUDL(SmartCRUDL):
                 # make sure they own it
                 channel = self.request.user.get_org().channels.filter(pk=channel).first()
 
-            config = {Channel.CONFIG_SEND_URL: data['url'], Channel.CONFIG_SEND_METHOD: data['method'], Channel.CONFIG_SEND_BODY: data['body']}
+            config = {
+                Channel.CONFIG_SEND_URL: data['url'],
+                Channel.CONFIG_SEND_METHOD: data['method'],
+                Channel.CONFIG_SEND_BODY: data['body'],
+                Channel.CONFIG_CONTENT_TYPE: data['content_type']
+            }
             self.object = Channel.add_config_external_channel(org, self.request.user, country, address, Channel.TYPE_EXTERNAL,
                                                               config, role, scheme, parent=channel)
 
@@ -2166,19 +2174,24 @@ class ChannelCRUDL(SmartCRUDL):
 
             # if this is an external channel, build an example URL
             if self.object.channel_type == Channel.TYPE_EXTERNAL:
-                send_url = self.object.config_json()[Channel.CONFIG_SEND_URL]
-                send_body = self.object.config_json().get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
+                config = self.object.config_json()
+                send_url = config[Channel.CONFIG_SEND_URL]
+                send_body = config.get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
+
                 example_payload = {
                     'to': '+250788123123',
-                    'to_no_plus': '+250788123123',
-                    'text': "Love is patient. Love is kind",
+                    'to_no_plus': '250788123123',
+                    'text': "Love is patient. Love is kind.",
                     'from': self.object.address,
                     'from_no_plus': self.object.address.lstrip('+'),
                     'id': '1241244',
                     'channel': str(self.object.id)
                 }
-                context['example_url'] = Channel.build_send_url(send_url, example_payload)
-                context['example_body'] = Channel.build_send_url(send_body, example_payload)
+
+                content_type = config.get(Channel.CONFIG_CONTENT_TYPE, Channel.CONTENT_TYPE_URLENCODED)
+                context['example_content_type'] = "Content-Type: " + Channel.CONTENT_TYPES[content_type]
+                context['example_url'] = Channel.replace_variables(send_url, example_payload)
+                context['example_body'] = Channel.replace_variables(send_body, example_payload, content_type)
 
             context['domain'] = settings.HOSTNAME
             context['ip_addresses'] = settings.IP_ADDRESSES

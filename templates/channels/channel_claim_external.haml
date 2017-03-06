@@ -51,17 +51,31 @@
   :javascript
     $(function(){
       var schemeSelect = $('#id_scheme');
-
-      schemeSelect.select2({ minimumResultsForSearch: -1, width: '200px' });
-      $('#id_country').select2();
-      $('#id_method').select2({ minimumResultsForSearch: -1, width: '370px' });
-
       schemeSelect.on('change', function() {
         updateFormForScheme($(this).val());
       });
-
       updateFormForScheme(schemeSelect.val());
+
+      var methodSelect = $("#id_method");
+      methodSelect.on('change', function(){
+        updateFormForMethod($(this).val());
+      })
+      updateFormForMethod($(this).val());
+
+      schemeSelect.select2({ minimumResultsForSearch: -1, width: '370px' });
+      $('#id_country').select2({width:'370px'});
+      $('#id_method').select2({ minimumResultsForSearch: -1, width: '370px' });
+      $('#id_content_type').select2({ minimumResultsForSearch: -1, width: '370px' });
     });
+
+    function updateFormForMethod(method){
+      var bodyCtrlGroup = $('#id_body').parents('.control-group');
+      if (method == 'GET'){
+        bodyCtrlGroup.hide();
+      } else {
+        bodyCtrlGroup.show();
+      }
+    }
 
     function updateFormForScheme(scheme) {
       var numberCtrlGroup = $('#id_number').parents('.control-group');
