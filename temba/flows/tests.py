@@ -3890,6 +3890,10 @@ class SimulationTest(FlowFileTest):
 
     @patch('temba.ussd.models.USSDSession.handle_incoming')
     def test_ussd_simulation(self, handle_incoming):
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE,
+                                      uuid='00000000-0000-0000-0000-000000001234')
         flow = self.get_flow('ussd_example')
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
@@ -3909,6 +3913,10 @@ class SimulationTest(FlowFileTest):
 
     @patch('temba.ussd.models.USSDSession.handle_incoming')
     def test_ussd_simulation_interrupt(self, handle_incoming):
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE,
+                                      uuid='00000000-0000-0000-0000-000000001234')
         flow = self.get_flow('ussd_example')
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])

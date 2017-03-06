@@ -25,6 +25,14 @@ from .models import USSDSession
 
 class USSDSessionTest(TembaTest):
 
+    def setUp(self):
+        super(USSDSessionTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
     def test_pull_async_trigger_start(self):
         flow = self.get_flow('ussd_example')
 
