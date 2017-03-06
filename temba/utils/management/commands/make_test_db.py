@@ -50,7 +50,7 @@ USERS = (
 CHANNELS = (
     {'name': "Android", 'channel_type': Channel.TYPE_ANDROID, 'scheme': 'tel', 'address': "1234"},
     {'name': "Nexmo", 'channel_type': Channel.TYPE_NEXMO, 'scheme': 'tel', 'address': "2345"},
-    {'name': "Twittser", 'channel_type': Channel.TYPE_TWITTER, 'scheme': 'twitter', 'address': "my_handle"},
+    {'name': "Twitter", 'channel_type': Channel.TYPE_TWITTER, 'scheme': 'twitter', 'address': "my_handle"},
 )
 FIELDS = (
     {'key': 'gender', 'label': "Gender", 'value_type': Value.TYPE_TEXT},
@@ -61,16 +61,17 @@ FIELDS = (
     {'key': 'state', 'label': "State", 'value_type': Value.TYPE_STATE},
 )
 GROUPS = (
-    {'name': "Reporters", 'query': None, 'add': 0.95},
-    {'name': "Farmers", 'query': None, 'add': 0.5},
-    {'name': "Doctors", 'query': None, 'add': 0.4},
-    {'name': "Teachers", 'query': None, 'add': 0.3},
-    {'name': "Drivers", 'query': None, 'add': 0.2},
-    {'name': "Testers", 'query': None, 'add': 0.1},
-    {'name': "Empty", 'query': None, 'add': 0.0},
-    {'name': "Youth (Dynamic)", 'query': 'age <= 18', 'add': lambda c: c['age'] and c['age'] <= 18},
-    {'name': "Unregistered (Dynamic)", 'query': 'joined = ""', 'add': lambda c: not c['joined']},
-    {'name': "Districts (Dynamic)", 'query': 'district=Faskari or district=Zuru', 'add': lambda c: c['district'] and c['district'].name in ("Faskari", "Zuru")},
+    {'name': "Reporters", 'query': None, 'member': 0.95},  # member is either a probability or callable
+    {'name': "Farmers", 'query': None, 'member': 0.5},
+    {'name': "Doctors", 'query': None, 'member': 0.4},
+    {'name': "Teachers", 'query': None, 'member': 0.3},
+    {'name': "Drivers", 'query': None, 'member': 0.2},
+    {'name': "Testers", 'query': None, 'member': 0.1},
+    {'name': "Empty", 'query': None, 'member': 0.0},
+    {'name': "Youth (Dynamic)", 'query': 'age <= 18', 'member': lambda c: c['age'] and c['age'] <= 18},
+    {'name': "Unregistered (Dynamic)", 'query': 'joined = ""', 'member': lambda c: not c['joined']},
+    {'name': "Districts (Dynamic)", 'query': 'district=Faskari or district=Zuru or district=Anka',
+     'member': lambda c: c['district'] and c['district'].name in ("Faskari", "Zuru", "Anka")},
 )
 LABELS = ("Reporting", "Testing", "Youth", "Farming", "Health", "Education", "Trade", "Driving", "Building", "Spam")
 
@@ -251,7 +252,7 @@ class Command(BaseCommand):
                     group = ContactGroup.create_dynamic(org, user, g['name'], g['query'])
                 else:
                     group = ContactGroup.user_groups.create(org=org, name=g['name'], created_by=user, modified_by=user)
-                group.add = g['add']
+                group.member = g['member']
                 org.cache['groups'].append(group)
 
         self._log(self.style.SUCCESS("OK") + '\n')
@@ -356,7 +357,7 @@ class Command(BaseCommand):
 
                     # let each group decide if it is taking this contact
                     for g in org.cache['groups']:
-                        if g.add(c) if callable(g.add) else self.probability(g.add):
+                        if g.member(c) if callable(g.member) else self.probability(g.member):
                             add_to_group(g)
 
                 Contact.objects.bulk_create(contacts)
