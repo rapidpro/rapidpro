@@ -1921,7 +1921,7 @@ class Channel(TembaModel):
                 session_event = "resume"
 
         in_reply_to = Msg.objects.values_list(
-            'external_id', flat=True).get(pk=msg.response_to_id)
+            'external_id', flat=True).filter(pk=msg.response_to_id).first()
 
         payload = dict(message_id=msg.id,
                        in_reply_to=in_reply_to,
