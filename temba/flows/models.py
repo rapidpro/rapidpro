@@ -3968,6 +3968,7 @@ class ExportFlowResultsTask(BaseExportTask):
         include_msgs = config.get(ExportFlowResultsTask.INCLUDE_MSGS, False)
         responded_only = config.get(ExportFlowResultsTask.RESPONDED_ONLY, True)
         contact_field_ids = config.get(ExportFlowResultsTask.CONTACT_FIELDS, [])
+        broadcast_only_flow = False
 
         contact_fields = []
         for cf_id in contact_field_ids:
@@ -4026,6 +4027,8 @@ class ExportFlowResultsTask(BaseExportTask):
 
             if responded_only:
                 all_steps = all_steps.filter(run__responded=True)
+            else:
+                broadcast_only_flow = not all_steps.exclude(step_type=FlowStep.TYPE_ACTION_SET).exists()
 
             step_ids = [s['id'] for s in all_steps]
 
@@ -4173,7 +4176,7 @@ class ExportFlowResultsTask(BaseExportTask):
             contact_name = self.prepare_value(run_step.contact.name)
 
             # if this is a rule step, write out the value collected
-            if run_step.step_type == FlowStep.TYPE_RULE_SET:
+            if run_step.step_type == FlowStep.TYPE_RULE_SET or broadcast_only_flow:
 
                 # a new contact
                 if last_contact != run_step.contact.pk:
@@ -4309,9 +4312,7 @@ class ExportFlowResultsTask(BaseExportTask):
             # write out any message associated with this step
             if include_msgs:
                 step_msgs = list(run_step.messages.all())
-
-                if step_msgs:
-                    msg = step_msgs[0]
+                for msg in step_msgs:
                     msg_row += 1
 
                     if msg.pk not in seen_msgs:
