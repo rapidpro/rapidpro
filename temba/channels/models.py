@@ -83,6 +83,7 @@ class Channel(TembaModel):
     TYPE_MBLOX = 'MB'
     TYPE_NEXMO = 'NX'
     TYPE_PLIVO = 'PL'
+    TYPE_RED_RABBIT = 'RR'
     TYPE_SHAQODOON = 'SQ'
     TYPE_SMSCENTRAL = 'SC'
     TYPE_START = 'ST'
@@ -191,6 +192,7 @@ class Channel(TembaModel):
         TYPE_NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
         TYPE_MBLOX: dict(scheme='tel', max_length=459),
         TYPE_PLIVO: dict(scheme='tel', max_length=1600),
+        TYPE_RED_RABBIT: dict(scheme='tel', max_length=1600),
         TYPE_SHAQODOON: dict(scheme='tel', max_length=1600),
         TYPE_SMSCENTRAL: dict(scheme='tel', max_length=1600),
         TYPE_START: dict(scheme='tel', max_length=1600),
@@ -229,6 +231,7 @@ class Channel(TembaModel):
                     (TYPE_MBLOX, "Mblox"),
                     (TYPE_NEXMO, "Nexmo"),
                     (TYPE_PLIVO, "Plivo"),
+                    (TYPE_RED_RABBIT, "Red Rabbit"),
                     (TYPE_SHAQODOON, "Shaqodoon"),
                     (TYPE_SMSCENTRAL, "SMSCentral"),
                     (TYPE_START, "Start Mobile"),
@@ -1284,6 +1287,41 @@ class Channel(TembaModel):
                                 event, start=start)
 
     @classmethod
+    def send_red_rabbit_message(cls, channel, msg, text):
+        from temba.msgs.models import WIRED
+        encoding, text = Channel.determine_encoding(text, replace=True)
+
+        # http://http1.javna.com/epicenter/gatewaysendG.asp?LoginName=xxxx&Password=xxxx&Tracking=1&Mobtyp=1&MessageRecipients=962796760057&MessageBody=hi&SenderName=Xxx
+        params = dict()
+        params['LoginName'] = channel.config[Channel.CONFIG_USERNAME]
+        params['Password'] = channel.config[Channel.CONFIG_PASSWORD]
+        params['Tracking'] = 1
+        params['Mobtyp'] = 1
+        params['MessageRecipients'] = msg.urn_path.lstrip('+')
+        params['MessageBody'] = text
+        params['SenderName'] = channel.address.lstrip('+')
+
+        # we are unicode
+        if encoding == Encoding.UNICODE:
+            params['Msgtyp'] = 10 if len(text) >= 70 else 9
+        elif len(text) > 160:
+            params['Msgtyp'] = 5
+
+        url = 'http://http1.javna.com/epicenter/GatewaySendG.asp'
+        event = HttpEvent('GET', url + '?' + urlencode(params))
+        start = time.time()
+
+        try:
+            response = requests.get(url, params=params, headers=TEMBA_HEADERS, timeout=15)
+            event.status_code = response.status_code
+            event.response_body = response.text
+
+        except Exception as e:  # pragma: no cover
+            raise SendException(six.text_type(e), event=event, start=start)
+
+        Channel.success(channel, msg, WIRED, start, event=event)
+
+    @classmethod
     def send_jasmin_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
         from temba.utils import gsm7
@@ -1684,9 +1722,9 @@ class Channel(TembaModel):
 
         try:
             if method == 'POST':
-                response = requests.post(url, data=body, headers=headers, timeout=5)
+                response = requests.post(url, data=body.encode('utf8'), headers=headers, timeout=5)
             elif method == 'PUT':
-                response = requests.put(url, data=body, headers=headers, timeout=5)
+                response = requests.put(url, data=body.encode('utf8'), headers=headers, timeout=5)
             else:
                 response = requests.get(url, headers=headers, timeout=5)
 
@@ -2898,6 +2936,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_MBLOX: Channel.send_mblox_message,
                   Channel.TYPE_NEXMO: Channel.send_nexmo_message,
                   Channel.TYPE_PLIVO: Channel.send_plivo_message,
+                  Channel.TYPE_RED_RABBIT: Channel.send_red_rabbit_message,
                   Channel.TYPE_SHAQODOON: Channel.send_shaqodoon_message,
                   Channel.TYPE_SMSCENTRAL: Channel.send_smscentral_message,
                   Channel.TYPE_START: Channel.send_start_message,
