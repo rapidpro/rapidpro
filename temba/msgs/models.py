@@ -1149,7 +1149,7 @@ class Msg(models.Model):
                     status=self.status, direction=self.direction,
                     external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
-                    created_on=self.created_on, modified_on=self.modified_on)
+                    created_on=self.created_on, modified_on=self.modified_on, session_id=self.session_id)
 
         if self.contact_urn.auth:
             data.update(dict(auth=self.contact_urn.auth))
