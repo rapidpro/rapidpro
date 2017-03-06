@@ -88,8 +88,8 @@ class FlowTest(TembaTest):
         return load_workbook(filename=os.path.join(settings.MEDIA_ROOT, filename))
 
     def test_get_flow_user(self):
-        user = get_flow_user()
-        self.assertEqual(user.pk, get_flow_user().pk)
+        user = get_flow_user(self.org)
+        self.assertEqual(user.pk, get_flow_user(self.org).pk)
 
     def test_get_unique_name(self):
         flow1 = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Sheep Poll"), base_language='base')
@@ -2059,7 +2059,7 @@ class FlowTest(TembaTest):
 
         # check flow listing
         response = self.client.get(reverse('flows.flow_list'))
-        self.assertEqual(list(response.context['object_list']), [flow1, flow3, voice_flow, flow2, self.flow])  # by last modified
+        self.assertEqual(list(response.context['object_list']), [flow3, voice_flow, flow2, flow1, self.flow])  # by saved_on
 
         # start a contact on that flow
         flow = flow1
@@ -5672,6 +5672,46 @@ class FlowMigrationTest(FlowFileTest):
         flow.update(flow_json)
         return Flow.objects.get(pk=flow.pk)
 
+    def test_migrate_with_flow_user(self):
+        flow = Flow.create_instance(dict(name='Favorites', org=self.org,
+                                         created_by=self.admin, modified_by=self.admin,
+                                         saved_by=self.admin, version_number=7))
+
+        flow_json = self.get_flow_json('favorites')
+        FlowRevision.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+                                          spec_version=7, revision=1,
+                                          created_by=self.admin, modified_by=self.admin))
+
+        old_json = flow.as_json()
+
+        saved_on = flow.saved_on
+        modified_on = flow.modified_on
+        flow.ensure_current_version()
+        flow.refresh_from_db()
+
+        # system migration should not affect our saved_on even tho we are modified
+        self.assertNotEqual(modified_on, flow.modified_on)
+        self.assertEqual(saved_on, flow.saved_on)
+
+        # but should still create a revision using the flow user
+        self.assertEqual(1, flow.revisions.filter(created_by=get_flow_user(self.org)).count())
+
+        # should see the system user on our revision json
+        self.login(self.admin)
+        response = self.client.get(reverse('flows.flow_revisions', args=[flow.pk]))
+        self.assertContains(response, 'System Update')
+        self.assertEqual(2, len(response.json()))
+
+        # attempt to save with old json, no bueno
+        failed = flow.update(old_json, user=self.admin)
+        self.assertEqual('unsaved', failed.get('status'))
+        self.assertEqual('System Update', failed.get('saved_by'))
+
+        # now refresh and save a new version
+        flow.update(flow.as_json(), user=self.admin)
+        self.assertEqual(3, flow.revisions.all().count())
+        self.assertEqual(1, flow.revisions.filter(created_by=get_flow_user(self.org)).count())
+
     def test_migrate_malformed_single_message_flow(self):
 
         flow = Flow.create_instance(dict(name='Single Message Flow', org=self.org,
@@ -5737,6 +5777,8 @@ class FlowMigrationTest(FlowFileTest):
     def test_migrate_to_10(self):
         # this is really just testing our rewriting of webhook rulesets
         webhook_flow = self.get_flow('dual_webhook')
+
+        self.assertNotEqual(webhook_flow.modified_on, webhook_flow.saved_on)
 
         # get our definition out
         flow_def = webhook_flow.as_json()
