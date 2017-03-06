@@ -95,6 +95,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
     """
     system_group = None
     add_button = True
+    default_order = ('-id',)
     paginate_by = 50
 
     def derive_group(self):
@@ -111,13 +112,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         else:
             qs = group.contacts.all()
 
-        return qs.filter(is_test=False).order_by('-pk').prefetch_related('all_groups')
-
-    def order_queryset(self, queryset):
-        """
-        Order contacts by name, case insensitive
-        """
-        return queryset
+        return qs.filter(is_test=False).prefetch_related('all_groups')
 
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
