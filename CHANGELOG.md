@@ -1,3 +1,7 @@
+v3.0.76
+----------
+ * Log Nexmo media responses without including entire body
+
 v3.0.75
 ----------
  * Dont encode to utf8 for XML and JSON since they expect unicode
