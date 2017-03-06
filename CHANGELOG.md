@@ -1,3 +1,9 @@
+v3.0.77
+----------
+ * Use brand key for evaluation instead of host when determining brand
+ * Add red rabbit type (hidden since MT only)
+ * Fix flow results exports for broadcast only flows
+
 v3.0.76
 ----------
  * Log Nexmo media responses without including entire body
