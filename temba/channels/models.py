@@ -1940,8 +1940,9 @@ class Channel(TembaModel):
         is_ussd = channel.channel_type in Channel.USSD_CHANNELS
         channel.config['transport_name'] = 'ussd_transport' if is_ussd else 'mtech_ng_smpp_transport'
 
-        in_reply_to = Msg.objects.values_list(
-            'external_id', flat=True).filter(pk=msg.response_to_id).first()
+        in_reply_to = None
+        if msg.response_to_id:
+            in_reply_to = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
 
         payload = dict(message_id=msg.id,
                        in_reply_to=in_reply_to,
