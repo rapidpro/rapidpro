@@ -527,15 +527,14 @@ class Flow(TembaModel):
     @classmethod
     def should_close_session(cls, run, current_destination, next_destination):
         if run.flow.flow_type == Flow.USSD:
-            if current_destination.is_messaging:
-                # this might be our last node that sends msg
-                if not next_destination:
-                    return True
+            # this might be our last node that sends msg
+            if not next_destination:
+                return True
+            else:
+                if next_destination.is_messaging:
+                    return False
                 else:
-                    if next_destination.is_messaging:
-                        return False
-                    else:
-                        return Flow.should_close_session_graph(next_destination)
+                    return Flow.should_close_session_graph(next_destination)
         else:
             return False
 
@@ -559,17 +558,14 @@ class Flow(TembaModel):
                             return False
                 return True
         elif start_node.get_step_type() == FlowStep.TYPE_ACTION_SET:
-            if start_node.is_messaging:
-                return False
-            else:
-                if start_node.destination:
-                    next_node = Flow.get_node(start_node.flow, start_node.destination, start_node.destination_type)
-                    if next_node.is_messaging:
-                        return False
-                    else:
-                        return Flow.should_close_session_graph(next_node)
+            if start_node.destination:
+                next_node = Flow.get_node(start_node.flow, start_node.destination, start_node.destination_type)
+                if next_node.is_messaging:
+                    return False
                 else:
-                    return True
+                    return Flow.should_close_session_graph(next_node)
+            else:
+                return True
 
     @classmethod
     def find_and_handle(cls, msg, started_flows=None, voice_response=None,
@@ -644,7 +640,8 @@ class Flow(TembaModel):
                     msgs += result.get('msgs', [])
 
                     # USSD check for session end
-                    if Flow.should_close_session(run, destination, result.get('destination')):
+                    if not result.get('interrupted') and \
+                            Flow.should_close_session(run, destination, result.get('destination')):
 
                         end_message = Msg.create_outgoing(msg.org, get_flow_user(), msg.contact, '',
                                                           channel=msg.channel, priority=Msg.PRIORITY_HIGH,
@@ -740,7 +737,7 @@ class Flow(TembaModel):
             rule, value = ruleset.find_interrupt_rule(step, run, msg)
             if not rule:
                 run.set_interrupted(final_step=step)
-                return dict(handled=True, destination=None, destination_type=None)
+                return dict(handled=True, destination=None, destination_type=None, interrupted=True)
         else:
             if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
                 if not resume_parent_run:
@@ -796,11 +793,11 @@ class Flow(TembaModel):
             if run.session_interrupted:
                 # run was interrupted and interrupt state not handled (not connected)
                 run.set_interrupted(final_step=step)
+                return dict(handled=True, destination=None, destination_type=None, interrupted=True)
             else:
                 # log it for our test contacts
                 run.set_completed(final_step=step)
-
-            return dict(handled=True, destination=None, destination_type=None)
+                return dict(handled=True, destination=None, destination_type=None)
 
         # Create the step for our destination
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
