@@ -2009,13 +2009,17 @@ class Channel(TembaModel):
     def send_vumi_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
         from temba.contacts.models import Contact
+        from temba.ussd.models import USSDSession
 
         is_ussd = channel.channel_type in Channel.USSD_CHANNELS
         channel.config['transport_name'] = 'ussd_transport' if is_ussd else 'mtech_ng_smpp_transport'
 
+        session = None
         session_event = None
+
         if is_ussd:
-            if msg.session.should_end:
+            session = USSDSession.objects.get_session_with_status_only(msg.session_id)
+            if session and session.should_end:
                 session_event = "close"
             else:
                 session_event = "resume"
@@ -2084,8 +2088,8 @@ class Channel(TembaModel):
         body = response.json()
         external_id = body.get('message_id', '')
 
-        if is_ussd and msg.session.should_end:
-            msg.session.mark_ended()
+        if is_ussd and session and session.should_end:
+            session.close()
 
         Channel.success(channel, msg, WIRED, start, 'PUT', url, payload, response, external_id)
 
