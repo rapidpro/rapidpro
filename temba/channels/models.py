@@ -109,6 +109,7 @@ class Channel(TembaModel):
     CONFIG_PASSWORD = 'password'
     CONFIG_KEY = 'key'
     CONFIG_API_ID = 'api_id'
+    CONFIG_CONTENT_TYPE = 'content_type'
     CONFIG_VERIFY_SSL = 'verify_ssl'
     CONFIG_USE_NATIONAL = 'use_national'
     CONFIG_ENCODING = 'encoding'
@@ -152,6 +153,20 @@ class Channel(TembaModel):
     YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 
     VUMI_GO_API_URL = 'https://go.vumi.org/api/v1/go/http_api_nostream'
+
+    CONTENT_TYPE_URLENCODED = 'urlencoded'
+    CONTENT_TYPE_JSON = 'json'
+    CONTENT_TYPE_XML = 'xml'
+
+    CONTENT_TYPES = {
+        CONTENT_TYPE_URLENCODED: "application/x-www-form-urlencoded",
+        CONTENT_TYPE_JSON: "application/json",
+        CONTENT_TYPE_XML: "text/xml; charset=utf-8"
+    }
+
+    CONTENT_TYPE_CHOICES = ((CONTENT_TYPE_URLENCODED, _("URL Encoded - application/x-www-form-urlencoded")),
+                            (CONTENT_TYPE_JSON, _("JSON - application/json")),
+                            (CONTENT_TYPE_XML, _("XML - text/xml; charset=utf-8")))
 
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
@@ -1164,11 +1179,25 @@ class Channel(TembaModel):
                 channel.save()
 
     @classmethod
-    def build_send_url(cls, url, variables):
+    def replace_variables(cls, text, variables, content_type=CONTENT_TYPE_URLENCODED):
         for key in variables.keys():
-            url = url.replace("{{%s}}" % key, quote_plus(six.text_type(variables[key]).encode('utf-8')))
+            replacement = six.text_type(variables[key]).encode('utf-8')
 
-        return url
+            # encode based on our content type
+            if content_type == Channel.CONTENT_TYPE_URLENCODED:
+                replacement = quote_plus(replacement)
+
+            # if this is JSON, need to wrap in quotes (and escape them)
+            elif content_type == Channel.CONTENT_TYPE_JSON:
+                replacement = json.dumps(replacement)
+
+            # XML needs to be escaped
+            elif content_type == Channel.CONTENT_TYPE_XML:
+                replacement = escape(replacement)
+
+            text = text.replace("{{%s}}" % key, replacement)
+
+        return text
 
     @classmethod
     def success(cls, channel, msg, msg_status, start, external_id=None, event=None, events=None):
@@ -1638,18 +1667,20 @@ class Channel(TembaModel):
         }
 
         # build our send URL
-        url = Channel.build_send_url(channel.config[Channel.CONFIG_SEND_URL], payload)
+        url = Channel.replace_variables(channel.config[Channel.CONFIG_SEND_URL], payload)
         start = time.time()
 
         method = channel.config.get(Channel.CONFIG_SEND_METHOD, 'POST')
 
         headers = TEMBA_HEADERS.copy()
+        content_type = channel.config.get(Channel.CONFIG_CONTENT_TYPE, Channel.CONTENT_TYPE_URLENCODED)
+        headers['Content-Type'] = Channel.CONTENT_TYPES[content_type]
+
         event = HttpEvent(method, url)
 
         if method in ('POST', 'PUT'):
             body = channel.config.get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
-            body = Channel.build_send_url(body, payload)
-            headers['Content-Type'] = 'application/x-www-form-urlencoded'
+            body = Channel.replace_variables(body, payload, content_type)
             event.request_body = body
 
         try:
@@ -1910,7 +1941,7 @@ class Channel(TembaModel):
         channel.config['transport_name'] = 'ussd_transport' if is_ussd else 'mtech_ng_smpp_transport'
 
         in_reply_to = Msg.objects.values_list(
-            'external_id', flat=True).get(pk=msg.response_to_id)
+            'external_id', flat=True).filter(pk=msg.response_to_id).first()
 
         payload = dict(message_id=msg.id,
                        in_reply_to=in_reply_to,
