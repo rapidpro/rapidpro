@@ -122,10 +122,15 @@ class NexmoClient(NexmoCli):
             temp.write(response.content)
             temp.flush()
 
+            # save our file off
+            downloaded = self.org.save_media(File(temp), extension)
+
+            # log that we downloaded it to our own url
             request = response.request
-            event = HttpEvent(request.method, request.url, request.body, response.status_code, response.content)
+            event = HttpEvent(request.method, request.url, request.body, response.status_code, downloaded)
             ChannelLog.log_ivr_interaction(call, "Downloaded media", event)
-            return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
+
+            return '%s:%s' % (content_type, downloaded)
 
         return None
 

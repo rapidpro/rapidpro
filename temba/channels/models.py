@@ -3450,7 +3450,8 @@ class ChannelSession(SmartModel):
 
     TYPE_CHOICES = ((IVR, "IVR"), (USSD, "USSD"),)
 
-    STATUS_CHOICES = ((QUEUED, "Queued"),
+    STATUS_CHOICES = ((PENDING, "Pending"),
+                      (QUEUED, "Queued"),
                       (RINGING, "Ringing"),
                       (IN_PROGRESS, "In Progress"),
                       (COMPLETED, "Complete"),
