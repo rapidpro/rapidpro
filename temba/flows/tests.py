@@ -3476,6 +3476,12 @@ class FlowRunTest(TembaTest):
         self.assertTrue(FlowRun.objects.get(contact=self.contact).is_completed())
 
     def test_is_interrupted(self):
+        self.channel.delete()
+        # Create a USSD channel type to test USSDSession.INTERRUPTED status
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
         flow = self.get_flow('ussd_example')
         flow.start([], [self.contact])
 
@@ -5483,6 +5489,12 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('Bleck', response['messages'][1]['text'])
 
     def test_interrupted_state(self):
+        self.channel.delete()
+        # Create a USSD channel type to test USSDSession.INTERRUPTED status
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
         flow = self.get_flow('ussd_interrupt_example')
 
         # start the flow, check if we are interrupted yet
@@ -5502,6 +5514,12 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(interrupted_group.contacts.filter(id=contact.id).exists())
 
     def test_empty_interrupt_state(self):
+        self.channel.delete()
+        # Create a USSD channel type to test USSDSession.INTERRUPTED status
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
         flow = self.get_flow('ussd_interrupt_example')
 
         # disconnect action from interrupt state
