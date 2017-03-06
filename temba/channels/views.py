@@ -1711,16 +1711,12 @@ class ChannelCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             org = self.request.user.get_org()
-
-            if not org:  # pragma: no cover
-                raise Exception("No org for this user, cannot claim")
-
             data = form.cleaned_data
 
-            role = {
-                Channel.TYPE_JUNEBUG: Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
-                Channel.TYPE_JUNEBUG_USSD: Channel.ROLE_USSD,
-            }.get(data['channel_type'])
+            if data['channel_type'] == Channel.TYPE_JUNEBUG_USSD:
+                role = Channel.ROLE_USSD
+            else:
+                role = Channel.DEFAULT_ROLE
 
             self.object = Channel.add_authenticated_external_channel(org, self.request.user,
                                                                      self.get_submitted_country(data),
