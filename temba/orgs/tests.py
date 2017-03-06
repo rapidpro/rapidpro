@@ -1537,6 +1537,25 @@ class OrgTest(TembaTest):
                 self.assertEquals(self.org.config_json()['NEXMO_KEY'], 'key')
                 self.assertEquals(self.org.config_json()['NEXMO_SECRET'], 'secret')
 
+                nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['answer_url'],
+                                  "https://%s%s" % (settings.TEMBA_HOST.lower(),
+                                                    reverse('handlers.nexmo_call_handler', args=['answer',
+                                                                                                 nexmo_uuid])))
+
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['event_url'],
+                                  "https://%s%s" % (settings.TEMBA_HOST.lower(),
+                                                    reverse('handlers.nexmo_call_handler', args=['event',
+                                                                                                 nexmo_uuid])))
+
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['answer_method'], 'POST')
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['event_method'], 'POST')
+
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['type'], 'voice')
+                self.assertEquals(mock_create_application.call_args_list[0][1]['params']['name'],
+                                  "%s/%s" % (settings.TEMBA_HOST.lower(), nexmo_uuid))
+
                 nexmo_account_url = reverse('orgs.org_nexmo_account')
                 response = self.client.get(nexmo_account_url)
                 self.assertEquals("key", response.context['api_key'])
@@ -1652,21 +1671,6 @@ class OrgTest(TembaTest):
             # plivo should be added to the session
             self.assertEquals(self.client.session[Channel.CONFIG_PLIVO_AUTH_ID], 'auth-id')
             self.assertEquals(self.client.session[Channel.CONFIG_PLIVO_AUTH_TOKEN], 'auth-token')
-
-    def test_download(self):
-        response = self.client.get('/org/download/messages/123/')
-        self.assertLoginRedirect(response)
-
-        self.login(self.admin)
-
-        response = self.client.get('/org/download/messages/123/')
-        self.assertRedirect(response, '/assets/download/message_export/123/')
-
-        response = self.client.get('/org/download/contacts/123/')
-        self.assertRedirect(response, '/assets/download/contact_export/123/')
-
-        response = self.client.get('/org/download/flows/123/')
-        self.assertRedirect(response, '/assets/download/results_export/123/')
 
     def test_tiers(self):
 
@@ -2995,6 +2999,37 @@ class TestStripeCredits(TembaTest):
         self.assertEquals("RapidPro Receipt", email.subject)
         self.assertTrue('Rudolph' in email.body)
         self.assertTrue('Visa' in email.body)
+        self.assertTrue('$20' in email.body)
+
+    @patch('stripe.Customer.create')
+    @patch('stripe.Charge.create')
+    @override_settings(SEND_EMAILS=True)
+    def test_add_btc_credits(self, charge_create, customer_create):
+        customer_create.return_value = dict_to_struct('Customer', dict(id='stripe-cust-1'))
+        charge_create.return_value = \
+            dict_to_struct('Charge', dict(id='stripe-charge-1', card=None,
+                                          source=dict_to_struct('Source',
+                                                                dict(bitcoin=dict_to_struct('Bitcoin', dict(address='abcde'))))))
+
+        settings.BRANDING[settings.DEFAULT_BRAND]['bundles'] = (dict(cents="2000", credits=1000, feature=""),)
+
+        self.org.add_credits('2000', 'stripe-token', self.admin)
+        self.assertTrue(2000, self.org.get_credits_total())
+
+        # assert we saved our charge info
+        topup = self.org.topups.last()
+        self.assertEqual('stripe-charge-1', topup.stripe_charge)
+
+        # and we saved our stripe customer info
+        org = Org.objects.get(id=self.org.id)
+        self.assertEqual('stripe-cust-1', org.stripe_customer)
+
+        # assert we sent our confirmation emai
+        self.assertEqual(1, len(mail.outbox))
+        email = mail.outbox[0]
+        self.assertEquals("RapidPro Receipt", email.subject)
+        self.assertTrue('bitcoin' in email.body)
+        self.assertTrue('abcde' in email.body)
         self.assertTrue('$20' in email.body)
 
     @patch('stripe.Customer.create')

@@ -2,7 +2,6 @@
 from __future__ import unicode_literals
 
 import json
-import pytz
 import six
 
 from datetime import timedelta
@@ -705,7 +704,7 @@ class MsgTest(TembaTest):
         self.assertContains(response, "already an export in progress")
 
         # perform the export manually, assert how many queries
-        self.assertNumQueries(7, lambda: blocking_export.do_export())
+        self.assertNumQueries(8, lambda: blocking_export.perform())
 
         self.client.post(reverse('msgs.msg_export'))
         task = ExportMessagesTask.objects.all().order_by('-id').first()
@@ -721,31 +720,31 @@ class MsgTest(TembaTest):
 
         self.assertExcelRow(sheet, 1,
                             [msg9.created_on, "123", "tel", "Joe Blow", msg9.contact.uuid, "Outgoing",
-                             "Hey out 9", "", "Failed Sending"], pytz.UTC)
+                             "Hey out 9", "", "Failed Sending"], self.org.timezone)
 
         self.assertExcelRow(sheet, 2,
                             [msg8.created_on, "123", "tel", "Joe Blow", msg8.contact.uuid, "Outgoing",
-                             "Hey out 8", "", "Error Sending"], pytz.UTC)
+                             "Hey out 8", "", "Error Sending"], self.org.timezone)
 
         self.assertExcelRow(sheet, 3,
                             [msg7.created_on, "123", "tel", "Joe Blow", msg7.contact.uuid, "Outgoing",
-                             "Hey out 7", "", "Delivered"], pytz.UTC)
+                             "Hey out 7", "", "Delivered"], self.org.timezone)
 
         self.assertExcelRow(sheet, 4,
                             [msg6.created_on, "123", "tel", "Joe Blow", msg6.contact.uuid, "Outgoing",
-                             "Hey out 6", "", "Sent"], pytz.UTC)
+                             "Hey out 6", "", "Sent"], self.org.timezone)
 
         self.assertExcelRow(sheet, 5, [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming",
-                                       "Media message", "", "Handled"], pytz.UTC)
+                                       "Media message", "", "Handled"], self.org.timezone)
 
         self.assertExcelRow(sheet, 6, [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "Incoming",
-                                       "hello 4", "", "Handled"], pytz.UTC)
+                                       "hello 4", "", "Handled"], self.org.timezone)
 
         self.assertExcelRow(sheet, 7, [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid, "Incoming",
-                                       "hello 2", "", "Handled"], pytz.UTC)
+                                       "hello 2", "", "Handled"], self.org.timezone)
 
         self.assertExcelRow(sheet, 8, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming",
-                                       "hello 1", "label1", "Handled"], pytz.UTC)
+                                       "hello 1", "label1", "Handled"], self.org.timezone)
 
         email_args = mock_send_temba_email.call_args[0]  # all positional args
 
@@ -769,7 +768,8 @@ class MsgTest(TembaTest):
         sheet = workbook.worksheets[0]
 
         self.assertEquals(len(list(sheet.rows)), 2)  # only header and msg1
-        self.assertExcelRow(sheet, 1, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"], pytz.UTC)
+        self.assertExcelRow(sheet, 1, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming",
+                                       "hello 1", "label1", "Handled"], self.org.timezone)
 
         ExportMessagesTask.objects.all().delete()
 
@@ -785,28 +785,28 @@ class MsgTest(TembaTest):
             self.assertEquals(len(list(sheet.rows)), 9)
 
             self.assertExcelRow(sheet, 1, [msg9.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg9.contact.uuid,
-                                           "Outgoing", "Hey out 9", "", "Failed Sending"], pytz.UTC)
+                                           "Outgoing", "Hey out 9", "", "Failed Sending"], self.org.timezone)
 
             self.assertExcelRow(sheet, 2, [msg8.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg8.contact.uuid,
-                                           "Outgoing", "Hey out 8", "", "Error Sending"], pytz.UTC)
+                                           "Outgoing", "Hey out 8", "", "Error Sending"], self.org.timezone)
 
             self.assertExcelRow(sheet, 3, [msg7.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg7.contact.uuid,
-                                           "Outgoing", "Hey out 7", "", "Delivered"], pytz.UTC)
+                                           "Outgoing", "Hey out 7", "", "Delivered"], self.org.timezone)
 
             self.assertExcelRow(sheet, 4, [msg6.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg6.contact.uuid,
-                                           "Outgoing", "Hey out 6", "", "Sent"], pytz.UTC)
+                                           "Outgoing", "Hey out 6", "", "Sent"], self.org.timezone)
 
             self.assertExcelRow(sheet, 5, [msg5.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg5.contact.uuid,
-                                           "Incoming", "Media message", "", "Handled"], pytz.UTC)
+                                           "Incoming", "Media message", "", "Handled"], self.org.timezone)
 
             self.assertExcelRow(sheet, 6, [msg4.created_on, "%010d" % self.joe.pk, "", "Joe Blow", msg4.contact.uuid,
-                                           "Incoming", "hello 4", "", "Handled"], pytz.UTC)
+                                           "Incoming", "hello 4", "", "Handled"], self.org.timezone)
 
             self.assertExcelRow(sheet, 7, [msg2.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg2.contact.uuid,
-                                           "Incoming", "hello 2", "", "Handled"], pytz.UTC)
+                                           "Incoming", "hello 2", "", "Handled"], self.org.timezone)
 
             self.assertExcelRow(sheet, 8, [msg1.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg1.contact.uuid,
-                                           "Incoming", "hello 1", "label1", "Handled"], pytz.UTC)
+                                           "Incoming", "hello 1", "label1", "Handled"], self.org.timezone)
 
 
 class MsgCRUDLTest(TembaTest):
@@ -1290,19 +1290,15 @@ class BroadcastTest(TembaTest):
 
         # create an old broadcast which is a response to an incoming message
         incoming = self.create_msg(contact=self.joe, direction='I', text="Hello")
-        broadcast1 = Broadcast.create(self.org, self.user, "Noted", [self.joe])
+        broadcast1 = Broadcast.create(self.org, self.user, "Noted", [self.joe], created_on=long_ago)
         broadcast1.send(trigger_send=False, response_to=incoming)
-        broadcast1.created_on = long_ago
-        broadcast1.save()
 
         # create an old broadcast which is to several contacts
         broadcast2 = Broadcast.create(self.org, self.user, "Very old broadcast",
-                                      [self.joe_and_frank, self.kevin, self.lucy])
+                                      [self.joe_and_frank, self.kevin, self.lucy], created_on=long_ago)
         broadcast2.send(trigger_send=False)
-        broadcast2.created_on = long_ago
-        broadcast2.save()
 
-        print(repr([{'name': m.contact.name, 'status': m.status} for m in broadcast2.msgs.all()]))
+        # print(repr([{'name': m.contact.name, 'status': m.status} for m in broadcast2.msgs.all()]))
 
         # create a recent broadcast to same contacts
         broadcast3 = Broadcast.create(self.org, self.user, "New broadcast",
@@ -1312,18 +1308,14 @@ class BroadcastTest(TembaTest):
         # create an old broadcast for the other purgeable org
         Channel.create(self.org2, self.admin2, 'RW', 'A', name="Test Channel 2", address="+250785551313")
         hans = self.create_contact("Hans", "1234567")
-        broadcast4 = Broadcast.create(self.org2, self.admin2, "Old for org 2", [hans])
+        broadcast4 = Broadcast.create(self.org2, self.admin2, "Old for org 2", [hans], created_on=long_ago)
         broadcast4.send(trigger_send=False)
-        broadcast4.created_on = long_ago
-        broadcast4.save()
 
         # and one for the non-purgeable org
         Channel.create(org3, admin3, 'HU', 'A', name="Test Channel 3", address="+250785551314")
         george = self.create_contact("George", "1234568")
-        broadcast5 = Broadcast.create(org3, admin3, "Old for org 3", [george])
+        broadcast5 = Broadcast.create(org3, admin3, "Old for org 3", [george], created_on=long_ago)
         broadcast5.send(trigger_send=False)
-        broadcast5.created_on = long_ago
-        broadcast5.save()
 
         # mark all outgoing messages as sent except broadcast #2 to Joe
         Msg.objects.filter(direction='O').update(status='S')
@@ -1378,10 +1370,9 @@ class BroadcastTest(TembaTest):
 
         # create another old broadcast
         broadcast5 = Broadcast.create(self.org, self.admin, "Another old broadcast",
-                                      [self.joe_and_frank, self.kevin, self.lucy])
+                                      [self.joe_and_frank, self.kevin, self.lucy],
+                                      created_on=timezone.now() - timedelta(days=100))
         broadcast5.send(trigger_send=False)
-        broadcast5.created_on = timezone.now() - timedelta(days=100)
-        broadcast5.save()
 
         self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_OUTBOX], 4)
         self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 4)

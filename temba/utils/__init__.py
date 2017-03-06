@@ -174,6 +174,14 @@ def ms_to_datetime(ms):
     return dt.replace(microsecond=(ms % 1000) * 1000).replace(tzinfo=pytz.utc)
 
 
+def datetime_to_epoch(dt):
+    """
+    Converts a datetime to seconds since 1970
+    """
+    utc_naive = dt.replace(tzinfo=None) - dt.utcoffset()
+    return (utc_naive - datetime.datetime(1970, 1, 1)).total_seconds()
+
+
 def str_to_bool(text):
     """
     Parses a boolean value from the given text
@@ -409,16 +417,6 @@ class PageableQuery(object):
         cursor.execute("SELECT count(*) FROM (%s) s" % self.query, self.params)
         self._count = cursor.fetchone()[0]
         return self._count
-
-
-def non_atomic_when_eager(view_func):
-    """
-    Decorator which disables atomic requests for a view/dispatch function when celery is running in eager mode
-    """
-    if getattr(settings, 'CELERY_ALWAYS_EAGER', False):
-        return transaction.non_atomic_requests(view_func)
-    else:
-        return view_func
 
 
 def non_atomic_gets(view_func):

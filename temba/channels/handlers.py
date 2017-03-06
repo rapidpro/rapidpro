@@ -7,6 +7,7 @@ import json
 import pytz
 import requests
 import six
+import magic
 import xml.etree.ElementTree as ET
 
 from datetime import datetime
@@ -22,9 +23,9 @@ from django.views.generic import View
 from guardian.utils import get_anonymous_user
 from requests import Request
 from temba.api.models import WebHookEvent, SMS_RECEIVED
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import Contact, URN
-from temba.flows.models import Flow, FlowRun
+from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, OUTGOING
 from temba.triggers.models import Trigger
@@ -32,6 +33,7 @@ from temba.ussd.models import USSDSession
 from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
+from temba.utils.http import HttpEvent
 from twilio import twiml
 from .tasks import fb_channel_subscribe
 
@@ -557,7 +559,18 @@ class TelegramHandler(BaseChannelHandler):
                     url = 'https://api.telegram.org/file/bot%s/%s' % (auth_token, response_json['result']['file_path'])
                     extension = url.rpartition('.')[2]
                     response = requests.get(url)
-                    content_type = response.headers['Content-Type']
+
+                    # attempt to determine our content type using magic bytes
+                    content_type = None
+                    try:
+                        m = magic.Magic(mime=True)
+                        content_type = m.from_buffer(response.content)
+                    except:  # pragma: no cover
+                        pass
+
+                    # fallback on the content type in our response header
+                    if not content_type or content_type == 'application/octet-stream':
+                        content_type = response.headers['Content-Type']
 
                     temp = NamedTemporaryFile(delete=True)
                     temp.write(response.content)
@@ -566,6 +579,24 @@ class TelegramHandler(BaseChannelHandler):
                     return '%s:%s' % (content_type, channel.org.save_media(File(temp), extension))
 
     def post(self, request, *args, **kwargs):
+
+        request_body = request.body
+        request_method = request.method
+        request_path = request.get_full_path()
+
+        def make_response(description, msg=None, status_code=None):
+            response_body = dict(description=description)
+            if msg:
+                log(msg, 'Incoming message', json.dumps(response_body))
+
+            if not status_code:
+                status_code = 201
+            return JsonResponse(response_body, status=status_code)
+
+        def log(msg, description, response_body):
+            event = HttpEvent(request_method, request_path, request_body, 200, response_body)
+            ChannelLog.log_message(msg, description, event)
+
         channel_uuid = kwargs['uuid']
         channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_TELEGRAM).exclude(org=None).first()
 
@@ -575,7 +606,7 @@ class TelegramHandler(BaseChannelHandler):
         body = json.loads(request.body)
 
         if 'message' not in body:
-            return HttpResponse("No 'message' found in payload", status=400)
+            return make_response('No "message" found in payload', status_code=400)
 
         # look up the contact
         telegram_id = str(body['message']['from']['id'])
@@ -602,9 +633,12 @@ class TelegramHandler(BaseChannelHandler):
         msg_date = datetime.utcfromtimestamp(body['message']['date']).replace(tzinfo=pytz.utc)
 
         def create_media_message(body, name):
+            msg = None
+
             # if we have a caption add it
             if 'caption' in body['message']:
-                Msg.create_incoming(channel, urn, body['message']['caption'], date=msg_date)
+                msg = Msg.create_incoming(channel, urn, body['message']['caption'], date=msg_date)
+                log(msg, 'Inbound message', json.dumps(dict(description='Message accepted')))
 
             # pull out the media body, download it and create our msg
             if name in body['message']:
@@ -619,9 +653,12 @@ class TelegramHandler(BaseChannelHandler):
                 # if we got a media URL for this attachment, save it away
                 if media_url:
                     url = media_url.partition(':')[2]
-                    Msg.create_incoming(channel, urn, url, date=msg_date, media=media_url)
+                    msg = Msg.create_incoming(channel, urn, url, date=msg_date, media=media_url)
+                    log(msg, 'Incoming media', json.dumps(dict(description='Message accepted')))
 
-            return HttpResponse("Message Accepted")
+            # this one's a little kludgy cause we might create more than
+            # one message, so we need to log them both above instead
+            return make_response("Message accepted")
 
         if 'sticker' in body['message']:
             return create_media_message(body, 'sticker')
@@ -645,7 +682,7 @@ class TelegramHandler(BaseChannelHandler):
                     msg_text = '%s (%s)' % (msg_text, body['message']['venue']['title'])
             media_url = 'geo:%s' % location
             msg = Msg.create_incoming(channel, urn, msg_text, date=msg_date, media=media_url)
-            return HttpResponse("Message Accepted: %d" % msg.id)
+            return make_response('Message accepted', msg)
 
         if 'photo' in body['message']:
             create_media_message(body, 'photo')
@@ -665,9 +702,9 @@ class TelegramHandler(BaseChannelHandler):
         # skip if there is no message block (could be a sticker or voice)
         if 'text' in body['message']:
             msg = Msg.create_incoming(channel, urn, body['message']['text'], date=msg_date)
-            return HttpResponse("Message Accepted: %d" % msg.id)
+            return make_response('Message accepted', msg)
 
-        return HttpResponse("No message, ignored.")
+        return make_response("Ignored, nothing provided in payload to create a message")
 
 
 class InfobipHandler(BaseChannelHandler):
@@ -991,20 +1028,81 @@ class NexmoCallHandler(BaseChannelHandler):
 
         action = kwargs['action'].lower()
 
-        # nexmo fires a test request at our URL with no arguments, return 200 so they take our URL as valid
-        if action == 'answer' and not self.get_param('nexmo_caller_id', None):
-            return HttpResponse("No to parameter, ignoring")
+        request_body = request.body
+        request_path = request.get_full_path()
+        request_method = request.method
 
         request_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid__iexact=request_uuid, is_active=True, channel_type=Channel.TYPE_NEXMO).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("No channel to answer call for UUID: %s" % request_uuid, status=404)
+        if action == 'event':
+            if not request_body:
+                return HttpResponse('')
+
+            body_json = json.loads(request_body)
+            status = body_json.get('status', None)
+            duration = body_json.get('duration', None)
+            call_uuid = body_json.get('uuid', None)
+            conversation_uuid = body_json.get('conversation_uuid', None)
+
+            if call_uuid is None:
+                return HttpResponse("Missing uuid parameter, ignoring")
+
+            call = IVRCall.objects.filter(external_id=call_uuid).first()
+            if not call:
+                # try looking up by the conversation uuid (inbound calls start with that)
+                call = IVRCall.objects.filter(external_id=conversation_uuid).first()
+                if call:
+                    call.external_id = call_uuid
+                    call.save()
+                else:
+                    response = dict(message="Call not found for %s" % call_uuid)
+                    return JsonResponse(response)
+
+            channel = call.channel
+            channel_type = channel.channel_type
+            call.update_status(status, duration, channel_type)
+            call.save()
+
+            response = dict(description="Updated call status",
+                            call=dict(status=call.get_status_display(), duration=call.duration))
+
+            event = HttpEvent(request_method, request_path, request_body, 200, json.dumps(response))
+            ChannelLog.log_ivr_interaction(call, "Updated call status", event)
+
+            if call.status == IVRCall.COMPLETED:
+                # if our call is completed, hangup
+                runs = FlowRun.objects.filter(session=call)
+                for run in runs:
+                    if not run.is_completed():
+                        final_step = FlowStep.objects.filter(run=run).order_by('-arrived_on').first()
+                        run.set_completed(final_step=final_step)
+
+            return JsonResponse(response)
 
         if action == 'answer':
+            if not request_body:
+                return HttpResponse('')
 
-            from_number = self.get_param('nexmo_caller_id')
-            external_id = self.get_param('nexmo_call_id')
+            body_json = json.loads(request_body)
+            from_number = body_json.get('from', None)
+            channel_number = body_json.get('to', None)
+            external_id = body_json.get('conversation_uuid', None)
+
+            if not from_number or not channel_number or not external_id:
+                return HttpResponse("Missing parameters, Ignoring")
+
+            # look up the channel
+            address_q = Q(address=channel_number) | Q(address=('+' + channel_number))
+            channel = Channel.objects.filter(address_q).filter(is_active=True,
+                                                               channel_type=Channel.TYPE_NEXMO).exclude(org=None).first()
+
+            # make sure we got one, and that it matches the key for our org
+            org_uuid = None
+            if channel:
+                org_uuid = channel.org.config_json().get(NEXMO_UUID, None)
+
+            if not channel or org_uuid != request_uuid:
+                return HttpResponse("Channel not found for number: %s" % channel_number, status=404)
 
             urn = URN.from_tel(from_number)
             contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], channel=channel)
@@ -1017,7 +1115,10 @@ class NexmoCallHandler(BaseChannelHandler):
 
                 FlowRun.create(flow, contact.pk, session=call)
                 response = Flow.handle_call(call)
-                return HttpResponse(unicode(response))
+
+                event = HttpEvent(request_method, request_path, request_body, 200, six.text_type(response))
+                ChannelLog.log_ivr_interaction(call, "Incoming request for call", event)
+                return JsonResponse(json.loads(six.text_type(response)), safe=False)
             else:
                 # we don't have an inbound trigger to deal with this call.
                 response = channel.generate_ivr_response()
@@ -1032,12 +1133,7 @@ class NexmoCallHandler(BaseChannelHandler):
                 Trigger.catch_triggers(contact, Trigger.TYPE_MISSED_CALL, channel)
 
                 # either way, we need to hangup now
-                return HttpResponse(unicode(response))
-
-        if action == 'event':
-            # event are handled by call event webhook
-            # this url is just required to be able to create the nexmo application
-            return HttpResponse('')
+                return JsonResponse(json.loads(six.text_type(response)), safe=False)
 
 
 class NexmoHandler(BaseChannelHandler):
@@ -2568,3 +2664,60 @@ class ViberPublicHandler(BaseChannelHandler):
 
         else:  # pragma: no cover
             return HttpResponse("Not handled, unknown event: %s" % event, status=400)
+
+
+class FCMHandler(BaseChannelHandler):
+
+    url = r'^fcm/(?P<action>register|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.fcm_handler'
+
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("Must be called as a POST", status=405)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+
+        channel_uuid = kwargs['uuid']
+
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_FCM).exclude(
+            org=None).first()
+
+        if not channel:
+            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
+
+        action = kwargs['action']
+
+        try:
+            if action == 'receive':
+                if not self.get_param('from') or not self.get_param('msg') or not self.get_param('fcm_token'):
+                    return HttpResponse("Missing parameters, requires 'from', 'msg' and 'fcm_token'", status=400)
+
+                date = self.get_param('date', self.get_param('time', None))
+                if date:
+                    date = json_date_to_datetime(date)
+
+                fcm_urn = URN.from_fcm(self.get_param('from'))
+                fcm_token = self.get_param('fcm_token')
+                name = self.get_param('name', None)
+                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[fcm_urn],
+                                                channel=channel, auth=fcm_token)
+
+                sms = Msg.create_incoming(channel, fcm_urn, self.get_param('msg'), date=date, contact=contact)
+                return HttpResponse("Msg Accepted: %d" % sms.id)
+
+            elif action == 'register':
+                if not self.get_param('urn') or not self.get_param('fcm_token'):
+                    return HttpResponse("Missing parameters, requires 'urn' and 'fcm_token'", status=400)
+
+                fcm_urn = URN.from_fcm(self.get_param('urn'))
+                fcm_token = self.get_param('fcm_token')
+                name = self.get_param('name', None)
+                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[fcm_urn],
+                                                channel=channel, auth=fcm_token)
+                return HttpResponse(json.dumps({'contact_uuid': contact.uuid}), content_type='application/json')
+
+            else:  # pragma: no cover
+                return HttpResponse("Not handled, unknown action", status=400)
+
+        except Exception as e:  # pragma: no cover
+            return HttpResponse(e.args, status=400)

@@ -1,5 +1,5 @@
 {% extends "smartmin/read.html" %}
--load i18n
+-load i18n compress humanize
 
 -block page-title
   -trans "Channel Event"
@@ -8,33 +8,71 @@
   .medium-help.icon-cloud-upload{ style:'float:left;' }
   %h2.header-margin
     -if object.is_error
-      -trans "Channel Error"
+      -trans "Message Error"
     -else
-      -trans "Channel Event"
+      -if object.session_type
+        -trans "Call Log"
+      -else
+        -trans "Message Log"
+
   %h5.header-margin
-    {{ object.description }} - {{ object.created_on }}
+    Provider: {{ object.channel.get_channel_type_display }}
 
 -block above-bar
-  %a.btn.btn-primary{ href: '{% url "channels.channellog_list" %}?channel={{ object.channel.pk }}' } Back
+  %a.btn.btn-secondary{ href: '{% url "channels.channellog_list" %}?channel={{ object.channel.pk }}' } Message Log
 
--block post-fields
-  -if object.url or object.session
-    .result
-      .result-status=
-        -if object.response_status
-          {{ object.response_status }}
-      .result-summary
-          %pre.result-request.prettyprint{ style:'margin-top:10px;' }<
-            :plain
-              {{ object.method }} {{ object.url }}
+-block content
 
-              {% if object.method == 'POST' or object.method == 'PUT' or object.session %}{{ object.request|default:"" }}{% endif %}
-          .result-body
-            -if object.response
-              %pre.prettyprint= object.response
-            -else
-              %pre.prettyprint<
-                -trans "No Response Body"
+  .log-details
+    .detail.recipient
+      .header
+        Recipient
+          -if object.msg
+            %a{href:'{% url "contacts.contact_read" object.msg.contact.uuid %}'}
+              {{object.msg.contact_urn.path}}
+          -elif object.session_type
+            %a{href:'{% url "contacts.contact_read" object.contact.uuid %}'}
+              {{object.contact_urn.path}}
+    .detail.channel
+      .header
+        Channel
+      %a{href:'{% url "channels.channel_read" object.channel.uuid %}'}
+        {{object.channel}}
+    .detail.direction
+      .header
+        Direction
+      -if object.session_type
+        {{object.get_direction_display}}
+      -else
+        {{object.msg.get_direction_display}}
+    .detail.started
+      .header
+        Date
+      {{object.created_on|date:"M j, Y g:i:s a"}}
+
+    -if object.duration
+      .detail.duration
+        .header
+          Duration
+        {{object.get_duration|delta}}
+
+    .detail.status
+      .header
+        Status
+      -if object.session_type
+        {{object.get_status_display}}
+      -else
+        -if object.is_error
+          -trans "Error"
+        -else
+          {{object.msg.get_status_display}}
+
+  -if object.session_type
+    -for log in object.get_logs
+      -include "channels/channellog_log.haml"
+  -else
+    -with object as log
+      -include "channels/channellog_log.haml"
 
 -block extra-script
   {{ block.super }}
@@ -44,22 +82,100 @@
       prettyPrint();
     });
 
+  :javascript
+    $('document').ready(function(){
+      $('.summary :first').click();
+    });
+
+    $('.summary').on('click', function() {
+      var top = $(this).parent('.log')
+      var ele = top.find(".details");
+      if (ele.is(':visible')) {
+        ele.slideUp();
+        top.removeClass('expanded');
+      } else {
+        ele.slideDown();
+        top.addClass('expanded')
+      }
+    });
+
 -block extra-style
   {{ block.super }}
   <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>
-  :css
-    .result {
-      clear: both;
-      margin-bottom: 10px;
-    }
 
-    .result-status {
-      float: left;
-      margin-top: 10px;
-      font-size: 32px;
-      color: #666;
-    }
+-block extra-less
+  {{block.super}}
+  -compress css inline
+    {% lessblock %}
+      :plain
+        .result {
+          clear: both;
+          margin-bottom: 10px;
+        }
 
-    .result .result-summary {
-      margin-left: 70px;
-    }
+        .result-status {
+          float: left;
+          margin-top: 10px;
+          font-size: 32px;
+          color: #666;
+        }
+
+        .result .result-summary {
+          margin-left: 70px;
+        }
+
+        .log {
+          padding: 0px;
+          border: 1px solid #f7f7f9 - #111;
+          margin-bottom:10px;
+
+          pre, .prettyprint {
+            border: 0;
+            margin-bottom: 0px;
+          }
+
+          .status-code {
+            margin-right: 5px;
+          }
+
+          .summary {
+            border: 1px solid #f7f7f9 - #111;
+            padding: 10px;
+            color: @flat-grey;
+            cursor: pointer;
+            word-break: break-all;
+            word-wrap: break-word;
+
+            .method {
+              font-weight: bold;
+            }
+          }
+          .prettyprint {
+            padding: 10px;
+            border-radius: 0;
+
+            &.request {
+              background: #f7f7f9 + 111;
+              border-bottom: 1px solid @flat-white;
+            }
+          }
+        }
+
+        .log-details {
+          padding: 10px;
+          margin-bottom:10px;
+          border: 1px solid #f7f7f9 - #111;
+          font-size: 80%;
+
+          .header {
+            display: inline-block;
+            font-weight: 400;
+            margin-right: 2px;
+          }
+
+          .detail {
+            display: inline-block;
+            margin-right: 16px;
+          }
+        }
+    {% endlessblock %}

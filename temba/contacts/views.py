@@ -335,11 +335,7 @@ class ContactCRUDL(SmartCRUDL):
                     group = groups[0]
 
             # is there already an export taking place?
-            existing = ExportContactsTask.objects.filter(org=org, is_finished=False,
-                                                         created_on__gt=timezone.now() - timedelta(hours=24))\
-                                                 .order_by('-created_on').first()
-
-            # if there is an existing export, don't allow it
+            existing = ExportContactsTask.get_recent_unfinished(org)
             if existing:
                 messages.info(self.request,
                               _("There is already an export in progress, started by %s. You must wait "

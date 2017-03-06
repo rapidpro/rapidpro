@@ -6,7 +6,6 @@ import re
 import requests
 import six
 import time
-import nexmo
 
 from django.conf import settings
 from django.core.files import File
@@ -14,13 +13,16 @@ from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
+from temba.channels.models import ChannelLog
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow
 from temba.ivr.models import IVRCall
+from temba.utils.http import HttpEvent
 from temba.utils.nexmo import NexmoClient as NexmoCli
+from temba.utils.twilio import TembaTwilioRestClient
 from twilio import TwilioRestException
-from twilio.rest import TwilioRestClient
 from twilio.util import RequestValidator
+from nexmo import AuthenticationError, ClientError, ServerError
 
 
 class IVRException(Exception):
@@ -32,9 +34,30 @@ class NexmoClient(NexmoCli):
     def __init__(self, api_key, api_secret, app_id, app_private_key, org=None):
         self.org = org
         NexmoCli.__init__(self, api_key, api_secret, app_id, app_private_key)
+        self.events = []
 
     def validate(self, request):
         return True
+
+    def parse(self, host, response):  # pragma: no cover
+
+        # save an http event for logging later
+        request = response.request
+        self.events.append(HttpEvent(request.method, request.url, request.body, response.status_code, response.text))
+
+        # Nexmo client doesn't extend object, so can't call super
+        if response.status_code == 401:
+            raise AuthenticationError
+        elif response.status_code == 204:  # pragma: no cover
+            return None
+        elif 200 <= response.status_code < 300:
+            return response.json()
+        elif 400 <= response.status_code < 500:  # pragma: no cover
+            message = "{code} response from {host}".format(code=response.status_code, host=host)
+            raise ClientError(message)
+        elif 500 <= response.status_code < 600:  # pragma: no cover
+            message = "{code} response from {host}".format(code=response.status_code, host=host)
+            raise ServerError(message)
 
     def start_call(self, call, to, from_, status_callback):
         url = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
@@ -49,13 +72,21 @@ class NexmoClient(NexmoCli):
 
         try:
             response = self.create_call(params=params)
-            conversation_uuid = response.get('conversation_uuid')
-            call.external_id = six.text_type(conversation_uuid)
+            call_uuid = response.get('uuid', None)
+            call.external_id = six.text_type(call_uuid)
             call.save()
-        except nexmo.Error as e:
-            raise IVRException(_("Nexmo call failed, with error %s") % e.message)
+            for event in self.events:
+                ChannelLog.log_ivr_interaction(call, 'Started call', event)
 
-    def download_media(self, media_url):
+        except Exception as e:
+            event = HttpEvent('POST', 'https://api.nexmo.com/v1/calls', json.dumps(params), response_body=six.text_type(e))
+            ChannelLog.log_ivr_interaction(call, 'Call start failed', event, is_error=True)
+
+            call.status = IVRCall.FAILED
+            call.save()
+            raise IVRException(_("Nexmo call failed, with error %s") % six.text_type(e.message))
+
+    def download_media(self, call, media_url):
         """
         Fetches the recording and stores it with the provided recording_id
         :param media_url: the url where the media lives
@@ -91,12 +122,20 @@ class NexmoClient(NexmoCli):
             temp.write(response.content)
             temp.flush()
 
+            request = response.request
+            event = HttpEvent(request.method, request.url, request.body, response.status_code, response.content)
+            ChannelLog.log_ivr_interaction(call, "Downloaded media", event)
             return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
 
         return None
 
+    def hangup(self, call):
+        self.update_call(call.external_id, action='hangup', call_id=call.external_id)
+        for event in self.events:
+            ChannelLog.log_ivr_interaction(call, 'Hung up call', event)
 
-class TwilioClient(TwilioRestClient):
+
+class TwilioClient(TembaTwilioRestClient):
 
     def __init__(self, account, token, org=None, **kwargs):
         self.org = org
@@ -113,6 +152,10 @@ class TwilioClient(TwilioRestClient):
                                             status_callback=status_callback)
             call.external_id = six.text_type(twilio_call.sid)
             call.save()
+
+            for event in self.calls.events:
+                ChannelLog.log_ivr_interaction(call, 'Started call', event)
+
         except TwilioRestException as twilio_error:
             message = 'Twilio Error: %s' % twilio_error.msg
             if twilio_error.code == 20003:
@@ -167,6 +210,12 @@ class TwilioClient(TwilioRestClient):
             return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
 
         return None  # pragma: needs cover
+
+    def hangup(self, call):
+        response = self.calls.hangup(call.external_id)
+        for event in self.calls.events:
+            ChannelLog.log_ivr_interaction(call, 'Hung up call', event)
+        return response
 
 
 class VerboiceClient:  # pragma: needs cover

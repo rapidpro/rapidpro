@@ -103,7 +103,6 @@ class Trigger(SmartModel):
         return ['%s_%s_%s_%s' % (self.trigger_type, str(self.channel_id), group, str(self.keyword)) for group in groups]
 
     def restore(self, user):
-        self.modified_on = timezone.now()
         self.modified_by = user
         self.is_archived = False
         self.save()

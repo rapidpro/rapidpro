@@ -34,7 +34,6 @@ from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartRead
 from smartmin.views import SmartModelFormView, SmartModelActionView
 from datetime import timedelta
 from temba.api.models import APIToken
-from temba.assets.models import AssetType
 from temba.channels.models import Channel
 from temba.formax import FormaxMixin
 from temba.utils import analytics, languages
@@ -117,6 +116,24 @@ class OrgPermsMixin(object):
             return True
 
         return self.has_org_perm(self.permission)
+
+
+class AnonMixin(OrgPermsMixin):
+    """
+    Mixin that makes sure that anonymous orgs cannot add channels (have no permission if anon)
+    """
+    def has_permission(self, request, *args, **kwargs):
+        org = self.derive_org()
+
+        # can this user break anonymity? then we are fine
+        if self.get_user().has_perm('contacts.contact_break_anon'):
+            return True
+
+        # otherwise if this org is anon, no go
+        if not org or org.is_anon:
+            return False
+        else:
+            return super(AnonMixin, self).has_permission(request, *args, **kwargs)
 
 
 class OrgObjPermsMixin(OrgPermsMixin):
@@ -431,7 +448,7 @@ class UserSettingsCRUDL(SmartCRUDL):
 
 class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'edit_sub_org', 'join', 'grant', 'accounts', 'create_login', 'choose',
-               'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
+               'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country', 'languages', 'clear_cache',
                'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect',
                'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'resthooks', 'service', 'surveyor',
                'transfer_credits', 'transfer_to_account', 'smtp_server')
@@ -2089,6 +2106,7 @@ class OrgCRUDL(SmartCRUDL):
                 airtime_api_token = form.cleaned_data['airtime_api_token']
 
                 org.connect_transferto(account_login, airtime_api_token, user)
+                org.refresh_transferto_account_currency()
                 return super(OrgCRUDL.TransferToAccount, self).form_valid(form)
 
     class TwilioAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
@@ -2378,28 +2396,6 @@ class OrgCRUDL(SmartCRUDL):
             num_deleted = self.get_object().clear_caches([cache])
             self.success_message = _("Cleared %s cache for this organization (%d keys)") % (cache.name, num_deleted)
 
-    class Download(SmartTemplateView):
-        """
-        For backwards compatibility, redirect old org/download style requests to the assets app
-        """
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r'%s/%s/(?P<task_type>\w+)/(?P<pk>\d+)/$' % (path, action)
-
-        def has_permission(self, request, *args, **kwargs):
-            return self.request.user.is_authenticated()
-
-        def get(self, request, *args, **kwargs):
-            types_to_assets = {'contacts': AssetType.contact_export,
-                               'flows': AssetType.results_export,
-                               'messages': AssetType.message_export}
-
-            task_type = self.kwargs.get('task_type')
-            asset_type = types_to_assets[task_type]
-            identifier = self.kwargs.get('pk')
-            return HttpResponseRedirect(reverse('assets.download',
-                                                kwargs=dict(type=asset_type.name, pk=identifier)))
-
 
 class TopUpCRUDL(SmartCRUDL):
     actions = ('list', 'create', 'read', 'manage', 'update')
@@ -2586,10 +2582,16 @@ class StripeHandler(View):  # pragma: no cover
                                invoice_id=charge.id,
                                invoice_date=charge_date.strftime("%b %e, %Y"),
                                amount=amount,
-                               org=org.name,
-                               cc_last4=charge.card.last4,
-                               cc_type=charge.card.type,
-                               cc_name=charge.card.name)
+                               org=org.name)
+
+                if getattr(charge, 'card', None):
+                    context['cc_last4'] = charge.card.last4
+                    context['cc_type'] = charge.card.type
+                    context['cc_name'] = charge.card.name
+
+                else:
+                    context['cc_type'] = 'bitcoin'
+                    context['cc_name'] = charge.source.bitcoin.address
 
                 admin_email = org.administrators.all().first().email
 

@@ -423,6 +423,7 @@ PERMISSIONS = {
                          'claim_dart_media',
                          'claim_external',
                          'claim_facebook',
+                         'claim_fcm',
                          'claim_globe',
                          'claim_high_connection',
                          'claim_hub9',
@@ -459,6 +460,8 @@ PERMISSIONS = {
                          'search_nexmo',
                          'search_numbers',
                          ),
+
+    'channels.channellog': ('session',),
 
     'channels.channelevent': ('api',
                               'calls'),
@@ -664,6 +667,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_dart_media',
         'channels.channel_claim_external',
         'channels.channel_claim_facebook',
+        'channels.channel_claim_fcm',
         'channels.channel_claim_globe',
         'channels.channel_claim_high_connection',
         'channels.channel_claim_hub9',
@@ -705,6 +709,7 @@ GROUP_PERMISSIONS = {
         'channels.channelevent.*',
         'channels.channellog_list',
         'channels.channellog_read',
+        'channels.channellog_session',
 
         'reports.report.*',
 
@@ -806,6 +811,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_dart_media',
         'channels.channel_claim_external',
         'channels.channel_claim_facebook',
+        'channels.channel_claim_fcm',
         'channels.channel_claim_globe',
         'channels.channel_claim_high_connection',
         'channels.channel_claim_hub9',

@@ -10,7 +10,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from temba.channels.models import Channel, ChannelLog
 from temba.ivr.models import IVRCall
-from temba.flows.models import Flow, FlowRun
+from temba.utils.http import HttpEvent
+from temba.flows.models import Flow, FlowRun, FlowStep
 
 
 class CallHandler(View):
@@ -40,7 +41,7 @@ class CallHandler(View):
             if not request.user.is_anonymous():
                 user_org = request.user.get_org()
                 if user_org and user_org.pk == call.org.pk:
-                    client.calls.hangup(call.external_id)
+                    client.hangup(call)
                     return HttpResponse(json.dumps(dict(status='Canceled')), content_type="application/json")
                 else:  # pragma: no cover
                     return HttpResponse("Not found", status=404)
@@ -72,6 +73,7 @@ class CallHandler(View):
             saved_media_url = None
             text = None
             media_url = None
+            has_event = False
 
             if channel_type in Channel.TWIML_CHANNELS:
 
@@ -106,51 +108,54 @@ class CallHandler(View):
                         text = None
 
                 has_event = '1' == request.GET.get('has_event', '0')
-                if has_event:
-                    return HttpResponse(six.text_type(''))
-
                 save_media = '1' == request.GET.get('save_media', '0')
                 if media_url:
                     if save_media:
-                        saved_media_url = client.download_media(media_url)
+                        saved_media_url = client.download_media(call, media_url)
                         cache.delete('last_call:media_url:%d' % call.pk)
                     else:
-                        response_msg = 'media URL saved'
-                        ChannelLog.log_ivr_interaction(call, "Saved media URL", request_body, six.text_type(response_msg),
-                                                       request_path, request_method)
-                        return HttpResponse(six.text_type(response_msg))
+                        response_msg = 'Saved media url'
+                        response = dict(message=response_msg)
 
-            if call.status not in IVRCall.DONE or hangup:
+                        event = HttpEvent(request_method, request_path, request_body, 200, json.dumps(response))
+                        ChannelLog.log_ivr_interaction(call, response_msg, event)
+                        return JsonResponse(response)
+
+            if not has_event and call.status not in IVRCall.DONE or hangup:
                 if call.is_ivr():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup, resume=resume)
+                    event = HttpEvent(request_method, request_path, request_body, 200, six.text_type(response))
                     if channel_type in Channel.NCCO_CHANNELS:
+                        ChannelLog.log_ivr_interaction(call, "Incoming request for call", event)
 
-                        ChannelLog.log_ivr_interaction(call, "Returned response", request_body, six.text_type(response),
-                                                       request_path, request_method)
+                        # TODO: what's special here that this needs to be different?
                         return JsonResponse(json.loads(six.text_type(response)), safe=False)
 
-                    ChannelLog.log_ivr_interaction(call, "Returned response", request_body, six.text_type(response),
-                                                   request_path, request_method)
+                    ChannelLog.log_ivr_interaction(call, "Incoming request for call", event)
                     return HttpResponse(six.text_type(response))
             else:
+
                 if call.status == IVRCall.COMPLETED:
                     # if our call is completed, hangup
-                    run = FlowRun.objects.filter(session=call).first()
-                    if run:
-                        run.set_completed()
+                    runs = FlowRun.objects.filter(session=call)
+                    for run in runs:
+                        if not run.is_completed():
+                            final_step = FlowStep.objects.filter(run=run).order_by('-arrived_on').first()
+                            run.set_completed(final_step=final_step)
 
-                response = dict(message="Updated call status",
+                response = dict(description="Updated call status",
                                 call=dict(status=call.get_status_display(), duration=call.duration))
-                ChannelLog.log_ivr_interaction(call, "Updated call status: %s" % call.get_status_display(),
-                                               request_body, json.dumps(response), request_path, request_method)
+
+                event = HttpEvent(request_method, request_path, request_body, 200, json.dumps(response))
+                ChannelLog.log_ivr_interaction(call, "Updated call status", event)
                 return JsonResponse(response)
 
         else:  # pragma: no cover
 
-            error_message = "Invalid request signature"
-            ChannelLog.log_ivr_interaction(call, error_message, request_body, error_message,
-                                           request_path, request_method, is_error=True)
+            error = 'Invalid request signature'
+            event = HttpEvent(request_method, request_path, request_body, 200, error)
+            ChannelLog.log_ivr_interaction(call, error, event, is_error=True)
             # raise an exception that things weren't properly signed
-            raise ValidationError(error_message)
+            raise ValidationError(error)
 
         return JsonResponse(dict(message="Unhandled"))  # pragma: no cover

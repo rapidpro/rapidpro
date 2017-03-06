@@ -12,6 +12,8 @@ import six
 from temba.utils.gsm7 import is_gsm7
 from django.utils.http import urlencode
 
+from temba.utils.http import HttpEvent
+
 
 class NexmoValidationError(Exception):
     pass
@@ -37,7 +39,7 @@ class NexmoClient(nx.Client):
     def get_numbers(self, pattern=None, size=10):
         params = dict()
         if pattern:
-            params['pattern'] = str(pattern).strip('+')
+            params['pattern'] = six.text_type(pattern).strip('+')
         params['size'] = size
 
         response = nx.Client.get_account_numbers(self, params=params)
@@ -64,28 +66,24 @@ class NexmoClient(nx.Client):
         log_params['api_secret'] = 'x' * len(log_params['api_secret'])
         log_url = NexmoClient.SEND_URL + '?' + urlencode(log_params)
 
+        event = HttpEvent('GET', log_url)
+
         try:
             response = requests.get(NexmoClient.SEND_URL, params=params)
+            event.status_code = response.status_code
+            event.response_body = response.text
+
             response_json = response.json()
             messages = response_json.get('messages', [])
         except:
-            raise SendException(u"Failed sending message: %s" % response.text,
-                                method=response.request.method,
-                                url=log_url,
-                                request=None,
-                                response=response.text,
-                                response_status=response.status_code)
+            raise SendException(u"Failed sending message: %s" % response.text, event=event)
 
         if not messages or int(messages[0]['status']) != 0:
             raise SendException(u"Failed sending message, received error status [%s]" % messages[0]['status'],
-                                method=response.request.method,
-                                url=log_url,
-                                request=None,
-                                response=response.text,
-                                response_status=response.status_code)
+                                event=event)
 
         else:
-            return messages[0]['message-id'], response
+            return messages[0]['message-id'], event
 
     def search_numbers(self, country, pattern):
         response = nx.Client.get_available_numbers(self, country_code=country, pattern=pattern, search_pattern=1,
@@ -129,7 +127,7 @@ class NexmoClient(nx.Client):
         payload.setdefault('application_id', self.application_id)
         payload.setdefault('iat', iat)
         payload.setdefault('exp', iat + 60)
-        payload.setdefault('jti', str(uuid.uuid4()))
+        payload.setdefault('jti', six.text_type(uuid.uuid4()))
 
         token = jwt.encode(payload, self.private_key, algorithm='RS256')
 
@@ -200,7 +198,7 @@ class NCCOResponse(object):
         return self
 
     def say(self, text, **kwargs):
-        self.document.append(dict(action='talk', text=str(text), bargeIn=True))
+        self.document.append(dict(action='talk', text=six.text_type(text), bargeIn=True))
         return self
 
     def play(self, url=None, digits=None, **kwargs):
@@ -225,7 +223,7 @@ class NCCOResponse(object):
 
     def redirect(self, url=None, **kwargs):
         result = dict(action='input', maxDigits=1, timeOut=1,
-                      eventUrl=["%s%sinput_redirect=1" % (url, "?" if '?' not in url else "&&")])
+                      eventUrl=["%s%sinput_redirect=1" % (url, "?" if '?' not in url else "&")])
 
         self.document.append(result)
         return self
@@ -249,19 +247,19 @@ class NCCOResponse(object):
         result['submitOnHash'] = kwargs.get('finishOnKey', '#') == '#'
 
         if kwargs.get('numDigits', False):
-            result['maxDigits'] = str(kwargs.get('numDigits'))
+            result['maxDigits'] = int(six.text_type(kwargs.get('numDigits')))
 
         if kwargs.get('timeout', False):
-            result['timeOut'] = str(kwargs.get('timeout'))
+            result['timeOut'] = int(six.text_type(kwargs.get('timeout')))
 
         self.document.append(result)
         return self
 
     def record(self, **kwargs):
-        result = dict(format='wav', endOnSilence='4', endOnKey='#', beepStart=True, action='record')
+        result = dict(format='wav', endOnSilence=4, endOnKey='#', beepStart=True, action='record')
 
         if kwargs.get('maxLength', False):
-            result['timeOut'] = six.text_type(kwargs.get('maxLength'))
+            result['timeOut'] = int(six.text_type(kwargs.get('maxLength')))
 
         if kwargs.get('action', False):
             method = kwargs.get('method', 'post')
@@ -271,7 +269,7 @@ class NCCOResponse(object):
         self.document.append(result)
         result = dict(action='input', maxDigits=1, timeOut=1,
                       eventUrl=["%s%ssave_media=1" % (kwargs.get('action'),
-                                                      "?" if '?' not in six.text_type(kwargs.get('action')) else "&&")])
+                                                      "?" if '?' not in six.text_type(kwargs.get('action')) else "&")])
 
         self.document.append(result)
 

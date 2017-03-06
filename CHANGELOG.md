@@ -1,3 +1,67 @@
+v3.0.70
+----------
+ * Allow USSD flows to start someone else in a flow
+ * Include reply to external_id for Vumi channel
+
+v3.0.69
+----------
+ * Add ID column to result exports for anon orgs
+ * Deactivate runs when releasing flows
+ * Fix urn display for call log
+ * Increased send and receive channel logging for Nexmo, Twilio, Twitter and Telegram 
+ * Allow payments through Bitcoins
+ * Include TransferTo account currency when asking phone info to TransferTo
+ * Don't create inbound messages for gather timeouts, letting calls expire
+ * Don't show channel log for inactive channels on contact history
+ * Upgrade to latest smartmin which changes created_on/modified_on fields on SmartModels to be overridable
+ * Uniform call and message logs
+
+v3.0.64
+----------
+ * Add ID column to anonymous org contact exports, also add @contact.id field in message context
+ * Fix counts for channel log elements
+ * Only have one link on channel page for sending log
+ * Attempt to determine file types for msg attachments using libmagic
+ * Deactivate runs on hangups, Keep ivr runs open on exit
+ * Add log for nexmo media download
+ * Add new perf_test command to run performance tests on database generated with make_test_db
+
+v3.0.62
+----------
+ * Fix preferred channels for non-msg channels
+
+v3.0.61
+----------
+ * Make migrations to populate new export task fields non-atomic
+ * Add indexes for admin boundaries and aliases
+ * Nexmo: make sure calls are ended on hangup, log hangups and media
+ * Fix inbound calls on Nexmo to use conversation_uuid
+ * Style tweaks for zapier widget
+ * Use shorter timeout for IVR
+ * Issue hangups on expiration during IVR runs
+ * Catch all exceptions and log them when initiating call
+ * Fix update status for Nexmo calls
+
+v3.0.48
+----------
+ * Add channel session log page
+ * Use brand variable for zaps to show
+ * Additional logging for nexmo
+ * Increase non-overlap on timeout queueing, never double queue single timeout
+ * Fix broken timeout handling when there is a race
+ * Make field_keys a required parameter
+ * Speed up the contact import by handling contact update at once after all the fields are set
+
+v3.0.47
+----------
+ * Add channel log for Nexmo call initiation
+ * Fix import-geojson management command
+
+v3.0.46
+----------
+ * Fix Contact.search so it doesn't evaluate the base_query
+ * Enable searching in groups and blocked/stopped contacts
+
 v3.0.45
 ----------
  * Fix absolute positioning for account creation form

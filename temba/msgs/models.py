@@ -12,26 +12,24 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
-from smartmin.models import SmartModel
 from temba_expressions.evaluator import EvaluationContext, DateStyle
+from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, clean_string
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
 from temba.utils.cache import get_cacheable_attr
-from temba.utils.email import send_template_email
+from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
-from uuid import uuid4
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -210,7 +208,7 @@ class Broadcast(models.Model):
     created_by = models.ForeignKey(User, related_name="%(app_label)s_%(class)s_creations",
                                    help_text="The user which originally created this item")
 
-    created_on = models.DateTimeField(auto_now_add=True, db_index=True,
+    created_on = models.DateTimeField(default=timezone.now, blank=True, editable=False, db_index=True,
                                       help_text=_("When this broadcast was created"))
 
     modified_by = models.ForeignKey(User, related_name="%(app_label)s_%(class)s_modifications",
@@ -752,7 +750,6 @@ class Msg(models.Model):
 
         if msg.contact.is_blocked:
             msg.visibility = Msg.VISIBILITY_ARCHIVED
-            msg.modified_on = timezone.now()
             msg.save(update_fields=['visibility', 'modified_on'])
         else:
             for handler in handlers:
@@ -851,7 +848,6 @@ class Msg(models.Model):
             update_fields.append('msg_type')
 
         msg.status = HANDLED
-        msg.modified_on = timezone.now()
 
         # make sure we don't overwrite any async message changes by only saving specific fields
         msg.save(update_fields=update_fields)
@@ -873,7 +869,6 @@ class Msg(models.Model):
                 analytics.gauge('temba.msg_failed_%s' % channel.channel_type.lower())
         else:
             msg.status = ERRORED
-            msg.modified_on = timezone.now()
             msg.next_attempt = timezone.now() + timedelta(minutes=5 * msg.error_count)
 
             if isinstance(msg, Msg):
@@ -992,7 +987,9 @@ class Msg(models.Model):
         """
         Gets the last channel log for this message. Performs sorting in Python to ease pre-fetching.
         """
-        sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
+        sorted_logs = None
+        if self.channel and self.channel.is_active:
+            sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
         return sorted_logs[0] if sorted_logs else None
 
     def get_media_path(self):
@@ -1058,7 +1055,6 @@ class Msg(models.Model):
 
         elif keyword == 'mt_dlvd':
             self.status = DELIVERED
-            self.modified_on = timezone.now()
             handled = True
             WebHookEvent.trigger_sms_event(SMS_DELIVERED, self, date)
 
@@ -1118,7 +1114,6 @@ class Msg(models.Model):
 
         # mark ourselves as resent
         self.status = RESENT
-        self.modified_on = now
         self.topup = None
         self.save()
 
@@ -1144,7 +1139,7 @@ class Msg(models.Model):
         """
         Used internally to serialize to JSON when queueing messages in Redis
         """
-        return dict(id=self.id, org=self.org_id, channel=self.channel_id, broadcast=self.broadcast_id,
+        data = dict(id=self.id, org=self.org_id, channel=self.channel_id, broadcast=self.broadcast_id,
                     text=self.text, urn_path=self.contact_urn.path,
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
@@ -1152,6 +1147,11 @@ class Msg(models.Model):
                     external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
                     created_on=self.created_on, modified_on=self.modified_on)
+
+        if self.contact_urn.auth:
+            data.update(dict(auth=self.contact_urn.auth))
+
+        return data
 
     def __str__(self):
         return self.text
@@ -1433,7 +1433,6 @@ class Msg(models.Model):
         Update the message status to FAILED
         """
         self.status = FAILED
-        self.modified_on = timezone.now()
         self.save(update_fields=('status', 'modified_on'))
 
         Channel.track_status(self.channel, "Failed")
@@ -1445,7 +1444,6 @@ class Msg(models.Model):
         now = timezone.now()
         self.status = SENT
         self.sent_on = now
-        self.modified_on = now
         self.save(update_fields=('status', 'sent_on', 'modified_on'))
 
         Channel.track_status(self.channel, "Sent")
@@ -1455,7 +1453,6 @@ class Msg(models.Model):
         Update the message status to DELIVERED
         """
         self.status = DELIVERED
-        self.modified_on = timezone.now()
         if not self.sent_on:
             self.sent_on = timezone.now()
         self.save(update_fields=('status', 'modified_on', 'sent_on'))
@@ -1470,7 +1467,6 @@ class Msg(models.Model):
             raise ValueError("Can only archive incoming non-test messages")
 
         self.visibility = Msg.VISIBILITY_ARCHIVED
-        self.modified_on = timezone.now()
         self.save(update_fields=('visibility', 'modified_on'))
 
     @classmethod
@@ -1494,8 +1490,6 @@ class Msg(models.Model):
             raise ValueError("Can only restore incoming non-test messages")
 
         self.visibility = Msg.VISIBILITY_VISIBLE
-        self.modified_on = timezone.now()
-
         self.save(update_fields=('visibility', 'modified_on'))
 
     def release(self):
@@ -1504,8 +1498,6 @@ class Msg(models.Model):
         """
         self.visibility = Msg.VISIBILITY_DELETED
         self.text = ""
-        self.modified_on = timezone.now()
-
         self.save(update_fields=('visibility', 'text', 'modified_on'))
 
         # remove labels
@@ -1890,7 +1882,7 @@ class MsgIterator(object):
         return next(self._generator)
 
 
-class ExportMessagesTask(SmartModel):
+class ExportMessagesTask(BaseExportTask):
     """
     Wrapper for handling exports of raw messages. This will export all selected messages in
     an Excel spreadsheet, adding sheets as necessary to fall within the guidelines of Excel 97
@@ -1899,7 +1891,9 @@ class ExportMessagesTask(SmartModel):
     When the export is done, we store the file on the server and send an e-mail notice with a
     link to download the results.
     """
-    org = models.ForeignKey(Org, help_text=_("The organization of the user."))
+    analytics_key = 'msg_export'
+    email_subject = "Your messages export is ready"
+    email_template = 'msgs/email/msg_export_download'
 
     groups = models.ManyToManyField(ContactGroup)
 
@@ -1909,48 +1903,21 @@ class ExportMessagesTask(SmartModel):
 
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
 
-    task_id = models.CharField(null=True, max_length=64)
-
-    is_finished = models.BooleanField(default=False, help_text=_("Whether this export is finished running"))
-
-    uuid = models.CharField(max_length=36, null=True, help_text=_("The uuid used to name the resulting export file"))
-
-    def start_export(self):  # pragma: needs cover
-        """
-        Starts our export, wrapping it in a try block to make sure we mark it as finished when complete.
-        """
-        try:
-            start = time.time()
-            self.do_export()
-        finally:
-            elapsed = time.time() - start
-            analytics.track(self.created_by.username, 'temba.msg_export_latency', properties=dict(value=elapsed))
-
-            self.is_finished = True
-            self.save(update_fields=['is_finished'])
-
-    def do_export(self):
+    def write_export(self):
         from openpyxl import Workbook
-        from openpyxl.writer.write_only import WriteOnlyCell
-        from openpyxl.utils.cell import get_column_letter
 
         book = Workbook(write_only=True)
-        max_rows = 1048576
-
-        small_width = 15
-        medium_width = 20
-        large_width = 100
 
         fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Contact UUID', 'Direction', 'Text', 'Labels', "Status"]
-        fields_col_width = [medium_width,  # Date
-                            medium_width,  # Contact
-                            small_width,   # Contact Type
-                            medium_width,  # Name
-                            medium_width,  # Contact UUID
-                            small_width,   # Direction
-                            large_width,   # Text
-                            medium_width,  # Labels
-                            small_width]   # Status
+        fields_col_width = [self.WIDTH_MEDIUM,  # Date
+                            self.WIDTH_MEDIUM,  # Contact
+                            self.WIDTH_SMALL,   # Contact Type
+                            self.WIDTH_MEDIUM,  # Name
+                            self.WIDTH_MEDIUM,  # Contact UUID
+                            self.WIDTH_SMALL,   # Direction
+                            self.WIDTH_LARGE,   # Text
+                            self.WIDTH_MEDIUM,  # Labels
+                            self.WIDTH_SMALL]   # Status
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on')
 
@@ -1975,15 +1942,9 @@ class ExportMessagesTask(SmartModel):
         messages_sheet_number = 1
 
         current_messages_sheet = book.create_sheet(six.text_type(_("Messages %d" % messages_sheet_number)))
-        sheet_row = []
-        for col in range(1, len(fields) + 1):
-            index = col - 1
-            field = fields[index]
-            cell = WriteOnlyCell(current_messages_sheet, value=six.text_type(field))
-            sheet_row.append(cell)
-            current_messages_sheet.column_dimensions[get_column_letter(col)].width = fields_col_width[index]
 
-        current_messages_sheet.append(sheet_row)
+        self.set_sheet_column_widths(current_messages_sheet, fields_col_width)
+        self.append_row(current_messages_sheet, fields)
 
         row = 2
         processed = 0
@@ -1996,22 +1957,13 @@ class ExportMessagesTask(SmartModel):
                                select_related=['contact', 'contact_urn'],
                                prefetch_related=[prefetch]):
 
-            if row >= max_rows:  # pragma: needs cover
+            if row >= self.MAX_EXCEL_ROWS:  # pragma: needs cover
                 messages_sheet_number += 1
                 current_messages_sheet = book.create_sheet(six.text_type(_("Messages %d" % messages_sheet_number)))
-                sheet_row = []
-                for col in range(len(fields)):
-                    field = fields[col]
-                    cell = WriteOnlyCell(current_messages_sheet, value=six.text_type(field))
-                    sheet_row.append(cell)
 
-                current_messages_sheet.append(sheet_row)
+                self.append_row(current_messages_sheet, fields)
+                self.set_sheet_column_widths(current_messages_sheet, fields_col_width)
                 row = 2
-
-            contact_name = clean_string(msg.contact.name) if msg.contact.name else ''
-            contact_uuid = msg.contact.uuid
-            created_on = msg.created_on.astimezone(pytz.utc).replace(microsecond=0, tzinfo=None)
-            msg_labels = ", ".join(clean_string(msg_label.name) for msg_label in msg.labels.all())
 
             # only show URN path if org isn't anon and there is a URN
             if self.org.is_anon:  # pragma: needs cover
@@ -2023,30 +1975,17 @@ class ExportMessagesTask(SmartModel):
 
             urn_scheme = msg.contact_urn.scheme if msg.contact_urn else ''
 
-            sheet_row = []
-
-            text = clean_string(msg.text)
-
-            cell = WriteOnlyCell(current_messages_sheet, value=created_on)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=urn_path)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=urn_scheme)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=contact_name)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=contact_uuid)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=msg.get_direction_display())
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=text)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=msg_labels)
-            sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=msg.get_status_display())
-            sheet_row.append(cell)
-
-            current_messages_sheet.append(sheet_row)
+            self.append_row(current_messages_sheet, [
+                msg.created_on,
+                urn_path,
+                urn_scheme,
+                msg.contact.name,
+                msg.contact.uuid,
+                msg.get_direction_display(),
+                msg.text,
+                ", ".join(msg_label.name for msg_label in msg.labels.all()),
+                msg.get_status_display()
+            ])
 
             row += 1
             processed += 1
@@ -2058,25 +1997,13 @@ class ExportMessagesTask(SmartModel):
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
         temp.flush()
+        return temp, 'xlsx'
 
-        self.uuid = str(uuid4())
-        self.save(update_fields=['uuid'])
 
-        # save as file asset associated with this task
-        from temba.assets.models import AssetType
-        from temba.assets.views import get_asset_url
-
-        store = AssetType.message_export.store
-        store.save(self.pk, File(temp), 'xlsx')
-
-        branding = self.org.get_branding()
-
-        subject = "Your messages export is ready"
-        template = 'msgs/email/msg_export_download'
-        download_url = branding['link'] + get_asset_url(AssetType.message_export, self.pk)
-
-        # force a gc
-        import gc
-        gc.collect()
-
-        send_template_email(self.created_by.username, subject, template, dict(link=download_url), branding)
+@register_asset_store
+class MessageExportAssetStore(BaseExportAssetStore):
+    model = ExportMessagesTask
+    key = 'message_export'
+    directory = 'message_exports'
+    permission = 'msgs.msg_export'
+    extensions = ('xlsx',)

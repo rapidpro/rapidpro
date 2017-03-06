@@ -1,5 +1,5 @@
 {% extends "smartmin/list.html" %}
--load i18n contacts
+-load i18n contacts smartmin
 
 -block page-title
   -trans "Channel Events"
@@ -7,36 +7,81 @@
 -block title
   .medium-help.icon-cloud-upload{ style:'float:left;' }
   %h2.header-margin
-    -trans "Recent Channel Events"
+    -if request.GET.sessions and channel.supports_ivr
+      -trans "Call Log"
+    -else
+      -trans "Recent Channel Events"
   %h5.header-margin
-    -trans "Channel:"
-      %a{ href:"{% url 'channels.channel_read' channel.uuid %}" }
-        {{ channel }}
+    {{channel.get_channel_type_display}}
+    -trans "Channel: "
+    %a{ href:"{% url 'channels.channel_read' channel.uuid %}" }
+      {{ channel }}
+
+-block gear-menu
+  -if request.GET.sessions
+    %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list'%}?channel={{channel.pk}}"}
+      -trans "Message Log"
+  -else
+    -if channel.supports_ivr
+      %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list'%}?channel={{channel.pk}}&sessions=1"}
+        -trans "Call Log"
 
 -block table
+
   %table.list-table.table.table-condensed
     %thead
       %tr
         %th{ style:'width:120px' }
-          -trans "Destination"
         %th
-          -trans "Description"
-        %th{ style:'width:100px;text-align:right;a'}
-          -trans "Time"
+        -if request.GET.sessions
+          %th{ style:'width:150px' }
+
+        %th{ style:'width:160px;text-align:right;'}
 
       -for obj in object_list
-        %tr{ class:"{% if obj.is_error %}channel-error{% endif %}" }
-          -if user_org.is_anon
-            %td= obj.msg.contact|tel:user_org
-            %td= obj.description
-            %td{ style:'text-align: right', nowrap:'true' }= obj.created_on
-          -else
+        -if request.GET.sessions
+          %tr{class:"{%if obj.status == 'F'%}warning{%endif%}"}
             %td.clickable
-              %a{ href:'{% url "channels.channellog_read" obj.pk %}' }
-                -if obj.msg
-                  {{obj.msg.contact|tel:user_org}}
-                -elif obj.session
-                  {{obj.session.contact|tel:user_org}}
+              -if not user_org.is_anon or perms.contacts.contact_break_anon
+                %a{ href:'{% url "contacts.contact_read" obj.contact.uuid %}' }
+                  {{obj.contact_urn.get_display}}
+              -else
+                {{obj.contact_urn.get_display}}
+
             %td.clickable
-              %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.description
-            %td{ style:'text-align: right', nowrap:'true' }= obj.created_on
+              %a{ href:'{% url "channels.channellog_session" obj.pk %}' }><
+                -if obj.direction == 'I'
+                  -trans "Incoming"
+                -else
+                  -trans "Outgoing"
+                -if obj.session_type == 'F'
+                  -if obj.is_done
+                    -trans "phone call"
+                  -else
+                    -trans "phone call in progress"
+                -else
+                  USSD session for {{obj.get_duration}}
+
+            %td.clickable{ style:'text-align: right', nowrap:'true' }
+              %a{ href:'{% url "channels.channellog_session" obj.pk %}' }><
+                -if obj.get_duration
+                  {{obj.get_duration|delta}}
+                -else
+                  {{obj.get_status_display}}
+
+            %td{ style:'text-align: right', nowrap:'true' }
+              {{obj.created_on|date:"M d, Y, H:m:s"}}
+        -else
+          %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
+            %td.clickable
+              -if obj.msg.contact
+                %a{ href:'{% url "contacts.contact_read" obj.msg.contact.uuid %}' }
+                  {{obj.msg.contact_urn.get_display}}
+            %td.clickable
+              -if not user_org.is_anon or perms.contacts.contact_break_anon
+                %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.description
+              -else
+                {{obj.description}}
+
+            %td{ style:'text-align: right', nowrap:'true' }
+              {{obj.created_on}}

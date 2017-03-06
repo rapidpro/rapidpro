@@ -12,7 +12,7 @@ from smartmin.models import SmartModel
 from temba.api.models import get_api_user
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, TEL_SCHEME
-from temba.orgs.models import Org, TRANSFERTO_ACCOUNT_LOGIN, TRANSFERTO_AIRTIME_API_TOKEN
+from temba.orgs.models import Org, TRANSFERTO_ACCOUNT_LOGIN, TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_CURRENCY
 from temba.utils import get_country_code_by_name
 
 
@@ -121,8 +121,15 @@ class AirtimeTransfer(SmartModel):
                 airtime.status = AirtimeTransfer.FAILED
                 raise Exception(message)
 
+            config = org.config_json()
+            account_currency = config.get(TRANSFERTO_ACCOUNT_CURRENCY, '')
+            if not account_currency:
+                org.refresh_transferto_account_currency()
+                config = org.config_json()
+                account_currency = config.get(TRANSFERTO_ACCOUNT_CURRENCY, '')
+
             action = 'msisdn_info'
-            request_kwargs = dict(action=action, destination_msisdn=airtime.recipient)
+            request_kwargs = dict(action=action, destination_msisdn=airtime.recipient, currency=account_currency)
             response = airtime.get_transferto_response(**request_kwargs)
             content_json = AirtimeTransfer.parse_transferto_response(response.content)
 

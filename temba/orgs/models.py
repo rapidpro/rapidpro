@@ -99,6 +99,7 @@ NEXMO_APP_PRIVATE_KEY = 'NEXMO_APP_PRIVATE_KEY'
 
 TRANSFERTO_ACCOUNT_LOGIN = 'TRANSFERTO_ACCOUNT_LOGIN'
 TRANSFERTO_AIRTIME_API_TOKEN = 'TRANSFERTO_AIRTIME_API_TOKEN'
+TRANSFERTO_ACCOUNT_CURRENCY = 'TRANSFERTO_ACCOUNT_CURRENCY'
 
 SMTP_FROM_EMAIL = 'SMTP_FROM_EMAIL'
 SMTP_HOST = 'SMTP_HOST'
@@ -482,7 +483,7 @@ class Org(SmartModel):
                 scheme = contact_urn.scheme
 
                 # if URN has a previously used channel that is still active, use that
-                if contact_urn.channel and contact_urn.channel.is_active and role == Channel.ROLE_SEND:
+                if contact_urn.channel and contact_urn.channel.is_active:
                     previous_sender = self.get_channel_delegate(contact_urn.channel, role)
                     if previous_sender:
                         return previous_sender
@@ -746,6 +747,20 @@ class Org(SmartModel):
         self.modified_by = user
         self.save()
 
+    def refresh_transferto_account_currency(self):
+        config = self.config_json()
+        account_login = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
+        airtime_api_token = config.get(TRANSFERTO_AIRTIME_API_TOKEN, None)
+
+        from temba.airtime.models import AirtimeTransfer
+        response = AirtimeTransfer.post_transferto_api_response(account_login, airtime_api_token,
+                                                                action='check_wallet')
+        parsed_response = AirtimeTransfer.parse_transferto_response(response.content)
+        account_currency = parsed_response.get('currency', '')
+        config.update({TRANSFERTO_ACCOUNT_CURRENCY: account_currency})
+        self.config = json.dumps(config)
+        self.save()
+
     def is_connected_to_transferto(self):
         if self.config:
             config = self.config_json()
@@ -761,6 +776,7 @@ class Org(SmartModel):
             config = self.config_json()
             config[TRANSFERTO_ACCOUNT_LOGIN] = ''
             config[TRANSFERTO_AIRTIME_API_TOKEN] = ''
+            config[TRANSFERTO_ACCOUNT_CURRENCY] = ''
             self.config = json.dumps(config)
             self.modified_by = user
             self.save()
@@ -771,11 +787,13 @@ class Org(SmartModel):
         nexmo_uuid = str(uuid4())
         nexmo_config = {NEXMO_KEY: api_key.strip(), NEXMO_SECRET: api_secret.strip(), NEXMO_UUID: nexmo_uuid}
         client = NexmoClient(key=nexmo_config[NEXMO_KEY], secret=nexmo_config[NEXMO_SECRET])
-        app_name = "%s/%s" % (settings.TEMBA_HOST.lower(), nexmo_uuid)
+        temba_host = settings.TEMBA_HOST.lower()
 
-        answer_url = reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid])
+        app_name = "%s/%s" % (temba_host, nexmo_uuid)
 
-        event_url = reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid])
+        answer_url = "https://%s%s" % (temba_host, reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid]))
+
+        event_url = "https://%s%s" % (temba_host, reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]))
 
         params = dict(name=app_name, type='voice', answer_url=answer_url, answer_method='POST',
                       event_url=event_url, event_method='POST')
@@ -1174,7 +1192,7 @@ class Org(SmartModel):
                                created_by=self.created_by, modified_by=self.modified_by)
         self.all_groups.create(name='Blocked Contacts', group_type=ContactGroup.TYPE_BLOCKED,
                                created_by=self.created_by, modified_by=self.modified_by)
-        self.all_groups.create(name='Failed Contacts', group_type=ContactGroup.TYPE_STOPPED,
+        self.all_groups.create(name='Stopped Contacts', group_type=ContactGroup.TYPE_STOPPED,
                                created_by=self.created_by, modified_by=self.modified_by)
 
     def create_sample_flows(self, api_url):
@@ -1556,10 +1574,18 @@ class Org(SmartModel):
                            amount=bundle['dollars'],
                            credits=bundle['credits'],
                            remaining=remaining,
-                           org=self.name,
-                           cc_last4=charge.card.last4,
-                           cc_type=charge.card.type,
-                           cc_name=charge.card.name)
+                           org=self.name)
+
+            # card
+            if getattr(charge, 'card', None):
+                context['cc_last4'] = charge.card.last4
+                context['cc_type'] = charge.card.type
+                context['cc_name'] = charge.card.name
+
+            # bitcoin
+            else:
+                context['cc_type'] = 'bitcoin'
+                context['cc_name'] = charge.source.bitcoin.address
 
             branding = self.get_branding()
 
@@ -1580,7 +1606,7 @@ class Org(SmartModel):
 
         except Exception as e:
             traceback.print_exc(e)
-            raise ValidationError(_("Sorry, we were unable to charge your card, please try again later or contact us."))
+            raise ValidationError(_("Sorry, we were unable to process your payment, please try again later or contact us."))
 
     def account_value(self):
         """

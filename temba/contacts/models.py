@@ -12,7 +12,6 @@ import time
 
 from collections import defaultdict
 from django.core.exceptions import ValidationError
-from django.core.files import File
 from django.core.validators import validate_email
 from django.db import models
 from django.db.models import Count, Max, Q, Sum
@@ -22,16 +21,15 @@ from guardian.utils import get_anonymous_user
 from itertools import chain
 from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
+from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.orgs.models import Org, OrgLock
-from temba.utils.email import send_template_email
 from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
 from temba.utils.models import SquashableModel, TembaModel
-from temba.utils.exporter import TableExporter
+from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value
 from temba.locations.models import STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
-from uuid import uuid4
 
 
 logger = logging.getLogger(__name__)
@@ -53,6 +51,7 @@ TELEGRAM_SCHEME = 'telegram'
 TWILIO_SCHEME = 'twilio'
 TWITTER_SCHEME = 'twitter'
 VIBER_SCHEME = 'viber'
+FCM_SCHEME = 'fcm'
 
 FACEBOOK_PATH_REF_PREFIX = 'ref:'
 
@@ -64,7 +63,8 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (LINE_SCHEME, _("LINE identifier"), 'line', LINE_SCHEME),
                      (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
                      (EMAIL_SCHEME, _("Email address"), 'email', EMAIL_SCHEME),
-                     (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME))
+                     (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME),
+                     (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), 'fcm', FCM_SCHEME))
 
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
@@ -273,6 +273,10 @@ class URN(object):
     def from_viber(cls, path):
         return cls.from_parts(VIBER_SCHEME, path)
 
+    @classmethod
+    def from_fcm(cls, path):
+        return cls.from_parts(FCM_SCHEME, path)
+
 
 @six.python_2_unicode_compatible
 class ContactField(SmartModel):
@@ -316,8 +320,7 @@ class ContactField(SmartModel):
             existing.is_active = False
             existing.show_in_table = False
             existing.modified_by = user
-            existing.modified_on = timezone.now()
-            existing.save()
+            existing.save(update_fields=('is_active', 'show_in_table', 'modified_by', 'modified_on'))
 
             # cancel any events on this
             from temba.campaigns.models import EventFire
@@ -369,7 +372,6 @@ class ContactField(SmartModel):
 
                 if changed:
                     field.modified_by = user
-                    field.modified_on = timezone.now()
                     field.save()
 
                     if update_events:
@@ -439,6 +441,7 @@ class Contact(TembaModel):
     PHONE = 'phone'
     UUID = 'uuid'
     GROUPS = 'groups'
+    ID = 'id'
 
     # reserved contact fields
     RESERVED_FIELDS = [
@@ -551,13 +554,13 @@ class Contact(TembaModel):
             event_fire.created_on = event_fire.fired
 
         # and the contact's failed IVR calls
-        error_calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
-            IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED
+        calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
+            IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED
         ])
-        error_calls = error_calls.select_related('channel')
+        calls = calls.select_related('channel')
 
         # chain them all together in the same list and sort by time
-        activity = chain(msgs, broadcasts, runs, exited_runs, event_fires, channel_events, error_calls)
+        activity = chain(msgs, broadcasts, runs, exited_runs, event_fires, channel_events, calls)
         return sorted(activity, key=lambda i: i.created_on, reverse=True)
 
     def get_field(self, key):
@@ -629,7 +632,7 @@ class Contact(TembaModel):
         else:
             return value.string_value
 
-    def set_field(self, user, key, value, label=None):
+    def set_field(self, user, key, value, label=None, importing=False):
         from temba.values.models import Value
 
         # make sure this field exists
@@ -697,11 +700,11 @@ class Contact(TembaModel):
         self.set_cached_field_value(key, existing)
 
         self.modified_by = user
-        self.modified_on = timezone.now()
         self.save(update_fields=('modified_by', 'modified_on'))
 
-        # update any groups or campaigns for this contact
-        self.handle_update(field=field)
+        # update any groups or campaigns for this contact if not importing
+        if not importing:
+            self.handle_update(field=field)
 
         # invalidate our value cache for this contact field
         Value.invalidate_cache(contact_field=field)
@@ -731,6 +734,21 @@ class Contact(TembaModel):
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact(self)
 
+    def handle_update_contact(self, field_keys):
+        """
+        Used for imports to minimize the time for imports
+        """
+        from temba.campaigns.models import EventFire
+        dynamic_group_change = self.reevaluate_dynamic_groups()
+
+        # ensure our campaigns are up to date for every field
+        for field_key in field_keys:
+            EventFire.update_events_for_contact_field(self, field_key)
+
+        if dynamic_group_change:
+            # ensure our campaigns are up to date
+            EventFire.update_events_for_contact(self)
+
     @classmethod
     def from_urn(cls, org, urn_as_string, country=None):
         """
@@ -747,7 +765,7 @@ class Contact(TembaModel):
             return None
 
     @classmethod
-    def get_or_create(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_urn_update=False):
+    def get_or_create(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_urn_update=False, auth=None):
         """
         Gets or creates a contact with the given URNs
         """
@@ -782,6 +800,7 @@ class Contact(TembaModel):
 
             if existing_urn and existing_urn.contact:
                 contact = existing_urn.contact
+                ContactURN.update_auth(existing_urn, auth)
 
                 # return our contact, mapping our existing urn appropriately
                 contact.urn_objects = {urns[0]: existing_urn}
@@ -812,7 +831,6 @@ class Contact(TembaModel):
                             updated_attrs.append(Contact.LANGUAGE)
 
                         if updated_attrs:
-                            contact.modified_on = timezone.now()
                             contact.modified_by = user
                             contact.save(update_fields=updated_attrs + ['modified_on', 'modified_by'])
 
@@ -844,6 +862,9 @@ class Contact(TembaModel):
                         existing_orphan_urns[urn] = existing_urn
                         if not contact and existing_urn.contact:
                             contact = existing_urn.contact
+
+                    ContactURN.update_auth(existing_urn, auth)
+
                 else:
                     urns_to_create[urn] = normalized
 
@@ -860,7 +881,6 @@ class Contact(TembaModel):
 
                 if updated_attrs:
                     contact.modified_by = user
-                    contact.modified_on = timezone.now()
                     contact.save(update_fields=updated_attrs + ['modified_by', 'modified_on'])
 
             # otherwise create new contact with all URNs
@@ -881,7 +901,7 @@ class Contact(TembaModel):
 
             # add all new URNs
             for raw, normalized in six.iteritems(urns_to_create):
-                urn = ContactURN.get_or_create(org, contact, normalized, channel=channel)
+                urn = ContactURN.get_or_create(org, contact, normalized, channel=channel, auth=auth)
                 urn_objects[raw] = urn
 
             # save which urns were updated
@@ -951,7 +971,7 @@ class Contact(TembaModel):
         """
         from temba.contacts import search
 
-        if not base_queryset:
+        if base_queryset is None:
             base_queryset = Contact.objects.filter(org=org, is_active=True, is_test=False, is_blocked=False, is_stopped=False)
 
         return search.contact_search(org, query, base_queryset)
@@ -987,7 +1007,7 @@ class Contact(TembaModel):
             if not value:
                 continue
 
-            value = str(value)
+            value = six.text_type(value)
 
             urn_scheme = ContactURN.IMPORT_HEADER_TO_SCHEME[urn_header]
 
@@ -1048,6 +1068,7 @@ class Contact(TembaModel):
         if contact.is_blocked:
             contact.unblock(user)
 
+        contact_field_keys_updated = set()
         for key in field_dict.keys():
             # ignore any reserved fields
             if key in Contact.RESERVED_FIELDS:
@@ -1062,7 +1083,11 @@ class Contact(TembaModel):
                     value = org.timezone.localize(value) if org.timezone else pytz.utc.localize(value)
                 value = org.format_date(value, True)
 
-            contact.set_field(user, key, value)
+            contact.set_field(user, key, value, importing=True)
+            contact_field_keys_updated.add(key)
+
+        # to handle dynamic groups and campaign events updates
+        contact.handle_update_contact(field_keys=contact_field_keys_updated)
 
         return contact
 
@@ -1500,6 +1525,11 @@ class Contact(TembaModel):
         contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False)
         contact_dict['groups'] = ",".join([_.name for _ in self.user_groups.all()])
         contact_dict['uuid'] = self.uuid
+
+        # anonymous orgs also get @contact.id
+        if org.is_anon:
+            contact_dict['id'] = self.id
+
         contact_dict[Contact.LANGUAGE] = self.language
 
         # add all URNs
@@ -1787,6 +1817,7 @@ class ContactURN(models.Model):
         TELEGRAM_SCHEME: dict(label="Telegram", key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
         FACEBOOK_SCHEME: dict(label="Facebook", key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
         VIBER_SCHEME: dict(label="Viber", key=None, id=0, field=None, urn_scheme=VIBER_SCHEME),
+        FCM_SCHEME: dict(label="FCM", key=None, id=0, field=None, urn_scheme=FCM_SCHEME),
     }
 
     PRIORITY_LOWEST = 1
@@ -1819,25 +1850,28 @@ class ContactURN(models.Model):
     channel = models.ForeignKey(Channel, null=True, blank=True,
                                 help_text="The preferred channel for this URN")
 
+    auth = models.TextField(null=True,
+                            help_text=_("Any authentication information needed by this URN"))
+
     @classmethod
-    def get_or_create(cls, org, contact, urn_as_string, channel=None):
+    def get_or_create(cls, org, contact, urn_as_string, channel=None, auth=None):
         urn = cls.lookup(org, urn_as_string)
 
         # not found? create it
         if not urn:
-            urn = cls.create(org, contact, urn_as_string, channel=channel)
+            urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
 
         return urn
 
     @classmethod
-    def create(cls, org, contact, urn_as_string, channel=None, priority=None):
+    def create(cls, org, contact, urn_as_string, channel=None, priority=None, auth=None):
         scheme, path = URN.to_parts(urn_as_string)
 
         if not priority:
             priority = cls.PRIORITY_DEFAULTS.get(scheme, cls.PRIORITY_STANDARD)
 
         return cls.objects.create(org=org, contact=contact, priority=priority, channel=channel,
-                                  scheme=scheme, path=path, urn=urn_as_string)
+                                  scheme=scheme, path=path, urn=urn_as_string, auth=auth)
 
     @classmethod
     def lookup(cls, org, urn_as_string, country_code=None, normalize=True):
@@ -1848,6 +1882,11 @@ class ContactURN(models.Model):
             urn_as_string = URN.normalize(urn_as_string, country_code)
 
         return cls.objects.filter(org=org, urn=urn_as_string).select_related('contact').first()
+
+    def update_auth(self, auth):
+        if auth and auth != self.auth:
+            self.auth = auth
+            self.save(update_fields=['auth'])
 
     def update_affinity(self, channel):
         """
@@ -2270,35 +2309,21 @@ class ContactGroupCount(SquashableModel):
         return "ContactGroupCount[%d:%d]" % (self.group_id, self.count)
 
 
-class ExportContactsTask(SmartModel):
+class ExportContactsTask(BaseExportTask):
+    analytics_key = 'contact_export'
+    email_subject = "Your contacts export is ready"
+    email_template = 'contacts/email/contacts_export_download'
 
-    org = models.ForeignKey(Org, related_name='contacts_exports', help_text=_("The Organization of the user."))
     group = models.ForeignKey(ContactGroup, null=True, related_name='exports', help_text=_("The unique group to export"))
-    task_id = models.CharField(null=True, max_length=64)
-    is_finished = models.BooleanField(default=False,
-                                      help_text=_("Whether this export has completed"))
-    uuid = models.CharField(max_length=36, null=True,
-                            help_text=_("The uuid used to name the resulting export file"))
-
-    def start_export(self):
-        """
-        Starts our export, this just wraps our do-export in a try/finally so we can track
-        when the export is complete.
-        """
-        try:
-            start = time.time()
-            self.do_export()
-        finally:
-            elapsed = time.time() - start
-            analytics.track(self.created_by.username, 'temba.contact_export_latency', properties=dict(value=elapsed))
-
-            self.is_finished = True
-            self.save(update_fields=['is_finished'])
 
     def get_export_fields_and_schemes(self):
 
         fields = [dict(label='UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
                   dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
+
+        # anon orgs also get an ID column that is just the PK
+        if self.org.is_anon:
+            fields = [dict(label='ID', key=Contact.ID, id=0, field=None, urn_scheme=None)] + fields
 
         scheme_counts = dict()
         if not self.org.is_anon:
@@ -2328,7 +2353,7 @@ class ExportContactsTask(SmartModel):
 
         return fields, scheme_counts
 
-    def do_export(self):
+    def write_export(self):
         fields, scheme_counts = self.get_export_fields_and_schemes()
 
         with SegmentProfiler("build up contact ids"):
@@ -2339,7 +2364,7 @@ class ExportContactsTask(SmartModel):
             contact_ids = [c['id'] for c in all_contacts.order_by('name', 'id').values('id')]
 
         # create our exporter
-        exporter = TableExporter("Contact", [c['label'] for c in fields])
+        exporter = TableExporter(self, "Contact", [c['label'] for c in fields])
 
         current_contact = 0
         start = time.time()
@@ -2369,6 +2394,8 @@ class ExportContactsTask(SmartModel):
                             field_value = contact.name
                         elif field['key'] == Contact.UUID:
                             field_value = contact.uuid
+                        elif field['key'] == Contact.ID:
+                            field_value = six.text_type(contact.id)
                         elif field['urn_scheme'] is not None:
                             contact_urns = contact.get_urns()
                             scheme_urns = []
@@ -2407,27 +2434,13 @@ class ExportContactsTask(SmartModel):
                                "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
                                time.time() - start, predicted))
 
-        # save as file asset associated with this task
-        from temba.assets.models import AssetType
-        from temba.assets.views import get_asset_url
+        return exporter.save_file()
 
-        # get our table file
-        table_file = exporter.save_file()
 
-        self.uuid = str(uuid4())
-        self.save(update_fields=['uuid'])
-
-        store = AssetType.contact_export.store
-        store.save(self.pk, File(table_file), 'csv' if exporter.is_csv else 'xlsx')
-
-        branding = self.org.get_branding()
-        download_url = branding['link'] + get_asset_url(AssetType.contact_export, self.pk)
-
-        subject = "Your contacts export is ready"
-        template = 'contacts/email/contacts_export_download'
-
-        # force a gc
-        import gc
-        gc.collect()
-
-        send_template_email(self.created_by.username, subject, template, dict(link=download_url), branding)
+@register_asset_store
+class ContactExportAssetStore(BaseExportAssetStore):
+    model = ExportContactsTask
+    key = 'contact_export'
+    directory = 'contact_exports'
+    permission = 'contacts.contact_export'
+    extensions = ('xlsx', 'csv')

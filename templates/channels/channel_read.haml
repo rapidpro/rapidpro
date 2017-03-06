@@ -38,11 +38,17 @@
 
       -if channel.has_configuration_page
         <a class="btn btn-tiny" href="{% url 'channels.channel_configuration' channel.id %}">{%trans "Settings"%}</a>
-      -if channel.has_sending_log
-        -with channel.get_sender as sender
-          -if sender
-            <a class="btn btn-tiny" href="{% url 'channels.channellog_list' %}?channel={{ sender.id }}">{%trans "Sending Log"%}</a>
 
+
+      -if channel.has_channel_log
+        -if not user_org.is_anon or perms.contacts.contact_break_anon
+          -with channel.get_sender as sender and channel.get_caller as caller
+            -if sender and not caller
+              <a class="btn btn-tiny" href="{% url 'channels.channellog_list' %}?channel={{ sender.id }}">{%trans "Sending Log"%}</a>
+            -if sender and sender == caller
+              <a class="btn btn-tiny" href="{% url 'channels.channellog_list' %}?channel={{ sender.id }}">{%trans "Channel Log"%}</a>
+            - if caller and caller != sender
+              <a class="btn btn-tiny" href="{% url 'channels.channellog_list' %}?channel={{ caller.id }}&sessions=1">{%trans "Call Log"%}</a>
       .notice
         -if delayed_sync_event or unsent_msgs_count
           .icon.icon-warning.errored
@@ -244,12 +250,8 @@
               %tr
                 %td
                   %h4
-                    -trans "ERRORS"
+                    -trans "Recent Errors"
                   {{ channel.get_error_log_count|intcomma }}
-
-                  -if 'S' in object.role
-                    %a{ href:"{% url 'channels.channellog_list' %}?channel={{object.get_sender.id}}" }
-                      -trans "View Log"
 
         .span10.strong-max-750
           %div#chart1
