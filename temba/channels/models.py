@@ -1316,7 +1316,7 @@ class Channel(TembaModel):
             event.status_code = response.status_code
             event.response_body = response.text
 
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             raise SendException(six.text_type(e), event=event, start=start)
 
         Channel.success(channel, msg, WIRED, start, event=event)
