@@ -1181,11 +1181,11 @@ class Channel(TembaModel):
     @classmethod
     def replace_variables(cls, text, variables, content_type=CONTENT_TYPE_URLENCODED):
         for key in variables.keys():
-            replacement = six.text_type(variables[key]).encode('utf-8')
+            replacement = six.text_type(variables[key])
 
             # encode based on our content type
             if content_type == Channel.CONTENT_TYPE_URLENCODED:
-                replacement = quote_plus(replacement)
+                replacement = quote_plus(replacement.encode('utf8'))
 
             # if this is JSON, need to wrap in quotes (and escape them)
             elif content_type == Channel.CONTENT_TYPE_JSON:
