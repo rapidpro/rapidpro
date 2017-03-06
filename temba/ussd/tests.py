@@ -683,3 +683,40 @@ class VumiUssdTest(TembaTest):
         session = USSDSession.objects.get()
         self.assertIsInstance(session.ended_on, datetime)
         self.assertEqual(session.status, USSDSession.INTERRUPTED)
+
+    def test_send_session_close(self):
+        flow = self.get_flow('ussd_session_end')
+        contact = self.create_contact("Joe", "+250788383383")
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.put') as mock:
+                mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
+                flow.start([], [contact])
+
+                # our outgoing message
+                msg = Msg.objects.filter(direction='O').order_by('id').last()
+
+                self.assertEqual(msg.direction, 'O')
+                self.assertTrue(msg.sent_on)
+                self.assertEquals("1515", msg.external_id)
+                self.assertEquals(msg.session.status, USSDSession.INITIATED)
+
+                # reply and choose an option that doesn't have any destination thus needs to close the session
+                USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="4",
+                                            date=timezone.now(), external_id="21345")
+
+                # our outgoing message
+                msg = Msg.objects.filter(direction='O').order_by('id').last()
+                self.assertEqual(msg.direction, 'O')
+                self.assertTrue(msg.sent_on)
+                self.assertEquals("1515", msg.external_id)
+
+                self.assertEquals(msg.session.status, USSDSession.COMPLETED)
+
+                self.assertEquals(2, mock.call_count)
+
+                self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
