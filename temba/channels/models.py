@@ -1941,7 +1941,7 @@ class Channel(TembaModel):
         channel.config['transport_name'] = 'ussd_transport' if is_ussd else 'mtech_ng_smpp_transport'
 
         in_reply_to = Msg.objects.values_list(
-            'external_id', flat=True).get(pk=msg.response_to_id)
+            'external_id', flat=True).filter(pk=msg.response_to_id).first()
 
         payload = dict(message_id=msg.id,
                        in_reply_to=in_reply_to,
