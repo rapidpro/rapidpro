@@ -2206,7 +2206,7 @@ class ContactGroup(TembaModel):
         """
         For dynamic groups, determines whether the given contact belongs in the group
         """
-        return self._get_dynamic_members(base_set=[contact]).filter(pk=contact.pk).exists()
+        return self._get_dynamic_members(base_set=[contact]).exists()
 
     @classmethod
     def get_system_group_queryset(cls, org, group_type):

@@ -70,6 +70,9 @@ def contact_search(org, query, base_queryset, base_set):
     if not PROPERTY_ALIASES:
         PROPERTY_ALIASES = {scheme: 'urns__path' for scheme, label in ContactURN.SCHEME_CHOICES}
 
+    if base_set:
+        base_queryset = base_queryset.filter(id__in=[c.id for c in base_set])
+
     try:
         return contact_search_complex(org, query, base_queryset, base_set), True
     except SearchException:
