@@ -995,9 +995,15 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             queryset = super(OrgCRUDL.Manage, self).derive_queryset(**kwargs)
-            queryset = queryset.filter(is_active=True, brand=self.request.branding['host'])
+            queryset = queryset.filter(is_active=True)
+
+            brand = self.request.branding.get('brand')
+            if brand:
+                queryset = queryset.filter(brand=brand)
+
             queryset = queryset.annotate(credits=Sum('topups__credits'))
             queryset = queryset.annotate(paid=Sum('topups__price'))
+
             return queryset
 
         def get_context_data(self, **kwargs):
@@ -1394,7 +1400,7 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Select your Organization")
 
         def get_user_orgs(self):
-            host = self.request.branding.get('host', settings.DEFAULT_BRAND)
+            host = self.request.branding.get('brand')
             return self.request.user.get_user_orgs(host)
 
         def pre_process(self, request, *args, **kwargs):
