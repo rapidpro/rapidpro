@@ -48,13 +48,16 @@ class USSDSession(ChannelSession):
     def mark_ending(self):  # session to be ended
         if self.status != self.ENDING:
             self.status = self.ENDING
-            self.save()
+            self.save(update_fields=['status'])
 
-    def mark_ended(self):  # session has successfully ended
-        if self.status != self.COMPLETED:
+    def close(self):  # session has successfully ended
+        if self.status == self.ENDING:
             self.status = self.COMPLETED
-            self.ended_on = timezone.now()
-            self.save()
+        else:
+            self.status = self.INTERRUPTED
+
+        self.ended_on = timezone.now()
+        self.save(update_fields=['status', 'ended_on'])
 
     def start_session_async(self, flow):
         flow.start([], [self.contact], start_msg=None, restart_participants=True, session=self)
@@ -73,7 +76,7 @@ class USSDSession(ChannelSession):
 
     @classmethod
     def handle_incoming(cls, channel, urn, date, external_id, contact=None, message_id=None, status=None,
-                        flow=None, content=None, starcode=None, org=None, async=True):
+                        content=None, starcode=None, org=None, async=True):
 
         trigger = None
         contact_urn = None
@@ -129,8 +132,3 @@ class USSDSession(ChannelSession):
             session.handle_session_async(urn, content, date, message_id)
 
         return session
-
-    def close(self):
-        # TODO: issue ussd provider close as well
-        self.status = USSDSession.INTERRUPTED
-        self.save()
