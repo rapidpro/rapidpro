@@ -3005,6 +3005,7 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(channel.config_json()['username'], post_data['username'])
         self.assertEquals(channel.config_json()['password'], post_data['password'])
         self.assertEquals(channel.channel_type, Channel.TYPE_JUNEBUG)
+        self.assertEquals(channel.role, Channel.DEFAULT_ROLE)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
@@ -3034,6 +3035,7 @@ class ChannelClaimTest(TembaTest):
 
         channel = Channel.objects.get()
         self.assertEquals(channel.channel_type, Channel.TYPE_JUNEBUG_USSD)
+        self.assertEquals(channel.role, Channel.ROLE_USSD)
 
     def test_claim_vumi_ussd(self):
         Channel.objects.all().delete()
