@@ -1234,6 +1234,20 @@ class ContactTest(TembaTest):
             # but not by frank number
             self.assertEqual(omnibox_request("search=222"), [])
 
+        # exclude blocked and stopped contacts
+        self.joe.block(self.admin)
+        self.frank.stop(self.admin)
+
+        # lookup by contact uuids
+        self.assertEqual(omnibox_request("c=%s,%s" % (self.joe.uuid, self.frank.uuid)), [])
+
+        # but still lookup by URN ids
+        urn_query = "u=%d,%d" % (self.joe.get_urn(TWITTER_SCHEME).pk, self.frank.get_urn(TEL_SCHEME).pk)
+        self.assertEqual(omnibox_request(urn_query), [
+            dict(id='u-%d' % frank_tel.pk, text="0782 222 222", extra="Frank Smith", scheme='tel'),
+            dict(id='u-%d' % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme='twitter')
+        ])
+
     def test_history(self):
         url = reverse('contacts.contact_history', args=[self.joe.uuid])
 
