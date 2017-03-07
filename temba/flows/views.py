@@ -655,7 +655,7 @@ class FlowCRUDL(SmartCRUDL):
         refresh = 10000
         fields = ('name', 'modified_on')
         default_template = 'flows/flow_list.html'
-        default_order = ('-modified_on',)
+        default_order = ('-saved_on',)
         search_fields = ('name__icontains',)
 
         def get_context_data(self, **kwargs):
