@@ -288,25 +288,6 @@ class MsgTest(TembaTest):
         must_return_none = Msg.create_outgoing(self.org, self.admin, "tel:" + self.channel.address, 'Infinite Loop')
         self.assertIsNone(must_return_none)
 
-        # must be failed for blocked contact
-        tel_contact.block(self.admin)
-        msg = Msg.create_outgoing(self.org, self.admin, tel_contact, "Hello 1")
-        self.assertEquals(msg.contact, tel_contact)
-        self.assertEquals(msg.contact_urn, tel_urn_obj)
-        self.assertEquals(msg.status, FAILED)
-
-        self.assertTrue(msg.channel_logs.all().count(), 1)
-        self.assertEqual(msg.channel_logs.first().description, "Can't send message to blocked contact")
-
-        tel_contact.unblock(self.admin)
-
-        # must be failed for stopped contact
-        tel_contact.stop(self.admin)
-        msg = Msg.create_outgoing(self.org, self.admin, tel_contact, "Hello 1")
-        self.assertEquals(msg.contact, tel_contact)
-        self.assertEquals(msg.contact_urn, tel_urn_obj)
-        self.assertEquals(msg.status, FAILED)
-
     def test_create_incoming(self):
         Msg.create_incoming(self.channel, "tel:250788382382", "It's going well")
         Msg.create_incoming(self.channel, "tel:250788382382", "My name is Frank")
@@ -665,39 +646,6 @@ class MsgTest(TembaTest):
         self.assertEquals(msg2.text, resent_msg.text)
         self.assertEquals(msg2.contact, resent_msg.contact)
         self.assertEquals(PENDING, resent_msg.status)
-
-    def test_msg_resend(self):
-        msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "message number 1")
-        msg1.status = 'F'
-        msg1.save()
-
-        msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "messsage number 2")
-        msg2.status = 'F'
-        msg2.save()
-
-        self.assertFalse(ChannelLog.objects.all())
-
-        # fail message on resend for blocked contact
-        self.joe.block(self.admin)
-
-        msg1.resend()
-
-        self.assertEqual(Msg.objects.filter(status=RESENT).count(), 1)
-        self.assertEqual(set(Msg.objects.filter(status=RESENT)), {msg1})
-        self.assertEqual(Msg.objects.filter(status=FAILED).count(), 2)
-
-        self.assertTrue(ChannelLog.objects.all())
-
-        self.joe.unblock(self.admin)
-
-        # fail message on resend for stopped contact
-        self.joe.stop(self.admin)
-
-        msg2.resend()
-
-        self.assertEqual(Msg.objects.filter(status=RESENT).count(), 2)
-        self.assertEqual(set(Msg.objects.filter(status=RESENT)), {msg1, msg2})
-        self.assertEqual(Msg.objects.filter(status=FAILED).count(), 2)
 
     @patch('temba.utils.email.send_temba_email')
     def test_message_export(self, mock_send_temba_email):

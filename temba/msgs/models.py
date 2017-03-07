@@ -21,10 +21,10 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
-from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, dict_to_struct
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
@@ -1099,10 +1099,6 @@ class Msg(models.Model):
         # see if we should use a new channel
         channel = self.org.get_send_channel(contact_urn=self.contact_urn)
 
-        status = PENDING
-        if self.contact.is_stopped or self.contact.is_blocked:
-            status = FAILED
-
         cloned = Msg.objects.create(org=self.org,
                                     channel=channel,
                                     contact=self.contact,
@@ -1113,7 +1109,7 @@ class Msg(models.Model):
                                     response_to=self.response_to,
                                     direction=self.direction,
                                     topup_id=topup_id,
-                                    status=status,
+                                    status=PENDING,
                                     broadcast=self.broadcast)
 
         # mark ourselves as resent
@@ -1124,11 +1120,6 @@ class Msg(models.Model):
         # update our broadcast
         if cloned.broadcast:
             cloned.broadcast.update()
-
-        if status == FAILED:
-            ChannelLog.log_error(dict_to_struct('MockMsg', cloned.as_task_json()),
-                                 "Can't send message to %s contact" % ("stopped" if cloned.contact.is_stopped
-                                                                       else "blocked"))
 
         # send our message
         self.org.trigger_send([cloned])
@@ -1323,9 +1314,6 @@ class Msg(models.Model):
             # if message has already been sent, recipient must be a tuple of contact and URN
             contact, contact_urn = recipient
 
-        if contact.is_stopped or contact.is_blocked:
-            status = FAILED
-
         # no creation date?  set it to now
         if not created_on:
             created_on = timezone.now()
@@ -1406,13 +1394,7 @@ class Msg(models.Model):
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
 
-        msg = Msg.objects.create(**msg_args) if insert_object else Msg(**msg_args)
-
-        if status == FAILED:
-            ChannelLog.log_error(dict_to_struct('MockMsg', msg.as_task_json()),
-                                 "Can't send message to %s contact" % ("stopped" if contact.is_stopped else "blocked"))
-
-        return msg
+        return Msg.objects.create(**msg_args) if insert_object else Msg(**msg_args)
 
     @staticmethod
     def resolve_recipient(org, user, recipient, channel, role=Channel.ROLE_SEND):
