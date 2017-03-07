@@ -964,7 +964,7 @@ class Contact(TembaModel):
         return test_contact
 
     @classmethod
-    def search(cls, org, query, base_group=None):
+    def search(cls, org, query, base_group=None, base_set=None):
         """
         Performs a search of contacts within a group (system or user)
         """
@@ -974,7 +974,7 @@ class Contact(TembaModel):
             base_group = ContactGroup.all_groups.get(org=org, group_type=ContactGroup.TYPE_ALL)
 
         try:
-            return contact_search(org, query, base_group.contacts.all())
+            return contact_search(org, query, base_group.contacts.all(), base_set=base_set)
         except SearchException:
             # TODO something better than swallowing search parse exceptions
             return Contact.objects.none()
@@ -2195,20 +2195,20 @@ class ContactGroup(TembaModel):
         self.contacts.clear()
         self.contacts.add(*members)
 
-    def _get_dynamic_members(self):
+    def _get_dynamic_members(self, base_set=None):
         """
         For dynamic groups, this returns the set of contacts who belong in this group
         """
         if not self.is_dynamic:  # pragma: no cover
             raise ValueError("Can only be called on dynamic groups")
 
-        return Contact.search(self.org, self.query)
+        return Contact.search(self.org, self.query, base_set=base_set)
 
     def _check_dynamic_membership(self, contact):
         """
         For dynamic groups, determines whether the given contact belongs in the group
         """
-        return self._get_dynamic_members().filter(pk=contact.pk).count() == 1
+        return self._get_dynamic_members(base_set=[contact]).exists()
 
     @classmethod
     def get_system_group_counts(cls, org, group_types=None):

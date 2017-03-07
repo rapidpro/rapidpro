@@ -109,10 +109,10 @@ class ContactQuery(object):
     def optimized(self):
         return ContactQuery(self.root.simplify().split_by_prop())
 
-    def as_query(self, org):
+    def as_query(self, org, base_set):
         prop_map = self.get_prop_map(org)
 
-        return self.root.as_query(org, prop_map)
+        return self.root.as_query(org, prop_map, base_set)
 
     def get_prop_map(self, org):
         """
@@ -158,7 +158,7 @@ class QueryNode(object):
     def split_by_prop(self):
         return self
 
-    def as_query(self, org, prop_map):
+    def as_query(self, org, prop_map, base_set):
         pass
 
 
@@ -198,7 +198,7 @@ class Condition(QueryNode):
     def get_prop_names(self):
         return [self.prop]
 
-    def as_query(self, org, prop_map):
+    def as_query(self, org, prop_map, base_set):
         # a value without a prop implies query against name or URN, e.g. "bob"
         if self.prop == self.IMPLICIT_PROP:
             return self._build_implicit_prop_query(org)
@@ -208,7 +208,13 @@ class Condition(QueryNode):
         if prop_type == ContactQuery.PROP_FIELD:
             # empty string equality means contacts without that field set
             if self.comparator.lower() in ('=', 'is') and self.value == "":
-                return ~Q(id__in=Value.objects.filter(contact_field=prop_obj).values('contact_id'))
+                values_query = Value.objects.filter(contact_field=prop_obj).values('contact_id')
+
+                # optimize for the single membership test case
+                if base_set:
+                    values_query = values_query.filter(contact__in=base_set)
+
+                return ~Q(id__in=values_query)
             else:
                 return self._build_value_query(prop_obj)
         elif prop_type == ContactQuery.PROP_SCHEME:
@@ -411,8 +417,8 @@ class BoolCombination(QueryNode):
 
         return BoolCombination(self.op, *new_children)
 
-    def as_query(self, org, prop_map):
-        return reduce(self.op, [child.as_query(org, prop_map) for child in self.children])
+    def as_query(self, org, prop_map, base_set):
+        return reduce(self.op, [child.as_query(org, prop_map, base_set) for child in self.children])
 
     def __eq__(self, other):
         return isinstance(other, BoolCombination) and self.op == other.op and self.children == other.children
@@ -435,14 +441,14 @@ class SinglePropCombination(BoolCombination):
 
         super(SinglePropCombination, self).__init__(op, *children)
 
-    def as_query(self, org, prop_map):
+    def as_query(self, org, prop_map, base_set):
         prop_type, prop_obj = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
             # a sequence of OR'd equality checks can be further optimized (e.g. `a = 1 OR a = 2` as `a IN (1, 2)`)
             if self.op == BoolCombination.OR and all([child.comparator == '=' for child in self.children]):
                 in_condition = Condition(self.prop, '=', [c.value for c in self.children])
-                return in_condition.as_query(org, prop_map)
+                return in_condition.as_query(org, prop_map, base_set)
 
             # otherwise just combine the Value sub-queries into a single one
             value_queries = []
@@ -454,7 +460,7 @@ class SinglePropCombination(BoolCombination):
 
             return Q(id__in=Condition.get_base_value_query().filter(value_query).values('contact_id'))
 
-        return super(SinglePropCombination, self).as_query(org, prop_map)
+        return super(SinglePropCombination, self).as_query(org, prop_map, base_set)
 
     def __eq__(self, other):
         return isinstance(other, SinglePropCombination) and self.prop == other.prop and super(SinglePropCombination, self).__eq__(other)
@@ -525,12 +531,12 @@ def parse_query(text, optimize=True):
     return query.optimized() if optimize else query
 
 
-def contact_search(org, text, base_queryset):
+def contact_search(org, text, base_queryset, base_set):
     """
     Performs the given contact query on the given base queryset
     """
     parsed = parse_query(text)
-    query = parsed.as_query(org)
+    query = parsed.as_query(org, base_set)
 
     return base_queryset.filter(query)
 

@@ -4683,6 +4683,27 @@ class VumiTest(TembaTest):
                 # self.assertTrue(msg.next_attempt)
                 # self.assertFalse(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
 
+                # a message initiated on RapidPro
+                mock.reset_mock()
+                mock.return_value = MockResponse(200, '{ "message_id": "1516" }')
+                msg = joe.send("Test message", self.admin, trigger_send=False)
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                self.assertEqual(mock.call_args[0][0], 'https://go.vumi.org/api/v1/go/http_api_nostream/key/messages.json')
+                [call] = mock.call_args_list
+                (args, kwargs) = call
+                payload = json.loads(kwargs['data'])
+                self.assertEquals(payload['in_reply_to'], None)
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+                self.assertEquals("1516", msg.external_id)
+                self.assertEquals(1, mock.call_count)
+
                 self.clear_cache()
 
             with patch('requests.put') as mock:
