@@ -23,13 +23,13 @@ from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
+from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value
-from temba.locations.models import STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 
 
 logger = logging.getLogger(__name__)
@@ -652,16 +652,16 @@ class Contact(TembaModel):
                 district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
                 district_value = self.get_field(district_field.key)
                 if district_value:
-                    loc_value = self.org.parse_location(value, WARD_LEVEL, district_value.location_value)
+                    loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_WARD, district_value.location_value)
 
             elif field.value_type == Value.TYPE_DISTRICT:
                 state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
                 if state_field:
                     state_value = self.get_field(state_field.key)
                     if state_value:
-                        loc_value = self.org.parse_location(value, DISTRICT_LEVEL, state_value.location_value)
+                        loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_DISTRICT, state_value.location_value)
             else:
-                loc_value = self.org.parse_location(value, STATE_LEVEL)
+                loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_STATE)
 
             if loc_value is not None and len(loc_value) > 0:
                 loc_value = loc_value[0]

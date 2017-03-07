@@ -17,6 +17,13 @@ from temba.values.models import Value
 from .models import ContactField, ContactURN
 
 
+BOUNDARY_LEVELS_BY_VALUE_TYPE = {
+    Value.TYPE_STATE: AdminBoundary.LEVEL_STATE,
+    Value.TYPE_DISTRICT: AdminBoundary.LEVEL_DISTRICT,
+    Value.TYPE_WARD: AdminBoundary.LEVEL_WARD,
+}
+
+
 class Concat(Func):
     """
     The Django Concat implementation splits arguments into pairs but we need to match the expression used on the index
@@ -338,12 +345,14 @@ class Condition(QueryNode):
         if not lookup:
             raise SearchException("Unsupported comparator %s for location field" % self.comparator)
 
-        if isinstance(self.value, list):
-            location_query = reduce(operator.or_, [Q(**{'name__%s' % lookup: v}) for v in self.value])
-        else:
-            location_query = Q(**{'name__%s' % lookup: self.value})
+        level_query = Q(level=BOUNDARY_LEVELS_BY_VALUE_TYPE.get(field.value_type))
 
-        locations = AdminBoundary.objects.filter(location_query)
+        if isinstance(self.value, list):
+            name_query = reduce(operator.or_, [Q(**{'name__%s' % lookup: v}) for v in self.value])
+        else:
+            name_query = Q(**{'name__%s' % lookup: self.value})
+
+        locations = AdminBoundary.objects.filter(level_query & name_query)
 
         return {'contact_field': field, 'location_value__in': locations}
 

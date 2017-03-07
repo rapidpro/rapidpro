@@ -32,7 +32,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel, ChannelSession
-from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
+from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING, DELIVERED
 from temba.msgs.models import OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
@@ -6293,7 +6293,7 @@ class HasStateTest(Test):
         if not org.country:
             return 0, None
 
-        state = org.parse_location(text, STATE_LEVEL)
+        state = org.parse_location(text, AdminBoundary.LEVEL_STATE)
         if state:
             return 1, state[0]
 
@@ -6324,12 +6324,12 @@ class HasDistrictTest(Test):
         # evaluate our district in case it has a replacement variable
         state, errors = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
 
-        parent = org.parse_location(state, STATE_LEVEL)
+        parent = org.parse_location(state, AdminBoundary.LEVEL_STATE)
         if parent:
-            district = org.parse_location(text, DISTRICT_LEVEL, parent[0])
+            district = org.parse_location(text, AdminBoundary.LEVEL_DISTRICT, parent[0])
             if district:
                 return 1, district[0]
-        district = org.parse_location(text, DISTRICT_LEVEL)
+        district = org.parse_location(text, AdminBoundary.LEVEL_DISTRICT)
 
         # parse location when state contraint is not provided or available
         if (errors or not state) and len(district) == 1:
@@ -6365,16 +6365,16 @@ class HasWardTest(Test):
         district_name, missing_district = Msg.substitute_variables(self.district, sms.contact, context, org=run.flow.org)
         state_name, missing_state = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
         if (district_name and state_name) and (len(missing_district) == 0 and len(missing_state) == 0):
-            state = org.parse_location(state_name, STATE_LEVEL)
+            state = org.parse_location(state_name, AdminBoundary.LEVEL_STATE)
             if state:
-                district = org.parse_location(district_name, DISTRICT_LEVEL, state[0])
+                district = org.parse_location(district_name, AdminBoundary.LEVEL_DISTRICT, state[0])
                 if district:
-                    ward = org.parse_location(text, WARD_LEVEL, district[0])
+                    ward = org.parse_location(text, AdminBoundary.LEVEL_WARD, district[0])
                     if ward:
                         return 1, ward[0]
 
         # parse location when district contraint is not provided or available
-        ward = org.parse_location(text, WARD_LEVEL)
+        ward = org.parse_location(text, AdminBoundary.LEVEL_WARD)
         if len(ward) == 1 and district is None:
             return 1, ward[0]
 
