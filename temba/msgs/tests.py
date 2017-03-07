@@ -1895,8 +1895,8 @@ class BroadcastLanguageTest(TembaTest):
         eng_msg = "Please see attachment"
         fre_msg = "SVP regardez l'attachement."
 
-        eng_attachment = 'attachments/eng_picture.jpg'
-        fre_attachment = 'attachments/fre_picture.jpg'
+        eng_attachment = 'image/jpeg:attachments/eng_picture.jpg'
+        fre_attachment = 'image/jpeg:attachments/fre_picture.jpg'
 
         # now create a broadcast with a couple contacts, one with an explicit language, the other not
         bcast = Broadcast.create(self.org, self.admin, "This is my new message with attachment",
@@ -1912,13 +1912,13 @@ class BroadcastLanguageTest(TembaTest):
 
         # assert the right language was used for each contact on both text and media
         self.assertEquals(fre_msg, francois_mms.text)
-        self.assertEquals("https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment), francois_mms.media)
+        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment), francois_mms.media)
 
         self.assertEquals(eng_msg, greg_mms.text)
-        self.assertEquals("https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, eng_attachment), greg_mms.media)
+        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, eng_attachment), greg_mms.media)
 
         self.assertEquals(fre_msg, wilbert_mms.text)
-        self.assertEquals("https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment), wilbert_mms.media)
+        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment), wilbert_mms.media)
 
 
 class SystemLabelTest(TembaTest):

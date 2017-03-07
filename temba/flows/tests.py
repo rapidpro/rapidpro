@@ -2622,11 +2622,11 @@ class ActionTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
-        action = ReplyAction(dict(base="We love green too!"), 'path/to/media.jpg')
+        action = ReplyAction(dict(base="We love green too!"), 'image/jpeg:path/to/media.jpg')
         action.execute(run, None, msg)
         reply_msg = Msg.objects.get(contact=self.contact, direction='O')
         self.assertEquals("We love green too!", reply_msg.text)
-        self.assertEquals(reply_msg.media, "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg'))
+        self.assertEquals(reply_msg.media, "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg'))
 
         Broadcast.objects.all().delete()
         Msg.objects.all().delete()
@@ -2635,13 +2635,13 @@ class ActionTest(TembaTest):
         action_json = action.as_json()
         action = ReplyAction.from_json(self.org, action_json)
         self.assertEquals(dict(base="We love green too!"), action.msg)
-        self.assertEquals('path/to/media.jpg', action.media)
+        self.assertEquals('image/jpeg:path/to/media.jpg', action.media)
 
         action.execute(run, None, msg)
 
         response = msg.responses.get()
         self.assertEquals("We love green too!", response.text)
-        self.assertEquals(response.media, "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg'))
+        self.assertEquals(response.media, "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg'))
         self.assertEquals(self.contact, response.contact)
 
     def test_ussd_action(self):
@@ -2854,26 +2854,26 @@ class ActionTest(TembaTest):
         run = FlowRun.create(self.flow, self.contact.pk)
         msg_body = 'I am an MMS message'
 
-        action = SendAction(dict(base=msg_body), [], [self.contact2], [], dict(base='attachments/picture.jpg'))
+        action = SendAction(dict(base=msg_body), [], [self.contact2], [], dict(base='image/jpeg:attachments/picture.jpg'))
         action.execute(run, None, None)
 
         action_json = action.as_json()
         action = SendAction.from_json(self.org, action_json)
         self.assertEqual(action.msg['base'], msg_body)
-        self.assertEqual(action.media['base'], 'attachments/picture.jpg')
+        self.assertEqual(action.media['base'], 'image/jpeg:attachments/picture.jpg')
 
         self.assertEqual(Broadcast.objects.all().count(), 2)  # new broadcast with media
 
         broadcast = Broadcast.objects.all().order_by('-created_on').first()
-        self.assertEqual(broadcast.media_dict, json.dumps(dict(base='attachments/picture.jpg')))
+        self.assertEqual(broadcast.media_dict, json.dumps(dict(base='image/jpeg:attachments/picture.jpg')))
         self.assertEqual(broadcast.get_messages().count(), 1)
         msg = broadcast.get_messages().first()
         self.assertEqual(msg.contact, self.contact2)
         self.assertEqual(msg.text, msg_body)
-        self.assertEqual(msg.media, "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'attachments/picture.jpg'))
+        self.assertEqual(msg.media, "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'attachments/picture.jpg'))
 
         # also send if we have empty message but have an attachment
-        action = SendAction(dict(base=""), [], [self.contact], [], dict(base='attachments/picture.jpg'))
+        action = SendAction(dict(base=""), [], [self.contact], [], dict(base='image/jpeg:attachments/picture.jpg'))
         action.execute(run, None, None)
         self.assertEqual(Broadcast.objects.all().count(), 3)
 

@@ -3520,7 +3520,7 @@ class AfricasTalkingTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -3540,7 +3540,7 @@ class AfricasTalkingTest(TembaTest):
                 # check that our from was set
                 self.assertEquals(self.channel.address, mock.call_args[1]['data']['from'])
                 self.assertEqual(mock.call_args[1]['data']['message'],
-                                 "Test message https://example.com/attachments/pic.jpg")
+                                 "Test message\nhttps://example.com/attachments/pic.jpg")
 
                 self.clear_cache()
         finally:
@@ -3798,7 +3798,7 @@ class ExternalTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -3814,8 +3814,7 @@ class ExternalTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
-                self.assertTrue("text=Test+message+https%3A%2F%2Fexample.com%2Fattachments%2Fpic.jpg"
-                                in mock.call_args[1]['data'])
+                self.assertIn("text=Test+message%0Ahttps%3A%2F%2Fexample.com%2Fattachments%2Fpic.jpg", mock.call_args[1]['data'])
 
                 self.clear_cache()
         finally:
@@ -4006,7 +4005,7 @@ class YoTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+252788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -4022,8 +4021,7 @@ class YoTest(TembaTest):
                 self.assertEquals(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
 
-                self.assertTrue("sms_content=Test+message+https%3A%2F%2Fexample.com%2Fattachments%2Fpic.jpg"
-                                in mock.call_args[0][0])
+                self.assertIn("sms_content=Test+message%0Ahttps%3A%2F%2Fexample.com%2Fattachments%2Fpic.jpg", mock.call_args[0][0])
 
                 self.clear_cache()
 
@@ -4111,7 +4109,7 @@ class ShaqodoonTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -4126,10 +4124,7 @@ class ShaqodoonTest(TembaTest):
                 msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
-
-                self.assertTrue("msg=Test+message+https%3A%2F%2Fexample.com%2Fattachments%2Fpic.jpg"
-                                in mock.call_args[0][0])
-
+                self.assertIn("msg=Test+message%0Ahttps%3A%2F%2Fexample.com%2Fattachments%2Fpic.jpg", mock.call_args[0][0])
                 self.clear_cache()
         finally:
             settings.SEND_MESSAGES = False
@@ -4265,7 +4260,7 @@ class M3TechTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -4280,7 +4275,7 @@ class M3TechTest(TembaTest):
 
                 self.assertEqual(mock.call_args[1]['params']['SMSType'], '0')
                 self.assertEqual(mock.call_args[1]['params']['SMS'],
-                                 'Test message https://example.com/attachments/pic.jpg')
+                                 'Test message\nhttps://example.com/attachments/pic.jpg')
 
                 # check the status of the message is now sent
                 msg.refresh_from_db()
@@ -4352,7 +4347,7 @@ class KannelTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -4372,7 +4367,7 @@ class KannelTest(TembaTest):
                 self.assertTrue(mock.call_args[1]['verify'])
                 self.assertEquals('+250788383383', mock.call_args[1]['params']['to'])
                 self.assertEqual(mock.call_args[1]['params']['text'],
-                                 'Test message https://example.com/attachments/pic.jpg')
+                                 'Test message\nhttps://example.com/attachments/pic.jpg')
 
                 self.clear_cache()
         finally:
@@ -4749,7 +4744,7 @@ class NexmoTest(TembaTest):
         self.channel.save()
 
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -4767,7 +4762,7 @@ class NexmoTest(TembaTest):
                 self.assertEquals('12', msg.external_id)
 
                 self.assertEqual(mock.call_args[1]['params']['text'],
-                                 'Test message https://example.com/attachments/pic.jpg')
+                                 'Test message\nhttps://example.com/attachments/pic.jpg')
 
                 self.clear_cache()
         finally:
@@ -5020,7 +5015,7 @@ class VumiTest(TembaTest):
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+250788383383")
         self.create_group("Reporters", [joe])
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -5033,7 +5028,7 @@ class VumiTest(TembaTest):
 
                 self.assertEqual(mock.call_args[0][0], 'https://go.vumi.org/api/v1/go/http_api_nostream/key/messages.json')
                 self.assertEqual(json.loads(mock.call_args[1]['data'])['content'],
-                                 "Test message https://example.com/attachments/pic.jpg")
+                                 "Test message\nhttps://example.com/attachments/pic.jpg")
 
                 # check the status of the message is now sent
                 msg.refresh_from_db()
@@ -5170,7 +5165,7 @@ class ZenviaTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -5187,7 +5182,7 @@ class ZenviaTest(TembaTest):
                 self.assertTrue(msg.sent_on)
 
                 self.assertEqual(mock.call_args[1]['params']['msg'],
-                                 "Test message https://example.com/attachments/pic.jpg")
+                                 "Test message\nhttps://example.com/attachments/pic.jpg")
 
                 self.clear_cache()
         finally:
@@ -5297,7 +5292,7 @@ class InfobipTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -5315,7 +5310,7 @@ class InfobipTest(TembaTest):
                 self.assertEquals('12', msg.external_id)
 
                 self.assertEqual(json.loads(mock.call_args[1]['data'])['messages'][0]['text'],
-                                 "Test message https://example.com/attachments/pic.jpg")
+                                 "Test message\nhttps://example.com/attachments/pic.jpg")
 
                 self.clear_cache()
         finally:
@@ -5419,7 +5414,7 @@ class BlackmynaTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+9771488532")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -5438,7 +5433,7 @@ class BlackmynaTest(TembaTest):
                 self.assertEquals('asdf-asdf-asdf-asdf', msg.external_id)
 
                 self.assertEqual(mock.call_args[1]['data']['message'],
-                                 'Test message https://example.com/attachments/pic.jpg')
+                                 'Test message\nhttps://example.com/attachments/pic.jpg')
 
                 self.clear_cache()
 
@@ -5579,7 +5574,7 @@ class SMSCentralTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+9771488532")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -5598,7 +5593,7 @@ class SMSCentralTest(TembaTest):
                 mock.assert_called_with('http://smail.smscentral.com.np/bp/ApiSms.php',
                                         data={'user': 'sc-user', 'pass': 'sc-password',
                                               'mobile': '9771488532',
-                                              'content': "Test message https://example.com/attachments/pic.jpg"},
+                                              'content': "Test message\nhttps://example.com/attachments/pic.jpg"},
                                         headers=TEMBA_HEADERS,
                                         timeout=30)
 
@@ -5715,7 +5710,7 @@ class Hub9Test(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -5734,8 +5729,7 @@ class Hub9Test(TembaTest):
                 self.clear_cache()
 
                 self.assertTrue(mock.call_args[0][0].startswith(HUB9_ENDPOINT))
-                self.assertTrue("message=Test+message+https%3A%2F%2Fexample.com%2Fattachments%2Fpic.jpg"
-                                in mock.call_args[0][0])
+                self.assertIn("message=Test+message%0Ahttps%3A%2F%2Fexample.com%2Fattachments%2Fpic.jpg", mock.call_args[0][0])
 
         finally:
             settings.SEND_MESSAGES = False
@@ -5892,7 +5886,7 @@ class DartMediaTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -5908,11 +5902,8 @@ class DartMediaTest(TembaTest):
                 self.assertEquals(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
 
-                self.assertTrue("message=Test+message+https%3A%2F%2Fexample.com%2Fattachments%2Fpic.jpg"
-                                in mock.call_args[0][0])
-
+                self.assertIn("message=Test+message%0Ahttps%3A%2F%2Fexample.com%2Fattachments%2Fpic.jpg", mock.call_args[0][0])
                 self.clear_cache()
-
                 self.assertTrue(mock.call_args[0][0].startswith(DART_MEDIA_ENDPOINT))
 
         finally:
@@ -5975,7 +5966,7 @@ class HighConnectionTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -5990,10 +5981,7 @@ class HighConnectionTest(TembaTest):
                 msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
-
-                self.assertTrue("text=Test+message+https%3A%2F%2Fexample.com%2Fattachments%2Fpic.jpg"
-                                in mock.call_args[0][0])
-
+                self.assertIn("text=Test+message%0Ahttps%3A%2F%2Fexample.com%2Fattachments%2Fpic.jpg", mock.call_args[0][0])
                 self.clear_cache()
         finally:
             settings.SEND_MESSAGES = True
@@ -6411,7 +6399,7 @@ class TwilioTest(TembaTest):
         self.org.save()
 
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         settings.SEND_MESSAGES = True
 
@@ -6427,7 +6415,7 @@ class TwilioTest(TembaTest):
             self.assertTrue(msg.sent_on)
 
             self.assertEquals(mock.call_args[1]['media_url'], [])
-            self.assertEquals(mock.call_args[1]['body'], "Test message https://example.com/attachments/pic.jpg")
+            self.assertEquals(mock.call_args[1]['body'], "Test message\nhttps://example.com/attachments/pic.jpg")
 
             self.clear_cache()
 
@@ -6449,7 +6437,7 @@ class TwilioTest(TembaTest):
             self.channel.save()
             self.clear_cache()
 
-            msg = joe.send("MT", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+            msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
             # manually send it off
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -6817,7 +6805,7 @@ class ClickatellTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -6842,7 +6830,7 @@ class ClickatellTest(TembaTest):
                           'mo': 1,
                           'unicode': 0,
                           'to': "250788383383",
-                          'text': "Test message https://example.com/attachments/pic.jpg"}
+                          'text': "Test message\nhttps://example.com/attachments/pic.jpg"}
                 mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=TEMBA_HEADERS,
                                         timeout=5)
 
@@ -7200,7 +7188,7 @@ class TelegramTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Ernie", urn='telegram:1234')
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         settings.SEND_MESSAGES = True
 
@@ -7222,7 +7210,7 @@ class TelegramTest(TembaTest):
             self.assertEqual(mock.call_args[0][1]['chat_id'], "1234")
 
             msg = joe.send("Test message", self.admin, trigger_send=False,
-                           media='https://example.com/attachments/sound.mp3')
+                           media='audio/mp3:https://example.com/attachments/sound.mp3')
 
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
@@ -7237,7 +7225,7 @@ class TelegramTest(TembaTest):
             self.assertEqual(mock.call_args[0][1]['chat_id'], "1234")
 
             msg = joe.send("Test message", self.admin, trigger_send=False,
-                           media='https://example.com/attachments/video.mp4')
+                           media='video/mpeg4:https://example.com/attachments/video.mp4')
 
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
@@ -7384,7 +7372,7 @@ class PlivoTest(TembaTest):
             settings.SEND_MESSAGES = False
 
     def test_send_mms(self):
-        msg = self.joe.send("MT", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = self.joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -7404,7 +7392,7 @@ class PlivoTest(TembaTest):
                 self.assertTrue(msg.sent_on)
 
                 self.assertEqual(json.loads(mock.call_args[1]['data'])['text'],
-                                 "MT https://example.com/attachments/pic.jpg")
+                                 "MT\nhttps://example.com/attachments/pic.jpg")
 
                 self.clear_cache()
         finally:
@@ -7427,7 +7415,7 @@ class TwitterTest(TembaTest):
     def test_send_mms(self):
         joe = self.create_contact("Joe", number="+250788383383", twitter="joe1981")
 
-        msg = joe.send("MT", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
         try:
             settings.SEND_MESSAGES = True
 
@@ -7445,7 +7433,7 @@ class TwitterTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertEquals('1234567890', msg.external_id)
                 self.assertTrue(msg.sent_on)
-                self.assertEqual(mock.call_args[1]['text'], "MT https://example.com/attachments/pic.jpg")
+                self.assertEqual(mock.call_args[1]['text'], "MT\nhttps://example.com/attachments/pic.jpg")
 
                 self.clear_cache()
         finally:
@@ -7477,7 +7465,7 @@ class TwitterTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertEquals('1234567890', msg.external_id)
                 self.assertTrue(msg.sent_on)
-                self.assertEqual(mock.call_args[1]['text'], msg.text)
+                self.assertEqual(mock.call_args[1]['data']['text'], msg.text)
 
                 self.clear_cache()
 
@@ -7901,7 +7889,7 @@ class StartMobileTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+977788123123")
-        msg = joe.send("MT", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         try:
             settings.SEND_MESSAGES = True
@@ -7924,7 +7912,7 @@ class StartMobileTest(TembaTest):
                 self.assertEqual('http://bulk.startmobile.com.ua/clients.php', mock.call_args[0][0])
                 message_el = ET.fromstring(mock.call_args[1]['data'])
                 self.assertEqual(message_el.find('service').attrib, dict(source='1212', id='single', validity='+12 hours'))
-                self.assertEqual(message_el.find('body').text, "MT https://example.com/attachments/pic.jpg")
+                self.assertEqual(message_el.find('body').text, "MT\nhttps://example.com/attachments/pic.jpg")
 
                 self.clear_cache()
         finally:
@@ -8136,7 +8124,7 @@ class ChikkaTest(TembaTest):
         incoming.external_id = '4004'
         incoming.save()
 
-        msg = joe.send("MT", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         with self.settings(SEND_MESSAGES=True):
 
@@ -8153,7 +8141,7 @@ class ChikkaTest(TembaTest):
 
                 # check we were called as a send
                 self.assertEqual(mock.call_args[1]['data']['message_type'], 'SEND')
-                self.assertEqual(mock.call_args[1]['data']['message'], 'MT https://example.com/attachments/pic.jpg')
+                self.assertEqual(mock.call_args[1]['data']['message'], 'MT\nhttps://example.com/attachments/pic.jpg')
                 self.clear_cache()
 
 
@@ -8279,7 +8267,7 @@ class JasminTest(TembaTest):
         from temba.utils import gsm7
 
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("MT", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         settings.SEND_MESSAGES = True
 
@@ -8297,7 +8285,7 @@ class JasminTest(TembaTest):
 
             # assert we were properly encoded
             self.assertEqual(mock.call_args[1]['params']['content'],
-                             gsm7.encode('MT https://example.com/attachments/pic.jpg')[0])
+                             gsm7.encode('MT\nhttps://example.com/attachments/pic.jpg')[0])
 
             self.clear_cache()
 
@@ -8464,7 +8452,7 @@ class JunebugTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("MT", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         settings.SEND_MESSAGES = True
 
@@ -8487,7 +8475,7 @@ class JunebugTest(TembaTest):
 
             self.clear_cache()
 
-            self.assertEqual(mock.call_args[1]['json']['content'], "MT https://example.com/attachments/pic.jpg")
+            self.assertEqual(mock.call_args[1]['json']['content'], "MT\nhttps://example.com/attachments/pic.jpg")
 
     def test_send_errored_remote(self):
         joe = self.create_contact("Joe", "+250788383383")
@@ -8657,7 +8645,7 @@ class MbloxTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("MT", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         settings.SEND_MESSAGES = True
 
@@ -8674,7 +8662,7 @@ class MbloxTest(TembaTest):
             self.assertEqual(msg.external_id, 'OzYDlvf3SQVc')
             self.clear_cache()
 
-            self.assertEqual(json.loads(mock.call_args[0][1])['body'], "MT https://example.com/attachments/pic.jpg")
+            self.assertEqual(json.loads(mock.call_args[0][1])['body'], "MT\nhttps://example.com/attachments/pic.jpg")
 
 
 class FacebookWhitelistTest(TembaTest):
@@ -9217,7 +9205,7 @@ class FacebookTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", urn="facebook:1234")
-        msg = joe.send("Facebook Msg", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Facebook Msg", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         settings.SEND_MESSAGES = True
 
@@ -9391,7 +9379,7 @@ class GlobeTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+639171234567")
-        msg = joe.send("MT", self.admin, trigger_send=False, media="https://example.com/attachments/pic.jpg")
+        msg = joe.send("MT", self.admin, trigger_send=False, media="image/jpeg:https://example.com/attachments/pic.jpg")
 
         settings.SEND_MESSAGES = True
 
@@ -9403,7 +9391,7 @@ class GlobeTest(TembaTest):
 
             mock.assert_called_once_with('https://devapi.globelabs.com.ph/smsmessaging/v1/outbound/21586380/requests',
                                          headers={'User-agent': 'RapidPro'},
-                                         data={'message': 'MT https://example.com/attachments/pic.jpg',
+                                         data={'message': 'MT\nhttps://example.com/attachments/pic.jpg',
                                                'app_secret': 'AppSecret', 'app_id': 'AppId',
                                                'passphrase': 'Passphrase', 'address': '639171234567'},
                                          timeout=5)
@@ -9561,7 +9549,7 @@ class ViberTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", "+639171234567")
-        msg = joe.send("Hello, world!", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         settings.SEND_MESSAGES = True
         with patch('requests.post') as mock:
@@ -9578,7 +9566,7 @@ class ViberTest(TembaTest):
             self.clear_cache()
 
             self.assertEqual(mock.call_args[1]['json']['message']['#txt'],
-                             'Hello, world! https://example.com/attachments/pic.jpg')
+                             'Hello, world!\nhttps://example.com/attachments/pic.jpg')
 
 
 class LineTest(TembaTest):
@@ -9703,7 +9691,7 @@ class LineTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", urn="line:uabcdefghijkl")
-        msg = joe.send("Hello, world!", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         with self.settings(SEND_MESSAGES=True):
 
@@ -9720,7 +9708,7 @@ class LineTest(TembaTest):
                 self.clear_cache()
 
                 self.assertEqual(json.loads(mock.call_args[1]['data'])['messages'][0]['text'],
-                                 "Hello, world! https://example.com/attachments/pic.jpg")
+                                 "Hello, world!\nhttps://example.com/attachments/pic.jpg")
 
 
 class ViberPublicTest(TembaTest):
@@ -10002,7 +9990,7 @@ class ViberPublicTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", urn="viber:xy5/5y6O81+/kbWHpLhBoA==")
-        msg = joe.send("MT", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         settings.SEND_MESSAGES = True
         with patch('requests.post') as mock:
@@ -10013,7 +10001,7 @@ class ViberPublicTest(TembaTest):
 
             mock.assert_called_with('https://chatapi.viber.com/pa/send_message',
                                     headers={'Accept': u'application/json', u'User-agent': u'RapidPro'},
-                                    json={'text': u'MT https://example.com/attachments/pic.jpg',
+                                    json={'text': u'MT\nhttps://example.com/attachments/pic.jpg',
                                           'auth_token': u'auth_token',
                                           'tracking_data': msg.id,
                                           'type': u'text',
@@ -10147,7 +10135,7 @@ class FcmTest(TembaTest):
 
     def test_send_mms(self):
         joe = self.create_contact("Joe", urn="fcm:12345abcde", auth="123456abcdef")
-        msg = joe.send("Hello, world!", self.admin, trigger_send=False, media='https://example.com/attachments/pic.jpg')
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
 
         with self.settings(SEND_MESSAGES=True):
 
@@ -10166,7 +10154,7 @@ class FcmTest(TembaTest):
                     'data': {
                         'type': 'rapidpro',
                         'title': 'FCM Channel',
-                        'message': 'Hello, world! https://example.com/attachments/pic.jpg',
+                        'message': 'Hello, world!\nhttps://example.com/attachments/pic.jpg',
                         'message_id': msg.id
                     },
                     'content_available': True,
@@ -10174,7 +10162,7 @@ class FcmTest(TembaTest):
                     'priority': 'high',
                     'notification': {
                         'title': 'FCM Channel',
-                        'body': 'Hello, world! https://example.com/attachments/pic.jpg'
+                        'body': 'Hello, world!\nhttps://example.com/attachments/pic.jpg'
                     }
                 })
 

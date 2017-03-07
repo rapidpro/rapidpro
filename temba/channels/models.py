@@ -1236,7 +1236,18 @@ class Channel(TembaModel):
                                       response_status=event.status_code,
                                       request_time=request_time)
 
+    # wrapper for non-mms sends
+    def append_media(func):
+        def wrapper(cls, channel, msg, text):
+            if msg.media:
+                from temba.msgs.models import Msg
+                media_type, media_url = Msg.get_media(msg)
+                text = '%s\n%s' % (text, media_url)
+            return func(cls, channel, msg, text)
+        return wrapper
+
     @classmethod
+    @append_media
     def send_fcm_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
         start = time.time()
@@ -1286,6 +1297,7 @@ class Channel(TembaModel):
                                 event, start=start)
 
     @classmethod
+    @append_media
     def send_jasmin_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
         from temba.utils import gsm7
@@ -1339,6 +1351,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
+    @append_media
     def send_junebug_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -1459,6 +1472,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
+    @append_media
     def send_line_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -1489,7 +1503,8 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_mblox_message(cls, channel, msg, text, attachment_url, attachment_type):
+    @append_media
+    def send_mblox_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         # build our payload
@@ -1545,7 +1560,8 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_kannel_message(cls, channel, msg, text, attachment_type):
+    @append_media
+    def send_kannel_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         # build our callback dlr url, kannel will call this when our message is sent or delivered
@@ -1618,6 +1634,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
+    @append_media
     def send_shaqodoon_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -1665,6 +1682,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
+    @append_media
     def send_external_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -1716,7 +1734,8 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_chikka_message(cls, channel, msg, text, attachment_url, attachment_type):
+    @append_media
+    def send_chikka_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
         payload = {
@@ -1787,6 +1806,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, events=events)
 
     @classmethod
+    @append_media
     def send_high_connection_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -1823,6 +1843,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
+    @append_media
     def send_blackmyna_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -1865,6 +1886,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
+    @append_media
     def send_start_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -1882,9 +1904,7 @@ class Channel(TembaModel):
         post_body = post_body.replace("$$VALIDITY$$", quoteattr("+12 hours"))
         post_body = post_body.replace("$$TO$$", escape(msg.urn_path))
         post_body = post_body.replace("$$BODY$$", escape(text))
-        post_body = post_body.encode('utf8')
         event = HttpEvent('POST', url, post_body)
-
         post_body = post_body.encode('utf8')
 
         start = time.time()
@@ -1917,6 +1937,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
+    @append_media
     def send_smscentral_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -1949,6 +1970,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
+    @append_media
     def send_vumi_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED, Msg
         from temba.contacts.models import Contact
@@ -2020,6 +2042,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
+    @append_media
     def send_globe_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -2059,6 +2082,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
+    @append_media
     def send_nexmo_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
         from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
@@ -2085,6 +2109,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, SENT, start, event=event, external_id=message_id)
 
     @classmethod
+    @append_media
     def send_yo_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
         from temba.contacts.models import Contact
@@ -2145,6 +2170,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, SENT, start, events=events)
 
     @classmethod
+    @append_media
     def send_infobip_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
 
@@ -2208,6 +2234,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, SENT, start, events=events, external_id=external_id)
 
     @classmethod
+    @append_media
     def send_hub9_or_dartmedia_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
 
@@ -2276,6 +2303,7 @@ class Channel(TembaModel):
                                 event=event, start=start)
 
     @classmethod
+    @append_media
     def send_zenvia_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -2319,6 +2347,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
+    @append_media
     def send_africas_talking_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
 
@@ -2375,15 +2404,17 @@ class Channel(TembaModel):
         callback_url = Channel.build_twilio_callback_url(msg.id)
 
         start = time.time()
-        media_url = None
+        media_url = []
 
         if msg.media:
             supports_mms = channel.channel_type in Channel.MEDIA_CHANNELS and channel.country in ['CA', 'US']
-            (media_type, media_url) = Msg.get_media(msg.media)
+            (media_type, media_url) = Msg.get_media(msg)
 
-            if not supports_mms:
-                text += '%s\n%s' % (text, media_url)
-                media_url = None
+            if supports_mms:
+                media_url = [media_url]
+            else:
+                text = '%s\n%s' % (text, media_url)
+                media_url = []
 
         if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
             config = channel.config
@@ -2470,6 +2501,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
+    @append_media
     def send_twitter_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
         from temba.contacts.models import Contact
@@ -2509,6 +2541,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, events=twitter.events, external_id=external_id)
 
     @classmethod
+    @append_media
     def send_clickatell_message(cls, channel, msg, text):
         """
         Sends a message to Clickatell, they expect a GET in the following format:
@@ -2561,6 +2594,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
+    @append_media
     def send_plivo_message(cls, channel, msg, text):
         import plivo
         from temba.msgs.models import WIRED
@@ -2599,6 +2633,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
+    @append_media
     def send_m3tech_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -2655,6 +2690,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
+    @append_media
     def send_viber_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -2696,6 +2732,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
+    @append_media
     def send_viber_public_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
