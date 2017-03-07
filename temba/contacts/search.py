@@ -201,7 +201,7 @@ class Condition(QueryNode):
     def as_query(self, org, prop_map, base_set):
         # a value without a prop implies query against name or URN, e.g. "bob"
         if self.prop == self.IMPLICIT_PROP:
-            return self._build_implicit_prop_query(org)
+            return self._build_implicit_prop_query(org, base_set)
 
         prop_type, prop_obj = prop_map[self.prop]
 
@@ -216,16 +216,16 @@ class Condition(QueryNode):
 
                 return ~Q(id__in=values_query)
             else:
-                return self._build_value_query(prop_obj)
+                return self._build_value_query(prop_obj, base_set)
         elif prop_type == ContactQuery.PROP_SCHEME:
             if org.is_anon:
                 return Q(id=-1)
             else:
-                return self._build_urn_query(org, prop_obj)
+                return self._build_urn_query(org, prop_obj, base_set)
         else:
             return self._build_attr_query(prop_obj)
 
-    def _build_implicit_prop_query(self, org):
+    def _build_implicit_prop_query(self, org, base_set):
         name_query = Q(name__icontains=self.value)
 
         if org.is_anon:
@@ -235,6 +235,10 @@ class Condition(QueryNode):
                 urn_query = Q(id=-1)
         else:
             urns = ContactURN.objects.filter(org=org, path__icontains=self.value)
+
+            if base_set:
+                urns = urns.filter(contact__in=base_set)
+
             urn_query = Q(id__in=urns.values('contact_id'))
 
         return name_query | urn_query
@@ -246,16 +250,25 @@ class Condition(QueryNode):
 
         return Q(**{'%s__%s' % (attr, lookup): self.value})
 
-    def _build_urn_query(self, org, scheme):
+    def _build_urn_query(self, org, scheme, base_set):
         lookup = self.ATTR_OR_URN_LOOKUPS.get(self.comparator)
         if not lookup:
             raise SearchException("Unsupported comparator %s for URN" % self.comparator)
 
         urns = ContactURN.objects.filter(**{'org': org, 'scheme': scheme, 'path__%s' % lookup: self.value})
+
+        if base_set:
+            urns = urns.filter(contact__in=base_set)
+
         return Q(id__in=urns.values('contact_id'))
 
-    def _build_value_query(self, field):
-        return Q(id__in=self.get_base_value_query().filter(**self.build_value_query_params(field)))
+    def _build_value_query(self, field, base_set):
+        value_contacts = self.get_base_value_query().filter(**self.build_value_query_params(field))
+
+        if base_set:
+            value_contacts = value_contacts.filter(contact__in=base_set)
+
+        return Q(id__in=value_contacts)
 
     def build_value_query_params(self, field):
         if field.value_type == Value.TYPE_TEXT:
@@ -457,8 +470,12 @@ class SinglePropCombination(BoolCombination):
                 value_queries.append(Q(**params))
 
             value_query = reduce(self.op, value_queries)
+            value_contacts = Condition.get_base_value_query().filter(value_query).values('contact_id')
 
-            return Q(id__in=Condition.get_base_value_query().filter(value_query).values('contact_id'))
+            if base_set:
+                value_contacts = value_contacts.filter(contact__in=base_set)
+
+            return Q(id__in=value_contacts)
 
         return super(SinglePropCombination, self).as_query(org, prop_map, base_set)
 
@@ -537,6 +554,9 @@ def contact_search(org, text, base_queryset, base_set):
     """
     parsed = parse_query(text)
     query = parsed.as_query(org, base_set)
+
+    if base_set:
+        base_queryset = base_queryset.filter(id__in=[c.id for c in base_set])
 
     return base_queryset.filter(query)
 
