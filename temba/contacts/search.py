@@ -558,7 +558,7 @@ def contact_search(org, text, base_queryset, base_set):
     if base_set:
         base_queryset = base_queryset.filter(id__in=[c.id for c in base_set])
 
-    return base_queryset.filter(query)
+    return base_queryset.filter(org=org).filter(query)
 
 
 def extract_fields(org, text):
