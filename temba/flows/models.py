@@ -5088,11 +5088,11 @@ class ReplyAction(Action):
             media = None
             if self.media:
                 # localize our media attachment
-                attachment = run.flow.get_localized_text(self.media, run.contact)
+                media_type, media_url = run.flow.get_localized_text(self.media, run.contact).split(':')
 
                 # if we have a localized media, create the url
-                if attachment:  # pragma: needs cover
-                    media = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, attachment)
+                if media_url:
+                    media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
             if offline_on:
                 reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,

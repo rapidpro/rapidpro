@@ -458,11 +458,11 @@ class Broadcast(models.Model):
             text = self.get_translated_text(contact)
 
             media = None
-            attachment_media = self.get_translated_media(contact)
+            media_type, media_url = self.get_translated_media(contact).split(':')
 
             # if we have a localized media, create the url
-            if attachment_media:
-                media = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, attachment_media)
+            if media_url:
+                media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
             # add in our parent context if the message references @parent
             if run_map:
@@ -935,29 +935,12 @@ class Msg(models.Model):
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
     @classmethod
-    def text_with_attachment(cls, msg):
-        text = msg.text
-        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-        if attachment_url:
-            text += " " + attachment_url
-        return text
-
-    @classmethod
-    def get_media_attachment(cls, msg):
-        attachment_type = None
-        attachment_url = None
-
+    def get_media(cls, msg):
         if msg.media:
-            attachment_url = msg.media
-
-            if attachment_url.endswith('wav') or attachment_url.endswith('mp3'):
-                attachment_type = 'audio'
-            elif attachment_url.endswith('mp4'):
-                attachment_type = 'video'
-            elif attachment_url.endswith('jpg'):
-                attachment_type = 'image'
-
-        return attachment_url, attachment_type
+            parts = msg.media.split(':', 1)
+            if len(parts) == 2:
+                return parts
+        return None, None
 
     def as_json(self):
         return dict(direction=self.direction,

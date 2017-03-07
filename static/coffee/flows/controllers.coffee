@@ -187,8 +187,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       showDialog('Wrong File Type', 'Audio files need to in the WAV format. Please choose a WAV file and try again.')
       return
 
-    if action.type in ['reply', 'send'] and file.type not in ['audio/wav', 'audio/x-wav', 'audio/mp3','video/mp4', 'image/jpeg']
-      showDialog('Wrong File Type', 'Supported formats are JPG for images, WAV and MP3 for audios and MP4 for videos. Please choose another file and try again.')
+    if action.type in ['reply', 'send'] and file.type.split('/')[0] not in ['audio', 'video', 'image']
+      showDialog('Wrong File Type', 'Only images, audio, and video files are allowed.')
       return
 
     if action.type in ['reply', 'send'] and (file.size > 20000000 or (file.name.endsWith('.jpg') and file.size > 5000000))
@@ -204,12 +204,12 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           scope.onFileSelect($files, actionset, action)
       return
 
-    # if we have an attachement already, confirm they want to replace it
-    if action.type in ['reply', 'send'] and action._translation_media
+    # if we have an attachment already, confirm they want to replace it
+    if action.type in ['reply', 'send'] and action._media
       modal = showDialog('Overwrite Attachment', 'This step already has an attachment, would you like to replace this attachment with ' + file.name + '?', 'Overwrite Attachemnt', false)
       modal.result.then (value) ->
         if value == 'ok'
-          action._translation_media = null
+          action._media = null
           scope.onFileSelect($files, actionset, action)
       return
 
@@ -244,7 +244,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       if action.type in ['reply', 'send']
         if not action.media
           action.media = {}
-        action.media[Flow.language.iso_code] = data['path']
+        action.media[Flow.language.iso_code] = file.type + ':' + data['path']
 
       # make sure our translation state is updated
       action.uploading = false
@@ -783,16 +783,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
   $scope.clickShowActionMedia = ->
     clicked = this
     action = clicked.action
-
-    if action._translation_media.endsWith('mp4')
-      action._mediaType = 'video'
-
-    if action._translation_media.endsWith('jpg')
-      action._mediaType = 'image'
-
-    if action._translation_media.endsWith('wav') or action._translation_media.endsWith('mp3')
-      action._mediaType = 'audio'
-
     resolveObj =
       action: -> action
       type: -> "attachment-viewer"

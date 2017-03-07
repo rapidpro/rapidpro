@@ -253,7 +253,7 @@ class Channel(TembaModel):
 
     NCCO_CHANNELS = [TYPE_NEXMO]
 
-    MMS_CHANNELS = [TYPE_TWILIO, TYPE_TWIML, TYPE_TWILIO_MESSAGING_SERVICE, TYPE_TELEGRAM, TYPE_FACEBOOK]
+    MEDIA_CHANNELS = [TYPE_TWILIO, TYPE_TWIML, TYPE_TWILIO_MESSAGING_SERVICE, TYPE_TELEGRAM, TYPE_FACEBOOK]
 
     GET_STARTED = 'get_started'
     VIBER_NO_SERVICE_ID = 'no_service_id'
@@ -1238,7 +1238,7 @@ class Channel(TembaModel):
                                       request_time=request_time)
 
     @classmethod
-    def send_fcm_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_fcm_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
         start = time.time()
 
@@ -1287,7 +1287,7 @@ class Channel(TembaModel):
                                 event, start=start)
 
     @classmethod
-    def send_jasmin_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_jasmin_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
         from temba.utils import gsm7
 
@@ -1340,7 +1340,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_junebug_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_junebug_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         # the event url Junebug will relay events to
@@ -1383,7 +1383,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=message_id)
 
     @classmethod
-    def send_facebook_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_facebook_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
         from temba.contacts.models import Contact, ContactURN, URN
 
@@ -1398,8 +1398,12 @@ class Channel(TembaModel):
 
         message = dict(text=text)
 
-        if attachment_url and attachment_type:
-            message['attachment'] = dict(type=attachment_type, payload=dict(url=attachment_url))
+        from temba.msgs.models import Msg
+        media_type, media_url = Msg.get_media(msg)
+
+        if media_type and media_url:
+            media_type = media_type.split('/')[0]
+            message['attachment'] = dict(type=media_type, payload=dict(url=media_url))
 
         payload['message'] = message
         payload = json.dumps(payload)
@@ -1456,7 +1460,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_line_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_line_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         channel_access_token = channel.config.get(Channel.CONFIG_AUTH_TOKEN)
@@ -1542,7 +1546,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_kannel_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_kannel_message(cls, channel, msg, text, attachment_type):
         from temba.msgs.models import WIRED
 
         # build our callback dlr url, kannel will call this when our message is sent or delivered
@@ -1615,7 +1619,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_shaqodoon_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_shaqodoon_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         # requests are signed with a key built as follows:
@@ -1647,7 +1651,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_dummy_message(cls, channel, msg, text, attachment_url, attachment_type):  # pragma: no cover
+    def send_dummy_message(cls, channel, msg, text):  # pragma: no cover
         from temba.msgs.models import WIRED
 
         delay = channel.config.get('delay', 1000)
@@ -1662,7 +1666,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_external_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_external_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         payload = {
@@ -1784,7 +1788,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, events=events)
 
     @classmethod
-    def send_high_connection_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_high_connection_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         payload = {
@@ -1820,7 +1824,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_blackmyna_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_blackmyna_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         payload = {
@@ -1862,7 +1866,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_start_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_start_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         url = 'http://bulk.startmobile.com.ua/clients.php'
@@ -1914,7 +1918,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_smscentral_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_smscentral_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         # strip a leading +
@@ -1946,7 +1950,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_vumi_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_vumi_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED, Msg
         from temba.contacts.models import Contact
 
@@ -2017,7 +2021,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_globe_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_globe_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         payload = {
@@ -2056,7 +2060,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_nexmo_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_nexmo_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
         from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
 
@@ -2082,7 +2086,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, SENT, start, event=event, external_id=message_id)
 
     @classmethod
-    def send_yo_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_yo_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
         from temba.contacts.models import Contact
 
@@ -2142,7 +2146,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, SENT, start, events=events)
 
     @classmethod
-    def send_infobip_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_infobip_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
 
         API_URL = 'http://api.infobip.com/api/v3/sendsms/json'
@@ -2205,7 +2209,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, SENT, start, events=events, external_id=external_id)
 
     @classmethod
-    def send_hub9_or_dartmedia_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_hub9_or_dartmedia_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
 
         # http://175.103.48.29:28078/testing/smsmt.php?
@@ -2273,7 +2277,7 @@ class Channel(TembaModel):
                                 event=event, start=start)
 
     @classmethod
-    def send_zenvia_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_zenvia_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         # Zenvia accepts messages via a GET
@@ -2316,7 +2320,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_africas_talking_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_africas_talking_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
 
         payload = dict(username=channel.config['username'],
@@ -2364,18 +2368,23 @@ class Channel(TembaModel):
         Channel.success(channel, msg, SENT, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_twilio_message(cls, channel, msg, text, attachment_url, attachment_type):
-        from temba.msgs.models import WIRED
+    def send_twilio_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
         from temba.utils.twilio import TembaTwilioRestClient
 
         callback_url = Channel.build_twilio_callback_url(msg.id)
 
         start = time.time()
-        media_url = []
+        media_url = None
 
-        if attachment_url and channel.country in ['CA', 'US']:
-            media_url.append(attachment_url)
+        if msg.media:
+            supports_mms = channel.channel_type in Channel.MEDIA_CHANNELS and channel.country in ['CA', 'US']
+            (media_type, media_url) = Msg.get_media(msg.media)
+
+            if not supports_mms:
+                text += '%s\n%s' % (text, media_url)
+                media_url = None
 
         if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
             config = channel.config
@@ -2417,33 +2426,37 @@ class Channel(TembaModel):
             raise SendException(six.text_type(e), events=client.messages.events)
 
     @classmethod
-    def send_telegram_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_telegram_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         auth_token = channel.config[Channel.CONFIG_AUTH_TOKEN]
         send_url = 'https://api.telegram.org/bot%s/sendMessage' % auth_token
         post_body = dict(chat_id=msg.urn_path, text=text)
 
-        event = HttpEvent('POST', send_url, urlencode(post_body))
         start = time.time()
 
-        if attachment_url and attachment_type:
-            if attachment_type == 'image':
+        from temba.msgs.models import Msg
+        media_type, media_url = Msg.get_media(msg)
+
+        if media_type and media_url:
+            media_type = media_type.split('/')[0]
+            if media_type == 'image':
                 send_url = 'https://api.telegram.org/bot%s/sendPhoto' % auth_token
-                post_body['photo'] = attachment_url
+                post_body['photo'] = media_url
                 post_body['caption'] = text
                 del post_body['text']
-            elif attachment_type == 'video':
+            elif media_type == 'video':
                 send_url = 'https://api.telegram.org/bot%s/sendVideo' % auth_token
-                post_body['video'] = attachment_url
+                post_body['video'] = media_url
                 post_body['caption'] = text
                 del post_body['text']
-            elif attachment_type == 'audio':
+            elif media_type == 'audio':
                 send_url = 'https://api.telegram.org/bot%s/sendAudio' % auth_token
-                post_body['audio'] = attachment_url
+                post_body['audio'] = media_url
                 post_body['caption'] = text
                 del post_body['text']
 
+        event = HttpEvent('POST', send_url, urlencode(post_body))
         external_id = None
 
         try:
@@ -2458,7 +2471,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_twitter_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_twitter_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
         from temba.contacts.models import Contact
 
@@ -2497,7 +2510,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, events=twitter.events, external_id=external_id)
 
     @classmethod
-    def send_clickatell_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_clickatell_message(cls, channel, msg, text):
         """
         Sends a message to Clickatell, they expect a GET in the following format:
              https://api.clickatell.com/http/sendmsg?api_id=xxx&user=xxxx&password=xxxx&to=xxxxx&text=xxxx
@@ -2549,7 +2562,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_plivo_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_plivo_message(cls, channel, msg, text):
         import plivo
         from temba.msgs.models import WIRED
 
@@ -2587,7 +2600,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_m3tech_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_m3tech_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         # determine our encoding
@@ -2643,7 +2656,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_viber_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_viber_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         url = 'https://services.viber.com/vibersrvc/1/send_message'
@@ -2684,7 +2697,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_viber_public_message(cls, channel, msg, text, attachment_url, attachment_type):
+    def send_viber_public_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         url = 'https://chatapi.viber.com/pa/send_message'
@@ -2809,31 +2822,20 @@ class Channel(TembaModel):
 
         text = msg.text
 
-        append_link = channel.channel_type not in Channel.MMS_CHANNELS
-        append_link = append_link or (channel.channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_TWIML,
-                                                               Channel.TYPE_TWILIO_MESSAGING_SERVICE] and
-                                      channel.country not in ['CA', 'US'])
-        if append_link:
-            text = Msg.text_with_attachment(msg)
         parts = Msg.get_text_parts(text, type_settings['max_length'])
 
-        attachment_url, attachment_type = None, None  # initialize attachment_url and attachment_type
         sent_count = 0
         for part in parts:
             sent_count += 1
             try:
                 channel_type = channel.channel_type
 
-                if len(parts) == sent_count:
-                    if not append_link:
-                        attachment_url, attachment_type = Msg.get_media_attachment(msg)
-
                 # never send in debug unless overridden
                 if not settings.SEND_MESSAGES:
                     Msg.mark_sent(r, msg, WIRED, -1)
                     print("FAKED SEND for [%d] - %s" % (msg.id, part))
                 elif channel_type in SEND_FUNCTIONS:
-                    SEND_FUNCTIONS[channel_type](channel, msg, part, attachment_url, attachment_type)
+                    SEND_FUNCTIONS[channel_type](channel, msg, part)
                 else:
                     sent_count -= 1
                     raise Exception(_("Unknown channel type: %(channel)s") % {'channel': channel.channel_type})

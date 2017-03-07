@@ -787,7 +787,27 @@
       .bg-gradient(@color-say, @color-say - #101010);
     }
 
-    .play-button, .viewer-button {
+    .text {
+      margin-right: 18px;
+    }
+
+    .viewer-button {
+      font-size:16px;
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+
+      &.icon-arrow-right-8 {
+        font-size: 22px;
+      }
+
+      &:hover {
+        color: @flat-blue
+      }
+
+    }
+
+    .play-button {
       font-size:22px;
       position: absolute;
       right: 5px;
@@ -796,10 +816,6 @@
       &:hover {
         color: @flat-blue
       }
-    }
-
-    .viewer-button {
-      font-size: 12px;
     }
 
     .uploading {
