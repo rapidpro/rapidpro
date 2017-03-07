@@ -457,12 +457,15 @@ class Broadcast(models.Model):
             # get the appropriate translation for this contact
             text = self.get_translated_text(contact)
 
-            media = None
-            media_type, media_url = self.get_translated_media(contact).split(':')
+            media = self.get_translated_media(contact)
+            if media:
+                media_type, media_url = media.split(':')
 
-            # if we have a localized media, create the url
-            if media_url:
-                media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
+                # if we have a localized media, create the url
+                if media_url:
+                    media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
+                else:
+                    media = None
 
             # add in our parent context if the message references @parent
             if run_map:
