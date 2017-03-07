@@ -6914,3 +6914,28 @@ class AndroidChildStatus(FlowFileTest):
         msgs = Msg.objects.filter(contact=self.contact, status=PENDING, direction=OUTGOING).order_by('created_on')
         self.assertEquals(msgs[0].text, "Child Msg 1")
         self.assertEquals(msgs[1].text, "Child Msg 2")
+
+
+class FlowChannelSelectionTest(FlowFileTest):
+
+    def setUp(self):
+        super(FlowChannelSelectionTest, self).setUp()
+        self.channel.delete()
+        self.sms_channel = Channel.create(
+            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG, None, '+250788123123',
+            scheme='tel', uuid='00000000-0000-0000-0000-000000001111',
+            role=Channel.DEFAULT_ROLE)
+        self.ussd_channel = Channel.create(
+            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
+            scheme='tel', uuid='00000000-0000-0000-0000-000000002222',
+            role=Channel.ROLE_USSD)
+
+    def test_sms_channel_selection(self):
+        contact_urn = self.contact.get_urn(TEL_SCHEME)
+        channel = self.contact.org.get_send_channel(contact_urn=contact_urn)
+        self.assertEqual(channel, self.sms_channel)
+
+    def test_ussd_channel_selection(self):
+        contact_urn = self.contact.get_urn(TEL_SCHEME)
+        channel = self.contact.org.get_ussd_channel(contact_urn=contact_urn)
+        self.assertEqual(channel, self.ussd_channel)
