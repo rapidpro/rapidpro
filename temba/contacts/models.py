@@ -964,7 +964,7 @@ class Contact(TembaModel):
         return test_contact
 
     @classmethod
-    def search(cls, org, query, base_queryset=None):
+    def search(cls, org, query, base_queryset=None, base_set=None):
         """
         Performs a search of contacts based on a query. Returns a tuple of the queryset and a bool for whether
         or not the query was a valid complex query, e.g. name = "Bob" AND age = 21
@@ -974,7 +974,7 @@ class Contact(TembaModel):
         if base_queryset is None:
             base_queryset = Contact.objects.filter(org=org, is_active=True, is_test=False, is_blocked=False, is_stopped=False)
 
-        return search.contact_search(org, query, base_queryset)
+        return search.contact_search(org, query, base_queryset, base_set)
 
     @classmethod
     def create_instance(cls, field_dict):
@@ -2192,21 +2192,21 @@ class ContactGroup(TembaModel):
         self.contacts.clear()
         self.contacts.add(*members)
 
-    def _get_dynamic_members(self):
+    def _get_dynamic_members(self, base_set=None):
         """
         For dynamic groups, this returns the set of contacts who belong in this group
         """
         if not self.is_dynamic:  # pragma: no cover
             raise ValueError("Can only be called on dynamic groups")
 
-        members, is_complex = Contact.search(self.org, self.query)
+        members, is_complex = Contact.search(self.org, self.query, base_set=base_set)
         return members
 
     def _check_dynamic_membership(self, contact):
         """
         For dynamic groups, determines whether the given contact belongs in the group
         """
-        return self._get_dynamic_members().filter(pk=contact.pk).count() == 1
+        return self._get_dynamic_members(base_set=[contact]).exists()
 
     @classmethod
     def get_system_group_queryset(cls, org, group_type):

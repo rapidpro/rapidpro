@@ -56,12 +56,13 @@ class SearchException(Exception):
         self.message = message
 
 
-def contact_search(org, query, base_queryset):
+def contact_search(org, query, base_queryset, base_set):
     """
     Searches for contacts
     :param org: the org (used for date formats and timezones)
     :param query: the query, e.g. 'name = "Bob"'
     :param base_queryset: the base query set which queries operate on
+    :param base_queryset: the base set of contacts (used to optimize membership tests)
     :return: a tuple of the contact query set, a boolean whether query was complex
     """
     from .models import ContactURN
@@ -69,8 +70,11 @@ def contact_search(org, query, base_queryset):
     if not PROPERTY_ALIASES:
         PROPERTY_ALIASES = {scheme: 'urns__path' for scheme, label in ContactURN.SCHEME_CHOICES}
 
+    if base_set:
+        base_queryset = base_queryset.filter(id__in=[c.id for c in base_set])
+
     try:
-        return contact_search_complex(org, query, base_queryset), True
+        return contact_search_complex(org, query, base_queryset, base_set), True
     except SearchException:
         pass
 
@@ -104,7 +108,7 @@ def contact_search_simple(org, query, base_queryset):
     return base_queryset.filter(q).distinct()
 
 
-def contact_search_complex(org, query, base_queryset):
+def contact_search_complex(org, query, base_queryset, base_set):
     """
     Performs a complex query based search, e.g. 'name = "Bob" AND age > 18'
     """
@@ -113,6 +117,7 @@ def contact_search_complex(org, query, base_queryset):
     # attach context to the lexer
     search_lexer.org = org
     search_lexer.base_queryset = base_queryset
+    search_lexer.base_set = base_set
 
     # combining results from multiple joins can lead to duplicates
     return search_parser.parse(query, lexer=search_lexer).distinct()
@@ -144,7 +149,7 @@ def generate_queryset(lexer, identifier, comparator, value):
             raise SearchException("Unrecognized contact field identifier %s" % identifier)
 
         if comparator.lower() in ('=', 'is') and value == "":
-            q = generate_empty_field_test(field)
+            q = generate_empty_field_test(field, lexer.base_set)
         elif field.value_type == Value.TYPE_TEXT:
             q = generate_text_field_comparison(field, comparator, value)
         elif field.value_type == Value.TYPE_DECIMAL:
@@ -167,8 +172,13 @@ def generate_non_field_comparison(relation, comparator, value):
     return Q(**{'%s__%s' % (relation, lookup): value})
 
 
-def generate_empty_field_test(field):
-    contacts_with_field = field.org.org_contacts.filter(Q(**{'values__contact_field__id': field.id}))
+def generate_empty_field_test(field, base_set):
+    params = {'values__contact_field__id': field.id}
+
+    if base_set:
+        params['values__contact__in'] = base_set
+
+    contacts_with_field = field.org.org_contacts.filter(Q(**params))
     return ~Q(**{'pk__in': contacts_with_field})
 
 

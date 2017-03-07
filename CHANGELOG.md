@@ -1,3 +1,13 @@
+v3.0.76
+----------
+ * Log Nexmo media responses without including entire body
+
+v3.0.75
+----------
+ * Dont encode to utf8 for XML and JSON since they expect unicode
+ * Optimize contact searching when used to determine single contact's membership
+ * Use flow system user when migrating flows, avoid list page reorder after migrations
+
 v3.0.74
 ----------
  * reduce number of lookup to DB

@@ -21,7 +21,7 @@ from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
 from django.conf import settings
 from django.utils import timezone
-from django.utils.http import urlencode
+from django.utils.http import urlencode, urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.dispatch import receiver
 from django_countries.fields import CountryField
@@ -40,7 +40,6 @@ from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from temba.utils.twitter import TembaTwython
 from time import sleep
 from twilio import twiml, TwilioRestException
-from urllib import quote_plus
 from xml.sax.saxutils import quoteattr, escape
 
 
@@ -1183,11 +1182,11 @@ class Channel(TembaModel):
     @classmethod
     def replace_variables(cls, text, variables, content_type=CONTENT_TYPE_URLENCODED):
         for key in variables.keys():
-            replacement = six.text_type(variables[key]).encode('utf-8')
+            replacement = six.text_type(variables[key])
 
             # encode based on our content type
             if content_type == Channel.CONTENT_TYPE_URLENCODED:
-                replacement = quote_plus(replacement)
+                replacement = urlquote_plus(replacement)
 
             # if this is JSON, need to wrap in quotes (and escape them)
             elif content_type == Channel.CONTENT_TYPE_JSON:
@@ -3504,7 +3503,8 @@ class ChannelSession(SmartModel):
 
     TYPE_CHOICES = ((IVR, "IVR"), (USSD, "USSD"),)
 
-    STATUS_CHOICES = ((QUEUED, "Queued"),
+    STATUS_CHOICES = ((PENDING, "Pending"),
+                      (QUEUED, "Queued"),
                       (RINGING, "Ringing"),
                       (IN_PROGRESS, "In Progress"),
                       (COMPLETED, "Complete"),

@@ -2,7 +2,6 @@ from __future__ import absolute_import, unicode_literals
 
 import pstats
 import traceback
-import copy
 
 from cStringIO import StringIO
 from django.conf import settings
@@ -38,16 +37,13 @@ class BrandingMiddleware(object):
         if ':' in host:
             host = host[0:host.rindex(':')]
 
-        # our default branding
-        branding = settings.BRANDING.get(settings.DEFAULT_BRAND)
-        branding['host'] = settings.DEFAULT_BRAND
-
         # override with site specific branding if we have that
-        site_branding = settings.BRANDING.get(host, None)
-        if site_branding:
-            branding = copy.deepcopy(branding)
-            branding.update(site_branding)
-            branding['host'] = host
+        branding = settings.BRANDING.get(host, None)
+
+        # if that brand isn't configured, use the default
+        if not branding:
+            branding = settings.BRANDING.get(settings.DEFAULT_BRAND)
+            branding['host'] = settings.DEFAULT_BRAND
 
         return branding
 
