@@ -164,7 +164,7 @@ app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
 
         # break out our media if we have some
         action._media = null
-        if action.media[iso_code]
+        if action.media and action.media[iso_code]
           parts = action.media[iso_code].split(/:(.+)/)
 
           if parts.length >= 2
