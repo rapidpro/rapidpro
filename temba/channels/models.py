@@ -124,6 +124,7 @@ class Channel(TembaModel):
     CONFIG_FCM_KEY = 'FCM_KEY'
     CONFIG_FCM_TITLE = 'FCM_TITLE'
     CONFIG_FCM_NOTIFICATION = 'FCM_NOTIFICATION'
+    CONFIG_MAX_LENGTH = 'max_length'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -2808,7 +2809,7 @@ class Channel(TembaModel):
                 time.sleep(1 / float(max_tps))
 
         sent_count = 0
-        parts = Msg.get_text_parts(msg.text, type_settings['max_length'])
+        parts = Msg.get_text_parts(msg.text, channel.config.get(Channel.CONFIG_MAX_LENGTH, type_settings[Channel.CONFIG_MAX_LENGTH]))
         for part in parts:
             sent_count += 1
             try:
