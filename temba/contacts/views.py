@@ -30,6 +30,7 @@ from temba.utils.views import BaseActionForm
 from .models import Contact, ContactGroup, ContactField, ContactURN, URN, URN_SCHEME_CONFIG, TEL_SCHEME
 from .models import ExportContactsTask
 from .omnibox import omnibox_query, omnibox_results_to_dict
+from .search import SearchException
 from .tasks import export_contacts_task
 
 
@@ -107,7 +108,11 @@ class ContactListView(OrgPermsMixin, SmartListView):
         # contact list views don't use regular field searching but use more complex contact searching
         search_query = self.request.GET.get('search', None)
         if search_query:
-            qs = Contact.search(org, search_query, group)
+            try:
+                qs = Contact.search(org, search_query, group)
+            except SearchException:  # pragma: no cover
+                # TODO display error in UI
+                qs = Contact.objects.none()
         else:
             qs = group.contacts.all()
 
@@ -894,10 +899,6 @@ class ContactCRUDL(SmartCRUDL):
                                   js_class='delete-contactgroup',
                                   href="#"))
             return links
-
-        def derive_queryset(self, **kwargs):
-            group = self.derive_group()
-            return Contact.objects.filter(all_groups=group, is_active=True, org=self.request.user.get_org())
 
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.Filter, self).get_context_data(*args, **kwargs)

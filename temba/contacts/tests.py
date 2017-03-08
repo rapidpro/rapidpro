@@ -32,7 +32,7 @@ from temba.utils import datetime_to_str, datetime_to_ms, get_datetime_format
 from temba.values.models import Value
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
 from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
-from .search import parse_query, ContactQuery, Condition, BoolCombination, SinglePropCombination
+from .search import parse_query, ContactQuery, Condition, BoolCombination, SinglePropCombination, SearchException
 from .tasks import squash_contactgroupcounts
 
 
@@ -797,24 +797,29 @@ class ContactTest(TembaTest):
         # create a dynamic group and put joe in it
         ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
         no_gender = self.create_group("No gender", query='gender is ""')
-        gender_m = self.create_group("Male", query='gender is M')
+        gender_m1 = self.create_group("Male", query='gender is M')
+        gender_m2 = self.create_group("Male", query='gender is M or gender is Male')
+        joes = self.create_group("Joes", query='Joe')
 
         self.assertEqual(set(no_gender.contacts.all()), {self.joe, self.frank, self.billy, self.voldemort})
-        self.assertEqual(set(gender_m.contacts.all()), set())
+        self.assertEqual(set(gender_m1.contacts.all()), set())
+        self.assertEqual(set(gender_m2.contacts.all()), set())
+        self.assertEqual(set(joes.contacts.all()), {self.joe})
 
         self.joe.set_field(self.admin, 'gender', "M")
 
         self.assertEqual(set(no_gender.contacts.all()), {self.frank, self.billy, self.voldemort})
-        self.assertEqual(set(gender_m.contacts.all()), {self.joe})
+        self.assertEqual(set(gender_m1.contacts.all()), {self.joe})
+        self.assertEqual(set(gender_m2.contacts.all()), {self.joe})
 
         self.joe.update_static_groups(self.user, [spammers, testers])
-        self.assertEqual(set(self.joe.user_groups.all()), {spammers, testers, gender_m})
+        self.assertEqual(set(self.joe.user_groups.all()), {spammers, testers, gender_m1, gender_m2, joes})
 
         self.joe.update_static_groups(self.user, [])
-        self.assertEqual(set(self.joe.user_groups.all()), {gender_m})
+        self.assertEqual(set(self.joe.user_groups.all()), {gender_m1, gender_m2, joes})
 
         self.joe.update_static_groups(self.user, [testers])
-        self.assertEqual(set(self.joe.user_groups.all()), {testers, gender_m})
+        self.assertEqual(set(self.joe.user_groups.all()), {testers, gender_m1, gender_m2, joes})
 
         # blocking removes contact from all groups
         self.joe.block(self.user)
@@ -825,7 +830,7 @@ class ContactTest(TembaTest):
 
         # unblocking potentially puts contact back in dynamic groups
         self.joe.unblock(self.user)
-        self.assertEqual(set(self.joe.user_groups.all()), {gender_m})
+        self.assertEqual(set(self.joe.user_groups.all()), {gender_m1, gender_m2, joes})
 
         self.joe.update_static_groups(self.user, [testers])
 
@@ -835,7 +840,7 @@ class ContactTest(TembaTest):
 
         # and unstopping potentially puts contact back in dynamic groups
         self.joe.unstop(self.admin)
-        self.assertEqual(set(self.joe.user_groups.all()), {gender_m})
+        self.assertEqual(set(self.joe.user_groups.all()), {gender_m1, gender_m2, joes})
 
         self.joe.update_static_groups(self.user, [testers])
 
@@ -1020,6 +1025,9 @@ class ContactTest(TembaTest):
                                             Condition('gender', '=', 'female')))
         ))
 
+        self.assertEqual(str(parse_query('Age < 18 and Gender = "male"')), "AND(age<18, gender=male)")
+        self.assertEqual(str(parse_query('Age > 18 and Age < 30')), "AND[age](>18, <30)")
+
     def test_contact_search(self):
         self.login(self.admin)
 
@@ -1095,7 +1103,6 @@ class ContactTest(TembaTest):
         self.assertEqual(q('join_date <= 30/1/2014'), 30)
         self.assertEqual(q('join_date > 30/1/2014'), 60)
         self.assertEqual(q('join_date >= 30/1/2014'), 61)
-        self.assertEqual(q('join_date >= xxxx'), 0)  # invalid date
 
         self.assertEqual(q('state is "Eastern Province"'), 90)
         self.assertEqual(q('HOME is Kayônza'), 30)  # value with non-ascii character
@@ -1120,10 +1127,9 @@ class ContactTest(TembaTest):
         self.assertEqual(q('(home is gatsibo or home is "Rwamagana")'), 60)
         self.assertEqual(q('(home is gatsibo or home is "Rwamagana") and name is mike'), 16)
         self.assertEqual(q('name is MIKE and profession = ""'), 15)
-
-        # invalid queries - which revert to simple name/phone matches
-        self.assertEqual(q('(('), 0)
-        self.assertEqual(q('name = "trey'), 0)
+        self.assertEqual(q('profession = doctor or profession = farmer'), 30)  # same field
+        self.assertEqual(q('age = 20 or age = 21'), 2)
+        self.assertEqual(q('join_date = 30/1/2014 or join_date = 31/1/2014'), 2)
 
         # create contact with no phone number, we'll try searching for it by id
         contact = self.create_contact(name="Id Contact")
@@ -1146,14 +1152,18 @@ class ContactTest(TembaTest):
             self.assertTrue(contact in Contact.search(self.org, '%d' % contact.pk))
             self.assertTrue(contact in Contact.search(self.org, '%010d' % contact.pk))
 
-        # syntactically invalid queries should return no results
-        self.assertEqual(q('name > trey'), 0)  # unrecognized non-field operator
-        self.assertEqual(q('profession > trey'), 0)  # unrecognized text-field operator
-        self.assertEqual(q('age has 4'), 0)  # unrecognized decimal-field operator
-        self.assertEqual(q('age = x'), 0)  # unparseable decimal-field comparison
-        self.assertEqual(q('join_date has 30/1/2014'), 0)  # unrecognized date-field operator
-        self.assertEqual(q('join_date > xxxxx'), 0)  # unparseable date-field comparison
-        self.assertEqual(q('home > kigali'), 0)  # unrecognized location-field operator
+        # invalid queries
+        self.assertRaises(SearchException, q, '((')
+        self.assertRaises(SearchException, q, 'name = "trey')  # unterminated string literal
+        self.assertRaises(SearchException, q, 'name > trey')  # unrecognized non-field operator
+        self.assertRaises(SearchException, q, 'profession > trey')  # unrecognized text-field operator
+        self.assertRaises(SearchException, q, 'age has 4')  # unrecognized decimal-field operator
+        self.assertRaises(SearchException, q, 'age = x')  # unparseable decimal-field comparison
+        self.assertRaises(SearchException, q, 'join_date has 30/1/2014')  # unrecognized date-field operator
+        self.assertRaises(SearchException, q, 'join_date > xxxxx')  # unparseable date-field comparison
+        self.assertRaises(SearchException, q, 'home > kigali')  # unrecognized location-field operator
+        self.assertRaises(SearchException, q, 'credits > 10')  # non-existent field or attribute
+        self.assertRaises(SearchException, q, 'tel < +250788382011')  # unsupported comparator for a URN
 
     def test_omnibox(self):
         # add a group with members and an empty group

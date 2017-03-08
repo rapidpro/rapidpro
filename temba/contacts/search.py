@@ -165,7 +165,7 @@ class QueryNode(object):
     def split_by_prop(self):
         return self
 
-    def as_query(self, org, prop_map, base_set):
+    def as_query(self, org, prop_map, base_set):  # pragma: no cover
         pass
 
 
@@ -291,12 +291,11 @@ class Condition(QueryNode):
 
     def _build_text_field_params(self, field):
         if isinstance(self.value, list):
-            lookup = self.TEXT_LOOKUPS.get(self.comparator)
-            if not lookup:
-                raise SearchException("Unsupported comparator %s for text field" % self.comparator)
-
             return {'field_and_string_value__in': ['%d|%s' % (field.id, v.upper()) for v in self.value]}
         else:
+            if self.comparator not in self.TEXT_LOOKUPS:
+                raise SearchException("Unsupported comparator %s for text field" % self.comparator)
+
             return {'field_and_string_value': '%d|%s' % (field.id, self.value.upper())}
 
     def _build_decimal_field_params(self, field):
@@ -310,35 +309,28 @@ class Condition(QueryNode):
             return {'contact_field': field, 'decimal_value__%s' % lookup: self._parse_decimal(self.value)}
 
     def _build_datetime_field_params(self, field):
-        if isinstance(self.value, list):
-            queries = []
-            for v in self.value:
-                cond = Condition(self.prop, self.comparator, v)
-                queries.append(Q(**cond._build_datetime_field_params(field)))
-            return self.get_base_value_query().filter(reduce(operator.or_, queries))
-        else:
-            lookup = self.DATETIME_LOOKUPS.get(self.comparator)
-            if not lookup:
-                raise SearchException("Unsupported comparator %s for datetime field" % self.comparator)
+        lookup = self.DATETIME_LOOKUPS.get(self.comparator)
+        if not lookup:
+            raise SearchException("Unsupported comparator %s for datetime field" % self.comparator)
 
-            # parse as localized date
-            local_date = str_to_datetime(self.value, field.org.timezone, field.org.get_dayfirst(), fill_time=False)
-            if not local_date:
-                raise SearchException("Unable to parse date: %s" % self.value)
+        # parse as localized date
+        local_date = str_to_datetime(self.value, field.org.timezone, field.org.get_dayfirst(), fill_time=False)
+        if not local_date:
+            raise SearchException("Unable to parse date: %s" % self.value)
 
-            # get the range of UTC datetimes for this local date
-            utc_range = date_to_utc_range(local_date.date(), field.org)
+        # get the range of UTC datetimes for this local date
+        utc_range = date_to_utc_range(local_date.date(), field.org)
 
-            if lookup == '<equal>':
-                return {'contact_field': field, 'datetime_value__gte': utc_range[0], 'datetime_value__lt': utc_range[1]}
-            elif lookup == 'lt':
-                return {'contact_field': field, 'datetime_value__lt': utc_range[0]}
-            elif lookup == 'lte':
-                return {'contact_field': field, 'datetime_value__lt': utc_range[1]}
-            elif lookup == 'gt':
-                return {'contact_field': field, 'datetime_value__gte': utc_range[1]}
-            elif lookup == 'gte':
-                return {'contact_field': field, 'datetime_value__gte': utc_range[0]}
+        if lookup == '<equal>':
+            return {'contact_field': field, 'datetime_value__gte': utc_range[0], 'datetime_value__lt': utc_range[1]}
+        elif lookup == 'lt':
+            return {'contact_field': field, 'datetime_value__lt': utc_range[0]}
+        elif lookup == 'lte':
+            return {'contact_field': field, 'datetime_value__lt': utc_range[1]}
+        elif lookup == 'gt':
+            return {'contact_field': field, 'datetime_value__gte': utc_range[1]}
+        elif lookup == 'gte':
+            return {'contact_field': field, 'datetime_value__gte': utc_range[0]}
 
     def _build_location_field_params(self, field):
         lookup = self.LOCATION_LOOKUPS.get(self.comparator)
@@ -468,7 +460,9 @@ class SinglePropCombination(BoolCombination):
 
         if prop_type == ContactQuery.PROP_FIELD:
             # a sequence of OR'd equality checks can be further optimized (e.g. `a = 1 OR a = 2` as `a IN (1, 2)`)
-            if self.op == BoolCombination.OR and all([child.comparator == '=' for child in self.children]):
+            # except for datetime fields as equality is implemented as a range check
+            all_equality = all([child.comparator == '=' for child in self.children])
+            if self.op == BoolCombination.OR and all_equality and prop_obj.value_type != Value.TYPE_DATETIME:
                 in_condition = Condition(self.prop, '=', [c.value for c in self.children])
                 return in_condition.as_query(org, prop_map, base_set)
 
@@ -493,7 +487,7 @@ class SinglePropCombination(BoolCombination):
 
     def __str__(self):
         op = 'OR' if self.op == self.OR else 'AND'
-        return '%s[%s](%s)' % (op, self.prop, ', '.join(['%s %s' % (c.comparator, c.value) for c in self.children]))
+        return '%s[%s](%s)' % (op, self.prop, ', '.join(['%s%s' % (c.comparator, c.value) for c in self.children]))
 
 
 # ================================== Parser definition ==================================
