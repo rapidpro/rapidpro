@@ -1060,7 +1060,7 @@ class APITest(TembaTest):
         self.assertEqual(set(jaqen.user_groups.all()), set())
         self.assertEqual(set(jaqen.values.all()), set())
 
-        dyn_group = self.create_group("Dynamic Group", query="nickname has Ja")
+        dyn_group = self.create_group("Dynamic Group", query="nickname is jado")
 
         # create with all fields
         response = self.postJSON(url, None, {
