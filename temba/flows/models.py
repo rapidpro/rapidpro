@@ -4312,7 +4312,7 @@ class ExportFlowResultsTask(BaseExportTask):
             # write out any message associated with this step
             if include_msgs:
                 step_msgs = list(run_step.messages.all())
-                step_msgs = sorted(step_msgs, key=lambda msg: msg.pk)
+                step_msgs = sorted(step_msgs, key=lambda msg: msg.created_on)
                 for msg in step_msgs:
                     msg_row += 1
 
