@@ -1,3 +1,7 @@
+v3.0.78
+----------
+ * Allow configuration of max message length to split on for External channels
+
 v3.0.77
 ----------
  * Use brand key for evaluation instead of host when determining brand

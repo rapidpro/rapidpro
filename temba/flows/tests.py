@@ -741,43 +741,43 @@ class FlowTest(TembaTest):
 
         self.assertExcelRow(sheet_msgs, 1, [c1_run1_msg1.contact.uuid, "+250788382382", "Eric",
                                             c1_run1_msg1.created_on, "OUT",
-                                            "This is the second message.", "Test Channel"], tz)
+                                            "This is the first message.", "Test Channel"], tz)
 
         self.assertExcelRow(sheet_msgs, 2, [c1_run1_msg2.contact.uuid, "+250788382382", "Eric",
                                             c1_run1_msg2.created_on, "OUT",
-                                            "This is the first message.", "Test Channel"], tz)
-
-        self.assertExcelRow(sheet_msgs, 3, [c1_run2_msg2.contact.uuid, "+250788382382", "Eric",
-                                            c1_run2_msg2.created_on, "OUT",
                                             "This is the second message.", "Test Channel"], tz)
 
-        self.assertExcelRow(sheet_msgs, 4, [c1_run2_msg1.contact.uuid, "+250788382382", "Eric",
+        self.assertExcelRow(sheet_msgs, 3, [c1_run2_msg1.contact.uuid, "+250788382382", "Eric",
                                             c1_run2_msg1.created_on, "OUT",
                                             "This is the first message.", "Test Channel"], tz)
 
-        self.assertExcelRow(sheet_msgs, 5, [c2_run1_msg2.contact.uuid, "+250788383383", "Nic",
-                                            c2_run1_msg2.created_on, "OUT",
+        self.assertExcelRow(sheet_msgs, 4, [c1_run2_msg2.contact.uuid, "+250788382382", "Eric",
+                                            c1_run2_msg2.created_on, "OUT",
                                             "This is the second message.", "Test Channel"], tz)
 
-        self.assertExcelRow(sheet_msgs, 6, [c2_run1_msg1.contact.uuid, "+250788383383", "Nic",
+        self.assertExcelRow(sheet_msgs, 5, [c2_run1_msg1.contact.uuid, "+250788383383", "Nic",
                                             c2_run1_msg1.created_on, "OUT",
                                             "This is the first message.", "Test Channel"], tz)
 
-        self.assertExcelRow(sheet_msgs, 7, [c2_run2_msg2.contact.uuid, "+250788383383", "Nic",
-                                            c2_run2_msg2.created_on, "OUT",
+        self.assertExcelRow(sheet_msgs, 6, [c2_run1_msg2.contact.uuid, "+250788383383", "Nic",
+                                            c2_run1_msg2.created_on, "OUT",
                                             "This is the second message.", "Test Channel"], tz)
 
-        self.assertExcelRow(sheet_msgs, 8, [c2_run2_msg1.contact.uuid, "+250788383383", "Nic",
+        self.assertExcelRow(sheet_msgs, 7, [c2_run2_msg1.contact.uuid, "+250788383383", "Nic",
                                             c2_run2_msg1.created_on, "OUT",
                                             "This is the first message.", "Test Channel"], tz)
 
-        self.assertExcelRow(sheet_msgs, 9, [c3_run1_msg2.contact.uuid, "+250788123456", "Norbert",
-                                            c3_run1_msg2.created_on, "OUT",
+        self.assertExcelRow(sheet_msgs, 8, [c2_run2_msg2.contact.uuid, "+250788383383", "Nic",
+                                            c2_run2_msg2.created_on, "OUT",
                                             "This is the second message.", "Test Channel"], tz)
 
-        self.assertExcelRow(sheet_msgs, 10, [c3_run1_msg1.contact.uuid, "+250788123456", "Norbert",
-                                             c3_run1_msg1.created_on, "OUT",
-                                             "This is the first message.", "Test Channel"], tz)
+        self.assertExcelRow(sheet_msgs, 9, [c3_run1_msg1.contact.uuid, "+250788123456", "Norbert",
+                                            c3_run1_msg1.created_on, "OUT",
+                                            "This is the first message.", "Test Channel"], tz)
+
+        self.assertExcelRow(sheet_msgs, 10, [c3_run1_msg2.contact.uuid, "+250788123456", "Norbert",
+                                             c3_run1_msg2.created_on, "OUT",
+                                             "This is the second message.", "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
         with self.assertNumQueries(39):
