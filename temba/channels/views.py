@@ -19,6 +19,8 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from django.core.validators import MaxValueValidator
+from django.core.validators import MinValueValidator
 from django.db import transaction
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
@@ -1534,7 +1536,7 @@ class ChannelCRUDL(SmartCRUDL):
             content_type = forms.ChoiceField(choices=Channel.CONTENT_TYPE_CHOICES,
                                              help_text=_("The content type used when sending the request"))
 
-            max_length = forms.IntegerField(initial=160,
+            max_length = forms.IntegerField(initial=160, validators=[MaxValueValidator(640), MinValueValidator(60)],
                                             help_text=_("The maximum length of any single message on this channel. (longer messages will be split)"))
 
             url = forms.URLField(max_length=1024, label=_("Send URL"),
