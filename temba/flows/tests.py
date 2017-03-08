@@ -4897,8 +4897,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, len(runs))
         self.assertEquals(1, self.contact.msgs.all().count())
         self.assertEquals('Hey', self.contact.msgs.all()[0].text)
-        self.assertEquals("https://%s/%s" % (settings.AWS_BUCKET_DOMAIN,
-                                             "attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg"),
+        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN,
+                          "attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg"),
                           self.contact.msgs.all()[0].media)
 
     def test_substitution(self):

@@ -17,7 +17,7 @@
                 "base": "Hey"
               }, 
               "media": {
-                "base": "attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg"
+                "base": "image/jpeg:attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg"
               }, 
               "type": "reply"
             }

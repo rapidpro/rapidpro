@@ -1912,13 +1912,13 @@ class BroadcastLanguageTest(TembaTest):
 
         # assert the right language was used for each contact on both text and media
         self.assertEquals(fre_msg, francois_mms.text)
-        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment), francois_mms.media)
+        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1]), francois_mms.media)
 
         self.assertEquals(eng_msg, greg_mms.text)
-        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, eng_attachment), greg_mms.media)
+        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, eng_attachment.split(':', 1)[1]), greg_mms.media)
 
         self.assertEquals(fre_msg, wilbert_mms.text)
-        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment), wilbert_mms.media)
+        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1]), wilbert_mms.media)
 
 
 class SystemLabelTest(TembaTest):
