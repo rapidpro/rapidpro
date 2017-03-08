@@ -1,3 +1,5 @@
+from __future__ import absolute_import, print_function, unicode_literals
+
 import pycountry
 
 """
@@ -131,6 +133,6 @@ def currency_for_country(alpha2):
     country = pycountry.countries.get(alpha2=str(alpha2))
     try:
         return pycountry.currencies.get(numeric=country.numeric)
-    except:
+    except Exception:
         currency_code = CURRENCY_EXCEPTIONS.get(str(alpha2))
         return pycountry.currencies.get(letter=currency_code)
