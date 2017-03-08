@@ -794,18 +794,25 @@ class ContactTest(TembaTest):
 
         # create a dynamic group and put joe in it
         ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
-        dynamic = self.create_group("Dynamic", query="gender is M")
+        no_gender = self.create_group("No gender", query='gender is ""')
+        gender_m = self.create_group("Male", query='gender is M')
+
+        self.assertEqual(set(no_gender.contacts.all()), {self.joe, self.frank, self.billy, self.voldemort})
+        self.assertEqual(set(gender_m.contacts.all()), set())
+
         self.joe.set_field(self.admin, 'gender', "M")
-        self.assertEqual(set(dynamic.contacts.all()), {self.joe})
+
+        self.assertEqual(set(no_gender.contacts.all()), {self.frank, self.billy, self.voldemort})
+        self.assertEqual(set(gender_m.contacts.all()), {self.joe})
 
         self.joe.update_static_groups(self.user, [spammers, testers])
-        self.assertEqual(set(self.joe.user_groups.all()), {spammers, testers, dynamic})
+        self.assertEqual(set(self.joe.user_groups.all()), {spammers, testers, gender_m})
 
         self.joe.update_static_groups(self.user, [])
-        self.assertEqual(set(self.joe.user_groups.all()), {dynamic})
+        self.assertEqual(set(self.joe.user_groups.all()), {gender_m})
 
         self.joe.update_static_groups(self.user, [testers])
-        self.assertEqual(set(self.joe.user_groups.all()), {testers, dynamic})
+        self.assertEqual(set(self.joe.user_groups.all()), {testers, gender_m})
 
         # blocking removes contact from all groups
         self.joe.block(self.user)
@@ -816,7 +823,7 @@ class ContactTest(TembaTest):
 
         # unblocking potentially puts contact back in dynamic groups
         self.joe.unblock(self.user)
-        self.assertEqual(set(self.joe.user_groups.all()), {dynamic})
+        self.assertEqual(set(self.joe.user_groups.all()), {gender_m})
 
         self.joe.update_static_groups(self.user, [testers])
 
@@ -826,7 +833,7 @@ class ContactTest(TembaTest):
 
         # and unstopping potentially puts contact back in dynamic groups
         self.joe.unstop(self.admin)
-        self.assertEqual(set(self.joe.user_groups.all()), {dynamic})
+        self.assertEqual(set(self.joe.user_groups.all()), {gender_m})
 
         self.joe.update_static_groups(self.user, [testers])
 

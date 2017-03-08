@@ -897,7 +897,9 @@
       %pre.prettyprint.example<
         :plain
           {{ object.config_json.method }} {{ example_url }}
-          to=%2B250788123123&from={{ object.address|urlencode }}&channel={{ object.pk }}&id=2599235&text=One+mans+trash+is+another_mans+come+up
+          {{ example_content_type }}
+
+          {{ example_body }}
     %hr
 
     -if object.role != 'S'
