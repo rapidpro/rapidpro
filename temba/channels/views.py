@@ -1534,6 +1534,9 @@ class ChannelCRUDL(SmartCRUDL):
             content_type = forms.ChoiceField(choices=Channel.CONTENT_TYPE_CHOICES,
                                              help_text=_("The content type used when sending the request"))
 
+            max_length = forms.IntegerField(initial=160,
+                                            help_text=_("The maximum length of any single message on this channel. (longer messages will be split)"))
+
             url = forms.URLField(max_length=1024, label=_("Send URL"),
                                  help_text=_("The URL we will call when sending messages, with variable substitutions"))
 
@@ -1597,7 +1600,8 @@ class ChannelCRUDL(SmartCRUDL):
                 Channel.CONFIG_SEND_URL: data['url'],
                 Channel.CONFIG_SEND_METHOD: data['method'],
                 Channel.CONFIG_SEND_BODY: data['body'],
-                Channel.CONFIG_CONTENT_TYPE: data['content_type']
+                Channel.CONFIG_CONTENT_TYPE: data['content_type'],
+                Channel.CONFIG_MAX_LENGTH: data['max_length']
             }
             self.object = Channel.add_config_external_channel(org, self.request.user, country, address, Channel.TYPE_EXTERNAL,
                                                               config, role, scheme, parent=channel)
