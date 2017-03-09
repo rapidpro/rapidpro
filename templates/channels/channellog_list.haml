@@ -55,12 +55,12 @@
                 -else
                   -trans "Outgoing"
                 -if obj.session_type == 'F'
-                  -if obj.is_done
-                    -trans "phone call"
-                  -else
-                    -trans "phone call in progress"
+                  -trans "phone call"
                 -else
-                  USSD session for {{obj.get_duration}}
+                  -trans "USSD session"
+
+                -if obj.is_done
+                  -trans "complete"
 
             %td.clickable{ style:'text-align: right', nowrap:'true' }
               %a{ href:'{% url "channels.channellog_session" obj.pk %}' }><
