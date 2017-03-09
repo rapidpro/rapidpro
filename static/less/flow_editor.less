@@ -791,20 +791,78 @@
       margin-right: 18px;
     }
 
-    .viewer-button {
-      font-size:16px;
+    .node-attachment {
       position: absolute;
       right: 10px;
       bottom: 10px;
+    }
+
+    .media {
+
+      .icon-attachment {
+        font-size:12px;
+        cursor: pointer;
+        padding-top:5px;
+      }
+
+      margin-top: -3px;
+      .viewer-button {
+        margin-right:5px;
+        display: inline-block;
+        &:hover {
+          color: #999;
+        }
+      }
+      .summary {
+        display: inline-block;
+      }
+
+      .remove {
+        font-size: 12px;
+        height:14px;
+        margin-left:2px;
+        margin-top:1px;
+        margin-right: -3px;
+        display:none;
+      }
+    }
+
+    .tag-button {
+      .rounded-corners();
+      cursor: pointer;
+      background: #e6e6e6;
+      display: inline-block;
+      padding: 5px 10px 5px 5px;
+      font-size: 13px;
+      &:hover {
+        background: #e1e1e1;
+      }
+
+      a, a:hover, a:visited, a:active {
+          color: #999
+      }
+
+      &:hover {
+        .remove {
+          display: inline-block;
+        }
+      }
+
+    }
+
+    .viewer-button {
+      cursor: pointer;
+      font-size:16px;
+      color: #999;
 
       &.icon-arrow-right-8 {
         font-size: 22px;
+        margin-top: -2px;
       }
 
       &:hover {
         color: @flat-blue
       }
-
     }
 
     .play-button {
