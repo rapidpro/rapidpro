@@ -751,7 +751,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("msgs.broadcast_send"):
+            if self.has_org_perm("msgs.broadcast_send") and not self.object.is_blocked and not self.object.is_stopped:
                 links.append(dict(title=_('Send Message'),
                                   style='btn-primary',
                                   href='#',
@@ -866,6 +866,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.Blocked, self).get_context_data(*args, **kwargs)
             context['actions'] = ('unblock', 'delete') if self.has_org_perm("contacts.contact_delete") else ('unblock',)
+            context['reply_disabled'] = True
             return context
 
     class Stopped(ContactActionMixin, ContactListView):
@@ -876,6 +877,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.Stopped, self).get_context_data(*args, **kwargs)
             context['actions'] = ['block', 'unstop']
+            context['reply_disabled'] = True
             return context
 
     class Filter(ContactActionMixin, ContactListView):

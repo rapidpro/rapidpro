@@ -119,7 +119,7 @@
                                 %a.lbl-menu.add-group{ href:'#' }
                                   - trans "New Group..."
 
-                      - if org_perms.msgs.broadcast_send 
+                      - if org_perms.msgs.broadcast_send and not reply_disabled
                         %span.btn-group
                           %button.send-button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Send Message" %}'}
                             .glyph.icon-bubble-replu
@@ -206,7 +206,7 @@
           - include "contacts/empty_include.haml"
 
 -block post-content
-  - if org_perms.msgs.broadcast_send
+  - if org_perms.msgs.broadcast_send and not reply_disabled
     - include "msgs/msg_send_modal.haml"
 
   -if org_perms.contacts.contact_delete
