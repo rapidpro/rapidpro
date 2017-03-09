@@ -459,6 +459,7 @@ class SinglePropCombination(BoolCombination):
         prop_type, prop_obj = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
+
             # a sequence of OR'd equality checks can be further optimized (e.g. `a = 1 OR a = 2` as `a IN (1, 2)`)
             # except for datetime fields as equality is implemented as a range check
             all_equality = all([child.comparator == '=' for child in self.children])

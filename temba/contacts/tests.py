@@ -794,32 +794,34 @@ class ContactTest(TembaTest):
         spammers = self.create_group("Spammers", [])
         testers = self.create_group("Testers", [])
 
-        # create a dynamic group and put joe in it
+        # create some dynamic groups
         ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
+        ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type=Value.TYPE_DECIMAL)
         no_gender = self.create_group("No gender", query='gender is ""')
-        gender_m1 = self.create_group("Male", query='gender is M')
-        gender_m2 = self.create_group("Male", query='gender is M or gender is Male')
+        males = self.create_group("Male", query='gender is M or gender is Male')
+        youth = self.create_group("Male", query='age > 18 or age < 30')
         joes = self.create_group("Joes", query='Joe')
 
         self.assertEqual(set(no_gender.contacts.all()), {self.joe, self.frank, self.billy, self.voldemort})
-        self.assertEqual(set(gender_m1.contacts.all()), set())
-        self.assertEqual(set(gender_m2.contacts.all()), set())
+        self.assertEqual(set(males.contacts.all()), set())
+        self.assertEqual(set(youth.contacts.all()), set())
         self.assertEqual(set(joes.contacts.all()), {self.joe})
 
         self.joe.set_field(self.admin, 'gender', "M")
+        self.joe.set_field(self.admin, 'age', "28")
 
         self.assertEqual(set(no_gender.contacts.all()), {self.frank, self.billy, self.voldemort})
-        self.assertEqual(set(gender_m1.contacts.all()), {self.joe})
-        self.assertEqual(set(gender_m2.contacts.all()), {self.joe})
+        self.assertEqual(set(males.contacts.all()), {self.joe})
+        self.assertEqual(set(youth.contacts.all()), {self.joe})
 
         self.joe.update_static_groups(self.user, [spammers, testers])
-        self.assertEqual(set(self.joe.user_groups.all()), {spammers, testers, gender_m1, gender_m2, joes})
+        self.assertEqual(set(self.joe.user_groups.all()), {spammers, testers, males, youth, joes})
 
         self.joe.update_static_groups(self.user, [])
-        self.assertEqual(set(self.joe.user_groups.all()), {gender_m1, gender_m2, joes})
+        self.assertEqual(set(self.joe.user_groups.all()), {males, youth, joes})
 
         self.joe.update_static_groups(self.user, [testers])
-        self.assertEqual(set(self.joe.user_groups.all()), {testers, gender_m1, gender_m2, joes})
+        self.assertEqual(set(self.joe.user_groups.all()), {testers, males, youth, joes})
 
         # blocking removes contact from all groups
         self.joe.block(self.user)
@@ -830,7 +832,7 @@ class ContactTest(TembaTest):
 
         # unblocking potentially puts contact back in dynamic groups
         self.joe.unblock(self.user)
-        self.assertEqual(set(self.joe.user_groups.all()), {gender_m1, gender_m2, joes})
+        self.assertEqual(set(self.joe.user_groups.all()), {males, youth, joes})
 
         self.joe.update_static_groups(self.user, [testers])
 
@@ -840,7 +842,7 @@ class ContactTest(TembaTest):
 
         # and unstopping potentially puts contact back in dynamic groups
         self.joe.unstop(self.admin)
-        self.assertEqual(set(self.joe.user_groups.all()), {gender_m1, gender_m2, joes})
+        self.assertEqual(set(self.joe.user_groups.all()), {males, youth, joes})
 
         self.joe.update_static_groups(self.user, [testers])
 
