@@ -27,7 +27,7 @@ from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
-from temba.utils.profiler import SegmentProfiler
+from temba.utils.profiler import SegmentProfiler, time_monitor
 from temba.values.models import Value
 from temba.locations.models import STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 
@@ -2205,6 +2205,7 @@ class ContactGroup(TembaModel):
         members, is_complex = Contact.search(self.org, self.query, base_set=base_set)
         return members
 
+    @time_monitor(threshold=100)
     def _check_dynamic_membership(self, contact):
         """
         For dynamic groups, determines whether the given contact belongs in the group
