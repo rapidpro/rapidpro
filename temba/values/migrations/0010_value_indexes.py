@@ -22,6 +22,8 @@ ANALYZE values_value;
 
 class Migration(migrations.Migration):
 
+    atomic = False
+
     dependencies = [
         ('values', '0009_install_indexes'),
     ]
