@@ -1,3 +1,38 @@
+v3.0.78
+----------
+ * Allow configuration of max message length to split on for External channels
+
+v3.0.77
+----------
+ * Use brand key for evaluation instead of host when determining brand
+ * Add red rabbit type (hidden since MT only)
+ * Fix flow results exports for broadcast only flows
+
+v3.0.76
+----------
+ * Log Nexmo media responses without including entire body
+
+v3.0.75
+----------
+ * Dont encode to utf8 for XML and JSON since they expect unicode
+ * Optimize contact searching when used to determine single contact's membership
+ * Use flow system user when migrating flows, avoid list page reorder after migrations
+
+v3.0.74
+----------
+ * reduce number of lookup to DB
+
+v3.0.73
+----------
+ * Add test case for search URL against empty field value
+ * Fix sending vumi messages initiated from RapidPro without response to
+
+v3.0.72
+----------
+ * Improvements to external channels to allow configuration against JSON and XML endpoints
+ * Exclude test contacts from flow results
+ * Update to latest smartmin to fix empty string searching
+
 v3.0.70
 ----------
  * Allow USSD flows to start someone else in a flow
