@@ -643,7 +643,7 @@ class Flow(TembaModel):
                     if not result.get('interrupted') and \
                             Flow.should_close_session(run, destination, result.get('destination')):
 
-                        end_message = Msg.create_outgoing(msg.org, get_flow_user(), msg.contact, '',
+                        end_message = Msg.create_outgoing(msg.org, get_flow_user(msg.org), msg.contact, '',
                                                           channel=msg.channel, priority=Msg.PRIORITY_HIGH,
                                                           session=msg.session)
 
