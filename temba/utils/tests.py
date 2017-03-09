@@ -136,8 +136,8 @@ class InitTest(TembaTest):
 
     def test_date_to_utc_range(self):
         self.assertEqual(date_to_utc_range(datetime.date(2017, 2, 20), self.org), (
-            datetime(2017, 2, 19, 22, 0, 0, 0, tzinfo=pytz.UTC),
-            datetime(2017, 2, 20, 22, 0, 0, 0, tzinfo=pytz.UTC)
+            datetime.datetime(2017, 2, 19, 22, 0, 0, 0, tzinfo=pytz.UTC),
+            datetime.datetime(2017, 2, 20, 22, 0, 0, 0, tzinfo=pytz.UTC)
         ))
 
     def test_str_to_bool(self):
