@@ -52,8 +52,6 @@ CHANNELS = (
     {'name': "Nexmo", 'channel_type': Channel.TYPE_NEXMO, 'scheme': 'tel', 'address': "2345"},
     {'name': "Twitter", 'channel_type': Channel.TYPE_TWITTER, 'scheme': 'twitter', 'address': "my_handle"},
 )
-GROUPS = ("Reporters", "Testers", "Youth", "Farmers", "Doctors", "Teachers", "Traders", "Drivers", "Builders", "Spammers")
-LABELS = ("Reporting", "Testing", "Youth", "Farming", "Health", "Education", "Trade", "Driving", "Building", "Spam")
 FIELDS = (
     {'key': 'gender', 'label': "Gender", 'value_type': Value.TYPE_TEXT},
     {'key': 'age', 'label': "Age", 'value_type': Value.TYPE_DECIMAL},
@@ -62,6 +60,20 @@ FIELDS = (
     {'key': 'district', 'label': "District", 'value_type': Value.TYPE_DISTRICT},
     {'key': 'state', 'label': "State", 'value_type': Value.TYPE_STATE},
 )
+GROUPS = (
+    {'name': "Reporters", 'query': None, 'member': 0.95},  # member is either a probability or callable
+    {'name': "Farmers", 'query': None, 'member': 0.5},
+    {'name': "Doctors", 'query': None, 'member': 0.4},
+    {'name': "Teachers", 'query': None, 'member': 0.3},
+    {'name': "Drivers", 'query': None, 'member': 0.2},
+    {'name': "Testers", 'query': None, 'member': 0.1},
+    {'name': "Empty", 'query': None, 'member': 0.0},
+    {'name': "Youth (Dynamic)", 'query': 'age <= 18', 'member': lambda c: c['age'] and c['age'] <= 18},
+    {'name': "Unregistered (Dynamic)", 'query': 'joined = ""', 'member': lambda c: not c['joined']},
+    {'name': "Districts (Dynamic)", 'query': 'district=Faskari or district=Zuru or district=Anka',
+     'member': lambda c: c['district'] and c['district'].name in ("Faskari", "Zuru", "Anka")},
+)
+LABELS = ("Reporting", "Testing", "Youth", "Farming", "Health", "Education", "Trade", "Driving", "Building", "Spam")
 
 # contact names are generated from these components
 CONTACT_NAMES = (
@@ -183,7 +195,7 @@ class Command(BaseCommand):
                 'channels': [],
                 'fields': {},
                 'groups': [],
-                'sysgroups': list(ContactGroup.system_groups.filter(org=org).order_by('id')),
+                'system_groups': {g.group_type: g for g in ContactGroup.system_groups.filter(org=org)},
                 'contacts': [],
                 'labels': [],
             }
@@ -235,8 +247,12 @@ class Command(BaseCommand):
 
         for org in orgs:
             user = org.cache['users'][0]
-            for name in GROUPS:
-                group = ContactGroup.user_groups.create(org=org, name=name, created_by=user, modified_by=user)
+            for g in GROUPS:
+                if g['query']:
+                    group = ContactGroup.create_dynamic(org, user, g['name'], g['query'])
+                else:
+                    group = ContactGroup.user_groups.create(org=org, name=g['name'], created_by=user, modified_by=user)
+                group.member = g['member']
                 org.cache['groups'].append(group)
 
         self._log(self.style.SUCCESS("OK") + '\n')
@@ -272,71 +288,77 @@ class Command(BaseCommand):
 
                 def add_to_group(g):
                     group_counts[g] += 1
-                    memberships.append(group_membership_model(contact_id=c_id, contactgroup=g))
+                    memberships.append(group_membership_model(contact_id=c['id'], contactgroup=g))
 
-                for c in index_batch:  # pragma: no cover
+                for c_index in index_batch:  # pragma: no cover
 
-                    # calculate the database id this contact will have when created
-                    c_id = base_contact_id + c
-
-                    # ensure every org gets at least one contact
-                    org = orgs[c] if c < len(orgs) else self.random_org(orgs)
-
-                    user = org.cache['users'][0]
+                    org = orgs[c_index] if c_index < len(orgs) else self.random_org(orgs)  # at least 1 contact per org
                     name = self.random_choice(names)
-                    gender = self.random_choice(('M', 'F'))
-                    age = self.random.randint(16, 80)
-                    joined = self.random_date()
-                    is_stopped = self.probability(CONTACT_IS_STOPPED_PROB)
-                    is_blocked = self.probability(CONTACT_IS_BLOCKED_PROB)
-                    is_active = self.probability(1 - CONTACT_IS_DELETED_PROB)
-                    created_on = self.timeline_date(float(num_test_contacts + c) / num_total)
-                    modified_on = self.random_date(created_on, self.db_ends_on)
+                    location = self.random_choice(locations) if self.probability(CONTACT_HAS_FIELD_PROB) else None
+                    created_on = self.timeline_date(float(num_test_contacts + c_index) / num_total)
 
-                    if is_active:
-                        if not is_blocked and not is_stopped:
-                            add_to_group(org.cache['sysgroups'][0])
-                        if is_blocked:
-                            add_to_group(org.cache['sysgroups'][1])
-                        if is_stopped:
-                            add_to_group(org.cache['sysgroups'][2])
+                    c = {
+                        'id': base_contact_id + c_index,  # database id this contact will have when created
+                        'org': org,
+                        'user': org.cache['users'][0],
+                        'name': name,
+                        'tel': '+2507%08d' % c_index if self.probability(CONTACT_HAS_TEL_PROB) else None,
+                        'twitter': '%s%d' % (name.replace(' ', '_').lower() if name else 'tweep', c_index) if self.probability(CONTACT_HAS_TWITTER_PROB) else None,
+                        'gender': self.random_choice(('M', 'F')) if self.probability(CONTACT_HAS_FIELD_PROB) else None,
+                        'age': self.random.randint(16, 80) if self.probability(CONTACT_HAS_FIELD_PROB) else None,
+                        'joined': self.random_date() if self.probability(CONTACT_HAS_FIELD_PROB) else None,
+                        'ward': location[0] if location else None,
+                        'district': location[1] if location else None,
+                        'state': location[2] if location else None,
+                        'language': self.random_choice(CONTACT_LANGS),
+                        'is_stopped': self.probability(CONTACT_IS_STOPPED_PROB),
+                        'is_blocked': self.probability(CONTACT_IS_BLOCKED_PROB),
+                        'is_active': self.probability(1 - CONTACT_IS_DELETED_PROB),
+                        'created_on': created_on,
+                        'modified_on': self.random_date(created_on, self.db_ends_on),
+                    }
 
-                    contacts.append(Contact(org=org, name=name, language=self.random_choice(CONTACT_LANGS),
-                                            is_stopped=is_stopped, is_blocked=is_blocked, is_active=is_active,
-                                            created_by=user, created_on=created_on,
-                                            modified_by=user, modified_on=modified_on))
+                    if c['is_active']:
+                        if not c['is_blocked'] and not c['is_stopped']:
+                            add_to_group(org.cache['system_groups'][ContactGroup.TYPE_ALL])
+                        if c['is_blocked']:
+                            add_to_group(org.cache['system_groups'][ContactGroup.TYPE_BLOCKED])
+                        if c['is_stopped']:
+                            add_to_group(org.cache['system_groups'][ContactGroup.TYPE_STOPPED])
 
-                    if self.probability(CONTACT_HAS_TEL_PROB):
-                        phone = '+2507%08d' % c
-                        urns.append(ContactURN(org=org, contact_id=c_id, priority=50,
-                                               scheme=TEL_SCHEME, path=phone, urn=URN.from_tel(phone)))
+                    contacts.append(Contact(org=org, name=c['name'], language=c['language'],
+                                            is_stopped=c['is_stopped'], is_blocked=c['is_blocked'],
+                                            is_active=c['is_active'],
+                                            created_by=user, created_on=c['created_on'],
+                                            modified_by=user, modified_on=c['modified_on']))
 
-                    if self.probability(CONTACT_HAS_TWITTER_PROB):
-                        handle = '%s%d' % (name.replace(' ', '_').lower() if name else 'tweep', c)
-                        urns.append(ContactURN(org=org, contact_id=c_id, priority=50,
-                                               scheme=TWITTER_SCHEME, path=handle, urn=URN.from_twitter(handle)))
+                    if c['tel']:
+                        urns.append(ContactURN(org=org, contact_id=c['id'], priority=50, scheme=TEL_SCHEME,
+                                               path=c['tel'], urn=URN.from_tel(c['tel'])))
+                    if c['twitter']:
+                        urns.append(ContactURN(org=org, contact_id=c['id'], priority=50, scheme=TWITTER_SCHEME,
+                                               path=c['twitter'], urn=URN.from_twitter(c['twitter'])))
+                    if c['gender']:
+                        values.append(Value(org=org, contact_id=c['id'], contact_field=org.cache['fields']['gender'],
+                                            string_value=c['gender']))
+                    if c['age']:
+                        values.append(Value(org=org, contact_id=c['id'], contact_field=org.cache['fields']['age'],
+                                            string_value=str(c['age']), decimal_value=c['age']))
+                    if c['joined']:
+                        values.append(Value(org=org, contact_id=c['id'], contact_field=org.cache['fields']['joined'],
+                                            string_value=datetime_to_str(c['joined']), datetime_value=c['joined']))
+                    if location:
+                        values.append(Value(org=org, contact_id=c['id'], contact_field=org.cache['fields']['ward'],
+                                            string_value=c['ward'].name, location_value=c['ward']))
+                        values.append(Value(org=org, contact_id=c['id'], contact_field=org.cache['fields']['district'],
+                                            string_value=c['district'].name, location_value=c['district']))
+                        values.append(Value(org=org, contact_id=c['id'], contact_field=org.cache['fields']['state'],
+                                            string_value=c['state'].name, location_value=c['state']))
 
-                    fields = org.cache['fields']
-                    if self.probability(CONTACT_HAS_FIELD_PROB):
-                        values.append(Value(org=org, contact_id=c_id, contact_field=fields['gender'], string_value=gender))
-                    if self.probability(CONTACT_HAS_FIELD_PROB):
-                        values.append(Value(org=org, contact_id=c_id, contact_field=fields['age'],
-                                            string_value=str(age), decimal_value=age))
-                    if self.probability(CONTACT_HAS_FIELD_PROB):
-                        values.append(Value(org=org, contact_id=c_id, contact_field=fields['joined'],
-                                            string_value=datetime_to_str(joined), datetime_value=joined))
-                    if self.probability(CONTACT_HAS_FIELD_PROB):
-                        location = self.random_choice(locations)
-                        values.append(Value(org=org, contact_id=c_id, contact_field=fields['ward'],
-                                            string_value=location[0].name, location_value=location[0]))
-                        values.append(Value(org=org, contact_id=c_id, contact_field=fields['district'],
-                                            string_value=location[1].name, location_value=location[1]))
-                        values.append(Value(org=org, contact_id=c_id, contact_field=fields['state'],
-                                            string_value=location[2].name, location_value=location[2]))
-
-                    # place contact in a biased sample of their org's groups
-                    for g in range(self.random.randrange(len(org.cache['groups']))):
-                        add_to_group(org.cache['groups'][g])
+                    # let each group decide if it is taking this contact
+                    for g in org.cache['groups']:
+                        if g.member(c) if callable(g.member) else self.probability(g.member):
+                            add_to_group(g)
 
                 Contact.objects.bulk_create(contacts)
                 ContactURN.objects.bulk_create(urns)
@@ -353,7 +375,7 @@ class Command(BaseCommand):
         ContactGroupCount.objects.bulk_create(counts)
 
         # for sanity check that our presumed last contact id matches the last actual contact id
-        assert c_id == Contact.objects.order_by('-id').first().id
+        assert c['id'] == Contact.objects.order_by('-id').first().id
 
     def create_labels(self, orgs):
         self._log("Creating %d labels... " % (len(orgs) * len(LABELS)))
