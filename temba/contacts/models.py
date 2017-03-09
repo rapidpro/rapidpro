@@ -2314,7 +2314,13 @@ class ExportContactsTask(BaseExportTask):
     email_subject = "Your contacts export is ready"
     email_template = 'contacts/email/contacts_export_download'
 
-    group = models.ForeignKey(ContactGroup, null=True, related_name='exports', help_text=_("The unique group to export"))
+    group = models.ForeignKey(ContactGroup, null=True, related_name='exports',
+                              help_text=_("The unique group to export"))
+    search = models.TextField(null=True, blank=True, help_text=_("The search query"))
+
+    @classmethod
+    def create(cls, org, user, group=None, search=None):
+        return cls.objects.create(org=org, group=group, search=search, created_by=user, modified_by=user)
 
     def get_export_fields_and_schemes(self):
 

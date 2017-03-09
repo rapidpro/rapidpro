@@ -326,13 +326,10 @@ class ContactCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            group = None
-            group_uuid = self.request.GET.get('g', None)
-            if group_uuid:
-                groups = ContactGroup.user_groups.filter(uuid=group_uuid, org=org)
+            group_uuid = self.request.GET.get('group')
+            search = self.request.GET.get('search')
 
-                if groups:
-                    group = groups[0]
+            group = ContactGroup.all_groups.filter(org=org, uuid=group_uuid).first() if group_uuid else None
 
             # is there already an export taking place?
             existing = ExportContactsTask.get_recent_unfinished(org)
@@ -347,7 +344,7 @@ class ContactCRUDL(SmartCRUDL):
                 if previous_export and previous_export.created_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover
                     analytics.track(self.request.user.username, 'temba.contact_exported')
 
-                export = ExportContactsTask.objects.create(created_by=user, modified_by=user, org=org, group=group)
+                export = ExportContactsTask.create(org, user, group, search)
 
                 on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
 

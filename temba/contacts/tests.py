@@ -3630,8 +3630,7 @@ class ContactFieldTest(TembaTest):
         Contact.get_test_contact(self.user)  # create test contact to ensure they aren't included in the export
 
         # create a dummy export task so that we won't be able to export
-        blocking_export = ExportContactsTask.objects.create(org=self.org,
-                                                            created_by=self.admin, modified_by=self.admin)
+        blocking_export = ExportContactsTask.create(self.org, self.admin)
 
         response = self.client.get(reverse('contacts.contact_export'), dict(), follow=True)
         self.assertContains(response, "already an export in progress")
