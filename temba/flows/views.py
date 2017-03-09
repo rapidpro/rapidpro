@@ -655,7 +655,7 @@ class FlowCRUDL(SmartCRUDL):
         refresh = 10000
         fields = ('name', 'modified_on')
         default_template = 'flows/flow_list.html'
-        default_order = ('-modified_on',)
+        default_order = ('-saved_on',)
         search_fields = ('name__icontains',)
 
         def get_context_data(self, **kwargs):
@@ -1185,13 +1185,15 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.RunTable, self).get_context_data(*args, **kwargs)
             flow = self.get_object()
+            org = self.derive_org()
 
             context['rulesets'] = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT).order_by('y'))
             for ruleset in context['rulesets']:
                 rules = len(ruleset.get_rules())
                 ruleset.category = 'true' if rules > 1 else 'false'
 
-            runs = FlowRun.objects.filter(flow=flow, responded=True)
+            test_contacts = Contact.objects.filter(org=org, is_test=True).values_list('id', flat=True)
+            runs = FlowRun.objects.filter(flow=flow, responded=True).exclude(contact__in=test_contacts)
 
             # paginate
             modified_on = self.request.GET.get('modified_on', None)
