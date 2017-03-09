@@ -22,7 +22,7 @@ DEFAULT_NUM_REQUESTS = 3
 DEFAULT_RESULTS_FILE = '.perf_results'
 
 # allow this maximum request time (milliseconds)
-ALLOWED_MAXIMUM = 3000
+DEFAULT_ALLOWED_MAXIMUM = 3000
 
 # allow this much absolute change from previous results (milliseconds)
 ALLOWED_CHANGE_MAXIMUM = 50
@@ -74,13 +74,13 @@ TEST_URLS = (
 
 
 class URLResult(object):
-    def __init__(self, url, times, prev_times):
+    def __init__(self, url, times, allowed_max, prev_times):
         self.url = url
         self.times = times
 
         self.min = min(*self.times)
         self.max = max(*self.times)
-        self.exceeds_maximum = self.max > ALLOWED_MAXIMUM
+        self.exceeds_maximum = self.max > allowed_max
 
         this_avg = sum(self.times) / len(self.times)
         prev_avg = sum(prev_times) / len(prev_times) if prev_times else None
@@ -104,13 +104,20 @@ class Command(BaseCommand):  # pragma: no cover
     help = "Runs performance tests on a database generated with make_test_db"
 
     def add_arguments(self, parser):
-        parser.add_argument('--include', type=str, action='store', dest='url_include_pattern', default=None)
-        parser.add_argument('--orgs', type=str, action='store', dest='org_ids', default=None)
-        parser.add_argument('--num-requests', type=int, action='store', dest='num_requests', default=DEFAULT_NUM_REQUESTS)
-        parser.add_argument('--results-file', type=str, action='store', dest='results_file', default=DEFAULT_RESULTS_FILE)
-        parser.add_argument('--results-html', type=str, action='store', dest='results_html', default=None)
+        parser.add_argument('--include', type=str, action='store', dest='include_pattern', default=None,
+                            help="Only test URLs matching this pattern.")
+        parser.add_argument('--orgs', type=str, action='store', dest='org_ids', default=None,
+                            help="Comma separated database ids of orgs to test. Defaults to first and last org.")
+        parser.add_argument('--org-limits', type=str, action='store', dest='org_limits', default=None,
+                            help="Comma separated hard time limits for each org in milliseconds.")
+        parser.add_argument('--num-requests', type=int, action='store', dest='num_requests', default=DEFAULT_NUM_REQUESTS,
+                            help="Number of requests to make for each URL. Default is %d." % DEFAULT_NUM_REQUESTS)
+        parser.add_argument('--results-file', type=str, action='store', dest='results_file', default=DEFAULT_RESULTS_FILE,
+                            help="Path of file to write results to. Default is '%s'." % DEFAULT_RESULTS_FILE)
+        parser.add_argument('--results-html', type=str, action='store', dest='results_html', default=None,
+                            help="Path of file to write HTML results to. Default is none.")
 
-    def handle(self, url_include_pattern, org_ids, num_requests, results_file, results_html, *args, **options):
+    def handle(self, include_pattern, org_ids, org_limits, num_requests, results_file, results_html, *args, **options):
         self.client = Client()
         started = datetime.utcnow()
 
@@ -119,20 +126,29 @@ class Command(BaseCommand):  # pragma: no cover
         if not prev_times:
             self.stdout.write(self.style.WARNING("No previous results found for change calculation"))
 
+        # gather which orgs will be tested
         if org_ids:
             test_orgs = list(Org.objects.filter(id__in=org_ids.split(',')).order_by('id'))
         else:
             test_orgs = [Org.objects.first(), Org.objects.last()]
 
-        test_urls = [u for u in TEST_URLS if not url_include_pattern or fnmatch.fnmatch(u, url_include_pattern)]
+        # gather org specific maximum time limits
+        if org_limits:
+            org_allowed_maximums = [int(l) for l in org_limits.split(',')]
+            if len(org_allowed_maximums) != len(test_orgs):
+                raise CommandError("%d time limits provided for %d orgs" % (len(org_limits), len(test_orgs)))
+        else:
+            org_allowed_maximums = [DEFAULT_ALLOWED_MAXIMUM] * len(test_orgs)
+
+        test_urls = [u for u in TEST_URLS if not include_pattern or fnmatch.fnmatch(u, include_pattern)]
 
         results = []
 
-        for org in test_orgs:
+        for o, org in enumerate(test_orgs):
             # look for previous times for this org
             prev_org_times = prev_times.get(org.id, {})
 
-            results.append(self.test_org(org, test_urls, num_requests, prev_org_times))
+            results.append(self.test_org(org, test_urls, num_requests, org_allowed_maximums[o], prev_org_times))
 
         self.save_results(results_file, started, results)
 
@@ -145,11 +161,12 @@ class Command(BaseCommand):  # pragma: no cover
                 if not test.is_pass():
                     sys.exit(1)
 
-    def test_org(self, org, urls, num_requests, prev_times):
+    def test_org(self, org, urls, num_requests, allowed_max, prev_times):
         """
         Tests the given URLs for the given org
         """
-        self.stdout.write(self.style.MIGRATE_HEADING("Testing org #%d (%d contacts)" % (org.id, org.org_contacts.count())))
+        self.stdout.write(self.style.MIGRATE_HEADING("Testing org #%d (%d contacts, %dms max allowed)"
+                                                     % (org.id, org.org_contacts.count(), allowed_max)))
 
         # build a URL context for this org
         url_context = {}
@@ -165,11 +182,11 @@ class Command(BaseCommand):  # pragma: no cover
 
             prev_url_times = prev_times.get(formatted_url)
 
-            tests.append(self.test_url(formatted_url, num_requests, prev_url_times))
+            tests.append(self.test_url(formatted_url, num_requests, allowed_max, prev_url_times))
 
         return {'org': org, 'tests': tests}
 
-    def test_url(self, url, num_requests, prev_times):
+    def test_url(self, url, num_requests, allowed_max, prev_times):
         """
         Test a single URL
         """
@@ -186,7 +203,7 @@ class Command(BaseCommand):  # pragma: no cover
 
             url_times.append(int(1000 * (time.time() - start_time)))
 
-        result = URLResult(url, url_times, prev_times)
+        result = URLResult(url, url_times, allowed_max, prev_times)
 
         self.stdout.write(self.format_result(result))
         return result
