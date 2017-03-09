@@ -1388,8 +1388,8 @@ class KannelHandler(BaseChannelHandler):
         elif action == 'receive':
             sms_id = self.get_param('id')
             sms_ts = self.get_param('ts')
-            sms_message = request.POST['message']
-            sms_sender = request.POST['sender']
+            sms_message = self.get_param('message')
+            sms_sender = self.get_param('sender')
 
             if sms_id is None or sms_ts is None or sms_message is None or sms_sender is None:  # pragma: needs cover
                 return HttpResponse("Missing one of 'message', 'sender', 'id' or 'ts' in request parameters.", status=400)
