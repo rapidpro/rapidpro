@@ -7,7 +7,7 @@ import pytz
 import six
 
 from celery.app.task import Task
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User, Group
@@ -41,7 +41,7 @@ from .currencies import currency_for_country
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, non_atomic_gets, clean_string
-from . import datetime_to_str, chunk_list, get_country_code_by_name, datetime_to_epoch
+from . import datetime_to_str, chunk_list, get_country_code_by_name, datetime_to_epoch, date_to_utc_range
 
 
 class InitTest(TembaTest):
@@ -133,6 +133,12 @@ class InitTest(TembaTest):
             self.assertEqual(time(3, 4), str_to_time('3:4'))  # not zero padded
             self.assertEqual(time(3, 4), str_to_time('01-02-2013 03:04'))  # with date
             self.assertEqual(time(15, 4), str_to_time('3:04 PM'))  # as PM
+
+    def test_date_to_utc_range(self):
+        self.assertEqual(date_to_utc_range(date(2017, 2, 20), self.org), (
+            datetime(2017, 2, 19, 22, 0, 0, 0, tzinfo=pytz.UTC),
+            datetime(2017, 2, 20, 22, 0, 0, 0, tzinfo=pytz.UTC)
+        ))
 
     def test_str_to_bool(self):
         self.assertFalse(str_to_bool(None))

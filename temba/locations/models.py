@@ -10,17 +10,17 @@ from smartmin.models import SmartModel
 
 logger = logging.getLogger(__name__)
 
-COUNTRY_LEVEL = 0
-STATE_LEVEL = 1
-DISTRICT_LEVEL = 2
-WARD_LEVEL = 3
-
 
 @six.python_2_unicode_compatible
 class AdminBoundary(MPTTModel, models.Model):
     """
     Represents a single administrative boundary (like a country, state or district)
     """
+    LEVEL_COUNTRY = 0
+    LEVEL_STATE = 1
+    LEVEL_DISTRICT = 2
+    LEVEL_WARD = 3
+
     osm_id = models.CharField(max_length=15, unique=True,
                               help_text="This is the OSM id for this administrative boundary")
 
