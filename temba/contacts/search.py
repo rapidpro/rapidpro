@@ -9,6 +9,8 @@ from collections import OrderedDict
 from decimal import Decimal
 from django.db.models import Q, Func, Value as Val, CharField
 from django.db.models.functions import Upper
+from django.utils.encoding import force_unicode
+from django.utils.translation import gettext as _
 from functools import reduce
 from ply import yacc
 from temba.locations.models import AdminBoundary
@@ -33,12 +35,16 @@ class Concat(Func):
     arg_joiner = ' || '
 
 
+@six.python_2_unicode_compatible
 class SearchException(Exception):
     """
     Exception class for unparseable search queries
     """
     def __init__(self, message):
         self.message = message
+
+    def __str__(self):
+        return force_unicode(self.message)
 
 
 class SearchLexer(object):
@@ -84,7 +90,7 @@ class SearchLexer(object):
         return t
 
     def t_error(self, t):
-        raise SearchException("Invalid character %s" % t.value[0])
+        raise SearchException(_("Invalid character %s") % t.value[0])
 
     def test(self, data):  # pragma: no cover
         toks = []
@@ -141,7 +147,7 @@ class ContactQuery(object):
 
         for prop, prop_obj in prop_map.items():
             if not prop_obj:
-                raise SearchException("Unrecognized field: %s" % prop)
+                raise SearchException(_("Unrecognized field: %s") % prop)
 
         return prop_map
 
@@ -253,14 +259,14 @@ class Condition(QueryNode):
     def _build_attr_query(self, attr):
         lookup = self.ATTR_OR_URN_LOOKUPS.get(self.comparator)
         if not lookup:
-            raise SearchException("Unsupported comparator %s for contact attribute" % self.comparator)
+            raise SearchException(_("Can't query contact properties with %s") % self.comparator)
 
         return Q(**{'%s__%s' % (attr, lookup): self.value})
 
     def _build_urn_query(self, org, scheme, base_set):
         lookup = self.ATTR_OR_URN_LOOKUPS.get(self.comparator)
         if not lookup:
-            raise SearchException("Unsupported comparator %s for URN" % self.comparator)
+            raise SearchException(_("Can't query contact URNs with %s") % self.comparator)
 
         urns = ContactURN.objects.filter(**{'org': org, 'scheme': scheme, 'path__%s' % lookup: self.value})
 
@@ -294,7 +300,7 @@ class Condition(QueryNode):
             return {'field_and_string_value__in': ['%d|%s' % (field.id, v.upper()) for v in self.value]}
         else:
             if self.comparator not in self.TEXT_LOOKUPS:
-                raise SearchException("Unsupported comparator %s for text field" % self.comparator)
+                raise SearchException(_("Can't query text fields with %s") % self.comparator)
 
             return {'field_and_string_value': '%d|%s' % (field.id, self.value.upper())}
 
@@ -304,19 +310,19 @@ class Condition(QueryNode):
         else:
             lookup = self.DECIMAL_LOOKUPS.get(self.comparator)
             if not lookup:
-                raise SearchException("Unsupported comparator %s for decimal field" % self.comparator)
+                raise SearchException(_("Can't query decimal fields with %s") % self.comparator)
 
             return {'contact_field': field, 'decimal_value__%s' % lookup: self._parse_decimal(self.value)}
 
     def _build_datetime_field_params(self, field):
         lookup = self.DATETIME_LOOKUPS.get(self.comparator)
         if not lookup:
-            raise SearchException("Unsupported comparator %s for datetime field" % self.comparator)
+            raise SearchException(_("Can't query date fields with %s") % self.comparator)
 
         # parse as localized date
         local_date = str_to_datetime(self.value, field.org.timezone, field.org.get_dayfirst(), fill_time=False)
         if not local_date:
-            raise SearchException("Unable to parse date: %s" % self.value)
+            raise SearchException(_("Unable to parse the date %s") % self.value)
 
         # get the range of UTC datetimes for this local date
         utc_range = date_to_utc_range(local_date.date(), field.org)
@@ -359,7 +365,7 @@ class Condition(QueryNode):
         try:
             return Decimal(val)
         except Exception:
-            raise SearchException("Can't convert '%s' to a decimal" % val)
+            raise SearchException(_("%s isn't a valid number") % val)
 
     def __eq__(self, other):
         return isinstance(other, Condition) and self.prop == other.prop and self.comparator == other.comparator and self.value == other.value
@@ -536,7 +542,8 @@ def p_literal(p):
 
 
 def p_error(p):
-    raise SearchException(("Syntax error at '%s'" % p.value) if p else "Syntax error")
+    msg = _("Search query contains an error at '%s'" % p.value) if p else _("Search query contains an error")
+    raise SearchException(msg)
 
 
 search_lexer = SearchLexer()

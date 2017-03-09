@@ -104,14 +104,15 @@ class ContactListView(OrgPermsMixin, SmartListView):
     def get_queryset(self, **kwargs):
         org = self.request.user.get_org()
         group = self.derive_group()
+        self.search_error = None
 
         # contact list views don't use regular field searching but use more complex contact searching
         search_query = self.request.GET.get('search', None)
         if search_query:
             try:
                 qs = Contact.search(org, search_query, group)
-            except SearchException:  # pragma: no cover
-                # TODO display error in UI
+            except SearchException as e:
+                self.search_error = six.text_type(e)
                 qs = Contact.objects.none()
         else:
             qs = group.contacts.all()
@@ -147,6 +148,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         context['groups'] = groups
         context['folders'] = folders
         context['has_contacts'] = contacts or org.has_contacts()
+        context['search_error'] = self.search_error
         context['send_form'] = SendMessageForm(self.request.user)
         return context
 
@@ -836,7 +838,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm('contacts.contactgroup_create') and self.request.GET.get('search', None):
+            if self.has_org_perm('contacts.contactgroup_create') and self.request.GET.get('search') and not self.search_error:
                 links.append(dict(title=_('Save as Group'), js_class='add-dynamic-group', href="#"))
 
             if self.has_org_perm('contacts.contactfield_managefields'):

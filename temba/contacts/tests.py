@@ -85,13 +85,21 @@ class ContactCRUDLTest(_CRUDLTest):
         self.frank.set_field(self.user, 'age', 18)
 
         response = self._do_test_view('list')
-        self.assertEqual([self.frank, self.joe], list(response.context['object_list']))
+        self.assertEqual(list(response.context['object_list']), [self.frank, self.joe])
+        self.assertIsNone(response.context['search_error'])
 
         response = self._do_test_view('list', query_string='search=age+%3D+18')
-        self.assertEqual([self.frank], list(response.context['object_list']))
+        self.assertEqual(list(response.context['object_list']), [self.frank])
+        self.assertIsNone(response.context['search_error'])
 
         response = self._do_test_view('list', query_string='search=age+>+18+and+home+%3D+"Kigali"')
-        self.assertEqual([self.joe], list(response.context['object_list']))
+        self.assertEqual(list(response.context['object_list']), [self.joe])
+        self.assertIsNone(response.context['search_error'])
+
+        # try with invalid search string
+        response = self._do_test_view('list', query_string='search=(((')
+        self.assertEqual(list(response.context['object_list']), [])
+        self.assertEqual(response.context['search_error'], "Search query contains an error")
 
     def testRead(self):
         self.joe = Contact.get_or_create(self.org, self.user, name='Joe', urns=['tel:123'])

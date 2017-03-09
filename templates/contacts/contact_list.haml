@@ -125,7 +125,10 @@
                             .glyph.icon-bubble-replu
 
               .search-details
-                -if search
+                -if search_error
+                  %span.search-error
+                    =search_error
+                -elif search
                   -blocktrans count results_count=paginator.count
                     Found {{ results_count }} contact matching <i>{{search}}</i>.
                     -plural
@@ -243,6 +246,10 @@
 
     .modal .modal-body .control-group .control-label {
       display:none;
+    }
+
+    .search-error {
+      color: #da4f49;
     }
 
 
