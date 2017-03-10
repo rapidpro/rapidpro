@@ -2616,7 +2616,9 @@ class ViberPublicHandler(BaseChannelHandler):
             message_type = message['type']
             if message_type == 'text':
                 # "text": "a message from pa"
-                text = message['text']
+                text = message.get('text', None)
+                if text is None:
+                    return HttpResponse("Missing 'text' key in 'message' in request_body.", status=400)
 
             elif message_type == 'picture':
                 # "media": "http://www.images.com/img.jpg"
