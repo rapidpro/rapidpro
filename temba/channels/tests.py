@@ -2479,6 +2479,26 @@ class ChannelTest(TembaTest):
             if 'p_id' in response and response['p_id'] == p_id:
                 return response
 
+    @patch('nexmo.Client.update_call')
+    @patch('nexmo.Client.create_application')
+    def test_get_ivr_client(self, mock_create_application, mock_update_call):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+        mock_update_call.return_value = dict(uuid='12345')
+
+        channel = Channel.create(self.org, self.user, 'RW', 'A', "Tigo", "+250725551212", secret="11111", gcm_id="456")
+        self.assertIsNone(channel.get_ivr_client())
+
+        self.org.connect_nexmo('123', '456', self.admin)
+        self.org.save()
+
+        channel.channel_type = Channel.TYPE_NEXMO
+        channel.save()
+
+        self.assertIsNotNone(channel.get_ivr_client())
+
+        channel.release()
+        self.assertIsNone(channel.get_ivr_client())
+
 
 class ChannelBatchTest(TembaTest):
 
