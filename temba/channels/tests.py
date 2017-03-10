@@ -9038,6 +9038,12 @@ class ViberPublicTest(TembaTest):
         if assert_media:
             self.assertEqual(msg.media, assert_media)
 
+    def test_receive_picture_missing_media_key(self):
+        self.assertMessageReceived('picture', None, None, 'incoming msg', None)
+
+    def test_receive_video_missing_media_key(self):
+        self.assertMessageReceived('video', None, None, 'incoming msg', None)
+
     def test_receive_contact(self):
         self.assertMessageReceived('contact', 'contact', dict(name="Alex", phone_number="+12067799191"), 'Alex: +12067799191')
 

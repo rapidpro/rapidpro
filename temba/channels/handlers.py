@@ -2618,16 +2618,28 @@ class ViberPublicHandler(BaseChannelHandler):
                 # "text": "a message from pa"
                 text = message['text']
 
-            elif message_type == 'picture':  # pragma: needs cover
+            elif message_type == 'picture':
                 # "media": "http://www.images.com/img.jpg"
                 caption = message.get('text')
-                media = '%s:%s' % (Msg.MEDIA_IMAGE, channel.org.download_and_save_media(Request('GET', message['media'])))
+                if message.get('media', None):  # pragma: needs cover
+                    media = '%s:%s' % (Msg.MEDIA_IMAGE, channel.org.download_and_save_media(Request('GET',
+                                                                                                    message['media'])))
+                else:
+                    # not media then make it the caption and ignore the caption
+                    media = caption
+                    caption = None
                 text = media
 
-            elif message_type == 'video':  # pragma: needs cover
+            elif message_type == 'video':
                 caption = message.get('text')
                 # "media": "http://www.images.com/video.mp4"
-                media = '%s:%s' % (Msg.MEDIA_VIDEO, channel.org.download_and_save_media(Request('GET', message['media'])))
+                if message.get('media', None):  # pragma: needs cover
+                    media = '%s:%s' % (Msg.MEDIA_VIDEO, channel.org.download_and_save_media(Request('GET',
+                                                                                                    message['media'])))
+                else:
+                    # not media then make it the caption and ignore the caption
+                    media = caption
+                    caption = None
                 text = media
 
             elif message_type == 'contact':
