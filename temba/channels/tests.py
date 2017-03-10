@@ -858,6 +858,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         self.assertEqual(Channel.objects.first().channel_type, Channel.TYPE_VUMI_USSD)
+        self.assertEqual(Channel.objects.first().role, Channel.ROLE_USSD)
         self.assertTrue(Channel.objects.first().is_ussd())
         self.assertFalse(Channel.objects.last().is_ussd())
 
@@ -3079,6 +3080,7 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(channel.config_json()['conversation_key'], post_data['conversation_key'])
         self.assertEquals(channel.config_json()['api_url'], Channel.VUMI_GO_API_URL)
         self.assertEquals(channel.channel_type, Channel.TYPE_VUMI_USSD)
+        self.assertEquals(channel.role, Channel.ROLE_USSD)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
@@ -3115,6 +3117,7 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(channel.config_json()['conversation_key'], post_data['conversation_key'])
         self.assertEquals(channel.config_json()['api_url'], "http://custom.api.url")
         self.assertEquals(channel.channel_type, Channel.TYPE_VUMI_USSD)
+        self.assertEquals(channel.role, Channel.ROLE_USSD)
 
     @override_settings(SEND_EMAILS=True)
     def test_disconnected_alert(self):

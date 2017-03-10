@@ -1998,6 +1998,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         title = _("Connect Vumi")
         channel_type = Channel.TYPE_VUMI
+        channel_role = Channel.DEFAULT_ROLE
         form_class = VumiClaimForm
         fields = ('country', 'number', 'account_key', 'conversation_key', 'api_url')
 
@@ -2018,12 +2019,14 @@ class ChannelCRUDL(SmartCRUDL):
                                                               dict(account_key=data['account_key'],
                                                                    access_token=str(uuid4()),
                                                                    conversation_key=data['conversation_key'],
-                                                                   api_url=api_url))
+                                                                   api_url=api_url),
+                                                              role=self.channel_role)
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
     class ClaimVumiUssd(ClaimVumi):
         channel_type = Channel.TYPE_VUMI_USSD
+        channel_role = Channel.ROLE_USSD
 
     class ClaimClickatell(ClaimAuthenticatedExternal):
         class ClickatellForm(forms.Form):

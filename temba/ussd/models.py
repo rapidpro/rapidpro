@@ -35,9 +35,11 @@ class USSDSession(ChannelSession):
         flow.start([], [self.contact], start_msg=None, restart_participants=True, session=self)
 
     def handle_session_async(self, urn, content, date, message_id):
-        from temba.msgs.models import Msg
+        from temba.msgs.models import Msg, USSD
 
-        message = Msg.create_incoming(channel=self.channel, urn=urn, text=content or '', date=date, session=self)
+        message = Msg.create_incoming(
+            channel=self.channel, urn=urn, text=content or '', date=date, session=self,
+            msg_type=USSD)
         message.external_id = message_id
         message.save()
 
