@@ -104,7 +104,8 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
     def derive_export_url(self):
         search = urlquote_plus(self.request.GET.get('search', ''))
-        return '%s?g=%s&s=%s' % (reverse('contacts.contact_export'), self.derive_group().uuid, search)
+        redirect = urlquote_plus(self.request.get_full_path())
+        return '%s?g=%s&s=%s&redirect=%s' % (reverse('contacts.contact_export'), self.derive_group().uuid, search, redirect)
 
     def get_queryset(self, **kwargs):
         org = self.request.user.get_org()
@@ -335,6 +336,7 @@ class ContactCRUDL(SmartCRUDL):
 
             group_uuid = self.request.GET.get('g')
             search = self.request.GET.get('s')
+            redirect = self.request.GET.get('redirect')
 
             group = ContactGroup.all_groups.filter(org=org, uuid=group_uuid).first() if group_uuid else None
 
@@ -366,7 +368,7 @@ class ContactCRUDL(SmartCRUDL):
                                   _("Export complete, you can find it here: %s (production users will get an email)")
                                   % dl_url)
 
-            return HttpResponseRedirect(reverse('contacts.contact_list'))
+            return HttpResponseRedirect(redirect or reverse('contacts.contact_list'))
 
     class Customize(OrgPermsMixin, SmartUpdateView):
 
