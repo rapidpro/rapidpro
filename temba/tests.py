@@ -396,6 +396,15 @@ class TembaTest(SmartminTest):
             else:
                 self.assertEqual(expected, actual)
 
+    def assertExcelSheet(self, sheet, rows, tz=None):
+        """
+        Asserts the row values in the given worksheet
+        """
+        self.assertEqual(len(list(sheet.rows)), len(rows))
+
+        for r, row in enumerate(rows):
+            self.assertExcelRow(sheet, r, row, tz)
+
 
 class FlowFileTest(TembaTest):
 

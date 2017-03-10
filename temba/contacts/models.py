@@ -28,7 +28,7 @@ from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
-from temba.utils.profiler import SegmentProfiler, time_monitor
+from temba.utils.profiler import time_monitor
 from temba.values.models import Value
 
 
@@ -2345,97 +2345,95 @@ class ExportContactsTask(BaseExportTask):
                         field_dict['position'] = i
                         fields.append(field_dict)
 
-        with SegmentProfiler("building up contact fields"):
-            contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True).select_related('org')
-            for contact_field in contact_fields_list:
-                fields.append(dict(field=contact_field,
-                                   label=contact_field.label,
-                                   key=contact_field.key,
-                                   id=contact_field.id,
-                                   urn_scheme=None))
+        contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True).select_related('org')
+        for contact_field in contact_fields_list:
+            fields.append(dict(field=contact_field,
+                               label=contact_field.label,
+                               key=contact_field.key,
+                               id=contact_field.id,
+                               urn_scheme=None))
 
         return fields, scheme_counts
 
     def write_export(self):
         fields, scheme_counts = self.get_export_fields_and_schemes()
 
-        with SegmentProfiler("build up contact ids"):
-            all_contacts = Contact.get_contacts(self.org)
-            if self.group:
-                all_contacts = all_contacts.filter(all_groups=self.group)
+        group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
 
-            contact_ids = [c['id'] for c in all_contacts.order_by('name', 'id').values('id')]
+        if self.search:
+            contacts = Contact.search(self.org, self.search, group)
+        else:
+            contacts = group.contacts.all()
+
+        contact_ids = contacts.filter(is_test=False).order_by('name', 'id').values_list('id', flat=True)
 
         # create our exporter
-        exporter = TableExporter(self, "Contact", [c['label'] for c in fields])
+        exporter = TableExporter(self, "Contact", [f['label'] for f in fields])
 
         current_contact = 0
         start = time.time()
 
-        # in batches of 500 contacts
-        for batch_ids in chunk_list(contact_ids, 500):
-            with SegmentProfiler("output 500 contacts"):
-                batch_ids = list(batch_ids)
+        # write out contacts in batches to limit memory usage
+        for batch_ids in chunk_list(contact_ids, 1000):
+            # fetch all the contacts for our batch
+            batch_contacts = Contact.objects.filter(id__in=batch_ids).select_related('org')
 
-                # fetch all the contacts for our batch
-                batch_contacts = Contact.objects.filter(id__in=batch_ids).select_related('org')
+            # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
+            contact_by_id = {c.id: c for c in batch_contacts}
 
-                # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
-                contact_by_id = {c.id: c for c in batch_contacts}
+            # bulk initialize them
+            Contact.bulk_cache_initialize(self.org, batch_contacts)
 
-                # bulk initialize them
-                Contact.bulk_cache_initialize(self.org, batch_contacts)
+            for contact_id in batch_ids:
+                contact = contact_by_id[contact_id]
 
-                for contact_id in batch_ids:
-                    contact = contact_by_id[contact_id]
+                values = []
+                for col in range(len(fields)):
+                    field = fields[col]
 
-                    values = []
-                    for col in range(len(fields)):
-                        field = fields[col]
-
-                        if field['key'] == Contact.NAME:
-                            field_value = contact.name
-                        elif field['key'] == Contact.UUID:
-                            field_value = contact.uuid
-                        elif field['key'] == Contact.ID:
-                            field_value = six.text_type(contact.id)
-                        elif field['urn_scheme'] is not None:
-                            contact_urns = contact.get_urns()
-                            scheme_urns = []
-                            for urn in contact_urns:
-                                if urn.scheme == field['urn_scheme']:
-                                    scheme_urns.append(urn)
-                            position = field['position']
-                            if len(scheme_urns) > position:
-                                urn_obj = scheme_urns[position]
-                                field_value = urn_obj.get_display(org=self.org, formatted=False) if urn_obj else ''
-                            else:
-                                field_value = ''
+                    if field['key'] == Contact.NAME:
+                        field_value = contact.name
+                    elif field['key'] == Contact.UUID:
+                        field_value = contact.uuid
+                    elif field['key'] == Contact.ID:
+                        field_value = six.text_type(contact.id)
+                    elif field['urn_scheme'] is not None:
+                        contact_urns = contact.get_urns()
+                        scheme_urns = []
+                        for urn in contact_urns:
+                            if urn.scheme == field['urn_scheme']:
+                                scheme_urns.append(urn)
+                        position = field['position']
+                        if len(scheme_urns) > position:
+                            urn_obj = scheme_urns[position]
+                            field_value = urn_obj.get_display(org=self.org, formatted=False) if urn_obj else ''
                         else:
-                            value = contact.get_field(field['key'])
-                            field_value = Contact.get_field_display_for_value(field['field'], value)
-
-                        if field_value is None:
                             field_value = ''
+                    else:
+                        value = contact.get_field(field['key'])
+                        field_value = Contact.get_field_display_for_value(field['field'], value)
 
-                        if field_value:
-                            field_value = six.text_type(clean_string(field_value))
+                    if field_value is None:
+                        field_value = ''
 
-                        values.append(field_value)
+                    if field_value:
+                        field_value = six.text_type(clean_string(field_value))
 
-                    # write this contact's values
-                    exporter.write_row(values)
-                    current_contact += 1
+                    values.append(field_value)
 
-                    # output some status information every 10,000 contacts
-                    if current_contact % 10000 == 0:  # pragma: no cover
-                        elapsed = time.time() - start
-                        predicted = int(elapsed / (current_contact / (len(contact_ids) * 1.0)))
+                # write this contact's values
+                exporter.write_row(values)
+                current_contact += 1
 
-                        print("Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)" %
-                              (self.org.name, current_contact * 100 / len(contact_ids),
-                               "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
-                               time.time() - start, predicted))
+                # output some status information every 10,000 contacts
+                if current_contact % 10000 == 0:  # pragma: no cover
+                    elapsed = time.time() - start
+                    predicted = int(elapsed / (current_contact / (len(contact_ids) * 1.0)))
+
+                    print("Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)" %
+                          (self.org.name, current_contact * 100 / len(contact_ids),
+                           "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
+                           time.time() - start, predicted))
 
         return exporter.save_file()
 

@@ -3710,7 +3710,7 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_label("Age_Now"))  # can't have punctuation
         self.assertFalse(ContactField.is_valid_label("âge"))      # a-z only
 
-    def test_export(self):
+    def test_contact_export(self):
         self.clear_storage()
 
         self.login(self.admin)
@@ -3739,6 +3739,8 @@ class ContactFieldTest(TembaTest):
         urns.append("telegram:1234")
         contact2.update_urns(self.admin, urns)
 
+        group = self.create_group('Poppin Tags', [contact, contact2])
+
         Contact.get_test_contact(self.user)  # create test contact to ensure they aren't included in the export
 
         # create a dummy export task so that we won't be able to export
@@ -3750,78 +3752,68 @@ class ContactFieldTest(TembaTest):
         # ok, mark that one as finished and try again
         blocking_export.update_status(ExportContactsTask.STATUS_COMPLETE)
 
-        with self.assertNumQueries(38):
-            self.client.get(reverse('contacts.contact_export'), dict())
+        def request_export(query=''):
+            self.client.get(reverse('contacts.contact_export') + query)
             task = ExportContactsTask.objects.all().order_by('-id').first()
-
             filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
             workbook = load_workbook(filename=filename)
-            sheet = workbook.worksheets[0]
+            return workbook.worksheets[0]
 
-            # check our headers
-            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Email", "Phone", "Telegram", "Twitter", "First", "Second", "Third"])
-
-            # first row should be Adam
-            self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "1234", "adam", "", "", ""])
-
-            # second should be Ben
-            self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "", "+12067799294", "", "", "One", "", "20-12-2015 08:30"])
-
-            self.assertEqual(len(list(sheet.rows)), 3)  # no other contacts
+        # no group specified, so will default to 'All Contacts'
+        with self.assertNumQueries(39):
+            self.assertExcelSheet(request_export(), [
+                ["UUID", "Name", "Email", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "1234", "adam", "", "", ""],
+                [contact.uuid, "Ben Haggerty", "", "+12067799294", "", "", "One", "", "20-12-2015 08:30"],
+            ])
 
         # more contacts do not increase the queries
         contact3 = self.create_contact('Luol Deng', '+12078776655', twitter='deng')
         contact4 = self.create_contact('Stephen', '+12078778899', twitter='stephen')
         ContactURN.create(self.org, contact, 'tel:+12062233445')
 
-        with self.assertNumQueries(38):
-            self.client.get(reverse('contacts.contact_export'), dict())
-            task = ExportContactsTask.objects.all().order_by('-id').first()
+        # but should have additional Twitter and phone columns
+        with self.assertNumQueries(39):
+            self.assertExcelSheet(request_export(), [
+                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
+                [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
+                [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", ""],
+                [contact4.uuid, "Stephen", "", "+12078778899", "", "", "stephen", "", "", ""],
+            ])
 
-            filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-            workbook = load_workbook(filename=filename)
-            sheet = workbook.worksheets[0]
+        # export a specified group of contacts (only Ben and Adam are in the group)
+        with self.assertNumQueries(40):
+            self.assertExcelSheet(request_export('?g=%s' % group.uuid), [
+                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
+                [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
+            ])
 
-            # check our headers have 2 phone columns and Twitter
-            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"])
+        # export a search
+        with self.assertNumQueries(40):
+            self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng'), [
+                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
+                [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", ""],
+            ])
 
-            self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""])
-            self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"])
-            self.assertExcelRow(sheet, 3, [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", ""])
-            self.assertExcelRow(sheet, 4, [contact4.uuid, "Stephen", "", "+12078778899", "", "", "stephen", "", "", ""])
-
-            self.assertEqual(len(list(sheet.rows)), 5)  # no other contacts
-
-        # export a specified group of contacts
-        self.client.post(reverse('contacts.contactgroup_create'), dict(name="Poppin Tags", group_query='Haggerty'))
-        group = ContactGroup.user_groups.get(name='Poppin Tags')
-        self.client.get(reverse('contacts.contact_export'), dict(g=group.uuid))
-        task = ExportContactsTask.objects.all().order_by('-id').first()
-        filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-        workbook = load_workbook(filename=filename)
-        sheet = workbook.worksheets[0]
-
-        # just the header and a single contact
-        self.assertEqual(len(list(sheet.rows)), 2)
+        # export a search within a specified group of contacts
+        with self.assertNumQueries(40):
+            self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid), [
+                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
+            ])
 
         # now try with an anonymous org
         with AnonymousOrg(self.org):
-            self.client.get(reverse('contacts.contact_export'), dict())
-            task = ExportContactsTask.objects.all().order_by('-id').first()
-
-            filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-            workbook = load_workbook(filename=filename)
-            sheet = workbook.worksheets[0]
-
-            # check our headers have 2 phone columns and Twitter
-            self.assertExcelRow(sheet, 0, ["ID", "UUID", "Name", "First", "Second", "Third"])
-
-            self.assertExcelRow(sheet, 1, [six.text_type(contact2.id), contact2.uuid, "Adam Sumner", "", "", ""])
-            self.assertExcelRow(sheet, 2, [six.text_type(contact.id), contact.uuid, "Ben Haggerty", "One", "", "20-12-2015 08:30"])
-            self.assertExcelRow(sheet, 3, [six.text_type(contact3.id), contact3.uuid, "Luol Deng", "", "", ""])
-            self.assertExcelRow(sheet, 4, [six.text_type(contact4.id), contact4.uuid, "Stephen", "", "", ""])
-
-            self.assertEqual(len(list(sheet.rows)), 5)  # no other contacts
+            self.assertExcelSheet(request_export(), [
+                ["ID", "UUID", "Name", "First", "Second", "Third"],
+                [six.text_type(contact2.id), contact2.uuid, "Adam Sumner", "", "", ""],
+                [six.text_type(contact.id), contact.uuid, "Ben Haggerty", "One", "", "20-12-2015 08:30"],
+                [six.text_type(contact3.id), contact3.uuid, "Luol Deng", "", "", ""],
+                [six.text_type(contact4.id), contact4.uuid, "Stephen", "", "", ""],
+            ])
 
     def test_contact_field_list(self):
         url = reverse('contacts.contactfield_list')
