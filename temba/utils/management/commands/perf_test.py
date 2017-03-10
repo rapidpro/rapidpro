@@ -145,10 +145,12 @@ class Command(BaseCommand):  # pragma: no cover
         results = []
 
         for o, org in enumerate(test_orgs):
+            org.allowed_max = org_allowed_maximums[o]
+
             # look for previous times for this org
             prev_org_times = prev_times.get(org.id, {})
 
-            results.append(self.test_org(org, test_urls, num_requests, org_allowed_maximums[o], prev_org_times))
+            results.append(self.test_org(org, test_urls, num_requests, prev_org_times))
 
         self.save_results(results_file, started, results)
 
@@ -161,12 +163,12 @@ class Command(BaseCommand):  # pragma: no cover
                 if not test.is_pass():
                     sys.exit(1)
 
-    def test_org(self, org, urls, num_requests, allowed_max, prev_times):
+    def test_org(self, org, urls, num_requests, prev_times):
         """
         Tests the given URLs for the given org
         """
-        self.stdout.write(self.style.MIGRATE_HEADING("Testing org #%d (%d contacts, %dms max allowed)"
-                                                     % (org.id, org.org_contacts.count(), allowed_max)))
+        self.stdout.write(self.style.MIGRATE_HEADING("Org #%d (%d contacts, %dms max allowed)"
+                                                     % (org.id, org.org_contacts.count(), org.allowed_max)))
 
         # build a URL context for this org
         url_context = {}
@@ -182,7 +184,7 @@ class Command(BaseCommand):  # pragma: no cover
 
             prev_url_times = prev_times.get(formatted_url)
 
-            tests.append(self.test_url(formatted_url, num_requests, allowed_max, prev_url_times))
+            tests.append(self.test_url(formatted_url, num_requests, org.allowed_max, prev_url_times))
 
         return {'org': org, 'tests': tests}
 
@@ -266,7 +268,7 @@ class Command(BaseCommand):  # pragma: no cover
     def write_org_html(self, f, org, tests):
         f.write("""
         <tr style="background-color: #2f4970; color: white">
-            <th style="padding: 5px" colspan="5">Org #%d (%d contacts)</th>
+            <th style="padding: 5px" colspan="5">Org #%d (%d contacts, %dms max allowed)</th>
         </tr>
         <tr style="background-color: #f2f6fc; color: #2f4970">
             <th style="padding: 5px; text-align: left">URL</th>
@@ -275,7 +277,7 @@ class Command(BaseCommand):  # pragma: no cover
             <th style="padding: 5px">Change (ms)</th>
             <th style="padding: 5px">Change (%%)</th>
         </tr>
-        """ % (org.id, org.org_contacts.count()))
+        """ % (org.id, org.org_contacts.count(), org.allowed_max))
 
         for test in tests:
             if test.change:
