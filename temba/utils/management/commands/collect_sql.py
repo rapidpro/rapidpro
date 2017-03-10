@@ -13,6 +13,7 @@ from six.moves import filter
 from sqlparse import sql
 from sqlparse import tokens as sql_tokens
 from temba.utils import truncate
+from textwrap import dedent
 
 
 class InvalidSQLException(Exception):
@@ -140,7 +141,7 @@ class Command(BaseCommand):  # pragma: no cover
         for migration in migrations:
             for operation in migration.operations:
                 if isinstance(operation, RunSQL):
-                    statements = sqlparse.parse(operation.sql)
+                    statements = sqlparse.parse(dedent(operation.sql))
 
                     for statement in statements:
                         operation = SqlObjectOperation.parse(statement)

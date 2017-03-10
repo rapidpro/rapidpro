@@ -4,28 +4,29 @@ from __future__ import unicode_literals
 
 from django.db import migrations
 
-SQL = """
-CREATE INDEX values_value_field_string_value_concat
-ON values_value((contact_field_id || '|' || UPPER(string_value)));
-
-CREATE INDEX values_value_field_datetime_value_not_null
-ON values_value(contact_field_id, datetime_value)
-WHERE contact_field_id IS NOT NULL AND datetime_value IS NOT NULL;
-
-CREATE INDEX values_value_field_decimal_value_not_null
-ON values_value(contact_field_id, decimal_value)
-WHERE contact_field_id IS NOT NULL AND decimal_value IS NOT NULL;
-
-ANALYZE values_value;
-"""
-
 
 class Migration(migrations.Migration):
+
+    atomic = False
 
     dependencies = [
         ('values', '0009_install_indexes'),
     ]
 
     operations = [
-        migrations.RunSQL(SQL)
+        migrations.RunSQL("""
+            CREATE INDEX CONCURRENTLY values_value_field_string_value_concat
+            ON values_value((contact_field_id || '|' || UPPER(string_value)));
+        """),
+        migrations.RunSQL("""
+            CREATE INDEX CONCURRENTLY values_value_field_datetime_value_not_null
+            ON values_value(contact_field_id, datetime_value)
+            WHERE contact_field_id IS NOT NULL AND datetime_value IS NOT NULL;
+        """),
+        migrations.RunSQL("""
+            CREATE INDEX CONCURRENTLY values_value_field_decimal_value_not_null
+            ON values_value(contact_field_id, decimal_value)
+            WHERE contact_field_id IS NOT NULL AND decimal_value IS NOT NULL;
+        """),
+        migrations.RunSQL("ANALYZE values_value;"),
     ]
