@@ -26,7 +26,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.ivr.models import IVRCall
 from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, WIRED, OUTGOING
+from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, WIRED, OUTGOING, USSD
 from temba.orgs.models import Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
 from temba.triggers.models import Trigger
@@ -2738,6 +2738,11 @@ class ActionTest(TembaTest):
         self.assertEquals(self.contact, response.contact)
 
     def test_ussd_action(self):
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
@@ -2774,6 +2779,11 @@ class ActionTest(TembaTest):
         Broadcast.objects.all().delete()
 
     def test_multilanguage_ussd_menu_partly_translated(self):
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
