@@ -554,6 +554,11 @@ class ContactCRUDL(SmartCRUDL):
                 super(ContactCRUDL.Import.ImportForm, self).__init__(*args, **kwargs)
 
             def clean_csv_file(self):
+                if not regex.match(r'^[A-Za-z0-9_.\-*() ]+$', self.cleaned_data['csv_file'].name, regex.V0):
+                    raise forms.ValidationError('Please make sure the file name only contains '
+                                                'alphanumeric characters [0-9a-zA-Z] and '
+                                                'special characters in -, _, ., *, (, )')
+
                 try:
                     Contact.get_org_import_file_headers(ContentFile(self.cleaned_data['csv_file'].read()), self.org)
                 except Exception as e:
