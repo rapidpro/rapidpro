@@ -121,15 +121,6 @@ def media_url(media):
 @register.filter
 def media_content_type(media):
     if media:
-        if media.startswith('http'):  # pragma: needs cover
-            if media.endswith('.wav'):
-                return 'audio/x-wav'
-            elif media.endswith('.mp3'):
-                return 'audio/mp3'
-            elif media.endswith('.mp4'):
-                return 'video/mp4'
-            elif media.endswith('.jpg'):
-                return 'image/jpeg'
         return media.partition(':')[0]
 
 
