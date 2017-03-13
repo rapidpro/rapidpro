@@ -2792,7 +2792,7 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
                              'Please make sure the file name only contains alphanumeric characters [0-9a-zA-Z] and '
-                             'special characters in -, _, ., *, (, )')
+                             'special characters in -, _, ., (, )')
 
         # try importing invalid spreadsheets with missing headers
         csv_file = open('%s/test_imports/sample_contacts_missing_name_header.xls' % settings.MEDIA_ROOT, 'rb')
