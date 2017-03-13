@@ -7734,7 +7734,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
             self.org, self.user, 'RW', Channel.TYPE_JUNEBUG, None, '1234',
             config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
             uuid='00000000-0000-0000-0000-000000001234',
-            role=Channel.ROLE_USSD)
+            role=Channel.DEFAULT_ROLE)
 
     def tearDown(self):
         super(JunebugTest, self).tearDown()
@@ -7909,7 +7909,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         self.channel = Channel.create(
             self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '1234',
             config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
-            uuid='00000000-0000-0000-0000-000000001234')
+            uuid='00000000-0000-0000-0000-000000001234', role=Channel.ROLE_USSD)
 
         self.trigger, _ = Trigger.objects.get_or_create(
             channel=self.channel, keyword=self.starcode, flow=flow,
