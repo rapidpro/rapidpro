@@ -1390,6 +1390,16 @@ class Contact(TembaModel):
             changed.append(contact.pk)
         return changed
 
+    def archive_contact_empty_triggers(self):
+        contact_triggers = list(self.trigger_set.all())
+
+        for trigger in contact_triggers:
+            trigger.contacts.remove(self)
+
+            if not trigger.groups.exists() and not trigger.contacts.exists():
+                trigger.is_archived = True
+                trigger.save()
+
     def block(self, user):
         """
         Blocks this contact removing it from all non-dynamic groups
@@ -1398,7 +1408,7 @@ class Contact(TembaModel):
             raise ValueError("Can't block a test contact")
 
         self.clear_all_groups(user)
-        self.trigger_set.clear()
+        self.archive_contact_empty_triggers()
 
         self.is_blocked = True
         self.modified_by = user
@@ -1427,7 +1437,7 @@ class Contact(TembaModel):
 
         self.clear_all_groups(get_anonymous_user())
 
-        self.trigger_set.clear()
+        self.archive_contact_empty_triggers()
 
     def unstop(self, user):
         """
