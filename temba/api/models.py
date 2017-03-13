@@ -229,11 +229,6 @@ class WebHookEvent(SmartModel):
             channel = event.channel
             contact_urn = event.contact_urn
 
-        if channel:
-            channel_id = channel.pk
-        else:
-            channel_id = -1
-
         steps = []
         for step in run.steps.prefetch_related('messages', 'broadcasts').order_by('arrived_on'):
             steps.append(dict(type=step.step_type,
@@ -243,9 +238,11 @@ class WebHookEvent(SmartModel):
                               text=step.get_text(),
                               value=step.rule_value))
 
-        data = dict(channel=channel_id,
-                    relayer=channel_id,
+        data = dict(channel=channel.id if channel else -1,
+                    channel_uuid=channel.uuid if channel else None,
+                    relayer=channel.id if channel else -1,
                     flow=flow.id,
+                    flow_uuid=flow.uuid,
                     flow_name=flow.name,
                     flow_base_language=flow.base_language,
                     run=run.id,
@@ -438,6 +435,7 @@ class WebHookEvent(SmartModel):
 
         json_time = channel.last_seen.strftime('%Y-%m-%dT%H:%M:%S.%f')
         data = dict(channel=channel.pk,
+                    channel_uuid=channel.uuid,
                     power_source=sync_event.power_source,
                     power_status=sync_event.power_status,
                     power_level=sync_event.power_level,

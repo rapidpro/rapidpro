@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import csv
 import gc
@@ -79,6 +79,7 @@ class BaseExportTask(TembaModel):
             self.update_status(self.STATUS_COMPLETE)
         finally:
             elapsed = time.time() - start
+            print("Completed %s in %.1f seconds" % (self.analytics_key, elapsed))
             analytics.track(self.created_by.username, 'temba.%s_latency' % self.analytics_key, properties=dict(value=elapsed))
 
             gc.collect()  # force garbage collection
