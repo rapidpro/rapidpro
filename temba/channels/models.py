@@ -1240,7 +1240,7 @@ class Channel(TembaModel):
                                       response_status=event.status_code,
                                       request_time=request_time)
 
-    # wrapper for non-mms sends
+    # wrapper for non-media sends
     def append_media(func):
         def wrapper(cls, channel, msg, text):
             if msg.media:
@@ -2896,7 +2896,6 @@ class Channel(TembaModel):
                 # too many sent in the last second, sleep a bit and try again
                 time.sleep(1 / float(max_tps))
 
-        text = msg.text
         sent_count = 0
         parts = Msg.get_text_parts(msg.text, channel.config.get(Channel.CONFIG_MAX_LENGTH, type_settings[Channel.CONFIG_MAX_LENGTH]))
 

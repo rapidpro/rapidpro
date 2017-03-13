@@ -2761,7 +2761,7 @@ class ActionTest(TembaTest):
         self.assertEquals("We love green too!", response.text)
         self.assertEquals(self.contact, response.contact)
 
-    def test_mms_action(self):
+    def test_media_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
@@ -2993,9 +2993,9 @@ class ActionTest(TembaTest):
         self.assertTrue(updated_action.groups)
         self.assertFalse(self.other_group.pk in [g.pk for g in updated_action.groups])
 
-        # test send MMS to someone else
+        # test send media to someone else
         run = FlowRun.create(self.flow, self.contact.pk)
-        msg_body = 'I am an MMS message'
+        msg_body = 'I am a media message message'
 
         action = SendAction(dict(base=msg_body), [], [self.contact2], [], dict(base='image/jpeg:attachments/picture.jpg'))
         action.execute(run, None, None)
@@ -5033,8 +5033,8 @@ class FlowsTest(FlowFileTest):
         self.send('split')
         self.assertEqual('You are in Group B', Msg.objects.filter(direction='O').order_by('-created_on')[1].text)
 
-    def test_mms_first_action(self):
-        flow = self.get_flow('mms_first_action')
+    def test_media_first_action(self):
+        flow = self.get_flow('media_first_action')
 
         runs = flow.start_msg_flow([self.contact.id])
         self.assertEquals(1, len(runs))

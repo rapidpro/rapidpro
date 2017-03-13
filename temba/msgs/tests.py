@@ -1906,19 +1906,19 @@ class BroadcastLanguageTest(TembaTest):
 
         bcast.send()
 
-        francois_mms = Msg.objects.filter(contact=self.francois).order_by('-created_on').first()
-        greg_mms = Msg.objects.filter(contact=self.greg).order_by('-created_on').first()
-        wilbert_mms = Msg.objects.filter(contact=self.wilbert).order_by('-created_on').first()
+        francois_media = Msg.objects.filter(contact=self.francois).order_by('-created_on').first()
+        greg_media = Msg.objects.filter(contact=self.greg).order_by('-created_on').first()
+        wilbert_media = Msg.objects.filter(contact=self.wilbert).order_by('-created_on').first()
 
         # assert the right language was used for each contact on both text and media
-        self.assertEquals(fre_msg, francois_mms.text)
-        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1]), francois_mms.media)
+        self.assertEquals(fre_msg, francois_media.text)
+        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1]), francois_media.media)
 
-        self.assertEquals(eng_msg, greg_mms.text)
-        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, eng_attachment.split(':', 1)[1]), greg_mms.media)
+        self.assertEquals(eng_msg, greg_media.text)
+        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, eng_attachment.split(':', 1)[1]), greg_media.media)
 
-        self.assertEquals(fre_msg, wilbert_mms.text)
-        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1]), wilbert_mms.media)
+        self.assertEquals(fre_msg, wilbert_media.text)
+        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1]), wilbert_media.media)
 
 
 class SystemLabelTest(TembaTest):
