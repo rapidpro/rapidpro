@@ -17,6 +17,7 @@ from django.db.models import Q
 from django.http import HttpResponseRedirect, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
+from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
@@ -100,6 +101,11 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
     def derive_group(self):
         return ContactGroup.all_groups.get(org=self.request.user.get_org(), group_type=self.system_group)
+
+    def derive_export_url(self):
+        search = urlquote_plus(self.request.GET.get('search', ''))
+        redirect = urlquote_plus(self.request.get_full_path())
+        return '%s?g=%s&s=%s&redirect=%s' % (reverse('contacts.contact_export'), self.derive_group().uuid, search, redirect)
 
     def get_queryset(self, **kwargs):
         org = self.request.user.get_org()
@@ -328,13 +334,11 @@ class ContactCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            group = None
-            group_uuid = self.request.GET.get('g', None)
-            if group_uuid:
-                groups = ContactGroup.user_groups.filter(uuid=group_uuid, org=org)
+            group_uuid = self.request.GET.get('g')
+            search = self.request.GET.get('s')
+            redirect = self.request.GET.get('redirect')
 
-                if groups:
-                    group = groups[0]
+            group = ContactGroup.all_groups.filter(org=org, uuid=group_uuid).first() if group_uuid else None
 
             # is there already an export taking place?
             existing = ExportContactsTask.get_recent_unfinished(org)
@@ -349,7 +353,7 @@ class ContactCRUDL(SmartCRUDL):
                 if previous_export and previous_export.created_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover
                     analytics.track(self.request.user.username, 'temba.contact_exported')
 
-                export = ExportContactsTask.objects.create(created_by=user, modified_by=user, org=org, group=group)
+                export = ExportContactsTask.create(org, user, group, search)
 
                 on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
 
@@ -364,7 +368,7 @@ class ContactCRUDL(SmartCRUDL):
                                   _("Export complete, you can find it here: %s (production users will get an email)")
                                   % dl_url)
 
-            return HttpResponseRedirect(reverse('contacts.contact_list'))
+            return HttpResponseRedirect(redirect or reverse('contacts.contact_list'))
 
     class Customize(OrgPermsMixin, SmartUpdateView):
 
@@ -845,7 +849,7 @@ class ContactCRUDL(SmartCRUDL):
                 links.append(dict(title=_('Manage Fields'), js_class='manage-fields', href="#"))
 
             if self.has_org_perm('contacts.contact_export'):
-                links.append(dict(title=_('Export'), href=reverse('contacts.contact_export')))
+                links.append(dict(title=_('Export'), href=self.derive_export_url()))
             return links
 
         def get_context_data(self, *args, **kwargs):
@@ -893,8 +897,7 @@ class ContactCRUDL(SmartCRUDL):
                                   href="#"))
 
             if self.has_org_perm('contacts.contact_export'):
-                links.append(dict(title=_('Export'),
-                                  href='%s?g=%s' % (reverse('contacts.contact_export'), self.kwargs['group'])))
+                links.append(dict(title=_('Export'), href=self.derive_export_url()))
 
             if self.has_org_perm('contacts.contactgroup_delete'):
                 links.append(dict(title=_('Delete Group'),
