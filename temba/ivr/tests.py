@@ -1211,6 +1211,11 @@ class IVRTests(FlowFileTest):
         self.assertContains(response, 'no channel configured to take this call')
         self.assertEqual(200, response.status_code)
 
+        # no channel found for call handle
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict())
+        self.assertEqual(400, response.status_code)
+        self.assertEqual('No channel found', response.content)
+
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)

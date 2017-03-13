@@ -848,6 +848,11 @@ class Channel(TembaModel):
             return NCCOResponse()
 
     def get_ivr_client(self):
+
+        # no client for released channels
+        if not (self.is_active and self.org):
+            return None
+
         if self.channel_type == Channel.TYPE_TWILIO:
             return self.org.get_twilio_client()
         elif self.channel_type == Channel.TYPE_TWIML:

@@ -2479,6 +2479,26 @@ class ChannelTest(TembaTest):
             if 'p_id' in response and response['p_id'] == p_id:
                 return response
 
+    @patch('nexmo.Client.update_call')
+    @patch('nexmo.Client.create_application')
+    def test_get_ivr_client(self, mock_create_application, mock_update_call):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+        mock_update_call.return_value = dict(uuid='12345')
+
+        channel = Channel.create(self.org, self.user, 'RW', 'A', "Tigo", "+250725551212", secret="11111", gcm_id="456")
+        self.assertIsNone(channel.get_ivr_client())
+
+        self.org.connect_nexmo('123', '456', self.admin)
+        self.org.save()
+
+        channel.channel_type = Channel.TYPE_NEXMO
+        channel.save()
+
+        self.assertIsNotNone(channel.get_ivr_client())
+
+        channel.release()
+        self.assertIsNone(channel.get_ivr_client())
+
 
 class ChannelBatchTest(TembaTest):
 
@@ -9002,14 +9022,15 @@ class ViberPublicTest(TembaTest):
         self.assertEqual(msg.sent_on.date(), date(day=7, month=12, year=2016))
         self.assertEqual(msg.external_id, "4987381189870374000")
 
-    def assertSignedRequest(self, payload):
+    def assertSignedRequest(self, payload, expected_status=200):
         from temba.channels.handlers import ViberPublicHandler
 
         signature = ViberPublicHandler.calculate_sig(payload, "auth_token")
         response = self.client.post(self.callback_url, payload, content_type="application/json",
                                     HTTP_X_VIBER_CONTENT_SIGNATURE=signature)
 
-        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.status_code, expected_status, response.content)
+        return response
 
     def assertMessageReceived(self, msg_type, payload_name, payload_value, assert_text, assert_media=None):
         data = {
@@ -9037,6 +9058,30 @@ class ViberPublicTest(TembaTest):
 
         if assert_media:
             self.assertEqual(msg.media, assert_media)
+
+    def test_reject_message_missing_text(self):
+        data = {
+            "event": "message",
+            "timestamp": 1481142112807,
+            "message_token": 4987381189870374000,
+            "sender": {
+                "id": "xy5/5y6O81+/kbWHpLhBoA==",
+                "name": "ET3",
+            },
+            "message": {
+                "type": "text",
+                "tracking_data": "3055",
+            }
+        }
+
+        response = self.assertSignedRequest(json.dumps(data), 400)
+        self.assertIn("Missing 'text' key in 'message' in request_body.", response.content)
+
+    def test_receive_picture_missing_media_key(self):
+        self.assertMessageReceived('picture', None, None, 'incoming msg', None)
+
+    def test_receive_video_missing_media_key(self):
+        self.assertMessageReceived('video', None, None, 'incoming msg', None)
 
     def test_receive_contact(self):
         self.assertMessageReceived('contact', 'contact', dict(name="Alex", phone_number="+12067799191"), 'Alex: +12067799191')

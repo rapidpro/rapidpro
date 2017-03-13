@@ -3477,6 +3477,7 @@ class ActionTest(TembaTest):
                                                          'urn': u'tel:+250788382382',
                                                          'text': None,
                                                          'flow': self.flow.pk,
+                                                         'flow_uuid': self.flow.uuid,
                                                          'flow_name': self.flow.name,
                                                          'flow_base_language': self.flow.base_language,
                                                          'relayer': -1,
@@ -3484,7 +3485,8 @@ class ActionTest(TembaTest):
                                                          'values': '[]',
                                                          'time': '2015-10-27T14:07:30.000006Z',
                                                          'steps': '[]',
-                                                         'channel': -1},
+                                                         'channel': -1,
+                                                         'channel_uuid': None},
                                                    timeout=10)
         mock_requests_post.reset_mock()
 
@@ -3505,6 +3507,7 @@ class ActionTest(TembaTest):
                                                          'urn': u'tel:+250788382382',
                                                          'text': "Green is my favorite",
                                                          'flow': self.flow.pk,
+                                                         'flow_uuid': self.flow.uuid,
                                                          'flow_name': self.flow.name,
                                                          'flow_base_language': self.flow.base_language,
                                                          'relayer': msg.channel.pk,
@@ -3512,7 +3515,8 @@ class ActionTest(TembaTest):
                                                          'values': '[]',
                                                          'time': '2015-10-27T14:07:30.000006Z',
                                                          'steps': '[]',
-                                                         'channel': msg.channel.pk},
+                                                         'channel': msg.channel.pk,
+                                                         'channel_uuid': msg.channel.uuid},
                                                    timeout=10)
 
         # check simulator warns of webhook URL errors
