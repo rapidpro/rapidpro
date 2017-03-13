@@ -4,7 +4,7 @@ import json
 
 from django.core.urlresolvers import reverse
 from temba.tests import TembaTest
-from .models import STATE_LEVEL
+from .models import AdminBoundary
 
 
 class LocationTest(TembaTest):
@@ -107,22 +107,22 @@ class LocationTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # exact match
-        boundary = self.org.find_boundary_by_name('kigali city', STATE_LEVEL, self.country)
+        boundary = self.org.find_boundary_by_name('kigali city', AdminBoundary.LEVEL_STATE, self.country)
         self.assertEqual(len(boundary), 1)
         self.assertEqual(boundary[0], self.state1)
 
         # try to find the location by alias
-        boundary = self.org.find_boundary_by_name('kigs', STATE_LEVEL, self.country)
+        boundary = self.org.find_boundary_by_name('kigs', AdminBoundary.LEVEL_STATE, self.country)
         self.assertEqual(len(boundary), 1)
         self.assertEqual(boundary[0], self.state1)
 
         # also try with no parent
-        boundary = self.org.find_boundary_by_name('kigs', STATE_LEVEL, None)
+        boundary = self.org.find_boundary_by_name('kigs', AdminBoundary.LEVEL_STATE, None)
         self.assertEqual(len(boundary), 1)
         self.assertEqual(boundary[0], self.state1)
 
         # test no match
-        boundary = self.org.find_boundary_by_name('foobar', STATE_LEVEL, None)
+        boundary = self.org.find_boundary_by_name('foobar', AdminBoundary.LEVEL_STATE, None)
         self.assertFalse(boundary)
 
         # fetch aliases again
