@@ -30,6 +30,7 @@ from temba.utils.views import BaseActionForm
 from .models import Contact, ContactGroup, ContactField, ContactURN, URN, URN_SCHEME_CONFIG, TEL_SCHEME
 from .models import ExportContactsTask
 from .omnibox import omnibox_query, omnibox_results_to_dict
+from .search import SearchException
 from .tasks import export_contacts_task
 
 
@@ -93,31 +94,30 @@ class ContactListView(OrgPermsMixin, SmartListView):
     """
     Base class for contact list views with contact folders and groups listed by the side
     """
+    system_group = None
     add_button = True
     paginate_by = 50
 
-    def pre_process(self, request, *args, **kwargs):
-        if hasattr(self, 'system_group'):
-            org = request.user.get_org()
-            self.queryset = ContactGroup.get_system_group_queryset(org, self.system_group)
+    def derive_group(self):
+        return ContactGroup.all_groups.get(org=self.request.user.get_org(), group_type=self.system_group)
 
     def get_queryset(self, **kwargs):
-        qs = super(ContactListView, self).get_queryset(**kwargs)
-        qs = qs.filter(is_test=False)
         org = self.request.user.get_org()
+        group = self.derive_group()
+        self.search_error = None
 
         # contact list views don't use regular field searching but use more complex contact searching
-        query = self.request.GET.get('search', None)
-        if query:
-            qs, self.request.compiled_query = Contact.search(org, query, qs)
+        search_query = self.request.GET.get('search', None)
+        if search_query:
+            try:
+                qs = Contact.search(org, search_query, group)
+            except SearchException as e:
+                self.search_error = six.text_type(e)
+                qs = Contact.objects.none()
+        else:
+            qs = group.contacts.all()
 
-        return qs.order_by('-pk').prefetch_related('all_groups')
-
-    def order_queryset(self, queryset):
-        """
-        Order contacts by name, case insensitive
-        """
-        return queryset
+        return qs.filter(is_test=False).order_by('-id').prefetch_related('all_groups')
 
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
@@ -125,15 +125,16 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
         # if there isn't a search filtering the queryset, we can replace the count function with a quick cache lookup to
         # speed up paging
-        if hasattr(self, 'system_group') and 'search' not in self.request.GET:
+        if self.system_group and 'search' not in self.request.GET:
             self.object_list.count = lambda: counts[self.system_group]
 
         context = super(ContactListView, self).get_context_data(**kwargs)
 
-        folders = [dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=reverse('contacts.contact_list')),
-                   dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse('contacts.contact_blocked')),
-                   dict(count=counts[ContactGroup.TYPE_STOPPED], label=_("Stopped"), url=reverse('contacts.contact_stopped')),
-                   ]
+        folders = [
+            dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=reverse('contacts.contact_list')),
+            dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse('contacts.contact_blocked')),
+            dict(count=counts[ContactGroup.TYPE_STOPPED], label=_("Stopped"), url=reverse('contacts.contact_stopped')),
+        ]
 
         groups_qs = ContactGroup.user_groups.filter(org=org).select_related('org')
         groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')
@@ -147,6 +148,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         context['groups'] = groups
         context['folders'] = folders
         context['has_contacts'] = contacts or org.has_contacts()
+        context['search_error'] = self.search_error
         context['send_form'] = SendMessageForm(self.request.user)
         return context
 
@@ -836,7 +838,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm('contacts.contactgroup_create') and self.request.GET.get('search', None):
+            if self.has_org_perm('contacts.contactgroup_create') and self.request.GET.get('search') and not self.search_error:
                 links.append(dict(title=_('Save as Group'), js_class='add-dynamic-group', href="#"))
 
             if self.has_org_perm('contacts.contactfield_managefields'):
@@ -852,10 +854,6 @@ class ContactCRUDL(SmartCRUDL):
 
             context['actions'] = ('label', 'block')
             context['contact_fields'] = ContactField.objects.filter(org=org, is_active=True).order_by('pk')
-
-            if 'compiled_query' in self.request.__dict__:
-                context['compiled_query'] = self.request.compiled_query
-
             return context
 
     class Blocked(ContactActionMixin, ContactListView):
@@ -903,10 +901,6 @@ class ContactCRUDL(SmartCRUDL):
                                   js_class='delete-contactgroup',
                                   href="#"))
             return links
-
-        def derive_queryset(self, **kwargs):
-            group = self.derive_group()
-            return Contact.objects.filter(all_groups=group, is_active=True, org=self.request.user.get_org())
 
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.Filter, self).get_context_data(*args, **kwargs)

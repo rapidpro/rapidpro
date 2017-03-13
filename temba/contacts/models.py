@@ -23,13 +23,13 @@ from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
+from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.profiler import SegmentProfiler, time_monitor
 from temba.values.models import Value
-from temba.locations.models import STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 
 
 logger = logging.getLogger(__name__)
@@ -652,16 +652,16 @@ class Contact(TembaModel):
                 district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
                 district_value = self.get_field(district_field.key)
                 if district_value:
-                    loc_value = self.org.parse_location(value, WARD_LEVEL, district_value.location_value)
+                    loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_WARD, district_value.location_value)
 
             elif field.value_type == Value.TYPE_DISTRICT:
                 state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
                 if state_field:
                     state_value = self.get_field(state_field.key)
                     if state_value:
-                        loc_value = self.org.parse_location(value, DISTRICT_LEVEL, state_value.location_value)
+                        loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_DISTRICT, state_value.location_value)
             else:
-                loc_value = self.org.parse_location(value, STATE_LEVEL)
+                loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_STATE)
 
             if loc_value is not None and len(loc_value) > 0:
                 loc_value = loc_value[0]
@@ -964,17 +964,16 @@ class Contact(TembaModel):
         return test_contact
 
     @classmethod
-    def search(cls, org, query, base_queryset=None, base_set=None):
+    def search(cls, org, query, base_group=None, base_set=None):
         """
-        Performs a search of contacts based on a query. Returns a tuple of the queryset and a bool for whether
-        or not the query was a valid complex query, e.g. name = "Bob" AND age = 21
+        Performs a search of contacts within a group (system or user)
         """
-        from temba.contacts import search
+        from .search import contact_search
 
-        if base_queryset is None:
-            base_queryset = Contact.objects.filter(org=org, is_active=True, is_test=False, is_blocked=False, is_stopped=False)
+        if not base_group:
+            base_group = ContactGroup.all_groups.get(org=org, group_type=ContactGroup.TYPE_ALL)
 
-        return search.contact_search(org, query, base_queryset, base_set)
+        return contact_search(org, query, base_group.contacts.all(), base_set=base_set)
 
     @classmethod
     def create_instance(cls, field_dict):
@@ -2175,6 +2174,8 @@ class ContactGroup(TembaModel):
         """
         Updates the query for a dynamic group
         """
+        from .search import extract_fields
+
         if not self.is_dynamic:
             raise ValueError("Can only update query for a dynamic group")
 
@@ -2183,10 +2184,8 @@ class ContactGroup(TembaModel):
 
         self.query_fields.clear()
 
-        for match in regex.finditer(r'\w+', self.query, regex.V0):
-            field = ContactField.objects.filter(key__iexact=match.group(), org=self.org, is_active=True).first()
-            if field:
-                self.query_fields.add(field)
+        for field in extract_fields(self.org, self.query):
+            self.query_fields.add(field)
 
         members = list(self._get_dynamic_members())
         self.contacts.clear()
@@ -2196,11 +2195,15 @@ class ContactGroup(TembaModel):
         """
         For dynamic groups, this returns the set of contacts who belong in this group
         """
+        from .search import SearchException
+
         if not self.is_dynamic:  # pragma: no cover
             raise ValueError("Can only be called on dynamic groups")
 
-        members, is_complex = Contact.search(self.org, self.query, base_set=base_set)
-        return members
+        try:
+            return Contact.search(self.org, self.query, base_set=base_set)
+        except SearchException:  # pragma: no cover
+            return Contact.objects.none()
 
     @time_monitor(threshold=100)
     def _check_dynamic_membership(self, contact):
@@ -2208,13 +2211,6 @@ class ContactGroup(TembaModel):
         For dynamic groups, determines whether the given contact belongs in the group
         """
         return self._get_dynamic_members(base_set=[contact]).exists()
-
-    @classmethod
-    def get_system_group_queryset(cls, org, group_type):
-        if group_type == cls.TYPE_USER_DEFINED:  # pragma: no cover
-            raise ValueError("Can only get system group querysets")
-
-        return cls.all_groups.get(org=org, group_type=group_type).contacts.all()
 
     @classmethod
     def get_system_group_counts(cls, org, group_types=None):
