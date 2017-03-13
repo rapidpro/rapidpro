@@ -1811,7 +1811,7 @@ class Org(SmartModel):
 
         # force http for localhost
         scheme = 'https'
-        if 'localhost' in settings.AWS_BUCKET_DOMAIN:
+        if 'localhost' in settings.AWS_BUCKET_DOMAIN:  # pragma: no cover
             scheme = 'http'
 
         return "%s://%s/%s" % (scheme, settings.AWS_BUCKET_DOMAIN, location)
