@@ -19,6 +19,8 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from django.core.validators import MaxValueValidator
+from django.core.validators import MinValueValidator
 from django.db import transaction
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
@@ -881,7 +883,8 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
-               'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist')
+               'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
+               'claim_red_rabbit')
     permissions = True
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -1533,6 +1536,9 @@ class ChannelCRUDL(SmartCRUDL):
             content_type = forms.ChoiceField(choices=Channel.CONTENT_TYPE_CHOICES,
                                              help_text=_("The content type used when sending the request"))
 
+            max_length = forms.IntegerField(initial=160, validators=[MaxValueValidator(640), MinValueValidator(60)],
+                                            help_text=_("The maximum length of any single message on this channel. (longer messages will be split)"))
+
             url = forms.URLField(max_length=1024, label=_("Send URL"),
                                  help_text=_("The URL we will call when sending messages, with variable substitutions"))
 
@@ -1596,7 +1602,8 @@ class ChannelCRUDL(SmartCRUDL):
                 Channel.CONFIG_SEND_URL: data['url'],
                 Channel.CONFIG_SEND_METHOD: data['method'],
                 Channel.CONFIG_SEND_BODY: data['body'],
-                Channel.CONFIG_CONTENT_TYPE: data['content_type']
+                Channel.CONFIG_CONTENT_TYPE: data['content_type'],
+                Channel.CONFIG_MAX_LENGTH: data['max_length']
             }
             self.object = Channel.add_config_external_channel(org, self.request.user, country, address, Channel.TYPE_EXTERNAL,
                                                               config, role, scheme, parent=channel)
@@ -1693,6 +1700,10 @@ class ChannelCRUDL(SmartCRUDL):
         channel_type = Channel.TYPE_JASMIN
         form_class = JasminForm
         fields = ('country', 'number', 'url', 'username', 'password')
+
+    class ClaimRedRabbit(ClaimAuthenticatedExternal):
+        title = _("Connect Red Rabbit")
+        channel_type = Channel.TYPE_RED_RABBIT
 
     class ClaimJunebug(ClaimAuthenticatedExternal):
         class JunebugForm(forms.Form):

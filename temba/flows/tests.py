@@ -672,6 +672,149 @@ class FlowTest(TembaTest):
                                             msg.created_on, "IN",
                                             "orange", "Test Channel"], self.org.timezone)
 
+    def test_export_results_broadcast_only_flow(self):
+        self.login(self.admin)
+        flow = self.get_flow('two_in_row')
+        contact1_run1, contact2_run1, contact3_run1 = flow.start([], [self.contact, self.contact2, self.contact3])
+
+        time.sleep(1)
+        contact1_run2, contact2_run2 = flow.start([], [self.contact, self.contact2], restart_participants=True)
+
+        time.sleep(1)
+
+        with self.assertNumQueries(50):
+            workbook = self.export_flow_results(flow)
+
+        tz = self.org.timezone
+
+        sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
+
+        # check runs sheet...
+        self.assertEqual(len(list(sheet_runs.rows)), 6)  # header + 5 runs
+        self.assertEqual(len(list(sheet_runs.columns)), 6)
+
+        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Groups", "First Seen", "Last Seen"])
+
+        contact1_run1_rs = FlowStep.objects.filter(run=contact1_run1)
+        c1_run1_first = contact1_run1_rs.order_by('pk').first().arrived_on
+        c1_run1_last = contact1_run1_rs.order_by('-pk').first().arrived_on
+
+        contact1_run2_rs = FlowStep.objects.filter(run=contact1_run2)
+        c1_run2_first = contact1_run2_rs.order_by('pk').first().arrived_on
+        c1_run2_last = contact1_run2_rs.order_by('-pk').first().arrived_on
+
+        self.assertExcelRow(sheet_runs, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "bootstrap 3", c1_run1_first,
+                                            c1_run1_last], tz)
+
+        self.assertExcelRow(sheet_runs, 2, [contact1_run2.contact.uuid, "+250788382382", "Eric", "bootstrap 3", c1_run2_first,
+                                            c1_run2_last], tz)
+
+        contact2_run1_steps = FlowStep.objects.filter(run=contact2_run1)
+        c2_run1_first = contact2_run1_steps.order_by('pk').first().arrived_on
+        c2_run1_last = contact2_run1_steps.order_by('-pk').first().arrived_on
+
+        contact2_run2_steps = FlowStep.objects.filter(run=contact2_run2)
+        c2_run2_first = contact2_run2_steps.order_by('pk').first().arrived_on
+        c2_run2_last = contact2_run2_steps.order_by('-pk').first().arrived_on
+
+        contact3_run1_steps = FlowStep.objects.filter(run=contact3_run1)
+        c3_run1_first = contact3_run1_steps.order_by('pk').first().arrived_on
+        c3_run1_last = contact3_run1_steps.order_by('-pk').first().arrived_on
+
+        self.assertExcelRow(sheet_runs, 3, [contact2_run1.contact.uuid, "+250788383383", "Nic", "bootstrap 3", c2_run1_first,
+                                            c2_run1_last], tz)
+
+        self.assertExcelRow(sheet_runs, 4, [contact2_run2.contact.uuid, "+250788383383", "Nic", "bootstrap 3", c2_run2_first,
+                                            c2_run2_last], tz)
+
+        # check contacts sheet...
+        self.assertEqual(len(list(sheet_contacts.rows)), 4)  # header + 3 contacts
+        self.assertEqual(len(list(sheet_contacts.columns)), 6)
+
+        self.assertExcelRow(sheet_contacts, 0, ["Contact UUID", "URN", "Name", "Groups", "First Seen", "Last Seen"])
+
+        self.assertExcelRow(sheet_contacts, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "bootstrap 3",
+                                                c1_run1_first, c1_run2_last], tz)
+
+        self.assertExcelRow(sheet_contacts, 2, [contact2_run1.contact.uuid, "+250788383383", "Nic", "bootstrap 3",
+                                                c2_run1_first, c2_run2_last], tz)
+
+        self.assertExcelRow(sheet_contacts, 3, [contact3_run1.contact.uuid, "+250788123456", "Norbert", "bootstrap 3",
+                                                c3_run1_first, c3_run1_last], tz)
+
+        # check messages sheet...
+        self.assertEqual(len(list(sheet_msgs.rows)), 11)  # header + 10 messages
+        self.assertEqual(len(list(sheet_msgs.columns)), 7)
+
+        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"])
+
+        c1_run1_msg1 = Msg.objects.get(steps__run=contact1_run1, text="This is the first message.")
+        c1_run1_msg2 = Msg.objects.get(steps__run=contact1_run1, text="This is the second message.")
+
+        c2_run1_msg1 = Msg.objects.get(steps__run=contact2_run1, text="This is the first message.")
+        c2_run1_msg2 = Msg.objects.get(steps__run=contact2_run1, text="This is the second message.")
+
+        c3_run1_msg1 = Msg.objects.get(steps__run=contact3_run1, text="This is the first message.")
+        c3_run1_msg2 = Msg.objects.get(steps__run=contact3_run1, text="This is the second message.")
+
+        c1_run2_msg1 = Msg.objects.get(steps__run=contact1_run2, text="This is the first message.")
+        c1_run2_msg2 = Msg.objects.get(steps__run=contact1_run2, text="This is the second message.")
+
+        c2_run2_msg1 = Msg.objects.get(steps__run=contact2_run2, text="This is the first message.")
+        c2_run2_msg2 = Msg.objects.get(steps__run=contact2_run2, text="This is the second message.")
+
+        self.assertExcelRow(sheet_msgs, 1, [c1_run1_msg1.contact.uuid, "+250788382382", "Eric",
+                                            c1_run1_msg1.created_on, "OUT",
+                                            "This is the first message.", "Test Channel"], tz)
+
+        self.assertExcelRow(sheet_msgs, 2, [c1_run1_msg2.contact.uuid, "+250788382382", "Eric",
+                                            c1_run1_msg2.created_on, "OUT",
+                                            "This is the second message.", "Test Channel"], tz)
+
+        self.assertExcelRow(sheet_msgs, 3, [c1_run2_msg1.contact.uuid, "+250788382382", "Eric",
+                                            c1_run2_msg1.created_on, "OUT",
+                                            "This is the first message.", "Test Channel"], tz)
+
+        self.assertExcelRow(sheet_msgs, 4, [c1_run2_msg2.contact.uuid, "+250788382382", "Eric",
+                                            c1_run2_msg2.created_on, "OUT",
+                                            "This is the second message.", "Test Channel"], tz)
+
+        self.assertExcelRow(sheet_msgs, 5, [c2_run1_msg1.contact.uuid, "+250788383383", "Nic",
+                                            c2_run1_msg1.created_on, "OUT",
+                                            "This is the first message.", "Test Channel"], tz)
+
+        self.assertExcelRow(sheet_msgs, 6, [c2_run1_msg2.contact.uuid, "+250788383383", "Nic",
+                                            c2_run1_msg2.created_on, "OUT",
+                                            "This is the second message.", "Test Channel"], tz)
+
+        self.assertExcelRow(sheet_msgs, 7, [c2_run2_msg1.contact.uuid, "+250788383383", "Nic",
+                                            c2_run2_msg1.created_on, "OUT",
+                                            "This is the first message.", "Test Channel"], tz)
+
+        self.assertExcelRow(sheet_msgs, 8, [c2_run2_msg2.contact.uuid, "+250788383383", "Nic",
+                                            c2_run2_msg2.created_on, "OUT",
+                                            "This is the second message.", "Test Channel"], tz)
+
+        self.assertExcelRow(sheet_msgs, 9, [c3_run1_msg1.contact.uuid, "+250788123456", "Norbert",
+                                            c3_run1_msg1.created_on, "OUT",
+                                            "This is the first message.", "Test Channel"], tz)
+
+        self.assertExcelRow(sheet_msgs, 10, [c3_run1_msg2.contact.uuid, "+250788123456", "Norbert",
+                                             c3_run1_msg2.created_on, "OUT",
+                                             "This is the second message.", "Test Channel"], tz)
+
+        # test without msgs or runs or unresponded
+        with self.assertNumQueries(39):
+            workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
+
+        tz = self.org.timezone
+        sheet_contacts = workbook.worksheets[0]
+
+        self.assertEqual(len(list(sheet_contacts.rows)), 1)  # header; no resposes to a broadcast only flow
+        self.assertEqual(len(list(sheet_contacts.columns)), 6)
+
+        self.assertExcelRow(sheet_contacts, 0, ["Contact UUID", "URN", "Name", "Groups", "First Seen", "Last Seen"])
+
     def test_export_results(self):
         # setup flow and start both contacts
 
@@ -719,7 +862,7 @@ class FlowTest(TembaTest):
         # ok, mark that one as finished and try again
         blocking_export.update_status(ExportFlowResultsTask.STATUS_COMPLETE)
 
-        with self.assertNumQueries(50):
+        with self.assertNumQueries(51):
             workbook = self.export_flow_results(self.flow)
 
         tz = self.org.timezone
