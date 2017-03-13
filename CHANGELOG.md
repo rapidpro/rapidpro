@@ -1,3 +1,13 @@
+v3.0.78
+----------
+ * Allow configuration of max message length to split on for External channels
+
+v3.0.77
+----------
+ * Use brand key for evaluation instead of host when determining brand
+ * Add red rabbit type (hidden since MT only)
+ * Fix flow results exports for broadcast only flows
+
 v3.0.76
 ----------
  * Log Nexmo media responses without including entire body
