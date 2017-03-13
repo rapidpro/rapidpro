@@ -2787,7 +2787,7 @@ class ContactTest(TembaTest):
                                           error="Invalid Phone number or no country code specified for 788383385")]))
 
         # try importing a file with a unicode in the name
-        csv_file = open('%s/test_imports/GL_SØNDAG_120317.xls' % settings.MEDIA_ROOT, 'rb')
+        csv_file = open('%s/test_imports/abc_@@é.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
