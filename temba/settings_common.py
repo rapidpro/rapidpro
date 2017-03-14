@@ -491,6 +491,7 @@ PERMISSIONS = {
                    'run_table',
                    'simulate',
                    'upload_action_recording',
+                   'upload_media_action',
                    ),
 
     'flows.ruleset': ('analytics',

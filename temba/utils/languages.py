@@ -1,5 +1,8 @@
+from __future__ import absolute_import, print_function, unicode_literals
+
 import re
 import iso639
+
 from iso639 import NonExistentLanguageError
 
 iso_codes = {}

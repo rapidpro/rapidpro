@@ -32,7 +32,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel, ChannelSession
-from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
+from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING, DELIVERED
 from temba.msgs.models import OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
@@ -1635,8 +1635,12 @@ class Flow(TembaModel):
             if isinstance(send_action.msg, dict):
                 language_dict = json.dumps(send_action.msg)
 
-            if message_text:
-                broadcast = Broadcast.create(self.org, self.created_by, message_text, [],
+            media_dict = None
+            if send_action.media:
+                media_dict = json.dumps(send_action.media)
+
+            if message_text or media_dict:
+                broadcast = Broadcast.create(self.org, self.created_by, message_text, [], media_dict=media_dict,
                                              language_dict=language_dict, base_language=self.base_language)
                 broadcast.update_contacts(all_contact_ids)
 
@@ -5081,9 +5085,11 @@ class ReplyAction(Action):
     """
     TYPE = 'reply'
     MESSAGE = 'msg'
+    MEDIA = 'media'
 
-    def __init__(self, msg=None):
+    def __init__(self, msg=None, media=None):
         self.msg = msg
+        self.media = media if media else {}
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5098,28 +5104,43 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
 
-        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE))
+        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE), media=json_obj.get(ReplyAction.MEDIA, None))
 
     def as_json(self):
-        return dict(type=ReplyAction.TYPE, msg=self.msg)
+        return dict(type=ReplyAction.TYPE, msg=self.msg, media=self.media)
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         reply = None
 
-        if self.msg:
+        if self.msg or self.media:
             user = get_flow_user(run.org)
-            text = run.flow.get_localized_text(self.msg, run.contact)
+
+            text = ''
+            if self.msg:
+                text = run.flow.get_localized_text(self.msg, run.contact)
+
+            media = None
+            if self.media:
+                # localize our media attachment
+                media_type, media_url = run.flow.get_localized_text(self.media, run.contact).split(':', 1)
+
+                # if we have a localized media, create the url
+                if media_url:
+                    media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
             if offline_on:
                 reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
-                                            created_on=offline_on, response_to=msg)
+                                            created_on=offline_on, response_to=msg, media=media)
             else:
                 context = run.flow.build_message_context(run.contact, msg)
+
                 try:
                     if msg:
-                        reply = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session)
+                        reply = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session,
+                                          media=media)
                     else:
-                        reply = run.contact.send(text, user, trigger_send=False, message_context=context, session=run.session)
+                        reply = run.contact.send(text, user, trigger_send=False, message_context=context,
+                                                 session=run.session, media=media)
                 except UnreachableException:
                     pass
 
@@ -5659,9 +5680,11 @@ class SendAction(VariableContactAction):
     """
     TYPE = 'send'
     MESSAGE = 'msg'
+    MEDIA = 'media'
 
-    def __init__(self, msg, groups, contacts, variables):
+    def __init__(self, msg, groups, contacts, variables, media=None):
         self.msg = msg
+        self.media = media if media else {}
         super(SendAction, self).__init__(groups, contacts, variables)
 
     @classmethod
@@ -5670,16 +5693,18 @@ class SendAction(VariableContactAction):
         contacts = VariableContactAction.parse_contacts(org, json_obj)
         variables = VariableContactAction.parse_variables(org, json_obj)
 
-        return SendAction(json_obj.get(SendAction.MESSAGE), groups, contacts, variables)
+        return SendAction(json_obj.get(SendAction.MESSAGE), groups, contacts, variables,
+                          json_obj.get(SendAction.MEDIA, None))
 
     def as_json(self):
         contact_ids = [dict(uuid=_.uuid) for _ in self.contacts]
         group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
-        return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables)
+        return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables,
+                    media=self.media)
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
-        if self.msg:
+        if self.msg or self.media:
             flow = run.flow
             message_context = flow.build_message_context(run.contact, msg)
 
@@ -5695,14 +5720,19 @@ class SendAction(VariableContactAction):
 
                 message_text = run.flow.get_localized_text(self.msg)
 
-                # no message text? then no-op
-                if not message_text:
+                media_dict = None
+                if self.media:
+                    media_dict = json.dumps(self.media)
+
+                # no message text and no media_dict? then no-op
+                if not message_text and not media_dict:
                     return list()
 
                 recipients = groups + contacts
 
                 broadcast = Broadcast.create(flow.org, flow.modified_by, message_text, recipients,
-                                             language_dict=language_dict, base_language=flow.base_language)
+                                             media_dict=media_dict, language_dict=language_dict,
+                                             base_language=flow.base_language)
                 broadcast.send(trigger_send=False, message_context=message_context)
                 return list(broadcast.get_messages())
 
@@ -6294,7 +6324,7 @@ class HasStateTest(Test):
         if not org.country:
             return 0, None
 
-        state = org.parse_location(text, STATE_LEVEL)
+        state = org.parse_location(text, AdminBoundary.LEVEL_STATE)
         if state:
             return 1, state[0]
 
@@ -6325,12 +6355,12 @@ class HasDistrictTest(Test):
         # evaluate our district in case it has a replacement variable
         state, errors = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
 
-        parent = org.parse_location(state, STATE_LEVEL)
+        parent = org.parse_location(state, AdminBoundary.LEVEL_STATE)
         if parent:
-            district = org.parse_location(text, DISTRICT_LEVEL, parent[0])
+            district = org.parse_location(text, AdminBoundary.LEVEL_DISTRICT, parent[0])
             if district:
                 return 1, district[0]
-        district = org.parse_location(text, DISTRICT_LEVEL)
+        district = org.parse_location(text, AdminBoundary.LEVEL_DISTRICT)
 
         # parse location when state contraint is not provided or available
         if (errors or not state) and len(district) == 1:
@@ -6366,16 +6396,16 @@ class HasWardTest(Test):
         district_name, missing_district = Msg.substitute_variables(self.district, sms.contact, context, org=run.flow.org)
         state_name, missing_state = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
         if (district_name and state_name) and (len(missing_district) == 0 and len(missing_state) == 0):
-            state = org.parse_location(state_name, STATE_LEVEL)
+            state = org.parse_location(state_name, AdminBoundary.LEVEL_STATE)
             if state:
-                district = org.parse_location(district_name, DISTRICT_LEVEL, state[0])
+                district = org.parse_location(district_name, AdminBoundary.LEVEL_DISTRICT, state[0])
                 if district:
-                    ward = org.parse_location(text, WARD_LEVEL, district[0])
+                    ward = org.parse_location(text, AdminBoundary.LEVEL_WARD, district[0])
                     if ward:
                         return 1, ward[0]
 
         # parse location when district contraint is not provided or available
-        ward = org.parse_location(text, WARD_LEVEL)
+        ward = org.parse_location(text, AdminBoundary.LEVEL_WARD)
         if len(ward) == 1 and district is None:
             return 1, ward[0]
 

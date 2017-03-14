@@ -220,9 +220,13 @@ class Broadcast(models.Model):
     purged = models.BooleanField(default=False,
                                  help_text="If the messages for this broadcast have been purged")
 
+    media_dict = models.TextField(verbose_name=_("Media"),
+                                  help_text=_("The localized versions of the media"), null=True)
+
     @classmethod
-    def create(cls, org, user, text, recipients, channel=None, **kwargs):
-        create_args = dict(org=org, text=text, channel=channel, created_by=user, modified_by=user)
+    def create(cls, org, user, text, recipients, channel=None, media_dict=None, **kwargs):
+        create_args = dict(org=org, text=text, channel=channel, media_dict=media_dict, created_by=user,
+                           modified_by=user)
         create_args.update(kwargs)
         broadcast = Broadcast.objects.create(**create_args)
         broadcast.update_recipients(recipients)
@@ -380,6 +384,11 @@ class Broadcast(models.Model):
             return []
         return get_cacheable_attr(self, '_translations', lambda: json.loads(self.language_dict))
 
+    def get_media_translations(self):
+        if not self.media_dict:
+            return dict()
+        return get_cacheable_attr(self, '_media_translations', lambda: json.loads(self.media_dict))
+
     def get_translated_text(self, contact, org=None):
         """
         Gets the appropriate translation for the given contact. base_language may be provided
@@ -387,6 +396,14 @@ class Broadcast(models.Model):
         translations = self.get_translations()
         preferred_languages = self.get_preferred_languages(contact, self.base_language, org)
         return Language.get_localized_text(translations, preferred_languages, self.text)
+
+    def get_translated_media(self, contact, org=None):
+        """
+        Gets the appropriate media for the given contact. base_language may be provided
+        """
+        media_translations = self.get_media_translations()
+        preferred_languages = self.get_preferred_languages(contact, self.base_language, org)
+        return Language.get_localized_text(media_translations, preferred_languages, None)
 
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
              created_on=None, partial_recipients=None, run_map=None):
@@ -440,6 +457,14 @@ class Broadcast(models.Model):
             # get the appropriate translation for this contact
             text = self.get_translated_text(contact)
 
+            media = self.get_translated_media(contact)
+            if media:
+                media_type, media_url = media.split(':')
+
+                # if we have a localized media, create the url
+                if media_url:
+                    media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
+
             # add in our parent context if the message references @parent
             if run_map:
                 run = run_map.get(recipient.pk, None)
@@ -465,6 +490,7 @@ class Broadcast(models.Model):
                                           status=status,
                                           msg_type=msg_type,
                                           insert_object=False,
+                                          media=media,
                                           priority=priority,
                                           created_on=created_on)
 
@@ -909,6 +935,14 @@ class Msg(models.Model):
         else:
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
+    @classmethod
+    def get_media(cls, msg):
+        if msg.media:
+            parts = msg.media.split(':', 1)
+            if len(parts) == 2:
+                return parts
+        return None, None
+
     def as_json(self):
         return dict(direction=self.direction,
                     text=self.text,
@@ -1024,9 +1058,9 @@ class Msg(models.Model):
     def is_media_type_image(self):
         return Msg.MEDIA_IMAGE == self.get_media_type()
 
-    def reply(self, text, user, trigger_send=False, message_context=None, session=None):
+    def reply(self, text, user, trigger_send=False, message_context=None, session=None, media=None):
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None, session=session)
+                                 response_to=self if self.id else None, session=session, media=media)
 
     def update(self, cmd):
         """
@@ -1143,7 +1177,7 @@ class Msg(models.Model):
                     text=self.text, urn_path=self.contact_urn.path,
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
-                    status=self.status, direction=self.direction,
+                    status=self.status, direction=self.direction, media=self.media,
                     external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
                     created_on=self.created_on, modified_on=self.modified_on)

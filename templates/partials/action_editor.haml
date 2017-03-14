@@ -11,7 +11,21 @@
   <ng-form name="action_editor">
     %span{ng-if:'config.type == "reply"'}
       %span{auto-complete:"",sms:"action.msg",data-message:"message"}
+      .media{ng-hide:'action.uploading'}
+
+        .icon-attachment.add-attachment{ng-show:'!action._media', ng-file-select:'onFileSelect($files, actionset, action);', ng-click:'$event.stopPropagation();' }
+
+        .tag-button{ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
+          .viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}'}
+          .summary
+            [[action._media.type]] attachment
+          .remove
+            %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
+              .icon-close
+
       %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
+
+
     %span{ng-if:'config.type == "say"'}
       %span{show-counter:"false",auto-complete:"",sms:"action.msg",data-message:"message"}
       %button{ng-click:'saveMessage(message, "say")',class:"submit hide"}
@@ -28,7 +42,8 @@
 
     %span{ng-if:'config.type == "send"'}
       %input{ng-model:"omnibox", name:"omnibox", contacts:"action.contacts", variables:"action.variables", required:"", omnibox:'{"types":"gc", "completions":true}', groups:"action.groups", type:"hidden"}
-      %span{sms:"action.msg",data-message:"message"}
+      %span{sms:"action.msg", data-message:"message"}
+
       %button{ng-click:"saveSend(action_editor.omnibox.selected, message)",class:"submit hide"}
         -trans "Ok"
 
