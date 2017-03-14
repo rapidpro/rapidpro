@@ -5155,8 +5155,8 @@ class ReplyAction(Action):
                         replies = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session,
                                             media=media, send_all=self.send_all)
                     else:
-                        replies = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                                   session=run.session, media=media, send_all=self.send_all)
+                        replies = run.contact.send_all(text, user, trigger_send=False, message_context=context,
+                                                       session=run.session, media=media, send_all=self.send_all)
 
                 except UnreachableException:
                     pass

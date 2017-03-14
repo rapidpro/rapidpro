@@ -1782,8 +1782,13 @@ class Contact(TembaModel):
         if tel:
             return tel.path
 
-    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
-             send_all=False):
+    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None):
+        msgs = self.send_all(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None,
+                             media=None, send_all=False)
+        return msgs[0] if msgs else None
+
+    def send_all(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
+                 send_all=False):
         from temba.msgs.models import Msg, UnreachableException
 
         msgs = []
