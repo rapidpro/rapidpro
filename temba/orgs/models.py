@@ -545,6 +545,10 @@ class Org(SmartModel):
         from temba.channels.models import Channel
         return self.get_channel_for_role(Channel.ROLE_SEND, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
 
+    def get_ussd_channel(self, scheme=None, contact_urn=None, country_code=None):
+        from temba.channels.models import Channel
+        return self.get_channel_for_role(Channel.ROLE_USSD, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
+
     def get_receive_channel(self, scheme, contact_urn=None, country_code=None):
         from temba.channels.models import Channel
         return self.get_channel_for_role(Channel.ROLE_RECEIVE, scheme=scheme, contact_urn=contact_urn, country_code=country_code)

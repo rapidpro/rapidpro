@@ -63,6 +63,7 @@ OUTGOING = 'O'
 INBOX = 'I'
 FLOW = 'F'
 IVR = 'V'
+USSD = 'U'
 
 MSG_SENT_KEY = 'msgs_sent_%y_%m_%d'
 
@@ -609,7 +610,8 @@ class Msg(models.Model):
 
     MSG_TYPES = ((INBOX, _("Inbox Message")),
                  (FLOW, _("Flow Message")),
-                 (IVR, _("IVR Message")))
+                 (IVR, _("IVR Message")),
+                 (USSD, _("USSD Message")))
 
     MEDIA_GPS = 'geo'
     MEDIA_IMAGE = 'image'
@@ -728,14 +730,14 @@ class Msg(models.Model):
                 # update them to queued
                 send_messages = Msg.objects.filter(id__in=msg_ids)\
                                            .exclude(channel__channel_type=Channel.TYPE_ANDROID)\
-                                           .exclude(msg_type=IVR)\
+                                           .exclude(msg_type__in=(IVR, USSD))\
                                            .exclude(topup=None)\
                                            .exclude(contact__is_test=True)
                 send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
 
                 # now push each onto our queue
                 for msg in msgs:
-                    if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and \
+                    if (msg.msg_type != IVR and msg.msg_type != USSD and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and \
                             msg.topup and not msg.contact.is_test:
 
                         # if this is a different contact than our last, and we have msgs for that last contact, queue the task
@@ -1060,7 +1062,8 @@ class Msg(models.Model):
 
     def reply(self, text, user, trigger_send=False, message_context=None, session=None, media=None):
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None, session=session, media=media)
+                                 response_to=self if self.id else None, session=session, media=media,
+                                 msg_type=msg_type or self.msg_type)
 
     def update(self, cmd):
         """
@@ -1321,13 +1324,18 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
-                        media=None, topup_id=None, msg_type=INBOX, session=None):
+                        media=None, topup_id=None, msg_type=INBOX, session=None, role=None):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
 
         # for IVR messages we need a channel that can call
-        role = Channel.ROLE_CALL if msg_type == IVR else Channel.ROLE_SEND
+        if msg_type == IVR:
+            role = Channel.ROLE_CALL
+        elif msg_type == USSD:
+            role = Channel.ROLE_USSD
+        else:
+            role = Channel.ROLE_SEND
 
         if status != SENT:
             # if message will be sent, resolve the recipient to a contact and URN
@@ -1339,6 +1347,8 @@ class Msg(models.Model):
             if not channel:
                 if msg_type == IVR:
                     channel = org.get_call_channel()
+                elif msg_type == USSD:
+                    channel = org.get_ussd_channel(contact_urn=contact_urn)
                 else:
                     channel = org.get_send_channel(contact_urn=contact_urn)
 
