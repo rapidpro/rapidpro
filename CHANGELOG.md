@@ -1,3 +1,8 @@
+v3.0.81
+----------
+ * Archive triggers that do not have a contact to send to
+ * Disable sending of messages for blocked and stopped contacts
+
 v3.0.80
 ----------
  * Add support for outbound media on reply messages for Twilio MMS (US, CA), Telegram, and Facebook
