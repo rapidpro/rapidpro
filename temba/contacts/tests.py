@@ -636,6 +636,47 @@ class ContactTest(TembaTest):
                                     data=dict(name='Ben Haggerty', urn__tel__0="="))
         self.assertFormError(response, 'form', 'urn__tel__0', "Invalid input")
 
+    def test_block_contact_clear_triggers(self):
+        flow = self.get_flow('favorites')
+        trigger = Trigger.objects.create(org=self.org, flow=flow, keyword="join", created_by=self.admin,
+                                         modified_by=self.admin)
+        trigger.contacts.add(self.joe)
+
+        trigger2 = Trigger.objects.create(org=self.org, flow=flow, keyword="register", created_by=self.admin,
+                                          modified_by=self.admin)
+        trigger2.contacts.add(self.joe)
+        trigger2.contacts.add(self.frank)
+        self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 2)
+
+        self.assertTrue(self.joe.trigger_set.all())
+
+        self.joe.block(self.admin)
+
+        self.assertFalse(self.joe.trigger_set.all())
+
+        self.assertEqual(Trigger.objects.filter(is_archived=True).count(), 1)
+        self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 1)
+
+    def test_stop_contact_clear_triggers(self):
+        flow = self.get_flow('favorites')
+        trigger = Trigger.objects.create(org=self.org, flow=flow, keyword="join", created_by=self.admin,
+                                         modified_by=self.admin)
+        trigger.contacts.add(self.joe)
+
+        trigger2 = Trigger.objects.create(org=self.org, flow=flow, keyword="register", created_by=self.admin,
+                                          modified_by=self.admin)
+        trigger2.contacts.add(self.joe)
+        trigger2.contacts.add(self.frank)
+        self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 2)
+
+        self.assertTrue(self.joe.trigger_set.all())
+
+        self.joe.stop(self.admin)
+
+        self.assertFalse(self.joe.trigger_set.all())
+        self.assertEqual(Trigger.objects.filter(is_archived=True).count(), 1)
+        self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 1)
+
     def test_fail_and_block_and_release(self):
         msg1 = self.create_msg(text="Test 1", direction='I', contact=self.joe, msg_type='I', status='H')
         msg2 = self.create_msg(text="Test 2", direction='I', contact=self.joe, msg_type='F', status='H')
@@ -1327,6 +1368,20 @@ class ContactTest(TembaTest):
 
             # but not by frank number
             self.assertEqual(omnibox_request("search=222"), [])
+
+        # exclude blocked and stopped contacts
+        self.joe.block(self.admin)
+        self.frank.stop(self.admin)
+
+        # lookup by contact uuids
+        self.assertEqual(omnibox_request("c=%s,%s" % (self.joe.uuid, self.frank.uuid)), [])
+
+        # but still lookup by URN ids
+        urn_query = "u=%d,%d" % (self.joe.get_urn(TWITTER_SCHEME).pk, self.frank.get_urn(TEL_SCHEME).pk)
+        self.assertEqual(omnibox_request(urn_query), [
+            dict(id='u-%d' % frank_tel.pk, text="0782 222 222", extra="Frank Smith", scheme='tel'),
+            dict(id='u-%d' % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme='twitter')
+        ])
 
     def test_history(self):
         url = reverse('contacts.contact_history', args=[self.joe.uuid])

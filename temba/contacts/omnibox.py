@@ -28,7 +28,7 @@ def omnibox_query(org, **kwargs):
 
     # these lookups return a Contact queryset
     if contact_uuids or step_uuid or message_ids or label_id:
-        qs = Contact.objects.filter(org=org, is_blocked=False, is_active=True, is_test=simulation)
+        qs = Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True, is_test=simulation)
 
         if contact_uuids:
             qs = qs.filter(uuid__in=contact_uuids.split(","))
