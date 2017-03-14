@@ -1707,12 +1707,16 @@ class ChannelCRUDL(SmartCRUDL):
 
     class ClaimJunebug(ClaimAuthenticatedExternal):
         class JunebugForm(forms.Form):
+            channel_type = forms.ChoiceField(choices=((Channel.TYPE_JUNEBUG, 'SMS'),
+                                                      (Channel.TYPE_JUNEBUG_USSD, 'USSD')),
+                                             label=_('Channel Type'),
+                                             help_text=_('The type of channel you are wanting to connect.'))
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
                                         help_text=_("The country this phone number is used in"))
             number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
                                      help_text=("The shortcode or phone number you are connecting."))
             url = forms.URLField(label=_("URL"),
-                                 help_text=_("The URL for the Junebug channel. ex: https://junebug.praekelt.org/jb/channels/3853bb51-d38a-4bca-b332-8a57c00f2a48"))
+                                 help_text=_("The URL for the Junebug channel. ex: https://junebug.praekelt.org/jb/channels/3853bb51-d38a-4bca-b332-8a57c00f2a48/messages.json"))
             username = forms.CharField(label=_("Username"),
                                        help_text=_("The username to be used to authenticate to Junebug"),
                                        required=False)
@@ -1721,9 +1725,26 @@ class ChannelCRUDL(SmartCRUDL):
                                        required=False)
 
         title = _("Connect Junebug")
-        channel_type = Channel.TYPE_JUNEBUG
         form_class = JunebugForm
-        fields = ('country', 'number', 'url', 'username', 'password')
+        fields = ('channel_type', 'country', 'number', 'url', 'username', 'password')
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+            data = form.cleaned_data
+
+            if data['channel_type'] == Channel.TYPE_JUNEBUG_USSD:
+                role = Channel.ROLE_USSD
+            else:
+                role = Channel.DEFAULT_ROLE
+
+            self.object = Channel.add_authenticated_external_channel(org, self.request.user,
+                                                                     self.get_submitted_country(data),
+                                                                     data['number'], data['username'],
+                                                                     data['password'], data['channel_type'],
+                                                                     data.get('url'),
+                                                                     role=role)
+
+            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
     class ClaimMblox(ClaimAuthenticatedExternal):
         class MBloxForm(forms.Form):
@@ -1977,6 +1998,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         title = _("Connect Vumi")
         channel_type = Channel.TYPE_VUMI
+        channel_role = Channel.DEFAULT_ROLE
         form_class = VumiClaimForm
         fields = ('country', 'number', 'account_key', 'conversation_key', 'api_url')
 
@@ -1997,12 +2019,14 @@ class ChannelCRUDL(SmartCRUDL):
                                                               dict(account_key=data['account_key'],
                                                                    access_token=str(uuid4()),
                                                                    conversation_key=data['conversation_key'],
-                                                                   api_url=api_url))
+                                                                   api_url=api_url),
+                                                              role=self.channel_role)
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
     class ClaimVumiUssd(ClaimVumi):
         channel_type = Channel.TYPE_VUMI_USSD
+        channel_role = Channel.ROLE_USSD
 
     class ClaimClickatell(ClaimAuthenticatedExternal):
         class ClickatellForm(forms.Form):
