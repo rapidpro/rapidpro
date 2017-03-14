@@ -1,3 +1,9 @@
+v3.0.82
+----------
+ * Add ROLE_USSD
+ * Add Junebug USSD Channel
+ * Fix Vumi USSD to use USSD Role
+
 v3.0.81
 ----------
  * Archive triggers that do not have a contact to send to
