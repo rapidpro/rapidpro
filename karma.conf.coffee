@@ -20,7 +20,7 @@ module.exports = (config) ->
       'static/bower/angular/angular.js',
       'static/bower/angular-animate/angular-animate.js',
       'static/bower/angular-mocks/angular-mocks.js',
-      'static/bower/angular-bootstrap/ui-bootstrap-tpls.js',
+      'static/js/temba-ui-bootstrap-tpls.js',
       'static/bower/angular-elastic/elastic.js',
       'static/bower/jsPlumb/dist/js/dom.jsPlumb-1.7.5.js'
       'static/bower/angular-ui-sortable/sortable.js',
