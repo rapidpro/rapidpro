@@ -1058,9 +1058,9 @@ class Msg(models.Model):
     def is_media_type_image(self):
         return Msg.MEDIA_IMAGE == self.get_media_type()
 
-    def reply(self, text, user, trigger_send=False, message_context=None, session=None, media=None):
+    def reply(self, text, user, trigger_send=False, message_context=None, session=None, media=None, send_all=False):
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None, session=session, media=media)
+                                 response_to=self if self.id else None, session=session, media=media, send_all=send_all)
 
     def update(self, cmd):
         """

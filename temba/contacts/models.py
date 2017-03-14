@@ -1775,15 +1775,31 @@ class Contact(TembaModel):
         if tel:
             return tel.path
 
-    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None):
-        from temba.msgs.models import Msg
+    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
+             send_all=False):
+        from temba.msgs.models import Msg, UnreachableException
 
-        msg = Msg.create_outgoing(self.org, user, self, text, priority=Msg.PRIORITY_HIGH, response_to=response_to,
-                                  message_context=message_context, session=session, media=media)
+        msgs = []
+
+        if send_all:
+            contact_urns = self.get_urns()
+            for c_urn in contact_urns:
+                try:
+                    msg = Msg.create_outgoing(self.org, user, c_urn, text, priority=Msg.PRIORITY_HIGH,
+                                              response_to=response_to,
+                                              message_context=message_context, session=session, media=media)
+                    msgs.append(msg)
+                except UnreachableException:
+                    pass
+        else:
+            msg = Msg.create_outgoing(self.org, user, self, text, priority=Msg.PRIORITY_HIGH, response_to=response_to,
+                                      message_context=message_context, session=session, media=media)
+            msgs.append(msg)
+
         if trigger_send:
-            self.org.trigger_send([msg])
+            self.org.trigger_send(msgs)
 
-        return msg
+        return msgs
 
     def __str__(self):
         return self.get_display()

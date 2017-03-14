@@ -2761,6 +2761,41 @@ class ActionTest(TembaTest):
         self.assertEquals("We love green too!", response.text)
         self.assertEquals(self.contact, response.contact)
 
+    def test_send_all_action(self):
+        contact = self.create_contact('Stephen', '+12078778899', twitter='stephen')
+        msg = self.create_msg(direction=INCOMING, contact=contact, text="Green is my favorite")
+        run = FlowRun.create(self.flow, self.contact.pk)
+
+        action = ReplyAction(dict(base="We love green too!"), None, send_all=True)
+        action.execute(run, None, msg)
+
+        replies = Msg.objects.filter(contact=contact, direction='O')
+        self.assertEqual(replies.count(), 1)
+        self.assertIsNone(replies.filter(contact_urn__path='stephen').first())
+        self.assertIsNotNone(replies.filter(contact_urn__path='+12078778899').first())
+
+        Broadcast.objects.all().delete()
+        Msg.objects.all().delete()
+
+        msg = self.create_msg(direction=INCOMING, contact=contact, text="Green is my favorite")
+        run = FlowRun.create(self.flow, self.contact.pk)
+
+        # create twitter channel
+        Channel.create(self.org, self.user, None, 'TT')
+        delattr(self.org, '__schemes__%s' % Channel.ROLE_SEND)
+
+        action_json = action.as_json()
+        action = ReplyAction.from_json(self.org, action_json)
+        self.assertEquals(dict(base="We love green too!"), action.msg)
+        self.assertTrue(action.send_all)
+
+        action.execute(run, None, msg)
+
+        replies = Msg.objects.filter(contact=contact, direction='O')
+        self.assertEqual(replies.count(), 2)
+        self.assertIsNotNone(replies.filter(contact_urn__path='stephen').first())
+        self.assertIsNotNone(replies.filter(contact_urn__path='+12078778899').first())
+
     def test_media_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)

@@ -5086,10 +5086,12 @@ class ReplyAction(Action):
     TYPE = 'reply'
     MESSAGE = 'msg'
     MEDIA = 'media'
+    SEND_ALL = 'send_all'
 
-    def __init__(self, msg=None, media=None):
+    def __init__(self, msg=None, media=None, send_all=False):
         self.msg = msg
         self.media = media if media else {}
+        self.send_all = send_all
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5104,13 +5106,14 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
 
-        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE), media=json_obj.get(ReplyAction.MEDIA, None))
+        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE), media=json_obj.get(ReplyAction.MEDIA, None),
+                           send_all=json_obj.get(ReplyAction.SEND_ALL, False))
 
     def as_json(self):
-        return dict(type=ReplyAction.TYPE, msg=self.msg, media=self.media)
+        return dict(type=ReplyAction.TYPE, msg=self.msg, media=self.media, send_all=self.send_all)
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
-        reply = None
+        replies = []
 
         if self.msg or self.media:
             user = get_flow_user(run.org)
@@ -5129,22 +5132,36 @@ class ReplyAction(Action):
                     media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
             if offline_on:
-                reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
-                                            created_on=offline_on, response_to=msg, media=media)
+                if self.send_all:
+                    contact_urns = run.contact.get_urns()
+                    for c_urn in contact_urns:
+                        try:
+                            reply = Msg.create_outgoing(run.org, user, c_urn, text, status=SENT,
+                                                        created_on=offline_on, response_to=msg, media=media)
+                            replies.append(reply)
+                        except UnreachableException:
+                            pass
+
+                else:
+                    reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
+                                                created_on=offline_on, response_to=msg, media=media)
+                    replies.append(reply)
+
             else:
                 context = run.flow.build_message_context(run.contact, msg)
 
                 try:
                     if msg:
-                        reply = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session,
-                                          media=media)
+                        replies = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session,
+                                            media=media, send_all=self.send_all)
                     else:
-                        reply = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                                 session=run.session, media=media)
+                        replies = run.contact.send(text, user, trigger_send=False, message_context=context,
+                                                   session=run.session, media=media, send_all=self.send_all)
+
                 except UnreachableException:
                     pass
 
-        return [reply] if reply else []
+        return replies
 
 
 class UssdAction(ReplyAction):
