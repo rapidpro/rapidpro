@@ -858,6 +858,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         self.assertEqual(Channel.objects.first().channel_type, Channel.TYPE_VUMI_USSD)
+        self.assertEqual(Channel.objects.first().role, Channel.ROLE_USSD)
         self.assertTrue(Channel.objects.first().is_ussd())
         self.assertFalse(Channel.objects.last().is_ussd())
 
@@ -3016,6 +3017,64 @@ class ChannelClaimTest(TembaTest):
 
         self.assertContains(response, reverse('handlers.chikka_handler', args=[channel.uuid]))
 
+    def test_claim_junebug(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        response = self.client.get(reverse('channels.channel_claim_junebug'))
+        self.assertEquals(200, response.status_code)
+
+        post_data = {
+            "channel_type": Channel.TYPE_JUNEBUG,
+            "country": "ZA",
+            "number": "+273454325324",
+            "url": "http://example.com/messages.json",
+            "username": "foo",
+            "password": "bar",
+        }
+
+        response = self.client.post(reverse('channels.channel_claim_junebug'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertEquals(channel.country, post_data['country'])
+        self.assertEquals(channel.address, post_data['number'])
+        self.assertEquals(channel.config_json()['send_url'], post_data['url'])
+        self.assertEquals(channel.config_json()['username'], post_data['username'])
+        self.assertEquals(channel.config_json()['password'], post_data['password'])
+        self.assertEquals(channel.channel_type, Channel.TYPE_JUNEBUG)
+        self.assertEquals(channel.role, Channel.DEFAULT_ROLE)
+
+        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        self.assertRedirect(response, config_url)
+
+        response = self.client.get(config_url)
+        self.assertEquals(200, response.status_code)
+
+        self.assertContains(response, reverse('handlers.junebug_handler', args=['inbound', channel.uuid]))
+
+    def test_claim_junebug_ussd(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        response = self.client.get(reverse('channels.channel_claim_junebug'))
+        self.assertEquals(200, response.status_code)
+
+        post_data = {
+            "channel_type": Channel.TYPE_JUNEBUG_USSD,
+            "country": "ZA",
+            "number": "+273454325324",
+            "url": "http://example.com/messages.json",
+            "username": "foo",
+            "password": "bar",
+        }
+
+        response = self.client.post(reverse('channels.channel_claim_junebug'), post_data)
+
+        channel = Channel.objects.get()
+        self.assertEquals(channel.channel_type, Channel.TYPE_JUNEBUG_USSD)
+        self.assertEquals(channel.role, Channel.ROLE_USSD)
+
     def test_claim_vumi_ussd(self):
         Channel.objects.all().delete()
         self.login(self.admin)
@@ -3041,6 +3100,7 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(channel.config_json()['conversation_key'], post_data['conversation_key'])
         self.assertEquals(channel.config_json()['api_url'], Channel.VUMI_GO_API_URL)
         self.assertEquals(channel.channel_type, Channel.TYPE_VUMI_USSD)
+        self.assertEquals(channel.role, Channel.ROLE_USSD)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
@@ -3077,6 +3137,7 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(channel.config_json()['conversation_key'], post_data['conversation_key'])
         self.assertEquals(channel.config_json()['api_url'], "http://custom.api.url")
         self.assertEquals(channel.channel_type, Channel.TYPE_VUMI_USSD)
+        self.assertEquals(channel.role, Channel.ROLE_USSD)
 
     @override_settings(SEND_EMAILS=True)
     def test_disconnected_alert(self):
@@ -8372,20 +8433,7 @@ class JasminTest(TembaTest):
             self.clear_cache()
 
 
-class JunebugTest(TembaTest):
-
-    def setUp(self):
-        super(JunebugTest, self).setUp()
-
-        self.channel.delete()
-        self.channel = Channel.create(
-            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG, None, '1234',
-            config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
-            uuid='00000000-0000-0000-0000-000000001234')
-
-    def tearDown(self):
-        super(JunebugTest, self).tearDown()
-        settings.SEND_MESSAGES = False
+class JunebugTestMixin(object):
 
     def mk_event(self, **kwargs):
         default = {
@@ -8396,12 +8444,16 @@ class JunebugTest(TembaTest):
         default.update(kwargs)
         return default
 
+    def mk_ussd_msg(self, session_event='new', **kwargs):
+        return self.mk_msg(channel_data={'session_event': session_event},
+                           **kwargs)
+
     def mk_msg(self, **kwargs):
         default = {
-            "channel_data": {"session_event": "new"},
+            "channel_data": {},
             "from": "+27123456789",
             "channel_id": "channel-id",
-            "timestamp": "2017-01-01 00:00:00+0000",
+            "timestamp": "2017-01-01 00:00:00.00",
             "content": "content",
             "to": "to-addr",
             "reply_to": None,
@@ -8409,6 +8461,24 @@ class JunebugTest(TembaTest):
         }
         default.update(kwargs)
         return default
+
+
+class JunebugTest(JunebugTestMixin, TembaTest):
+
+    def setUp(self):
+        super(JunebugTest, self).setUp()
+
+        self.channel.delete()
+
+        self.channel = Channel.create(
+            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG, None, '1234',
+            config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
+            uuid='00000000-0000-0000-0000-000000001234',
+            role=Channel.DEFAULT_ROLE)
+
+    def tearDown(self):
+        super(JunebugTest, self).tearDown()
+        settings.SEND_MESSAGES = False
 
     def test_get_request(self):
         response = self.client.get(
@@ -8495,7 +8565,7 @@ class JunebugTest(TembaTest):
                                     content_type='application/json')
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, "OK")
+        self.assertEqual(response.json()['status'], 'ack')
 
         # load our message
         msg = Msg.objects.get()
@@ -8594,6 +8664,160 @@ class JunebugTest(TembaTest):
 
             self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
                                                                               "referenced before assignment"))
+
+
+class JunebugUSSDTest(JunebugTestMixin, TembaTest):
+
+    def setUp(self):
+        super(JunebugUSSDTest, self).setUp()
+
+        flow = self.get_flow('ussd_example')
+        self.starcode = "*113#"
+
+        self.channel.delete()
+        self.channel = Channel.create(
+            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '1234',
+            config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
+            uuid='00000000-0000-0000-0000-000000001234', role=Channel.ROLE_USSD)
+
+        self.trigger, _ = Trigger.objects.get_or_create(
+            channel=self.channel, keyword=self.starcode, flow=flow,
+            created_by=self.user, modified_by=self.user, org=self.org,
+            trigger_type=Trigger.TYPE_USSD_PULL)
+
+    def tearDown(self):
+        super(JunebugUSSDTest, self).tearDown()
+        settings.SEND_MESSAGES = False
+
+    def test_receive_ussd(self):
+        from temba.ussd.models import USSDSession
+        from temba.channels.handlers import JunebugHandler
+
+        data = self.mk_ussd_msg(content="événement", to=self.starcode)
+        callback_url = reverse('handlers.junebug_handler',
+                               args=['inbound', self.channel.uuid])
+        response = self.client.post(callback_url, json.dumps(data),
+                                    content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], JunebugHandler.ACK)
+
+        # load our message
+        msg = Msg.objects.get()
+        self.assertEquals(data["from"], msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(msg.session.status, USSDSession.TRIGGERED)
+
+    def test_receive_ussd_no_sesion(self):
+        from temba.channels.handlers import JunebugHandler
+
+        # Delete the trigger to prevent the sesion from being created
+        self.trigger.delete()
+
+        data = self.mk_ussd_msg(content="événement", to=self.starcode)
+        callback_url = reverse('handlers.junebug_handler',
+                               args=['inbound', self.channel.uuid])
+        response = self.client.post(callback_url, json.dumps(data),
+                                    content_type='application/json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['status'], JunebugHandler.NACK)
+
+    def test_send_ussd_continue_session(self):
+        joe = self.create_contact("Joe", "+250788383383")
+        self.create_group("Reporters", [joe])
+
+        inbound = Msg.create_incoming(
+            self.channel, "tel:+250788383383", "Send an inbound message",
+            external_id='vumi-message-id')
+        msg = inbound.reply("Test message", self.admin, trigger_send=False)
+
+        # our outgoing message
+        msg.refresh_from_db()
+        r = get_redis_connection()
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, json.dumps({
+                    'result': {
+                        'id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
+                    }
+                }))
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+                self.assertEquals("07033084-5cfd-4812-90a4-e4d24ffb6e3d", msg.external_id)
+                self.assertEquals(1, mock.call_count)
+
+                # should have a failsafe that it was sent
+                self.assertTrue(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
+
+                # try sending again, our failsafe should kick in
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # we shouldn't have been called again
+                self.assertEquals(1, mock.call_count)
+                [call] = mock.call_args_list
+                (args, kwargs) = call
+                payload = kwargs['json']
+                self.assertEquals(payload['reply_to'], 'vumi-message-id')
+                self.assertEquals(payload['channel_data'], {
+                    'continue_session': True
+                })
+                self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_ussd_end_session(self):
+        from temba.ussd.models import USSDSession
+
+        joe = self.create_contact("Joe", "+250788383383")
+        self.create_group("Reporters", [joe])
+
+        inbound = Msg.create_incoming(
+            self.channel, "tel:+250788383383", "Send an inbound message",
+            external_id='vumi-message-id')
+        session = USSDSession.objects.create(
+            channel=self.channel, org=self.channel.org,
+            contact=joe,
+            contact_urn=joe.urn_objects[URN.from_tel('+250788383383')],
+            external_id=inbound.external_id,
+            status=USSDSession.COMPLETED)
+        msg = inbound.reply("Test message", self.admin, trigger_send=False,
+                            session=session)
+        # our outgoing message
+        msg.refresh_from_db()
+        self.clear_cache()
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, json.dumps({
+                    'result': {
+                        'id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
+                    }
+                }))
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+                self.assertEquals(1, mock.call_count)
+                [call] = mock.call_args_list
+                (args, kwargs) = call
+                payload = kwargs['json']
+                self.assertEquals(payload['reply_to'], 'vumi-message-id')
+                self.assertEquals(payload['channel_data'], {
+                    'continue_session': False
+                })
+                self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
 
 
 class MbloxTest(TembaTest):

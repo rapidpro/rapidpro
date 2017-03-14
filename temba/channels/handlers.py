@@ -1919,9 +1919,14 @@ class JunebugHandler(BaseChannelHandler):
 
     url = r'^junebug/(?P<action>event|inbound)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.junebug_handler'
+    ACK = 'ack'
+    NACK = 'nack'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=400)
+
+    def is_ussd_message(self, msg):
+        return 'session_event' in msg.get('channel_data', {})
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
@@ -1929,37 +1934,37 @@ class JunebugHandler(BaseChannelHandler):
         action = kwargs['action'].lower()
         request_uuid = kwargs['uuid']
 
+        data = json.load(request)
+        is_ussd = self.is_ussd_message(data)
+        channel_data = data.get('channel_data', {})
+        channel_type = (Channel.TYPE_JUNEBUG_USSD
+                        if is_ussd
+                        else Channel.TYPE_JUNEBUG)
+
         # look up the channel
         channel = Channel.objects.filter(
             uuid=request_uuid,
             is_active=True,
-            channel_type=Channel.TYPE_JUNEBUG).exclude(org=None).first()
+            channel_type=channel_type).exclude(org=None).first()
 
         if not channel:
-            return HttpResponse(
-                "Channel not found for id: %s" % request_uuid, status=400)
-
-        data = json.load(request)
+            return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
         # Junebug is sending an event
         if action == 'event':
             expected_keys = ["event_type", "message_id", "timestamp"]
             if not set(expected_keys).issubset(data.keys()):
-                return HttpResponse(
-                    "Missing one of %s in request parameters." % (
-                        ', '.join(expected_keys)), status=400)
+                return HttpResponse("Missing one of %s in request parameters." % (', '.join(expected_keys)),
+                                    status=400)
 
             message_id = data['message_id']
             event_type = data["event_type"]
 
             # look up the message
-            message = Msg.objects.filter(
-                channel=channel, external_id=message_id
-            ).select_related('channel')
+            message = Msg.objects.filter(channel=channel, external_id=message_id).select_related('channel')
             if not message:
-                return HttpResponse(
-                    "Message with external id of '%s' not found" % message_id,
-                    status=400)
+                return HttpResponse("Message with external id of '%s' not found" % message_id,
+                                    status=400)
 
             if event_type == 'submitted':
                 for message_obj in message:
@@ -1972,7 +1977,10 @@ class JunebugHandler(BaseChannelHandler):
                     message_obj.status_fail()
 
             # Let Junebug know we're happy
-            return HttpResponse('OK')
+            return JsonResponse({
+                'status': self.ACK,
+                'message_ids': [message_obj.pk for message_obj in message]
+            })
 
         # Handle an inbound message
         elif action == 'inbound':
@@ -1988,15 +1996,41 @@ class JunebugHandler(BaseChannelHandler):
             ]
             if not set(expected_keys).issubset(data.keys()):
                 return HttpResponse(
-                    "Missing one of %s in request parameters." % (
-                        ', '.join(expected_keys)), status=400)
+                    "Missing one of %s in request parameters." % (', '.join(expected_keys)),
+                    status=400)
 
-            content = data['content']
-            message = Msg.create_incoming(
-                channel, URN.from_tel(data['from']), content)
-            Msg.objects.filter(pk=message.id).update(
-                external_id=data['message_id'])
-            return HttpResponse('OK')
+            if is_ussd:
+                status = {
+                    'close': USSDSession.INTERRUPTED,
+                    'new': USSDSession.TRIGGERED,
+                }.get(channel_data.get('session_event'), USSDSession.IN_PROGRESS)
+
+                message_date = datetime.strptime(data['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
+                gmt_date = pytz.timezone('GMT').localize(message_date)
+                session_id = '%s.%s' % (data['from'], gmt_date.toordinal())
+
+                session = USSDSession.handle_incoming(channel=channel, urn=data['from'], content=data['content'],
+                                                      status=status, date=gmt_date, external_id=session_id,
+                                                      message_id=data['message_id'], starcode=data['to'])
+
+                if session:
+                    return JsonResponse({
+                        'status': self.ACK,
+                        'session_id': session.pk,
+                    })
+                else:
+                    return JsonResponse({
+                        'status': self.NACK,
+                        'reason': 'No suitable session found for this message.'
+                    }, status=400)
+            else:
+                content = data['content']
+                message = Msg.create_incoming(channel, URN.from_tel(data['from']), content)
+                Msg.objects.filter(pk=message.id).update(external_id=data['message_id'])
+                return JsonResponse({
+                    'status': self.ACK,
+                    'message_id': message.pk,
+                })
 
 
 class MbloxHandler(BaseChannelHandler):
