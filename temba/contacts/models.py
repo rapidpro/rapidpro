@@ -23,13 +23,13 @@ from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
+from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
-from temba.utils.profiler import SegmentProfiler
+from temba.utils.profiler import time_monitor
 from temba.values.models import Value
-from temba.locations.models import STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 
 
 logger = logging.getLogger(__name__)
@@ -448,10 +448,6 @@ class Contact(TembaModel):
         NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, 'created_by', 'modified_by', 'org', 'is', 'has'
     ] + [c[0] for c in IMPORT_HEADERS]
 
-    @classmethod
-    def get_contacts(cls, org, blocked=False, stopped=False):
-        return Contact.objects.filter(org=org, is_active=True, is_test=False, is_blocked=blocked, is_stopped=stopped)
-
     @property
     def anon_identifier(self):
         """
@@ -652,16 +648,16 @@ class Contact(TembaModel):
                 district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
                 district_value = self.get_field(district_field.key)
                 if district_value:
-                    loc_value = self.org.parse_location(value, WARD_LEVEL, district_value.location_value)
+                    loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_WARD, district_value.location_value)
 
             elif field.value_type == Value.TYPE_DISTRICT:
                 state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
                 if state_field:
                     state_value = self.get_field(state_field.key)
                     if state_value:
-                        loc_value = self.org.parse_location(value, DISTRICT_LEVEL, state_value.location_value)
+                        loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_DISTRICT, state_value.location_value)
             else:
-                loc_value = self.org.parse_location(value, STATE_LEVEL)
+                loc_value = self.org.parse_location(value, AdminBoundary.LEVEL_STATE)
 
             if loc_value is not None and len(loc_value) > 0:
                 loc_value = loc_value[0]
@@ -964,17 +960,16 @@ class Contact(TembaModel):
         return test_contact
 
     @classmethod
-    def search(cls, org, query, base_queryset=None, base_set=None):
+    def search(cls, org, query, base_group=None, base_set=None):
         """
-        Performs a search of contacts based on a query. Returns a tuple of the queryset and a bool for whether
-        or not the query was a valid complex query, e.g. name = "Bob" AND age = 21
+        Performs a search of contacts within a group (system or user)
         """
-        from temba.contacts import search
+        from .search import contact_search
 
-        if base_queryset is None:
-            base_queryset = Contact.objects.filter(org=org, is_active=True, is_test=False, is_blocked=False, is_stopped=False)
+        if not base_group:
+            base_group = ContactGroup.all_groups.get(org=org, group_type=ContactGroup.TYPE_ALL)
 
-        return search.contact_search(org, query, base_queryset, base_set)
+        return contact_search(org, query, base_group.contacts.all(), base_set=base_set)
 
     @classmethod
     def create_instance(cls, field_dict):
@@ -1399,10 +1394,13 @@ class Contact(TembaModel):
         """
         Blocks this contact removing it from all non-dynamic groups
         """
+        from temba.triggers.models import Trigger
+
         if self.is_test:
             raise ValueError("Can't block a test contact")
 
         self.clear_all_groups(user)
+        Trigger.archive_triggers_for_contact(self)
 
         self.is_blocked = True
         self.modified_by = user
@@ -1422,6 +1420,8 @@ class Contact(TembaModel):
         """
         Marks this contact has stopped, removing them from all groups.
         """
+        from temba.triggers.models import Trigger
+
         if self.is_test:
             raise ValueError("Can't stop a test contact")
 
@@ -1430,6 +1430,8 @@ class Contact(TembaModel):
         self.save(update_fields=['is_stopped', 'modified_on', 'modified_by'])
 
         self.clear_all_groups(get_anonymous_user())
+
+        Trigger.archive_triggers_for_contact(self)
 
     def unstop(self, user):
         """
@@ -1780,13 +1782,12 @@ class Contact(TembaModel):
         if tel:
             return tel.path
 
-    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None,
-             msg_type=None):
+    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None, msg_type=None):
         from temba.msgs.models import Msg, INBOX
 
-        msg = Msg.create_outgoing(self.org, user, self, text, priority=Msg.PRIORITY_HIGH,
-                                  response_to=response_to, message_context=message_context, session=session,
-                                  msg_type=msg_type or INBOX)
+        msg = Msg.create_outgoing(self.org, user, self, text, priority=Msg.PRIORITY_HIGH, response_to=response_to,
+                                  message_context=message_context, session=session, media=media, msg_type=msg_type or INBOX)
+
         if trigger_send:
             self.org.trigger_send([msg])
 
@@ -2177,6 +2178,8 @@ class ContactGroup(TembaModel):
         """
         Updates the query for a dynamic group
         """
+        from .search import extract_fields
+
         if not self.is_dynamic:
             raise ValueError("Can only update query for a dynamic group")
 
@@ -2185,10 +2188,8 @@ class ContactGroup(TembaModel):
 
         self.query_fields.clear()
 
-        for match in regex.finditer(r'\w+', self.query, regex.V0):
-            field = ContactField.objects.filter(key__iexact=match.group(), org=self.org, is_active=True).first()
-            if field:
-                self.query_fields.add(field)
+        for field in extract_fields(self.org, self.query):
+            self.query_fields.add(field)
 
         members = list(self._get_dynamic_members())
         self.contacts.clear()
@@ -2198,24 +2199,22 @@ class ContactGroup(TembaModel):
         """
         For dynamic groups, this returns the set of contacts who belong in this group
         """
+        from .search import SearchException
+
         if not self.is_dynamic:  # pragma: no cover
             raise ValueError("Can only be called on dynamic groups")
 
-        members, is_complex = Contact.search(self.org, self.query, base_set=base_set)
-        return members
+        try:
+            return Contact.search(self.org, self.query, base_set=base_set)
+        except SearchException:  # pragma: no cover
+            return Contact.objects.none()
 
+    @time_monitor(threshold=100)
     def _check_dynamic_membership(self, contact):
         """
         For dynamic groups, determines whether the given contact belongs in the group
         """
         return self._get_dynamic_members(base_set=[contact]).exists()
-
-    @classmethod
-    def get_system_group_queryset(cls, org, group_type):
-        if group_type == cls.TYPE_USER_DEFINED:  # pragma: no cover
-            raise ValueError("Can only get system group querysets")
-
-        return cls.all_groups.get(org=org, group_type=group_type).contacts.all()
 
     @classmethod
     def get_system_group_counts(cls, org, group_types=None):
@@ -2316,7 +2315,13 @@ class ExportContactsTask(BaseExportTask):
     email_subject = "Your contacts export is ready"
     email_template = 'contacts/email/contacts_export_download'
 
-    group = models.ForeignKey(ContactGroup, null=True, related_name='exports', help_text=_("The unique group to export"))
+    group = models.ForeignKey(ContactGroup, null=True, related_name='exports',
+                              help_text=_("The unique group to export"))
+    search = models.TextField(null=True, blank=True, help_text=_("The search query"))
+
+    @classmethod
+    def create(cls, org, user, group=None, search=None):
+        return cls.objects.create(org=org, group=group, search=search, created_by=user, modified_by=user)
 
     def get_export_fields_and_schemes(self):
 
@@ -2344,97 +2349,95 @@ class ExportContactsTask(BaseExportTask):
                         field_dict['position'] = i
                         fields.append(field_dict)
 
-        with SegmentProfiler("building up contact fields"):
-            contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True).select_related('org')
-            for contact_field in contact_fields_list:
-                fields.append(dict(field=contact_field,
-                                   label=contact_field.label,
-                                   key=contact_field.key,
-                                   id=contact_field.id,
-                                   urn_scheme=None))
+        contact_fields_list = ContactField.objects.filter(org=self.org, is_active=True).select_related('org')
+        for contact_field in contact_fields_list:
+            fields.append(dict(field=contact_field,
+                               label=contact_field.label,
+                               key=contact_field.key,
+                               id=contact_field.id,
+                               urn_scheme=None))
 
         return fields, scheme_counts
 
     def write_export(self):
         fields, scheme_counts = self.get_export_fields_and_schemes()
 
-        with SegmentProfiler("build up contact ids"):
-            all_contacts = Contact.get_contacts(self.org)
-            if self.group:
-                all_contacts = all_contacts.filter(all_groups=self.group)
+        group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
 
-            contact_ids = [c['id'] for c in all_contacts.order_by('name', 'id').values('id')]
+        if self.search:
+            contacts = Contact.search(self.org, self.search, group)
+        else:
+            contacts = group.contacts.all()
+
+        contact_ids = contacts.filter(is_test=False).order_by('name', 'id').values_list('id', flat=True)
 
         # create our exporter
-        exporter = TableExporter(self, "Contact", [c['label'] for c in fields])
+        exporter = TableExporter(self, "Contact", [f['label'] for f in fields])
 
         current_contact = 0
         start = time.time()
 
-        # in batches of 500 contacts
-        for batch_ids in chunk_list(contact_ids, 500):
-            with SegmentProfiler("output 500 contacts"):
-                batch_ids = list(batch_ids)
+        # write out contacts in batches to limit memory usage
+        for batch_ids in chunk_list(contact_ids, 1000):
+            # fetch all the contacts for our batch
+            batch_contacts = Contact.objects.filter(id__in=batch_ids).select_related('org')
 
-                # fetch all the contacts for our batch
-                batch_contacts = Contact.objects.filter(id__in=batch_ids).select_related('org')
+            # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
+            contact_by_id = {c.id: c for c in batch_contacts}
 
-                # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
-                contact_by_id = {c.id: c for c in batch_contacts}
+            # bulk initialize them
+            Contact.bulk_cache_initialize(self.org, batch_contacts)
 
-                # bulk initialize them
-                Contact.bulk_cache_initialize(self.org, batch_contacts)
+            for contact_id in batch_ids:
+                contact = contact_by_id[contact_id]
 
-                for contact_id in batch_ids:
-                    contact = contact_by_id[contact_id]
+                values = []
+                for col in range(len(fields)):
+                    field = fields[col]
 
-                    values = []
-                    for col in range(len(fields)):
-                        field = fields[col]
-
-                        if field['key'] == Contact.NAME:
-                            field_value = contact.name
-                        elif field['key'] == Contact.UUID:
-                            field_value = contact.uuid
-                        elif field['key'] == Contact.ID:
-                            field_value = six.text_type(contact.id)
-                        elif field['urn_scheme'] is not None:
-                            contact_urns = contact.get_urns()
-                            scheme_urns = []
-                            for urn in contact_urns:
-                                if urn.scheme == field['urn_scheme']:
-                                    scheme_urns.append(urn)
-                            position = field['position']
-                            if len(scheme_urns) > position:
-                                urn_obj = scheme_urns[position]
-                                field_value = urn_obj.get_display(org=self.org, formatted=False) if urn_obj else ''
-                            else:
-                                field_value = ''
+                    if field['key'] == Contact.NAME:
+                        field_value = contact.name
+                    elif field['key'] == Contact.UUID:
+                        field_value = contact.uuid
+                    elif field['key'] == Contact.ID:
+                        field_value = six.text_type(contact.id)
+                    elif field['urn_scheme'] is not None:
+                        contact_urns = contact.get_urns()
+                        scheme_urns = []
+                        for urn in contact_urns:
+                            if urn.scheme == field['urn_scheme']:
+                                scheme_urns.append(urn)
+                        position = field['position']
+                        if len(scheme_urns) > position:
+                            urn_obj = scheme_urns[position]
+                            field_value = urn_obj.get_display(org=self.org, formatted=False) if urn_obj else ''
                         else:
-                            value = contact.get_field(field['key'])
-                            field_value = Contact.get_field_display_for_value(field['field'], value)
-
-                        if field_value is None:
                             field_value = ''
+                    else:
+                        value = contact.get_field(field['key'])
+                        field_value = Contact.get_field_display_for_value(field['field'], value)
 
-                        if field_value:
-                            field_value = six.text_type(clean_string(field_value))
+                    if field_value is None:
+                        field_value = ''
 
-                        values.append(field_value)
+                    if field_value:
+                        field_value = six.text_type(clean_string(field_value))
 
-                    # write this contact's values
-                    exporter.write_row(values)
-                    current_contact += 1
+                    values.append(field_value)
 
-                    # output some status information every 10,000 contacts
-                    if current_contact % 10000 == 0:  # pragma: no cover
-                        elapsed = time.time() - start
-                        predicted = int(elapsed / (current_contact / (len(contact_ids) * 1.0)))
+                # write this contact's values
+                exporter.write_row(values)
+                current_contact += 1
 
-                        print("Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)" %
-                              (self.org.name, current_contact * 100 / len(contact_ids),
-                               "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
-                               time.time() - start, predicted))
+                # output some status information every 10,000 contacts
+                if current_contact % 10000 == 0:  # pragma: no cover
+                    elapsed = time.time() - start
+                    predicted = int(elapsed / (current_contact / (len(contact_ids) * 1.0)))
+
+                    print("Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)" %
+                          (self.org.name, current_contact * 100 / len(contact_ids),
+                           "{:,}".format(current_contact), "{:,}".format(len(contact_ids)),
+                           time.time() - start, predicted))
 
         return exporter.save_file()
 

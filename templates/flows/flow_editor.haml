@@ -36,7 +36,7 @@
     %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/jquery-autosize/jquery.autosize.js"}
     %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/angular-elastic/elastic.js"}
     %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/angular-ui-sortable/sortable.js"}
-    %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/angular-bootstrap/ui-bootstrap-tpls.js"}
+    %script{type:'text/javascript', src:"{{ STATIC_URL }}js/temba-ui-bootstrap-tpls.js"}
 
   %script{src:"{{ STATIC_URL }}js/excellent.js"}
 
@@ -45,6 +45,7 @@
     window.simulateURL = '{% url "flows.flow_simulate" object.pk %}';
     window.activityURL = '{% url "flows.flow_activity" object.pk %}';
     window.uploadURL = '{% url "flows.flow_upload_action_recording" object.pk %}';
+    window.uploadMediaURL = '{% url "flows.flow_upload_media_action" object.pk %}';
     window.mutable = {{mutable|lower}};
     window.ivr = '{{object.flow_type}}' == 'V';
     window.ussd = '{{object.flow_type}}' == 'U';
@@ -329,7 +330,7 @@
                     class:'[[action.type]]', ng-class:'{ disabled:!action._translation, missing: action._missingTranslation }'}
               .drop-overlay.hide
                 %p
-                  Drop to upload new sound file
+                  Drop to upload new file
 
               .title.action-name{ ng-model: 'action' }
 
@@ -370,10 +371,20 @@
                 // messages with translations
                 %span.translation{ng-show:'action.type == "send" || action.type == "reply" || action.type == "say"'}
 
-                  [[action._translation]]
+                  .text{ng-class:'{}'}
+
+                    [[action._translation]]
 
                   .missing{ng-hide:'action._translation'}
                     -trans "Click here to add a message"
+
+                  %span.reply{ng-show:'action.type == "reply" || action.type == "send"'}
+
+                    .node-attachment.viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}', ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
+
+                    .uploading{ng-show:'action.uploading'}
+                      %img.throbber{ src: "{{ STATIC_URL }}images/loader-bars.gif" }
+                      .cancel.icon-cancel-circle{ng-click:"upload.abort(); action.uploading=false; action.dirty=true; $event.stopPropagation();"}
 
                   %span.recording{ng-show:'action.type=="say"'}
 

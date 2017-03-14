@@ -10,9 +10,7 @@ def export_contacts_task(id):
     """
     Export contacts to a file and e-mail a link to the user
     """
-    export_task = ExportContactsTask.objects.filter(pk=id).first()
-    if export_task:
-        export_task.perform()
+    ExportContactsTask.objects.get(id=id).perform()
 
 
 @nonoverlapping_task(track_started=True, name='squash_contactgroupcounts')
