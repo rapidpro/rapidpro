@@ -1937,6 +1937,7 @@ class APITest(TembaTest):
         test_contact = Contact.get_test_contact(self.user)
 
         group = self.create_group("Testers")
+        self.create_field('isdeveloper', "Is developer")
         self.create_group("Developers", query="isdeveloper = YES")
 
         # start contacts in a flow

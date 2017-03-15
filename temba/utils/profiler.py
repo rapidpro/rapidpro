@@ -1,6 +1,8 @@
 from __future__ import print_function, unicode_literals
 
+import logging
 import six
+import time
 
 from django.conf import settings
 from django.db import connection, reset_queries
@@ -8,6 +10,8 @@ from temba.utils import truncate
 from timeit import default_timer
 
 MAX_QUERIES_PRINT = 16
+
+logger = logging.getLogger(__name__)
 
 
 @six.python_2_unicode_compatible
@@ -85,3 +89,22 @@ class SegmentProfiler(object):  # pragma: no cover
                     message += "\n\t%s" % format_query(query)
 
         return message
+
+
+def time_monitor(threshold):
+    """
+    Method decorator to time a method call and log an error if time exceeds the given threshold in milliseconds.
+    """
+    def _time_monitor(func):
+        def wrapper(*args, **kwargs):
+            start = time.time()
+
+            result = func(*args, **kwargs)
+
+            time_taken = int(1000 * (time.time() - start))
+            if time_taken > threshold:
+                logger.error('Call to %s took %d milliseconds.' % (func.__name__, time_taken), extra={'stack': True})
+
+            return result
+        return wrapper
+    return _time_monitor

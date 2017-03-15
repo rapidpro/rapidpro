@@ -121,9 +121,6 @@ def media_url(media):
 @register.filter
 def media_content_type(media):
     if media:
-        # TODO: remove after migration msgs.0053
-        if media.startswith('http'):  # pragma: needs cover
-            return 'audio/x-wav'
         return media.partition(':')[0]
 
 
