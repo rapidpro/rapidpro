@@ -24,7 +24,6 @@ from smartmin.csv_imports.models import ImportTask
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import INBOX
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
 from temba.utils.models import SquashableModel, TembaModel
@@ -1791,7 +1790,7 @@ class Contact(TembaModel):
 
     def send_all(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
                  msg_type=None, send_all=False):
-        from temba.msgs.models import Msg, UnreachableException
+        from temba.msgs.models import Msg, UnreachableException, INBOX
 
         msgs = []
 
