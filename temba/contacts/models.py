@@ -586,20 +586,22 @@ class Contact(TembaModel):
         value = self.get_field(key)
         if value:
             field = value.contact_field
-            return Contact.get_field_display_for_value(field, value)
+            return Contact.get_field_display_for_value(field, value, org=self.org)
         else:
             return None
 
     @classmethod
-    def get_field_display_for_value(cls, field, value):
+    def get_field_display_for_value(cls, field, value, org=None):
         """
         Utility method to determine best display value for the passed in field, value pair.
         """
+        org = org or field.org
+
         if value is None:
             return None
 
         if field.value_type == Value.TYPE_DATETIME:
-            return field.org.format_date(value.datetime_value)
+            return org.format_date(value.datetime_value)
         elif field.value_type == Value.TYPE_DECIMAL:
             return format_decimal(value.decimal_value)
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
