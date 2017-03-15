@@ -14,7 +14,7 @@ from django_redis import get_redis_connection
 
 from temba.channels.models import Channel
 from temba.contacts.models import Contact
-from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING
+from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING, USSD
 from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
 from temba.flows.models import FlowRun
@@ -24,6 +24,14 @@ from .models import USSDSession
 
 
 class USSDSessionTest(TembaTest):
+
+    def setUp(self):
+        super(USSDSessionTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE,
+                                      uuid='00000000-0000-0000-0000-000000001234')
 
     def test_pull_async_trigger_start(self):
         flow = self.get_flow('ussd_example')
@@ -157,15 +165,18 @@ class VumiUssdTest(TembaTest):
         self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_VUMI_USSD, None, '+250788123123',
                                       config=dict(account_key='vumi-key', access_token='vumi-token',
                                                   conversation_key='key'),
-                                      uuid='00000000-0000-0000-0000-000000001234')
+                                      uuid='00000000-0000-0000-0000-000000001234',
+                                      role=Channel.ROLE_USSD)
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
         self.create_group("Reporters", [joe])
         inbound = Msg.create_incoming(
             self.channel, "tel:+250788383383", "Send an inbound message",
-            external_id='vumi-message-id')
+            external_id='vumi-message-id', msg_type=USSD)
         msg = inbound.reply("Test message", self.admin, trigger_send=False)
+        self.assertEqual(inbound.msg_type, USSD)
+        self.assertEqual(msg.msg_type, USSD)
 
         # our outgoing message
         msg.refresh_from_db()
@@ -205,7 +216,7 @@ class VumiUssdTest(TembaTest):
         self.create_group("Reporters", [joe])
         inbound = Msg.create_incoming(
             self.channel, "tel:+250788383383", "Send an inbound message",
-            external_id='vumi-message-id')
+            external_id='vumi-message-id', msg_type=USSD)
         msg = inbound.reply("Test message", self.admin, trigger_send=False)
 
         # our outgoing message
@@ -233,7 +244,7 @@ class VumiUssdTest(TembaTest):
         self.create_group("Reporters", [joe])
         inbound = Msg.create_incoming(
             self.channel, "tel:+250788383383", "Send an inbound message",
-            external_id='vumi-message-id')
+            external_id='vumi-message-id', msg_type=USSD)
         msg = inbound.reply("Test message", self.admin, trigger_send=False)
 
         # our outgoing message
@@ -285,7 +296,7 @@ class VumiUssdTest(TembaTest):
         self.create_group("Reporters", [joe])
         inbound = Msg.create_incoming(
             self.channel, "tel:+250788383383", "Send an inbound message",
-            external_id='vumi-message-id')
+            external_id='vumi-message-id', msg_type=USSD)
         msg = inbound.reply("Test message", self.admin, trigger_send=False)
 
         # our outgoing message

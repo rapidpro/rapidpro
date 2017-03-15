@@ -24,6 +24,7 @@ from smartmin.csv_imports.models import ImportTask
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
+from temba.msgs.models import INBOX
 from temba.orgs.models import Org, OrgLock
 from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
 from temba.utils.models import SquashableModel, TembaModel
@@ -1782,13 +1783,14 @@ class Contact(TembaModel):
         if tel:
             return tel.path
 
-    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None):
+    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
+             msg_type=None):
         msgs = self.send_all(text, user, trigger_send=True, response_to=None, message_context=None, session=None,
-                             media=None, send_all=False)
+                             media=None, msg_type=msg_type, send_all=False)
         return msgs[0] if msgs else None
 
     def send_all(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
-                 send_all=False):
+                 msg_type=None, send_all=False):
         from temba.msgs.models import Msg, UnreachableException
 
         msgs = []
@@ -1799,13 +1801,15 @@ class Contact(TembaModel):
                 try:
                     msg = Msg.create_outgoing(self.org, user, c_urn, text, priority=Msg.PRIORITY_HIGH,
                                               response_to=response_to,
-                                              message_context=message_context, session=session, media=media)
+                                              message_context=message_context, session=session, media=media,
+                                              msg_type=msg_type or INBOX)
                     msgs.append(msg)
                 except UnreachableException:
                     pass
         else:
             msg = Msg.create_outgoing(self.org, user, self, text, priority=Msg.PRIORITY_HIGH, response_to=response_to,
-                                      message_context=message_context, session=session, media=media)
+                                      message_context=message_context, session=session, media=media,
+                                      msg_type=msg_type or INBOX)
             msgs.append(msg)
 
         if trigger_send:
