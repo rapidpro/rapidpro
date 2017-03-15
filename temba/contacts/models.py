@@ -2231,7 +2231,7 @@ class ContactGroup(TembaModel):
         """
         Returns the number of active and non-test contacts in the group
         """
-        return ContactGroupCount.contact_count(self)
+        return ContactGroupCount.get_totals([self])[self]
 
     def release(self):
         """
@@ -2285,12 +2285,6 @@ class ContactGroupCount(SquashableModel):
         """ % {'table': cls._meta.db_table}
 
         return sql, (distinct_set.group_id,) * 2
-
-    @classmethod
-    def contact_count(cls, group):
-        count = ContactGroupCount.objects.filter(group=group)
-        count = count.aggregate(Sum('count')).get('count__sum', 0)
-        return 0 if count is None else count
 
     @classmethod
     def get_totals(cls, groups):

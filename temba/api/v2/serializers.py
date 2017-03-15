@@ -511,7 +511,7 @@ class ContactGroupReadSerializer(ReadSerializer):
     count = serializers.SerializerMethodField()
 
     def get_count(self, obj):
-        return obj.get_member_count()
+        return obj.count
 
     class Meta:
         model = ContactGroup
