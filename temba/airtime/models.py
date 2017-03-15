@@ -129,7 +129,8 @@ class AirtimeTransfer(SmartModel):
                 account_currency = config.get(TRANSFERTO_ACCOUNT_CURRENCY, '')
 
             action = 'msisdn_info'
-            request_kwargs = dict(action=action, destination_msisdn=airtime.recipient, currency=account_currency)
+            request_kwargs = dict(action=action, destination_msisdn=airtime.recipient, currency=account_currency,
+                                  delivered_amount_info='1')
             response = airtime.get_transferto_response(**request_kwargs)
             content_json = AirtimeTransfer.parse_transferto_response(response.content)
 
@@ -150,15 +151,21 @@ class AirtimeTransfer(SmartModel):
             airtime.amount = amount
 
             product_list = content_json.get('product_list', [])
-
             if not isinstance(product_list, list):  # pragma: needs cover
                 product_list = [product_list]
 
-            targeted_prices = [float(i) for i in product_list if float(i) <= float(amount)]
+            local_info_value_list = content_json.get('local_info_value_list', [])
+            if not isinstance(local_info_value_list, list):  # pragma: needs cover
+                local_info_value_list = [local_info_value_list]
+
+            product_local_value_map = dict(zip([float(elt) for elt in local_info_value_list], product_list))
+
+            targeted_prices = [float(i) for i in local_info_value_list if float(i) <= float(amount)]
 
             denomination = None
             if targeted_prices:
-                denomination = max(targeted_prices)
+                denomination_key = max(targeted_prices)
+                denomination = product_local_value_map.get(denomination_key, None)
                 airtime.denomination = denomination
 
             if float(amount) <= 0:
@@ -191,6 +198,7 @@ class AirtimeTransfer(SmartModel):
                                   reserved_id=transaction_id,
                                   msisdn=channel.address if channel else '',
                                   destination_msisdn=airtime.recipient,
+                                  currency=account_currency,
                                   product=airtime.denomination)
             response = airtime.get_transferto_response(**request_kwargs)
             content_json = AirtimeTransfer.parse_transferto_response(response.content)
