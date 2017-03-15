@@ -1540,7 +1540,7 @@ class Flow(TembaModel):
                 step = self.add_step(run, entry_rule, is_start=True, arrived_on=timezone.now())
                 if entry_rule.is_ussd():
                     # create an empty placeholder message
-                    msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
+                    msg = Msg(org=self.org, contact_id=contact_id, text='', id=0, msg_type=MSG_TYPE_USSD)
                     handled, step_msgs = Flow.handle_destination(entry_rule, step, run, msg, trigger_send=False)
 
                     # add these messages as ones that are ready to send

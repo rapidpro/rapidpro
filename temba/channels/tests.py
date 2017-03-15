@@ -29,7 +29,7 @@ from mock import patch
 from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, LINE_SCHEME
-from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING
+from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING, USSD
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME, FCM_SCHEME
 from temba.ivr.models import IVRCall
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
@@ -8728,7 +8728,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
         inbound = Msg.create_incoming(
             self.channel, "tel:+250788383383", "Send an inbound message",
-            external_id='vumi-message-id')
+            external_id='vumi-message-id', msg_type=USSD)
         msg = inbound.reply("Test message", self.admin, trigger_send=False)
 
         # our outgoing message
@@ -8782,7 +8782,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
         inbound = Msg.create_incoming(
             self.channel, "tel:+250788383383", "Send an inbound message",
-            external_id='vumi-message-id')
+            external_id='vumi-message-id', msg_type=USSD)
         session = USSDSession.objects.create(
             channel=self.channel, org=self.channel.org,
             contact=joe,
