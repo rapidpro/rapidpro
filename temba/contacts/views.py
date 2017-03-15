@@ -14,6 +14,7 @@ from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.db import IntegrityError
 from django.db.models import Q
+from django.db.models.functions import Upper
 from django.http import HttpResponseRedirect, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
@@ -155,9 +156,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         return context
 
     def get_user_groups(self, org):
-        qs = ContactGroup.user_groups.filter(org=org).select_related('org')
-        qs = qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'})
-        groups = list(qs.order_by('lower_group_name'))
+        groups = list(ContactGroup.user_groups.filter(org=org).select_related('org').order_by(Upper('name')))
         group_counts = ContactGroupCount.get_totals(groups)
 
         rendered = []
@@ -657,19 +656,13 @@ class ContactCRUDL(SmartCRUDL):
             return reverse("contacts.contact_customize", args=[self.object.pk])
 
     class Omnibox(OrgPermsMixin, SmartListView):
-
+        paginate_by = 75
         fields = ('id', 'text')
 
         def get_queryset(self, **kwargs):
             org = self.derive_org()
 
             return omnibox_query(org, **{k: v for k, v in self.request.GET.items()})
-
-        def get_paginate_by(self, queryset):
-            if not self.request.GET.get('search', None):
-                return 200
-
-            return super(ContactCRUDL.Omnibox, self).get_paginate_by(queryset)
 
         def render_to_response(self, context, **response_kwargs):
             org = self.derive_org()

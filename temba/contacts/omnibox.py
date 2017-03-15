@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import operator
 
 from django.db.models import Q
+from django.db.models.functions import Upper
 from temba.contacts.models import Contact, ContactGroup, ContactGroupCount, ContactURN
 from temba.msgs.models import Label
 from six.moves import reduce
@@ -94,7 +95,7 @@ def omnibox_mixed_search(org, search, types):
         if search:
             groups = term_search(groups, ('name__icontains',), search_terms)
 
-        results += list(groups.order_by('name')[:per_type_limit])
+        results += list(groups.order_by(Upper('name'))[:per_type_limit])
 
     if SEARCH_CONTACTS in search_types:
         contacts = Contact.objects.filter(org=org, is_active=True, is_blocked=False, is_stopped=False, is_test=False)
@@ -109,7 +110,7 @@ def omnibox_mixed_search(org, search, types):
         elif search:
             contacts = term_search(contacts, ('name__icontains',), search_terms)
 
-        results += list(contacts.order_by('name')[:per_type_limit])
+        results += list(contacts.order_by(Upper('name'))[:per_type_limit])
 
     if SEARCH_URNS in search_types:
         # only include URNs that are send-able
@@ -121,7 +122,7 @@ def omnibox_mixed_search(org, search, types):
         if search:
             urns = term_search(urns, ('path__icontains',), search_terms)
 
-        results += list(urns.select_related('contact').order_by('path')[:per_type_limit])
+        results += list(urns.prefetch_related('contact').order_by(Upper('path'))[:per_type_limit])
 
     return results  # sorted(results, key=lambda o: o.name if hasattr(o, 'name') else o.path)
 
