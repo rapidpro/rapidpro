@@ -4256,7 +4256,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
                     # write our contact fields if any
                     for cf in contact_fields:
-                        field_value = Contact.get_field_display_for_value(cf, run_step.contact.get_field(cf.key.lower()))
+                        field_value = Contact.get_field_display_for_value(cf, run_step.contact.get_field(cf.key.lower()), org)
                         if field_value is None:
                             field_value = ''
 
