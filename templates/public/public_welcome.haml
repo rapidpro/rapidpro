@@ -109,8 +109,8 @@
             -trans "Create Contact"
           %a.btn.workflow-btn{href:"{% url 'contacts.contact_list' %}#group"}
             -trans "Create Group"
-      
-  .row 
+
+  .row
     .offset1.span10
       %hr
 
@@ -153,7 +153,7 @@
           {{name}} also offers a robust REST API to add SMS features to your own website. Have a look through the
           %a{href:'{{api_url}}'}
             API documentation
-          to learn more. 
+          to learn more.
 
       %div
         %a.btn.workflow-btn{href:"{% url 'orgs.org_home' %}?open=webhook"}

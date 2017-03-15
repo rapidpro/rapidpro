@@ -19,6 +19,8 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from django.core.validators import MaxValueValidator
+from django.core.validators import MinValueValidator
 from django.db import transaction
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
@@ -33,9 +35,9 @@ from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, T
 from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
-from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
+from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin, AnonMixin
 from temba.channels.models import ChannelSession
-from temba.utils import analytics, non_atomic_when_eager, on_transaction_commit
+from temba.utils import analytics, on_transaction_commit
 from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import timezone_to_country_code
 from twilio import TwilioRestException
@@ -881,25 +883,9 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
-               'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist')
+               'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
+               'claim_red_rabbit')
     permissions = True
-
-    class AnonMixin(OrgPermsMixin):
-        """
-        Mixin that makes sure that anonymous orgs cannot add channels (have no permission if anon)
-        """
-        def has_permission(self, request, *args, **kwargs):
-            org = self.derive_org()
-
-            # can this user break anonymity? then we are fine
-            if self.get_user().has_perm('contacts.contact_break_anon'):
-                return True
-
-            # otherwise if this org is anon, no go
-            if not org or org.is_anon:
-                return False
-            else:
-                return super(ChannelCRUDL.AnonMixin, self).has_permission(request, *args, **kwargs)
 
     class Read(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = 'uuid'
@@ -1544,14 +1530,20 @@ class ChannelCRUDL(SmartCRUDL):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"), required=False,
                                         help_text=_("The country this phone number is used in"))
 
-            url = forms.URLField(max_length=1024, label=_("Send URL"),
-                                 help_text=_("The URL we will call when sending messages, with variable substitutions"))
-
             method = forms.ChoiceField(choices=(('POST', "HTTP POST"), ('GET', "HTTP GET"), ('PUT', "HTTP PUT")),
                                        help_text=_("What HTTP method to use when calling the URL"))
 
-            body = forms.CharField(max_length=1024, label=_("Request Body"), required=False,
-                                   help_text=_("The URL encoded form body, if any, with variable substitutions (only used for PUT or POST)"))
+            content_type = forms.ChoiceField(choices=Channel.CONTENT_TYPE_CHOICES,
+                                             help_text=_("The content type used when sending the request"))
+
+            max_length = forms.IntegerField(initial=160, validators=[MaxValueValidator(640), MinValueValidator(60)],
+                                            help_text=_("The maximum length of any single message on this channel. (longer messages will be split)"))
+
+            url = forms.URLField(max_length=1024, label=_("Send URL"),
+                                 help_text=_("The URL we will call when sending messages, with variable substitutions"))
+
+            body = forms.CharField(max_length=2048, label=_("Request Body"), required=False, widget=forms.Textarea,
+                                   help_text=_("The request body if any, with variable substitutions (only used for PUT or POST)"))
 
         class EXSendClaimForm(forms.Form):
             url = forms.URLField(max_length=1024, label=_("Send URL"),
@@ -1606,7 +1598,13 @@ class ChannelCRUDL(SmartCRUDL):
                 # make sure they own it
                 channel = self.request.user.get_org().channels.filter(pk=channel).first()
 
-            config = {Channel.CONFIG_SEND_URL: data['url'], Channel.CONFIG_SEND_METHOD: data['method'], Channel.CONFIG_SEND_BODY: data['body']}
+            config = {
+                Channel.CONFIG_SEND_URL: data['url'],
+                Channel.CONFIG_SEND_METHOD: data['method'],
+                Channel.CONFIG_SEND_BODY: data['body'],
+                Channel.CONFIG_CONTENT_TYPE: data['content_type'],
+                Channel.CONFIG_MAX_LENGTH: data['max_length']
+            }
             self.object = Channel.add_config_external_channel(org, self.request.user, country, address, Channel.TYPE_EXTERNAL,
                                                               config, role, scheme, parent=channel)
 
@@ -1702,6 +1700,10 @@ class ChannelCRUDL(SmartCRUDL):
         channel_type = Channel.TYPE_JASMIN
         form_class = JasminForm
         fields = ('country', 'number', 'url', 'username', 'password')
+
+    class ClaimRedRabbit(ClaimAuthenticatedExternal):
+        title = _("Connect Red Rabbit")
+        channel_type = Channel.TYPE_RED_RABBIT
 
     class ClaimJunebug(ClaimAuthenticatedExternal):
         class JunebugForm(forms.Form):
@@ -2183,19 +2185,24 @@ class ChannelCRUDL(SmartCRUDL):
 
             # if this is an external channel, build an example URL
             if self.object.channel_type == Channel.TYPE_EXTERNAL:
-                send_url = self.object.config_json()[Channel.CONFIG_SEND_URL]
-                send_body = self.object.config_json().get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
+                config = self.object.config_json()
+                send_url = config[Channel.CONFIG_SEND_URL]
+                send_body = config.get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
+
                 example_payload = {
                     'to': '+250788123123',
-                    'to_no_plus': '+250788123123',
-                    'text': "Love is patient. Love is kind",
+                    'to_no_plus': '250788123123',
+                    'text': "Love is patient. Love is kind.",
                     'from': self.object.address,
                     'from_no_plus': self.object.address.lstrip('+'),
                     'id': '1241244',
                     'channel': str(self.object.id)
                 }
-                context['example_url'] = Channel.build_send_url(send_url, example_payload)
-                context['example_body'] = Channel.build_send_url(send_body, example_payload)
+
+                content_type = config.get(Channel.CONFIG_CONTENT_TYPE, Channel.CONTENT_TYPE_URLENCODED)
+                context['example_content_type'] = "Content-Type: " + Channel.CONTENT_TYPES[content_type]
+                context['example_url'] = Channel.replace_variables(send_url, example_payload)
+                context['example_body'] = Channel.replace_variables(send_body, example_payload, content_type)
 
             context['domain'] = settings.HOSTNAME
             context['ip_addresses'] = settings.IP_ADDRESSES
@@ -2256,14 +2263,6 @@ class ChannelCRUDL(SmartCRUDL):
             return org
 
     class ClaimTwitter(OrgPermsMixin, SmartTemplateView):
-
-        @non_atomic_when_eager
-        def dispatch(self, *args, **kwargs):
-            """
-            Decorated with @non_atomic_when_eager so that channel object is always committed to database before Mage
-            tries to access it
-            """
-            return super(ChannelCRUDL.ClaimTwitter, self).dispatch(*args, **kwargs)
 
         def pre_process(self, *args, **kwargs):
             response = super(ChannelCRUDL.ClaimTwitter, self).pre_process(*args, **kwargs)
@@ -2431,7 +2430,7 @@ class ChannelCRUDL(SmartCRUDL):
     class List(OrgPermsMixin, SmartListView):
         title = _("Channels")
         fields = ('name', 'address', 'last_seen')
-        search_fields = ('name', 'number', 'org__created_by__email')
+        search_fields = ('name', 'address', 'org__created_by__email')
 
         def get_queryset(self, **kwargs):
             queryset = super(ChannelCRUDL.List, self).get_queryset(**kwargs)
@@ -3030,11 +3029,12 @@ class ChannelLogCRUDL(SmartCRUDL):
             if self.request.GET.get('sessions'):
                 logs = ChannelLog.objects.filter(channel=channel).exclude(session=None).values_list('session_id', flat=True)
                 events = ChannelSession.objects.filter(id__in=logs).order_by('-created_on')
+
+                if self.request.GET.get('errors'):
+                    events = events.filter(status=ChannelSession.FAILED)
             else:
                 events = ChannelLog.objects.filter(channel=channel, session=None).order_by('-created_on').select_related('msg__contact', 'msg')
-                events.count = lambda: channel.get_non_ivr_count()
-
-            # monkey patch our queryset for the total count
+                events.count = lambda: channel.get_non_ivr_log_count()
 
             return events
 
@@ -3043,10 +3043,10 @@ class ChannelLogCRUDL(SmartCRUDL):
             context['channel'] = Channel.objects.get(pk=self.request.GET['channel'])
             return context
 
-    class Session(ChannelCRUDL.AnonMixin, SmartReadView):
+    class Session(AnonMixin, SmartReadView):
         model = ChannelSession
 
-    class Read(ChannelCRUDL.AnonMixin, SmartReadView):
+    class Read(AnonMixin, SmartReadView):
         fields = ('description', 'created_on')
 
         def derive_queryset(self, **kwargs):

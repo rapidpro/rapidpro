@@ -15,12 +15,12 @@ from django.contrib.auth.models import Group
 from django.core.files import File
 from django.core.urlresolvers import reverse
 from django.utils import timezone
-from mock import patch
+from mock import patch, MagicMock
 from temba.channels.models import Channel, ChannelLog, ChannelSession
 from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep
 from temba.ivr.clients import IVRException
-from temba.msgs.models import Msg, IVR
+from temba.msgs.models import Msg, IVR, OUTGOING, PENDING
 from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator, MockResponse
 from temba.ivr.models import IVRCall
 
@@ -127,6 +127,35 @@ class IVRTests(FlowFileTest):
         self.assertEquals(log.text, 'Call ended. Could not authenticate with your Twilio account. '
                                     'Check your token and try again.')
 
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_call_logging(self):
+        with patch('temba.orgs.models.TwilioRestClient', MockTwilioClient):
+            # create our ivr setup
+            self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+            self.org.save()
+
+        with patch('twilio.rest.resources.base.make_request') as mock:
+            mock.return_value = MockResponse(200, '{"sid": "CAa346467ca321c71dbd5e12f627deb854"}')
+            self.import_file('capture_recording')
+            flow = Flow.objects.filter(name='Capture Recording').first()
+
+            # start our flow
+            contact = self.create_contact('Chuck D', number='+13603621737')
+            flow.start([], [contact])
+
+            # should have a channel log for starting the call
+            log = ChannelLog.objects.get(is_error=False)
+            self.assertEqual(log.response, mock.return_value.text)
+
+            # expire our flow, causing the call to hang up
+            mock.return_value = MockResponse(200, '{"sid": "CAa346467ca321c71dbd5e12f627deb855"}')
+            run = flow.runs.get()
+            run.expire()
+
+            # two channel logs now
+            log = ChannelLog.objects.exclude(id=log.id).get(is_error=False)
+            self.assertEqual(log.response, mock.return_value.text)
+
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
@@ -196,7 +225,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(ChannelLog.objects.all().count(), 1)
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.session.id, call.id)
-        self.assertEqual(channel_log.description, "Response for call CallSid")
+        self.assertEqual(channel_log.description, "Incoming request for call")
 
         # simulate the caller making a recording and then hanging up, first they'll give us the
         # recording (they give us a call status of completed at the same time)
@@ -216,7 +245,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(ChannelLog.objects.all().count(), 2)
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.session.id, call.id)
-        self.assertEqual(channel_log.description, "Response for call CallSid")
+        self.assertEqual(channel_log.description, "Incoming request for call")
 
         # we should have captured the recording, and ended the call
         call = IVRCall.objects.get(pk=call.pk)
@@ -229,7 +258,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(ChannelLog.objects.all().count(), 3)
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.session.id, call.id)
-        self.assertEqual(channel_log.description, "Updated call CallSid status to Complete")
+        self.assertEqual(channel_log.description, "Updated call status")
 
         call = IVRCall.objects.get(pk=call.pk)
         self.assertEquals(IVRCall.COMPLETED, call.status)
@@ -268,11 +297,13 @@ class IVRTests(FlowFileTest):
         for msg in messages:
             self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' is not attached to exactly one step" % msg.text)
 
+    @patch('jwt.encode')
     @patch('nexmo.Client.create_application')
-    @patch('nexmo.Client.create_call')
-    def test_ivr_recording_with_nexmo(self, mock_create_call, mock_create_application):
+    @patch('requests.post')
+    def test_ivr_recording_with_nexmo(self, mock_create_call, mock_create_application, mock_jwt):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
-        mock_create_call.return_value = dict(uuid='12345')
+        mock_create_call.return_value = MockResponse(200, json.dumps(dict(uuid='12345')))
+        mock_jwt.return_value = 'Encoded data'
 
         # connect Nexmo
         self.org.connect_nexmo('123', '456', self.admin)
@@ -298,11 +329,11 @@ class IVRTests(FlowFileTest):
         self.assertEqual(ChannelLog.objects.all().count(), 2)
         channel_log = ChannelLog.objects.first()
         self.assertEqual(channel_log.session.id, call.id)
-        self.assertEqual(channel_log.description, "Started Nexmo call 12345")
+        self.assertEqual(channel_log.description, "Started call")
 
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.session.id, call.id)
-        self.assertEqual(channel_log.description, "Response for call 12345")
+        self.assertEqual(channel_log.description, "Incoming request for call")
 
         # we have a talk action
         self.assertContains(response, '"action": "talk",')
@@ -321,7 +352,8 @@ class IVRTests(FlowFileTest):
         response = self.client.get("%s?has_event=1" % callback_url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, '{"message": "Updated call status", "call": {"duration": 0, "status": "Ringing"}}')
+        self.assertEqual(response.json().get('description'), 'Updated call status')
+        self.assertEqual(response.json().get('call').get('status'), 'Ringing')
 
         with patch('temba.utils.nexmo.NexmoClient.download_recording') as mock_download_recording:
             mock_download_recording.return_value = MockResponse(200, "SOUND_BITS",
@@ -330,29 +362,36 @@ class IVRTests(FlowFileTest):
             # async callback to tell us the recording url
             response = self.client.post(callback_url, content_type='application/json',
                                         data=json.dumps(dict(recording_url='http://example.com/allo.wav')))
-            self.assertContains(response, 'Saved media for call 12345')
+
+            self.assertEqual(response.json().get('message'), 'Saved media url')
             self.assertEqual(ChannelLog.objects.all().count(), 4)
             channel_log = ChannelLog.objects.last()
             self.assertEqual(channel_log.session.id, call.id)
-            self.assertEqual(channel_log.description, "Saved media for call 12345")
+            self.assertEqual(channel_log.description, "Saved media url")
 
             # hack input call back to tell us to save the recording and an empty input submission
             self.client.post("%s?save_media=1" % callback_url, content_type='application/json',
                              data=json.dumps(dict(status='answered', duration=2, dtmf='')))
 
-            self.assertEqual(ChannelLog.objects.all().count(), 5)
+            self.assertEqual(ChannelLog.objects.all().count(), 6)
             channel_log = ChannelLog.objects.last()
             self.assertEqual(channel_log.session.id, call.id)
-            self.assertEqual(channel_log.description, "Response for call 12345")
+            self.assertEqual(channel_log.description, "Incoming request for call")
+
+            log = ChannelLog.objects.filter(description="Downloaded media", session_id=call.id).first()
+            self.assertIsNotNone(log)
+
+            # our log should be the newly saved url
+            self.assertIn('http', log.response)
 
         # nexmo will also send us a final completion message with the call duration
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), content_type='application/json',
                          data=json.dumps({"status": "completed", "duration": "15"}))
 
-        self.assertEqual(ChannelLog.objects.all().count(), 6)
+        self.assertEqual(ChannelLog.objects.all().count(), 7)
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.session.id, call.id)
-        self.assertEqual(channel_log.description, "Updated call 12345 status to Complete")
+        self.assertEqual(channel_log.description, "Updated call status")
 
         # we should have captured the recording, and ended the call
         call = IVRCall.objects.get(pk=call.pk)
@@ -392,18 +431,30 @@ class IVRTests(FlowFileTest):
         for msg in messages:
             self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' is not attached to exactly one step" % msg.text)
 
-        mock_create_call.side_effect = Exception('Kab00m!')
+        # create a valid call first
+        flow.start([], [contact], restart_participants=True)
 
+        # now create an errored call
+        mock_create_call.side_effect = Exception('Kab00m!')
         nexmo_client = self.org.get_nexmo_client()
         with self.assertRaises(IVRException):
             nexmo_client.start_call(call, '+13603621737', self.channel.address, None)
 
+        call.refresh_from_db()
+        self.assertEqual(ChannelSession.FAILED, call.status)
+
         # check that our channel logs are there
         response = self.client.get(reverse("channels.channellog_list") + '?channel=%d&sessions=1' % self.channel.id)
-        self.assertContains(response, "0:00:15")
+        self.assertContains(response, "15 seconds")
+        self.assertContains(response, "2 results")
 
+        # our channel logs with the error flag
+        response = self.client.get(reverse("channels.channellog_list") + '?channel=%d&sessions=1&errors=1' % self.channel.id)
+        self.assertContains(response, "warning")
+        self.assertContains(response, "1 result")
+
+        # view the errored call read page
         response = self.client.get(reverse("channels.channellog_session", args=[call.id]))
-        self.assertContains(response, "lasted 0:00:15")
         self.assertContains(response, "https://api.nexmo.com/v1/calls")
         self.assertContains(response, "Kab00m!")
 
@@ -455,6 +506,7 @@ class IVRTests(FlowFileTest):
 
             # back down to our original run
             self.assertEqual(1, FlowRun.objects.filter(is_active=True).count())
+            run = FlowRun.objects.filter(is_active=True).first()
 
             response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]) + '?resume=1', post_data)
             self.assertContains(response, 'In the child flow you picked Red.')
@@ -462,6 +514,10 @@ class IVRTests(FlowFileTest):
 
             # make sure we only called to start the call once
             self.assertEqual(1, start_call.call_count)
+
+            # since we are an ivr flow, we aren't complete until the provider notifies us
+            run.refresh_from_db()
+            self.assertFalse(run.is_completed())
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -631,6 +687,25 @@ class IVRTests(FlowFileTest):
         # make sure we have a redirect to deal with empty responses
         self.assertContains(response, 'empty=1')
 
+        # only have our initial outbound message
+        self.assertEqual(1, Msg.objects.all().count())
+
+        # simulate a gather timeout
+        post_data['Digits'] = ''
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]) + '?empty=1', post_data)
+
+        expiration = call.runs.all().first().expires_on
+
+        # we should be routed through 'other' case
+        self.assertContains(response, 'Please enter a number')
+
+        # should now only have two outbound messages and no inbound ones
+        self.assertEqual(2, Msg.objects.filter(direction='O').count())
+        self.assertEqual(0, Msg.objects.filter(direction='I').count())
+
+        # verify that our expiration didn't change by way of the timeout
+        self.assertEqual(expiration, call.runs.all().first().expires_on)
+
     @patch('nexmo.Client.create_application')
     @patch('nexmo.Client.create_call')
     def test_ivr_digital_gather_with_nexmo(self, mock_create_call, mock_create_application):
@@ -674,18 +749,17 @@ class IVRTests(FlowFileTest):
     @patch('jwt.encode')
     @patch('requests.put')
     @patch('nexmo.Client.create_application')
-    @patch('nexmo.Client.create_call')
+    @patch('requests.post')
     def test_expiration_hangup(self, mock_create_call, mock_create_application, mock_put, mock_jwt):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
-        mock_create_call.return_value = dict(uuid='12345')
+        mock_create_call.return_value = MockResponse(200, json.dumps(dict(call=dict(uuid='12345'))))
         mock_jwt.return_value = "Encoded data"
 
-        import mock
-        request = mock.MagicMock()
+        request = MagicMock()
         request.body = json.dumps(dict(call_id='12345'))
         request.url = "http://api.nexmo.com/../"
         request.method = "PUT"
-        mock_put.return_value = mock.MagicMock(call_id='12345', request=request, status_code=200, content='response')
+        mock_put.return_value = MagicMock(call_id='12345', request=request, status_code=200, content='response')
 
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
@@ -775,13 +849,21 @@ class IVRTests(FlowFileTest):
                              text="In the child flow you picked Red. I think that is a fine choice.")
                         in response_json)
 
-        response = self.client.post(callback_url, content_type='application/json',
-                                    data=json.dumps(dict(dtmf='')))
+        # our flow should remain active until we get completion
+        self.assertEqual(1, FlowRun.objects.filter(is_active=True).count())
 
-        response_json = json.loads(response.content)
+        nexmo_uuid = self.org.config_json()['NEXMO_UUID']
+        post_data = dict()
+        post_data['status'] = 'completed'
+        post_data['duration'] = '0'
+        post_data['uuid'] = call.external_id
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]) + '?has_event=1',
+                                    json.dumps(post_data), content_type="application/json")
 
-        self.assertEqual(response_json, [])
+        self.assertContains(response, 'Updated call status')
 
+        # now that we got notfied from the provider, we have no active runs
+        self.assertEqual(0, FlowRun.objects.filter(is_active=True).count())
         mock_create_call.assert_called_once()
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
@@ -790,7 +872,8 @@ class IVRTests(FlowFileTest):
     def test_ivr_flow(self):
         from temba.orgs.models import ACCOUNT_TOKEN, ACCOUNT_SID
 
-        # should be able to create an ivr flow        self.assertTrue(self.org.supports_ivr())
+        # should be able to create an ivr flow
+        self.assertTrue(self.org.supports_ivr())
         self.assertTrue(self.admin.groups.filter(name="Beta"))
         self.assertContains(self.client.get(reverse('flows.flow_create')), 'Phone Call')
 
@@ -839,7 +922,7 @@ class IVRTests(FlowFileTest):
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
         call.refresh_from_db()
-        self.assertEqual(20, call.get_duration())
+        self.assertEqual(timedelta(seconds=20), call.get_duration())
 
         # force a duration calculation
         call.duration = None
@@ -875,7 +958,7 @@ class IVRTests(FlowFileTest):
         # we should have an outbound ivr call now
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
 
-        self.assertEquals(0, call.get_duration())
+        self.assertEquals(timedelta(seconds=0), call.get_duration())
         self.assertIsNotNone(call)
         self.assertEquals('CallSid', call.external_id)
 
@@ -900,7 +983,7 @@ class IVRTests(FlowFileTest):
         # don't press any numbers, but # instead
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]) + "?empty=1", dict())
         self.assertContains(response, '<Say>Press one, two, or three. Thanks.</Say>')
-        self.assertEquals(4, self.org.get_credits_used())
+        self.assertEquals(3, self.org.get_credits_used())
 
         # press the number 4 (unexpected)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=4))
@@ -910,17 +993,17 @@ class IVRTests(FlowFileTest):
         self.assertEqual('H', msg.status)
 
         self.assertContains(response, '<Say>Press one, two, or three. Thanks.</Say>')
-        self.assertEquals(6, self.org.get_credits_used())
+        self.assertEquals(5, self.org.get_credits_used())
 
         # two more messages, one inbound and it's response
-        self.assertEquals(5, Msg.objects.filter(msg_type=IVR).count())
+        self.assertEquals(4, Msg.objects.filter(msg_type=IVR).count())
 
         # now let's have them press the number 3 (for maybe)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=3))
         self.assertContains(response, '<Say>This might be crazy.</Say>')
         messages = Msg.objects.filter(msg_type=IVR).order_by('pk')
-        self.assertEquals(7, messages.count())
-        self.assertEquals(8, self.org.get_credits_used())
+        self.assertEquals(6, messages.count())
+        self.assertEquals(7, self.org.get_credits_used())
 
         for msg in messages:
             self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' not attached to step" % msg.text)
@@ -945,6 +1028,9 @@ class IVRTests(FlowFileTest):
         # and we've exited the flow
         step = FlowStep.objects.all().order_by('-pk').first()
         self.assertTrue(step.left_on)
+
+        # we shouldn't have any outbound pending messages, they are all considered delivered
+        self.assertEqual(0, Msg.objects.filter(direction=OUTGOING, status=PENDING, msg_type=IVR).count())
 
         # test other our call status mappings
         def test_status_update(call_to_update, twilio_status, temba_status, channel_type):
@@ -1020,7 +1106,7 @@ class IVRTests(FlowFileTest):
         call.save()
         call.refresh_from_db()
         self.assertIsNotNone(call.get_duration())
-        self.assertEqual(call.get_duration(), 30)
+        self.assertEqual(timedelta(seconds=30), call.get_duration())
 
         # even if no duration is set with started_on
         call.duration = None
@@ -1028,7 +1114,7 @@ class IVRTests(FlowFileTest):
         call.save()
         call.refresh_from_db()
         self.assertIsNotNone(call.get_duration())
-        self.assertEqual(call.get_duration(), 23)
+        self.assertEqual(timedelta(seconds=23), call.get_duration())
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -1056,7 +1142,7 @@ class IVRTests(FlowFileTest):
         # we should have an outbound ivr call now
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
 
-        self.assertEquals(0, call.get_duration())
+        self.assertEquals(timedelta(seconds=0), call.get_duration())
         self.assertIsNotNone(call)
         self.assertEquals('CallSid', call.external_id)
 
@@ -1188,7 +1274,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(ChannelLog.objects.all().count(), 2)
         channel_log = ChannelLog.objects.first()
         self.assertEqual(channel_log.session.id, call.id)
-        self.assertEqual(channel_log.description, "Response for received call %s" % call.external_id)
+        self.assertEqual(channel_log.description, "Incoming request for call")
 
     @patch('nexmo.Client.create_application')
     def test_incoming_call_nexmo(self, mock_create_application):
@@ -1250,7 +1336,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(ChannelLog.objects.all().count(), 1)
         channel_log = ChannelLog.objects.first()
         self.assertEqual(channel_log.session.id, call.id)
-        self.assertEqual(channel_log.description, "Response for received call %s" % call.external_id)
+        self.assertEqual(channel_log.description, "Incoming request for call")
 
         from temba.orgs.models import CURRENT_EXPORT_VERSION
         flow.refresh_from_db()
@@ -1265,18 +1351,20 @@ class IVRTests(FlowFileTest):
         post_data['conversation_uuid'] = 'ext-id'
         post_data['uuid'] = 'call-ext-id'
 
-        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]),
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid]) + '?has_event=1',
                                     json.dumps(post_data), content_type="application/json")
 
         call = IVRCall.objects.get()
+        run = call.runs.all().first()
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "Updated call status")
         self.assertEquals(call.status, IVRCall.COMPLETED)
+        self.assertTrue(run.is_completed())
 
         self.assertEqual(ChannelLog.objects.all().count(), 2)
         channel_log = ChannelLog.objects.last()
         self.assertEqual(channel_log.session.id, call.id)
-        self.assertEqual(channel_log.description, "Updated call call-ext-id status to Complete")
+        self.assertEqual(channel_log.description, "Updated call status")
 
     @patch('nexmo.Client.create_application')
     def test_nexmo_config_empty_callbacks(self, mock_create_application):
@@ -1462,27 +1550,40 @@ class IVRTests(FlowFileTest):
         self.channel.channel_type = Channel.TYPE_NEXMO
         self.channel.save()
 
+        # import an ivr flow
+        self.import_file('gather_digits')
+
+        # make sure our flow is there as expected
+        flow = Flow.objects.filter(name='Gather Digits').first()
+
+        # start our flow
+        eric = self.create_contact('Eric Newcomer', number='+13603621737')
+        flow.start([], [eric])
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
+        call.external_id = 'ext-id'
+        call.save()
+
         nexmo_client = self.org.get_nexmo_client()
 
         with patch('temba.orgs.models.Org.save_media') as mock_save_media:
             mock_save_media.return_value = 'SAVED'
 
             # without content-type
-            output = nexmo_client.download_media("http://nexmo.com/some_audio_link")
+            output = nexmo_client.download_media(call, "http://nexmo.com/some_audio_link")
             self.assertIsNone(output)
 
             # with content-type and retry fetch
-            output = nexmo_client.download_media("http://nexmo.com/some_audio_link")
+            output = nexmo_client.download_media(call, "http://nexmo.com/some_audio_link")
             self.assertIsNotNone(output)
             self.assertEqual(output, 'audio/x-wav:SAVED')
 
             # for content-disposition inline
-            output = nexmo_client.download_media("http://nexmo.com/some_audio_link")
+            output = nexmo_client.download_media(call, "http://nexmo.com/some_audio_link")
             self.assertIsNotNone(output)
             self.assertEqual(output, 'audio/x-wav:SAVED')
 
             # for content disposition attachment
-            output = nexmo_client.download_media("http://nexmo.com/some_audio_link")
+            output = nexmo_client.download_media(call, "http://nexmo.com/some_audio_link")
             self.assertIsNotNone(output)
             self.assertEqual(output, 'audio/x-wav:SAVED')
 
@@ -1504,6 +1605,19 @@ class IVRTests(FlowFileTest):
         self.channel.channel_type = Channel.TYPE_NEXMO
         self.channel.save()
 
+        # import an ivr flow
+        self.import_file('gather_digits')
+
+        # make sure our flow is there as expected
+        flow = Flow.objects.filter(name='Gather Digits').first()
+
+        # start our flow
+        eric = self.create_contact('Eric Newcomer', number='+13603621737')
+        flow.start([], [eric])
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
+        call.external_id = 'ext-id'
+        call.save()
+
         nexmo_client = self.org.get_nexmo_client()
 
         user_agent = 'nexmo-python/{0}/{1}'.format(nexmo.__version__, python_version())
@@ -1512,7 +1626,7 @@ class IVRTests(FlowFileTest):
 
         with patch('requests.get') as mock_get:
             mock_get.return_value = MockResponse(200, "DONE")
-            nexmo_client.download_media('http://example.com/file.txt')
+            nexmo_client.download_media(call, 'http://example.com/file.txt')
 
             mock_get.assert_called_once_with('http://example.com/file.txt', params=None,
                                              headers={"User-Agent": user_agent, "Authorization": b'Bearer TOKEN'})

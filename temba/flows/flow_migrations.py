@@ -396,7 +396,7 @@ def migrate_to_version_5(json_flow, flow=None):
                 if not operand:  # pragma: needs cover
                     ruleset['operand'] = '@step.value'
 
-                if response_type == 'K':
+                if response_type == 'K':  # pragma: no cover
                     ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_DIGITS
                 elif response_type == 'M':  # pragma: needs cover
                     ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_DIGIT

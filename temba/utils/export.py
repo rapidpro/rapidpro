@@ -72,6 +72,8 @@ class BaseExportTask(TembaModel):
             send_template_email(self.created_by.username, self.email_subject, self.email_template,
                                 self.get_email_context(branding), branding)
         except Exception:
+            import traceback
+            traceback.print_exc()
             self.update_status(self.STATUS_FAILED)
         else:
             self.update_status(self.STATUS_COMPLETE)

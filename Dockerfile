@@ -26,6 +26,7 @@ RUN apt-get update && \
   vim \
   wget \
   libpq-dev \
+  file \
   lib32ncurses5-dev \
   libgeos-dev && \
   sh /geolibs.sh \

@@ -118,6 +118,24 @@ class OrgPermsMixin(object):
         return self.has_org_perm(self.permission)
 
 
+class AnonMixin(OrgPermsMixin):
+    """
+    Mixin that makes sure that anonymous orgs cannot add channels (have no permission if anon)
+    """
+    def has_permission(self, request, *args, **kwargs):
+        org = self.derive_org()
+
+        # can this user break anonymity? then we are fine
+        if self.get_user().has_perm('contacts.contact_break_anon'):
+            return True
+
+        # otherwise if this org is anon, no go
+        if not org or org.is_anon:
+            return False
+        else:
+            return super(AnonMixin, self).has_permission(request, *args, **kwargs)
+
+
 class OrgObjPermsMixin(OrgPermsMixin):
 
     def get_object_org(self):
@@ -427,6 +445,10 @@ class UserSettingsCRUDL(SmartCRUDL):
         submit_button_name = _("Start Call")
         success_url = '@orgs.usersettings_phone'
 
+class CreateOrgForm(forms.ModelForm):
+    class Meta:
+        model = Org
+        fields = ('name', 'plan','administrators', 'language' )
 
 class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'edit_sub_org', 'join', 'grant', 'accounts', 'create_login', 'choose',
@@ -977,15 +999,40 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             queryset = super(OrgCRUDL.Manage, self).derive_queryset(**kwargs)
-            queryset = queryset.filter(is_active=True, brand=self.request.branding['host'])
+            queryset = queryset.filter(is_active=True)
+
+            brand = self.request.branding.get('brand')
+            if brand:
+                queryset = queryset.filter(brand=brand)
+
             queryset = queryset.annotate(credits=Sum('topups__credits'))
             queryset = queryset.annotate(paid=Sum('topups__price'))
+
             return queryset
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.Manage, self).get_context_data(**kwargs)
             context['searches'] = ['Nyaruka', ]
+            context['create_org_form'] = CreateOrgForm()
             return context
+
+        def post (self, request, *args, **kwargs):
+            form = CreateOrgForm(self.request.POST or None)
+            if form and form.is_valid():
+                pform = form.save(commit = False)
+                pform.created_by = request.user
+                pform.modified_by = request.user
+                pform.timezone = settings.USER_TIME_ZONE
+                pform.webhook  = '{}'
+                pform.config = '{"STATUS": "whitelisted"}'
+                pform.slug = Org.get_unique_slug(pform.name)
+                pform.brand = settings.DEFAULT_BRAND
+                pform.save()
+                form.save_m2m()
+                pform.initialize(branding=pform.get_branding(), topup_size=1000)
+            else:
+                print form.errors
+            return HttpResponseRedirect('/org/manage/')
 
         def lookup_field_link(self, context, field, obj):
             if field == 'owner':
@@ -1376,7 +1423,7 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Select your Organization")
 
         def get_user_orgs(self):
-            host = self.request.branding.get('host', settings.DEFAULT_BRAND)
+            host = self.request.branding.get('brand')
             return self.request.user.get_user_orgs(host)
 
         def pre_process(self, request, *args, **kwargs):
@@ -2088,6 +2135,7 @@ class OrgCRUDL(SmartCRUDL):
                 airtime_api_token = form.cleaned_data['airtime_api_token']
 
                 org.connect_transferto(account_login, airtime_api_token, user)
+                org.refresh_transferto_account_currency()
                 return super(OrgCRUDL.TransferToAccount, self).form_valid(form)
 
     class TwilioAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
@@ -2563,10 +2611,16 @@ class StripeHandler(View):  # pragma: no cover
                                invoice_id=charge.id,
                                invoice_date=charge_date.strftime("%b %e, %Y"),
                                amount=amount,
-                               org=org.name,
-                               cc_last4=charge.card.last4,
-                               cc_type=charge.card.type,
-                               cc_name=charge.card.name)
+                               org=org.name)
+
+                if getattr(charge, 'card', None):
+                    context['cc_last4'] = charge.card.last4
+                    context['cc_type'] = charge.card.type
+                    context['cc_name'] = charge.card.name
+
+                else:
+                    context['cc_type'] = 'bitcoin'
+                    context['cc_name'] = charge.source.bitcoin.address
 
                 admin_email = org.administrators.all().first().email
 

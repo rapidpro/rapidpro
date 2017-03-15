@@ -5,7 +5,6 @@ import phonenumbers
 import six
 
 from django.conf import settings
-from django.utils import timezone
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
@@ -1310,7 +1309,6 @@ class FlowRunWriteSerializer(WriteSerializer):
 
             run.set_completed(final_step, completed_on=completed_on)
         else:
-            run.modified_on = timezone.now()
             run.save(update_fields=('modified_on',))
 
         return run

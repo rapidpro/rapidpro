@@ -3,6 +3,8 @@
 
 -block top-form
   - if view.search_fields and object_list
+    {% block create_object %}
+    {% endblock create_object %}
     - block search-form
       %form
         %input.input-medium.search-query{type:'text', placeholder:'Search', name:"search", value:"{{search}}"}
