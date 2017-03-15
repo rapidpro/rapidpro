@@ -2293,6 +2293,16 @@ class ContactGroupCount(SquashableModel):
         return 0 if count is None else count
 
     @classmethod
+    def get_totals(cls, groups):
+        """
+        Gets total counts for all the given groups
+        """
+        counts = cls.objects.filter(group__in=groups)
+        counts = counts.values('group').order_by('group').annotate(count_sum=Sum('count'))
+        counts_by_group_id = {c['group']: c['count_sum'] for c in counts}
+        return {g: counts_by_group_id.get(g.id, 0) for g in groups}
+
+    @classmethod
     def populate_for_group(cls, group):
         # remove old ones
         ContactGroupCount.objects.filter(group=group).delete()

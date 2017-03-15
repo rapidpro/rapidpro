@@ -28,8 +28,8 @@ from temba.values.models import Value
 from temba.utils import analytics, slugify_with, languages, datetime_to_ms, ms_to_datetime, on_transaction_commit
 from temba.utils.fields import Select2Field
 from temba.utils.views import BaseActionForm
-from .models import Contact, ContactGroup, ContactField, ContactURN, URN, URN_SCHEME_CONFIG, TEL_SCHEME
-from .models import ExportContactsTask
+from .models import Contact, ContactGroup, ContactGroupCount, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
+from .models import ExportContactsTask, TEL_SCHEME
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .search import SearchException
 from .tasks import export_contacts_task
@@ -142,21 +142,31 @@ class ContactListView(OrgPermsMixin, SmartListView):
             dict(count=counts[ContactGroup.TYPE_STOPPED], label=_("Stopped"), url=reverse('contacts.contact_stopped')),
         ]
 
-        groups_qs = ContactGroup.user_groups.filter(org=org).select_related('org')
-        groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')
-        groups = [dict(pk=g.pk, uuid=g.uuid, label=g.name, count=g.get_member_count(), is_dynamic=g.is_dynamic) for g in groups_qs]
-
         # resolve the paginated object list so we can initialize a cache of URNs and fields
         contacts = list(context['object_list'])
         Contact.bulk_cache_initialize(org, contacts, for_show_only=True)
 
         context['contacts'] = contacts
-        context['groups'] = groups
+        context['groups'] = self.get_user_groups(org)
         context['folders'] = folders
         context['has_contacts'] = contacts or org.has_contacts()
         context['search_error'] = self.search_error
         context['send_form'] = SendMessageForm(self.request.user)
         return context
+
+    def get_user_groups(self, org):
+        qs = ContactGroup.user_groups.filter(org=org).select_related('org')
+        qs = qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'})
+        groups = list(qs.order_by('lower_group_name'))
+        group_counts = ContactGroupCount.get_totals(groups)
+
+        rendered = []
+        for g in groups:
+            rendered.append({
+                'pk': g.id, 'uuid': g.uuid, 'label': g.name, 'count': group_counts[g], 'is_dynamic': g.is_dynamic
+            })
+
+        return rendered
 
 
 class ContactActionForm(BaseActionForm):
