@@ -556,8 +556,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_api',
         'locations.adminboundary_api',
         'orgs.org_api',
-        'orgs.org_surveyor',
-        'msgs.msg_api',
+        'orgs.org_surveyor'
     ),
     "Granters": (
         'orgs.org_grant',
