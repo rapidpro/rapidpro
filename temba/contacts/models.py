@@ -2211,7 +2211,7 @@ class ContactGroup(TembaModel):
         except SearchException:  # pragma: no cover
             return Contact.objects.none()
 
-    @time_monitor(threshold=100)
+    @time_monitor(threshold=1000)
     def _check_dynamic_membership(self, contact):
         """
         For dynamic groups, determines whether the given contact belongs in the group
