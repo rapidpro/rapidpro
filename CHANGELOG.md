@@ -1,3 +1,11 @@
+v3.0.84
+----------
+ * Fix Line, FCM icons, add Junebug icon
+
+v3.0.83
+----------
+ * Render missing field and URN values as "--" rather than "None" on Contact list page
+
 v3.0.82
 ----------
  * Add ROLE_USSD

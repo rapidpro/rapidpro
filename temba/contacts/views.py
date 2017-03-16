@@ -124,7 +124,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         else:
             qs = group.contacts.all()
 
-        return qs.filter(is_test=False).order_by('-id').prefetch_related('all_groups')
+        return qs.filter(is_test=False).order_by('-id').prefetch_related('org', 'all_groups')
 
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
