@@ -2651,8 +2651,6 @@ class ViberPublicHandler(BaseChannelHandler):
             if message_type == 'text':
                 # "text": "a message from pa"
                 text = message.get('text', None)
-                if text is None:
-                    return HttpResponse("Missing 'text' key in 'message' in request_body.", status=400)
 
             elif message_type == 'picture':
                 # "media": "http://www.images.com/img.jpg"
@@ -2696,6 +2694,9 @@ class ViberPublicHandler(BaseChannelHandler):
 
             else:  # pragma: needs cover
                 return HttpResponse("Unknown message type: %s" % message_type, status=400)
+
+            if text is None:
+                return HttpResponse("Missing 'text' key in 'message' in request_body.", status=400)
 
             # get or create our contact with any name sent in
             urn = URN.from_viber(body['sender']['id'])
