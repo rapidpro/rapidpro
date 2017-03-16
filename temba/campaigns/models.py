@@ -34,13 +34,6 @@ class Campaign(TembaModel):
         return cls.objects.create(org=org, name=name, group=group, created_by=user, modified_by=user)
 
     @classmethod
-    def get_campaigns(cls, org, archived=None):
-        qs = cls.objects.filter(org=org, is_active=True)
-        if archived is not None:  # pragma: needs cover
-            qs = qs.filter(is_archived=archived)
-        return qs
-
-    @classmethod
     def get_unique_name(cls, org, base_name, ignore=None):
         """
         Generates a unique campaign name based on the given base name

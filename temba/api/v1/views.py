@@ -600,9 +600,6 @@ class FlowDefinitionEndpoint(BaseAPIView):
         else:  # pragma: needs cover
             return Response(dict(error="Invalid flow uuid"), status=status.HTTP_400_BAD_REQUEST)
 
-    def render_write_response(self, flow, context):
-        return Response(flow.as_json(), status=status.HTTP_201_CREATED)
-
 
 class FlowEndpoint(ListAPIMixin, BaseAPIView):
     """

@@ -28,7 +28,7 @@ def format_datetime(value):
     return datetime_to_json_date(value, micros=False) if value else None
 
 
-def validate_bulk_fetch(fetched, uuids):
+def validate_bulk_fetch(fetched, uuids):  # pragma: no cover
     """
     Validates a bulk fetch of objects against the provided list of UUIDs
     """
@@ -150,62 +150,6 @@ class WriteSerializer(serializers.Serializer):
             raise serializers.ValidationError(detail={'non_field_errors': ["Request body should be a single JSON object"]})
 
         return super(WriteSerializer, self).run_validation(data)
-
-
-class MsgReadSerializer(ReadSerializer):
-    id = serializers.SerializerMethodField()
-    broadcast = serializers.SerializerMethodField()
-    contact = serializers.SerializerMethodField('get_contact_uuid')
-    urn = serializers.SerializerMethodField()
-    status = serializers.SerializerMethodField()
-    archived = serializers.SerializerMethodField()
-    relayer = serializers.SerializerMethodField()
-    type = serializers.SerializerMethodField()
-    labels = serializers.SerializerMethodField()
-    created_on = DateTimeField()
-    sent_on = DateTimeField()
-    delivered_on = serializers.SerializerMethodField()
-
-    def get_id(self, obj):
-        return obj.pk
-
-    def get_broadcast(self, obj):
-        return obj.broadcast_id
-
-    def get_type(self, obj):
-        return obj.msg_type
-
-    def get_urn(self, obj):
-        if obj.org.is_anon:
-            return None
-        elif obj.contact_urn:
-            return obj.contact_urn.urn
-        else:
-            return None
-
-    def get_contact_uuid(self, obj):
-        return obj.contact.uuid
-
-    def get_relayer(self, obj):
-        return obj.channel_id
-
-    def get_status(self, obj):
-        # PENDING and QUEUED are same as far as users are concerned
-        return 'Q' if obj.status in ['Q', 'P'] else obj.status
-
-    def get_archived(self, obj):
-        return obj.visibility == Msg.VISIBILITY_ARCHIVED
-
-    def get_delivered_on(self, obj):
-        return None
-
-    def get_labels(self, obj):
-        return [l.name for l in obj.labels.all()]
-
-    class Meta:
-        model = Msg
-        fields = ('id', 'broadcast', 'contact', 'urn', 'status', 'type', 'labels', 'relayer',
-                  'direction', 'archived', 'text', 'created_on', 'sent_on', 'delivered_on')
 
 
 class ContactReadSerializer(ReadSerializer):
@@ -389,7 +333,7 @@ class ContactWriteSerializer(WriteSerializer):
 
             contact_by_urns = urn_contacts.pop() if len(urn_contacts) > 0 else None
 
-            if self.instance and contact_by_urns and contact_by_urns != self.instance:
+            if self.instance and contact_by_urns and contact_by_urns != self.instance:  # pragma: no cover
                 raise serializers.ValidationError(_("URNs are used by other contacts"))
         else:
             contact_by_urns = None

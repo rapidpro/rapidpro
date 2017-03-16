@@ -121,13 +121,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(context['tel'], '')
         self.assertEqual(context['tel_e164'], '')
 
-    def test_deactivate(self):
-        self.login(self.admin)
-        self.tel_channel.is_active = False
-        self.tel_channel.save()
-        response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.uuid]))
-        self.assertEquals(404, response.status_code)
-
     def test_delegate_channels(self):
 
         self.login(self.admin)
@@ -2107,6 +2100,20 @@ class ChannelTest(TembaTest):
         nexmo.refresh_from_db()
         self.assertIsNone(nexmo.org)
         self.assertFalse(nexmo.is_active)
+
+    def test_release_twitter(self):
+        # check that removing Twitter channel notifies Mage
+        with patch('temba.utils.mage.MageClient._request') as mock_mage_request:
+            mock_mage_request.return_value = ""
+
+            self.twitter_channel.release()
+
+            mock_mage_request.assert_called_once_with("x")
+
+        # can't view a released channel
+        self.login(self.admin)
+        response = self.client.get(reverse('channels.channel_read', args=[self.twitter_channel.uuid]))
+        self.assertEqual(response.status_code, 404)
 
     def test_unclaimed(self):
         response = self.sync(self.released_channel)
