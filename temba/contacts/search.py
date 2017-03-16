@@ -132,7 +132,7 @@ class ContactQuery(object):
         Recursively collects all property names from this query and tries to match them to fields, searchable attributes
         and URN schemes.
         """
-        prop_map = {p: None for p in self.root.get_prop_names() if p != Condition.IMPLICIT_PROP}
+        prop_map = {p: None for p in set(self.root.get_prop_names()) if p != Condition.IMPLICIT_PROP}
 
         for field in ContactField.objects.filter(org=org, key__in=prop_map.keys(), is_active=True):
             prop_map[field.key] = (self.PROP_FIELD, field)
@@ -462,7 +462,7 @@ class SinglePropCombination(BoolCombination):
         super(SinglePropCombination, self).__init__(op, *children)
 
     def as_query(self, org, prop_map, base_set):
-        prop_type, prop_obj = prop_map[self.prop]
+        prop_type, prop_obj = prop_map[self.prop] if self.prop != Condition.IMPLICIT_PROP else (None, None)
 
         if prop_type == ContactQuery.PROP_FIELD:
 
