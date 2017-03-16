@@ -1997,9 +1997,6 @@ class ContactGroup(TembaModel):
 
     contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name='all_groups')
 
-    count = models.IntegerField(default=0,
-                                verbose_name=_("Count"), help_text=_("The number of contacts in this group"))
-
     org = models.ForeignKey(Org, related_name='all_groups',
                             verbose_name=_("Org"), help_text=_("The organization this group is part of"))
 
