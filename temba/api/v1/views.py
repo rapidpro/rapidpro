@@ -250,7 +250,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             }]
         }
     """
-    permission = 'contacts.contact_api'
+    permission = 'orgs.org_surveyor'
     model = Contact
     serializer_class = ContactReadSerializer
     write_serializer_class = ContactWriteSerializer
@@ -409,7 +409,7 @@ class FieldEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             "value_type": "T"
         }
     """
-    permission = 'contacts.contactfield_api'
+    permission = 'orgs.org_surveyor'
     model = ContactField
     serializer_class = ContactFieldReadSerializer
     write_serializer_class = ContactFieldWriteSerializer
@@ -481,7 +481,7 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
         }
 
     """
-    permission = 'locations.adminboundary_api'
+    permission = 'orgs.org_surveyor'
     model = AdminBoundary
 
     def get_queryset(self):
@@ -585,7 +585,7 @@ class FlowDefinitionEndpoint(BaseAPIView):
         }
 
     """
-    permission = 'flows.flow_api'
+    permission = 'orgs.org_surveyor'
     model = Flow
 
     def get(self, request, *args, **kwargs):
@@ -660,7 +660,7 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
         }
 
     """
-    permission = 'flows.flow_api'
+    permission = 'orgs.org_surveyor'
     model = Flow
     serializer_class = FlowReadSerializer
 
@@ -728,7 +728,7 @@ class OrgEndpoint(BaseAPIView):
             "anon": false
         }
     """
-    permission = 'orgs.org_api'
+    permission = 'orgs.org_surveyor'
 
     def get(self, request, *args, **kwargs):
         org = request.user.get_org()
@@ -784,7 +784,7 @@ class FlowStepEndpoint(CreateAPIMixin, BaseAPIView):
 
     Response is the updated or created flow run.
     """
-    permission = 'flows.flow_api'
+    permission = 'orgs.org_surveyor'
     model = FlowRun
     serializer_class = FlowRunReadSerializer
     write_serializer_class = FlowRunWriteSerializer

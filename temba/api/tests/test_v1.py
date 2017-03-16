@@ -9,7 +9,6 @@ from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.urlresolvers import reverse
 from django.db import connection
-from django.test.utils import override_settings
 from django.utils import timezone
 from django.utils.http import urlquote_plus
 from mock import patch
@@ -163,17 +162,6 @@ class APITest(TembaTest):
         self.assertEqual(date_field.to_representation(dt), '2015-12-16T10:56:30.123Z')
         self.assertEqual(date_field.to_representation(None), None)
 
-    @override_settings(REST_HANDLE_EXCEPTIONS=True)
-    @patch('temba.api.v1.views.FieldEndpoint.get_queryset')
-    def test_api_error_handling(self, mock_get_queryset):
-        mock_get_queryset.side_effect = ValueError("DOH!")
-
-        self.login(self.admin)
-
-        response = self.client.get(reverse('api.v1.contactfields') + '.json', content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
-        self.assertEqual(response.status_code, 500)
-        self.assertEqual(response.content, "Server Error. Site administrators have been notified.")
-
     def test_api_authentication(self):
         url = reverse('api.v1.org') + '.json'
 
@@ -184,15 +172,15 @@ class APITest(TembaTest):
 
         # can fetch endpoint with valid token
         response = self.client.get(url, content_type="application/json",
-                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % self.admin.api_token)
+                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % self.surveyor.api_token)
         self.assertEqual(response.status_code, 200)
 
         # but not if user is inactive
-        self.admin.is_active = False
-        self.admin.save()
+        self.surveyor.is_active = False
+        self.surveyor.save()
 
         response = self.client.get(url, content_type="application/json",
-                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % self.admin.api_token)
+                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % self.surveyor.api_token)
         self.assertEqual(response.status_code, 403)
 
     def test_api_org(self):
@@ -205,8 +193,8 @@ class APITest(TembaTest):
         self.login(self.user)
         self.assert403(url)
 
-        # login as editor
-        self.login(self.editor)
+        # login as surveyor
+        self.login(self.surveyor)
 
         # browse endpoint as HTML docs
         response = self.fetchHTML(url)
@@ -248,8 +236,8 @@ class APITest(TembaTest):
         self.login(self.user)
         self.assert403(url)
 
-        # login as administrator
-        self.login(self.admin)
+        # login as surveyor
+        self.login(self.surveyor)
 
         # browse endpoint as HTML docs
         response = self.fetchHTML(url)
@@ -318,17 +306,17 @@ class APITest(TembaTest):
         self.login(self.user)
         self.assert403(url)
 
-        # login as administrator
-        self.login(self.admin)
+        # login as surveyor
+        self.login(self.surveyor)
 
         # test that this user has a token
-        self.assertTrue(self.admin.api_token)
+        self.assertTrue(self.surveyor.api_token)
 
         # blow it away
         Token.objects.all().delete()
 
         # should create one lazily
-        self.assertTrue(self.admin.api_token)
+        self.assertTrue(self.surveyor.api_token)
 
         # browse endpoint as HTML docs
         response = self.fetchHTML(url)
@@ -406,7 +394,7 @@ class APITest(TembaTest):
 
     def test_api_flow_definition(self):
         url = reverse('api.v1.flow_definition')
-        self.login(self.admin)
+        self.login(self.surveyor)
 
         # load flow definition from test data
         flow = self.get_flow('pick_a_number')
@@ -820,8 +808,8 @@ class APITest(TembaTest):
         self.login(self.user)
         self.assert403(url)
 
-        # login as administrator
-        self.login(self.admin)
+        # login as surveyor
+        self.login(self.surveyor)
 
         # browse endpoint as HTML docs
         response = self.fetchHTML(url)
@@ -1233,8 +1221,8 @@ class APITest(TembaTest):
         Contact.objects.all().delete()
         Contact.objects.bulk_create(contacts)
 
-        # login as administrator
-        self.login(self.admin)
+        # login as surveyor
+        self.login(self.surveyor)
 
         # page is implicit
         response = self.fetchJSON(url)
@@ -1276,8 +1264,8 @@ class APITest(TembaTest):
         self.login(self.user)
         self.assert403(url)
 
-        # login as administrator
-        self.login(self.admin)
+        # login as surveyor
+        self.login(self.surveyor)
 
         # browse endpoint as HTML docs
         response = self.fetchHTML(url)
