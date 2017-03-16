@@ -19,7 +19,7 @@ from smartmin.views import SmartTemplateView, SmartFormView
 from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField, URN
+from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactGroupCount, ContactField, URN
 from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart, RuleSet
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
@@ -1915,6 +1915,11 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             queryset = queryset.filter(name__iexact=name)
 
         return queryset.filter(is_active=True)
+
+    def prepare_for_serialization(self, object_list):
+        group_counts = ContactGroupCount.get_totals(object_list)
+        for group in object_list:
+            group.count = group_counts[group]
 
     @classmethod
     def get_read_explorer(cls):
