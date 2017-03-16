@@ -1062,9 +1062,14 @@ class Msg(models.Model):
 
     def reply(self, text, user, trigger_send=False, message_context=None, session=None, media=None, msg_type=None,
               send_all=False):
-        return self.contact.send_all(text, user, trigger_send=trigger_send, message_context=message_context,
-                                     response_to=self if self.id else None, session=session, media=media,
-                                     msg_type=msg_type or self.msg_type, send_all=send_all)
+
+        if send_all:
+            return self.contact.send_all(text, user, trigger_send=trigger_send, message_context=message_context,
+                                         response_to=self if self.id else None, session=session, media=media,
+                                         msg_type=msg_type or self.msg_type)
+        return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
+                                 response_to=self if self.id else None, session=session, media=media,
+                                 msg_type=msg_type or self.msg_type)
 
     def update(self, cmd):
         """

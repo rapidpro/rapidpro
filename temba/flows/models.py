@@ -5149,17 +5149,29 @@ class ReplyAction(Action):
             else:
                 context = run.flow.build_message_context(run.contact, msg)
 
+                reply_msgs = None
                 try:
                     if msg:
-                        replies = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session,
-                                            msg_type=self.MSG_TYPE, media=media, send_all=self.send_all)
+                        reply_msgs = msg.reply(text, user, trigger_send=False, message_context=context,
+                                               session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                               send_all=self.send_all)
                     else:
-                        replies = run.contact.send_all(text, user, trigger_send=False, message_context=context,
-                                                       session=run.session, msg_type=self.MSG_TYPE, media=media,
-                                                       send_all=self.send_all)
+                        if self.send_all:
+                            reply_msgs = run.contact.send_all(text, user, trigger_send=False, message_context=context,
+                                                              session=run.session, msg_type=self.MSG_TYPE, media=media)
+                        else:
+                            reply_msgs = run.contact.send(text, user, trigger_send=False, message_context=context,
+                                                          session=run.session, msg_type=self.MSG_TYPE, media=media)
 
                 except UnreachableException:
                     pass
+
+                finally:
+                    if reply_msgs:
+                        if self.send_all:
+                            replies = reply_msgs
+                        else:
+                            replies = [reply_msgs]
 
         return replies
 

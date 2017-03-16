@@ -1786,32 +1786,32 @@ class Contact(TembaModel):
 
     def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
              msg_type=None):
-        msgs = self.send_all(text, user, trigger_send=True, response_to=None, message_context=None, session=None,
-                             media=None, msg_type=msg_type, send_all=False)
-        return msgs[0] if msgs else None
+        from temba.msgs.models import Msg, INBOX
+
+        msg = Msg.create_outgoing(self.org, user, self, text, priority=Msg.PRIORITY_HIGH, response_to=response_to,
+                                  message_context=message_context, session=session, media=media,
+                                  msg_type=msg_type or INBOX)
+
+        if trigger_send:
+            self.org.trigger_send([msg])
+
+        return msg
 
     def send_all(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
-                 msg_type=None, send_all=False):
+                 msg_type=None):
         from temba.msgs.models import Msg, UnreachableException, INBOX
 
         msgs = []
 
-        if send_all:
-            contact_urns = self.get_urns()
-            for c_urn in contact_urns:
-                try:
-                    msg = Msg.create_outgoing(self.org, user, c_urn, text, priority=Msg.PRIORITY_HIGH,
-                                              response_to=response_to,
-                                              message_context=message_context, session=session, media=media,
-                                              msg_type=msg_type or INBOX)
-                    msgs.append(msg)
-                except UnreachableException:
-                    pass
-        else:
-            msg = Msg.create_outgoing(self.org, user, self, text, priority=Msg.PRIORITY_HIGH, response_to=response_to,
-                                      message_context=message_context, session=session, media=media,
-                                      msg_type=msg_type or INBOX)
-            msgs.append(msg)
+        contact_urns = self.get_urns()
+        for c_urn in contact_urns:
+            try:
+                msg = Msg.create_outgoing(self.org, user, c_urn, text, priority=Msg.PRIORITY_HIGH,
+                                          response_to=response_to, message_context=message_context, session=session,
+                                          media=media, msg_type=msg_type or INBOX)
+                msgs.append(msg)
+            except UnreachableException:
+                pass
 
         if trigger_send:
             self.org.trigger_send(msgs)
