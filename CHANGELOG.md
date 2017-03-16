@@ -1,3 +1,12 @@
+v3.0.85
+----------
+ * Fix exception when processing incoming Viber message with no text
+ * Migration to remove no longer used ContactGroup.count
+ * Fix search queries like "foo bar" where there are more than one condition on name/URN
+ * Add indexes for Contact.name and ContactURN.path
+ * Replace current omnibox search function with faster and simpler top-25-of-each-type approach
+ * Use bulk count fetching for groups endpoint in API v2
+
 v3.0.84
 ----------
  * Fix Line, FCM icons, add Junebug icon
