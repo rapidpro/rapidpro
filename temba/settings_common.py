@@ -551,7 +551,13 @@ GROUP_PERMISSIONS = {
     "Beta": (
     ),
     "Surveyors": (
+        'contacts.contact_api',
+        'contacts.contactfield_api',
+        'flows.flow_api',
+        'locations.adminboundary_api',
+        'orgs.org_api',
         'orgs.org_surveyor',
+        'msgs.msg_api',
     ),
     "Granters": (
         'orgs.org_grant',
@@ -1136,8 +1142,7 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 250,
     'DEFAULT_RENDERER_CLASSES': (
         'temba.api.support.DocumentationRenderer',
-        'rest_framework.renderers.JSONRenderer',
-        'rest_framework_xml.renderers.XMLRenderer',
+        'rest_framework.renderers.JSONRenderer'
     ),
     'EXCEPTION_HANDLER': 'temba.api.support.temba_exception_handler',
     'UNICODE_JSON': False
