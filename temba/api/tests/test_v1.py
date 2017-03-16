@@ -26,6 +26,7 @@ from temba.utils import datetime_to_json_date
 from temba.values.models import Value
 from ..models import APIToken
 from ..v1.serializers import StringDictField, StringArrayField, PhoneArrayField, ChannelField, DateTimeField
+from ..v1.serializers import MsgCreateSerializer
 
 
 class APITest(TembaTest):
@@ -1379,3 +1380,33 @@ class APITest(TembaTest):
         self.assertEqual(200, client.get(reverse('api.v1.flows') + '.json').status_code)
         self.assertEqual(200, client.get(reverse('api.v1.contacts') + '.json').status_code)
         self.assertEqual(200, client.get(reverse('api.v1.contactfields') + '.json').status_code)
+
+    def test_message_serialization(self):
+        """
+        API v1 no longer has a messages endpoint but serializer is still used for creating messages from webhook
+        responses
+        """
+        serializer = MsgCreateSerializer(org=self.org, user=self.admin, data={
+            'urn': ["tel:+250964150000"],
+            'contact': [self.joe.uuid],
+            'text': "Hello1"
+        })
+        self.assertTrue(serializer.is_valid())
+
+        broadcast = serializer.save()
+        contact = Contact.objects.get(urns__path='+250964150000')
+        self.assertEqual(set(broadcast.contacts.all()), {contact, self.joe})
+        self.assertEqual(broadcast.text, 'Hello1')
+
+        serializer = MsgCreateSerializer(org=self.org, user=self.admin, data={
+            'contact': [self.joe.uuid],
+            'text': "Hello2",
+            'channel': self.channel2.id  # this isn't our channel
+        })
+        self.assertFalse(serializer.is_valid())
+
+        serializer = MsgCreateSerializer(org=self.org, user=self.admin, data={
+            'text': "Hello2",
+            'phone': '12'  # invalid phone number
+        })
+        self.assertFalse(serializer.is_valid())

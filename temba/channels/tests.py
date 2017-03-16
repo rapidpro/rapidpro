@@ -2108,7 +2108,7 @@ class ChannelTest(TembaTest):
 
             self.twitter_channel.release()
 
-            mock_mage_request.assert_called_once_with("x")
+            mock_mage_request.assert_called_once_with('DELETE', 'twitter/%s' % self.twitter_channel.uuid)
 
         # can't view a released channel
         self.login(self.admin)

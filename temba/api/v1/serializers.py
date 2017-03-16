@@ -28,11 +28,11 @@ def format_datetime(value):
     return datetime_to_json_date(value, micros=False) if value else None
 
 
-def validate_bulk_fetch(fetched, uuids):  # pragma: no cover
+def validate_bulk_fetch(fetched, uuids):
     """
     Validates a bulk fetch of objects against the provided list of UUIDs
     """
-    if len(fetched) != len(uuids):
+    if len(fetched) != len(uuids):  # pragma: no cover
         fetched_uuids = {c.uuid for c in fetched}
         invalid_uuids = [u for u in uuids if u not in fetched_uuids]
         if invalid_uuids:
@@ -100,7 +100,7 @@ class PhoneArrayField(serializers.ListField):
 
             urns = []
             for phone in data:
-                if not isinstance(phone, six.string_types):
+                if not isinstance(phone, six.string_types):  # pragma: no cover
                     raise serializers.ValidationError("Invalid phone: %s" % str(phone))
                 urns.append(URN.from_tel(phone))
 
@@ -778,7 +778,7 @@ class MsgCreateSerializer(WriteSerializer):
 
         if not channel:
             channel = Channel.objects.filter(is_active=True, org=self.org).order_by('-last_seen').first()
-            if not channel:
+            if not channel:  # pragma: no cover
                 raise serializers.ValidationError("There are no channels for this organization.")
             data['channel'] = channel
 

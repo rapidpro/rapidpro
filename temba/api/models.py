@@ -520,14 +520,12 @@ class WebHookEvent(SmartModel):
 
                     if serializer.is_valid():
                         result['serializer'] = serializer
-                        obj = serializer.object
-                        result['message'] = "SMS message to %d recipient(s) with text: '%s'" % (len(obj.contacts), obj.text)  # pragma: needs cover
                     else:
                         errors = serializer.errors
                         result['message'] = "Event delivered successfully, ignoring response body, wrong format: %s" % \
                                             ",".join("%s: %s" % (_, ",".join(errors[_])) for _ in errors.keys())
 
-                except Exception as e:
+                except ValueError as e:
                     # we were unable to make anything of the body, that's ok though because
                     # get a 200, so just save our error for posterity
                     result['message'] = "Event delivered successfully, ignoring response body, not JSON: %s" % six.text_type(e)
