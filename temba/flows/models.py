@@ -1639,7 +1639,8 @@ class Flow(TembaModel):
 
             if message_text or media_dict:
                 broadcast = Broadcast.create(self.org, self.created_by, message_text, [], media_dict=media_dict,
-                                             language_dict=language_dict, base_language=self.base_language)
+                                             language_dict=language_dict, base_language=self.base_language,
+                                             send_all=send_action.send_all)
                 broadcast.update_contacts(all_contact_ids)
 
                 # manually set our broadcast status to QUEUED, our sub processes will send things off for us

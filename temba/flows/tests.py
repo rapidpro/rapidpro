@@ -4373,6 +4373,30 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(24, len(response.context['hod']))
         self.assertEqual(7, len(response.context['dow']))
 
+    def test_send_all_replies(self):
+        flow = self.get_flow('send_all')
+
+        contact = self.create_contact('Stephen', '+12078778899', twitter='stephen')
+        flow.start(groups=[], contacts=[contact], restart_participants=True)
+
+        replies = Msg.objects.filter(contact=contact, direction='O')
+        self.assertEqual(replies.count(), 1)
+        self.assertIsNone(replies.filter(contact_urn__path='stephen').first())
+        self.assertIsNotNone(replies.filter(contact_urn__path='+12078778899').first())
+
+        Broadcast.objects.all().delete()
+        Msg.objects.all().delete()
+
+        # create twitter channel
+        Channel.create(self.org, self.user, None, 'TT')
+
+        flow.start(groups=[], contacts=[contact], restart_participants=True)
+
+        replies = Msg.objects.filter(contact=contact, direction='O')
+        self.assertEqual(replies.count(), 2)
+        self.assertIsNotNone(replies.filter(contact_urn__path='stephen').first())
+        self.assertIsNotNone(replies.filter(contact_urn__path='+12078778899').first())
+
     def test_get_columns_order(self):
         flow = self.get_flow('columns_order')
 
