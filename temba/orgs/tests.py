@@ -313,12 +313,12 @@ class OrgTest(TembaTest):
                 response.json = response.json()
             return response
 
-        url = reverse('api.v1.broadcasts')
-        response = postAPI(url, dict(contacts=[mark.uuid], text="You are adistant cousin to a wealthy person."))
+        url = reverse('api.v2.broadcasts')
+        response = postAPI(url, dict(contacts=[mark.uuid], text="You are a distant cousin to a wealthy person."))
         self.assertContains(response, "Sorry, your account is currently suspended. To enable sending messages, please contact support.", status_code=400)
 
-        url = reverse('api.v1.runs')
-        response = postAPI(url, dict(flow_uuid=flow.uuid, phone="+250788123123"))
+        url = reverse('api.v2.flow_starts')
+        response = postAPI(url, dict(flow=flow.uuid, urns=["tel:+250788123123"]))
         self.assertContains(response, "Sorry, your account is currently suspended. To enable sending messages, please contact support.", status_code=400)
 
         # still no messages or runs
