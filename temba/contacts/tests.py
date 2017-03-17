@@ -993,6 +993,12 @@ class ContactTest(TembaTest):
         self.assertEqual(parse_query('will'), ContactQuery(Condition('*', '=', 'will')))
 
         # boolean combinations of implicit conditions
+        self.assertEqual(parse_query('will felix', optimize=False), ContactQuery(
+            BoolCombination(BoolCombination.AND, Condition('*', '=', 'will'), Condition('*', '=', 'felix'))
+        ))
+        self.assertEqual(parse_query('will felix'), ContactQuery(
+            SinglePropCombination('*', BoolCombination.AND, Condition('*', '=', 'will'), Condition('*', '=', 'felix'))
+        ))
         self.assertEqual(parse_query('will and felix', optimize=False), ContactQuery(
             BoolCombination(BoolCombination.AND, Condition('*', '=', 'will'), Condition('*', '=', 'felix'))
         ))
@@ -1123,12 +1129,13 @@ class ContactTest(TembaTest):
         def q(query):
             return Contact.search(self.org, query).count()
 
-        # non-complex queries
+        # implicit property queries (name or URN path)
         self.assertEqual(q('trey'), 23)
         self.assertEqual(q('MIKE'), 23)
         self.assertEqual(q('  paige  '), 22)
         self.assertEqual(q('fish'), 22)
-        self.assertEqual(q('0788382011'), 1)  # does a contains
+        self.assertEqual(q('0788382011'), 1)
+        self.assertEqual(q('trey 0788382'), 23)
 
         # name as property
         self.assertEqual(q('name is "trey"'), 23)

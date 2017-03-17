@@ -10156,22 +10156,24 @@ class ViberPublicTest(TembaTest):
             self.assertEqual(msg.media, assert_media)
 
     def test_reject_message_missing_text(self):
-        data = {
-            "event": "message",
-            "timestamp": 1481142112807,
-            "message_token": 4987381189870374000,
-            "sender": {
-                "id": "xy5/5y6O81+/kbWHpLhBoA==",
-                "name": "ET3",
-            },
-            "message": {
-                "type": "text",
-                "tracking_data": "3055",
+        for viber_msg_type in ['text', 'picture', 'video']:
+            data = {
+                "event": "message",
+                "timestamp": 1481142112807,
+                "message_token": 4987381189870374000,
+                "sender": {
+                    "id": "xy5/5y6O81+/kbWHpLhBoA==",
+                    "name": "ET3",
+                },
+                "message": {
+                    "type": viber_msg_type,
+                    "tracking_data": "3055",
+                }
             }
-        }
 
-        response = self.assertSignedRequest(json.dumps(data), 400)
-        self.assertIn("Missing 'text' key in 'message' in request_body.", response.content)
+            response = self.assertSignedRequest(json.dumps(data), 400)
+            self.assertIn("Missing 'text' key in 'message' in request_body.", response.content)
+            Msg.objects.all().delete()
 
     def test_receive_picture_missing_media_key(self):
         self.assertMessageReceived('picture', None, None, 'incoming msg', None)
