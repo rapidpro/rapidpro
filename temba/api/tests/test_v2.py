@@ -1589,7 +1589,7 @@ class APITest(TembaTest):
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
             response = self.fetchJSON(url)
 
         resp_json = response.json()
