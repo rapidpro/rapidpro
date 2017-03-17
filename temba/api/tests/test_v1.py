@@ -1398,15 +1398,29 @@ class APITest(TembaTest):
         self.assertEqual(set(broadcast.contacts.all()), {contact, self.joe})
         self.assertEqual(broadcast.text, 'Hello1')
 
+        # try again with explicit channel
+        serializer = MsgCreateSerializer(org=self.org, user=self.admin, data={
+            'urn': ["tel:+250964150000"],
+            'text': "Hello2",
+            'channel': self.channel.id
+        })
+        self.assertTrue(serializer.is_valid())
+
+        broadcast = serializer.save()
+        self.assertEqual(broadcast.channel, self.channel)
+        self.assertEqual(broadcast.text, 'Hello2')
+
+        # try with channel that isn't ours
         serializer = MsgCreateSerializer(org=self.org, user=self.admin, data={
             'contact': [self.joe.uuid],
             'text': "Hello2",
-            'channel': self.channel2.id  # this isn't our channel
+            'channel': self.channel2.id
         })
         self.assertFalse(serializer.is_valid())
 
+        # try with invalid phone number
         serializer = MsgCreateSerializer(org=self.org, user=self.admin, data={
             'text': "Hello2",
-            'phone': '12'  # invalid phone number
+            'phone': '12'
         })
         self.assertFalse(serializer.is_valid())
