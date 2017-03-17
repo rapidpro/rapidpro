@@ -4431,6 +4431,17 @@ class FlowsTest(FlowFileTest):
         self.assertIsNotNone(out_msgs.filter(contact_urn__path='stephen').first())
         self.assertIsNotNone(out_msgs.filter(contact_urn__path='+12078778899').first())
 
+        Broadcast.objects.all().delete()
+        Msg.objects.all().delete()
+
+        flow = self.get_flow('two_to_all')
+        flow.start(groups=[], contacts=[contact], restart_participants=True)
+
+        replies = Msg.objects.filter(contact=contact, direction='O')
+        self.assertEqual(replies.count(), 4)
+        self.assertEqual(replies.filter(contact_urn__path='stephen').count(), 2)
+        self.assertEqual(replies.filter(contact_urn__path='+12078778899').count(), 2)
+
     def test_get_columns_order(self):
         flow = self.get_flow('columns_order')
 
