@@ -5135,12 +5135,9 @@ class ReplyAction(Action):
                 if self.send_all:
                     contact_urns = run.contact.get_urns()
                     for c_urn in contact_urns:
-                        try:
-                            reply = Msg.create_outgoing(run.org, user, (c_urn.contact, c_urn), text, status=SENT,
-                                                        created_on=offline_on, response_to=msg, media=media)
-                            replies.append(reply)
-                        except UnreachableException:
-                            pass
+                        reply = Msg.create_outgoing(run.org, user, (c_urn.contact, c_urn), text, status=SENT,
+                                                    created_on=offline_on, response_to=msg, media=media)
+                        replies.append(reply)
 
                 else:
                     reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
