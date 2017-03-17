@@ -520,6 +520,7 @@ class WebHookEvent(SmartModel):
 
                     if serializer.is_valid():
                         result['serializer'] = serializer
+                        result['message'] = "Response body contains message which will be sent"
                     else:
                         errors = serializer.errors
                         result['message'] = "Event delivered successfully, ignoring response body, wrong format: %s" % \
