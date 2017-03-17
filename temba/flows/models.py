@@ -5136,7 +5136,7 @@ class ReplyAction(Action):
                     contact_urns = run.contact.get_urns()
                     for c_urn in contact_urns:
                         try:
-                            reply = Msg.create_outgoing(run.org, user, c_urn, text, status=SENT,
+                            reply = Msg.create_outgoing(run.org, user, (c_urn.contact, c_urn), text, status=SENT,
                                                         created_on=offline_on, response_to=msg, media=media)
                             replies.append(reply)
                         except UnreachableException:
