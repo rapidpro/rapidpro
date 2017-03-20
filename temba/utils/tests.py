@@ -15,7 +15,6 @@ from django.contrib.auth.models import User, Group
 from django.core import mail
 from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
-from django.core.paginator import Paginator
 from django.test import override_settings, SimpleTestCase
 from django.utils import timezone
 from django_redis import get_redis_connection
@@ -27,7 +26,7 @@ from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, date_to_utc_range, truncate, random_string
-from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
+from . import json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, non_atomic_gets, clean_string
 from . import datetime_to_str, chunk_list, get_country_code_by_name, datetime_to_epoch, voicexml
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
@@ -648,45 +647,6 @@ class QueueTest(TembaTest):
         mock_redis_get.assert_called_once_with('celery-task-lock:test_task1')
         self.assertEqual(mock_redis_lock.call_count, 0)
         self.assertEqual(task_calls, ['1-11-12', '2-21-22', '3-31-32'])
-
-
-class PageableQueryTest(TembaTest):
-    def setUp(self):
-        TembaTest.setUp(self)
-
-        self.joe = self.create_contact("Joe Blow", "1234", "blow80")
-        self.frank = self.create_contact("Frank Smith", "2345")
-        self.mary = self.create_contact("Mary Jo", "3456")
-        self.anne = self.create_contact("Anne Smith", "4567")
-        self.billy = self.create_contact("Billy Joel")
-
-    def test_query(self):
-        def assertResultNames(names, result):
-            self.assertEqual(names, [r['name'] for r in result])
-
-        def assertPage(names, has_next, page):
-            assertResultNames(names, page)
-            self.assertEqual(has_next, page.has_next())
-
-        # simple parameterless select
-        query = PageableQuery("SELECT * FROM contacts_contact", ('name',), ())
-        self.assertEqual(5, query.count())
-        self.assertEqual(5, len(query))
-        assertResultNames(["Anne Smith", "Billy Joel"], query[0:2])
-        assertResultNames(["Frank Smith", "Joe Blow"], query[2:4])
-        assertResultNames(["Mary Jo"], query[4:6])
-
-        # check use with paginator
-        paginator = Paginator(query, 2)
-        assertPage(["Anne Smith", "Billy Joel"], True, paginator.page(1))
-        assertPage(["Frank Smith", "Joe Blow"], True, paginator.page(2))
-        assertPage(["Mary Jo"], False, paginator.page(3))
-
-        # select with parameter
-        query = PageableQuery("SELECT * FROM contacts_contact WHERE name ILIKE %s", ('name',), ('%jo%',))
-        paginator = Paginator(query, 2)
-        assertPage(["Billy Joel", "Joe Blow"], True, paginator.page(1))
-        assertPage(["Mary Jo"], False, paginator.page(2))
 
 
 class ExpressionsTest(TembaTest):

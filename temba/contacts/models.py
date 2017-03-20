@@ -586,20 +586,22 @@ class Contact(TembaModel):
         value = self.get_field(key)
         if value:
             field = value.contact_field
-            return Contact.get_field_display_for_value(field, value)
+            return Contact.get_field_display_for_value(field, value, org=self.org)
         else:
             return None
 
     @classmethod
-    def get_field_display_for_value(cls, field, value):
+    def get_field_display_for_value(cls, field, value, org=None):
         """
         Utility method to determine best display value for the passed in field, value pair.
         """
+        org = org or field.org
+
         if value is None:
             return None
 
         if field.value_type == Value.TYPE_DATETIME:
-            return field.org.format_date(value.datetime_value)
+            return org.format_date(value.datetime_value)
         elif field.value_type == Value.TYPE_DECIMAL:
             return format_decimal(value.decimal_value)
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
@@ -1995,9 +1997,6 @@ class ContactGroup(TembaModel):
 
     contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name='all_groups')
 
-    count = models.IntegerField(default=0,
-                                verbose_name=_("Count"), help_text=_("The number of contacts in this group"))
-
     org = models.ForeignKey(Org, related_name='all_groups',
                             verbose_name=_("Org"), help_text=_("The organization this group is part of"))
 
@@ -2209,7 +2208,7 @@ class ContactGroup(TembaModel):
         except SearchException:  # pragma: no cover
             return Contact.objects.none()
 
-    @time_monitor(threshold=100)
+    @time_monitor(threshold=1000)
     def _check_dynamic_membership(self, contact):
         """
         For dynamic groups, determines whether the given contact belongs in the group
@@ -2231,7 +2230,7 @@ class ContactGroup(TembaModel):
         """
         Returns the number of active and non-test contacts in the group
         """
-        return ContactGroupCount.contact_count(self)
+        return ContactGroupCount.get_totals([self])[self]
 
     def release(self):
         """
@@ -2287,10 +2286,14 @@ class ContactGroupCount(SquashableModel):
         return sql, (distinct_set.group_id,) * 2
 
     @classmethod
-    def contact_count(cls, group):
-        count = ContactGroupCount.objects.filter(group=group)
-        count = count.aggregate(Sum('count')).get('count__sum', 0)
-        return 0 if count is None else count
+    def get_totals(cls, groups):
+        """
+        Gets total counts for all the given groups
+        """
+        counts = cls.objects.filter(group__in=groups)
+        counts = counts.values('group').order_by('group').annotate(count_sum=Sum('count'))
+        counts_by_group_id = {c['group']: c['count_sum'] for c in counts}
+        return {g: counts_by_group_id.get(g.id, 0) for g in groups}
 
     @classmethod
     def populate_for_group(cls, group):
