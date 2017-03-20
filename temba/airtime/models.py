@@ -154,19 +154,28 @@ class AirtimeTransfer(SmartModel):
             if not isinstance(product_list, list):  # pragma: needs cover
                 product_list = [product_list]
 
+            skuid_list = content_json.get('skuid_list', [])
+            if not isinstance(skuid_list, list):  # pragma: needs cover
+                skuid_list = [skuid_list]
+
             local_info_value_list = content_json.get('local_info_value_list', [])
             if not isinstance(local_info_value_list, list):  # pragma: needs cover
                 local_info_value_list = [local_info_value_list]
 
             product_local_value_map = dict(zip([float(elt) for elt in local_info_value_list], product_list))
 
+            product_skuid_value_map = dict(zip(product_list, skuid_list))
+
             targeted_prices = [float(i) for i in local_info_value_list if float(i) <= float(amount)]
 
             denomination = None
+            skuid = None
             if targeted_prices:
                 denomination_key = max(targeted_prices)
                 denomination = product_local_value_map.get(denomination_key, None)
                 airtime.denomination = denomination
+
+                skuid = product_skuid_value_map.get(denomination)
 
             if float(amount) <= 0:
                 message = "Failed by invalid amount configuration or missing amount configuration for %s" % country_name
@@ -200,6 +209,10 @@ class AirtimeTransfer(SmartModel):
                                   destination_msisdn=airtime.recipient,
                                   currency=account_currency,
                                   product=airtime.denomination)
+
+            if skuid:
+                request_kwargs['skuid'] = skuid
+
             response = airtime.get_transferto_response(**request_kwargs)
             content_json = AirtimeTransfer.parse_transferto_response(response.content)
 
