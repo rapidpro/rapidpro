@@ -19,7 +19,6 @@ from django.conf import settings
 from django.contrib.auth.models import User, Group
 from django.core import mail
 from django.core.cache import cache
-from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.test.utils import override_settings
 from django.utils import timezone
@@ -6284,11 +6283,8 @@ class TwilioTest(TembaTest):
         post_data = dict(To=self.channel.address, From='+250788383383', Body="Hello World")
         twilio_url = reverse('handlers.twilio_handler')
 
-        try:
-            self.client.post(twilio_url, post_data)
-            self.fail("Invalid signature, should have failed")
-        except ValidationError:
-            pass
+        response = self.client.post(twilio_url, post_data)
+        self.assertEqual(response.status_code, 400)
 
         # this time sign it appropriately, should work
         client = self.org.get_twilio_client()
@@ -6410,11 +6406,8 @@ class TwilioTest(TembaTest):
         post_data = dict(To=self.channel.address, From='+250788383300', Body="Hello World")
         twiml_api_url = reverse('handlers.twiml_api_handler', args=[self.channel.uuid])
 
-        try:
-            self.client.post(twiml_api_url, post_data)
-            self.fail("Invalid signature, should have failed")
-        except ValidationError:
-            pass
+        response = self.client.post(twiml_api_url, post_data)
+        self.assertEqual(response.status_code, 400)
 
         client = self.channel.get_twiml_client()
         validator = RequestValidator(client.auth[1])
@@ -6621,11 +6614,8 @@ class TwilioMessagingServiceTest(TembaTest):
         post_data = dict(message_service_sid=messaging_service_sid, From='+250788383383', Body="Hello World")
         twilio_url = reverse('handlers.twilio_messaging_service_handler', args=['receive', self.channel.uuid])
 
-        try:
-            self.client.post(twilio_url, post_data)
-            self.fail("Invalid signature, should have failed")
-        except ValidationError:
-            pass
+        response = self.client.post(twilio_url, post_data)
+        self.assertEqual(response.status_code, 400)
 
         # this time sign it appropriately, should work
         client = self.org.get_twilio_client()
