@@ -174,6 +174,7 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(msgs[1].text, '')
 
         # the session should be marked as "ENDING"
+        session.refresh_from_db()
         self.assertEqual(session.status, USSDSession.ENDING)
         self.assertIsNone(session.ended_on)
         self.assertEqual(session.external_id, "21345")
@@ -216,6 +217,7 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(msgs.last().text, '')
 
         # the session should be marked as ending at this point, cos' there's no more messaging destination in the flow
+        session.refresh_from_db()
         self.assertEqual(session.status, USSDSession.ENDING)
         self.assertIsNone(session.ended_on)
         self.assertEqual(session.external_id, "21345")
@@ -238,6 +240,7 @@ class USSDSessionTest(TembaTest):
         session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="3",
                                               date=timezone.now(), external_id="21345")
 
+        session.refresh_from_db()
         self.assertEqual(session.status, USSDSession.ENDING)
         self.assertIsNone(session.ended_on)
         self.assertEqual(session.external_id, "21345")

@@ -5224,6 +5224,7 @@ class EndUssdAction(ReplyAction):
     Reply action that ends a USSD session gracefully with a message
     """
     TYPE = 'end_ussd'
+    MSG_TYPE = MSG_TYPE_USSD
 
 
 class UssdAction(ReplyAction):
