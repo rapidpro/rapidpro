@@ -1788,7 +1788,11 @@ class Contact(TembaModel):
              msg_type=None, status='P', created_on=None):
         from temba.msgs.models import Msg, INBOX
 
-        msg = Msg.create_outgoing(self.org, user, self, text, priority=Msg.PRIORITY_HIGH, response_to=response_to,
+        recipient = self
+        if status != 'P':
+            recipient = (self, None)
+
+        msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH, response_to=response_to,
                                   message_context=message_context, session=session, media=media,
                                   msg_type=msg_type or INBOX, status=status, created_on=created_on)
 
@@ -1806,7 +1810,12 @@ class Contact(TembaModel):
         contact_urns = self.get_urns()
         for c_urn in contact_urns:
             try:
-                msg = Msg.create_outgoing(self.org, user, c_urn, text, priority=Msg.PRIORITY_HIGH,
+
+                recipient = c_urn
+                if status != 'P':
+                    recipient = (c_urn.contact, c_urn)
+
+                msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH,
                                           response_to=response_to, message_context=message_context, session=session,
                                           media=media, msg_type=msg_type or INBOX, status=status, created_on=created_on)
                 msgs.append(msg)
