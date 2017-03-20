@@ -196,10 +196,12 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'django.contrib.humanize',
     'django.contrib.gis',
-
-    # django sitemaps
     'django.contrib.sitemaps',
 
+    # Haml-like templates
+    'hamlpy',
+
+    # Redis cache
     'redis',
 
     # mo-betta permission management
