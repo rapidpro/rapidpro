@@ -206,6 +206,7 @@ class AirtimeEventTest(TembaTest):
         self.assertEqual(mock_response.call_count, 3)
         mock_response.reset_mock()
 
+        # when we need to include skuid
         mock_response.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
                                                        "product_list=0.25,0.5,1,1.5\r\n"
                                                        "skuid_list=1625,9805,4561,9715\r\n"
@@ -222,6 +223,28 @@ class AirtimeEventTest(TembaTest):
                           'delivered_amount_info': '1'},) in mock_response.call_args_list)
         self.assertTrue(({'action': 'reserve_id'},) in mock_response.call_args_list)
         self.assertTrue(({'action': 'topup', 'reserved_id': '234', 'msisdn': '', 'skuid': '9805',
+                          'destination_msisdn': '+12065552020', 'currency': 'USD',
+                          'product': '0.5'},) in mock_response.call_args_list)
+        mock_response.reset_mock()
+
+        # when product_list, skuid_list, ... are not parsed as lists in the case of a single value
+
+        mock_response.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
+                                                       "product_list=0.5\r\n"
+                                                       "skuid_list=5505\r\n"
+                                                       "local_info_value_list=10\r\n"),
+                                     MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
+                                     MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
+
+        airtime = AirtimeTransfer.trigger_airtime_event(org, ruleset, self.contact, None)
+        self.assertEqual(airtime.status, AirtimeTransfer.SUCCESS)
+        self.assertEqual(airtime.contact, self.contact)
+        self.assertEqual(airtime.message, "Airtime Transferred Successfully")
+        self.assertEqual(mock_response.call_count, 3)
+        self.assertTrue(({'action': 'msisdn_info', 'currency': 'USD', 'destination_msisdn': '+12065552020',
+                          'delivered_amount_info': '1'},) in mock_response.call_args_list)
+        self.assertTrue(({'action': 'reserve_id'},) in mock_response.call_args_list)
+        self.assertTrue(({'action': 'topup', 'reserved_id': '234', 'msisdn': '', 'skuid': '5505',
                           'destination_msisdn': '+12065552020', 'currency': 'USD',
                           'product': '0.5'},) in mock_response.call_args_list)
         mock_response.reset_mock()

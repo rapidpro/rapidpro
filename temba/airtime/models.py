@@ -151,15 +151,15 @@ class AirtimeTransfer(SmartModel):
             airtime.amount = amount
 
             product_list = content_json.get('product_list', [])
-            if not isinstance(product_list, list):  # pragma: needs cover
+            if not isinstance(product_list, list):
                 product_list = [product_list]
 
             skuid_list = content_json.get('skuid_list', [])
-            if not isinstance(skuid_list, list):  # pragma: needs cover
+            if not isinstance(skuid_list, list):
                 skuid_list = [skuid_list]
 
             local_info_value_list = content_json.get('local_info_value_list', [])
-            if not isinstance(local_info_value_list, list):  # pragma: needs cover
+            if not isinstance(local_info_value_list, list):
                 local_info_value_list = [local_info_value_list]
 
             product_local_value_map = dict(zip([float(elt) for elt in local_info_value_list], product_list))
