@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?qxr0h6');
-  src:  url('fonts/temba.eot?qxr0h6#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?qxr0h6') format('truetype'),
-    url('fonts/temba.woff?qxr0h6') format('woff'),
-    url('fonts/temba.svg?qxr0h6#temba') format('svg');
+  src:  url('fonts/temba.eot?qaoica');
+  src:  url('fonts/temba.eot?qaoica#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?qaoica') format('truetype'),
+    url('fonts/temba.woff?qaoica') format('woff'),
+    url('fonts/temba.svg?qaoica#temba') format('svg');
   font-weight: normal;
   font-style: normal;
 }
@@ -24,6 +24,15 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-line:before {
+  content: "\e905";
+}
+.icon-junebug:before {
+  content: "\e90a";
+}
+.icon-fcm:before {
+  content: "\e90c";
+}
 .icon-file_download:before {
   content: "\e901";
 }
@@ -45,25 +54,14 @@
 .icon-language:before {
   content: "\e602";
 }
-.icon-line .path1:before {
-  content: "\e905";
-  color: rgb(68, 68, 68);
-}
-.icon-line .path2:before {
-  content: "\e906";
-  margin-left: -1em;
-  color: rgb(255, 255, 255);
-}
-.icon-line .path3:before {
-  content: "\e907";
-  margin-left: -1em;
-  color: rgb(68, 68, 68);
-}
-.icon-viber:before {
+.icon-facebook-official:before {
   content: "\e904";
 }
+.icon-viber:before {
+  content: "\e908";
+}
 .icon-cloud-lightning:before {
-  content: "\e903";
+  content: "\e909";
 }
 .icon-transferto:before {
   content: "\e0d2";
@@ -782,7 +780,7 @@
 .icon-telegram:before {
   content: "\e900";
 }
-.icon-facebook-official:before {
-  content: "\e902";
+.icon-attachment:before {
+  content: "\e9cd";
 }
 

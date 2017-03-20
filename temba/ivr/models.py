@@ -1,11 +1,12 @@
 from __future__ import absolute_import, unicode_literals
 
+from datetime import timedelta
 from django.db import models
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
-from temba.channels.models import ChannelSession, Channel
+from temba.channels.models import ChannelSession, Channel, ChannelLog
 from temba.utils import on_transaction_commit
 
 
@@ -45,13 +46,19 @@ class IVRCall(ChannelSession):
             test_call = IVRCall.objects.filter(id=run.session.id).first()
             if test_call.channel.channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_TWIML]:
                 if not test_call.is_done():
-                    test_call.hangup()
+                    test_call.close()
 
-    def hangup(self):
+    def close(self):
         if not self.is_done():
+
+            # mark us as interrupted
+            self.status = ChannelSession.INTERRUPTED
+            self.ended_on = timezone.now()
+            self.save()
+
             client = self.channel.get_ivr_client()
             if client and self.external_id:
-                client.calls.hangup(self.external_id)
+                client.hangup(self)
 
     def do_start_call(self, qs=None):
         client = self.channel.get_ivr_client()
@@ -133,12 +140,18 @@ class IVRCall(ChannelSession):
                 self.status = self.CANCELED
 
         elif channel_type in Channel.NCCO_CHANNELS:
-            if status == 'ringing':
+            if status in ('ringing', 'started'):
                 self.status = self.RINGING
             elif status == 'answered':
                 self.status = self.IN_PROGRESS
             elif status == 'completed':
                 self.status = self.COMPLETED
+            elif status == 'failed':
+                self.status = self.FAILED
+            elif status in ('rejected', 'busy'):
+                self.status = self.BUSY
+            elif status in ('unanswered', 'timeout'):
+                self.status = self.NO_ANSWER
 
         # if we are done, mark our ended time
         if self.status in ChannelSession.DONE:
@@ -159,4 +172,13 @@ class IVRCall(ChannelSession):
         if not duration:
             duration = 0
 
-        return duration
+        return timedelta(seconds=duration)
+
+    def get_last_log(self):
+        """
+        Gets the last channel log for this message. Performs sorting in Python to ease pre-fetching.
+        """
+        sorted_logs = None
+        if self.channel and self.channel.is_active:
+            sorted_logs = sorted(ChannelLog.objects.filter(session=self), key=lambda l: l.created_on, reverse=True)
+        return sorted_logs[0] if sorted_logs else None

@@ -2,6 +2,8 @@ from __future__ import print_function, unicode_literals
 
 import json
 import logging
+from uuid import uuid4
+
 import regex
 import six
 import traceback
@@ -65,12 +67,18 @@ EXPIRES_CHOICES = (
 )
 
 
-class BaseFlowForm(forms.ModelForm):
-    expires_after_minutes = forms.ChoiceField(label=_('Expire inactive contacts'),
-                                              help_text=_("When inactive contacts should be removed from the flow"),
-                                              initial=str(60 * 24 * 7),
-                                              choices=EXPIRES_CHOICES)
+IVR_EXPIRES_CHOICES = (
+    (1, _('After 1 minute')),
+    (2, _('After 2 minutes')),
+    (3, _('After 3 minutes')),
+    (4, _('After 4 minutes')),
+    (5, _('After 5 minutes')),
+    (10, _('After 10 minutes')),
+    (15, _('After 15 minutes'))
+)
 
+
+class BaseFlowForm(forms.ModelForm):
     def clean_keyword_triggers(self):
         org = self.user.get_org()
         wrong_format = []
@@ -346,7 +354,8 @@ class PartialTemplate(SmartTemplateView):  # pragma: no cover
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'simulate', 'export_results',
                'upload_action_recording', 'read', 'editor', 'results', 'run_table', 'json', 'broadcast', 'activity',
-               'activity_chart', 'filter', 'campaign', 'completion', 'revisions', 'recent_messages')
+               'activity_chart', 'filter', 'campaign', 'completion', 'revisions', 'recent_messages',
+               'upload_media_action')
 
     model = Flow
 
@@ -431,7 +440,7 @@ class FlowCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Flow
-                fields = ('name', 'keyword_triggers', 'expires_after_minutes', 'flow_type', 'base_language')
+                fields = ('name', 'keyword_triggers', 'flow_type', 'base_language')
 
         form_class = FlowCreateForm
         success_url = 'uuid@flows.flow_editor'
@@ -468,8 +477,14 @@ class FlowCRUDL(SmartCRUDL):
             if not obj.base_language:  # pragma: needs cover
                 obj.base_language = 'base'
 
+            # default expiration is a week
+            expires_after_minutes = 60 * 24 * 7
+            if obj.flow_type == Flow.VOICE:
+                # ivr expires after 5 minutes of inactivity
+                expires_after_minutes = 5
+
             self.object = Flow.create(org, self.request.user, obj.name,
-                                      flow_type=obj.flow_type, expires_after_minutes=obj.expires_after_minutes,
+                                      flow_type=obj.flow_type, expires_after_minutes=expires_after_minutes,
                                       base_language=obj.base_language)
 
         def post_save(self, obj):
@@ -511,6 +526,12 @@ class FlowCRUDL(SmartCRUDL):
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class FlowUpdateForm(BaseFlowForm):
 
+            expires_after_minutes = forms.ChoiceField(label=_('Expire inactive contacts'),
+                                                      help_text=_(
+                                                          "When inactive contacts should be removed from the flow"),
+                                                      initial=str(60 * 24 * 7),
+                                                      choices=EXPIRES_CHOICES)
+
             def __init__(self, user, *args, **kwargs):
                 super(FlowCRUDL.Update.FlowUpdateForm, self).__init__(*args, **kwargs)
                 self.user = user
@@ -520,6 +541,11 @@ class FlowCRUDL(SmartCRUDL):
                     org=self.instance.org, flow=self.instance, is_archived=False, groups=None,
                     trigger_type=Trigger.TYPE_KEYWORD
                 ).order_by('created_on')
+
+                if self.instance.flow_type == Flow.VOICE:
+                    expiration = self.fields['expires_after_minutes']
+                    expiration.choices = IVR_EXPIRES_CHOICES
+                    expiration.initial = 5
 
                 # if we don't have a base language let them pick one (this is immutable)
                 if not self.instance.base_language:
@@ -627,12 +653,25 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.get_object()
             return default_storage.save('recordings/%d/%d/steps/%s.wav' % (flow.org.pk, flow.id, action_uuid), file)
 
+    class UploadMediaAction(OrgPermsMixin, SmartUpdateView):
+        def post(self, request, *args, **kwargs):
+            generated_uuid = six.text_type(uuid4())
+            path = self.save_media_upload(self.request.FILES['file'], self.request.POST.get('actionset'),
+                                          generated_uuid)
+            return JsonResponse(dict(path=path))
+
+        def save_media_upload(self, file, actionset_id, name_uuid):
+            flow = self.get_object()
+            extension = file.name.split('.')[-1]
+            return default_storage.save('attachments/%d/%d/steps/%s.%s' % (flow.org.pk, flow.id, name_uuid, extension),
+                                        file)
+
     class BaseList(FlowActionMixin, OrgQuerysetMixin, OrgPermsMixin, SmartListView):
         title = _("Flows")
         refresh = 10000
         fields = ('name', 'modified_on')
         default_template = 'flows/flow_list.html'
-        default_order = ('-modified_on',)
+        default_order = ('-saved_on',)
         search_fields = ('name__icontains',)
 
         def get_context_data(self, **kwargs):
@@ -940,7 +979,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Editor, self).get_context_data(*args, **kwargs)
 
-            context['media_url'] = 'https://%s/' % settings.AWS_BUCKET_DOMAIN
+            context['media_url'] = '%s://%s/' % ('http' if settings.DEBUG else 'https', settings.AWS_BUCKET_DOMAIN)
 
             # are there pending starts?
             starting = False
@@ -1018,11 +1057,7 @@ class FlowCRUDL(SmartCRUDL):
             org = user.get_org()
 
             # is there already an export taking place?
-            existing = ExportFlowResultsTask.objects.filter(org=org, is_finished=False,
-                                                            created_on__gt=timezone.now() - timedelta(hours=24))\
-                                                    .order_by('-created_on').first()
-
-            # if there is an existing export, don't allow it
+            existing = ExportFlowResultsTask.get_recent_unfinished(org)
             if existing:
                 messages.info(self.request,
                               _("There is already an export in progress, started by %s. You must wait "
@@ -1166,13 +1201,15 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.RunTable, self).get_context_data(*args, **kwargs)
             flow = self.get_object()
+            org = self.derive_org()
 
             context['rulesets'] = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT).order_by('y'))
             for ruleset in context['rulesets']:
                 rules = len(ruleset.get_rules())
                 ruleset.category = 'true' if rules > 1 else 'false'
 
-            runs = FlowRun.objects.filter(flow=flow, responded=True)
+            test_contacts = Contact.objects.filter(org=org, is_test=True).values_list('id', flat=True)
+            runs = FlowRun.objects.filter(flow=flow, responded=True).exclude(contact__in=test_contacts)
 
             # paginate
             modified_on = self.request.GET.get('modified_on', None)
@@ -1328,7 +1365,7 @@ class FlowCRUDL(SmartCRUDL):
                             status = USSDSession.INTERRUPTED
                         else:
                             status = None
-                        USSDSession.handle_incoming(test_contact.org.get_send_channel(contact_urn=test_contact.get_urn(TEL_SCHEME)),
+                        USSDSession.handle_incoming(test_contact.org.get_ussd_channel(contact_urn=test_contact.get_urn(TEL_SCHEME)),
                                                     test_contact.get_urn(TEL_SCHEME).path,
                                                     content=new_message,
                                                     date=timezone.now(),

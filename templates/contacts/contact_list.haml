@@ -15,7 +15,7 @@
 
 -block above-bar
   -block top-form
-    %form{'method':'get', 'action': "{% url 'contacts.contact_list' %}" }
+    %form{method:'get'}
       %input.input-medium.search-query{'type':'text', 'placeholder':'{% trans "Search" %}', 'name':"search", 'value':"{{search}}"}
 
 -block content
@@ -119,23 +119,20 @@
                                 %a.lbl-menu.add-group{ href:'#' }
                                   - trans "New Group..."
 
-                      - if org_perms.msgs.broadcast_send 
+                      - if org_perms.msgs.broadcast_send and not reply_disabled
                         %span.btn-group
                           %button.send-button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Send Message" %}'}
                             .glyph.icon-bubble-replu
 
               .search-details
-                -if search
-                  -if compiled_query
-                    -blocktrans count results_count=paginator.count
-                      Found {{ results_count }} contact where <i>{{search}}</i>.
-                      -plural
-                        Found {{ results_count }} contacts where <i>{{search}}</i>.
-                  -else
-                    -blocktrans count results_count=paginator.count
-                      Found {{ results_count }} contact where name or phone contains <i>{{search}}</i>.
-                      -plural
-                        Found {{ results_count }} contacts where name or phone contains <i>{{search}}</i>.
+                -if search_error
+                  %span.search-error
+                    =search_error
+                -elif search
+                  -blocktrans count results_count=paginator.count
+                    Found {{ results_count }} contact matching <i>{{search}}</i>.
+                    -plural
+                      Found {{ results_count }} contacts matching <i>{{search}}</i>.
 
               .list-container
                 %table.list-table.contact_list.table.object-list.table.table-condensed{style: '{% if not org_perms.contacts.contact_update %}margin-top:10px{% endif %}'}
@@ -181,10 +178,11 @@
                         %td.hide
                           .value-labels
                             %nobr
-                              - for group in object.user_groups.all
-                                %span.label.label-info.lbl{ data-id: '{{group.id}}'}
-                                  %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
-                                    {{group.name}}
+                              - for group in object.all_groups.all
+                                - if group.group_type == 'U'
+                                  %span.label.label-info.lbl{ data-id: '{{group.id}}'}
+                                    %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
+                                      {{group.name}}
 
                     -empty
                       %tr
@@ -205,7 +203,7 @@
           - include "contacts/empty_include.haml"
 
 -block post-content
-  - if org_perms.msgs.broadcast_send
+  - if org_perms.msgs.broadcast_send and not reply_disabled
     - include "msgs/msg_send_modal.haml"
 
   -if org_perms.contacts.contact_delete
@@ -248,6 +246,10 @@
 
     .modal .modal-body .control-group .control-label {
       display:none;
+    }
+
+    .search-error {
+      color: #da4f49;
     }
 
 

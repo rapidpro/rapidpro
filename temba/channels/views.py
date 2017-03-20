@@ -19,6 +19,8 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from django.core.validators import MaxValueValidator
+from django.core.validators import MinValueValidator
 from django.db import transaction
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
@@ -33,8 +35,9 @@ from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, T
 from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
-from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.utils import analytics, non_atomic_when_eager, on_transaction_commit
+from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin, AnonMixin
+from temba.channels.models import ChannelSession
+from temba.utils import analytics, on_transaction_commit
 from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import timezone_to_country_code
 from twilio import TwilioRestException
@@ -57,6 +60,7 @@ RELAYER_TYPE_ICONS = {Channel.TYPE_ANDROID: "icon-channel-android",
                       Channel.TYPE_TWITTER: "icon-twitter",
                       Channel.TYPE_TELEGRAM: "icon-telegram",
                       Channel.TYPE_FACEBOOK: "icon-facebook-official",
+                      Channel.TYPE_FCM: "icon-fcm",
                       Channel.TYPE_VIBER: "icon-viber"}
 
 SESSION_TWITTER_TOKEN = 'twitter_oauth_token'
@@ -873,31 +877,15 @@ class UpdateTwitterForm(UpdateChannelForm):
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
-               'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration', 'claim_external',
+               'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration', 'claim_external', 'claim_fcm',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
-               'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist')
+               'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
+               'claim_red_rabbit')
     permissions = True
-
-    class AnonMixin(OrgPermsMixin):
-        """
-        Mixin that makes sure that anonymous orgs cannot add channels (have no permission if anon)
-        """
-        def has_permission(self, request, *args, **kwargs):
-            org = self.derive_org()
-
-            # can this user break anonymity? then we are fine
-            if self.get_user().has_perm('contacts.contact_break_anon'):
-                return True
-
-            # otherwise if this org is anon, no go
-            if not org or org.is_anon:
-                return False
-            else:
-                return super(ChannelCRUDL.AnonMixin, self).has_permission(request, *args, **kwargs)
 
     class Read(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = 'uuid'
@@ -1273,6 +1261,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         class BulkSenderForm(forms.Form):
             connection = forms.CharField(max_length=2, widget=forms.HiddenInput, required=False)
+            channel = forms.IntegerField(widget=forms.HiddenInput, required=False)
 
             def __init__(self, *args, **kwargs):
                 self.org = kwargs['org']
@@ -1285,8 +1274,15 @@ class ChannelCRUDL(SmartCRUDL):
                     raise forms.ValidationError(_("A connection to a Nexmo account is required"))
                 return connection
 
+            def clean_channel(self):
+                channel = self.cleaned_data['channel']
+                channel = self.org.channels.filter(pk=channel).first()
+                if not channel:
+                    raise forms.ValidationError("Can't add sender for that number")
+                return channel
+
         form_class = BulkSenderForm
-        fields = ('connection', )
+        fields = ('connection', 'channel')
 
         def get_form_kwargs(self, *args, **kwargs):
             form_kwargs = super(ChannelCRUDL.CreateBulkSender, self).get_form_kwargs(*args, **kwargs)
@@ -1294,16 +1290,9 @@ class ChannelCRUDL(SmartCRUDL):
             return form_kwargs
 
         def form_valid(self, form):
-
-            # make sure they own the channel
-            channel = self.request.GET.get('channel', None)
-            if channel:
-                channel = self.request.user.get_org().channels.filter(pk=channel).first()
-            if not channel:  # pragma: needs cover
-                raise forms.ValidationError("Can't add sender for that number")
-
             user = self.request.user
 
+            channel = form.cleaned_data['channel']
             Channel.add_send_channel(user, channel)
             return super(ChannelCRUDL.CreateBulkSender, self).form_valid(form)
 
@@ -1541,14 +1530,20 @@ class ChannelCRUDL(SmartCRUDL):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"), required=False,
                                         help_text=_("The country this phone number is used in"))
 
-            url = forms.URLField(max_length=1024, label=_("Send URL"),
-                                 help_text=_("The URL we will call when sending messages, with variable substitutions"))
-
             method = forms.ChoiceField(choices=(('POST', "HTTP POST"), ('GET', "HTTP GET"), ('PUT', "HTTP PUT")),
                                        help_text=_("What HTTP method to use when calling the URL"))
 
-            body = forms.CharField(max_length=1024, label=_("Request Body"), required=False,
-                                   help_text=_("The URL encoded form body, if any, with variable substitutions (only used for PUT or POST)"))
+            content_type = forms.ChoiceField(choices=Channel.CONTENT_TYPE_CHOICES,
+                                             help_text=_("The content type used when sending the request"))
+
+            max_length = forms.IntegerField(initial=160, validators=[MaxValueValidator(640), MinValueValidator(60)],
+                                            help_text=_("The maximum length of any single message on this channel. (longer messages will be split)"))
+
+            url = forms.URLField(max_length=1024, label=_("Send URL"),
+                                 help_text=_("The URL we will call when sending messages, with variable substitutions"))
+
+            body = forms.CharField(max_length=2048, label=_("Request Body"), required=False, widget=forms.Textarea,
+                                   help_text=_("The request body if any, with variable substitutions (only used for PUT or POST)"))
 
         class EXSendClaimForm(forms.Form):
             url = forms.URLField(max_length=1024, label=_("Send URL"),
@@ -1603,7 +1598,13 @@ class ChannelCRUDL(SmartCRUDL):
                 # make sure they own it
                 channel = self.request.user.get_org().channels.filter(pk=channel).first()
 
-            config = {Channel.CONFIG_SEND_URL: data['url'], Channel.CONFIG_SEND_METHOD: data['method'], Channel.CONFIG_SEND_BODY: data['body']}
+            config = {
+                Channel.CONFIG_SEND_URL: data['url'],
+                Channel.CONFIG_SEND_METHOD: data['method'],
+                Channel.CONFIG_SEND_BODY: data['body'],
+                Channel.CONFIG_CONTENT_TYPE: data['content_type'],
+                Channel.CONFIG_MAX_LENGTH: data['max_length']
+            }
             self.object = Channel.add_config_external_channel(org, self.request.user, country, address, Channel.TYPE_EXTERNAL,
                                                               config, role, scheme, parent=channel)
 
@@ -1700,14 +1701,22 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = JasminForm
         fields = ('country', 'number', 'url', 'username', 'password')
 
+    class ClaimRedRabbit(ClaimAuthenticatedExternal):
+        title = _("Connect Red Rabbit")
+        channel_type = Channel.TYPE_RED_RABBIT
+
     class ClaimJunebug(ClaimAuthenticatedExternal):
         class JunebugForm(forms.Form):
+            channel_type = forms.ChoiceField(choices=((Channel.TYPE_JUNEBUG, 'SMS'),
+                                                      (Channel.TYPE_JUNEBUG_USSD, 'USSD')),
+                                             label=_('Channel Type'),
+                                             help_text=_('The type of channel you are wanting to connect.'))
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
                                         help_text=_("The country this phone number is used in"))
             number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
                                      help_text=("The shortcode or phone number you are connecting."))
             url = forms.URLField(label=_("URL"),
-                                 help_text=_("The URL for the Junebug channel. ex: https://junebug.praekelt.org/jb/channels/3853bb51-d38a-4bca-b332-8a57c00f2a48"))
+                                 help_text=_("The URL for the Junebug channel. ex: https://junebug.praekelt.org/jb/channels/3853bb51-d38a-4bca-b332-8a57c00f2a48/messages.json"))
             username = forms.CharField(label=_("Username"),
                                        help_text=_("The username to be used to authenticate to Junebug"),
                                        required=False)
@@ -1716,9 +1725,26 @@ class ChannelCRUDL(SmartCRUDL):
                                        required=False)
 
         title = _("Connect Junebug")
-        channel_type = Channel.TYPE_JUNEBUG
         form_class = JunebugForm
-        fields = ('country', 'number', 'url', 'username', 'password')
+        fields = ('channel_type', 'country', 'number', 'url', 'username', 'password')
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+            data = form.cleaned_data
+
+            if data['channel_type'] == Channel.TYPE_JUNEBUG_USSD:
+                role = Channel.ROLE_USSD
+            else:
+                role = Channel.DEFAULT_ROLE
+
+            self.object = Channel.add_authenticated_external_channel(org, self.request.user,
+                                                                     self.get_submitted_country(data),
+                                                                     data['number'], data['username'],
+                                                                     data['password'], data['channel_type'],
+                                                                     data.get('url'),
+                                                                     role=role)
+
+            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
     class ClaimMblox(ClaimAuthenticatedExternal):
         class MBloxForm(forms.Form):
@@ -1972,6 +1998,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         title = _("Connect Vumi")
         channel_type = Channel.TYPE_VUMI
+        channel_role = Channel.DEFAULT_ROLE
         form_class = VumiClaimForm
         fields = ('country', 'number', 'account_key', 'conversation_key', 'api_url')
 
@@ -1992,12 +2019,14 @@ class ChannelCRUDL(SmartCRUDL):
                                                               dict(account_key=data['account_key'],
                                                                    access_token=str(uuid4()),
                                                                    conversation_key=data['conversation_key'],
-                                                                   api_url=api_url))
+                                                                   api_url=api_url),
+                                                              role=self.channel_role)
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
     class ClaimVumiUssd(ClaimVumi):
         channel_type = Channel.TYPE_VUMI_USSD
+        channel_role = Channel.ROLE_USSD
 
     class ClaimClickatell(ClaimAuthenticatedExternal):
         class ClickatellForm(forms.Form):
@@ -2180,19 +2209,24 @@ class ChannelCRUDL(SmartCRUDL):
 
             # if this is an external channel, build an example URL
             if self.object.channel_type == Channel.TYPE_EXTERNAL:
-                send_url = self.object.config_json()[Channel.CONFIG_SEND_URL]
-                send_body = self.object.config_json().get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
+                config = self.object.config_json()
+                send_url = config[Channel.CONFIG_SEND_URL]
+                send_body = config.get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
+
                 example_payload = {
                     'to': '+250788123123',
-                    'to_no_plus': '+250788123123',
-                    'text': "Love is patient. Love is kind",
+                    'to_no_plus': '250788123123',
+                    'text': "Love is patient. Love is kind.",
                     'from': self.object.address,
                     'from_no_plus': self.object.address.lstrip('+'),
                     'id': '1241244',
                     'channel': str(self.object.id)
                 }
-                context['example_url'] = Channel.build_send_url(send_url, example_payload)
-                context['example_body'] = Channel.build_send_url(send_body, example_payload)
+
+                content_type = config.get(Channel.CONFIG_CONTENT_TYPE, Channel.CONTENT_TYPE_URLENCODED)
+                context['example_content_type'] = "Content-Type: " + Channel.CONTENT_TYPES[content_type]
+                context['example_url'] = Channel.replace_variables(send_url, example_payload)
+                context['example_body'] = Channel.replace_variables(send_body, example_payload, content_type)
 
             context['domain'] = settings.HOSTNAME
             context['ip_addresses'] = settings.IP_ADDRESSES
@@ -2254,14 +2288,6 @@ class ChannelCRUDL(SmartCRUDL):
 
     class ClaimTwitter(OrgPermsMixin, SmartTemplateView):
 
-        @non_atomic_when_eager
-        def dispatch(self, *args, **kwargs):
-            """
-            Decorated with @non_atomic_when_eager so that channel object is always committed to database before Mage
-            tries to access it
-            """
-            return super(ChannelCRUDL.ClaimTwitter, self).dispatch(*args, **kwargs)
-
         def pre_process(self, *args, **kwargs):
             response = super(ChannelCRUDL.ClaimTwitter, self).pre_process(*args, **kwargs)
 
@@ -2306,6 +2332,35 @@ class ChannelCRUDL(SmartCRUDL):
 
             context['twitter_auth_url'] = auth['auth_url']
             return context
+
+    class ClaimFcm(OrgPermsMixin, SmartFormView):
+        class ClaimFcmForm(forms.Form):
+            title = forms.CharField(label=_('Notification title'))
+            key = forms.CharField(label=_('FCM Key'), help_text=_("The key provided on the the Firebase Console "
+                                                                  "when you created your app."))
+            send_notification = forms.CharField(label=_('Send notification'), required=False,
+                                                help_text=_("Check if you want this channel to send notifications "
+                                                            "to contacts."),
+                                                widget=forms.CheckboxInput())
+
+        form_class = ClaimFcmForm
+        fields = ('title', 'key', 'send_notification',)
+        title = _("Connect Firebase Cloud Messaging")
+        success_url = "id@channels.channel_configuration"
+
+        def form_valid(self, form):
+            cleaned_data = form.cleaned_data
+            data = {
+                Channel.CONFIG_FCM_TITLE: cleaned_data.get('title'),
+                Channel.CONFIG_FCM_KEY: cleaned_data.get('key')
+            }
+
+            if cleaned_data.get('send_notification') == 'True':
+                data[Channel.CONFIG_FCM_NOTIFICATION] = True
+
+            self.object = Channel.add_fcm_channel(org=self.request.user.get_org(), user=self.request.user, data=data)
+
+            return super(ChannelCRUDL.ClaimFcm, self).form_valid(form)
 
     class ClaimFacebook(OrgPermsMixin, SmartFormView):
         class FacebookForm(forms.Form):
@@ -2399,7 +2454,7 @@ class ChannelCRUDL(SmartCRUDL):
     class List(OrgPermsMixin, SmartListView):
         title = _("Channels")
         fields = ('name', 'address', 'last_seen')
-        search_fields = ('name', 'number', 'org__created_by__email')
+        search_fields = ('name', 'address', 'org__created_by__email')
 
         def get_queryset(self, **kwargs):
             queryset = super(ChannelCRUDL.List, self).get_queryset(**kwargs)
@@ -2985,7 +3040,7 @@ class ChannelEventCRUDL(SmartCRUDL):
 
 class ChannelLogCRUDL(SmartCRUDL):
     model = ChannelLog
-    actions = ('list', 'read')
+    actions = ('list', 'read', 'session')
 
     class List(OrgPermsMixin, SmartListView):
         fields = ('channel', 'description', 'created_on')
@@ -2994,10 +3049,17 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             channel = Channel.objects.get(pk=self.request.GET['channel'])
-            events = ChannelLog.objects.filter(channel=channel).order_by('-created_on').select_related('msg__contact', 'msg')
 
-            # monkey patch our queryset for the total count
-            events.count = lambda: channel.get_log_count()
+            if self.request.GET.get('sessions'):
+                logs = ChannelLog.objects.filter(channel=channel).exclude(session=None).values_list('session_id', flat=True)
+                events = ChannelSession.objects.filter(id__in=logs).order_by('-created_on')
+
+                if self.request.GET.get('errors'):
+                    events = events.filter(status=ChannelSession.FAILED)
+            else:
+                events = ChannelLog.objects.filter(channel=channel, session=None).order_by('-created_on').select_related('msg__contact', 'msg')
+                events.count = lambda: channel.get_non_ivr_log_count()
+
             return events
 
         def get_context_data(self, **kwargs):
@@ -3005,7 +3067,10 @@ class ChannelLogCRUDL(SmartCRUDL):
             context['channel'] = Channel.objects.get(pk=self.request.GET['channel'])
             return context
 
-    class Read(ChannelCRUDL.AnonMixin, SmartReadView):
+    class Session(AnonMixin, SmartReadView):
+        model = ChannelSession
+
+    class Read(AnonMixin, SmartReadView):
         fields = ('description', 'created_on')
 
         def derive_queryset(self, **kwargs):

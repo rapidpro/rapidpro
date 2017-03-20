@@ -1037,7 +1037,8 @@ class TriggerTest(TembaTest):
                                                       dict(account_key="11111",
                                                            access_token=str(uuid4()),
                                                            transport_name="ussd_transport",
-                                                           conversation_key="22222"))
+                                                           conversation_key="22222"),
+                                                      role=Channel.ROLE_USSD)
 
         # flow options should show ussd flow example
         response = self.client.get(reverse("triggers.trigger_ussd"))

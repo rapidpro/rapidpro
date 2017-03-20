@@ -432,7 +432,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type:'lang', name:'Set Language', verbose_name:'Set language for contact', icon: 'icon-language', filter:ALL }
         { type:'channel', name:'Set Channel', verbose_name:'Set preferred channel', icon: 'icon-phone', filter:[TEXT, VOICE] }
         { type:'flow', name:'Start Another Flow', verbose_name:'Start another flow', icon: 'icon-tree', flows:true, filter:[TEXT,VOICE] }
-        { type:'trigger-flow',   name:'Start Someone in a Flow', verbose_name:'Start someone else in a flow', icon: 'icon-tree', flows:true, filter:[TEXT,VOICE] }
+        { type:'trigger-flow',   name:'Start Someone in a Flow', verbose_name:'Start someone else in a flow', icon: 'icon-tree', flows:true, filter:[TEXT,VOICE,USSD] }
       ]
 
       @rulesets = [
@@ -636,6 +636,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
                 body: -> "Sorry, but we were unable to save your flow. Please reload the page and try again, this may clear your latest changes."
                 details: -> data.description
                 ok: -> 'Reload'
+                details: -> ''
 
               modalInstance = utils.openModal("/partials/modal?v=" + version, ModalController, resolveObj)
 
@@ -667,6 +668,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
                 title: -> "Editing Conflict"
                 body: -> data.saved_by + " is currently editing this Flow. Your changes will not be saved until the Flow is reloaded."
                 ok: -> 'Reload'
+                details: -> ''
               modalInstance = utils.openModal("/partials/modal?v=" + version, ModalController, resolveObj)
 
               modalInstance.result.then (reload) ->

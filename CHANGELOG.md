@@ -1,3 +1,136 @@
+v3.0.85
+----------
+ * Fix exception when handling Viber msg with no text
+ * Migration to remove no longer used ContactGroup.count
+ * Fix search queries like 'foo bar' where there are more than one condition on name/URN
+ * Add indexes for Contact.name and ContactURN.path
+ * Replace current omnibox search function with faster and simpler top-25-of-each-type approach
+
+v3.0.84
+----------
+ * Fix Line, FCM icons, add Junebug icon
+
+v3.0.83
+----------
+ * Render missing field and URN values as "--" rather than "None" on Contact list page
+
+v3.0.82
+----------
+ * Add ROLE_USSD
+ * Add Junebug USSD Channel
+ * Fix Vumi USSD to use USSD Role
+
+v3.0.81
+----------
+ * Archive triggers that do not have a contact to send to
+ * Disable sending of messages for blocked and stopped contacts
+
+v3.0.80
+----------
+ * Add support for outbound media on reply messages for Twilio MMS (US, CA), Telegram, and Facebook
+ * Do not throw when viber sends us message missing the media
+ * Optimizations around Contact searching
+ * Send flow UUID with webhook flow events
+
+v3.0.78
+----------
+ * Allow configuration of max message length to split on for External channels
+
+v3.0.77
+----------
+ * Use brand key for evaluation instead of host when determining brand
+ * Add red rabbit type (hidden since MT only)
+ * Fix flow results exports for broadcast only flows
+
+v3.0.76
+----------
+ * Log Nexmo media responses without including entire body
+
+v3.0.75
+----------
+ * Dont encode to utf8 for XML and JSON since they expect unicode
+ * Optimize contact searching when used to determine single contact's membership
+ * Use flow system user when migrating flows, avoid list page reorder after migrations
+
+v3.0.74
+----------
+ * reduce number of lookup to DB
+
+v3.0.73
+----------
+ * Add test case for search URL against empty field value
+ * Fix sending vumi messages initiated from RapidPro without response to
+
+v3.0.72
+----------
+ * Improvements to external channels to allow configuration against JSON and XML endpoints
+ * Exclude test contacts from flow results
+ * Update to latest smartmin to fix empty string searching
+
+v3.0.70
+----------
+ * Allow USSD flows to start someone else in a flow
+ * Include reply to external_id for Vumi channel
+
+v3.0.69
+----------
+ * Add ID column to result exports for anon orgs
+ * Deactivate runs when releasing flows
+ * Fix urn display for call log
+ * Increased send and receive channel logging for Nexmo, Twilio, Twitter and Telegram 
+ * Allow payments through Bitcoins
+ * Include TransferTo account currency when asking phone info to TransferTo
+ * Don't create inbound messages for gather timeouts, letting calls expire
+ * Don't show channel log for inactive channels on contact history
+ * Upgrade to latest smartmin which changes created_on/modified_on fields on SmartModels to be overridable
+ * Uniform call and message logs
+
+v3.0.64
+----------
+ * Add ID column to anonymous org contact exports, also add @contact.id field in message context
+ * Fix counts for channel log elements
+ * Only have one link on channel page for sending log
+ * Attempt to determine file types for msg attachments using libmagic
+ * Deactivate runs on hangups, Keep ivr runs open on exit
+ * Add log for nexmo media download
+ * Add new perf_test command to run performance tests on database generated with make_test_db
+
+v3.0.62
+----------
+ * Fix preferred channels for non-msg channels
+
+v3.0.61
+----------
+ * Make migrations to populate new export task fields non-atomic
+ * Add indexes for admin boundaries and aliases
+ * Nexmo: make sure calls are ended on hangup, log hangups and media
+ * Fix inbound calls on Nexmo to use conversation_uuid
+ * Style tweaks for zapier widget
+ * Use shorter timeout for IVR
+ * Issue hangups on expiration during IVR runs
+ * Catch all exceptions and log them when initiating call
+ * Fix update status for Nexmo calls
+
+v3.0.48
+----------
+ * Add channel session log page
+ * Use brand variable for zaps to show
+ * Additional logging for nexmo
+ * Increase non-overlap on timeout queueing, never double queue single timeout
+ * Fix broken timeout handling when there is a race
+ * Make field_keys a required parameter
+ * Speed up the contact import by handling contact update at once after all the fields are set
+
+v3.0.47
+----------
+ * Add channel log for Nexmo call initiation
+ * Fix import-geojson management command
+
+v3.0.46
+----------
+ * Fix Contact.search so it doesn't evaluate the base_query
+ * Enable searching in groups and blocked/stopped contacts
+
 v3.0.45
 ----------
  * Fix absolute positioning for account creation form

@@ -6,17 +6,18 @@ import regex
 from zipfile import ZipFile
 from django.contrib.gis.geos import Polygon, MultiPolygon
 from django.core.management.base import BaseCommand
-from optparse import make_option
-from temba.locations.models import AdminBoundary, COUNTRY_LEVEL, STATE_LEVEL, DISTRICT_LEVEL
+from temba.locations.models import AdminBoundary
 
 
 class Command(BaseCommand):  # pragma: no cover
-    option_list = BaseCommand.option_list + (
-        make_option('--country', '-c', dest='country', default=None,
-                    help="Only process the boundary files for this country osm id."),
-    )
-    args = '<file1.zip | 49915admin1.json.. >'
     help = 'Import our geojson zip file format, updating all our OSM data accordingly.'
+
+    def add_arguments(self, parser):
+        parser.add_argument('files', nargs='+')
+        parser.add_argument('--country',
+                            dest='country',
+                            default=None,
+                            help="Only process the boundary files for this country osm id")
 
     def import_file(self, filename, file):
         admin_json = geojson.loads(file.read())
@@ -54,16 +55,16 @@ class Command(BaseCommand):  # pragma: no cover
             # get parent id which is set in new file format
             parent_osm_id = props.get('parent_id')
 
-            # if parent_osm_id is not set and not COUNTRY_LEVEL check for old file format
-            if not parent_osm_id and level != COUNTRY_LEVEL:
-                if level == STATE_LEVEL:
+            # if parent_osm_id is not set and not LEVEL_COUNTRY check for old file format
+            if not parent_osm_id and level != AdminBoundary.LEVEL_COUNTRY:
+                if level == AdminBoundary.LEVEL_STATE:
                     parent_osm_id = props['is_in_country']
-                elif level == DISTRICT_LEVEL:
+                elif level == AdminBoundary.LEVEL_DISTRICT:
                     parent_osm_id = props['is_in_state']
 
             osm_id = props['osm_id']
             name = props.get('name', '')
-            if not name or name == 'None' or level == COUNTRY_LEVEL:
+            if not name or name == 'None' or level == AdminBoundary.LEVEL_COUNTRY:
                 name = props.get('name_en', '')
 
             # try to find parent, bail if we can't
@@ -126,15 +127,15 @@ class Command(BaseCommand):  # pragma: no cover
                 country.get_descendants().filter(level=level).exclude(osm_id__in=seen_osm_ids).delete()
 
     def handle(self, *args, **options):
-        filenames = []
+        files = options['files']
 
         zipfile = None
-        if args[0].endswith(".zip"):
-            zipfile = ZipFile(args[0], 'r')
+        if files[0].endswith(".zip"):
+            zipfile = ZipFile(files[0], 'r')
             filenames = zipfile.namelist()
 
         else:
-            filenames = list(args)
+            filenames = list(files)
 
         # are we filtering by a prefix?
         prefix = ''

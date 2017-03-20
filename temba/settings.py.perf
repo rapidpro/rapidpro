@@ -1,0 +1,77 @@
+from __future__ import absolute_import, unicode_literals
+
+# -----------------------------------------------------------------------------------
+# Sample RapidPro settings file for performance testing.
+#
+# The following are requirements:
+#     - a postgreSQL database named 'temba', with a user name 'temba' and
+#       password 'temba' (with postgis extensions installed)
+#     - a redis instance listening on localhost
+# -----------------------------------------------------------------------------------
+
+import warnings
+
+from .settings_common import *  # noqa
+
+# -----------------------------------------------------------------------------------
+# Mimic a production instance - disable debuging and enable compression
+# -----------------------------------------------------------------------------------
+
+DEBUG = False
+TEMPLATES[0]['OPTIONS']['debug'] = False
+
+COMPRESS_ENABLED = True
+COMPRESS_OFFLINE = True
+
+ALLOWED_HOSTS = ('testserver',)
+INTERNAL_IPS = ('127.0.0.1',)
+
+
+# -----------------------------------------------------------------------------------
+# Redis & Cache Configuration (we expect a Redis instance on localhost)
+# -----------------------------------------------------------------------------------
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://%s:%s/%s" % (REDIS_HOST, REDIS_PORT, REDIS_DB),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
+# -----------------------------------------------------------------------------------
+# Need a PostgreSQL database on localhost with postgis extension installed.
+# -----------------------------------------------------------------------------------
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'temba',
+        'USER': 'temba',
+        'PASSWORD': 'temba',
+        'HOST': 'localhost',
+        'PORT': '',
+        'ATOMIC_REQUESTS': True,
+        'CONN_MAX_AGE': 60,
+        'OPTIONS': {
+        }
+    }
+}
+
+
+# -----------------------------------------------------------------------------------
+# Load development apps
+# -----------------------------------------------------------------------------------
+INSTALLED_APPS = INSTALLED_APPS + ('storages',)
+
+# -----------------------------------------------------------------------------------
+# This setting throws an exception if a naive datetime is used anywhere. (they should
+# always contain a timezone)
+# -----------------------------------------------------------------------------------
+warnings.filterwarnings('error', r"DateTimeField .* received a naive datetime",
+                        RuntimeWarning, r'django\.db\.models\.fields')
+
+# -----------------------------------------------------------------------------------
+# Make our sitestatic URL be our static URL on development
+# -----------------------------------------------------------------------------------
+STATIC_URL = '/sitestatic/'

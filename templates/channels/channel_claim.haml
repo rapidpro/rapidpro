@@ -428,7 +428,7 @@
         .span3
           %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_junebug' %}"}
             .btn-container
-              .claim-glyph.icon-channel-external
+              .claim-glyph.icon-junebug
               %p.claim-text
                 -trans "Junebug"
 
@@ -437,7 +437,7 @@
             %div
               -blocktrans
                 Connect your <a href="https://junebug.praekelt.org/" target="_blank">Junebug</a> instance that you have
-                already connected to an SMSC.
+                already set up and configured.
 
     .claim-row.twiml-channel
       .row
@@ -697,7 +697,6 @@
                     Connect a <a href="http://viber.com/en/">Viber</a> public channel to send and receive messages to Viber users
                     for free. Your users will need an Android, Windows or iOS device and a Viber account to send and receive messages.
 
-
       -if org_perms.channels.channel_claim_line
         .claim-row.line-channel
           .row
@@ -715,6 +714,26 @@
                     Add a <a href="https://line.me">LINE</a> bot to send and receive messages to LINE users
                     for free. Your users will need an Android, Windows or iOS device and a LINE account to send
                     and receive messages.
+
+    %h3
+      -trans "API Channels"
+
+    .claim-row
+      .row
+        .span3
+          %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-gcm{href:"{% url 'channels.channel_claim_fcm' %}"}
+            .claim-glyph.icon-fcm
+            %p.claim-text
+              -trans "Firebase Cloud Messaging"
+
+        .span9
+          .claim-description
+            %div
+              -blocktrans
+                Add a <a href="https://firebase.google.com/docs/cloud-messaging/" target="_blank">
+                Firebase Cloud Messaging Channel</a> to send and receive messages.
+                Your users will need an App to send and receive messages.
+
 
 -block form-buttons
 

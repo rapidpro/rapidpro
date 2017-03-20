@@ -1,0 +1,13 @@
+-extends "channels/channellog_read.html"
+
+-load i18n humanize compress
+
+-block titles
+  %h2
+    -if object.session_type == 'F'
+      -trans "Call Log"
+    -else
+      -trans "USSD Log"
+
+-block above-bar
+  %a.btn.btn-secondary{ href: '{% url "channels.channellog_list" %}?channel={{ object.channel.pk }}&sessions=1' } More Calls

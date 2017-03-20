@@ -33,7 +33,7 @@
 
   .row.claim-row{class:'{% if not user_org.is_connected_to_nexmo %}hide{%endif%}'}
     .span3
-      %a.btn.btn-primary.btn-primary-muted.btn-claim.btn-create-sender.posterize{href:"{% url 'channels.channel_create_bulk_sender' %}?connection=NX&channel={{request.REQUEST.channel}}"}
+      %a.btn.btn-primary.btn-primary-muted.btn-claim.btn-create-sender.posterize{href:"{% url 'channels.channel_create_bulk_sender' %}?connection=NX&channel={{request.GET.channel}}"}
         .claim-glyph.icon-channel-nexmo
         %p.claim-text
           -trans "Send with Nexmo"
@@ -49,7 +49,7 @@
 
   .row.claim-row
     .span3
-      %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-external{href:"{% url 'channels.channel_claim_external' %}?role=S&channel={{request.REQUEST.channel}}"}
+      %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-external{href:"{% url 'channels.channel_claim_external' %}?role=S&channel={{request.GET.channel}}"}
         .claim-glyph.icon-channel-external
         %p.claim-text Connect External API
 

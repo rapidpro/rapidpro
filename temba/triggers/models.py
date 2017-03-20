@@ -103,7 +103,6 @@ class Trigger(SmartModel):
         return ['%s_%s_%s_%s' % (self.trigger_type, str(self.channel_id), group, str(self.keyword)) for group in groups]
 
     def restore(self, user):
-        self.modified_on = timezone.now()
         self.modified_by = user
         self.is_archived = False
         self.save()
@@ -140,6 +139,17 @@ class Trigger(SmartModel):
 
             # archive any conflicting triggers
             matches.exclude(id=self.id).update(is_archived=True, modified_on=now, modified_by=user)
+
+    @classmethod
+    def archive_triggers_for_contact(cls, contact):
+        contact_triggers = list(contact.trigger_set.all())
+
+        for trigger in contact_triggers:
+            trigger.contacts.remove(contact)
+
+            if not trigger.groups.exists() and not trigger.contacts.exists():
+                trigger.is_archived = True
+                trigger.save()
 
     @classmethod
     def import_triggers(cls, exported_json, org, user, same_site=False):
