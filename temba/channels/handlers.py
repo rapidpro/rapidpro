@@ -12,7 +12,6 @@ import xml.etree.ElementTree as ET
 
 from datetime import datetime
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db.models import Q
@@ -204,8 +203,7 @@ class TwimlAPIHandler(BaseChannelHandler):
             validator = RequestValidator(client.auth[1])
 
             if not validator.validate(url, request.POST, signature):  # pragma: needs cover
-                # raise an exception that things weren't properly signed
-                raise ValidationError("Invalid request signature")
+                return HttpResponse("Invalid request signature.", status=400)
 
             # queued, sending, sent, failed, or received.
             if status == 'sent':
@@ -234,8 +232,7 @@ class TwimlAPIHandler(BaseChannelHandler):
             validator = RequestValidator(client.auth[1])
 
             if not validator.validate(url, request.POST, signature):
-                # raise an exception that things weren't properly signed
-                raise ValidationError("Invalid request signature")
+                return HttpResponse("Invalid request signature.", status=400)
 
             body = request.POST['Body']
             urn = URN.from_tel(request.POST['From'])
@@ -314,8 +311,7 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
             validator = RequestValidator(client.auth[1])
 
             if not validator.validate(url, request.POST, signature):
-                # raise an exception that things weren't properly signed
-                raise ValidationError("Invalid request signature")
+                return HttpResponse("Invalid request signature.", status=400)
 
             Msg.create_incoming(channel, URN.from_tel(request.POST['From']), request.POST['Body'])
 
