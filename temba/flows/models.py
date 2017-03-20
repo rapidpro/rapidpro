@@ -5131,45 +5131,39 @@ class ReplyAction(Action):
                 if media_url:
                     media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
+            context = run.flow.build_message_context(run.contact, msg)
+            status = PENDING
+            created_on = None
             if offline_on:
-                if self.send_all:
-                    contact_urns = run.contact.get_urns()
-                    for c_urn in contact_urns:
-                        reply = Msg.create_outgoing(run.org, user, (c_urn.contact, c_urn), text, status=SENT,
-                                                    created_on=offline_on, response_to=msg, media=media)
-                        replies.append(reply)
+                status = SENT
+                context = None
+                created_on = offline_on
 
+            reply_msgs = None
+            try:
+                if msg:
+                    reply_msgs = msg.reply(text, user, trigger_send=False, message_context=context,
+                                           session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                           send_all=self.send_all, status=status, created_on=created_on)
                 else:
-                    reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
-                                                created_on=offline_on, response_to=msg, media=media)
-                    replies.append(reply)
-
-            else:
-                context = run.flow.build_message_context(run.contact, msg)
-
-                reply_msgs = None
-                try:
-                    if msg:
-                        reply_msgs = msg.reply(text, user, trigger_send=False, message_context=context,
-                                               session=run.session, msg_type=self.MSG_TYPE, media=media,
-                                               send_all=self.send_all)
+                    if self.send_all:
+                        reply_msgs = run.contact.send_all(text, user, trigger_send=False, message_context=context,
+                                                          session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                                          status=status, created_on=created_on)
                     else:
-                        if self.send_all:
-                            reply_msgs = run.contact.send_all(text, user, trigger_send=False, message_context=context,
-                                                              session=run.session, msg_type=self.MSG_TYPE, media=media)
-                        else:
-                            reply_msgs = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                                          session=run.session, msg_type=self.MSG_TYPE, media=media)
+                        reply_msgs = run.contact.send(text, user, trigger_send=False, message_context=context,
+                                                      session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                                      status=status, created_on=created_on)
 
-                except UnreachableException:
-                    pass
+            except UnreachableException:
+                pass
 
-                finally:
-                    if reply_msgs:
-                        if self.send_all:
-                            replies = reply_msgs
-                        else:
-                            replies = [reply_msgs]
+            finally:
+                if reply_msgs:
+                    if self.send_all:
+                        replies = reply_msgs
+                    else:
+                        replies = [reply_msgs]
 
         return replies
 
