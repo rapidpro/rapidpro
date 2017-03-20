@@ -1060,7 +1060,7 @@ class APITest(TembaTest):
         self.assertEqual(set(jaqen.user_groups.all()), set())
         self.assertEqual(set(jaqen.values.all()), set())
 
-        dyn_group = self.create_group("Dynamic Group", query="nickname has Ja")
+        dyn_group = self.create_group("Dynamic Group", query="nickname is jado")
 
         # create with all fields
         response = self.postJSON(url, None, {
@@ -1239,6 +1239,7 @@ class APITest(TembaTest):
         test_contact = Contact.get_test_contact(self.user)
 
         group = self.create_group("Testers")
+        self.create_field('isdeveloper', "Is developer")
         self.create_group("Developers", query="isdeveloper = YES")
 
         # start contacts in a flow
@@ -1580,6 +1581,7 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
+        self.create_field('isdeveloper', "Is developer")
         customers = self.create_group("Customers", [self.frank])
         developers = self.create_group("Developers", query="isdeveloper = YES")
 
@@ -1587,7 +1589,7 @@ class APITest(TembaTest):
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
             response = self.fetchJSON(url)
 
         resp_json = response.json()

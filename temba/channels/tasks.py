@@ -56,7 +56,8 @@ def send_msg_task():
             while msg_tasks:
                 msg_task = msg_tasks.pop(0)
                 msg = dict_to_struct('MockMsg', msg_task,
-                                     datetime_fields=['modified_on', 'sent_on', 'created_on', 'queued_on', 'next_attempt'])
+                                     datetime_fields=['modified_on', 'sent_on', 'created_on', 'queued_on',
+                                                      'next_attempt'])
                 Channel.send_message(msg)
 
                 # if there are more messages to send for this contact, sleep a second before moving on

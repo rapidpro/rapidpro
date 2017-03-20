@@ -24,6 +24,7 @@
 @z-action-controls: 800;
 @z-source: 900;
 @z-activity: 980;
+@z-action-media: 985;
 @z-sticky-notes: 990;
 @z-endpoint: 997;
 @z-status-message: 998;
@@ -193,6 +194,24 @@
 
     &.recents {
       z-index: @z-recent-messages;
+    }
+
+    .action-media {
+      position:absolute;
+      background: rgba(240,240,240,.95);
+      z-index:@z-action-media;
+      margin-top: -20px;
+      margin-left: 200px;
+      .drop-shadow(0,0, 2px, 2px, .1);
+      .rounded-corners(5px);
+
+      &.action-media-image {
+        width: 120%;
+      }
+
+      &.action-media-audio {
+      }
+
     }
 
     .recent-messages {
@@ -617,6 +636,49 @@
   font-size: 15px;
   line-height: 18px;
   padding-bottom: 5px;
+
+  .attachment-media {
+    width: 100%;
+
+    &.video-js {
+      min-height: 300px;
+    }
+
+  }
+}
+
+.modal.attachment-viewer {
+  .modal-body {
+    max-height: 70%;
+
+    button.close {
+      font-size: 14px;
+      margin-right: -12px;
+      margin-top: -20px;
+    }
+
+    a.download-btn {
+      color: #444;
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      font-size: 20px;
+      background: #FFF;
+      border: 0;
+      width: 30px;
+      height: 30px;
+      cursor: pointer;
+      line-height: 30px;
+      text-align: center;
+      vertical-align: middle;
+      display: block;
+      text-decoration: none;
+    }
+
+    .attachment-media {
+      overflow: hidden;
+    }
+  }
 }
 
 .modal.error {
@@ -697,7 +759,7 @@
     }
   }
 
-  .say {
+  .say, .reply {
 
     .drop-overlay {
       height: 100%;
@@ -715,7 +777,7 @@
         width: 158px;
         text-align: center;
         margin: auto;
-        padding-top: 10px;
+        padding-top: 12px;
         line-height: 15px;
       }
     }
@@ -723,6 +785,84 @@
     .title {
       text-shadow: 0px 1px @color-say - #222;
       .bg-gradient(@color-say, @color-say - #101010);
+    }
+
+    .text {
+      margin-right: 18px;
+    }
+
+    .node-attachment {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+    }
+
+    .media {
+
+      .icon-attachment {
+        font-size:12px;
+        cursor: pointer;
+        padding-top:5px;
+      }
+
+      margin-top: -3px;
+      .viewer-button {
+        margin-right:5px;
+        display: inline-block;
+        &:hover {
+          color: #999;
+        }
+      }
+      .summary {
+        display: inline-block;
+      }
+
+      .remove {
+        font-size: 12px;
+        height:14px;
+        margin-left:2px;
+        margin-top:1px;
+        margin-right: -3px;
+        display:none;
+      }
+    }
+
+    .tag-button {
+      .rounded-corners();
+      cursor: pointer;
+      background: #e6e6e6;
+      display: inline-block;
+      padding: 5px 10px 5px 5px;
+      font-size: 13px;
+      &:hover {
+        background: #e1e1e1;
+      }
+
+      a, a:hover, a:visited, a:active {
+          color: #999
+      }
+
+      &:hover {
+        .remove {
+          display: inline-block;
+        }
+      }
+
+    }
+
+    .viewer-button {
+      cursor: pointer;
+      font-size:16px;
+      color: #999;
+
+      &.icon-arrow-right-8 {
+        font-size: 22px;
+        margin-top: -2px;
+      }
+
+      &:hover {
+        color: @flat-blue
+      }
     }
 
     .play-button {

@@ -151,6 +151,30 @@ class FlowTest(TembaTest):
             for run_elt in runs:
                 flow2.get_results(contact=run_elt.contact, run=run_elt)
 
+    @patch('temba.flows.views.uuid4')
+    def test_upload_media_action(self, mock_uuid):
+        upload_media_action_url = reverse('flows.flow_upload_media_action', args=[self.flow.pk])
+
+        def assert_media_upload(filename, action_uuid, expected_path):
+            with open(filename, 'rb') as data:
+                post_data = dict(file=data, action=None, actionset='some-uuid',
+                                 HTTP_X_FORWARDED_HTTPS='https')
+                response = self.client.post(upload_media_action_url, post_data)
+
+                self.assertEqual(response.status_code, 200)
+                path = response.json().get('path', None)
+                self.assertEquals(path, expected_path)
+
+        self.login(self.admin)
+
+        mock_uuid.side_effect = ['11111-111-11', '22222-222-22']
+
+        assert_media_upload('%s/test_media/steve.marten.jpg' % settings.MEDIA_ROOT, 'action-uuid-1',
+                            "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, '11111-111-11', '.jpg'))
+
+        assert_media_upload('%s/test_media/snow.mp4' % settings.MEDIA_ROOT, 'action-uuid-2',
+                            "attachments/%d/%d/steps/%s%s" % (self.flow.org.pk, self.flow.pk, '22222-222-22', '.mp4'))
+
     def test_revision_history(self):
 
         # every save should result in a new flow version
@@ -2737,7 +2761,38 @@ class ActionTest(TembaTest):
         self.assertEquals("We love green too!", response.text)
         self.assertEquals(self.contact, response.contact)
 
+    def test_media_action(self):
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+        run = FlowRun.create(self.flow, self.contact.pk)
+
+        action = ReplyAction(dict(base="We love green too!"), 'image/jpeg:path/to/media.jpg')
+        action.execute(run, None, msg)
+        reply_msg = Msg.objects.get(contact=self.contact, direction='O')
+        self.assertEquals("We love green too!", reply_msg.text)
+        self.assertEquals(reply_msg.media, "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg'))
+
+        Broadcast.objects.all().delete()
+        Msg.objects.all().delete()
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+
+        action_json = action.as_json()
+        action = ReplyAction.from_json(self.org, action_json)
+        self.assertEquals(dict(base="We love green too!"), action.msg)
+        self.assertEquals('image/jpeg:path/to/media.jpg', action.media)
+
+        action.execute(run, None, msg)
+
+        response = msg.responses.get()
+        self.assertEquals("We love green too!", response.text)
+        self.assertEquals(response.media, "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg'))
+        self.assertEquals(self.contact, response.contact)
+
     def test_ussd_action(self):
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
@@ -2774,6 +2829,11 @@ class ActionTest(TembaTest):
         Broadcast.objects.all().delete()
 
     def test_multilanguage_ussd_menu_partly_translated(self):
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
@@ -2900,6 +2960,7 @@ class ActionTest(TembaTest):
         action_json = action.as_json()
         action = SendAction.from_json(self.org, action_json)
         self.assertEqual(action.msg['base'], msg_body)
+        self.assertEqual(action.media, dict())
 
         broadcast = Broadcast.objects.get()
         self.assertEqual(broadcast.get_messages().count(), 1)
@@ -2941,6 +3002,33 @@ class ActionTest(TembaTest):
         updated_action = SendAction.from_json(self.org, action.as_json())
         self.assertTrue(updated_action.groups)
         self.assertFalse(self.other_group.pk in [g.pk for g in updated_action.groups])
+
+        # test send media to someone else
+        run = FlowRun.create(self.flow, self.contact.pk)
+        msg_body = 'I am a media message message'
+
+        action = SendAction(dict(base=msg_body), [], [self.contact2], [], dict(base='image/jpeg:attachments/picture.jpg'))
+        action.execute(run, None, None)
+
+        action_json = action.as_json()
+        action = SendAction.from_json(self.org, action_json)
+        self.assertEqual(action.msg['base'], msg_body)
+        self.assertEqual(action.media['base'], 'image/jpeg:attachments/picture.jpg')
+
+        self.assertEqual(Broadcast.objects.all().count(), 2)  # new broadcast with media
+
+        broadcast = Broadcast.objects.all().order_by('-created_on').first()
+        self.assertEqual(broadcast.media_dict, json.dumps(dict(base='image/jpeg:attachments/picture.jpg')))
+        self.assertEqual(broadcast.get_messages().count(), 1)
+        msg = broadcast.get_messages().first()
+        self.assertEqual(msg.contact, self.contact2)
+        self.assertEqual(msg.text, msg_body)
+        self.assertEqual(msg.media, "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'attachments/picture.jpg'))
+
+        # also send if we have empty message but have an attachment
+        action = SendAction(dict(base=""), [], [self.contact], [], dict(base='image/jpeg:attachments/picture.jpg'))
+        action.execute(run, None, None)
+        self.assertEqual(Broadcast.objects.all().count(), 3)
 
     def test_variable_contact_parsing(self):
         groups = dict(groups=[dict(id=-1)])
@@ -3293,6 +3381,7 @@ class ActionTest(TembaTest):
         self.assertFalse(group.pk in [g.pk for g in updated_action.groups])
 
         # try adding a contact to a dynamic group
+        self.create_field('isalive', "Is Alive")
         dynamic_group = self.create_group("Dynamic", query="isalive=YES")
         action = AddToGroupAction([dynamic_group])
 
@@ -3476,6 +3565,7 @@ class ActionTest(TembaTest):
                                                          'urn': u'tel:+250788382382',
                                                          'text': None,
                                                          'flow': self.flow.pk,
+                                                         'flow_uuid': self.flow.uuid,
                                                          'flow_name': self.flow.name,
                                                          'flow_base_language': self.flow.base_language,
                                                          'relayer': -1,
@@ -3483,7 +3573,8 @@ class ActionTest(TembaTest):
                                                          'values': '[]',
                                                          'time': '2015-10-27T14:07:30.000006Z',
                                                          'steps': '[]',
-                                                         'channel': -1},
+                                                         'channel': -1,
+                                                         'channel_uuid': None},
                                                    timeout=10)
         mock_requests_post.reset_mock()
 
@@ -3504,6 +3595,7 @@ class ActionTest(TembaTest):
                                                          'urn': u'tel:+250788382382',
                                                          'text': "Green is my favorite",
                                                          'flow': self.flow.pk,
+                                                         'flow_uuid': self.flow.uuid,
                                                          'flow_name': self.flow.name,
                                                          'flow_base_language': self.flow.base_language,
                                                          'relayer': msg.channel.pk,
@@ -3511,7 +3603,8 @@ class ActionTest(TembaTest):
                                                          'values': '[]',
                                                          'time': '2015-10-27T14:07:30.000006Z',
                                                          'steps': '[]',
-                                                         'channel': msg.channel.pk},
+                                                         'channel': msg.channel.pk,
+                                                         'channel_uuid': msg.channel.uuid},
                                                    timeout=10)
 
         # check simulator warns of webhook URL errors
@@ -3619,6 +3712,12 @@ class FlowRunTest(TembaTest):
         self.assertTrue(FlowRun.objects.get(contact=self.contact).is_completed())
 
     def test_is_interrupted(self):
+        self.channel.delete()
+        # Create a USSD channel type to test USSDSession.INTERRUPTED status
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
         flow = self.get_flow('ussd_example')
         flow.start([], [self.contact])
 
@@ -4033,6 +4132,10 @@ class SimulationTest(FlowFileTest):
 
     @patch('temba.ussd.models.USSDSession.handle_incoming')
     def test_ussd_simulation(self, handle_incoming):
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE,
+                                      uuid='00000000-0000-0000-0000-000000001234')
         flow = self.get_flow('ussd_example')
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
@@ -4052,6 +4155,10 @@ class SimulationTest(FlowFileTest):
 
     @patch('temba.ussd.models.USSDSession.handle_incoming')
     def test_ussd_simulation_interrupt(self, handle_incoming):
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE,
+                                      uuid='00000000-0000-0000-0000-000000001234')
         flow = self.get_flow('ussd_example')
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
@@ -4986,6 +5093,17 @@ class FlowsTest(FlowFileTest):
         self.send('split')
         self.assertEqual('You are in Group B', Msg.objects.filter(direction='O').order_by('-created_on')[1].text)
 
+    def test_media_first_action(self):
+        flow = self.get_flow('media_first_action')
+
+        runs = flow.start_msg_flow([self.contact.id])
+        self.assertEquals(1, len(runs))
+        self.assertEquals(1, self.contact.msgs.all().count())
+        self.assertEquals('Hey', self.contact.msgs.all()[0].text)
+        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN,
+                          "attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg"),
+                          self.contact.msgs.all()[0].media)
+
     def test_substitution(self):
         flow = self.get_flow('substitution')
 
@@ -5655,6 +5773,12 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('Bleck', response['messages'][1]['text'])
 
     def test_interrupted_state(self):
+        self.channel.delete()
+        # Create a USSD channel type to test USSDSession.INTERRUPTED status
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
         flow = self.get_flow('ussd_interrupt_example')
 
         # start the flow, check if we are interrupted yet
@@ -5674,6 +5798,12 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(interrupted_group.contacts.filter(id=contact.id).exists())
 
     def test_empty_interrupt_state(self):
+        self.channel.delete()
+        # Create a USSD channel type to test USSDSession.INTERRUPTED status
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
         flow = self.get_flow('ussd_interrupt_example')
 
         # disconnect action from interrupt state
@@ -7110,3 +7240,28 @@ class AndroidChildStatus(FlowFileTest):
         msgs = Msg.objects.filter(contact=self.contact, status=PENDING, direction=OUTGOING).order_by('created_on')
         self.assertEquals(msgs[0].text, "Child Msg 1")
         self.assertEquals(msgs[1].text, "Child Msg 2")
+
+
+class FlowChannelSelectionTest(FlowFileTest):
+
+    def setUp(self):
+        super(FlowChannelSelectionTest, self).setUp()
+        self.channel.delete()
+        self.sms_channel = Channel.create(
+            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG, None, '+250788123123',
+            scheme='tel', uuid='00000000-0000-0000-0000-000000001111',
+            role=Channel.DEFAULT_ROLE)
+        self.ussd_channel = Channel.create(
+            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
+            scheme='tel', uuid='00000000-0000-0000-0000-000000002222',
+            role=Channel.ROLE_USSD)
+
+    def test_sms_channel_selection(self):
+        contact_urn = self.contact.get_urn(TEL_SCHEME)
+        channel = self.contact.org.get_send_channel(contact_urn=contact_urn)
+        self.assertEqual(channel, self.sms_channel)
+
+    def test_ussd_channel_selection(self):
+        contact_urn = self.contact.get_urn(TEL_SCHEME)
+        channel = self.contact.org.get_ussd_channel(contact_urn=contact_urn)
+        self.assertEqual(channel, self.ussd_channel)
