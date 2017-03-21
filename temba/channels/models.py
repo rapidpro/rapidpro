@@ -1405,6 +1405,9 @@ class Channel(TembaModel):
     @classmethod
     def send_junebug_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED, Msg
+        from temba.ussd.models import USSDSession
+
+        session = None
 
         # the event url Junebug will relay events to
         event_url = 'https://%s%s' % (
@@ -1421,11 +1424,12 @@ class Channel(TembaModel):
         payload['content'] = text
 
         if is_ussd:
-            external_id, session_status = Msg.objects.values_list('response_to__external_id', 'session__status').get(pk=msg.id)
+            session = USSDSession.objects.get_session_with_status_only(msg.session_id)
+            external_id = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
             # NOTE: Only one of `to` or `reply_to` may be specified
             payload['reply_to'] = external_id
             payload['channel_data'] = {
-                'continue_session': session_status not in ChannelSession.DONE,
+                'continue_session': session and not session.should_end,
             }
         else:
             payload['to'] = msg.urn_path
@@ -1456,6 +1460,10 @@ class Channel(TembaModel):
 
         data = response.json()
         message_id = data['result']['id']
+
+        if is_ussd and session and session.should_end:
+            session.close()
+
         Channel.success(channel, msg, WIRED, start, event=event, external_id=message_id)
 
     @classmethod
