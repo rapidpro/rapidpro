@@ -645,7 +645,7 @@ class Flow(TembaModel):
 
                         end_message = Msg.create_outgoing(msg.org, get_flow_user(msg.org), msg.contact, '',
                                                           channel=msg.channel, priority=Msg.PRIORITY_HIGH,
-                                                          session=msg.session)
+                                                          session=msg.session, response_to=msg if msg.id else None)
 
                         end_message.session.mark_ending()
                         msgs.append(end_message)
