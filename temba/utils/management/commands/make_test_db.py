@@ -1,5 +1,6 @@
 from __future__ import unicode_literals, division
 
+import json
 import math
 import pytz
 import random
@@ -18,6 +19,7 @@ from django.utils.timezone import now
 from subprocess import check_call, CalledProcessError
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, ContactGroupCount, URN, TEL_SCHEME, TWITTER_SCHEME
+from temba.flows.models import Flow, FlowStart
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
 from temba.orgs.models import Org
@@ -74,6 +76,7 @@ GROUPS = (
      'member': lambda c: c['district'] and c['district'].name in ("Faskari", "Zuru", "Anka")},
 )
 LABELS = ("Reporting", "Testing", "Youth", "Farming", "Health", "Education", "Trade", "Driving", "Building", "Spam")
+FLOWS = ("favorites.json", "sms_form.json", "pick_a_number.json")
 
 # contact names are generated from these components
 CONTACT_NAMES = (
@@ -95,15 +98,17 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--num-orgs', type=int, action='store', dest='num_orgs', default=100)
         parser.add_argument('--num-contacts', type=int, action='store', dest='num_contacts', default=1000000)
+        parser.add_argument('--num-runs', type=int, action='store', dest='num_runs', default=1000000)
         parser.add_argument('--seed', type=int, action='store', dest='seed', default=None)
 
-    def handle(self, num_orgs, num_contacts, seed, **kwargs):
+    def handle(self, num_orgs, num_contacts, num_runs, seed, **kwargs):
         self.check_db_state()
 
         if seed is None:
             seed = random.randrange(0, 65536)
 
         self.random = random.Random(seed)
+        self.batch_size = 5000
 
         # monkey patch uuid4 so it returns the same UUIDs for the same seed
         from temba.utils import models
@@ -120,21 +125,7 @@ class Command(BaseCommand):
         self.db_ends_on = now()
         self.db_begins_on = self.db_ends_on - timedelta(days=CONTENT_AGE)
 
-        start = time.time()
-
-        superuser = User.objects.create_superuser("root", "root@example.com", "password")
-
-        country, locations = self.load_locations(LOCATIONS_DUMP)
-        orgs = self.create_orgs(superuser, country, num_orgs)
-        self.create_users(orgs)
-        self.create_channels(orgs)
-        self.create_fields(orgs)
-        self.create_groups(orgs)
-        self.create_contacts(orgs, locations, num_contacts)
-        self.create_labels(orgs)
-
-        time_taken = time.time() - start
-        self._log("Time taken: %d secs, peak memory usage: %d MiB\n" % (int(time_taken), int(self.peak_memory())))
+        self.create_db(num_orgs, num_contacts, num_runs)
 
     def check_db_state(self):
         """
@@ -146,6 +137,25 @@ class Command(BaseCommand):
             raise CommandError("Run migrate command first to create database tables")
         if has_data:
             raise CommandError("Can only be run on an empty database")
+
+    def create_db(self, num_orgs, num_contacts, num_runs):
+        start = time.time()
+
+        superuser = User.objects.create_superuser("root", "root@example.com", "password")
+
+        country, locations = self.load_locations(LOCATIONS_DUMP)
+        orgs = self.create_orgs(superuser, country, num_orgs)
+        self.create_users(orgs)
+        self.create_channels(orgs)
+        self.create_fields(orgs)
+        self.create_groups(orgs)
+        self.create_labels(orgs)
+        self.create_flows(orgs)
+        self.create_contacts(orgs, locations, num_contacts)
+        self.create_flow_starts(orgs, num_runs)
+
+        time_taken = time.time() - start
+        self._log("Time taken: %d secs, peak memory usage: %d MiB\n" % (int(time_taken), int(self.peak_memory())))
 
     def load_locations(self, path):
         """
@@ -198,6 +208,7 @@ class Command(BaseCommand):
                 'system_groups': {g.group_type: g for g in ContactGroup.system_groups.filter(org=org)},
                 'contacts': [],
                 'labels': [],
+                'flows': []
             }
 
         self._log(self.style.SUCCESS("OK") + '\n')
@@ -253,12 +264,36 @@ class Command(BaseCommand):
                 else:
                     group = ContactGroup.user_groups.create(org=org, name=g['name'], created_by=user, modified_by=user)
                 group.member = g['member']
+                group.count = 0
                 org.cache['groups'].append(group)
 
         self._log(self.style.SUCCESS("OK") + '\n')
 
+    def create_labels(self, orgs):
+        self._log("Creating %d labels... " % (len(orgs) * len(LABELS)))
+
+        for org in orgs:
+            user = org.cache['users'][0]
+            for name in LABELS:
+                label = Label.label_objects.create(org=org, name=name, created_by=user, modified_by=user)
+                org.cache['labels'].append(label)
+
+        self._log(self.style.SUCCESS("OK") + '\n')
+
+    def create_flows(self, orgs):
+        self._log("Creating %d flows... " % (len(orgs) * len(FLOWS)))
+
+        for org in orgs:
+            user = org.cache['users'][0]
+            for path in FLOWS:
+                with open('media/test_flows/' + path, 'r') as flow_file:
+                    org.import_app(json.load(flow_file), user)
+
+            org.cache['flows'] = list(Flow.objects.filter(org=org).order_by('pk'))
+
+        self._log(self.style.SUCCESS("OK") + '\n')
+
     def create_contacts(self, orgs, locations, num_total):
-        batch_size = 5000
         num_test_contacts = len(orgs) * len(USERS)
         group_membership_model = ContactGroup.contacts.through
         group_counts = defaultdict(int)
@@ -280,7 +315,7 @@ class Command(BaseCommand):
             names = [n if n else None for n in names]
 
             batch = 1
-            for index_batch in chunk_list(range(num_total - num_test_contacts), batch_size):
+            for index_batch in chunk_list(range(num_total - num_test_contacts), self.batch_size):
                 contacts = []
                 urns = []
                 values = []
@@ -365,28 +400,55 @@ class Command(BaseCommand):
                 Value.objects.bulk_create(values)
                 group_membership_model.objects.bulk_create(memberships)
 
-                self._log(" > Created batch %d of %d\n" % (batch, max(num_total // batch_size, 1)))
+                self._log(" > Created batch %d of %d\n" % (batch, max(num_total // self.batch_size, 1)))
                 batch += 1
 
         # create group count records manually
         counts = []
         for group, count in group_counts.items():
             counts.append(ContactGroupCount(group=group, count=count, is_squashed=True))
+            group.count = count
         ContactGroupCount.objects.bulk_create(counts)
 
         # for sanity check that our presumed last contact id matches the last actual contact id
         assert c['id'] == Contact.objects.order_by('-id').first().id
 
-    def create_labels(self, orgs):
-        self._log("Creating %d labels... " % (len(orgs) * len(LABELS)))
+    def create_flow_starts(self, orgs, num_runs):
+        flowstart_group_model = FlowStart.groups.through
 
-        for org in orgs:
+        self._log("Planning flow starts...\n")
+
+        flow_starts = []
+        flowstart_groups = []
+        r = 0
+        s_id = self.get_current_id(FlowStart)
+        while r < num_runs:
+            s_id += 1
+            org = orgs[r] if r < len(orgs) else self.random_org(orgs)  # at least 1 start per org
+            flow = self.random_choice(org.cache['flows'], bias=3)
             user = org.cache['users'][0]
-            for name in LABELS:
-                label = Label.label_objects.create(org=org, name=name, created_by=user, modified_by=user)
-                org.cache['labels'].append(label)
+            group = self.random_choice(org.cache['groups'])
+            created_on = self.timeline_date(float(r) / num_runs)
+            modified_on = self.random_date(created_on, self.db_ends_on)
+
+            flow_starts.append(FlowStart(id=s_id,
+                                         flow=flow, contact_count=group.count, status=FlowStart.STATUS_COMPLETE,
+                                         created_on=created_on, modified_on=modified_on,
+                                         created_by=user, modified_by=user))
+            flowstart_groups.append(flowstart_group_model(flowstart_id=s_id, contactgroup=group))
+
+            r += group.count
+
+        self._log("Creating %d flow starts... " % len(flow_starts))
+
+        with DisableTriggersOn(FlowStart, flowstart_group_model):
+            FlowStart.objects.bulk_create(flow_starts, batch_size=5000)
+            flowstart_group_model.objects.bulk_create(flowstart_groups, batch_size=5000)
 
         self._log(self.style.SUCCESS("OK") + '\n')
+
+        # for sanity check that our presumed last start id matches the last actual id
+        assert s_id == FlowStart.objects.order_by('-id').first().id
 
     @staticmethod
     def get_current_id(model):
