@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
 import json
@@ -13,7 +14,8 @@ from django.utils import timezone
 from django_redis import get_redis_connection
 
 from temba.channels.models import Channel
-from temba.contacts.models import Contact
+from temba.channels.tests import JunebugTestMixin
+from temba.contacts.models import Contact, TEL_SCHEME, URN
 from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING, USSD
 from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
@@ -784,3 +786,121 @@ class VumiUssdTest(TembaTest):
         # Check the new contact was created
         new_contact = Contact.from_urn(self.org, "tel:+250788123123")
         self.assertIsNotNone(new_contact)
+
+
+class JunebugUSSDTest(JunebugTestMixin, TembaTest):
+
+    def setUp(self):
+        super(JunebugUSSDTest, self).setUp()
+
+        flow = self.get_flow('ussd_example')
+        self.starcode = "*113#"
+
+        self.channel.delete()
+        self.channel = Channel.create(
+            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '1234',
+            config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
+            uuid='00000000-0000-0000-0000-000000001234', role=Channel.ROLE_USSD)
+
+        self.trigger, _ = Trigger.objects.get_or_create(
+            channel=self.channel, keyword=self.starcode, flow=flow,
+            created_by=self.user, modified_by=self.user, org=self.org,
+            trigger_type=Trigger.TYPE_USSD_PULL)
+
+    def tearDown(self):
+        super(JunebugUSSDTest, self).tearDown()
+        settings.SEND_MESSAGES = False
+
+    def test_receive_ussd(self):
+        from temba.ussd.models import USSDSession
+        from temba.channels.handlers import JunebugHandler
+
+        data = self.mk_ussd_msg(content="événement", to=self.starcode)
+        callback_url = reverse('handlers.junebug_handler',
+                               args=['inbound', self.channel.uuid])
+        response = self.client.post(callback_url, json.dumps(data),
+                                    content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], JunebugHandler.ACK)
+
+        # load our message
+        msg = Msg.objects.get()
+        self.assertEquals(data["from"], msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(msg.session.status, USSDSession.TRIGGERED)
+
+    def test_receive_ussd_no_session(self):
+        from temba.channels.handlers import JunebugHandler
+
+        # Delete the trigger to prevent the sesion from being created
+        self.trigger.delete()
+
+        data = self.mk_ussd_msg(content="événement", to=self.starcode)
+        callback_url = reverse('handlers.junebug_handler',
+                               args=['inbound', self.channel.uuid])
+        response = self.client.post(callback_url, json.dumps(data),
+                                    content_type='application/json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['status'], JunebugHandler.NACK)
+
+    def test_send_ussd_continue_and_end_session(self):
+        flow = self.get_flow('ussd_session_end')
+        contact = self.create_contact("Joe", "+250788383383")
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, json.dumps({
+                    'result': {
+                        'id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
+                    }
+                }))
+
+                flow.start([], [contact])
+
+                # our outgoing message
+                msg = Msg.objects.filter(direction='O').order_by('id').last()
+
+                self.assertEqual(msg.direction, 'O')
+                self.assertTrue(msg.sent_on)
+                self.assertEquals("07033084-5cfd-4812-90a4-e4d24ffb6e3d", msg.external_id)
+                self.assertEquals(msg.session.status, USSDSession.INITIATED)
+
+                # reply and choose an option that doesn't have any destination thus needs to close the session
+                USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="4",
+                                            date=timezone.now(), external_id="21345", message_id='vumi-message-id')
+                # our outgoing message
+                msg = Msg.objects.filter(direction='O').order_by('id').last()
+                self.assertEquals(WIRED, msg.status)
+                self.assertEqual(msg.direction, 'O')
+                self.assertTrue(msg.sent_on)
+                self.assertEquals("07033084-5cfd-4812-90a4-e4d24ffb6e3d", msg.external_id)
+                self.assertEquals("vumi-message-id", msg.response_to.external_id)
+
+                self.assertEquals(msg.session.status, USSDSession.COMPLETED)
+
+                self.assertEquals(2, mock.call_count)
+
+                # first outbound (session continued)
+                call = mock.call_args_list[0]
+                (args, kwargs) = call
+                payload = kwargs['json']
+                self.assertIsNone(payload['reply_to'])
+                self.assertEquals(payload['channel_data'], {
+                    'continue_session': True
+                })
+
+                # second outbound (session ended)
+                call = mock.call_args_list[1]
+                (args, kwargs) = call
+                payload = kwargs['json']
+                self.assertEquals(payload['reply_to'], 'vumi-message-id')
+                self.assertEquals(payload['channel_data'], {
+                    'continue_session': False
+                })
+
+                self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
