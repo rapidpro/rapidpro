@@ -605,7 +605,7 @@ describe 'Controllers:', ->
 
         # USSD flow
         flowService.flow.flow_type = 'U'
-        expect(modalScope.validActionFilter(getAction('reply'))).toBe(false)
+        expect(modalScope.validActionFilter(getAction('reply'))).toBe(true)
         expect(modalScope.validActionFilter(getAction('say'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('play'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('api'))).toBe(false)
