@@ -1473,14 +1473,6 @@ class Channel(TembaModel):
             payload['recipient'] = dict(id=msg.urn_path)
 
         message = dict(text=text)
-
-        from temba.msgs.models import Msg
-        media_type, media_url = Msg.get_media(msg)
-
-        if media_type and media_url:
-            media_type = media_type.split('/')[0]
-            message['attachment'] = dict(type=media_type, payload=dict(url=media_url))
-
         payload['message'] = message
         payload = json.dumps(payload)
 
@@ -1497,6 +1489,25 @@ class Channel(TembaModel):
             event.response_body = response.text
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
+
+        from temba.msgs.models import Msg
+        media_type, media_url = Msg.get_media(msg)
+
+        if media_type and media_url:
+            media_type = media_type.split('/')[0]
+
+            payload = json.loads(payload)
+            payload['message'] = dict(attachment=dict(type=media_type, payload=dict(url=media_url)))
+            payload = json.dumps(payload)
+
+            event = HttpEvent('POST', url, payload)
+
+            try:
+                response = requests.post(url, payload, params=params, headers=headers, timeout=15)
+                event.status_code = response.status_code
+                event.response_body = response.text
+            except Exception as e:
+                raise SendException(six.text_type(e), event=event, start=start)
 
         if response.status_code != 200:
             raise SendException("Got non-200 response [%d] from Facebook" % response.status_code,

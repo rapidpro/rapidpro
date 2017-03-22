@@ -9513,13 +9513,48 @@ class FacebookTest(TembaTest):
             self.assertEqual(msg.external_id, 'mid.external')
             self.clear_cache()
 
-            self.assertEqual(mock.call_args[0][0], 'https://graph.facebook.com/v2.5/me/messages')
-            self.assertEqual(json.loads(mock.call_args[0][1]),
+            self.assertEqual(mock.call_count, 2)
+
+            self.assertEqual(mock.call_args_list[0][0][0], 'https://graph.facebook.com/v2.5/me/messages')
+
+            self.assertEqual(json.loads(mock.call_args_list[0][0][1]),
                              dict(recipient=dict(id="1234"),
-                                  message=dict(text="Facebook Msg",
-                                               attachment=dict(type="image",
+                                  message=dict(text="Facebook Msg")))
+
+            self.assertEqual(mock.call_args_list[1][0][0], 'https://graph.facebook.com/v2.5/me/messages')
+
+            self.assertEqual(json.loads(mock.call_args_list[1][0][1]),
+                             dict(recipient=dict(id="1234"),
+                                  message=dict(attachment=dict(type="image",
                                                                payload=dict(
                                                                    url="https://example.com/attachments/pic.jpg")))))
+
+        with patch('requests.get') as mock:
+            mock.return_value = [MockResponse(200, '{"recipient_id":"1234", '
+                                                   '"message_id":"mid.external"}'),
+                                 MockResponse(412, 'Error')]
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message now errored
+            msg.refresh_from_db()
+            self.assertEquals(ERRORED, msg.status)
+
+        with patch('requests.post') as mock:
+            mock.side_effect = [MockResponse(200, '{"recipient_id":"1234", '
+                                                  '"message_id":"mid.external"}'),
+                                Exception('Kaboom!')]
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message now errored
+            msg.refresh_from_db()
+            self.assertEquals(ERRORED, msg.status)
+
+            self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                              "referenced before assignment"))
 
 
 class GlobeTest(TembaTest):
