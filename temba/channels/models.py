@@ -1490,10 +1490,6 @@ class Channel(TembaModel):
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
 
-        if response.status_code != 200:
-            raise SendException("Got non-200 response [%d] from Facebook" % response.status_code,
-                                event=event, start=start)
-
         from temba.msgs.models import Msg
         media_type, media_url = Msg.get_media(msg)
 
@@ -1513,9 +1509,9 @@ class Channel(TembaModel):
             except Exception as e:
                 raise SendException(six.text_type(e), event=event, start=start)
 
-            if response.status_code != 200:
-                raise SendException("Got non-200 response [%d] from Facebook" % response.status_code,
-                                    event=event, start=start)
+        if response.status_code != 200:
+            raise SendException("Got non-200 response [%d] from Facebook" % response.status_code,
+                                event=event, start=start)
 
         # grab our external id out, Facebook response is in format:
         # "{"recipient_id":"997011467086879","message_id":"mid.1459532331848:2534ddacc3993a4b78"}"
