@@ -5830,7 +5830,8 @@ class FlowsTest(FlowFileTest):
     def test_airtime_trigger_event(self, mock_post_transferto):
         mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\ncurrency=USD\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
-                                                              "product_list=5,10,20,30\r\n"),
+                                                              "product_list=0.25,0.5,1,1.5\r\n"
+                                                              "local_info_value_list=5,10,20,30\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
@@ -5852,7 +5853,8 @@ class FlowsTest(FlowFileTest):
         mock_post_transferto.reset_mock()
 
         mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=Rwanda\r\n"
-                                                              "product_list=5,10,20,30\r\n"),
+                                                              "product_list=0.25,0.5,1,1.5\r\n"
+                                                              "local_info_value_list=5,10,20,30\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
@@ -5871,7 +5873,8 @@ class FlowsTest(FlowFileTest):
         mock_post_transferto.reset_mock()
 
         mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
-                                                              "product_list=5,10,20,30\r\n"),
+                                                              "product_list=0.25,0.5,1,1.5\r\n"
+                                                              "local_info_value_list=5,10,20,30\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
@@ -5903,7 +5906,8 @@ class FlowsTest(FlowFileTest):
         self.org.remove_transferto_account(self.admin)
 
         mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
-                                                              "product_list=5,10,20,30\r\n"),
+                                                              "product_list=0.25,0.5,1,1.5\r\n"
+                                                              "local_info_value_list=5,10,20,30\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
