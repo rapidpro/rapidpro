@@ -1320,7 +1320,9 @@ class Contact(TembaModel):
             if getattr(contact, 'is_new', False):
                 num_creates += 1
 
-            group.contacts.add(contact)
+            # do not add blocked or stopped contacts
+            if not contact.is_stopped and not contact.is_blocked:
+                group.contacts.add(contact)
 
         # if we aren't whitelisted, check for sequential phone numbers
         if not group_org.is_whitelisted():

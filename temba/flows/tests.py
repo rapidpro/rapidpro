@@ -26,7 +26,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.ivr.models import IVRCall
 from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, WIRED, OUTGOING
+from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, WIRED, OUTGOING, FAILED
 from temba.orgs.models import Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
 from temba.triggers.models import Trigger
@@ -6619,12 +6619,16 @@ class FlowBatchTest(FlowFileTest):
         """
         Tests starting a flow for a group of contacts
         """
-        flow = self.get_flow('favorites')
+        flow = self.get_flow('two_in_row')
 
         # create 10 contacts
         contacts = []
         for i in range(11):
             contacts.append(self.create_contact("Contact %d" % i, "2507883833%02d" % i))
+
+        # stop our last contact
+        stopped = contacts[10]
+        stopped.stop(self.admin)
 
         # start our flow, this will take two batches
         flow.start([], contacts)
@@ -6632,21 +6636,25 @@ class FlowBatchTest(FlowFileTest):
         # ensure 11 flow runs were created
         self.assertEquals(11, FlowRun.objects.all().count())
 
-        # ensure 11 outgoing messages were created
-        self.assertEquals(11, Msg.objects.all().count())
+        # ensure 20 outgoing messages were created (2 for each successful run)
+        self.assertEquals(20, Msg.objects.all().exclude(contact=stopped).count())
 
         # but only one broadcast
         self.assertEquals(1, Broadcast.objects.all().count())
         broadcast = Broadcast.objects.get()
 
         # ensure that our flowsteps all have the broadcast set on them
-        for step in FlowStep.objects.filter(step_type=FlowStep.TYPE_ACTION_SET):
+        for step in FlowStep.objects.filter(step_type=FlowStep.TYPE_ACTION_SET).exclude(run__contact=stopped):
             self.assertEqual(broadcast, step.broadcasts.all().get())
 
         # make sure that adding a msg more than once doesn't blow up
         step.add_message(step.messages.all()[0])
-        self.assertEqual(step.messages.all().count(), 1)
+        self.assertEqual(step.messages.all().count(), 2)
         self.assertEqual(step.broadcasts.all().count(), 1)
+
+        # our stopped contact should have only received one msg before blowing up
+        self.assertEqual(1, Msg.objects.filter(contact=stopped, status=FAILED).count())
+        self.assertEqual(1, FlowRun.objects.filter(contact=stopped, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count())
 
 
 class TwoInRowTest(FlowFileTest):
