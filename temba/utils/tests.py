@@ -22,6 +22,8 @@ from mock import patch, PropertyMock
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.locations.models import AdminBoundary
+from temba.msgs.models import Msg, SystemLabel
+from temba.flows.models import FlowRun
 from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba_expressions.evaluator import EvaluationContext, DateStyle
@@ -1450,6 +1452,9 @@ class MakeTestDBTest(SimpleTestCase):
     allow_database_queries = True
 
     def tearDown(self):
+        Msg.objects.all().delete()
+        FlowRun.objects.all().delete()
+        SystemLabel.objects.all().delete()
         Org.objects.all().delete()
         User.objects.all().delete()
         Group.objects.all().delete()
@@ -1458,15 +1463,20 @@ class MakeTestDBTest(SimpleTestCase):
     def test_command(self):
         call_command('make_test_db', num_orgs=2, num_contacts=20, num_runs=20, seed=123456)
 
-        org_1, org_2 = list(Org.objects.order_by('id'))
+        org1, org2 = tuple(Org.objects.order_by('id'))
 
         self.assertEqual(User.objects.count(), 11)  # 4 for each org + superuser + anonymous + flow user
         self.assertEqual(ContactField.objects.count(), 12)  # 6 per org
         self.assertEqual(ContactGroup.user_groups.count(), 20)  # 10 per org
         self.assertEqual(Contact.objects.filter(is_test=True).count(), 8)  # 1 for each user
-        self.assertEqual(Contact.objects.filter(is_test=False).count(), 12)
+        self.assertEqual(Contact.objects.filter(org=org1, is_test=False).count(), 10)
+        self.assertEqual(Contact.objects.filter(org=org2, is_test=False).count(), 10)
+        self.assertEqual(FlowRun.objects.filter(org=org1).count(), 14)
+        self.assertEqual(FlowRun.objects.filter(org=org2).count(), 22)
+        self.assertEqual(Msg.objects.filter(org=org1).count(), 38)
+        self.assertEqual(Msg.objects.filter(org=org2).count(), 89)
 
-        org_1_all_contacts = ContactGroup.system_groups.get(org=org_1, name="All Contacts")
+        org_1_all_contacts = ContactGroup.system_groups.get(org=org1, name="All Contacts")
 
         self.assertEqual(org_1_all_contacts.contacts.count(), 12)
         self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(12,)])

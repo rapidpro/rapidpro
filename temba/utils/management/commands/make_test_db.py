@@ -19,9 +19,9 @@ from django.utils.timezone import now
 from subprocess import check_call, CalledProcessError
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, ContactGroupCount, URN, TEL_SCHEME, TWITTER_SCHEME
-from temba.flows.models import Flow, FlowStart
+from temba.flows.models import Flow, FlowStart, FlowRun, FlowStep
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Label
+from temba.msgs.models import Label, Msg
 from temba.orgs.models import Org
 from temba.utils import chunk_list, ms_to_datetime, datetime_to_str, datetime_to_ms
 from temba.values.models import Value
@@ -76,7 +76,11 @@ GROUPS = (
      'member': lambda c: c['district'] and c['district'].name in ("Faskari", "Zuru", "Anka")},
 )
 LABELS = ("Reporting", "Testing", "Youth", "Farming", "Health", "Education", "Trade", "Driving", "Building", "Spam")
-FLOWS = ("favorites.json", "sms_form.json", "pick_a_number.json")
+FLOWS = (
+    {'file': "favorites.json", 'templates': (["blue", "mutzig", "bob"], [])},
+    {'file': "sms_form.json", 'templates': (["22 F Seattle", "35 M MIAMI"], [])},
+    {'file': "pick_a_number.json", 'templates': (["1"], ["3"], ["10"], [])}
+)
 
 # contact names are generated from these components
 CONTACT_NAMES = (
@@ -152,8 +156,7 @@ class Command(BaseCommand):
         self.create_labels(orgs)
         self.create_flows(orgs)
         contacts = self.create_contacts(orgs, locations, num_contacts)
-        starts = self.create_flow_starts(orgs, num_runs, contacts)
-        self.create_runs(starts)
+        self.create_runs(orgs, contacts, num_runs)
 
         time_taken = time.time() - start
         self._log("Time taken: %d secs, peak memory usage: %d MiB\n" % (int(time_taken), int(self.peak_memory())))
@@ -182,6 +185,9 @@ class Command(BaseCommand):
         return country, locations
 
     def create_orgs(self, superuser, country, num_total):
+        """
+        Creates and initializes the orgs
+        """
         self._log("Creating %d orgs... " % num_total)
 
         org_names = ['%s %s' % (o1, o2) for o2 in ORG_NAMES[1] for o1 in ORG_NAMES[0]]
@@ -216,6 +222,9 @@ class Command(BaseCommand):
         return orgs
 
     def create_users(self, orgs):
+        """
+        Creates a user of each type for each org
+        """
         self._log("Creating %d users... " % (len(orgs) * len(USERS)))
 
         # create users for each org
@@ -229,6 +238,9 @@ class Command(BaseCommand):
         self._log(self.style.SUCCESS("OK") + '\n')
 
     def create_channels(self, orgs):
+        """
+        Creates the channels for each org
+        """
         self._log("Creating %d channels... " % (len(orgs) * len(CHANNELS)))
 
         for org in orgs:
@@ -242,6 +254,9 @@ class Command(BaseCommand):
         self._log(self.style.SUCCESS("OK") + '\n')
 
     def create_fields(self, orgs):
+        """
+        Creates the contact fields for each org
+        """
         self._log("Creating %d fields... " % (len(orgs) * len(FIELDS)))
 
         for org in orgs:
@@ -255,6 +270,9 @@ class Command(BaseCommand):
         self._log(self.style.SUCCESS("OK") + '\n')
 
     def create_groups(self, orgs):
+        """
+        Creates the contact groups for each org
+        """
         self._log("Creating %d groups... " % (len(orgs) * len(GROUPS)))
 
         for org in orgs:
@@ -271,6 +289,9 @@ class Command(BaseCommand):
         self._log(self.style.SUCCESS("OK") + '\n')
 
     def create_labels(self, orgs):
+        """
+        Creates the message labels for each org
+        """
         self._log("Creating %d labels... " % (len(orgs) * len(LABELS)))
 
         for org in orgs:
@@ -282,19 +303,23 @@ class Command(BaseCommand):
         self._log(self.style.SUCCESS("OK") + '\n')
 
     def create_flows(self, orgs):
+        """
+        Creates the flows for each org
+        """
         self._log("Creating %d flows... " % (len(orgs) * len(FLOWS)))
 
         for org in orgs:
             user = org.cache['users'][0]
-            for path in FLOWS:
-                with open('media/test_flows/' + path, 'r') as flow_file:
+            for f in FLOWS:
+                with open('media/test_flows/' + f['file'], 'r') as flow_file:
                     org.import_app(json.load(flow_file), user)
-
-            org.cache['flows'] = list(Flow.objects.filter(org=org).order_by('pk'))
+                    flow = Flow.objects.filter(org=org).order_by('-id').first()
+                    flow.input_templates = f['templates']
+                    org.cache['flows'].append(flow)
 
         self._log(self.style.SUCCESS("OK") + '\n')
 
-    def create_contacts(self, orgs, locations, num_total):
+    def create_contacts(self, orgs, locations, num_contacts):
         """
         Creates test and regular contacts for this database. Returns tuples of org, contact id and the preferred urn
         id to avoid trying to hold all contact and URN objects in memory.
@@ -304,13 +329,16 @@ class Command(BaseCommand):
         group_membership_model = ContactGroup.contacts.through
         group_counts = defaultdict(int)
 
-        self._log("Creating %d test contacts...\n" % num_test_contacts)
+        self._log("Creating %d test contacts..." % num_test_contacts)
 
         for org in orgs:
+            test_contacts = []
             for user in org.cache['users']:
-                Contact.get_test_contact(user)
+                test_contacts.append(Contact.get_test_contact(user))
+            org.cache['test_contacts'] = test_contacts
 
-        self._log("Creating %d regular contacts...\n" % (num_total - num_test_contacts))
+        self._log(self.style.SUCCESS("OK") + '\n')
+        self._log("Creating %d regular contacts...\n" % num_contacts)
 
         # disable table triggers to speed up insertion and in the case of contact group m2m, avoid having an unsquashed
         # count row for every contact
@@ -319,15 +347,15 @@ class Command(BaseCommand):
             names = [n if n else None for n in names]
 
             batch = 1
-            for index_batch in chunk_list(range(num_total - num_test_contacts), self.batch_size):  # pragma: no cover
+            for index_batch in chunk_list(range(num_contacts), self.batch_size):  # pragma: no cover
                 contacts = []
 
                 # generate flat representations and contact objects for this batch
                 for c_index in index_batch:
-                    org = orgs[c_index] if c_index < len(orgs) else self.random_org(orgs)  # at least 1 contact per org
+                    org = self.random_org(orgs)
                     name = self.random_choice(names)
                     location = self.random_choice(locations) if self.probability(CONTACT_HAS_FIELD_PROB) else None
-                    created_on = self.timeline_date(float(num_test_contacts + c_index) / num_total)
+                    created_on = self.timeline_date(c_index / num_contacts)
 
                     c = {
                         'org': org,
@@ -415,7 +443,7 @@ class Command(BaseCommand):
                 Value.objects.bulk_create(values)
                 group_membership_model.objects.bulk_create(memberships)
 
-                self._log(" > Created batch %d of %d\n" % (batch, max(num_total // self.batch_size, 1)))
+                self._log(" > Created batch %d of %d\n" % (batch, max(num_contacts // self.batch_size, 1)))
                 batch += 1
 
         # create group count records manually
@@ -426,6 +454,103 @@ class Command(BaseCommand):
         ContactGroupCount.objects.bulk_create(counts)
 
         return simplified
+
+    def create_runs(self, orgs, contacts, num_runs):
+        """
+        Creates the flow runs for each org
+        """
+        self._log("Creating %d run templates..." % (len(orgs) * len(FLOWS)))
+
+        # create run templates for each flow in each org using one of that org's test contacts
+        Contact.set_simulation(True)
+        for org in orgs:
+            test_contact = org.cache['test_contacts'][0]
+            for flow in org.cache['flows']:
+                run_templates = []
+                for input_template in flow.input_templates:
+                    tpl = self.create_run_template(org, flow, test_contact, input_template)
+                    run_templates.append(tpl)
+                    # print(json.dumps(tpl, indent=2))
+                flow.run_templates = run_templates
+        Contact.set_simulation(False)
+
+        self._log(self.style.SUCCESS("OK") + '\n')
+        self._log("Creating %d runs...\n" % num_runs)
+
+        r = 0
+        while r < num_runs:
+            started_on = self.timeline_date(float(r) / num_runs)
+            org, contact_id, urn_id = self.random_choice(contacts)
+
+            flow = self.random_choice(org.cache['flows'])
+            template = self.random_choice(flow.run_templates)
+
+            run, msgs, steps, values = self.create_run(org, flow, contact_id, urn_id, template, started_on)
+
+            # TODO batch these up
+            FlowRun.objects.bulk_create([run])
+            Msg.objects.bulk_create(msgs)
+
+            # TODO figure this out - non-nullable foreign keys
+            for s in steps:
+                s.run = s.run
+
+            FlowStep.objects.bulk_create(steps)
+            Value.objects.bulk_create(values)
+            r += 1
+
+    def create_run_template(self, org, flow, test_contact, input_template):
+        run = flow.start([], [test_contact], restart_participants=True)[0]
+
+        for text in input_template:
+            channel = org.cache['channels'][0]
+            msg = Msg.create_incoming(channel, test_contact.urns.first().urn, text)
+            msg.handle()
+
+        run.refresh_from_db()
+
+        steps = []
+        for step in run.steps.order_by('pk'):
+            steps.append({
+                'node': step.step_uuid,
+                'messages': [{'direction': m.direction, 'text': m.text} for m in step.messages.all()]
+            })
+
+        values = []
+        for value in run.values.all():
+            values.append({
+                'rule_uuid': value.rule_uuid,
+                'category': value.category,
+                'string_value': value.string_value
+            })
+
+        return {
+            'responded': run.responded,
+            'exit_type': run.exit_type,
+            'steps': steps,
+            'values': values
+        }
+
+    def create_run(self, org, flow, contact_id, urn_id, template, started_on):
+        run = FlowRun(org=org, flow=flow, contact_id=contact_id, created_on=started_on,
+                      exit_type=template['exit_type'], responded=template['responded'])
+        msgs = []
+        steps = []
+        values = []
+
+        for s in template['steps']:
+            steps.append(FlowStep(run=run, contact_id=contact_id, step_uuid=s['node'], arrived_on=started_on))
+
+            for m in s['messages']:
+                # TODO deal with messages associated with more than one step
+                msgs.append(Msg(org=org, contact_id=contact_id, contact_urn_id=urn_id, text=m['text'], msg_type='F',
+                                direction=m['direction'], status='H', created_on=started_on))
+
+        for v in template['values']:
+            values.append(Value(org=org, contact_id=contact_id, run=run,
+                                rule_uuid=v['rule_uuid'], category=v['category'], string_value=v['string_value']))
+
+        return run, msgs, steps, values
 
     def create_flow_starts(self, orgs, num_runs, contacts):
         """
@@ -477,15 +602,20 @@ class Command(BaseCommand):
 
         return starts
 
-    def create_runs(self):
-        # TODO
-        pass
-
     def probability(self, prob):
         return self.random.random() < prob
 
     def random_choice(self, seq, bias=1.0):
         return seq[int(math.pow(self.random.random(), bias) * len(seq))]
+
+    def weighted_choice(self, seq, weights):
+        r = self.random.random() * sum(weights)
+        cum_weight = 0.0
+
+        for i, item in enumerate(seq):
+            cum_weight += weights[i]
+            if r < cum_weight or (i == len(seq) - 1):
+                return item
 
     def random_org(self, orgs):
         """
