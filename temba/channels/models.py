@@ -2817,9 +2817,10 @@ class Channel(TembaModel):
 
         now = timezone.now()
         hours_ago = now - timedelta(hours=12)
+        five_minutes_ago = now - timedelta(minutes=5)
 
         pending = Msg.objects.filter(org=org, direction=OUTGOING)
-        pending = pending.filter(Q(status=PENDING) |
+        pending = pending.filter(Q(status=PENDING, created_on__lte=five_minutes_ago) |
                                  Q(status=QUEUED, queued_on__lte=hours_ago) |
                                  Q(status=ERRORED, next_attempt__lte=now))
         pending = pending.exclude(channel__channel_type=Channel.TYPE_ANDROID)
