@@ -1813,7 +1813,7 @@ class Flow(TembaModel):
                     msgs.append(msg)
 
             except Exception:
-                logger.error('Failed starting flow for contact id: %d' % contact_id, exc_info=1, extra={'stack': True})
+                logger.error('Failed starting flow %d for contact %d' % (self.id, contact_id), exc_info=1, extra={'stack': True})
 
                 # mark this flow as interrupted
                 run.set_interrupted()

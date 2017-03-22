@@ -4963,8 +4963,10 @@ class FlowsTest(FlowFileTest):
 
         # rule turning back on ourselves
         self.update_destination_no_check(flow, group_ruleset.uuid, group_ruleset.uuid, rule=group_one_rule.uuid)
-        with self.assertRaises(FlowException):
-            self.send_message(flow, "1", assert_reply=False)
+        self.send_message(flow, "1", assert_reply=False, assert_handle=False)
+
+        # should have an interrupted run
+        self.assertEqual(1, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count())
 
         flow.runs.all().delete()
         flow.delete()
@@ -4985,11 +4987,10 @@ class FlowsTest(FlowFileTest):
         group_a.contacts.remove(self.contact)
 
         self.update_destination_no_check(flow, name_ruleset.uuid, group_ruleset.uuid, rule=rowan_rule.uuid)
-        with self.assertRaises(FlowException):
-            self.send_message(flow, "2", assert_reply=False)
+        self.send_message(flow, "2", assert_reply=False, assert_handle=False)
 
-        flow.runs.all().delete()
-        flow.delete()
+        # should have an interrupted run
+        self.assertEqual(1, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count())
 
     def test_decimal_substitution(self):
         flow = self.get_flow('pick_a_number')
