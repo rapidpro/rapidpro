@@ -9513,11 +9513,19 @@ class FacebookTest(TembaTest):
             self.assertEqual(msg.external_id, 'mid.external')
             self.clear_cache()
 
-            self.assertEqual(mock.call_args[0][0], 'https://graph.facebook.com/v2.5/me/messages')
-            self.assertEqual(json.loads(mock.call_args[0][1]),
+            self.assertEqual(mock.call_count, 2)
+
+            self.assertEqual(mock.call_args_list[0][0][0], 'https://graph.facebook.com/v2.5/me/messages')
+
+            self.assertEqual(json.loads(mock.call_args_list[0][0][1]),
                              dict(recipient=dict(id="1234"),
-                                  message=dict(text="Facebook Msg",
-                                               attachment=dict(type="image",
+                                  message=dict(text="Facebook Msg")))
+
+            self.assertEqual(mock.call_args_list[1][0][0], 'https://graph.facebook.com/v2.5/me/messages')
+
+            self.assertEqual(json.loads(mock.call_args_list[1][0][1]),
+                             dict(recipient=dict(id="1234"),
+                                  message=dict(attachment=dict(type="image",
                                                                payload=dict(
                                                                    url="https://example.com/attachments/pic.jpg")))))
 
