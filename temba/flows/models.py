@@ -33,7 +33,7 @@ from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING, DELIVERED, USSD as MSG_TYPE_USSD
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, SENT, Label, PENDING, DELIVERED, USSD as MSG_TYPE_USSD
 from temba.msgs.models import OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
@@ -1764,52 +1764,65 @@ class Flow(TembaModel):
             run_msgs = message_map.get(contact_id, [])
             arrived_on = timezone.now()
 
-            if entry_actions:
-                run_msgs += entry_actions.execute_actions(run, start_msg, started_flows_by_contact,
-                                                          skip_leading_reply_actions=not optimize_sending_action)
+            try:
+                if entry_actions:
+                    run_msgs += entry_actions.execute_actions(run, start_msg, started_flows_by_contact,
+                                                              skip_leading_reply_actions=not optimize_sending_action)
 
-                step = self.add_step(run, entry_actions, run_msgs, is_start=True, arrived_on=arrived_on)
+                    step = self.add_step(run, entry_actions, run_msgs, is_start=True, arrived_on=arrived_on)
 
-                # and onto the destination
-                if entry_actions.destination:
-                    destination = Flow.get_node(entry_actions.flow,
-                                                entry_actions.destination,
-                                                entry_actions.destination_type)
+                    # and onto the destination
+                    if entry_actions.destination:
+                        destination = Flow.get_node(entry_actions.flow,
+                                                    entry_actions.destination,
+                                                    entry_actions.destination_type)
 
-                    next_step = self.add_step(run, destination, previous_step=step)
+                        next_step = self.add_step(run, destination, previous_step=step)
 
-                    msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
-                    handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
-                                                                 is_test_contact=simulation, trigger_send=False)
-                    run_msgs += step_msgs
+                        msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
+                        handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
+                                                                     is_test_contact=simulation, trigger_send=False)
+                        run_msgs += step_msgs
 
-                else:
-                    run.set_completed(final_step=step)
+                    else:
+                        run.set_completed(final_step=step)
 
-            elif entry_rules:
-                step = self.add_step(run, entry_rules, run_msgs, is_start=True, arrived_on=arrived_on)
+                elif entry_rules:
+                    step = self.add_step(run, entry_rules, run_msgs, is_start=True, arrived_on=arrived_on)
 
-                # if we have a start message, go and handle the rule
+                    # if we have a start message, go and handle the rule
+                    if start_msg:
+                        Flow.find_and_handle(start_msg, started_flows_by_contact, triggered_start=True)
+
+                    # if we didn't get an incoming message, see if we need to evaluate it passively
+                    elif not entry_rules.is_pause() or entry_rules.is_ussd():
+                        # create an empty placeholder message
+                        msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
+                        handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False)
+                        run_msgs += step_msgs
+
                 if start_msg:
-                    Flow.find_and_handle(start_msg, started_flows_by_contact, triggered_start=True)
+                    step.add_message(start_msg)
 
-                # if we didn't get an incoming message, see if we need to evaluate it passively
-                elif not entry_rules.is_pause() or entry_rules.is_ussd():
-                    # create an empty placeholder message
-                    msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
-                    handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False)
-                    run_msgs += step_msgs
+                # set the msgs that were sent by this run so that any caller can deal with them
+                run.start_msgs = run_msgs
+                runs.append(run)
 
-            if start_msg:
-                step.add_message(start_msg)
+                # add these messages as ones that are ready to send
+                for msg in run_msgs:
+                    msgs.append(msg)
 
-            # set the msgs that were sent by this run so that any caller can deal with them
-            run.start_msgs = run_msgs
-            runs.append(run)
+            except Exception:
+                logger.error('Failed starting flow %d for contact %d' % (self.id, contact_id), exc_info=1, extra={'stack': True})
 
-            # add these messages as ones that are ready to send
-            for msg in run_msgs:
-                msgs.append(msg)
+                # mark this flow as interrupted
+                run.set_interrupted()
+
+                # mark our messages as failed
+                Msg.objects.filter(id__in=[m.id for m in run_msgs]).update(status=FAILED)
+
+                # remove our msgs from our parent's concerns
+                run.start_msgs = []
 
         # trigger our messages to be sent
         if msgs and not parent_run:
