@@ -98,7 +98,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--num-orgs', type=int, action='store', dest='num_orgs', default=100)
         parser.add_argument('--num-contacts', type=int, action='store', dest='num_contacts', default=1000000)
-        parser.add_argument('--num-runs', type=int, action='store', dest='num_runs', default=1000000)
+        parser.add_argument('--num-runs', type=int, action='store', dest='num_runs', default=3000000)
         parser.add_argument('--seed', type=int, action='store', dest='seed', default=None)
 
     def handle(self, num_orgs, num_contacts, num_runs, seed, **kwargs):
@@ -151,8 +151,9 @@ class Command(BaseCommand):
         self.create_groups(orgs)
         self.create_labels(orgs)
         self.create_flows(orgs)
-        self.create_contacts(orgs, locations, num_contacts)
-        self.create_flow_starts(orgs, num_runs)
+        contacts = self.create_contacts(orgs, locations, num_contacts)
+        starts = self.create_flow_starts(orgs, num_runs, contacts)
+        self.create_runs(starts)
 
         time_taken = time.time() - start
         self._log("Time taken: %d secs, peak memory usage: %d MiB\n" % (int(time_taken), int(self.peak_memory())))
@@ -294,6 +295,11 @@ class Command(BaseCommand):
         self._log(self.style.SUCCESS("OK") + '\n')
 
     def create_contacts(self, orgs, locations, num_total):
+        """
+        Creates test and regular contacts for this database. Returns tuples of org, contact id and the preferred urn
+        id to avoid trying to hold all contact and URN objects in memory.
+        """
+        simplified = []
         num_test_contacts = len(orgs) * len(USERS)
         group_membership_model = ContactGroup.contacts.through
         group_counts = defaultdict(int)
@@ -306,34 +312,24 @@ class Command(BaseCommand):
 
         self._log("Creating %d regular contacts...\n" % (num_total - num_test_contacts))
 
-        base_contact_id = self.get_current_id(Contact) + 1
-
-        # Disable table triggers to speed up insertion and in the case of contact group m2m, avoid having an unsquashed
+        # disable table triggers to speed up insertion and in the case of contact group m2m, avoid having an unsquashed
         # count row for every contact
         with DisableTriggersOn(Contact, ContactURN, Value, group_membership_model):
             names = [('%s %s' % (c1, c2)).strip() for c2 in CONTACT_NAMES[1] for c1 in CONTACT_NAMES[0]]
             names = [n if n else None for n in names]
 
             batch = 1
-            for index_batch in chunk_list(range(num_total - num_test_contacts), self.batch_size):
+            for index_batch in chunk_list(range(num_total - num_test_contacts), self.batch_size):  # pragma: no cover
                 contacts = []
-                urns = []
-                values = []
-                memberships = []
 
-                def add_to_group(g):
-                    group_counts[g] += 1
-                    memberships.append(group_membership_model(contact_id=c['id'], contactgroup=g))
-
-                for c_index in index_batch:  # pragma: no cover
-
+                # generate flat representations and contact objects for this batch
+                for c_index in index_batch:
                     org = orgs[c_index] if c_index < len(orgs) else self.random_org(orgs)  # at least 1 contact per org
                     name = self.random_choice(names)
                     location = self.random_choice(locations) if self.probability(CONTACT_HAS_FIELD_PROB) else None
                     created_on = self.timeline_date(float(num_test_contacts + c_index) / num_total)
 
                     c = {
-                        'id': base_contact_id + c_index,  # database id this contact will have when created
                         'org': org,
                         'user': org.cache['users'][0],
                         'name': name,
@@ -351,7 +347,53 @@ class Command(BaseCommand):
                         'is_active': self.probability(1 - CONTACT_IS_DELETED_PROB),
                         'created_on': created_on,
                         'modified_on': self.random_date(created_on, self.db_ends_on),
+                        'urns': [],
                     }
+
+                    c['object'] = Contact(org=org, name=c['name'], language=c['language'],
+                                          is_stopped=c['is_stopped'], is_blocked=c['is_blocked'],
+                                          is_active=c['is_active'],
+                                          created_by=user, created_on=c['created_on'],
+                                          modified_by=user, modified_on=c['modified_on'])
+
+                    if c['tel']:
+                        c['urns'].append(ContactURN(org=org, contact=c['object'], priority=50, scheme=TEL_SCHEME,
+                                                    path=c['tel'], urn=URN.from_tel(c['tel'])))
+                    if c['twitter']:
+                        c['urns'].append(ContactURN(org=org, contact=c['object'], priority=50, scheme=TWITTER_SCHEME,
+                                                    path=c['twitter'], urn=URN.from_twitter(c['twitter'])))
+                    contacts.append(c)
+
+                # create the actual contact and URN objects which sets their ids
+                Contact.objects.bulk_create([_['object'] for _ in contacts])
+                ContactURN.objects.bulk_create([u for _ in contacts for u in _['urns']])
+
+                values = []
+                memberships = []
+
+                def add_to_group(g):
+                    group_counts[g] += 1
+                    memberships.append(group_membership_model(contact=c['object'], contactgroup=g))
+
+                for c in contacts:
+                    if c['gender']:
+                        values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['gender'],
+                                            string_value=c['gender']))
+                    if c['age']:
+                        values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['age'],
+                                            string_value=str(c['age']), decimal_value=c['age']))
+                    if c['joined']:
+                        values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['joined'],
+                                            string_value=datetime_to_str(c['joined']), datetime_value=c['joined']))
+                    if c['ward']:
+                        values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['ward'],
+                                            string_value=c['ward'].name, location_value=c['ward']))
+                    if c['district']:
+                        values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['district'],
+                                            string_value=c['district'].name, location_value=c['district']))
+                    if c['state']:
+                        values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['state'],
+                                            string_value=c['state'].name, location_value=c['state']))
 
                     if c['is_active']:
                         if not c['is_blocked'] and not c['is_stopped']:
@@ -361,42 +403,15 @@ class Command(BaseCommand):
                         if c['is_stopped']:
                             add_to_group(org.cache['system_groups'][ContactGroup.TYPE_STOPPED])
 
-                    contacts.append(Contact(org=org, name=c['name'], language=c['language'],
-                                            is_stopped=c['is_stopped'], is_blocked=c['is_blocked'],
-                                            is_active=c['is_active'],
-                                            created_by=user, created_on=c['created_on'],
-                                            modified_by=user, modified_on=c['modified_on']))
-
-                    if c['tel']:
-                        urns.append(ContactURN(org=org, contact_id=c['id'], priority=50, scheme=TEL_SCHEME,
-                                               path=c['tel'], urn=URN.from_tel(c['tel'])))
-                    if c['twitter']:
-                        urns.append(ContactURN(org=org, contact_id=c['id'], priority=50, scheme=TWITTER_SCHEME,
-                                               path=c['twitter'], urn=URN.from_twitter(c['twitter'])))
-                    if c['gender']:
-                        values.append(Value(org=org, contact_id=c['id'], contact_field=org.cache['fields']['gender'],
-                                            string_value=c['gender']))
-                    if c['age']:
-                        values.append(Value(org=org, contact_id=c['id'], contact_field=org.cache['fields']['age'],
-                                            string_value=str(c['age']), decimal_value=c['age']))
-                    if c['joined']:
-                        values.append(Value(org=org, contact_id=c['id'], contact_field=org.cache['fields']['joined'],
-                                            string_value=datetime_to_str(c['joined']), datetime_value=c['joined']))
-                    if location:
-                        values.append(Value(org=org, contact_id=c['id'], contact_field=org.cache['fields']['ward'],
-                                            string_value=c['ward'].name, location_value=c['ward']))
-                        values.append(Value(org=org, contact_id=c['id'], contact_field=org.cache['fields']['district'],
-                                            string_value=c['district'].name, location_value=c['district']))
-                        values.append(Value(org=org, contact_id=c['id'], contact_field=org.cache['fields']['state'],
-                                            string_value=c['state'].name, location_value=c['state']))
-
-                    # let each group decide if it is taking this contact
+                    # let each user group decide if it is taking this contact
                     for g in org.cache['groups']:
                         if g.member(c) if callable(g.member) else self.probability(g.member):
                             add_to_group(g)
 
-                Contact.objects.bulk_create(contacts)
-                ContactURN.objects.bulk_create(urns)
+                    # convert contact to simplified representation of org id, contact id and single URN id
+                    preferred_urn_id = c['urns'][len(c['urns']) - 1].id if c['urns'] else None
+                    simplified.append((c['org'], c['object'].id, preferred_urn_id))
+
                 Value.objects.bulk_create(values)
                 group_membership_model.objects.bulk_create(memberships)
 
@@ -410,54 +425,61 @@ class Command(BaseCommand):
             group.count = count
         ContactGroupCount.objects.bulk_create(counts)
 
-        # for sanity check that our presumed last contact id matches the last actual contact id
-        assert c['id'] == Contact.objects.order_by('-id').first().id
+        return simplified
 
-    def create_flow_starts(self, orgs, num_runs):
+    def create_flow_starts(self, orgs, num_runs, contacts):
+        """
+        """
         flowstart_group_model = FlowStart.groups.through
 
         self._log("Planning flow starts...\n")
 
+        starts = []
         flow_starts = []
         flowstart_groups = []
         r = 0
-        s_id = self.get_current_id(FlowStart)
         while r < num_runs:
-            s_id += 1
-            org = orgs[r] if r < len(orgs) else self.random_org(orgs)  # at least 1 start per org
-            flow = self.random_choice(org.cache['flows'], bias=3)
-            user = org.cache['users'][0]
-            group = self.random_choice(org.cache['groups'])
-            created_on = self.timeline_date(float(r) / num_runs)
-            modified_on = self.random_date(created_on, self.db_ends_on)
+            started_on = self.timeline_date(float(r) / num_runs)
 
-            flow_starts.append(FlowStart(id=s_id,
-                                         flow=flow, contact_count=group.count, status=FlowStart.STATUS_COMPLETE,
-                                         created_on=created_on, modified_on=modified_on,
-                                         created_by=user, modified_by=user))
-            flowstart_groups.append(flowstart_group_model(flowstart_id=s_id, contactgroup=group))
+            # start may be an actual flow start object against a random group or a single random flow + contact pair
+            if self.probability(0.2):
+                org = orgs[r] if r < len(orgs) else self.random_org(orgs)  # at least 1 start per org
+                flow = self.random_choice(org.cache['flows'])
+                user = org.cache['users'][0]
+                group = self.random_choice(org.cache['groups'])
 
-            r += group.count
+                flow_start = FlowStart(flow=flow, contact_count=group.count, status=FlowStart.STATUS_COMPLETE,
+                                       created_on=started_on, modified_on=started_on,
+                                       created_by=user, modified_by=user)
+
+                starts.append(flow_start)
+                flow_starts.append(flow_start)
+                flowstart_groups.append(flowstart_group_model(flowstart=flow_start, contactgroup=group))
+
+                r += group.count
+            else:
+                contact = self.random_choice(contacts)
+                flow = self.random_choice(contact[0].cache['flows'])
+                starts.append((flow, contact))
+                r += 1
 
         self._log("Creating %d flow starts... " % len(flow_starts))
 
         with DisableTriggersOn(FlowStart, flowstart_group_model):
-            FlowStart.objects.bulk_create(flow_starts, batch_size=5000)
-            flowstart_group_model.objects.bulk_create(flowstart_groups, batch_size=5000)
+            FlowStart.objects.bulk_create(flow_starts, self.batch_size)
+
+            for g in flowstart_groups:
+                g.flowstart = g.flowstart
+
+            flowstart_group_model.objects.bulk_create(flowstart_groups, self.batch_size)
 
         self._log(self.style.SUCCESS("OK") + '\n')
 
-        # for sanity check that our presumed last start id matches the last actual id
-        assert s_id == FlowStart.objects.order_by('-id').first().id
+        return starts
 
-    @staticmethod
-    def get_current_id(model):
-        """
-        Gets the current (i.e. last generated) id for the given model
-        """
-        with connection.cursor() as cursor:
-            cursor.execute('SELECT last_value FROM %s_id_seq' % model._meta.db_table)
-            return cursor.fetchone()[0]
+    def create_runs(self):
+        # TODO
+        pass
 
     def probability(self, prob):
         return self.random.random() < prob
