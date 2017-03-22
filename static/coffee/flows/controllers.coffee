@@ -203,8 +203,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         showDialog('Invalid Format', 'Audio attachments must be encoded as mp3 files.')
         return
 
-    if action.type in ['reply', 'send'] and (file.size > 20000000 or (file.name.endsWith('.jpg') and file.size > 5000000))
-      showDialog('File Size Exceeded', "The file size should be less than 5MB for images and less than 20MB for audio and video files. Please choose another file and try again.")
+    if action.type in ['reply', 'send'] and (file.size > 20000000 or (file.name.endsWith('.jpg') and file.size > 500000))
+      showDialog('File Size Exceeded', "The file size should be less than 500kB for images and less than 20MB for audio and video files. Please choose another file and try again.")
       return
 
     # if we have a recording already, confirm they want to replace it
