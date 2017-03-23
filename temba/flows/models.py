@@ -1508,6 +1508,11 @@ class Flow(TembaModel):
         runs = []
         msgs = []
 
+        channel = self.org.get_ussd_channel(scheme=TEL_SCHEME)
+
+        if not channel or Channel.ROLE_USSD not in channel.role:  # pragma: needs cover
+            return runs
+
         for contact_id in all_contact_ids:
 
             run = FlowRun.create(self, contact_id, start=flow_start, parent=parent_run)
