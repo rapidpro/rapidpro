@@ -1,4 +1,4 @@
-from __future__ import unicode_literals, division
+from __future__ import unicode_literals, division, print_function
 
 import json
 import math
@@ -16,7 +16,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management import BaseCommand, CommandError
 from django.db import connection
-from django.utils.timezone import now
+from django.utils import timezone
 from subprocess import check_call, CalledProcessError
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, ContactGroupCount, URN, TEL_SCHEME, TWITTER_SCHEME
@@ -127,7 +127,7 @@ class Command(BaseCommand):
         self.org_bias = math.log(1.0 / num_orgs, 0.5)
 
         # The timespan being simulated by this database
-        self.db_ends_on = now()
+        self.db_ends_on = timezone.now()
         self.db_begins_on = self.db_ends_on - timedelta(days=CONTENT_AGE)
 
         self.create_db(num_orgs, num_contacts, num_runs)
@@ -489,6 +489,7 @@ class Command(BaseCommand):
                 batch_runs = []
                 batch_msgs = []
                 batch_steps = []
+                batch_step_msgs = []
                 batch_values = []
 
                 for r_index in index_batch:  # pragma: no cover
@@ -497,10 +498,11 @@ class Command(BaseCommand):
                     flow = self.random_choice(org.cache['flows'])
                     template = self.random_choice(flow.run_templates)
 
-                    run, msgs, steps, values = self.create_run(org, flow, contact_id, urn_id, template, started_on)
+                    run, msgs, steps, step_msgs, values = self.create_run(org, flow, contact_id, urn_id, template, started_on)
                     batch_runs.append(run)
                     batch_msgs += msgs
                     batch_steps += steps
+                    batch_step_msgs += step_msgs
                     batch_values += values
 
                 FlowRun.objects.bulk_create(batch_runs)
@@ -511,6 +513,10 @@ class Command(BaseCommand):
                     s.run = s.run
 
                 FlowStep.objects.bulk_create(batch_steps)
+
+                batch_step_msgs = [FlowStep.messages.through(flowstep=sm.flowstep, msg=sm.msg) for sm in batch_step_msgs]
+
+                FlowStep.messages.through.objects.bulk_create(batch_step_msgs)
                 Value.objects.bulk_create(batch_values)
 
                 self._log(" > Created batch %d of %d\n" % (batch, max(num_runs // self.batch_size, 1)))
@@ -523,12 +529,18 @@ class Command(BaseCommand):
         """
         Contact.set_simulation(True)
 
+        now = timezone.now()
         run = flow.start([], [test_contact], restart_participants=True)[0]
+
+        messages = list(Msg.objects.filter(contact=test_contact, created_on__gt=now).order_by('pk'))
 
         for text in input_template:
             channel = org.cache['channels'][0]
+            now = timezone.now()
             msg = Msg.create_incoming(channel, test_contact.urns.first().urn, text)
             msg.handle()
+
+            messages += list(Msg.objects.filter(contact=test_contact, created_on__gt=now).order_by('pk'))
 
         Contact.set_simulation(False)
 
@@ -538,7 +550,7 @@ class Command(BaseCommand):
         for step in run.steps.order_by('pk'):
             steps.append({
                 'node': step.step_uuid,
-                'messages': [{'direction': m.direction, 'text': m.text} for m in step.messages.all()]
+                'messages': [m.id for m in step.messages.all()]
             })
 
         values = []
@@ -552,30 +564,41 @@ class Command(BaseCommand):
         return {
             'responded': run.responded,
             'exit_type': run.exit_type,
+            'messages': [{'id': m.id, 'direction': m.direction, 'text': m.text} for m in messages],
             'steps': steps,
             'values': values
         }
 
     def create_run(self, org, flow, contact_id, urn_id, template, started_on):
+        step_message_model = FlowStep.messages.through
+
         run = FlowRun(org=org, flow=flow, contact_id=contact_id, created_on=started_on,
                       exit_type=template['exit_type'], responded=template['responded'])
         msgs = []
         steps = []
+        step_messages = []
         values = []
 
-        for s in template['steps']:
-            steps.append(FlowStep(run=run, contact_id=contact_id, step_uuid=s['node'], arrived_on=started_on))
+        msgs_by_tpl_id = {}
+        for m in template['messages']:
+            msg = Msg(org=org, contact_id=contact_id, contact_urn_id=urn_id, text=m['text'], msg_type='F',
+                      direction=m['direction'], status='H', created_on=started_on)
+            msgs.append(msg)
+            msgs_by_tpl_id[m['id']] = msg
 
-            for m in s['messages']:
-                # TODO deal with messages associated with more than one step
-                msgs.append(Msg(org=org, contact_id=contact_id, contact_urn_id=urn_id, text=m['text'], msg_type='F',
-                                direction=m['direction'], status='H', created_on=started_on))
+        for s in template['steps']:
+            step = FlowStep(run=run, contact_id=contact_id, step_uuid=s['node'], arrived_on=started_on)
+            steps.append(step)
+
+            for m_id in s['messages']:
+                msg = msgs_by_tpl_id[m_id]
+                step_messages.append(step_message_model(flowstep=step, msg=msg))
 
         for v in template['values']:
             values.append(Value(org=org, contact_id=contact_id, run=run,
                                 rule_uuid=v['rule_uuid'], category=v['category'], string_value=v['string_value']))
 
-        return run, msgs, steps, values
+        return run, msgs, steps, step_messages, values
 
     def probability(self, prob):
         return self.random.random() < prob
@@ -600,7 +623,7 @@ class Command(BaseCommand):
 
     def random_date(self, start=None, end=None):
         if not end:
-            end = now()
+            end = timezone.now()
         if not start:
             start = end - timedelta(days=365)
 

@@ -1475,7 +1475,7 @@ class MakeTestDBTest(SimpleTestCase):
         assertOrgCounts(Contact.objects.filter(is_test=False), [17, 8, 5])
         assertOrgCounts(FlowRun.objects.filter(contact__is_test=True), [8, 8, 8])  # each input template per org
         assertOrgCounts(FlowRun.objects.filter(contact__is_test=False), [15, 2, 3])
-        assertOrgCounts(Msg.objects.filter(contact__is_test=False), [50, 18, 5])
+        assertOrgCounts(Msg.objects.filter(contact__is_test=False), [43, 16, 5])
 
         org_1_all_contacts = ContactGroup.system_groups.get(org=org1, name="All Contacts")
 
