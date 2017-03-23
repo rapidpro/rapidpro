@@ -78,7 +78,11 @@ GROUPS = (
 )
 LABELS = ("Reporting", "Testing", "Youth", "Farming", "Health", "Education", "Trade", "Driving", "Building", "Spam")
 FLOWS = (
-    {'file': "favorites.json", 'templates': (["blue", "mutzig", "bob"], [])},
+    {'file': "favorites.json", 'templates': (
+        ["blue", "mutzig", "bob"],
+        ["orange", "green", "primus", "jeb"],
+        []
+    )},
     {'file': "sms_form.json", 'templates': (["22 F Seattle", "35 M MIAMI"], [])},
     {'file': "pick_a_number.json", 'templates': (["1"], ["3"], ["10"], [])}
 )
@@ -473,7 +477,7 @@ class Command(BaseCommand):
                 for input_template in flow.input_templates:
                     tpl = self.create_run_template(org, flow, test_contact, input_template)
                     run_templates.append(tpl)
-                    # print(json.dumps(tpl, indent=2))
+                    print(json.dumps(tpl, indent=2))
                 flow.run_templates = run_templates
 
         self._log(self.style.SUCCESS("OK") + '\n')
@@ -556,8 +560,7 @@ class Command(BaseCommand):
         for text in input_template:
             channel = org.cache['channels'][0]
             now = timezone.now()
-            msg = Msg.create_incoming(channel, test_contact.urns.first().urn, text)
-            msg.handle()
+            Msg.create_incoming(channel, test_contact.urns.first().urn, text)
 
             messages += list(Msg.objects.filter(contact=test_contact, created_on__gt=now).order_by('pk'))
 

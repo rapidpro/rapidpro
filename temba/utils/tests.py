@@ -1473,15 +1473,15 @@ class MakeTestDBTest(SimpleTestCase):
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
         assertOrgCounts(Contact.objects.filter(is_test=True), [4, 4, 4])  # 1 for each user
         assertOrgCounts(Contact.objects.filter(is_test=False), [17, 8, 5])
-        assertOrgCounts(FlowRun.objects.filter(contact__is_test=True), [8, 8, 8])  # each input template per org
+        assertOrgCounts(FlowRun.objects.filter(contact__is_test=True), [9, 9, 9])  # each input template per org
         assertOrgCounts(FlowRun.objects.filter(contact__is_test=False), [15, 2, 3])
-        assertOrgCounts(Msg.objects.filter(contact__is_test=False), [43, 16, 5])
+        assertOrgCounts(Msg.objects.filter(contact__is_test=False), [50, 16, 5])
 
         org_1_all_contacts = ContactGroup.system_groups.get(org=org1, name="All Contacts")
 
         self.assertEqual(org_1_all_contacts.contacts.count(), 17)
         self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(17,)])
-        self.assertEqual(SystemLabel.get_counts(org1), {'I': 0, 'W': 15, 'A': 0, 'O': 0, 'S': 28, 'X': 0, 'E': 0, 'C': 0})
+        self.assertEqual(SystemLabel.get_counts(org1), {'I': 0, 'W': 19, 'A': 0, 'O': 0, 'S': 31, 'X': 0, 'E': 0, 'C': 0})
 
         # same seed should generate objects with same UUIDs
         self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, '4ea838f2-66db-cc44-5e62-2929af973c3d')
