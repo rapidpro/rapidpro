@@ -2504,6 +2504,10 @@ class ContactTest(TembaTest):
         self.assertEquals(1, Contact.objects.filter(name='Nic Pottier').count())
         self.assertEquals(1, Contact.objects.filter(name='Jen Newcomer').count())
 
+        # eric opts out
+        eric = Contact.objects.get(name='Eric Newcomer')
+        eric.stop(self.admin)
+
         jen_pk = Contact.objects.get(name='Jen Newcomer').pk
 
         # import again, should be no more records
@@ -2513,6 +2517,13 @@ class ContactTest(TembaTest):
         # But there should be another group
         self.assertEquals(2, len(ContactGroup.user_groups.all()))
         self.assertEquals(1, ContactGroup.user_groups.filter(name="Sample Contacts 2").count())
+
+        # assert eric didn't get added to a group
+        eric.refresh_from_db()
+        self.assertEqual(0, eric.user_groups.count())
+
+        # ok, unstop eric
+        eric.unstop(self.admin)
 
         # update file changes a name, and adds one more
         records = self.do_import(user, 'sample_contacts_update.csv')
