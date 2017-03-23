@@ -15,7 +15,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management import BaseCommand, CommandError
-from django.db import connection
+from django.db import connection, models
 from django.utils import timezone
 from subprocess import check_call, CalledProcessError
 from temba.channels.models import Channel
@@ -435,11 +435,8 @@ class Command(BaseCommand):
                 Contact.objects.bulk_create([_['object'] for _ in batch_contacts])
                 ContactURN.objects.bulk_create([u for _ in batch_contacts for u in _['urns']])
 
-                # TODO figure this out - non-nullable foreign keys
-                for v in batch_values:
-                    v.contact = v.contact
-                for m in batch_memberships:
-                    m.contact = m.contact
+                self._resync_fk_fields(batch_values)
+                self._resync_fk_fields(batch_memberships)
 
                 Value.objects.bulk_create(batch_values)
                 group_membership_model.objects.bulk_create(batch_memberships)
@@ -488,9 +485,9 @@ class Command(BaseCommand):
             for index_batch in chunk_list(six.moves.xrange(num_runs), self.batch_size):
                 batch_runs = []
                 batch_msgs = []
+                batch_values = []
                 batch_steps = []
                 batch_step_msgs = []
-                batch_values = []
 
                 for r_index in index_batch:  # pragma: no cover
                     started_on = self.timeline_date(float(r_index) / num_runs)
@@ -498,26 +495,24 @@ class Command(BaseCommand):
                     flow = self.random_choice(org.cache['flows'])
                     template = self.random_choice(flow.run_templates)
 
-                    run, msgs, steps, step_msgs, values = self.create_run(org, flow, contact_id, urn_id, template, started_on)
+                    run, msgs, values, steps, step_msgs = self.create_run(org, flow, contact_id, urn_id, template, started_on)
                     batch_runs.append(run)
                     batch_msgs += msgs
+                    batch_values += values
                     batch_steps += steps
                     batch_step_msgs += step_msgs
-                    batch_values += values
 
                 FlowRun.objects.bulk_create(batch_runs)
                 Msg.objects.bulk_create(batch_msgs)
+                Value.objects.bulk_create(batch_values)
 
-                # TODO figure this out - non-nullable foreign keys
-                for s in batch_steps:
-                    s.run = s.run
+                self._resync_fk_fields(batch_steps)
 
                 FlowStep.objects.bulk_create(batch_steps)
 
-                batch_step_msgs = [FlowStep.messages.through(flowstep=sm.flowstep, msg=sm.msg) for sm in batch_step_msgs]
+                self._resync_fk_fields(batch_step_msgs)
 
                 FlowStep.messages.through.objects.bulk_create(batch_step_msgs)
-                Value.objects.bulk_create(batch_values)
 
                 self._log(" > Created batch %d of %d\n" % (batch, max(num_runs // self.batch_size, 1)))
                 batch += 1
@@ -575,14 +570,16 @@ class Command(BaseCommand):
         run = FlowRun(org=org, flow=flow, contact_id=contact_id, created_on=started_on,
                       exit_type=template['exit_type'], responded=template['responded'])
         msgs = []
+        values = []
         steps = []
         step_messages = []
-        values = []
 
         msgs_by_tpl_id = {}
         for m in template['messages']:
-            msg = Msg(org=org, contact_id=contact_id, contact_urn_id=urn_id, text=m['text'], msg_type='F',
-                      direction=m['direction'], status='H', created_on=started_on)
+            msg = Msg(org=org, contact_id=contact_id, contact_urn_id=urn_id, text=m['text'],
+                      msg_type='F', direction=m['direction'],
+                      status='H' if m['direction'] == 'I' else 'S',
+                      created_on=started_on)
             msgs.append(msg)
             msgs_by_tpl_id[m['id']] = msg
 
@@ -598,7 +595,7 @@ class Command(BaseCommand):
             values.append(Value(org=org, contact_id=contact_id, run=run,
                                 rule_uuid=v['rule_uuid'], category=v['category'], string_value=v['string_value']))
 
-        return run, msgs, steps, step_messages, values
+        return run, msgs, values, steps, step_messages
 
     def probability(self, prob):
         return self.random.random() < prob
@@ -642,12 +639,25 @@ class Command(BaseCommand):
 
     @staticmethod
     def peak_memory():
-        rusage_denom = 1024.0
+        rusage_denom = 1024
         if sys.platform == 'darwin':
             # OSX gives value in bytes, other OSes in kilobytes
             rusage_denom *= rusage_denom
-        mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / rusage_denom
-        return mem
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / rusage_denom
+
+    def _resync_fk_fields(self, objs):
+        """
+        If we create a transient object A with a field foo which is a foreign key to another transient object B, then we
+        need to save B so that it has a primary key before we can save A. However, even tho A.foo is B and B now has a
+        primary key, A.foo_id will still be none. This method finds related objects and sets the _id attributes
+        accordingly.
+        """
+        for obj in objs:
+            for field in type(obj)._meta.local_concrete_fields:
+                if isinstance(field, models.ForeignKey):
+                    rel_obj = getattr(obj, field.name)
+                    if rel_obj is not None:
+                        setattr(obj, field.get_attname(), rel_obj.id)
 
     def _log(self, text):
         self.stdout.write(text, ending='')
