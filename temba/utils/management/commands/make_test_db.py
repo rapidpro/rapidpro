@@ -589,26 +589,34 @@ class Command(BaseCommand):
         }
 
     def create_run(self, org, flow, contact_id, urn_id, template, started_on):
+        def get_time(t):
+            return started_on + timedelta(seconds=t)
+
         step_message_model = FlowStep.messages.through
 
-        run = FlowRun(org=org, flow=flow, contact_id=contact_id, created_on=started_on,
-                      exit_type=template['exit_type'], responded=template['responded'])
+        run = FlowRun(org=org,
+                      flow=flow,
+                      contact_id=contact_id,
+                      created_on=get_time(0),
+                      exit_type=template['exit_type'],
+                      exited_on=get_time(10) if template['exit_type'] else None,
+                      responded=template['responded'])
         msgs = []
         values = []
         steps = []
         step_messages = []
 
         msgs_by_tpl_id = {}
-        for m in template['messages']:
+        for i, m in enumerate(template['messages']):
             msg = Msg(org=org, contact_id=contact_id, contact_urn_id=urn_id, text=m['text'],
                       msg_type='F', direction=m['direction'],
                       status='H' if m['direction'] == 'I' else 'S',
-                      created_on=started_on)
+                      created_on=get_time(i))
             msgs.append(msg)
             msgs_by_tpl_id[m['id']] = msg
 
-        for s in template['steps']:
-            step = FlowStep(run=run, contact_id=contact_id, step_uuid=s['node'], arrived_on=started_on)
+        for i, s in enumerate(template['steps']):
+            step = FlowStep(run=run, contact_id=contact_id, step_uuid=s['node'], arrived_on=get_time(i))
             steps.append(step)
 
             for m_id in s['messages']:
