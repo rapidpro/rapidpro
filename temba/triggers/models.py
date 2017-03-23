@@ -311,6 +311,10 @@ class Trigger(SmartModel):
             trigger.trigger_count += 1
             trigger.save()
 
+        if contact.is_stopped:
+            user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+            contact.unstop(user)
+
         # if we have an associated flow, start this contact in it
         trigger.flow.start([], [contact], start_msg=msg, restart_participants=True)
 
