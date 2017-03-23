@@ -5,6 +5,7 @@ import math
 import pytz
 import random
 import resource
+import six
 import sys
 import time
 import uuid
@@ -19,7 +20,7 @@ from django.utils.timezone import now
 from subprocess import check_call, CalledProcessError
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, ContactGroupCount, URN, TEL_SCHEME, TWITTER_SCHEME
-from temba.flows.models import Flow, FlowStart, FlowRun, FlowStep
+from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label, Msg
 from temba.orgs.models import Org
@@ -347,11 +348,13 @@ class Command(BaseCommand):
             names = [n if n else None for n in names]
 
             batch = 1
-            for index_batch in chunk_list(range(num_contacts), self.batch_size):  # pragma: no cover
-                contacts = []
+            for index_batch in chunk_list(six.moves.xrange(num_contacts), self.batch_size):
+                batch_contacts = []
+                batch_values = []
+                batch_memberships = []
 
                 # generate flat representations and contact objects for this batch
-                for c_index in index_batch:
+                for c_index in index_batch:  # pragma: no cover
                     org = self.random_org(orgs)
                     name = self.random_choice(names)
                     location = self.random_choice(locations) if self.probability(CONTACT_HAS_FIELD_PROB) else None
@@ -390,38 +393,28 @@ class Command(BaseCommand):
                     if c['twitter']:
                         c['urns'].append(ContactURN(org=org, contact=c['object'], priority=50, scheme=TWITTER_SCHEME,
                                                     path=c['twitter'], urn=URN.from_twitter(c['twitter'])))
-                    contacts.append(c)
-
-                # create the actual contact and URN objects which sets their ids
-                Contact.objects.bulk_create([_['object'] for _ in contacts])
-                ContactURN.objects.bulk_create([u for _ in contacts for u in _['urns']])
-
-                values = []
-                memberships = []
-
-                def add_to_group(g):
-                    group_counts[g] += 1
-                    memberships.append(group_membership_model(contact=c['object'], contactgroup=g))
-
-                for c in contacts:
                     if c['gender']:
-                        values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['gender'],
-                                            string_value=c['gender']))
+                        batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['gender'],
+                                                  string_value=c['gender']))
                     if c['age']:
-                        values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['age'],
-                                            string_value=str(c['age']), decimal_value=c['age']))
+                        batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['age'],
+                                                  string_value=str(c['age']), decimal_value=c['age']))
                     if c['joined']:
-                        values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['joined'],
-                                            string_value=datetime_to_str(c['joined']), datetime_value=c['joined']))
+                        batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['joined'],
+                                                  string_value=datetime_to_str(c['joined']), datetime_value=c['joined']))
                     if c['ward']:
-                        values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['ward'],
-                                            string_value=c['ward'].name, location_value=c['ward']))
+                        batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['ward'],
+                                                  string_value=c['ward'].name, location_value=c['ward']))
                     if c['district']:
-                        values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['district'],
-                                            string_value=c['district'].name, location_value=c['district']))
+                        batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['district'],
+                                                  string_value=c['district'].name, location_value=c['district']))
                     if c['state']:
-                        values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['state'],
-                                            string_value=c['state'].name, location_value=c['state']))
+                        batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['state'],
+                                                  string_value=c['state'].name, location_value=c['state']))
+
+                    def add_to_group(g):
+                        group_counts[g] += 1
+                        batch_memberships.append(group_membership_model(contact=c['object'], contactgroup=g))
 
                     if c['is_active']:
                         if not c['is_blocked'] and not c['is_stopped']:
@@ -436,12 +429,25 @@ class Command(BaseCommand):
                         if g.member(c) if callable(g.member) else self.probability(g.member):
                             add_to_group(g)
 
-                    # convert contact to simplified representation of org id, contact id and single URN id
+                    batch_contacts.append(c)
+
+                # create the actual contact and URN objects which sets their ids
+                Contact.objects.bulk_create([_['object'] for _ in batch_contacts])
+                ContactURN.objects.bulk_create([u for _ in batch_contacts for u in _['urns']])
+
+                # TODO figure this out - non-nullable foreign keys
+                for v in batch_values:
+                    v.contact = v.contact
+                for m in batch_memberships:
+                    m.contact = m.contact
+
+                Value.objects.bulk_create(batch_values)
+                group_membership_model.objects.bulk_create(batch_memberships)
+
+                # convert contact to simplified representation of org id, contact id and single URN id
+                for c in batch_contacts:
                     preferred_urn_id = c['urns'][len(c['urns']) - 1].id if c['urns'] else None
                     simplified.append((c['org'], c['object'].id, preferred_urn_id))
-
-                Value.objects.bulk_create(values)
-                group_membership_model.objects.bulk_create(memberships)
 
                 self._log(" > Created batch %d of %d\n" % (batch, max(num_contacts // self.batch_size, 1)))
                 batch += 1
@@ -462,7 +468,6 @@ class Command(BaseCommand):
         self._log("Creating %d run templates..." % (len(orgs) * len(FLOWS)))
 
         # create run templates for each flow in each org using one of that org's test contacts
-        Contact.set_simulation(True)
         for org in orgs:
             test_contact = org.cache['test_contacts'][0]
             for flow in org.cache['flows']:
@@ -472,40 +477,60 @@ class Command(BaseCommand):
                     run_templates.append(tpl)
                     # print(json.dumps(tpl, indent=2))
                 flow.run_templates = run_templates
-        Contact.set_simulation(False)
 
         self._log(self.style.SUCCESS("OK") + '\n')
         self._log("Creating %d runs...\n" % num_runs)
 
-        r = 0
-        while r < num_runs:
-            started_on = self.timeline_date(float(r) / num_runs)
-            org, contact_id, urn_id = self.random_choice(contacts)
+        # disable table triggers to speed up insertion
+        with DisableTriggersOn(FlowRun, FlowStep, Value):
 
-            flow = self.random_choice(org.cache['flows'])
-            template = self.random_choice(flow.run_templates)
+            batch = 1
+            for index_batch in chunk_list(six.moves.xrange(num_runs), self.batch_size):
+                batch_runs = []
+                batch_msgs = []
+                batch_steps = []
+                batch_values = []
 
-            run, msgs, steps, values = self.create_run(org, flow, contact_id, urn_id, template, started_on)
+                for r_index in index_batch:  # pragma: no cover
+                    started_on = self.timeline_date(float(r_index) / num_runs)
+                    org, contact_id, urn_id = self.random_choice(contacts)
+                    flow = self.random_choice(org.cache['flows'])
+                    template = self.random_choice(flow.run_templates)
 
-            # TODO batch these up
-            FlowRun.objects.bulk_create([run])
-            Msg.objects.bulk_create(msgs)
+                    run, msgs, steps, values = self.create_run(org, flow, contact_id, urn_id, template, started_on)
+                    batch_runs.append(run)
+                    batch_msgs += msgs
+                    batch_steps += steps
+                    batch_values += values
 
-            # TODO figure this out - non-nullable foreign keys
-            for s in steps:
-                s.run = s.run
+                FlowRun.objects.bulk_create(batch_runs)
+                Msg.objects.bulk_create(batch_msgs)
 
-            FlowStep.objects.bulk_create(steps)
-            Value.objects.bulk_create(values)
-            r += 1
+                # TODO figure this out - non-nullable foreign keys
+                for s in batch_steps:
+                    s.run = s.run
+
+                FlowStep.objects.bulk_create(batch_steps)
+                Value.objects.bulk_create(batch_values)
+
+                self._log(" > Created batch %d of %d\n" % (batch, max(num_runs // self.batch_size, 1)))
+                batch += 1
 
     def create_run_template(self, org, flow, test_contact, input_template):
+        """
+        Runs a flow with a test contact to construct a template of the steps and values that are generated by a
+        particular set of inputs
+        """
+        Contact.set_simulation(True)
+
         run = flow.start([], [test_contact], restart_participants=True)[0]
 
         for text in input_template:
             channel = org.cache['channels'][0]
             msg = Msg.create_incoming(channel, test_contact.urns.first().urn, text)
             msg.handle()
+
+        Contact.set_simulation(False)
 
         run.refresh_from_db()
 
@@ -552,63 +577,13 @@ class Command(BaseCommand):
 
         return run, msgs, steps, values
 
-    def create_flow_starts(self, orgs, num_runs, contacts):
-        """
-        """
-        flowstart_group_model = FlowStart.groups.through
-
-        self._log("Planning flow starts...\n")
-
-        starts = []
-        flow_starts = []
-        flowstart_groups = []
-        r = 0
-        while r < num_runs:
-            started_on = self.timeline_date(float(r) / num_runs)
-
-            # start may be an actual flow start object against a random group or a single random flow + contact pair
-            if self.probability(0.2):
-                org = orgs[r] if r < len(orgs) else self.random_org(orgs)  # at least 1 start per org
-                flow = self.random_choice(org.cache['flows'])
-                user = org.cache['users'][0]
-                group = self.random_choice(org.cache['groups'])
-
-                flow_start = FlowStart(flow=flow, contact_count=group.count, status=FlowStart.STATUS_COMPLETE,
-                                       created_on=started_on, modified_on=started_on,
-                                       created_by=user, modified_by=user)
-
-                starts.append(flow_start)
-                flow_starts.append(flow_start)
-                flowstart_groups.append(flowstart_group_model(flowstart=flow_start, contactgroup=group))
-
-                r += group.count
-            else:
-                contact = self.random_choice(contacts)
-                flow = self.random_choice(contact[0].cache['flows'])
-                starts.append((flow, contact))
-                r += 1
-
-        self._log("Creating %d flow starts... " % len(flow_starts))
-
-        with DisableTriggersOn(FlowStart, flowstart_group_model):
-            FlowStart.objects.bulk_create(flow_starts, self.batch_size)
-
-            for g in flowstart_groups:
-                g.flowstart = g.flowstart
-
-            flowstart_group_model.objects.bulk_create(flowstart_groups, self.batch_size)
-
-        self._log(self.style.SUCCESS("OK") + '\n')
-
-        return starts
-
     def probability(self, prob):
         return self.random.random() < prob
 
     def random_choice(self, seq, bias=1.0):
         return seq[int(math.pow(self.random.random(), bias) * len(seq))]
 
-    def weighted_choice(self, seq, weights):
+    def weighted_choice(self, seq, weights):  # pragma: no cover
         r = self.random.random() * sum(weights)
         cum_weight = 0.0
 
