@@ -350,11 +350,20 @@ verifyNumberSimulator = ->
         showSimulator(true)
     modal.show()
 
+  else if window.ussd and not window.has_ussd_channel
+    modal = new Modal(gettext("Missing USSD Channel"), gettext("There is no channel that supports USSD connected. Please connect a USSD channel first."))
+    modal.setIcon("icon-phone")
+    modal.setListeners
+      onPrimary: ->
+        modal.dismiss()
+    modal.show()
   else
     showSimulator()
 
 $("#show-simulator").click ->
-    verifyNumberSimulator()
+  console.log(window.ussd)
+  console.log(window.has_ussd_channel)
+  verifyNumberSimulator()
 
 # toggle simulator
 $("#toggle-simulator").on "click", ->
