@@ -20,9 +20,9 @@ from django.utils import timezone
 from subprocess import check_call, CalledProcessError
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, ContactGroupCount, URN, TEL_SCHEME, TWITTER_SCHEME
-from temba.flows.models import Flow, FlowRun, FlowStep
+from temba.flows.models import Flow, FlowRun, FlowStep, FlowRunCount
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Label, Msg
+from temba.msgs.models import Label, Msg, SystemLabel
 from temba.orgs.models import Org
 from temba.utils import chunk_list, ms_to_datetime, datetime_to_str, datetime_to_ms
 from temba.values.models import Value
@@ -103,7 +103,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--num-orgs', type=int, action='store', dest='num_orgs', default=100)
         parser.add_argument('--num-contacts', type=int, action='store', dest='num_contacts', default=1000000)
-        parser.add_argument('--num-runs', type=int, action='store', dest='num_runs', default=3000000)
+        parser.add_argument('--num-runs', type=int, action='store', dest='num_runs', default=2000000)
         parser.add_argument('--seed', type=int, action='store', dest='seed', default=None)
 
     def handle(self, num_orgs, num_contacts, num_runs, seed, **kwargs):
@@ -157,7 +157,8 @@ class Command(BaseCommand):
         self.create_labels(orgs)
         self.create_flows(orgs)
         contacts = self.create_contacts(orgs, locations, num_contacts)
-        self.create_runs(orgs, contacts, num_runs)
+        self.create_run_templates(orgs)
+        self.create_runs(contacts, num_runs)
 
         time_taken = time.time() - start
         self._log("Time taken: %d secs, peak memory usage: %d MiB\n" % (int(time_taken), int(self.peak_memory())))
@@ -458,9 +459,9 @@ class Command(BaseCommand):
 
         return simplified
 
-    def create_runs(self, orgs, contacts, num_runs):
+    def create_run_templates(self, orgs):
         """
-        Creates the flow runs for each org
+        Creates the run templates for each flow in each org
         """
         self._log("Creating %d run templates..." % (len(orgs) * len(FLOWS)))
 
@@ -476,10 +477,18 @@ class Command(BaseCommand):
                 flow.run_templates = run_templates
 
         self._log(self.style.SUCCESS("OK") + '\n')
+
+    def create_runs(self, contacts, num_runs):
+        """
+        Creates the actual runs by following the run templates for each flow
+        """
         self._log("Creating %d runs...\n" % num_runs)
 
+        flow_run_counts = defaultdict(int)
+        sys_label_counts = defaultdict(int)
+
         # disable table triggers to speed up insertion
-        with DisableTriggersOn(FlowRun, FlowStep, Value):
+        with DisableTriggersOn(FlowRun, FlowStep, Msg, Value):
 
             batch = 1
             for index_batch in chunk_list(six.moves.xrange(num_runs), self.batch_size):
@@ -502,6 +511,10 @@ class Command(BaseCommand):
                     batch_steps += steps
                     batch_step_msgs += step_msgs
 
+                    flow_run_counts[(flow, run.exit_type)] += 1
+                    sys_label_counts[(org, SystemLabel.TYPE_FLOWS)] += len([m for m in msgs if m.direction == 'I'])
+                    sys_label_counts[(org, SystemLabel.TYPE_SENT)] += len([m for m in msgs if m.direction == 'O'])
+
                 FlowRun.objects.bulk_create(batch_runs)
                 Msg.objects.bulk_create(batch_msgs)
                 Value.objects.bulk_create(batch_values)
@@ -516,6 +529,17 @@ class Command(BaseCommand):
 
                 self._log(" > Created batch %d of %d\n" % (batch, max(num_runs // self.batch_size, 1)))
                 batch += 1
+
+        # create flow run and system label counts
+        run_counts = []
+        for (flow, exit_type), count in flow_run_counts.items():
+            run_counts.append(FlowRunCount(flow=flow, exit_type=exit_type, count=count, is_squashed=True))
+        FlowRunCount.objects.bulk_create(run_counts)
+
+        label_counts = []
+        for (org, label_type), count in sys_label_counts.items():
+            label_counts.append(SystemLabel(org=org, label_type=label_type, count=count, is_squashed=True))
+        SystemLabel.objects.bulk_create(label_counts)
 
     def create_run_template(self, org, flow, test_contact, input_template):
         """

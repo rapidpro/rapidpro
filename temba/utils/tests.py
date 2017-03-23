@@ -1481,6 +1481,7 @@ class MakeTestDBTest(SimpleTestCase):
 
         self.assertEqual(org_1_all_contacts.contacts.count(), 17)
         self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(17,)])
+        self.assertEqual(SystemLabel.get_counts(org1), {'I': 0, 'W': 15, 'A': 0, 'O': 0, 'S': 28, 'X': 0, 'E': 0, 'C': 0})
 
         # same seed should generate objects with same UUIDs
         self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, '4ea838f2-66db-cc44-5e62-2929af973c3d')

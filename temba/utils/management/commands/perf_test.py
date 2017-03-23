@@ -70,7 +70,13 @@ TEST_URLS = (
     '/contact/omnibox/?search=',
     '/contact/omnibox/?search=George',
     '/contact/omnibox/?search=07009',
-    '/org/home/'
+    '/msg/inbox/',
+    '/msg/flow/',
+    '/msg/flow/?search=' + urlquote_plus('poots seattle'),
+    '/msg/archived/',
+    '/msg/outbox/',
+    '/msg/sent/',
+    '/org/home/',
 )
 
 
