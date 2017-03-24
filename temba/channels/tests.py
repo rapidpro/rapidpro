@@ -4562,9 +4562,12 @@ class KannelTest(TembaTest):
                 self.assertEquals('No capital accented E!', mock.call_args[1]['params']['text'])
                 self.assertEquals('788383383', mock.call_args[1]['params']['to'])
                 self.assertFalse('coding' in mock.call_args[1]['params'])
+                self.assertFalse('priority' in mock.call_args[1]['params'])
                 self.clear_cache()
 
+            incoming = Msg.create_incoming(self.channel, "tel:+250788383383", "start")
             msg.text = "Unicode. ☺"
+            msg.response_to = incoming
             msg.save()
 
             with patch('requests.get') as mock:
@@ -4582,6 +4585,7 @@ class KannelTest(TembaTest):
                 self.assertEquals("Unicode. ☺", mock.call_args[1]['params']['text'])
                 self.assertEquals('2', mock.call_args[1]['params']['coding'])
                 self.assertEquals('utf8', mock.call_args[1]['params']['charset'])
+                self.assertEquals(1, mock.call_args[1]['params']['priority'])
 
                 self.clear_cache()
 
