@@ -22,6 +22,8 @@ from mock import patch, PropertyMock
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.locations.models import AdminBoundary
+from temba.msgs.models import Msg, SystemLabel
+from temba.flows.models import FlowRun
 from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba_expressions.evaluator import EvaluationContext, DateStyle
@@ -1450,29 +1452,39 @@ class MakeTestDBTest(SimpleTestCase):
     allow_database_queries = True
 
     def tearDown(self):
+        Msg.objects.all().delete()
+        FlowRun.objects.all().delete()
+        SystemLabel.objects.all().delete()
         Org.objects.all().delete()
         User.objects.all().delete()
         Group.objects.all().delete()
         AdminBoundary.objects.all().delete()
 
     def test_command(self):
-        call_command('make_test_db', num_orgs=2, num_contacts=12, seed=123456)
+        call_command('make_test_db', num_orgs=3, num_contacts=30, num_runs=20, seed=12345)
 
-        org_1, org_2 = list(Org.objects.order_by('id'))
+        org1, org2, org3 = tuple(Org.objects.order_by('id'))
 
-        self.assertEqual(User.objects.count(), 10)  # 4 for each org + superuser + anonymous
-        self.assertEqual(ContactField.objects.count(), 12)  # 6 per org
-        self.assertEqual(ContactGroup.user_groups.count(), 20)  # 10 per org
-        self.assertEqual(Contact.objects.filter(is_test=True).count(), 8)  # 1 for each user
-        self.assertEqual(Contact.objects.filter(is_test=False).count(), 4)
+        def assertOrgCounts(qs, counts):
+            self.assertEqual([qs.filter(org=o).count() for o in (org1, org2, org3)], counts)
 
-        org_1_all_contacts = ContactGroup.system_groups.get(org=org_1, name="All Contacts")
+        self.assertEqual(User.objects.count(), 15)  # 4 for each org + superuser + anonymous + flow user
+        assertOrgCounts(ContactField.objects.all(), [6, 6, 6])
+        assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
+        assertOrgCounts(Contact.objects.filter(is_test=True), [4, 4, 4])  # 1 for each user
+        assertOrgCounts(Contact.objects.filter(is_test=False), [17, 8, 5])
+        assertOrgCounts(FlowRun.objects.filter(contact__is_test=True), [12, 12, 12])  # each input template per org
+        assertOrgCounts(FlowRun.objects.filter(contact__is_test=False), [15, 2, 3])
+        assertOrgCounts(Msg.objects.filter(contact__is_test=False), [19, 2, 3])
 
-        self.assertEqual(org_1_all_contacts.contacts.count(), 3)
-        self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(3,)])
+        org_1_all_contacts = ContactGroup.system_groups.get(org=org1, name="All Contacts")
+
+        self.assertEqual(org_1_all_contacts.contacts.count(), 17)
+        self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(17,)])
+        self.assertEqual(SystemLabel.get_counts(org1), {'I': 0, 'W': 2, 'A': 0, 'O': 0, 'S': 17, 'X': 0, 'E': 0, 'C': 0})
 
         # same seed should generate objects with same UUIDs
-        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'cec602da-1406-e378-df14-b8d4a99b7cc4')
+        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, '4ea838f2-66db-cc44-5e62-2929af973c3d')
 
         # check can't be run again on a now non-empty database
         with self.assertRaises(CommandError):
