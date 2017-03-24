@@ -81,10 +81,9 @@ FLOWS = (
     {'file': "favorites.json", 'templates': (
         ["blue", "mutzig", "bob"],
         ["orange", "green", "primus", "jeb"],
-        []
     )},
-    {'file': "sms_form.json", 'templates': (["22 F Seattle", "35 M MIAMI"], [])},
-    {'file': "pick_a_number.json", 'templates': (["1"], ["3"], ["10"], [])}
+    {'file': "sms_form.json", 'templates': (["22 F Seattle", "35 M MIAMI"])},
+    {'file': "pick_a_number.json", 'templates': (["1"], ["4"], ["5"], ["7"], ["8"])}
 )
 
 # contact names are generated from these components
@@ -99,6 +98,8 @@ CONTACT_IS_STOPPED_PROB = 0.01  # 1/100 contacts are stopped
 CONTACT_IS_BLOCKED_PROB = 0.01  # 1/100 contacts are blocked
 CONTACT_IS_DELETED_PROB = 0.005  # 1/200 contacts are deleted
 CONTACT_HAS_FIELD_PROB = 0.8  # 8/10 fields set for each contact
+
+RUN_RESPONSE_PROB = 0.1  # 1/10 runs will be responded to
 
 
 class Command(BaseCommand):
@@ -467,18 +468,21 @@ class Command(BaseCommand):
         """
         Creates the run templates for each flow in each org
         """
-        self._log("Creating %d run templates..." % (len(orgs) * len(FLOWS)))
+        self._log("Creating run templates...")
 
         # create run templates for each flow in each org using one of that org's test contacts
         for org in orgs:
             test_contact = org.cache['test_contacts'][0]
             for flow in org.cache['flows']:
-                run_templates = []
+                # generate template for no-response from contact
+                flow.nonresponded_template = self.create_run_template(org, flow, test_contact, [])
+
+                # generate template for each input template
+                flow.run_templates = []
                 for input_template in flow.input_templates:
                     tpl = self.create_run_template(org, flow, test_contact, input_template)
-                    run_templates.append(tpl)
-                    print(json.dumps(tpl, indent=2))
-                flow.run_templates = run_templates
+                    flow.run_templates.append(tpl)
+                    # print(json.dumps(tpl, indent=2))
 
         self._log(self.style.SUCCESS("OK") + '\n')
 
@@ -506,7 +510,8 @@ class Command(BaseCommand):
                     started_on = self.timeline_date(float(r_index) / num_runs)
                     org, contact_id, urn_id = self.random_choice(contacts)
                     flow = self.random_choice(org.cache['flows'])
-                    template = self.random_choice(flow.run_templates)
+                    responded = self.probability(RUN_RESPONSE_PROB)
+                    template = self.random_choice(flow.run_templates) if responded else flow.nonresponded_template
 
                     run, msgs, values, steps, step_msgs = self.create_run(org, flow, contact_id, urn_id, template, started_on)
                     batch_runs.append(run)
