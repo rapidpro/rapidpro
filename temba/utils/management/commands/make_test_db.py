@@ -82,7 +82,7 @@ FLOWS = (
         ["blue", "mutzig", "bob"],
         ["orange", "green", "primus", "jeb"],
     )},
-    {'file': "sms_form.json", 'templates': (["22 F Seattle", "35 M MIAMI"])},
+    {'file': "sms_form.json", 'templates': (["22 F Seattle"], ["35 M MIAMI"])},
     {'file': "pick_a_number.json", 'templates': (["1"], ["4"], ["5"], ["7"], ["8"])}
 )
 
