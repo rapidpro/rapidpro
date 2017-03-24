@@ -40,18 +40,28 @@ window.updateSimulator = (data) ->
     direction = (if (msg.direction is "O") then "from" else "to")
 
     media_type = null
+    media_viewer_elt = null
     if msg.media
-      media_type = msg.media.split(':')[0]
+      parts = msg.media.split(':')
+
+      media_type = parts[0]
+      media_url = 'http:' + parts.slice(2).join(":")
+
       if media_type == 'geo'
         media_type = 'icon-pin_drop'
       else
         media_type = media_type.split('/')[0]
         if media_type == 'image'
           media_type = 'icon-photo_camera'
+          media_viewer_elt = "<span class=\"media-file\"><img src=\"" + media_url + "\"></span>"
         else if media_type == 'video'
           media_type = 'icon-videocam'
+          media_viewer_elt = "<span class=\"media-file\"><video controls src=\"" + media_url + "\"></span>"
         else if media_type == 'audio'
           media_type = 'icon-mic'
+          media_viewer_elt = "<span class=\"media-file\"><audio controls src=\"" + media_url + "\"></span>"
+
+
 
     ele = "<div class=\"" + model + " " + level + " " + direction + " " + ussd
     if media_type
@@ -60,6 +70,9 @@ window.updateSimulator = (data) ->
 
     if media_type
       ele += "<span class=\"media-icon " + media_type + "\"></span>"
+      ele += msg.text
+      if media_viewer_elt
+        ele += media_viewer_elt
     else
       ele += msg.text
 
