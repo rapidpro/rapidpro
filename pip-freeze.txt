@@ -76,7 +76,7 @@ phonenumbers
 Pillow==3.4.2
 pisa==3.0.33
 plivo==0.10.1
-ply==3.4
+ply==3.10
 prettytable==0.7.2
 psycopg2==2.5.2
 pyasn1==0.1.9
@@ -89,7 +89,7 @@ PyJWT==1.4.2
 pyparsing==2.1.10
 python-dateutil==2.2
 python-gcm==0.1.5
-python-magic==0.4.12
+python-magic==0.4.13
 python-telegram-bot==3.3b1
 pytz==2016.4
 PyYAML==3.11
@@ -104,8 +104,8 @@ rsa==3.4.2
 selenium==2.31.0
 simplejson==3.4.1
 six==1.10.0
-smartmin==1.10.6
-sqlparse==0.2.2
+smartmin==1.10.8
+sqlparse==0.2.3
 stop-words==2015.2.23.1
 stripe==1.11.0
 tornado==4.0

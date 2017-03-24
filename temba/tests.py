@@ -23,7 +23,7 @@ from django.utils import timezone
 from HTMLParser import HTMLParser
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
-from temba.contacts.models import Contact, ContactGroup, URN
+from temba.contacts.models import Contact, ContactGroup, ContactField, URN
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
@@ -31,6 +31,7 @@ from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
+from temba.values.models import Value
 from twilio.util import RequestValidator
 
 
@@ -162,8 +163,8 @@ class TembaTest(SmartminTest):
 
             settings.DEBUG = False
 
-        from temba.flows.models import clear_flow_user
-        clear_flow_user()
+        from temba.flows.models import clear_flow_users
+        clear_flow_users()
 
     def clear_cache(self):
         """
@@ -255,6 +256,10 @@ class TembaTest(SmartminTest):
                 group.contacts.add(*contacts)
             return group
 
+    def create_field(self, key, label, value_type=Value.TYPE_TEXT):
+        return ContactField.objects.create(org=self.org, key=key, label=label, value_type=value_type,
+                                           created_by=self.admin, modified_by=self.admin)
+
     def create_msg(self, **kwargs):
         if 'org' not in kwargs:
             kwargs['org'] = self.org
@@ -291,13 +296,13 @@ class TembaTest(SmartminTest):
 
         return dict(version=8,
                     action_sets=[dict(uuid=uuid(uuid_start + 1), x=1, y=1, destination=uuid(uuid_start + 5),
-                                      actions=[dict(type='reply', msg=dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))]),
+                                      actions=[dict(type='reply', media=dict(), msg=dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))]),
                                  dict(uuid=uuid(uuid_start + 2), x=2, y=2, destination=None,
-                                      actions=[dict(type='reply', msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow'))]),
+                                      actions=[dict(type='reply', media=dict(), msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow'))]),
                                  dict(uuid=uuid(uuid_start + 3), x=3, y=3, destination=None,
-                                      actions=[dict(type='reply', msg=dict(base='Blue is sad. :('))]),
+                                      actions=[dict(type='reply', media=dict(), msg=dict(base='Blue is sad. :('))]),
                                  dict(uuid=uuid(uuid_start + 4), x=4, y=4, destination=uuid(uuid_start + 5),
-                                      actions=[dict(type='reply', msg=dict(base='That is a funny color. Try again.'))])],
+                                      actions=[dict(type='reply', media=dict(), msg=dict(base='That is a funny color. Try again.'))])],
                     rule_sets=[dict(uuid=uuid(uuid_start + 5), x=5, y=5,
                                     label='color',
                                     finished_key=None,
@@ -390,6 +395,15 @@ class TembaTest(SmartminTest):
                 self.assertTrue(abs(expected - actual) < timedelta(seconds=1))
             else:
                 self.assertEqual(expected, actual)
+
+    def assertExcelSheet(self, sheet, rows, tz=None):
+        """
+        Asserts the row values in the given worksheet
+        """
+        self.assertEqual(len(list(sheet.rows)), len(rows))
+
+        for r, row in enumerate(rows):
+            self.assertExcelRow(sheet, r, row, tz)
 
 
 class FlowFileTest(TembaTest):

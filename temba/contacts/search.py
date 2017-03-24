@@ -1,53 +1,41 @@
 from __future__ import print_function, unicode_literals
 
 import ply.lex as lex
-import pytz
+import operator
 import re
 import six
 
-from datetime import timedelta
+from collections import OrderedDict
 from decimal import Decimal
-from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Q
+from django.db.models import Q, Func, Value as Val, CharField
+from django.db.models.functions import Upper
+from django.utils.encoding import force_unicode
+from django.utils.translation import gettext as _
+from functools import reduce
 from ply import yacc
 from temba.locations.models import AdminBoundary
-from temba.utils import str_to_datetime
+from temba.utils import str_to_datetime, date_to_utc_range
 from temba.values.models import Value
+from .models import ContactField, ContactURN
 
-# Originally based on this DSL for Django ORM: http://www.matthieuamiguet.ch/blog/my-djangocon-eu-slides-are-online
-# Changed to produce querysets rather than Q queries, as Q queries that reference different objects can't be properly
-# combined in AND expressions.
 
-PROPERTY_ALIASES = None  # initialised in contact_search to avoid circular import
-
-NON_FIELD_PROPERTIES = ('name', 'urns__path')  # identifiers which are not contact fields
-
-TEXT_LOOKUP_ALIASES = LOCATION_LOOKUP_ALIASES = {
-    '=': 'iexact',
-    'is': 'iexact',
-    '~': 'icontains',
-    'has': 'icontains'
-}
-
-DECIMAL_LOOKUP_ALIASES = {
-    '=': 'exact',
-    'is': 'exact',
-    '>': 'gt',
-    '>=': 'gte',
-    '<': 'lt',
-    '<=': 'lte'
-}
-
-DATETIME_LOOKUP_ALIASES = {
-    '=': '<equal>',
-    'is': '<equal>',
-    '>': 'gt',
-    '>=': 'gte',
-    '<': 'lt',
-    '<=': 'lte'
+BOUNDARY_LEVELS_BY_VALUE_TYPE = {
+    Value.TYPE_STATE: AdminBoundary.LEVEL_STATE,
+    Value.TYPE_DISTRICT: AdminBoundary.LEVEL_DISTRICT,
+    Value.TYPE_WARD: AdminBoundary.LEVEL_WARD,
 }
 
 
+class Concat(Func):
+    """
+    The Django Concat implementation splits arguments into pairs but we need to match the expression used on the index
+    which is (contact_field_id || '|' || UPPER(string_value))
+    """
+    template = '(%(expressions)s)'
+    arg_joiner = ' || '
+
+
+@six.python_2_unicode_compatible
 class SearchException(Exception):
     """
     Exception class for unparseable search queries
@@ -55,247 +43,496 @@ class SearchException(Exception):
     def __init__(self, message):
         self.message = message
 
+    def __str__(self):
+        return force_unicode(self.message)
 
-def contact_search(org, query, base_queryset):
-    """
-    Searches for contacts
-    :param org: the org (used for date formats and timezones)
-    :param query: the query, e.g. 'name = "Bob"'
-    :param base_queryset: the base query set which queries operate on
-    :return: a tuple of the contact query set, a boolean whether query was complex
-    """
-    from .models import ContactURN
-    global PROPERTY_ALIASES
-    if not PROPERTY_ALIASES:
-        PROPERTY_ALIASES = {scheme: 'urns__path' for scheme, label in ContactURN.SCHEME_CHOICES}
 
-    try:
-        return contact_search_complex(org, query, base_queryset), True
-    except SearchException:
+class SearchLexer(object):
+    """
+    Lexer for complex search queries
+    """
+    t_LPAREN = r'\('
+    t_RPAREN = r'\)'
+    t_ignore = ' \t'  # ignore tabs and spaces
+
+    tokens = ('AND', 'OR', 'COMPARATOR', 'TEXT', 'STRING', 'LPAREN', 'RPAREN')
+
+    literals = '()'
+
+    reserved = {
+        'and': 'AND',
+        'or': 'OR',
+        'has': 'COMPARATOR',
+        'is': 'COMPARATOR',
+    }
+
+    def __init__(self, **kwargs):
+        self.lexer = lex.lex(module=self, reflags=re.UNICODE, **kwargs)
+
+    def input(self, s):
+        return self.lexer.input(s)
+
+    def token(self):
+        return self.lexer.token()
+
+    def t_COMPARATOR(self, t):
+        r"""(?i)~|=|[<>]=?|~~?"""
+        return t
+
+    def t_STRING(self, t):
+        r"""("[^"]*")"""
+        t.value = t.value[1:-1]
+        return t
+
+    def t_TEXT(self, t):
+        r"""[\w_\.\+\-\/]+"""
+        t.type = self.reserved.get(t.value.lower(), 'TEXT')
+        return t
+
+    def t_error(self, t):
+        raise SearchException(_("Invalid character %s") % t.value[0])
+
+    def test(self, data):  # pragma: no cover
+        toks = []
+        self.lexer.input(data)
+        while True:
+            tok = self.lexer.token()
+            if not tok:
+                break
+            toks.append(tok)
+        return toks
+
+
+@six.python_2_unicode_compatible
+class ContactQuery(object):
+    """
+    A parsed contact query consisting of a hierarchy of conditions and boolean combinations of conditions
+    """
+    PROP_ATTRIBUTE = 'A'
+    PROP_SCHEME = 'S'
+    PROP_FIELD = 'F'
+
+    SEARCHABLE_ATTRIBUTES = ('name',)
+
+    SEARCHABLE_SCHEMES = ('tel', 'twitter')
+
+    def __init__(self, root):
+        self.root = root
+
+    def optimized(self):
+        return ContactQuery(self.root.simplify().split_by_prop())
+
+    def as_query(self, org, base_set):
+        prop_map = self.get_prop_map(org)
+
+        return self.root.as_query(org, prop_map, base_set)
+
+    def get_prop_map(self, org):
+        """
+        Recursively collects all property names from this query and tries to match them to fields, searchable attributes
+        and URN schemes.
+        """
+        prop_map = {p: None for p in set(self.root.get_prop_names()) if p != Condition.IMPLICIT_PROP}
+
+        for field in ContactField.objects.filter(org=org, key__in=prop_map.keys(), is_active=True):
+            prop_map[field.key] = (self.PROP_FIELD, field)
+
+        for attr in self.SEARCHABLE_ATTRIBUTES:
+            if attr in prop_map.keys():
+                prop_map[attr] = (self.PROP_ATTRIBUTE, attr)
+
+        for scheme in self.SEARCHABLE_SCHEMES:
+            if scheme in prop_map.keys():
+                prop_map[scheme] = (self.PROP_SCHEME, scheme)
+
+        for prop, prop_obj in prop_map.items():
+            if not prop_obj:
+                raise SearchException(_("Unrecognized field: %s") % prop)
+
+        return prop_map
+
+    def __eq__(self, other):
+        return isinstance(other, ContactQuery) and self.root == other.root
+
+    def __str__(self):
+        return six.text_type(self.root)
+
+    def __repr__(self):
+        return 'ContactQuery{%s}' % six.text_type(self)
+
+
+class QueryNode(object):
+    """
+    A search query node which is either a condition or a boolean combination of other conditions
+    """
+    def simplify(self):
+        return self
+
+    def split_by_prop(self):
+        return self
+
+    def as_query(self, org, prop_map, base_set):  # pragma: no cover
         pass
 
-    # if that didn't work, try again as simple name or urn path query
-    return contact_search_simple(org, query, base_queryset), False
 
+@six.python_2_unicode_compatible
+class Condition(QueryNode):
+    IMPLICIT_PROP = '*'
 
-def contact_search_simple(org, query, base_queryset):
-    """
-    Performs a simple term based search, e.g. 'Bob' or '250783835665'
-    """
-    matches = ('name__icontains',) if org.is_anon else ('name__icontains', 'urns__path__icontains')
-    terms = query.split()
-    q = Q(pk__gt=0)
+    ATTR_OR_URN_LOOKUPS = {'=': 'iexact', '~': 'icontains'}
 
-    for term in terms:
-        term_query = Q(pk__lt=0)
-        for match in matches:
-            term_query |= Q(**{match: term})
+    TEXT_LOOKUPS = {'=': 'iexact'}
+
+    DECIMAL_LOOKUPS = {
+        '=': 'exact',
+        '>': 'gt',
+        '>=': 'gte',
+        '<': 'lt',
+        '<=': 'lte'
+    }
+
+    DATETIME_LOOKUPS = {
+        '=': '<equal>',
+        '>': 'gt',
+        '>=': 'gte',
+        '<': 'lt',
+        '<=': 'lte'
+    }
+
+    LOCATION_LOOKUPS = {'=': 'iexact', '~': 'icontains'}
+
+    COMPARATOR_ALIASES = {'is': '=', 'has': '~'}
+
+    def __init__(self, prop, comparator, value):
+        self.prop = prop
+        self.comparator = self.COMPARATOR_ALIASES[comparator] if comparator in self.COMPARATOR_ALIASES else comparator
+        self.value = value
+
+    def get_prop_names(self):
+        return [self.prop]
+
+    def as_query(self, org, prop_map, base_set):
+        # a value without a prop implies query against name or URN, e.g. "bob"
+        if self.prop == self.IMPLICIT_PROP:
+            return self._build_implicit_prop_query(org, base_set)
+
+        prop_type, prop_obj = prop_map[self.prop]
+
+        if prop_type == ContactQuery.PROP_FIELD:
+            # empty string equality means contacts without that field set
+            if self.comparator.lower() in ('=', 'is') and self.value == "":
+                values_query = Value.objects.filter(contact_field=prop_obj).values('contact_id')
+
+                # optimize for the single membership test case
+                if base_set:
+                    values_query = values_query.filter(contact__in=base_set)
+
+                return ~Q(id__in=values_query)
+            else:
+                return self._build_value_query(prop_obj, base_set)
+        elif prop_type == ContactQuery.PROP_SCHEME:
+            if org.is_anon:
+                return Q(id=-1)
+            else:
+                return self._build_urn_query(org, prop_obj, base_set)
+        else:
+            return self._build_attr_query(prop_obj)
+
+    def _build_implicit_prop_query(self, org, base_set):
+        name_query = Q(name__icontains=self.value)
 
         if org.is_anon:
-            # try id match for anon orgs
             try:
-                term_as_int = int(term)
-                term_query |= Q(id=term_as_int)
+                urn_query = Q(id=int(self.value))  # try id match for anon orgs
             except ValueError:
-                pass
+                urn_query = Q(id=-1)
+        else:
+            urns = ContactURN.objects.filter(org=org, path__icontains=self.value)
 
-        q &= term_query
+            if base_set:
+                urns = urns.filter(contact__in=base_set)
 
-    return base_queryset.filter(q).distinct()
+            urn_query = Q(id__in=urns.values('contact_id'))
 
+        return name_query | urn_query
 
-def contact_search_complex(org, query, base_queryset):
-    """
-    Performs a complex query based search, e.g. 'name = "Bob" AND age > 18'
-    """
-    global search_lexer, search_parser
+    def _build_attr_query(self, attr):
+        lookup = self.ATTR_OR_URN_LOOKUPS.get(self.comparator)
+        if not lookup:
+            raise SearchException(_("Can't query contact properties with %s") % self.comparator)
 
-    # attach context to the lexer
-    search_lexer.org = org
-    search_lexer.base_queryset = base_queryset
+        return Q(**{'%s__%s' % (attr, lookup): self.value})
 
-    # combining results from multiple joins can lead to duplicates
-    return search_parser.parse(query, lexer=search_lexer).distinct()
+    def _build_urn_query(self, org, scheme, base_set):
+        lookup = self.ATTR_OR_URN_LOOKUPS.get(self.comparator)
+        if not lookup:
+            raise SearchException(_("Can't query contact URNs with %s") % self.comparator)
 
+        urns = ContactURN.objects.filter(**{'org': org, 'scheme': scheme, 'path__%s' % lookup: self.value})
 
-def generate_queryset(lexer, identifier, comparator, value):
-    """
-    Generates a queryset from the base and given field condition
-    :param lexer: the lexer
-    :param identifier: the contact attribute or field name, e.g. name
-    :param comparator: the comparator, e.g. =
-    :param value: the literal value, e.g. "Bob"
-    :return: the query set
-    """
-    # resolve identifier aliases, e.g. '>' -> 'gt'
-    if identifier in PROPERTY_ALIASES.keys():
-        identifier = PROPERTY_ALIASES[identifier]
+        if base_set:
+            urns = urns.filter(contact__in=base_set)
 
-    if identifier in NON_FIELD_PROPERTIES:
-        if identifier == 'urns__path' and lexer.org.is_anon:
-            raise SearchException("Cannot search by URN in anonymous org")
+        return Q(id__in=urns.values('contact_id'))
 
-        q = generate_non_field_comparison(identifier, comparator, value)
-    else:
-        from temba.contacts.models import ContactField
-        try:
-            field = ContactField.objects.get(org_id=lexer.org.id, key=identifier)
-        except ObjectDoesNotExist:
-            raise SearchException("Unrecognized contact field identifier %s" % identifier)
+    def _build_value_query(self, field, base_set):
+        value_contacts = self.get_base_value_query().filter(**self.build_value_query_params(field))
 
-        if comparator.lower() in ('=', 'is') and value == "":
-            q = generate_empty_field_test(field)
-        elif field.value_type == Value.TYPE_TEXT:
-            q = generate_text_field_comparison(field, comparator, value)
+        if base_set:
+            value_contacts = value_contacts.filter(contact__in=base_set)
+
+        return Q(id__in=value_contacts)
+
+    def build_value_query_params(self, field):
+        if field.value_type == Value.TYPE_TEXT:
+            return self._build_text_field_params(field)
         elif field.value_type == Value.TYPE_DECIMAL:
-            q = generate_decimal_field_comparison(field, comparator, value)
+            return self._build_decimal_field_params(field)
         elif field.value_type == Value.TYPE_DATETIME:
-            q = generate_datetime_field_comparison(field, comparator, value, lexer.org)
+            return self._build_datetime_field_params(field)
         elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
-            q = generate_location_field_comparison(field, comparator, value)
+            return self._build_location_field_params(field)
         else:  # pragma: no cover
-            raise SearchException("Unrecognized contact field type '%s'" % field.value_type)
+            raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
 
-    return lexer.base_queryset.filter(q)
+    def _build_text_field_params(self, field):
+        if isinstance(self.value, list):
+            return {'field_and_string_value__in': ['%d|%s' % (field.id, v.upper()) for v in self.value]}
+        else:
+            if self.comparator not in self.TEXT_LOOKUPS:
+                raise SearchException(_("Can't query text fields with %s") % self.comparator)
 
+            return {'field_and_string_value': '%d|%s' % (field.id, self.value.upper())}
 
-def generate_non_field_comparison(relation, comparator, value):
-    lookup = TEXT_LOOKUP_ALIASES.get(comparator, None)
-    if not lookup:
-        raise SearchException("Unsupported comparator %s for non-field" % comparator)
+    def _build_decimal_field_params(self, field):
+        if isinstance(self.value, list):
+            return {'contact_field': field, 'decimal_value__in': [self._parse_decimal(v) for v in self.value]}
+        else:
+            lookup = self.DECIMAL_LOOKUPS.get(self.comparator)
+            if not lookup:
+                raise SearchException(_("Can't query decimal fields with %s") % self.comparator)
 
-    return Q(**{'%s__%s' % (relation, lookup): value})
+            return {'contact_field': field, 'decimal_value__%s' % lookup: self._parse_decimal(self.value)}
 
+    def _build_datetime_field_params(self, field):
+        lookup = self.DATETIME_LOOKUPS.get(self.comparator)
+        if not lookup:
+            raise SearchException(_("Can't query date fields with %s") % self.comparator)
 
-def generate_empty_field_test(field):
-    contacts_with_field = field.org.org_contacts.filter(Q(**{'values__contact_field__id': field.id}))
-    return ~Q(**{'pk__in': contacts_with_field})
+        # parse as localized date
+        local_date = str_to_datetime(self.value, field.org.timezone, field.org.get_dayfirst(), fill_time=False)
+        if not local_date:
+            raise SearchException(_("Unable to parse the date %s") % self.value)
 
+        # get the range of UTC datetimes for this local date
+        utc_range = date_to_utc_range(local_date.date(), field.org)
 
-def generate_text_field_comparison(field, comparator, value):
-    lookup = TEXT_LOOKUP_ALIASES.get(comparator, None)
-    if not lookup:
-        raise SearchException("Unsupported comparator %s for text field" % comparator)
+        if lookup == '<equal>':
+            return {'contact_field': field, 'datetime_value__gte': utc_range[0], 'datetime_value__lt': utc_range[1]}
+        elif lookup == 'lt':
+            return {'contact_field': field, 'datetime_value__lt': utc_range[0]}
+        elif lookup == 'lte':
+            return {'contact_field': field, 'datetime_value__lt': utc_range[1]}
+        elif lookup == 'gt':
+            return {'contact_field': field, 'datetime_value__gte': utc_range[1]}
+        elif lookup == 'gte':
+            return {'contact_field': field, 'datetime_value__gte': utc_range[0]}
 
-    return Q(**{'values__contact_field__id': field.id, 'values__string_value__%s' % lookup: value})
+    def _build_location_field_params(self, field):
+        lookup = self.LOCATION_LOOKUPS.get(self.comparator)
+        if not lookup:
+            raise SearchException("Unsupported comparator %s for location field" % self.comparator)
 
+        level_query = Q(level=BOUNDARY_LEVELS_BY_VALUE_TYPE.get(field.value_type))
 
-def generate_decimal_field_comparison(field, comparator, value):
-    lookup = DECIMAL_LOOKUP_ALIASES.get(comparator, None)
-    if not lookup:
-        raise SearchException("Unsupported comparator %s for decimal field" % comparator)
+        if isinstance(self.value, list):
+            name_query = reduce(operator.or_, [Q(**{'name__%s' % lookup: v}) for v in self.value])
+        else:
+            name_query = Q(**{'name__%s' % lookup: self.value})
 
-    try:
-        value = Decimal(value)
-    except Exception:
-        raise SearchException("Can't convert '%s' to a decimal" % six.text_type(value))
+        locations = AdminBoundary.objects.filter(level_query & name_query)
 
-    return Q(**{'values__contact_field__id': field.id, 'values__decimal_value__%s' % lookup: value})
+        return {'contact_field': field, 'location_value__in': locations}
 
+    @staticmethod
+    def get_base_value_query():
+        return Value.objects.annotate(
+            field_and_string_value=Concat('contact_field_id', Val('|'), Upper('string_value'), output_field=CharField())
+        ).values('contact_id')
 
-def generate_datetime_field_comparison(field, comparator, value, org):
-    lookup = DATETIME_LOOKUP_ALIASES.get(comparator, None)
-    if not lookup:
-        raise SearchException("Unsupported comparator %s for datetime field" % comparator)
+    @staticmethod
+    def _parse_decimal(val):
+        try:
+            return Decimal(val)
+        except Exception:
+            raise SearchException(_("%s isn't a valid number") % val)
 
-    # parse as localized date and then convert to UTC
-    local_date = str_to_datetime(value, org.timezone, org.get_dayfirst(), fill_time=False)
+    def __eq__(self, other):
+        return isinstance(other, Condition) and self.prop == other.prop and self.comparator == other.comparator and self.value == other.value
 
-    # passed date wasn't parseable so don't match any contact
-    if not local_date:
-        return Q(pk=-1)
-
-    value = local_date.astimezone(pytz.utc)
-
-    if lookup == '<equal>':  # check if datetime is between date and date + 1d, i.e. anytime in that 24 hour period
-        return Q(**{
-            'values__contact_field__id': field.id,
-            'values__datetime_value__gte': value,
-            'values__datetime_value__lt': value + timedelta(days=1)})
-    elif lookup == 'lte':  # check if datetime is less then date + 1d, i.e. that day and all previous
-        return Q(**{
-            'values__contact_field__id': field.id,
-            'values__datetime_value__lt': value + timedelta(days=1)})
-    elif lookup == 'gt':  # check if datetime is greater than or equal to date + 1d, i.e. day after and subsequent
-        return Q(**{
-            'values__contact_field__id': field.id,
-            'values__datetime_value__gte': value + timedelta(days=1)})
-    else:
-        return Q(**{'values__contact_field__id': field.id, 'values__datetime_value__%s' % lookup: value})
-
-
-def generate_location_field_comparison(field, comparator, value):
-    lookup = LOCATION_LOOKUP_ALIASES.get(comparator, None)
-    if not lookup:
-        raise SearchException("Unsupported comparator %s for location field" % comparator)
-
-    locations = list(AdminBoundary.objects.filter(Q(**{'name__%s' % lookup: value})).values_list('id', flat=True))
-
-    return Q(**{'values__contact_field__id': field.id, 'values__location_value__id__in': locations})
-
-
-# ================================== Lexer definition ==================================
-
-tokens = ('BINOP', 'COMPARATOR', 'TEXT', 'STRING')
-
-literals = '()'
-
-# treat reserved words specially
-# http://www.dabeaz.com/ply/ply.html#ply_nn4
-reserved = {
-    'or': 'BINOP',
-    'and': 'BINOP',
-    'has': 'COMPARATOR',
-    'is': 'COMPARATOR',
-}
-
-t_ignore = ' \t'  # ignore tabs and spaces
+    def __str__(self):
+        return '%s%s%s' % (self.prop, self.comparator, self.value)
 
 
-def t_COMPARATOR(t):
-    r"""(?i)~|=|[<>]=?|~~?"""
-    return t
+@six.python_2_unicode_compatible
+class BoolCombination(QueryNode):
+    """
+    A combination of two or more conditions using an AND or OR logical operation
+    """
+    AND = operator.and_
+    OR = operator.or_
+
+    def __init__(self, op, *children):
+        self.op = op
+        self.children = list(children)
+
+    def get_prop_names(self):
+        names = []
+        for child in self.children:
+            names += child.get_prop_names()
+        return names
+
+    def simplify(self):
+        """
+        The expression `x OR y OR z` will be parsed as `OR(OR(x, y), z)` but because the logical operators AND/OR are
+        associative we can simplify this as `OR(x, y, z)`.
+        """
+        self.children = [c.simplify() for c in self.children]  # simplify our children first
+
+        simplified = []
+
+        for child in self.children:
+            if isinstance(child, Condition):
+                simplified.append(child)
+            elif child.op != self.op:
+                return self  # can't optimize if children are combined with a different boolean op
+            else:
+                simplified += child.children
+
+        return BoolCombination(self.op, *simplified)
+
+    def split_by_prop(self):
+        """
+        The expression `OR(a=1, b=2, a=3)` can be re-arranged to `OR(OR(a=1, a=3), b=2)` so that `a=1 OR a=3` can be
+        more efficiently checked using a single query on `a`.
+        """
+        self.children = [c.split_by_prop() for c in self.children]  # split our children first
+
+        children_by_prop = OrderedDict()
+        for child in self.children:
+            prop = child.prop if isinstance(child, Condition) else None
+            if prop not in children_by_prop:
+                children_by_prop[prop] = []
+            children_by_prop[prop].append(child)
+
+        new_children = []
+        for prop, children in children_by_prop.items():
+            if len(children) > 1 and prop is not None:
+                new_children.append(SinglePropCombination(prop, self.op, *children))
+            else:
+                new_children += children
+
+        if len(new_children) == 1:
+            return new_children[0]
+
+        return BoolCombination(self.op, *new_children)
+
+    def as_query(self, org, prop_map, base_set):
+        return reduce(self.op, [child.as_query(org, prop_map, base_set) for child in self.children])
+
+    def __eq__(self, other):
+        return isinstance(other, BoolCombination) and self.op == other.op and self.children == other.children
+
+    def __str__(self):
+        op = 'OR' if self.op == self.OR else 'AND'
+        return '%s(%s)' % (op, ', '.join([six.text_type(c) for c in self.children]))
 
 
-def t_STRING(t):
-    r"""("[^"]*")"""
-    t.value = t.value[1:-1]
-    return t
+@six.python_2_unicode_compatible
+class SinglePropCombination(BoolCombination):
+    """
+    A special case combination where all conditions are on the same property and so may be optimized to query the value
+    table only once.
+    """
+    def __init__(self, prop, op, *children):
+        assert all([isinstance(c, Condition) and c.prop == prop for c in children])
 
+        self.prop = prop
 
-def t_TEXT(t):
-    r"""[\w_\.\+\-\/]+"""
-    t.type = reserved.get(t.value.lower(), 'TEXT')
-    return t
+        super(SinglePropCombination, self).__init__(op, *children)
 
+    def as_query(self, org, prop_map, base_set):
+        prop_type, prop_obj = prop_map[self.prop] if self.prop != Condition.IMPLICIT_PROP else (None, None)
 
-def t_error(t):
-    raise SearchException("Invalid character %s" % t.value[0])
+        if prop_type == ContactQuery.PROP_FIELD:
+
+            # a sequence of OR'd equality checks can be further optimized (e.g. `a = 1 OR a = 2` as `a IN (1, 2)`)
+            # except for datetime fields as equality is implemented as a range check
+            all_equality = all([child.comparator == '=' for child in self.children])
+            if self.op == BoolCombination.OR and all_equality and prop_obj.value_type != Value.TYPE_DATETIME:
+                in_condition = Condition(self.prop, '=', [c.value for c in self.children])
+                return in_condition.as_query(org, prop_map, base_set)
+
+            # otherwise just combine the Value sub-queries into a single one
+            value_queries = []
+            for child in self.children:
+                params = child.build_value_query_params(prop_obj)
+                value_queries.append(Q(**params))
+
+            value_query = reduce(self.op, value_queries)
+            value_contacts = Condition.get_base_value_query().filter(value_query).values('contact_id')
+
+            if base_set:
+                value_contacts = value_contacts.filter(contact__in=base_set)
+
+            return Q(id__in=value_contacts)
+
+        return super(SinglePropCombination, self).as_query(org, prop_map, base_set)
+
+    def __eq__(self, other):
+        return isinstance(other, SinglePropCombination) and self.prop == other.prop and super(SinglePropCombination, self).__eq__(other)
+
+    def __str__(self):
+        op = 'OR' if self.op == self.OR else 'AND'
+        return '%s[%s](%s)' % (op, self.prop, ', '.join(['%s%s' % (c.comparator, c.value) for c in self.children]))
 
 
 # ================================== Parser definition ==================================
 
 precedence = (
-    (str('left'), str('BINOP')),
+    ('left', 'OR'),
+    ('left', 'AND'),
 )
 
 
-def p_expression_binop(p):
-    """expression : expression BINOP expression"""
-    if p[2].lower() == 'and':
-        p[0] = p[1] & p[3]
-    elif p[2].lower() == 'or':
-        p[0] = p[1] | p[3]
+def p_expression_and(p):
+    """expression : expression AND expression"""
+    p[0] = BoolCombination(BoolCombination.AND, p[1], p[3])
+
+
+def p_expression_or(p):
+    """expression : expression OR expression"""
+    p[0] = BoolCombination(BoolCombination.OR, p[1], p[3])
+
+
+def p_expression_implicit_and(p):
+    """expression : expression expression %prec AND"""
+    p[0] = BoolCombination(BoolCombination.AND, p[1], p[2])
 
 
 def p_expression_grouping(p):
-    """expression : '(' expression ')'"""
+    """expression : LPAREN expression RPAREN"""
     p[0] = p[2]
 
 
-def p_expression_comparison(p):
+def p_condition(p):
     """expression : TEXT COMPARATOR literal"""
-    p[0] = generate_queryset(p.lexer, p[1].lower(), p[2].lower(), p[3])
+    p[0] = Condition(p[1].lower(), p[2].lower(), p[3])
+
+
+def p_condition_implicit(p):
+    """expression : TEXT"""
+    p[0] = Condition(Condition.IMPLICIT_PROP, '=', p[1])
 
 
 def p_literal(p):
@@ -305,26 +542,40 @@ def p_literal(p):
 
 
 def p_error(p):
-    message = ("Syntax error at '%s'" % p.value) if p else "Syntax error"
-    raise SearchException(message)
+    msg = _("Search query contains an error at '%s'" % p.value) if p else _("Search query contains an error")
+    raise SearchException(msg)
 
 
-# ================================== Module initialization ==================================
-
-# initalize the PLY library for lexing and parsing
-search_lexer = lex.lex(reflags=re.UNICODE)
+search_lexer = SearchLexer()
+tokens = search_lexer.tokens
 search_parser = yacc.yacc(write_tables=False)
 
 
-def lexer_test(data):  # pragma: no cover
+def parse_query(text, optimize=True):
     """
-    Convenience function for manual testing of lexer output
+    Parses a text query but doesn't perform it
     """
-    global search_lexer
+    query = ContactQuery(search_parser.parse(text, lexer=search_lexer))
+    return query.optimized() if optimize else query
 
-    search_lexer.input(data)
-    while True:
-        tok = search_lexer.token()
-        if not tok:
-            break
-        print(tok)
+
+def contact_search(org, text, base_queryset, base_set):
+    """
+    Performs the given contact query on the given base queryset
+    """
+    parsed = parse_query(text)
+    query = parsed.as_query(org, base_set)
+
+    if base_set:
+        base_queryset = base_queryset.filter(id__in=[c.id for c in base_set])
+
+    return base_queryset.filter(org=org).filter(query)
+
+
+def extract_fields(org, text):
+    """
+    Extracts contact fields from the given text query
+    """
+    parsed = parse_query(text)
+    prop_map = parsed.get_prop_map(org)
+    return [prop_obj for (prop_type, prop_obj) in prop_map.values() if prop_type == ContactQuery.PROP_FIELD]

@@ -30,6 +30,10 @@ class CallHandler(View):
             return HttpResponse("Not found", status=404)
 
         channel = call.channel
+
+        if not(channel.is_active and channel.org):
+            return HttpResponse("No channel found", status=400)
+
         channel_type = channel.channel_type
         client = channel.get_ivr_client()
 

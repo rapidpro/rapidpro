@@ -545,6 +545,10 @@ class Org(SmartModel):
         from temba.channels.models import Channel
         return self.get_channel_for_role(Channel.ROLE_SEND, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
 
+    def get_ussd_channel(self, scheme=None, contact_urn=None, country_code=None):
+        from temba.channels.models import Channel
+        return self.get_channel_for_role(Channel.ROLE_USSD, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
+
     def get_receive_channel(self, scheme, contact_urn=None, country_code=None):
         from temba.channels.models import Channel
         return self.get_channel_for_role(Channel.ROLE_RECEIVE, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
@@ -1808,7 +1812,13 @@ class Org(SmartModel):
 
         path = '%s/%d/media/%s' % (settings.STORAGE_ROOT_DIR, self.pk, filename)
         location = default_storage.save(path, file)
-        return "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, location)
+
+        # force http for localhost
+        scheme = 'https'
+        if 'localhost' in settings.AWS_BUCKET_DOMAIN:  # pragma: no cover
+            scheme = 'http'
+
+        return "%s://%s/%s" % (scheme, settings.AWS_BUCKET_DOMAIN, location)
 
     @classmethod
     def create_user(cls, email, password):

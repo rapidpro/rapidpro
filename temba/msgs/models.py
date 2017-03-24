@@ -63,6 +63,7 @@ OUTGOING = 'O'
 INBOX = 'I'
 FLOW = 'F'
 IVR = 'V'
+USSD = 'U'
 
 MSG_SENT_KEY = 'msgs_sent_%y_%m_%d'
 
@@ -220,9 +221,13 @@ class Broadcast(models.Model):
     purged = models.BooleanField(default=False,
                                  help_text="If the messages for this broadcast have been purged")
 
+    media_dict = models.TextField(verbose_name=_("Media"),
+                                  help_text=_("The localized versions of the media"), null=True)
+
     @classmethod
-    def create(cls, org, user, text, recipients, channel=None, **kwargs):
-        create_args = dict(org=org, text=text, channel=channel, created_by=user, modified_by=user)
+    def create(cls, org, user, text, recipients, channel=None, media_dict=None, **kwargs):
+        create_args = dict(org=org, text=text, channel=channel, media_dict=media_dict, created_by=user,
+                           modified_by=user)
         create_args.update(kwargs)
         broadcast = Broadcast.objects.create(**create_args)
         broadcast.update_recipients(recipients)
@@ -380,6 +385,11 @@ class Broadcast(models.Model):
             return []
         return get_cacheable_attr(self, '_translations', lambda: json.loads(self.language_dict))
 
+    def get_media_translations(self):
+        if not self.media_dict:
+            return dict()
+        return get_cacheable_attr(self, '_media_translations', lambda: json.loads(self.media_dict))
+
     def get_translated_text(self, contact, org=None):
         """
         Gets the appropriate translation for the given contact. base_language may be provided
@@ -387,6 +397,14 @@ class Broadcast(models.Model):
         translations = self.get_translations()
         preferred_languages = self.get_preferred_languages(contact, self.base_language, org)
         return Language.get_localized_text(translations, preferred_languages, self.text)
+
+    def get_translated_media(self, contact, org=None):
+        """
+        Gets the appropriate media for the given contact. base_language may be provided
+        """
+        media_translations = self.get_media_translations()
+        preferred_languages = self.get_preferred_languages(contact, self.base_language, org)
+        return Language.get_localized_text(media_translations, preferred_languages, None)
 
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
              created_on=None, partial_recipients=None, run_map=None):
@@ -440,6 +458,14 @@ class Broadcast(models.Model):
             # get the appropriate translation for this contact
             text = self.get_translated_text(contact)
 
+            media = self.get_translated_media(contact)
+            if media:
+                media_type, media_url = media.split(':')
+
+                # if we have a localized media, create the url
+                if media_url:
+                    media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
+
             # add in our parent context if the message references @parent
             if run_map:
                 run = run_map.get(recipient.pk, None)
@@ -465,6 +491,7 @@ class Broadcast(models.Model):
                                           status=status,
                                           msg_type=msg_type,
                                           insert_object=False,
+                                          media=media,
                                           priority=priority,
                                           created_on=created_on)
 
@@ -583,7 +610,8 @@ class Msg(models.Model):
 
     MSG_TYPES = ((INBOX, _("Inbox Message")),
                  (FLOW, _("Flow Message")),
-                 (IVR, _("IVR Message")))
+                 (IVR, _("IVR Message")),
+                 (USSD, _("USSD Message")))
 
     MEDIA_GPS = 'geo'
     MEDIA_IMAGE = 'image'
@@ -702,14 +730,14 @@ class Msg(models.Model):
                 # update them to queued
                 send_messages = Msg.objects.filter(id__in=msg_ids)\
                                            .exclude(channel__channel_type=Channel.TYPE_ANDROID)\
-                                           .exclude(msg_type=IVR)\
+                                           .exclude(msg_type__in=(IVR, USSD))\
                                            .exclude(topup=None)\
                                            .exclude(contact__is_test=True)
                 send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
 
                 # now push each onto our queue
                 for msg in msgs:
-                    if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and \
+                    if (msg.msg_type != IVR and msg.msg_type != USSD and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and \
                             msg.topup and not msg.contact.is_test:
 
                         # if this is a different contact than our last, and we have msgs for that last contact, queue the task
@@ -909,6 +937,14 @@ class Msg(models.Model):
         else:
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
+    @classmethod
+    def get_media(cls, msg):
+        if msg.media:
+            parts = msg.media.split(':', 1)
+            if len(parts) == 2:
+                return parts
+        return None, None
+
     def as_json(self):
         return dict(direction=self.direction,
                     text=self.text,
@@ -1024,9 +1060,10 @@ class Msg(models.Model):
     def is_media_type_image(self):
         return Msg.MEDIA_IMAGE == self.get_media_type()
 
-    def reply(self, text, user, trigger_send=False, message_context=None, session=None):
+    def reply(self, text, user, trigger_send=False, message_context=None, session=None, media=None, msg_type=None):
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None, session=session)
+                                 response_to=self if self.id else None, session=session, media=media,
+                                 msg_type=msg_type or self.msg_type)
 
     def update(self, cmd):
         """
@@ -1143,7 +1180,7 @@ class Msg(models.Model):
                     text=self.text, urn_path=self.contact_urn.path,
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
-                    status=self.status, direction=self.direction,
+                    status=self.status, direction=self.direction, media=self.media,
                     external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
                     created_on=self.created_on, modified_on=self.modified_on)
@@ -1287,13 +1324,18 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
-                        media=None, topup_id=None, msg_type=INBOX, session=None):
+                        media=None, topup_id=None, msg_type=INBOX, session=None, role=None):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
 
         # for IVR messages we need a channel that can call
-        role = Channel.ROLE_CALL if msg_type == IVR else Channel.ROLE_SEND
+        if msg_type == IVR:
+            role = Channel.ROLE_CALL
+        elif msg_type == USSD:
+            role = Channel.ROLE_USSD
+        else:
+            role = Channel.ROLE_SEND
 
         if status != SENT:
             # if message will be sent, resolve the recipient to a contact and URN
@@ -1305,6 +1347,8 @@ class Msg(models.Model):
             if not channel:
                 if msg_type == IVR:
                     channel = org.get_call_channel()
+                elif msg_type == USSD:
+                    channel = org.get_ussd_channel(contact_urn=contact_urn)
                 else:
                     channel = org.get_send_channel(contact_urn=contact_urn)
 

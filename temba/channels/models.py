@@ -21,7 +21,7 @@ from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
 from django.conf import settings
 from django.utils import timezone
-from django.utils.http import urlencode
+from django.utils.http import urlencode, urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.dispatch import receiver
 from django_countries.fields import CountryField
@@ -40,7 +40,6 @@ from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from temba.utils.twitter import TembaTwython
 from time import sleep
 from twilio import twiml, TwilioRestException
-from urllib import quote_plus
 from xml.sax.saxutils import quoteattr, escape
 
 
@@ -78,12 +77,14 @@ class Channel(TembaModel):
     TYPE_INFOBIP = 'IB'
     TYPE_JASMIN = 'JS'
     TYPE_JUNEBUG = 'JN'
+    TYPE_JUNEBUG_USSD = 'JNU'
     TYPE_KANNEL = 'KN'
     TYPE_LINE = 'LN'
     TYPE_M3TECH = 'M3'
     TYPE_MBLOX = 'MB'
     TYPE_NEXMO = 'NX'
     TYPE_PLIVO = 'PL'
+    TYPE_RED_RABBIT = 'RR'
     TYPE_SHAQODOON = 'SQ'
     TYPE_SMSCENTRAL = 'SC'
     TYPE_START = 'ST'
@@ -109,6 +110,7 @@ class Channel(TembaModel):
     CONFIG_PASSWORD = 'password'
     CONFIG_KEY = 'key'
     CONFIG_API_ID = 'api_id'
+    CONFIG_CONTENT_TYPE = 'content_type'
     CONFIG_VERIFY_SSL = 'verify_ssl'
     CONFIG_USE_NATIONAL = 'use_national'
     CONFIG_ENCODING = 'encoding'
@@ -123,6 +125,7 @@ class Channel(TembaModel):
     CONFIG_FCM_KEY = 'FCM_KEY'
     CONFIG_FCM_TITLE = 'FCM_TITLE'
     CONFIG_FCM_NOTIFICATION = 'FCM_NOTIFICATION'
+    CONFIG_MAX_LENGTH = 'max_length'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -137,6 +140,9 @@ class Channel(TembaModel):
     ROLE_RECEIVE = 'R'
     ROLE_CALL = 'C'
     ROLE_ANSWER = 'A'
+    ROLE_USSD = 'U'
+
+    DEFAULT_ROLE = ROLE_SEND + ROLE_RECEIVE
 
     # how many outgoing messages we will queue at once
     SEND_QUEUE_DEPTH = 500
@@ -152,6 +158,20 @@ class Channel(TembaModel):
     YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 
     VUMI_GO_API_URL = 'https://go.vumi.org/api/v1/go/http_api_nostream'
+
+    CONTENT_TYPE_URLENCODED = 'urlencoded'
+    CONTENT_TYPE_JSON = 'json'
+    CONTENT_TYPE_XML = 'xml'
+
+    CONTENT_TYPES = {
+        CONTENT_TYPE_URLENCODED: "application/x-www-form-urlencoded",
+        CONTENT_TYPE_JSON: "application/json",
+        CONTENT_TYPE_XML: "text/xml; charset=utf-8"
+    }
+
+    CONTENT_TYPE_CHOICES = ((CONTENT_TYPE_URLENCODED, _("URL Encoded - application/x-www-form-urlencoded")),
+                            (CONTENT_TYPE_JSON, _("JSON - application/json")),
+                            (CONTENT_TYPE_XML, _("XML - text/xml; charset=utf-8")))
 
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
@@ -171,12 +191,14 @@ class Channel(TembaModel):
         TYPE_INFOBIP: dict(scheme='tel', max_length=1600),
         TYPE_JASMIN: dict(scheme='tel', max_length=1600),
         TYPE_JUNEBUG: dict(scheme='tel', max_length=1600),
+        TYPE_JUNEBUG_USSD: dict(scheme='tel', max_length=1600),
         TYPE_KANNEL: dict(scheme='tel', max_length=1600),
         TYPE_LINE: dict(scheme='line', max_length=1600),
         TYPE_M3TECH: dict(scheme='tel', max_length=160),
         TYPE_NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
         TYPE_MBLOX: dict(scheme='tel', max_length=459),
         TYPE_PLIVO: dict(scheme='tel', max_length=1600),
+        TYPE_RED_RABBIT: dict(scheme='tel', max_length=1600),
         TYPE_SHAQODOON: dict(scheme='tel', max_length=1600),
         TYPE_SMSCENTRAL: dict(scheme='tel', max_length=1600),
         TYPE_START: dict(scheme='tel', max_length=1600),
@@ -209,12 +231,14 @@ class Channel(TembaModel):
                     (TYPE_INFOBIP, "Infobip"),
                     (TYPE_JASMIN, "Jasmin"),
                     (TYPE_JUNEBUG, "Junebug"),
+                    (TYPE_JUNEBUG_USSD, "Junebug USSD"),
                     (TYPE_KANNEL, "Kannel"),
                     (TYPE_LINE, "Line"),
                     (TYPE_M3TECH, "M3 Tech"),
                     (TYPE_MBLOX, "Mblox"),
                     (TYPE_NEXMO, "Nexmo"),
                     (TYPE_PLIVO, "Plivo"),
+                    (TYPE_RED_RABBIT, "Red Rabbit"),
                     (TYPE_SHAQODOON, "Shaqodoon"),
                     (TYPE_SMSCENTRAL, "SMSCentral"),
                     (TYPE_START, "Start Mobile"),
@@ -232,11 +256,13 @@ class Channel(TembaModel):
                     (TYPE_ZENVIA, "Zenvia"))
 
     # list of all USSD channels
-    USSD_CHANNELS = [TYPE_VUMI_USSD]
+    USSD_CHANNELS = [TYPE_VUMI_USSD, TYPE_JUNEBUG_USSD]
 
     TWIML_CHANNELS = [TYPE_TWILIO, TYPE_VERBOICE, TYPE_TWIML]
 
     NCCO_CHANNELS = [TYPE_NEXMO]
+
+    MEDIA_CHANNELS = [TYPE_TWILIO, TYPE_TWIML, TYPE_TWILIO_MESSAGING_SERVICE, TYPE_TELEGRAM, TYPE_FACEBOOK]
 
     GET_STARTED = 'get_started'
     VIBER_NO_SERVICE_ID = 'no_service_id'
@@ -283,7 +309,7 @@ class Channel(TembaModel):
     scheme = models.CharField(verbose_name="URN Scheme", max_length=8, default='tel',
                               help_text=_("The URN scheme this channel can handle"))
 
-    role = models.CharField(verbose_name="Channel Role", max_length=4, default=ROLE_SEND + ROLE_RECEIVE,
+    role = models.CharField(verbose_name="Channel Role", max_length=4, default=DEFAULT_ROLE,
                             help_text=_("The roles this channel can fulfill"))
 
     parent = models.ForeignKey('self', blank=True, null=True,
@@ -293,7 +319,7 @@ class Channel(TembaModel):
                            help_text=_("Any channel specific state data"))
 
     @classmethod
-    def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=ROLE_SEND + ROLE_RECEIVE, scheme=None, **kwargs):
+    def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=DEFAULT_ROLE, scheme=None, **kwargs):
         type_settings = Channel.CHANNEL_SETTINGS[channel_type]
         fixed_scheme = type_settings.get('scheme')
 
@@ -401,7 +427,7 @@ class Channel(TembaModel):
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number,
-                                           username, password, channel_type, url):
+                                           username, password, channel_type, url, role=DEFAULT_ROLE):
         try:
             parsed = phonenumbers.parse(phone_number, None)
             phone = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
@@ -410,10 +436,11 @@ class Channel(TembaModel):
             phone = phone_number
 
         config = dict(username=username, password=password, send_url=url)
-        return Channel.create(org, user, country, channel_type, name=phone, address=phone_number, config=config)
+        return Channel.create(org, user, country, channel_type, name=phone, address=phone_number, config=config,
+                              role=role)
 
     @classmethod
-    def add_config_external_channel(cls, org, user, country, address, channel_type, config, role=ROLE_SEND + ROLE_RECEIVE,
+    def add_config_external_channel(cls, org, user, country, address, channel_type, config, role=DEFAULT_ROLE,
                                     scheme='tel', parent=None):
         return Channel.create(org, user, country, channel_type, name=address, address=address,
                               config=config, role=role, scheme=scheme, parent=parent)
@@ -761,6 +788,19 @@ class Channel(TembaModel):
         # otherwise, this is unicode
         return Encoding.UNICODE, text
 
+    @classmethod
+    def supports_media(cls, channel):
+        """
+        Can this channel send images, audio, and video. This is static to work
+        with ChannelStructs or Channels
+        """
+        if channel.channel_type in Channel.MEDIA_CHANNELS:
+            # twilio only supports mms in the US and Canada
+            if channel.channel_type in Channel.TWIML_CHANNELS and channel.country not in ('US', 'CA'):
+                return False
+            return True
+        return False
+
     def has_channel_log(self):
         return self.channel_type != Channel.TYPE_ANDROID
 
@@ -830,6 +870,11 @@ class Channel(TembaModel):
             return NCCOResponse()
 
     def get_ivr_client(self):
+
+        # no client for released channels
+        if not (self.is_active and self.org):
+            return None
+
         if self.channel_type == Channel.TYPE_TWILIO:
             return self.org.get_twilio_client()
         elif self.channel_type == Channel.TYPE_TWIML:
@@ -953,9 +998,9 @@ class Channel(TembaModel):
         # also save our org config, as it has twilio and nexmo keys
         org_config = self.org.config_json()
 
-        return dict(id=self.id, org=self.org_id, country=str(self.country), address=self.address, uuid=self.uuid,
-                    secret=self.secret, channel_type=self.channel_type, name=self.name, config=self.config_json(),
-                    org_config=org_config)
+        return dict(id=self.id, org=self.org_id, country=six.text_type(self.country), address=self.address,
+                    uuid=self.uuid, secret=self.secret, channel_type=self.channel_type, name=self.name,
+                    config=self.config_json(), org_config=org_config)
 
     def build_registration_command(self):
         # create a claim code if we don't have one
@@ -1164,11 +1209,25 @@ class Channel(TembaModel):
                 channel.save()
 
     @classmethod
-    def build_send_url(cls, url, variables):
+    def replace_variables(cls, text, variables, content_type=CONTENT_TYPE_URLENCODED):
         for key in variables.keys():
-            url = url.replace("{{%s}}" % key, quote_plus(six.text_type(variables[key]).encode('utf-8')))
+            replacement = six.text_type(variables[key])
 
-        return url
+            # encode based on our content type
+            if content_type == Channel.CONTENT_TYPE_URLENCODED:
+                replacement = urlquote_plus(replacement)
+
+            # if this is JSON, need to wrap in quotes (and escape them)
+            elif content_type == Channel.CONTENT_TYPE_JSON:
+                replacement = json.dumps(replacement)
+
+            # XML needs to be escaped
+            elif content_type == Channel.CONTENT_TYPE_XML:
+                replacement = escape(replacement)
+
+            text = text.replace("{{%s}}" % key, replacement)
+
+        return text
 
     @classmethod
     def success(cls, channel, msg, msg_status, start, external_id=None, event=None, events=None):
@@ -1256,6 +1315,41 @@ class Channel(TembaModel):
                                 event, start=start)
 
     @classmethod
+    def send_red_rabbit_message(cls, channel, msg, text):
+        from temba.msgs.models import WIRED
+        encoding, text = Channel.determine_encoding(text, replace=True)
+
+        # http://http1.javna.com/epicenter/gatewaysendG.asp?LoginName=xxxx&Password=xxxx&Tracking=1&Mobtyp=1&MessageRecipients=962796760057&MessageBody=hi&SenderName=Xxx
+        params = dict()
+        params['LoginName'] = channel.config[Channel.CONFIG_USERNAME]
+        params['Password'] = channel.config[Channel.CONFIG_PASSWORD]
+        params['Tracking'] = 1
+        params['Mobtyp'] = 1
+        params['MessageRecipients'] = msg.urn_path.lstrip('+')
+        params['MessageBody'] = text
+        params['SenderName'] = channel.address.lstrip('+')
+
+        # we are unicode
+        if encoding == Encoding.UNICODE:
+            params['Msgtyp'] = 10 if len(text) >= 70 else 9
+        elif len(text) > 160:
+            params['Msgtyp'] = 5
+
+        url = 'http://http1.javna.com/epicenter/GatewaySendG.asp'
+        event = HttpEvent('GET', url + '?' + urlencode(params))
+        start = time.time()
+
+        try:
+            response = requests.get(url, params=params, headers=TEMBA_HEADERS, timeout=15)
+            event.status_code = response.status_code
+            event.response_body = response.text
+
+        except Exception as e:  # pragma: no cover
+            raise SendException(six.text_type(e), event=event, start=start)
+
+        Channel.success(channel, msg, WIRED, start, event=event)
+
+    @classmethod
     def send_jasmin_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
         from temba.utils import gsm7
@@ -1310,7 +1404,7 @@ class Channel(TembaModel):
 
     @classmethod
     def send_junebug_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
+        from temba.msgs.models import WIRED, Msg
 
         # the event url Junebug will relay events to
         event_url = 'https://%s%s' % (
@@ -1318,22 +1412,35 @@ class Channel(TembaModel):
             reverse('handlers.junebug_handler',
                     args=['event', channel.uuid]))
 
+        is_ussd = channel.channel_type == Channel.TYPE_JUNEBUG_USSD
+
         # build our payload
         payload = dict()
-        payload['to'] = msg.urn_path
         payload['from'] = channel.address
         payload['event_url'] = event_url
         payload['content'] = text
+
+        if is_ussd:
+            external_id, session_status = Msg.objects.values_list('response_to__external_id', 'session__status').get(pk=msg.id)
+            # NOTE: Only one of `to` or `reply_to` may be specified
+            payload['reply_to'] = external_id
+            payload['channel_data'] = {
+                'continue_session': session_status not in ChannelSession.DONE,
+            }
+        else:
+            payload['to'] = msg.urn_path
 
         log_url = channel.config[Channel.CONFIG_SEND_URL]
         start = time.time()
 
         event = HttpEvent('POST', log_url, json.dumps(payload))
+        headers = {'Content-Type': 'application/json'}
+        headers.update(TEMBA_HEADERS)
 
         try:
             response = requests.post(
                 channel.config[Channel.CONFIG_SEND_URL], verify=True,
-                json=payload, timeout=15,
+                json=payload, timeout=15, headers=headers,
                 auth=(channel.config[Channel.CONFIG_USERNAME],
                       channel.config[Channel.CONFIG_PASSWORD]))
 
@@ -1364,7 +1471,17 @@ class Channel(TembaModel):
             payload['recipient'] = dict(user_ref=URN.fb_ref_from_path(msg.urn_path))
         else:
             payload['recipient'] = dict(id=msg.urn_path)
-        payload['message'] = dict(text=text)
+
+        message = dict(text=text)
+
+        from temba.msgs.models import Msg
+        media_type, media_url = Msg.get_media(msg)
+
+        if media_type and media_url:
+            media_type = media_type.split('/')[0]
+            message['attachment'] = dict(type=media_type, payload=dict(url=media_url))
+
+        payload['message'] = message
         payload = json.dumps(payload)
 
         url = "https://graph.facebook.com/v2.5/me/messages"
@@ -1627,6 +1744,7 @@ class Channel(TembaModel):
     @classmethod
     def send_external_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
+
         payload = {
             'id': str(msg.id),
             'text': text,
@@ -1638,25 +1756,27 @@ class Channel(TembaModel):
         }
 
         # build our send URL
-        url = Channel.build_send_url(channel.config[Channel.CONFIG_SEND_URL], payload)
+        url = Channel.replace_variables(channel.config[Channel.CONFIG_SEND_URL], payload)
         start = time.time()
 
         method = channel.config.get(Channel.CONFIG_SEND_METHOD, 'POST')
 
         headers = TEMBA_HEADERS.copy()
+        content_type = channel.config.get(Channel.CONFIG_CONTENT_TYPE, Channel.CONTENT_TYPE_URLENCODED)
+        headers['Content-Type'] = Channel.CONTENT_TYPES[content_type]
+
         event = HttpEvent(method, url)
 
         if method in ('POST', 'PUT'):
             body = channel.config.get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
-            body = Channel.build_send_url(body, payload)
-            headers['Content-Type'] = 'application/x-www-form-urlencoded'
+            body = Channel.replace_variables(body, payload, content_type)
             event.request_body = body
 
         try:
             if method == 'POST':
-                response = requests.post(url, data=body, headers=headers, timeout=5)
+                response = requests.post(url, data=body.encode('utf8'), headers=headers, timeout=5)
             elif method == 'PUT':
-                response = requests.put(url, data=body, headers=headers, timeout=5)
+                response = requests.put(url, data=body.encode('utf8'), headers=headers, timeout=5)
             else:
                 response = requests.get(url, headers=headers, timeout=5)
 
@@ -1675,12 +1795,13 @@ class Channel(TembaModel):
     @classmethod
     def send_chikka_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
+
         payload = {
             'message_type': 'SEND',
             'mobile_number': msg.urn_path.lstrip('+'),
             'shortcode': channel.address,
             'message_id': msg.id,
-            'message': msg.text,
+            'message': text,
             'request_cost': 'FREE',
             'client_id': channel.config[Channel.CONFIG_USERNAME],
             'secret_key': channel.config[Channel.CONFIG_PASSWORD]
@@ -1745,6 +1866,7 @@ class Channel(TembaModel):
     @classmethod
     def send_high_connection_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
+
         payload = {
             'accountid': channel.config[Channel.CONFIG_USERNAME],
             'password': channel.config[Channel.CONFIG_PASSWORD],
@@ -1780,6 +1902,7 @@ class Channel(TembaModel):
     @classmethod
     def send_blackmyna_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
+
         payload = {
             'address': msg.urn_path,
             'senderaddress': channel.address,
@@ -1835,9 +1958,8 @@ class Channel(TembaModel):
         # tell Start to attempt to deliver this message for up to 12 hours
         post_body = post_body.replace("$$VALIDITY$$", quoteattr("+12 hours"))
         post_body = post_body.replace("$$TO$$", escape(msg.urn_path))
-        post_body = post_body.replace("$$BODY$$", escape(msg.text))
+        post_body = post_body.replace("$$BODY$$", escape(text))
         event = HttpEvent('POST', url, post_body)
-
         post_body = post_body.encode('utf8')
 
         start = time.time()
@@ -1909,8 +2031,9 @@ class Channel(TembaModel):
         is_ussd = channel.channel_type in Channel.USSD_CHANNELS
         channel.config['transport_name'] = 'ussd_transport' if is_ussd else 'mtech_ng_smpp_transport'
 
-        in_reply_to = Msg.objects.values_list(
-            'external_id', flat=True).get(pk=msg.response_to_id)
+        in_reply_to = None
+        if msg.response_to_id:
+            in_reply_to = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
 
         payload = dict(message_id=msg.id,
                        in_reply_to=in_reply_to,
@@ -2320,13 +2443,18 @@ class Channel(TembaModel):
 
     @classmethod
     def send_twilio_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
+        from temba.msgs.models import Msg, WIRED
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
         from temba.utils.twilio import TembaTwilioRestClient
 
         callback_url = Channel.build_twilio_callback_url(msg.id)
 
         start = time.time()
+        media_url = []
+
+        if msg.media:
+            (media_type, media_url) = Msg.get_media(msg)
+            media_url = [media_url]
 
         if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
             config = channel.config
@@ -2341,11 +2469,13 @@ class Channel(TembaModel):
                 client.messages.create(to=msg.urn_path,
                                        messaging_service_sid=messaging_service_sid,
                                        body=text,
+                                       media_url=media_url,
                                        status_callback=callback_url)
             else:
                 client.messages.create(to=msg.urn_path,
                                        from_=channel.address,
                                        body=text,
+                                       media_url=media_url,
                                        status_callback=callback_url)
 
             Channel.success(channel, msg, WIRED, start, events=client.messages.events)
@@ -2373,9 +2503,31 @@ class Channel(TembaModel):
         send_url = 'https://api.telegram.org/bot%s/sendMessage' % auth_token
         post_body = dict(chat_id=msg.urn_path, text=text)
 
-        event = HttpEvent('POST', send_url, urlencode(post_body))
-
         start = time.time()
+
+        from temba.msgs.models import Msg
+        media_type, media_url = Msg.get_media(msg)
+
+        if media_type and media_url:
+            media_type = media_type.split('/')[0]
+            if media_type == 'image':
+                send_url = 'https://api.telegram.org/bot%s/sendPhoto' % auth_token
+                post_body['photo'] = media_url
+                post_body['caption'] = text
+                del post_body['text']
+            elif media_type == 'video':
+                send_url = 'https://api.telegram.org/bot%s/sendVideo' % auth_token
+                post_body['video'] = media_url
+                post_body['caption'] = text
+                del post_body['text']
+            elif media_type == 'audio':
+                send_url = 'https://api.telegram.org/bot%s/sendAudio' % auth_token
+                post_body['audio'] = media_url
+                post_body['caption'] = text
+                del post_body['text']
+
+        event = HttpEvent('POST', send_url, urlencode(post_body))
+        external_id = None
 
         try:
             response = requests.post(send_url, post_body)
@@ -2665,9 +2817,10 @@ class Channel(TembaModel):
 
         now = timezone.now()
         hours_ago = now - timedelta(hours=12)
+        five_minutes_ago = now - timedelta(minutes=5)
 
         pending = Msg.objects.filter(org=org, direction=OUTGOING)
-        pending = pending.filter(Q(status=PENDING) |
+        pending = pending.filter(Q(status=PENDING, created_on__lte=five_minutes_ago) |
                                  Q(status=QUEUED, queued_on__lte=hours_ago) |
                                  Q(status=ERRORED, next_attempt__lte=now))
         pending = pending.exclude(channel__channel_type=Channel.TYPE_ANDROID)
@@ -2739,7 +2892,20 @@ class Channel(TembaModel):
                 time.sleep(1 / float(max_tps))
 
         sent_count = 0
-        parts = Msg.get_text_parts(msg.text, type_settings['max_length'])
+
+        # append media url if our channel doesn't support it
+        text = msg.text
+
+        if msg.media and not Channel.supports_media(channel):
+            media_type, media_url = Msg.get_media(msg)
+            if media_type and media_url:
+                text = '%s\n%s' % (text, media_url)
+
+            # don't send as media
+            msg.media = None
+
+        parts = Msg.get_text_parts(text, channel.config.get(Channel.CONFIG_MAX_LENGTH, type_settings[Channel.CONFIG_MAX_LENGTH]))
+
         for part in parts:
             sent_count += 1
             try:
@@ -2778,6 +2944,9 @@ class Channel(TembaModel):
                     print("!! [%d] marking queued message as error" % msg.id)
                     Msg.mark_error(r, channel, msg)
                     sent_count -= 1
+
+                    # make sure media isn't sent more than once
+                    msg.media = None
 
         # update the number of sms it took to send this if it was more than 1
         if len(parts) > 1:
@@ -2861,12 +3030,14 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_INFOBIP: Channel.send_infobip_message,
                   Channel.TYPE_JASMIN: Channel.send_jasmin_message,
                   Channel.TYPE_JUNEBUG: Channel.send_junebug_message,
+                  Channel.TYPE_JUNEBUG_USSD: Channel.send_junebug_message,
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,
                   Channel.TYPE_LINE: Channel.send_line_message,
                   Channel.TYPE_M3TECH: Channel.send_m3tech_message,
                   Channel.TYPE_MBLOX: Channel.send_mblox_message,
                   Channel.TYPE_NEXMO: Channel.send_nexmo_message,
                   Channel.TYPE_PLIVO: Channel.send_plivo_message,
+                  Channel.TYPE_RED_RABBIT: Channel.send_red_rabbit_message,
                   Channel.TYPE_SHAQODOON: Channel.send_shaqodoon_message,
                   Channel.TYPE_SMSCENTRAL: Channel.send_smscentral_message,
                   Channel.TYPE_START: Channel.send_start_message,
@@ -3419,7 +3590,8 @@ class ChannelSession(SmartModel):
 
     TYPE_CHOICES = ((IVR, "IVR"), (USSD, "USSD"),)
 
-    STATUS_CHOICES = ((QUEUED, "Queued"),
+    STATUS_CHOICES = ((PENDING, "Pending"),
+                      (QUEUED, "Queued"),
                       (RINGING, "Ringing"),
                       (IN_PROGRESS, "In Progress"),
                       (COMPLETED, "Complete"),

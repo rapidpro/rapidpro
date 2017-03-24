@@ -1,3 +1,72 @@
+v3.0.85
+----------
+ * Fix exception when handling Viber msg with no text
+ * Migration to remove no longer used ContactGroup.count
+ * Fix search queries like 'foo bar' where there are more than one condition on name/URN
+ * Add indexes for Contact.name and ContactURN.path
+ * Replace current omnibox search function with faster and simpler top-25-of-each-type approach
+
+v3.0.84
+----------
+ * Fix Line, FCM icons, add Junebug icon
+
+v3.0.83
+----------
+ * Render missing field and URN values as "--" rather than "None" on Contact list page
+
+v3.0.82
+----------
+ * Add ROLE_USSD
+ * Add Junebug USSD Channel
+ * Fix Vumi USSD to use USSD Role
+
+v3.0.81
+----------
+ * Archive triggers that do not have a contact to send to
+ * Disable sending of messages for blocked and stopped contacts
+
+v3.0.80
+----------
+ * Add support for outbound media on reply messages for Twilio MMS (US, CA), Telegram, and Facebook
+ * Do not throw when viber sends us message missing the media
+ * Optimizations around Contact searching
+ * Send flow UUID with webhook flow events
+
+v3.0.78
+----------
+ * Allow configuration of max message length to split on for External channels
+
+v3.0.77
+----------
+ * Use brand key for evaluation instead of host when determining brand
+ * Add red rabbit type (hidden since MT only)
+ * Fix flow results exports for broadcast only flows
+
+v3.0.76
+----------
+ * Log Nexmo media responses without including entire body
+
+v3.0.75
+----------
+ * Dont encode to utf8 for XML and JSON since they expect unicode
+ * Optimize contact searching when used to determine single contact's membership
+ * Use flow system user when migrating flows, avoid list page reorder after migrations
+
+v3.0.74
+----------
+ * reduce number of lookup to DB
+
+v3.0.73
+----------
+ * Add test case for search URL against empty field value
+ * Fix sending vumi messages initiated from RapidPro without response to
+
+v3.0.72
+----------
+ * Improvements to external channels to allow configuration against JSON and XML endpoints
+ * Exclude test contacts from flow results
+ * Update to latest smartmin to fix empty string searching
+
 v3.0.70
 ----------
  * Allow USSD flows to start someone else in a flow

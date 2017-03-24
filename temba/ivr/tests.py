@@ -377,7 +377,12 @@ class IVRTests(FlowFileTest):
             channel_log = ChannelLog.objects.last()
             self.assertEqual(channel_log.session.id, call.id)
             self.assertEqual(channel_log.description, "Incoming request for call")
-            self.assertTrue(ChannelLog.objects.filter(description="Downloaded media", session_id=call.id))
+
+            log = ChannelLog.objects.filter(description="Downloaded media", session_id=call.id).first()
+            self.assertIsNotNone(log)
+
+            # our log should be the newly saved url
+            self.assertIn('http', log.response)
 
         # nexmo will also send us a final completion message with the call duration
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), content_type='application/json',
@@ -1205,6 +1210,11 @@ class IVRTests(FlowFileTest):
         response = self.client.post(reverse('handlers.twilio_handler'), post_data)
         self.assertContains(response, 'no channel configured to take this call')
         self.assertEqual(200, response.status_code)
+
+        # no channel found for call handle
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict())
+        self.assertEqual(400, response.status_code)
+        self.assertEqual('No channel found', response.content)
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)

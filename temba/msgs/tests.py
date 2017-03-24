@@ -1775,7 +1775,12 @@ class ScheduleTest(TembaTest):
         # let's trigger a sending of the messages
         self.org.trigger_send()
 
-        # we should now have 11 messages that have sent
+        # we still should have 11 messages that have sent
+        self.assertEquals(11, Msg.objects.filter(channel=self.channel, status=PENDING).count())
+
+        # let's trigger a sending of the messages again
+        self.org.trigger_send(Msg.objects.filter(channel=self.channel, status=PENDING))
+
         self.assertEquals(11, Msg.objects.filter(channel=self.channel, status=WIRED).count())
 
 
@@ -1891,6 +1896,34 @@ class BroadcastLanguageTest(TembaTest):
         self.assertEquals(fre_msg, Msg.objects.get(contact=self.francois).text)
         self.assertEquals(eng_msg, Msg.objects.get(contact=self.greg).text)
         self.assertEquals(fre_msg, Msg.objects.get(contact=self.wilbert).text)
+
+        eng_msg = "Please see attachment"
+        fre_msg = "SVP regardez l'attachement."
+
+        eng_attachment = 'image/jpeg:attachments/eng_picture.jpg'
+        fre_attachment = 'image/jpeg:attachments/fre_picture.jpg'
+
+        # now create a broadcast with a couple contacts, one with an explicit language, the other not
+        bcast = Broadcast.create(self.org, self.admin, "This is my new message with attachment",
+                                 [self.francois, self.greg, self.wilbert],
+                                 language_dict=json.dumps(dict(eng=eng_msg, fre=fre_msg)),
+                                 media_dict=json.dumps(dict(eng=eng_attachment, fre=fre_attachment)))
+
+        bcast.send()
+
+        francois_media = Msg.objects.filter(contact=self.francois).order_by('-created_on').first()
+        greg_media = Msg.objects.filter(contact=self.greg).order_by('-created_on').first()
+        wilbert_media = Msg.objects.filter(contact=self.wilbert).order_by('-created_on').first()
+
+        # assert the right language was used for each contact on both text and media
+        self.assertEquals(fre_msg, francois_media.text)
+        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1]), francois_media.media)
+
+        self.assertEquals(eng_msg, greg_media.text)
+        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, eng_attachment.split(':', 1)[1]), greg_media.media)
+
+        self.assertEquals(fre_msg, wilbert_media.text)
+        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1]), wilbert_media.media)
 
 
 class SystemLabelTest(TembaTest):

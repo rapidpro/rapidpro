@@ -32,6 +32,7 @@ from temba.utils import datetime_to_str, datetime_to_ms, get_datetime_format
 from temba.values.models import Value
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
 from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
+from .search import parse_query, ContactQuery, Condition, BoolCombination, SinglePropCombination, SearchException
 from .tasks import squash_contactgroupcounts
 
 
@@ -84,13 +85,21 @@ class ContactCRUDLTest(_CRUDLTest):
         self.frank.set_field(self.user, 'age', 18)
 
         response = self._do_test_view('list')
-        self.assertEqual([self.frank, self.joe], list(response.context['object_list']))
+        self.assertEqual(list(response.context['object_list']), [self.frank, self.joe])
+        self.assertIsNone(response.context['search_error'])
 
         response = self._do_test_view('list', query_string='search=age+%3D+18')
-        self.assertEqual([self.frank], list(response.context['object_list']))
+        self.assertEqual(list(response.context['object_list']), [self.frank])
+        self.assertIsNone(response.context['search_error'])
 
         response = self._do_test_view('list', query_string='search=age+>+18+and+home+%3D+"Kigali"')
-        self.assertEqual([self.joe], list(response.context['object_list']))
+        self.assertEqual(list(response.context['object_list']), [self.joe])
+        self.assertIsNone(response.context['search_error'])
+
+        # try with invalid search string
+        response = self._do_test_view('list', query_string='search=(((')
+        self.assertEqual(list(response.context['object_list']), [])
+        self.assertEqual(response.context['search_error'], "Search query contains an error")
 
     def testRead(self):
         self.joe = Contact.get_or_create(self.org, self.user, name='Joe', urns=['tel:123'])
@@ -226,6 +235,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.name, "first")
 
     def test_get_user_groups(self):
+        self.create_field('gender', "Gender")
         static = ContactGroup.create_static(self.org, self.admin, "Static")
         dynamic = ContactGroup.create_dynamic(self.org, self.admin, "Dynamic", "gender=M")
         deleted = ContactGroup.create_static(self.org, self.admin, "Deleted")
@@ -626,6 +636,47 @@ class ContactTest(TembaTest):
                                     data=dict(name='Ben Haggerty', urn__tel__0="="))
         self.assertFormError(response, 'form', 'urn__tel__0', "Invalid input")
 
+    def test_block_contact_clear_triggers(self):
+        flow = self.get_flow('favorites')
+        trigger = Trigger.objects.create(org=self.org, flow=flow, keyword="join", created_by=self.admin,
+                                         modified_by=self.admin)
+        trigger.contacts.add(self.joe)
+
+        trigger2 = Trigger.objects.create(org=self.org, flow=flow, keyword="register", created_by=self.admin,
+                                          modified_by=self.admin)
+        trigger2.contacts.add(self.joe)
+        trigger2.contacts.add(self.frank)
+        self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 2)
+
+        self.assertTrue(self.joe.trigger_set.all())
+
+        self.joe.block(self.admin)
+
+        self.assertFalse(self.joe.trigger_set.all())
+
+        self.assertEqual(Trigger.objects.filter(is_archived=True).count(), 1)
+        self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 1)
+
+    def test_stop_contact_clear_triggers(self):
+        flow = self.get_flow('favorites')
+        trigger = Trigger.objects.create(org=self.org, flow=flow, keyword="join", created_by=self.admin,
+                                         modified_by=self.admin)
+        trigger.contacts.add(self.joe)
+
+        trigger2 = Trigger.objects.create(org=self.org, flow=flow, keyword="register", created_by=self.admin,
+                                          modified_by=self.admin)
+        trigger2.contacts.add(self.joe)
+        trigger2.contacts.add(self.frank)
+        self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 2)
+
+        self.assertTrue(self.joe.trigger_set.all())
+
+        self.joe.stop(self.admin)
+
+        self.assertFalse(self.joe.trigger_set.all())
+        self.assertEqual(Trigger.objects.filter(is_archived=True).count(), 1)
+        self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 1)
+
     def test_fail_and_block_and_release(self):
         msg1 = self.create_msg(text="Test 1", direction='I', contact=self.joe, msg_type='I', status='H')
         msg2 = self.create_msg(text="Test 2", direction='I', contact=self.joe, msg_type='F', status='H')
@@ -792,20 +843,34 @@ class ContactTest(TembaTest):
         spammers = self.create_group("Spammers", [])
         testers = self.create_group("Testers", [])
 
-        # create a dynamic group and put joe in it
+        # create some dynamic groups
         ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
-        dynamic = self.create_group("Dynamic", query="gender is M")
+        ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type=Value.TYPE_DECIMAL)
+        no_gender = self.create_group("No gender", query='gender is ""')
+        males = self.create_group("Male", query='gender is M or gender is Male')
+        youth = self.create_group("Male", query='age > 18 or age < 30')
+        joes = self.create_group("Joes", query='Joe')
+
+        self.assertEqual(set(no_gender.contacts.all()), {self.joe, self.frank, self.billy, self.voldemort})
+        self.assertEqual(set(males.contacts.all()), set())
+        self.assertEqual(set(youth.contacts.all()), set())
+        self.assertEqual(set(joes.contacts.all()), {self.joe})
+
         self.joe.set_field(self.admin, 'gender', "M")
-        self.assertEqual(set(dynamic.contacts.all()), {self.joe})
+        self.joe.set_field(self.admin, 'age', "28")
+
+        self.assertEqual(set(no_gender.contacts.all()), {self.frank, self.billy, self.voldemort})
+        self.assertEqual(set(males.contacts.all()), {self.joe})
+        self.assertEqual(set(youth.contacts.all()), {self.joe})
 
         self.joe.update_static_groups(self.user, [spammers, testers])
-        self.assertEqual(set(self.joe.user_groups.all()), {spammers, testers, dynamic})
+        self.assertEqual(set(self.joe.user_groups.all()), {spammers, testers, males, youth, joes})
 
         self.joe.update_static_groups(self.user, [])
-        self.assertEqual(set(self.joe.user_groups.all()), {dynamic})
+        self.assertEqual(set(self.joe.user_groups.all()), {males, youth, joes})
 
         self.joe.update_static_groups(self.user, [testers])
-        self.assertEqual(set(self.joe.user_groups.all()), {testers, dynamic})
+        self.assertEqual(set(self.joe.user_groups.all()), {testers, males, youth, joes})
 
         # blocking removes contact from all groups
         self.joe.block(self.user)
@@ -816,7 +881,7 @@ class ContactTest(TembaTest):
 
         # unblocking potentially puts contact back in dynamic groups
         self.joe.unblock(self.user)
-        self.assertEqual(set(self.joe.user_groups.all()), {dynamic})
+        self.assertEqual(set(self.joe.user_groups.all()), {males, youth, joes})
 
         self.joe.update_static_groups(self.user, [testers])
 
@@ -826,7 +891,7 @@ class ContactTest(TembaTest):
 
         # and unstopping potentially puts contact back in dynamic groups
         self.joe.unstop(self.admin)
-        self.assertEqual(set(self.joe.user_groups.all()), {dynamic})
+        self.assertEqual(set(self.joe.user_groups.all()), {males, youth, joes})
 
         self.joe.update_static_groups(self.user, [testers])
 
@@ -923,6 +988,103 @@ class ContactTest(TembaTest):
         self.assertIsNone(getattr(self.frank, '__field__nick'))
         self.assertIsNone(getattr(self.billy, '__field__nick'))
 
+    def test_contact_search_parsing(self):
+        # implicit condition on name/URN/id
+        self.assertEqual(parse_query('will'), ContactQuery(Condition('*', '=', 'will')))
+
+        # boolean combinations of implicit conditions
+        self.assertEqual(parse_query('will felix', optimize=False), ContactQuery(
+            BoolCombination(BoolCombination.AND, Condition('*', '=', 'will'), Condition('*', '=', 'felix'))
+        ))
+        self.assertEqual(parse_query('will felix'), ContactQuery(
+            SinglePropCombination('*', BoolCombination.AND, Condition('*', '=', 'will'), Condition('*', '=', 'felix'))
+        ))
+        self.assertEqual(parse_query('will and felix', optimize=False), ContactQuery(
+            BoolCombination(BoolCombination.AND, Condition('*', '=', 'will'), Condition('*', '=', 'felix'))
+        ))
+        self.assertEqual(parse_query('will or felix or matt', optimize=False), ContactQuery(
+            BoolCombination(BoolCombination.OR,
+                            BoolCombination(BoolCombination.OR,
+                                            Condition('*', '=', 'will'),
+                                            Condition('*', '=', 'felix')),
+                            Condition('*', '=', 'matt'))
+        ))
+
+        # property conditions
+        self.assertEqual(parse_query('name=will'), ContactQuery(Condition('name', '=', 'will')))
+        self.assertEqual(parse_query('name ~ "felix"'), ContactQuery(Condition('name', '~', 'felix')))
+
+        # boolean combinations of property conditions
+        self.assertEqual(parse_query('name=will or name ~ "felix"', optimize=False), ContactQuery(
+            BoolCombination(BoolCombination.OR, Condition('name', '=', 'will'), Condition('name', '~', 'felix'))
+        ))
+        self.assertEqual(parse_query('name=will or name ~ "felix"'), ContactQuery(
+            SinglePropCombination('name', BoolCombination.OR, Condition('name', '=', 'will'), Condition('name', '~', 'felix'))
+        ))
+
+        # mixture of simple and property conditions
+        self.assertEqual(parse_query('will or name ~ "felix"'), ContactQuery(
+            BoolCombination(BoolCombination.OR, Condition('*', '=', 'will'), Condition('name', '~', 'felix'))
+        ))
+
+        # optimization will merge conditions combined with the same op
+        self.assertEqual(parse_query('will or felix or matt'), ContactQuery(
+            SinglePropCombination('*', BoolCombination.OR, Condition('*', '=', 'will'),
+                                  Condition('*', '=', 'felix'), Condition('*', '=', 'matt'))
+        ))
+
+        # but not conditions combined with different ops
+        self.assertEqual(parse_query('will or felix and matt'), ContactQuery(
+            BoolCombination(BoolCombination.OR,
+                            Condition('*', '=', 'will'),
+                            SinglePropCombination('*', BoolCombination.AND,
+                                                  Condition('*', '=', 'felix'),
+                                                  Condition('*', '=', 'matt')))
+        ))
+
+        # optimization respects explicit precedence defined with parentheses
+        self.assertEqual(parse_query('(will or felix) and matt'), ContactQuery(
+            BoolCombination(BoolCombination.AND,
+                            SinglePropCombination('*', BoolCombination.OR,
+                                                  Condition('*', '=', 'will'),
+                                                  Condition('*', '=', 'felix')),
+                            Condition('*', '=', 'matt'))
+        ))
+
+        # implicit ANDing of conditions
+        self.assertEqual(parse_query('will felix name ~ "matt"', optimize=False), ContactQuery(
+            BoolCombination(BoolCombination.AND,
+                            BoolCombination(BoolCombination.AND,
+                                            Condition('*', '=', 'will'),
+                                            Condition('*', '=', 'felix')),
+                            Condition('name', '~', 'matt'))
+        ))
+
+        # boolean operator precedence is AND before OR, even when AND is implicit
+        self.assertEqual(parse_query('will and felix or matt amber', optimize=False), ContactQuery(
+            BoolCombination(BoolCombination.AND,
+                            BoolCombination(BoolCombination.OR,
+                                            BoolCombination(BoolCombination.AND,
+                                                            Condition('*', '=', 'will'),
+                                                            Condition('*', '=', 'felix')),
+                                            Condition('*', '=', 'matt')),
+                            Condition('*', '=', 'amber'))
+        ))
+
+        # boolean combinations can themselves be combined
+        self.assertEqual(parse_query('(Age < 18 and Gender = "male") or (Age > 18 and Gender = "female")'), ContactQuery(
+            BoolCombination(BoolCombination.OR,
+                            BoolCombination(BoolCombination.AND,
+                                            Condition('age', '<', '18'),
+                                            Condition('gender', '=', 'male')),
+                            BoolCombination(BoolCombination.AND,
+                                            Condition('age', '>', '18'),
+                                            Condition('gender', '=', 'female')))
+        ))
+
+        self.assertEqual(str(parse_query('Age < 18 and Gender = "male"')), "AND(age<18, gender=male)")
+        self.assertEqual(str(parse_query('Age > 18 and Age < 30')), "AND[age](>18, <30)")
+
     def test_contact_search(self):
         self.login(self.admin)
 
@@ -965,14 +1127,15 @@ class ContactTest(TembaTest):
             contact.set_field(self.user, 'hasbirth', 'no')
 
         def q(query):
-            return Contact.search(self.org, query)[0].count()
+            return Contact.search(self.org, query).count()
 
-        # non-complex queries
+        # implicit property queries (name or URN path)
         self.assertEqual(q('trey'), 23)
         self.assertEqual(q('MIKE'), 23)
         self.assertEqual(q('  paige  '), 22)
         self.assertEqual(q('fish'), 22)
-        self.assertEqual(q('0788382011'), 1)  # does a contains
+        self.assertEqual(q('0788382011'), 1)
+        self.assertEqual(q('trey 0788382'), 23)
 
         # name as property
         self.assertEqual(q('name is "trey"'), 23)
@@ -998,7 +1161,6 @@ class ContactTest(TembaTest):
         self.assertEqual(q('join_date <= 30/1/2014'), 30)
         self.assertEqual(q('join_date > 30/1/2014'), 60)
         self.assertEqual(q('join_date >= 30/1/2014'), 61)
-        self.assertEqual(q('join_date >= xxxx'), 0)  # invalid date
 
         self.assertEqual(q('state is "Eastern Province"'), 90)
         self.assertEqual(q('HOME is Kayônza'), 30)  # value with non-ascii character
@@ -1023,16 +1185,15 @@ class ContactTest(TembaTest):
         self.assertEqual(q('(home is gatsibo or home is "Rwamagana")'), 60)
         self.assertEqual(q('(home is gatsibo or home is "Rwamagana") and name is mike'), 16)
         self.assertEqual(q('name is MIKE and profession = ""'), 15)
-
-        # invalid queries - which revert to simple name/phone matches
-        self.assertEqual(q('(('), 0)
-        self.assertEqual(q('name = "trey'), 0)
+        self.assertEqual(q('profession = doctor or profession = farmer'), 30)  # same field
+        self.assertEqual(q('age = 20 or age = 21'), 2)
+        self.assertEqual(q('join_date = 30/1/2014 or join_date = 31/1/2014'), 2)
 
         # create contact with no phone number, we'll try searching for it by id
         contact = self.create_contact(name="Id Contact")
 
         # non-anon orgs can't search by id (because they never see ids)
-        self.assertFalse(contact in Contact.search(self.org, '%d' % contact.pk)[0])  # others may match by id on tel
+        self.assertFalse(contact in Contact.search(self.org, '%d' % contact.pk))  # others may match by id on tel
 
         with AnonymousOrg(self.org):
             # still allow name and field searches
@@ -1046,20 +1207,25 @@ class ContactTest(TembaTest):
             self.assertEqual(q('twitter has blow'), 0)
 
             # anon orgs can search by id, with or without zero padding
-            self.assertTrue(contact in Contact.search(self.org, '%d' % contact.pk)[0])
-            self.assertTrue(contact in Contact.search(self.org, '%010d' % contact.pk)[0])
+            self.assertTrue(contact in Contact.search(self.org, '%d' % contact.pk))
+            self.assertTrue(contact in Contact.search(self.org, '%010d' % contact.pk))
 
-        # syntactically invalid queries should return no results
-        self.assertEqual(q('name > trey'), 0)  # unrecognized non-field operator
-        self.assertEqual(q('profession > trey'), 0)  # unrecognized text-field operator
-        self.assertEqual(q('age has 4'), 0)  # unrecognized decimal-field operator
-        self.assertEqual(q('age = x'), 0)  # unparseable decimal-field comparison
-        self.assertEqual(q('join_date has 30/1/2014'), 0)  # unrecognized date-field operator
-        self.assertEqual(q('join_date > xxxxx'), 0)  # unparseable date-field comparison
-        self.assertEqual(q('home > kigali'), 0)  # unrecognized location-field operator
+        # invalid queries
+        self.assertRaises(SearchException, q, '((')
+        self.assertRaises(SearchException, q, 'name = "trey')  # unterminated string literal
+        self.assertRaises(SearchException, q, 'name > trey')  # unrecognized non-field operator
+        self.assertRaises(SearchException, q, 'profession > trey')  # unrecognized text-field operator
+        self.assertRaises(SearchException, q, 'age has 4')  # unrecognized decimal-field operator
+        self.assertRaises(SearchException, q, 'age = x')  # unparseable decimal-field comparison
+        self.assertRaises(SearchException, q, 'join_date has 30/1/2014')  # unrecognized date-field operator
+        self.assertRaises(SearchException, q, 'join_date > xxxxx')  # unparseable date-field comparison
+        self.assertRaises(SearchException, q, 'home > kigali')  # unrecognized location-field operator
+        self.assertRaises(SearchException, q, 'credits > 10')  # non-existent field or attribute
+        self.assertRaises(SearchException, q, 'tel < +250788382011')  # unsupported comparator for a URN
 
     def test_omnibox(self):
         # add a group with members and an empty group
+        self.create_field('gender', "Gender")
         joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
         men = self.create_group("Men", [], "gender=M")
         nobody = self.create_group("Nobody", [])
@@ -1209,6 +1375,20 @@ class ContactTest(TembaTest):
 
             # but not by frank number
             self.assertEqual(omnibox_request("search=222"), [])
+
+        # exclude blocked and stopped contacts
+        self.joe.block(self.admin)
+        self.frank.stop(self.admin)
+
+        # lookup by contact uuids
+        self.assertEqual(omnibox_request("c=%s,%s" % (self.joe.uuid, self.frank.uuid)), [])
+
+        # but still lookup by URN ids
+        urn_query = "u=%d,%d" % (self.joe.get_urn(TWITTER_SCHEME).pk, self.frank.get_urn(TEL_SCHEME).pk)
+        self.assertEqual(omnibox_request(urn_query), [
+            dict(id='u-%d' % frank_tel.pk, text="0782 222 222", extra="Frank Smith", scheme='tel'),
+            dict(id='u-%d' % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme='twitter')
+        ])
 
     def test_history(self):
         url = reverse('contacts.contact_history', args=[self.joe.uuid])
@@ -2779,6 +2959,14 @@ class ContactTest(TembaTest):
                      error_messages=[dict(line=2,
                                           error="Invalid Phone number or no country code specified for 788383385")]))
 
+        # try importing a file with a unicode in the name
+        csv_file = open('%s/test_imports/abc_@@é.xls' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data)
+        self.assertFormError(response, 'form', 'csv_file',
+                             'Please make sure the file name only contains alphanumeric characters [0-9a-zA-Z] and '
+                             'special characters in -, _, ., (, )')
+
         # try importing invalid spreadsheets with missing headers
         csv_file = open('%s/test_imports/sample_contacts_missing_name_header.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
@@ -2992,7 +3180,8 @@ class ContactTest(TembaTest):
         self.login(self.admin)
         self.create_campaign()
 
-        ballers = self.create_group("Ballers", query='team has ball')
+        self.create_field('team', "Team")
+        ballers = self.create_group("Ballers", query='team = ballers')
 
         self.campaign.group = ballers
         self.campaign.save()
@@ -3591,7 +3780,7 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_label("Age_Now"))  # can't have punctuation
         self.assertFalse(ContactField.is_valid_label("âge"))      # a-z only
 
-    def test_export(self):
+    def test_contact_export(self):
         self.clear_storage()
 
         self.login(self.admin)
@@ -3620,11 +3809,12 @@ class ContactFieldTest(TembaTest):
         urns.append("telegram:1234")
         contact2.update_urns(self.admin, urns)
 
+        group = self.create_group('Poppin Tags', [contact, contact2])
+
         Contact.get_test_contact(self.user)  # create test contact to ensure they aren't included in the export
 
         # create a dummy export task so that we won't be able to export
-        blocking_export = ExportContactsTask.objects.create(org=self.org,
-                                                            created_by=self.admin, modified_by=self.admin)
+        blocking_export = ExportContactsTask.create(self.org, self.admin)
 
         response = self.client.get(reverse('contacts.contact_export'), dict(), follow=True)
         self.assertContains(response, "already an export in progress")
@@ -3632,78 +3822,68 @@ class ContactFieldTest(TembaTest):
         # ok, mark that one as finished and try again
         blocking_export.update_status(ExportContactsTask.STATUS_COMPLETE)
 
-        with self.assertNumQueries(38):
-            self.client.get(reverse('contacts.contact_export'), dict())
+        def request_export(query=''):
+            self.client.get(reverse('contacts.contact_export') + query)
             task = ExportContactsTask.objects.all().order_by('-id').first()
-
             filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
             workbook = load_workbook(filename=filename)
-            sheet = workbook.worksheets[0]
+            return workbook.worksheets[0]
 
-            # check our headers
-            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Email", "Phone", "Telegram", "Twitter", "First", "Second", "Third"])
-
-            # first row should be Adam
-            self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "1234", "adam", "", "", ""])
-
-            # second should be Ben
-            self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "", "+12067799294", "", "", "One", "", "20-12-2015 08:30"])
-
-            self.assertEqual(len(list(sheet.rows)), 3)  # no other contacts
+        # no group specified, so will default to 'All Contacts'
+        with self.assertNumQueries(39):
+            self.assertExcelSheet(request_export(), [
+                ["UUID", "Name", "Email", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "1234", "adam", "", "", ""],
+                [contact.uuid, "Ben Haggerty", "", "+12067799294", "", "", "One", "", "20-12-2015 08:30"],
+            ])
 
         # more contacts do not increase the queries
         contact3 = self.create_contact('Luol Deng', '+12078776655', twitter='deng')
         contact4 = self.create_contact('Stephen', '+12078778899', twitter='stephen')
         ContactURN.create(self.org, contact, 'tel:+12062233445')
 
-        with self.assertNumQueries(38):
-            self.client.get(reverse('contacts.contact_export'), dict())
-            task = ExportContactsTask.objects.all().order_by('-id').first()
+        # but should have additional Twitter and phone columns
+        with self.assertNumQueries(39):
+            self.assertExcelSheet(request_export(), [
+                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
+                [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
+                [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", ""],
+                [contact4.uuid, "Stephen", "", "+12078778899", "", "", "stephen", "", "", ""],
+            ])
 
-            filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-            workbook = load_workbook(filename=filename)
-            sheet = workbook.worksheets[0]
+        # export a specified group of contacts (only Ben and Adam are in the group)
+        with self.assertNumQueries(40):
+            self.assertExcelSheet(request_export('?g=%s' % group.uuid), [
+                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
+                [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
+            ])
 
-            # check our headers have 2 phone columns and Twitter
-            self.assertExcelRow(sheet, 0, ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"])
+        # export a search
+        with self.assertNumQueries(40):
+            self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng'), [
+                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
+                [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", ""],
+            ])
 
-            self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""])
-            self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"])
-            self.assertExcelRow(sheet, 3, [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", ""])
-            self.assertExcelRow(sheet, 4, [contact4.uuid, "Stephen", "", "+12078778899", "", "", "stephen", "", "", ""])
-
-            self.assertEqual(len(list(sheet.rows)), 5)  # no other contacts
-
-        # export a specified group of contacts
-        self.client.post(reverse('contacts.contactgroup_create'), dict(name="Poppin Tags", group_query='Haggerty'))
-        group = ContactGroup.user_groups.get(name='Poppin Tags')
-        self.client.get(reverse('contacts.contact_export'), dict(g=group.uuid))
-        task = ExportContactsTask.objects.all().order_by('-id').first()
-        filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-        workbook = load_workbook(filename=filename)
-        sheet = workbook.worksheets[0]
-
-        # just the header and a single contact
-        self.assertEqual(len(list(sheet.rows)), 2)
+        # export a search within a specified group of contacts
+        with self.assertNumQueries(40):
+            self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid), [
+                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
+            ])
 
         # now try with an anonymous org
         with AnonymousOrg(self.org):
-            self.client.get(reverse('contacts.contact_export'), dict())
-            task = ExportContactsTask.objects.all().order_by('-id').first()
-
-            filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-            workbook = load_workbook(filename=filename)
-            sheet = workbook.worksheets[0]
-
-            # check our headers have 2 phone columns and Twitter
-            self.assertExcelRow(sheet, 0, ["ID", "UUID", "Name", "First", "Second", "Third"])
-
-            self.assertExcelRow(sheet, 1, [six.text_type(contact2.id), contact2.uuid, "Adam Sumner", "", "", ""])
-            self.assertExcelRow(sheet, 2, [six.text_type(contact.id), contact.uuid, "Ben Haggerty", "One", "", "20-12-2015 08:30"])
-            self.assertExcelRow(sheet, 3, [six.text_type(contact3.id), contact3.uuid, "Luol Deng", "", "", ""])
-            self.assertExcelRow(sheet, 4, [six.text_type(contact4.id), contact4.uuid, "Stephen", "", "", ""])
-
-            self.assertEqual(len(list(sheet.rows)), 5)  # no other contacts
+            self.assertExcelSheet(request_export(), [
+                ["ID", "UUID", "Name", "First", "Second", "Third"],
+                [six.text_type(contact2.id), contact2.uuid, "Adam Sumner", "", "", ""],
+                [six.text_type(contact.id), contact.uuid, "Ben Haggerty", "One", "", "20-12-2015 08:30"],
+                [six.text_type(contact3.id), contact3.uuid, "Luol Deng", "", "", ""],
+                [six.text_type(contact4.id), contact4.uuid, "Stephen", "", "", ""],
+            ])
 
     def test_contact_field_list(self):
         url = reverse('contacts.contactfield_list')

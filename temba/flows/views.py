@@ -2,6 +2,8 @@ from __future__ import print_function, unicode_literals
 
 import json
 import logging
+from uuid import uuid4
+
 import regex
 import six
 import traceback
@@ -352,7 +354,8 @@ class PartialTemplate(SmartTemplateView):  # pragma: no cover
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'simulate', 'export_results',
                'upload_action_recording', 'read', 'editor', 'results', 'run_table', 'json', 'broadcast', 'activity',
-               'activity_chart', 'filter', 'campaign', 'completion', 'revisions', 'recent_messages')
+               'activity_chart', 'filter', 'campaign', 'completion', 'revisions', 'recent_messages',
+               'upload_media_action')
 
     model = Flow
 
@@ -650,12 +653,25 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.get_object()
             return default_storage.save('recordings/%d/%d/steps/%s.wav' % (flow.org.pk, flow.id, action_uuid), file)
 
+    class UploadMediaAction(OrgPermsMixin, SmartUpdateView):
+        def post(self, request, *args, **kwargs):
+            generated_uuid = six.text_type(uuid4())
+            path = self.save_media_upload(self.request.FILES['file'], self.request.POST.get('actionset'),
+                                          generated_uuid)
+            return JsonResponse(dict(path=path))
+
+        def save_media_upload(self, file, actionset_id, name_uuid):
+            flow = self.get_object()
+            extension = file.name.split('.')[-1]
+            return default_storage.save('attachments/%d/%d/steps/%s.%s' % (flow.org.pk, flow.id, name_uuid, extension),
+                                        file)
+
     class BaseList(FlowActionMixin, OrgQuerysetMixin, OrgPermsMixin, SmartListView):
         title = _("Flows")
         refresh = 10000
         fields = ('name', 'modified_on')
         default_template = 'flows/flow_list.html'
-        default_order = ('-modified_on',)
+        default_order = ('-saved_on',)
         search_fields = ('name__icontains',)
 
         def get_context_data(self, **kwargs):
@@ -963,7 +979,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Editor, self).get_context_data(*args, **kwargs)
 
-            context['media_url'] = 'https://%s/' % settings.AWS_BUCKET_DOMAIN
+            context['media_url'] = '%s://%s/' % ('http' if settings.DEBUG else 'https', settings.AWS_BUCKET_DOMAIN)
 
             # are there pending starts?
             starting = False
@@ -1185,13 +1201,15 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.RunTable, self).get_context_data(*args, **kwargs)
             flow = self.get_object()
+            org = self.derive_org()
 
             context['rulesets'] = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT).order_by('y'))
             for ruleset in context['rulesets']:
                 rules = len(ruleset.get_rules())
                 ruleset.category = 'true' if rules > 1 else 'false'
 
-            runs = FlowRun.objects.filter(flow=flow, responded=True)
+            test_contacts = Contact.objects.filter(org=org, is_test=True).values_list('id', flat=True)
+            runs = FlowRun.objects.filter(flow=flow, responded=True).exclude(contact__in=test_contacts)
 
             # paginate
             modified_on = self.request.GET.get('modified_on', None)
@@ -1347,7 +1365,7 @@ class FlowCRUDL(SmartCRUDL):
                             status = USSDSession.INTERRUPTED
                         else:
                             status = None
-                        USSDSession.handle_incoming(test_contact.org.get_send_channel(contact_urn=test_contact.get_urn(TEL_SCHEME)),
+                        USSDSession.handle_incoming(test_contact.org.get_ussd_channel(contact_urn=test_contact.get_urn(TEL_SCHEME)),
                                                     test_contact.get_urn(TEL_SCHEME).path,
                                                     content=new_message,
                                                     date=timezone.now(),

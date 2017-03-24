@@ -13,7 +13,7 @@ import six
 from dateutil.parser import parse
 from decimal import Decimal
 from django.conf import settings
-from django.db import connection, transaction
+from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.timezone import is_aware
@@ -180,6 +180,15 @@ def datetime_to_epoch(dt):
     """
     utc_naive = dt.replace(tzinfo=None) - dt.utcoffset()
     return (utc_naive - datetime.datetime(1970, 1, 1)).total_seconds()
+
+
+def date_to_utc_range(d, org):
+    """
+    Converts a date in the given org's timezone, to a range of datetimes in UTC
+    """
+    local_midnight = org.timezone.localize(datetime.datetime.combine(d, datetime.time(0, 0)))
+    utc_midnight = local_midnight.astimezone(pytz.UTC)
+    return utc_midnight, utc_midnight + datetime.timedelta(days=1)
 
 
 def str_to_bool(text):
@@ -376,47 +385,6 @@ def json_to_dict(json_string):
     to Python objects. (you shouldn't do this with untrusted input)
     """
     return json.loads(json_string, object_hook=datetime_decoder)
-
-
-class PageableQuery(object):
-    """
-    Allows paging with Paginator of a raw SQL query
-    """
-    def __init__(self, query, order=(), params=()):
-        self.query = query
-        self.order = order
-        self.params = params
-        self._count = None
-
-    def __len__(self):
-        return self.count()
-
-    def __getitem__(self, item):
-        offset, stop, step = item.indices(self.count())
-        limit = stop - offset
-        return self.execute(offset, limit)
-
-    def execute(self, offset, limit):
-        cursor = connection.cursor()
-
-        if self.order:
-            ordering_clauses = [("%s DESC" % col[1:]) if col[0] == '-' else ("%s ASC" % col) for col in self.order]
-            query = "%s ORDER BY %s" % (self.query, ", ".join(ordering_clauses))
-        else:
-            query = self.query
-
-        query = "%s OFFSET %s LIMIT %s" % (query, offset, limit)
-        cursor.execute(query, self.params)
-        return get_dict_from_cursor(cursor)
-
-    def count(self):
-        if self._count is not None:
-            return self._count
-
-        cursor = connection.cursor()
-        cursor.execute("SELECT count(*) FROM (%s) s" % self.query, self.params)
-        self._count = cursor.fetchone()[0]
-        return self._count
 
 
 def non_atomic_gets(view_func):

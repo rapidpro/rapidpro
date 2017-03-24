@@ -428,7 +428,7 @@
         .span3
           %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_junebug' %}"}
             .btn-container
-              .claim-glyph.icon-channel-external
+              .claim-glyph.icon-junebug
               %p.claim-text
                 -trans "Junebug"
 
@@ -437,7 +437,7 @@
             %div
               -blocktrans
                 Connect your <a href="https://junebug.praekelt.org/" target="_blank">Junebug</a> instance that you have
-                already connected to an SMSC.
+                already set up and configured.
 
     .claim-row.twiml-channel
       .row
@@ -716,7 +716,7 @@
                     and receive messages.
 
     %h3
-      -trans "Mobile Channels"
+      -trans "API Channels"
 
     .claim-row
       .row

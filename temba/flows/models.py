@@ -32,8 +32,8 @@ from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel, ChannelSession
-from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING, DELIVERED
+from temba.locations.models import AdminBoundary
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING, DELIVERED, USSD as MSG_TYPE_USSD
 from temba.msgs.models import OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
@@ -1448,7 +1448,6 @@ class Flow(TembaModel):
 
         all_contact_ids = Contact.all().filter(Q(all_groups__in=group_qs) | Q(pk__in=contact_qs))
         all_contact_ids = all_contact_ids.only('is_test').order_by('pk').values_list('pk', flat=True).distinct('pk')
-
         if not restart_participants:
             # exclude anybody who has already participated in the flow
             already_started = set(self.runs.all().values_list('contact_id', flat=True))
@@ -1522,7 +1521,7 @@ class Flow(TembaModel):
             if not session:
                 contact = Contact.objects.filter(pk=contact_id, org=self.org).first()
                 contact_urn = contact.get_urn(TEL_SCHEME)
-                channel = self.org.get_send_channel(contact_urn=contact_urn)
+                channel = self.org.get_ussd_channel(contact_urn=contact_urn)
 
                 session = USSDSession.objects.create(channel=channel, contact=contact, contact_urn=contact_urn,
                                                      org=self.org, direction=USSDSession.USSD_PUSH,
@@ -1539,7 +1538,6 @@ class Flow(TembaModel):
                 entry_rule = RuleSet.objects.filter(uuid=self.entry_uuid).first()
 
                 step = self.add_step(run, entry_rule, is_start=True, arrived_on=timezone.now())
-
                 if entry_rule.is_ussd():
                     # create an empty placeholder message
                     msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
@@ -1635,8 +1633,12 @@ class Flow(TembaModel):
             if isinstance(send_action.msg, dict):
                 language_dict = json.dumps(send_action.msg)
 
-            if message_text:
-                broadcast = Broadcast.create(self.org, self.created_by, message_text, [],
+            media_dict = None
+            if send_action.media:
+                media_dict = json.dumps(send_action.media)
+
+            if message_text or media_dict:
+                broadcast = Broadcast.create(self.org, self.created_by, message_text, [], media_dict=media_dict,
                                              language_dict=language_dict, base_language=self.base_language)
                 broadcast.update_contacts(all_contact_ids)
 
@@ -2124,8 +2126,12 @@ class Flow(TembaModel):
 
         revision = self.revisions.all().order_by('-revision').first()
 
+        last_saved = self.saved_on
+        if self.saved_by == get_flow_user(self.org):
+            last_saved = self.modified_on
+
         metadata[Flow.NAME] = self.name
-        metadata[Flow.SAVED_ON] = datetime_to_str(self.saved_on)
+        metadata[Flow.SAVED_ON] = datetime_to_str(last_saved)
         metadata[Flow.REVISION] = revision.revision if revision else 1
         metadata[Flow.UUID] = self.uuid
         metadata[Flow.EXPIRES] = self.expires_after_minutes
@@ -2215,7 +2221,7 @@ class Flow(TembaModel):
                 else:  # pragma: needs cover
                     json_flow = self.as_json()
 
-                self.update(json_flow)
+                self.update(json_flow, user=get_flow_user(self.org))
                 self.refresh_from_db()
 
     def update(self, json_dict, user=None, force=False):
@@ -2236,22 +2242,35 @@ class Flow(TembaModel):
             raise FlowException("Found invalid cycle: %s" % cycle)
 
         try:
+            flow_user = get_flow_user(self.org)
             # check whether the flow has changed since this flow was last saved
             if user and not force:
                 saved_on = json_dict.get(Flow.METADATA).get(Flow.SAVED_ON, None)
                 org = user.get_org()
 
-                if not saved_on or str_to_datetime(saved_on, org.timezone) < self.saved_on:
-                    saver = ""
-                    if self.saved_by.first_name:  # pragma: needs cover
-                        saver += "%s " % self.saved_by.first_name
-                    if self.saved_by.last_name:  # pragma: needs cover
-                        saver += "%s" % self.saved_by.last_name
+                # check our last save if we aren't the system flow user
+                if user != flow_user:
+                    migrated = self.saved_by == flow_user
+                    last_save = self.saved_on
 
-                    if not saver:
-                        saver = self.saved_by.username
+                    # use modified on if it was a migration
+                    if migrated:
+                        last_save = self.modified_on
 
-                    return dict(status="unsaved", description="Flow NOT Saved", saved_on=datetime_to_str(self.saved_on), saved_by=saver)
+                    if not saved_on or str_to_datetime(saved_on, org.timezone) < last_save:
+                        saver = ""
+
+                        if self.saved_by.first_name:  # pragma: needs cover
+                            saver += "%s " % self.saved_by.first_name
+                        if self.saved_by.last_name:  # pragma: needs cover
+                            saver += "%s" % self.saved_by.last_name
+
+                        if not saver:
+                            saver = self.saved_by.username
+
+                        saver = saver.strip()
+
+                        return dict(status="unsaved", description="Flow NOT Saved", saved_on=datetime_to_str(last_save), saved_by=saver)
 
             top_y = 0
             top_uuid = None
@@ -2461,7 +2480,11 @@ class Flow(TembaModel):
 
             if user:
                 self.saved_by = user
-            self.saved_on = timezone.now()
+
+            # if it's our migration user, don't update saved on
+            if user and user != flow_user:
+                self.saved_on = timezone.now()
+
             self.version_number = CURRENT_EXPORT_VERSION
             self.save()
 
@@ -3712,8 +3735,9 @@ class FlowRevision(SmartModel):
         return definition
 
     def as_json(self, include_definition=False):
-        return dict(user=dict(email=self.created_by.username,
-                    name=self.created_by.get_full_name()),
+
+        name = self.created_by.get_full_name()
+        return dict(user=dict(email=self.created_by.email, name=name),
                     created_on=datetime_to_str(self.created_on),
                     id=self.pk,
                     version=self.spec_version,
@@ -3946,6 +3970,7 @@ class ExportFlowResultsTask(BaseExportTask):
         include_msgs = config.get(ExportFlowResultsTask.INCLUDE_MSGS, False)
         responded_only = config.get(ExportFlowResultsTask.RESPONDED_ONLY, True)
         contact_field_ids = config.get(ExportFlowResultsTask.CONTACT_FIELDS, [])
+        broadcast_only_flow = False
 
         contact_fields = []
         for cf_id in contact_field_ids:
@@ -4004,6 +4029,8 @@ class ExportFlowResultsTask(BaseExportTask):
 
             if responded_only:
                 all_steps = all_steps.filter(run__responded=True)
+            else:
+                broadcast_only_flow = not all_steps.exclude(step_type=FlowStep.TYPE_ACTION_SET).exists()
 
             step_ids = [s['id'] for s in all_steps]
 
@@ -4151,7 +4178,7 @@ class ExportFlowResultsTask(BaseExportTask):
             contact_name = self.prepare_value(run_step.contact.name)
 
             # if this is a rule step, write out the value collected
-            if run_step.step_type == FlowStep.TYPE_RULE_SET:
+            if run_step.step_type == FlowStep.TYPE_RULE_SET or broadcast_only_flow:
 
                 # a new contact
                 if last_contact != run_step.contact.pk:
@@ -4229,7 +4256,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
                     # write our contact fields if any
                     for cf in contact_fields:
-                        field_value = Contact.get_field_display_for_value(cf, run_step.contact.get_field(cf.key.lower()))
+                        field_value = Contact.get_field_display_for_value(cf, run_step.contact.get_field(cf.key.lower()), org)
                         if field_value is None:
                             field_value = ''
 
@@ -4287,9 +4314,8 @@ class ExportFlowResultsTask(BaseExportTask):
             # write out any message associated with this step
             if include_msgs:
                 step_msgs = list(run_step.messages.all())
-
-                if step_msgs:
-                    msg = step_msgs[0]
+                step_msgs = sorted(step_msgs, key=lambda msg: msg.created_on)
+                for msg in step_msgs:
                     msg_row += 1
 
                     if msg.pk not in seen_msgs:
@@ -4556,26 +4582,36 @@ class FlowLabel(models.Model):
         unique_together = ('name', 'parent', 'org')
 
 
-__flow_user = None
+__flow_users = None
 
 
-def clear_flow_user():
-    global __flow_user
-    __flow_user = None
+def clear_flow_users():
+    global __flow_users
+    __flow_users = None
 
 
-def get_flow_user():
-    global __flow_user
-    if not __flow_user:
-        user = User.objects.filter(username='flow').first()
-        if user:  # pragma: needs cover
-            __flow_user = user
+def get_flow_user(org):
+    global __flow_users
+    if not __flow_users:
+        __flow_users = {}
+
+    branding = org.get_branding()
+    username = '%s_flow' % branding['slug']
+    flow_user = __flow_users.get(username)
+
+    # not cached, let's look it up
+    if not flow_user:
+        email = branding['support_email']
+        flow_user = User.objects.filter(username=username).first()
+        if flow_user:  # pragma: needs cover
+            __flow_users[username] = flow_user
         else:
-            user = User.objects.create_user('flow')
-            user.groups.add(Group.objects.get(name='Service Users'))
-            __flow_user = user
+            # doesn't exist for this brand, create it
+            flow_user = User.objects.create_user(username, email, first_name='System Update')
+            flow_user.groups.add(Group.objects.get(name='Service Users'))
+            __flow_users[username] = flow_user
 
-    return __flow_user
+    return flow_user
 
 
 class Action(object):
@@ -4786,7 +4822,7 @@ class AddToGroupAction(Action):
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         contact = run.contact
         add = AddToGroupAction.TYPE == self.get_type()
-        user = get_flow_user()
+        user = get_flow_user(run.org)
 
         if contact:
             for group in self.groups:
@@ -4858,7 +4894,7 @@ class DeleteFromGroupAction(AddToGroupAction):
     def execute(self, run, actionset, msg, offline_on=None):
         if len(self.groups) == 0:
             contact = run.contact
-            user = get_flow_user()
+            user = get_flow_user(run.org)
             if contact:
                 # remove from all active and inactive user-defined, static groups
                 for group in ContactGroup.user_groups.filter(org=contact.org,
@@ -5047,9 +5083,12 @@ class ReplyAction(Action):
     """
     TYPE = 'reply'
     MESSAGE = 'msg'
+    MSG_TYPE = None
+    MEDIA = 'media'
 
-    def __init__(self, msg=None):
+    def __init__(self, msg=None, media=None):
         self.msg = msg
+        self.media = media if media else {}
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5064,28 +5103,43 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
 
-        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE))
+        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE), media=json_obj.get(ReplyAction.MEDIA, None))
 
     def as_json(self):
-        return dict(type=ReplyAction.TYPE, msg=self.msg)
+        return dict(type=ReplyAction.TYPE, msg=self.msg, media=self.media)
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         reply = None
 
-        if self.msg:
-            user = get_flow_user()
-            text = run.flow.get_localized_text(self.msg, run.contact)
+        if self.msg or self.media:
+            user = get_flow_user(run.org)
+
+            text = ''
+            if self.msg:
+                text = run.flow.get_localized_text(self.msg, run.contact)
+
+            media = None
+            if self.media:
+                # localize our media attachment
+                media_type, media_url = run.flow.get_localized_text(self.media, run.contact).split(':', 1)
+
+                # if we have a localized media, create the url
+                if media_url:
+                    media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
             if offline_on:
                 reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
-                                            created_on=offline_on, response_to=msg)
+                                            created_on=offline_on, response_to=msg, media=media)
             else:
                 context = run.flow.build_message_context(run.contact, msg)
+
                 try:
                     if msg:
-                        reply = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session)
+                        reply = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session,
+                                          media=media, msg_type=self.MSG_TYPE)
                     else:
-                        reply = run.contact.send(text, user, trigger_send=False, message_context=context, session=run.session)
+                        reply = run.contact.send(text, user, trigger_send=False, message_context=context,
+                                                 session=run.session, msg_type=self.MSG_TYPE, media=media)
                 except UnreachableException:
                     pass
 
@@ -5102,6 +5156,7 @@ class UssdAction(ReplyAction):
     MESSAGE = 'ussd_message'
     TYPE_WAIT_USSD_MENU = 'wait_menu'
     TYPE_WAIT_USSD = 'wait_ussd'
+    MSG_TYPE = MSG_TYPE_USSD
 
     def __init__(self, msg=None, base_language=None, languages=None, primary_language=None):
         super(UssdAction, self).__init__(msg)
@@ -5240,7 +5295,7 @@ class VariableContactAction(Action):
 
                 # otherwise, really create the contact
                 else:
-                    contacts.append(Contact.get_or_create(run.flow.org, get_flow_user(), name=None, urns=()))
+                    contacts.append(Contact.get_or_create(run.org, get_flow_user(run.org), name=None, urns=()))
 
             # other type of variable, perform our substitution
             else:
@@ -5255,7 +5310,7 @@ class VariableContactAction(Action):
                     if country:
                         (number, valid) = URN.normalize_number(variable, country)
                         if number and valid:
-                            contact = Contact.get_or_create(run.flow.org, get_flow_user(), urns=[URN.from_tel(number)])
+                            contact = Contact.get_or_create(run.org, get_flow_user(run.org), urns=[URN.from_tel(number)])
                             contacts.append(contact)
 
         return groups, contacts
@@ -5466,7 +5521,7 @@ class SaveToContactAction(Action):
             if contact_field:
                 label = contact_field.label
             else:
-                ContactField.get_or_create(org, get_flow_user(), field, label)
+                ContactField.get_or_create(org, get_flow_user(org), field, label)
 
         return label
 
@@ -5495,7 +5550,7 @@ class SaveToContactAction(Action):
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         # evaluate our value
         contact = run.contact
-        user = get_flow_user()
+        user = get_flow_user(run.org)
         message_context = run.flow.build_message_context(contact, msg)
         (value, errors) = Msg.substitute_variables(self.value, contact, message_context, org=run.flow.org)
 
@@ -5625,9 +5680,11 @@ class SendAction(VariableContactAction):
     """
     TYPE = 'send'
     MESSAGE = 'msg'
+    MEDIA = 'media'
 
-    def __init__(self, msg, groups, contacts, variables):
+    def __init__(self, msg, groups, contacts, variables, media=None):
         self.msg = msg
+        self.media = media if media else {}
         super(SendAction, self).__init__(groups, contacts, variables)
 
     @classmethod
@@ -5636,16 +5693,18 @@ class SendAction(VariableContactAction):
         contacts = VariableContactAction.parse_contacts(org, json_obj)
         variables = VariableContactAction.parse_variables(org, json_obj)
 
-        return SendAction(json_obj.get(SendAction.MESSAGE), groups, contacts, variables)
+        return SendAction(json_obj.get(SendAction.MESSAGE), groups, contacts, variables,
+                          json_obj.get(SendAction.MEDIA, None))
 
     def as_json(self):
         contact_ids = [dict(uuid=_.uuid) for _ in self.contacts]
         group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
-        return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables)
+        return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables,
+                    media=self.media)
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
-        if self.msg:
+        if self.msg or self.media:
             flow = run.flow
             message_context = flow.build_message_context(run.contact, msg)
 
@@ -5661,14 +5720,19 @@ class SendAction(VariableContactAction):
 
                 message_text = run.flow.get_localized_text(self.msg)
 
-                # no message text? then no-op
-                if not message_text:
+                media_dict = None
+                if self.media:
+                    media_dict = json.dumps(self.media)
+
+                # no message text and no media_dict? then no-op
+                if not message_text and not media_dict:
                     return list()
 
                 recipients = groups + contacts
 
                 broadcast = Broadcast.create(flow.org, flow.modified_by, message_text, recipients,
-                                             language_dict=language_dict, base_language=flow.base_language)
+                                             media_dict=media_dict, language_dict=language_dict,
+                                             base_language=flow.base_language)
                 broadcast.send(trigger_send=False, message_context=message_context)
                 return list(broadcast.get_messages())
 
@@ -6260,7 +6324,7 @@ class HasStateTest(Test):
         if not org.country:
             return 0, None
 
-        state = org.parse_location(text, STATE_LEVEL)
+        state = org.parse_location(text, AdminBoundary.LEVEL_STATE)
         if state:
             return 1, state[0]
 
@@ -6291,12 +6355,12 @@ class HasDistrictTest(Test):
         # evaluate our district in case it has a replacement variable
         state, errors = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
 
-        parent = org.parse_location(state, STATE_LEVEL)
+        parent = org.parse_location(state, AdminBoundary.LEVEL_STATE)
         if parent:
-            district = org.parse_location(text, DISTRICT_LEVEL, parent[0])
+            district = org.parse_location(text, AdminBoundary.LEVEL_DISTRICT, parent[0])
             if district:
                 return 1, district[0]
-        district = org.parse_location(text, DISTRICT_LEVEL)
+        district = org.parse_location(text, AdminBoundary.LEVEL_DISTRICT)
 
         # parse location when state contraint is not provided or available
         if (errors or not state) and len(district) == 1:
@@ -6332,16 +6396,16 @@ class HasWardTest(Test):
         district_name, missing_district = Msg.substitute_variables(self.district, sms.contact, context, org=run.flow.org)
         state_name, missing_state = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
         if (district_name and state_name) and (len(missing_district) == 0 and len(missing_state) == 0):
-            state = org.parse_location(state_name, STATE_LEVEL)
+            state = org.parse_location(state_name, AdminBoundary.LEVEL_STATE)
             if state:
-                district = org.parse_location(district_name, DISTRICT_LEVEL, state[0])
+                district = org.parse_location(district_name, AdminBoundary.LEVEL_DISTRICT, state[0])
                 if district:
-                    ward = org.parse_location(text, WARD_LEVEL, district[0])
+                    ward = org.parse_location(text, AdminBoundary.LEVEL_WARD, district[0])
                     if ward:
                         return 1, ward[0]
 
         # parse location when district contraint is not provided or available
-        ward = org.parse_location(text, WARD_LEVEL)
+        ward = org.parse_location(text, AdminBoundary.LEVEL_WARD)
         if len(ward) == 1 and district is None:
             return 1, ward[0]
 
