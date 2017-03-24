@@ -15,7 +15,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management import BaseCommand, CommandError
-from django.db import connection, models
+from django.db import connection
 from django.utils import timezone
 from subprocess import check_call, CalledProcessError
 from temba.channels.models import Channel
@@ -119,6 +119,7 @@ class Command(BaseCommand):
 
         self.random = random.Random(seed)
         self.batch_size = 5000
+        self.bulk_creator = BulkContentCreator()
 
         # monkey patch uuid4 so it returns the same UUIDs for the same seed
         from temba.utils import models
@@ -332,11 +333,9 @@ class Command(BaseCommand):
         id to avoid trying to hold all contact and URN objects in memory.
         """
         simplified = []
-        num_test_contacts = len(orgs) * len(USERS)
-        group_membership_model = ContactGroup.contacts.through
         group_counts = defaultdict(int)
 
-        self._log("Creating %d test contacts..." % num_test_contacts)
+        self._log("Creating %d test contacts..." % (len(orgs) * len(USERS)))
 
         for org in orgs:
             test_contacts = []
@@ -349,15 +348,13 @@ class Command(BaseCommand):
 
         # disable table triggers to speed up insertion and in the case of contact group m2m, avoid having an unsquashed
         # count row for every contact
-        with DisableTriggersOn(Contact, ContactURN, Value, group_membership_model):
+        with DisableTriggersOn(Contact, ContactURN, Value, ContactGroup.contacts.through):
             names = [('%s %s' % (c1, c2)).strip() for c2 in CONTACT_NAMES[1] for c1 in CONTACT_NAMES[0]]
             names = [n if n else None for n in names]
 
-            batch = 1
+            batch_num = 1
             for index_batch in chunk_list(six.moves.xrange(num_contacts), self.batch_size):
-                batch_contacts = []
-                batch_values = []
-                batch_memberships = []
+                batch = []
 
                 # generate flat representations and contact objects for this batch
                 for c_index in index_batch:  # pragma: no cover
@@ -370,6 +367,7 @@ class Command(BaseCommand):
                         'org': org,
                         'user': org.cache['users'][0],
                         'name': name,
+                        'groups': [],
                         'tel': '+2507%08d' % c_index if self.probability(CONTACT_HAS_TEL_PROB) else None,
                         'twitter': '%s%d' % (name.replace(' ', '_').lower() if name else 'tweep', c_index) if self.probability(CONTACT_HAS_TWITTER_PROB) else None,
                         'gender': self.random_choice(('M', 'F')) if self.probability(CONTACT_HAS_FIELD_PROB) else None,
@@ -384,76 +382,37 @@ class Command(BaseCommand):
                         'is_active': self.probability(1 - CONTACT_IS_DELETED_PROB),
                         'created_on': created_on,
                         'modified_on': self.random_date(created_on, self.db_ends_on),
-                        'urns': [],
                     }
 
-                    c['object'] = Contact(org=org, name=c['name'], language=c['language'],
-                                          is_stopped=c['is_stopped'], is_blocked=c['is_blocked'],
-                                          is_active=c['is_active'],
-                                          created_by=user, created_on=c['created_on'],
-                                          modified_by=user, modified_on=c['modified_on'])
-
-                    if c['tel']:
-                        c['urns'].append(ContactURN(org=org, contact=c['object'], priority=50, scheme=TEL_SCHEME,
-                                                    path=c['tel'], urn=URN.from_tel(c['tel'])))
-                    if c['twitter']:
-                        c['urns'].append(ContactURN(org=org, contact=c['object'], priority=50, scheme=TWITTER_SCHEME,
-                                                    path=c['twitter'], urn=URN.from_twitter(c['twitter'])))
-                    if c['gender']:
-                        batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['gender'],
-                                                  string_value=c['gender']))
-                    if c['age']:
-                        batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['age'],
-                                                  string_value=str(c['age']), decimal_value=c['age']))
-                    if c['joined']:
-                        batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['joined'],
-                                                  string_value=datetime_to_str(c['joined']), datetime_value=c['joined']))
-                    if c['ward']:
-                        batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['ward'],
-                                                  string_value=c['ward'].name, location_value=c['ward']))
-                    if c['district']:
-                        batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['district'],
-                                                  string_value=c['district'].name, location_value=c['district']))
-                    if c['state']:
-                        batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['state'],
-                                                  string_value=c['state'].name, location_value=c['state']))
-
-                    def add_to_group(g):
-                        group_counts[g] += 1
-                        batch_memberships.append(group_membership_model(contact=c['object'], contactgroup=g))
-
+                    # work out which system groups this contact belongs to
                     if c['is_active']:
                         if not c['is_blocked'] and not c['is_stopped']:
-                            add_to_group(org.cache['system_groups'][ContactGroup.TYPE_ALL])
+                            c['groups'].append(org.cache['system_groups'][ContactGroup.TYPE_ALL])
                         if c['is_blocked']:
-                            add_to_group(org.cache['system_groups'][ContactGroup.TYPE_BLOCKED])
+                            c['groups'].append(org.cache['system_groups'][ContactGroup.TYPE_BLOCKED])
                         if c['is_stopped']:
-                            add_to_group(org.cache['system_groups'][ContactGroup.TYPE_STOPPED])
+                            c['groups'].append(org.cache['system_groups'][ContactGroup.TYPE_STOPPED])
 
                     # let each user group decide if it is taking this contact
                     for g in org.cache['groups']:
                         if g.member(c) if callable(g.member) else self.probability(g.member):
-                            add_to_group(g)
+                            c['groups'].append(g)
 
-                    batch_contacts.append(c)
+                    # track changes to group counts
+                    for g in c['groups']:
+                        group_counts[g] += 1
 
-                # create the actual contact and URN objects which sets their ids
-                Contact.objects.bulk_create([_['object'] for _ in batch_contacts])
-                ContactURN.objects.bulk_create([u for _ in batch_contacts for u in _['urns']])
+                    batch.append(c)
 
-                self._resync_fk_fields(batch_values)
-                self._resync_fk_fields(batch_memberships)
+                self.bulk_creator.create_contacts(batch)
 
-                Value.objects.bulk_create(batch_values)
-                group_membership_model.objects.bulk_create(batch_memberships)
-
-                # convert contact to simplified representation of org id, contact id and single URN id
-                for c in batch_contacts:
+                # convert simplified representation of org, contact id and single URN id
+                for c in batch:
                     preferred_urn_id = c['urns'][len(c['urns']) - 1].id if c['urns'] else None
                     simplified.append((c['org'], c['object'].id, preferred_urn_id))
 
-                self._log(" > Created batch %d of %d\n" % (batch, max(num_contacts // self.batch_size, 1)))
-                batch += 1
+                self._log(" > Created batch %d of %d\n" % (batch_num, max(num_contacts // self.batch_size, 1)))
+                batch_num += 1
 
         # create group count records manually
         counts = []
@@ -475,12 +434,12 @@ class Command(BaseCommand):
             test_contact = org.cache['test_contacts'][0]
             for flow in org.cache['flows']:
                 # generate template for no-response from contact
-                flow.nonresponded_template = self.create_run_template(org, flow, test_contact, [])
+                flow.nonresponded_template = self.generate_run_template(org, flow, test_contact, [])
 
                 # generate template for each input template
                 flow.run_templates = []
                 for input_template in flow.input_templates:
-                    tpl = self.create_run_template(org, flow, test_contact, input_template)
+                    tpl = self.generate_run_template(org, flow, test_contact, input_template)
                     flow.run_templates.append(tpl)
                     # print(json.dumps(tpl, indent=2))
 
@@ -498,13 +457,9 @@ class Command(BaseCommand):
         # disable table triggers to speed up insertion
         with DisableTriggersOn(FlowRun, FlowStep, Msg, Value):
 
-            batch = 1
+            batch_num = 1
             for index_batch in chunk_list(six.moves.xrange(num_runs), self.batch_size):
-                batch_runs = []
-                batch_msgs = []
-                batch_values = []
-                batch_steps = []
-                batch_step_msgs = []
+                batch = []
 
                 for r_index in index_batch:  # pragma: no cover
                     started_on = self.timeline_date(float(r_index) / num_runs)
@@ -513,31 +468,43 @@ class Command(BaseCommand):
                     responded = self.probability(RUN_RESPONSE_PROB)
                     template = self.random_choice(flow.run_templates) if responded else flow.nonresponded_template
 
-                    run, msgs, values, steps, step_msgs = self.create_run(org, flow, contact_id, urn_id, template, started_on)
-                    batch_runs.append(run)
-                    batch_msgs += msgs
-                    batch_values += values
-                    batch_steps += steps
-                    batch_step_msgs += step_msgs
+                    def get_time(t):
+                        return started_on + timedelta(seconds=t)
 
-                    flow_run_counts[(flow, run.exit_type)] += 1
-                    sys_label_counts[(org, SystemLabel.TYPE_FLOWS)] += len([m for m in msgs if m.direction == 'I'])
-                    sys_label_counts[(org, SystemLabel.TYPE_SENT)] += len([m for m in msgs if m.direction == 'O'])
+                    r = {
+                        'org': org,
+                        'flow': flow,
+                        'contact_id': contact_id,
+                        'urn_id': urn_id,
+                        'created_on': get_time(0),
+                        'exit_type': template['exit_type'],
+                        'exited_on': get_time(10) if template['exit_type'] else None,
+                        'responded': template['responded'],
+                        'values': template['values'],
+                        'messages': [],
+                        'steps': [],
+                    }
 
-                FlowRun.objects.bulk_create(batch_runs)
-                Msg.objects.bulk_create(batch_msgs)
-                Value.objects.bulk_create(batch_values)
+                    msgs_by_tpl_id = {}
+                    for i, m in enumerate(template['messages']):
+                        msg = {'id': m['id'], 'direction': m['direction'], 'text': m['text'], 'time': get_time(i)}
+                        r['messages'].append(msg)
+                        msgs_by_tpl_id[m['id']] = msg
+                        sys_label = SystemLabel.TYPE_FLOWS if m['direction'] == 'I' else SystemLabel.TYPE_SENT
+                        sys_label_counts[(org, sys_label)] += 1
 
-                self._resync_fk_fields(batch_steps)
+                    for i, s in enumerate(template['steps']):
+                        r['steps'].append({'node': s['node'], 'time': get_time(i),
+                                           'messages': [msgs_by_tpl_id[m_id] for m_id in s['messages']]})
 
-                FlowStep.objects.bulk_create(batch_steps)
+                    flow_run_counts[(flow, r['exit_type'])] += 1
 
-                self._resync_fk_fields(batch_step_msgs)
+                    batch.append(r)
 
-                FlowStep.messages.through.objects.bulk_create(batch_step_msgs)
+                self.bulk_creator.create_runs(batch)
 
-                self._log(" > Created batch %d of %d\n" % (batch, max(num_runs // self.batch_size, 1)))
-                batch += 1
+                self._log(" > Created batch %d of %d\n" % (batch_num, max(num_runs // self.batch_size, 1)))
+                batch_num += 1
 
         # create flow run and system label counts
         run_counts = []
@@ -550,7 +517,7 @@ class Command(BaseCommand):
             label_counts.append(SystemLabel(org=org, label_type=label_type, count=count, is_squashed=True))
         SystemLabel.objects.bulk_create(label_counts)
 
-    def create_run_template(self, org, flow, test_contact, input_template):
+    def generate_run_template(self, org, flow, test_contact, input_template):
         """
         Runs a flow with a test contact to construct a template of the steps and values that are generated by a
         particular set of inputs
@@ -588,54 +555,21 @@ class Command(BaseCommand):
                 'string_value': value.string_value
             })
 
+        def message_as_json(m):
+            return {
+                'id': m.id,
+                'direction': m.direction,
+                'text': m.text,
+                'broadcast': {'text': m.broadcast.text} if m.broadcast else None
+            }
+
         return {
             'responded': run.responded,
             'exit_type': run.exit_type,
-            'messages': [{'id': m.id, 'direction': m.direction, 'text': m.text} for m in messages],
+            'messages': [message_as_json(m) for m in messages],
             'steps': steps,
             'values': values
         }
-
-    def create_run(self, org, flow, contact_id, urn_id, template, started_on):
-        def get_time(t):
-            return started_on + timedelta(seconds=t)
-
-        step_message_model = FlowStep.messages.through
-
-        run = FlowRun(org=org,
-                      flow=flow,
-                      contact_id=contact_id,
-                      created_on=get_time(0),
-                      exit_type=template['exit_type'],
-                      exited_on=get_time(10) if template['exit_type'] else None,
-                      responded=template['responded'])
-        msgs = []
-        values = []
-        steps = []
-        step_messages = []
-
-        msgs_by_tpl_id = {}
-        for i, m in enumerate(template['messages']):
-            msg = Msg(org=org, contact_id=contact_id, contact_urn_id=urn_id, text=m['text'],
-                      msg_type='F', direction=m['direction'],
-                      status='H' if m['direction'] == 'I' else 'S',
-                      created_on=get_time(i))
-            msgs.append(msg)
-            msgs_by_tpl_id[m['id']] = msg
-
-        for i, s in enumerate(template['steps']):
-            step = FlowStep(run=run, contact_id=contact_id, step_uuid=s['node'], arrived_on=get_time(i))
-            steps.append(step)
-
-            for m_id in s['messages']:
-                msg = msgs_by_tpl_id[m_id]
-                step_messages.append(step_message_model(flowstep=step, msg=msg))
-
-        for v in template['values']:
-            values.append(Value(org=org, contact_id=contact_id, run=run,
-                                rule_uuid=v['rule_uuid'], category=v['category'], string_value=v['string_value']))
-
-        return run, msgs, values, steps, step_messages
 
     def probability(self, prob):
         return self.random.random() < prob
@@ -685,23 +619,113 @@ class Command(BaseCommand):
             rusage_denom *= rusage_denom
         return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / rusage_denom
 
-    def _resync_fk_fields(self, objs):
-        """
-        If we create a transient object A with a field foo which is a foreign key to another transient object B, then we
-        need to save B so that it has a primary key before we can save A. However, even tho A.foo is B and B now has a
-        primary key, A.foo_id will still be none. This method finds related objects and sets the _id attributes
-        accordingly.
-        """
-        for obj in objs:
-            for field in type(obj)._meta.local_concrete_fields:
-                if isinstance(field, models.ForeignKey):
-                    rel_obj = getattr(obj, field.name)
-                    if rel_obj is not None:
-                        setattr(obj, field.get_attname(), rel_obj.id)
-
     def _log(self, text):
         self.stdout.write(text, ending='')
         self.stdout.flush()
+
+
+class BulkContentCreator(object):
+    def create_contacts(self, batch):
+        """
+        Bulk creates a batch of contacts from flat representations
+        """
+        for c in batch:
+            c['object'] = Contact(org=c['org'], name=c['name'], language=c['language'],
+                                  is_stopped=c['is_stopped'], is_blocked=c['is_blocked'],
+                                  is_active=c['is_active'],
+                                  created_by=c['user'], created_on=c['created_on'],
+                                  modified_by=c['user'], modified_on=c['modified_on'])
+        Contact.objects.bulk_create([c['object'] for c in batch])
+
+        # now that contacts have pks, bulk create the actual URN, value and group membership objects
+        batch_urns = []
+        batch_values = []
+        batch_memberships = []
+
+        for c in batch:
+            org = c['org']
+            c['urns'] = []
+
+            if c['tel']:
+                c['urns'].append(ContactURN(org=org, contact=c['object'], priority=50, scheme=TEL_SCHEME,
+                                            path=c['tel'], urn=URN.from_tel(c['tel'])))
+            if c['twitter']:
+                c['urns'].append(ContactURN(org=org, contact=c['object'], priority=50, scheme=TWITTER_SCHEME,
+                                            path=c['twitter'], urn=URN.from_twitter(c['twitter'])))
+            if c['gender']:
+                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['gender'],
+                                          string_value=c['gender']))
+            if c['age']:
+                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['age'],
+                                          string_value=str(c['age']), decimal_value=c['age']))
+            if c['joined']:
+                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['joined'],
+                                          string_value=datetime_to_str(c['joined']), datetime_value=c['joined']))
+            if c['ward']:
+                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['ward'],
+                                          string_value=c['ward'].name, location_value=c['ward']))
+            if c['district']:
+                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['district'],
+                                          string_value=c['district'].name, location_value=c['district']))
+            if c['state']:
+                batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['state'],
+                                          string_value=c['state'].name, location_value=c['state']))
+            for g in c['groups']:
+                batch_memberships.append(ContactGroup.contacts.through(contact=c['object'], contactgroup=g))
+
+            batch_urns += c['urns']
+
+        ContactURN.objects.bulk_create(batch_urns)
+        Value.objects.bulk_create(batch_values)
+        ContactGroup.contacts.through.objects.bulk_create(batch_memberships)
+
+    def create_runs(self, batch):
+        """
+        Bulk creates a batch of contacts from flat representations
+        """
+        for r in batch:
+            r['object'] = FlowRun(org=r['org'], flow=r['flow'], contact_id=r['contact_id'],
+                                  created_on=r['created_on'], exit_type=r['exit_type'],
+                                  exited_on=r['exited_on'], responded=r['responded'])
+        FlowRun.objects.bulk_create([r['object'] for r in batch])
+
+        batch_msgs = []
+        for r in batch:
+            for m in r['messages']:
+                m['object'] = Msg(org=r['org'], contact_id=r['contact_id'], contact_urn_id=r['urn_id'], text=m['text'],
+                                  msg_type='F', direction=m['direction'],
+                                  status='H' if m['direction'] == 'I' else 'S',
+                                  created_on=m['time'])
+                batch_msgs.append(m['object'])
+
+        Msg.objects.bulk_create(batch_msgs)
+
+        # now that runs have pks, bulk create values and step objects
+        batch_values = []
+        batch_steps = []
+
+        for r in batch:
+            for v in r['values']:
+                batch_values.append(Value(org=r['org'], run=r['object'], contact_id=r['contact_id'],
+                                          rule_uuid=v['rule_uuid'], category=v['category'],
+                                          string_value=v['string_value']))
+            for s in r['steps']:
+                s['object'] = FlowStep(run=r['object'], contact_id=r['contact_id'], step_uuid=s['node'],
+                                       arrived_on=s['time'])
+                batch_steps.append(s['object'])
+
+        Value.objects.bulk_create(batch_values)
+        FlowStep.objects.bulk_create(batch_steps)
+
+        # now that steps and messages have pk, bulk create step_messages
+        batch_step_msgs = []
+
+        for r in batch:
+            for s in r['steps']:
+                for m in s['messages']:
+                    batch_step_msgs.append(FlowStep.messages.through(flowstep=s['object'], msg=m['object']))
+
+        FlowStep.messages.through.objects.bulk_create(batch_step_msgs)
 
 
 class DisableTriggersOn(object):

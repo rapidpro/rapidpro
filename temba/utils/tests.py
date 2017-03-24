@@ -1461,7 +1461,7 @@ class MakeTestDBTest(SimpleTestCase):
         AdminBoundary.objects.all().delete()
 
     def test_command(self):
-        call_command('make_test_db', num_orgs=3, num_contacts=30, num_runs=20, seed=12345)
+        call_command('make_test_db', num_orgs=3, num_contacts=30, num_runs=20, seed=1234)
 
         org1, org2, org3 = tuple(Org.objects.order_by('id'))
 
@@ -1472,19 +1472,19 @@ class MakeTestDBTest(SimpleTestCase):
         assertOrgCounts(ContactField.objects.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
         assertOrgCounts(Contact.objects.filter(is_test=True), [4, 4, 4])  # 1 for each user
-        assertOrgCounts(Contact.objects.filter(is_test=False), [17, 8, 5])
+        assertOrgCounts(Contact.objects.filter(is_test=False), [17, 7, 6])
         assertOrgCounts(FlowRun.objects.filter(contact__is_test=True), [12, 12, 12])  # each input template per org
-        assertOrgCounts(FlowRun.objects.filter(contact__is_test=False), [15, 2, 3])
-        assertOrgCounts(Msg.objects.filter(contact__is_test=False), [19, 2, 3])
+        assertOrgCounts(FlowRun.objects.filter(contact__is_test=False), [10, 4, 6])
+        assertOrgCounts(Msg.objects.filter(contact__is_test=False), [12, 4, 8])
 
         org_1_all_contacts = ContactGroup.system_groups.get(org=org1, name="All Contacts")
 
         self.assertEqual(org_1_all_contacts.contacts.count(), 17)
         self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(17,)])
-        self.assertEqual(SystemLabel.get_counts(org1), {'I': 0, 'W': 2, 'A': 0, 'O': 0, 'S': 17, 'X': 0, 'E': 0, 'C': 0})
+        self.assertEqual(SystemLabel.get_counts(org1), {'I': 0, 'W': 1, 'A': 0, 'O': 0, 'S': 11, 'X': 0, 'E': 0, 'C': 0})
 
         # same seed should generate objects with same UUIDs
-        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, '4ea838f2-66db-cc44-5e62-2929af973c3d')
+        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'ea60312b-25f5-47a0-cac7-4fe0c2064f3e')
 
         # check can't be run again on a now non-empty database
         with self.assertRaises(CommandError):
