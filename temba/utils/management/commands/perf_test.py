@@ -67,9 +67,16 @@ TEST_URLS = (
     '/contact/filter/{first-group}/',
     '/contact/filter/{first-group}/?search=' + urlquote_plus('gender=F'),
     '/contact/filter/{last-group}/',
+    '/contact/omnibox/?search=',
     '/contact/omnibox/?search=George',
     '/contact/omnibox/?search=07009',
-    '/org/home/'
+    '/msg/inbox/',
+    '/msg/flow/',
+    '/msg/flow/?search=' + urlquote_plus('poots seattle'),
+    '/msg/archived/',
+    '/msg/outbox/',
+    '/msg/sent/',
+    '/org/home/',
 )
 
 

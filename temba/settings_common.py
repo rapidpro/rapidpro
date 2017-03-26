@@ -196,10 +196,12 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'django.contrib.humanize',
     'django.contrib.gis',
-
-    # django sitemaps
     'django.contrib.sitemaps',
 
+    # Haml-like templates
+    'hamlpy',
+
+    # Redis cache
     'redis',
 
     # mo-betta permission management
@@ -1235,3 +1237,9 @@ LIBRATO_TOKEN = os.environ.get('LIBRATO_TOKEN', '')
 # You need to change these to real addresses to work with these.
 # -----------------------------------------------------------------------------------
 IP_ADDRESSES = ('172.16.10.10', '162.16.10.20')
+
+# -----------------------------------------------------------------------------------
+# Installs may choose how big they want their text messages and contact fields to be
+# by default we use 640 chars or about 4 normal text messages
+# -----------------------------------------------------------------------------------
+MSG_FIELD_SIZE = 640

@@ -14,6 +14,7 @@ from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.db import IntegrityError
 from django.db.models import Q
+from django.db.models.functions import Upper
 from django.http import HttpResponseRedirect, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
@@ -28,8 +29,8 @@ from temba.values.models import Value
 from temba.utils import analytics, slugify_with, languages, datetime_to_ms, ms_to_datetime, on_transaction_commit
 from temba.utils.fields import Select2Field
 from temba.utils.views import BaseActionForm
-from .models import Contact, ContactGroup, ContactField, ContactURN, URN, URN_SCHEME_CONFIG, TEL_SCHEME
-from .models import ExportContactsTask
+from .models import Contact, ContactGroup, ContactGroupCount, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
+from .models import ExportContactsTask, TEL_SCHEME
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .search import SearchException
 from .tasks import export_contacts_task
@@ -123,7 +124,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         else:
             qs = group.contacts.all()
 
-        return qs.filter(is_test=False).order_by('-id').prefetch_related('all_groups')
+        return qs.filter(is_test=False).order_by('-id').prefetch_related('org', 'all_groups')
 
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
@@ -142,21 +143,29 @@ class ContactListView(OrgPermsMixin, SmartListView):
             dict(count=counts[ContactGroup.TYPE_STOPPED], label=_("Stopped"), url=reverse('contacts.contact_stopped')),
         ]
 
-        groups_qs = ContactGroup.user_groups.filter(org=org).select_related('org')
-        groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')
-        groups = [dict(pk=g.pk, uuid=g.uuid, label=g.name, count=g.get_member_count(), is_dynamic=g.is_dynamic) for g in groups_qs]
-
         # resolve the paginated object list so we can initialize a cache of URNs and fields
         contacts = list(context['object_list'])
         Contact.bulk_cache_initialize(org, contacts, for_show_only=True)
 
         context['contacts'] = contacts
-        context['groups'] = groups
+        context['groups'] = self.get_user_groups(org)
         context['folders'] = folders
         context['has_contacts'] = contacts or org.has_contacts()
         context['search_error'] = self.search_error
         context['send_form'] = SendMessageForm(self.request.user)
         return context
+
+    def get_user_groups(self, org):
+        groups = list(ContactGroup.user_groups.filter(org=org).select_related('org').order_by(Upper('name')))
+        group_counts = ContactGroupCount.get_totals(groups)
+
+        rendered = []
+        for g in groups:
+            rendered.append({
+                'pk': g.id, 'uuid': g.uuid, 'label': g.name, 'count': group_counts[g], 'is_dynamic': g.is_dynamic
+            })
+
+        return rendered
 
 
 class ContactActionForm(BaseActionForm):
@@ -647,19 +656,13 @@ class ContactCRUDL(SmartCRUDL):
             return reverse("contacts.contact_customize", args=[self.object.pk])
 
     class Omnibox(OrgPermsMixin, SmartListView):
-
+        paginate_by = 75
         fields = ('id', 'text')
 
         def get_queryset(self, **kwargs):
             org = self.derive_org()
 
             return omnibox_query(org, **{k: v for k, v in self.request.GET.items()})
-
-        def get_paginate_by(self, queryset):
-            if not self.request.GET.get('search', None):
-                return 200
-
-            return super(ContactCRUDL.Omnibox, self).get_paginate_by(queryset)
 
         def render_to_response(self, context, **response_kwargs):
             org = self.derive_org()
@@ -762,7 +765,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("msgs.broadcast_send"):
+            if self.has_org_perm("msgs.broadcast_send") and not self.object.is_blocked and not self.object.is_stopped:
                 links.append(dict(title=_('Send Message'),
                                   style='btn-primary',
                                   href='#',
@@ -873,6 +876,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.Blocked, self).get_context_data(*args, **kwargs)
             context['actions'] = ('unblock', 'delete') if self.has_org_perm("contacts.contact_delete") else ('unblock',)
+            context['reply_disabled'] = True
             return context
 
     class Stopped(ContactActionMixin, ContactListView):
@@ -883,6 +887,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.Stopped, self).get_context_data(*args, **kwargs)
             context['actions'] = ['block', 'unstop']
+            context['reply_disabled'] = True
             return context
 
     class Filter(ContactActionMixin, ContactListView):

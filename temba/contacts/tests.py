@@ -636,6 +636,47 @@ class ContactTest(TembaTest):
                                     data=dict(name='Ben Haggerty', urn__tel__0="="))
         self.assertFormError(response, 'form', 'urn__tel__0', "Invalid input")
 
+    def test_block_contact_clear_triggers(self):
+        flow = self.get_flow('favorites')
+        trigger = Trigger.objects.create(org=self.org, flow=flow, keyword="join", created_by=self.admin,
+                                         modified_by=self.admin)
+        trigger.contacts.add(self.joe)
+
+        trigger2 = Trigger.objects.create(org=self.org, flow=flow, keyword="register", created_by=self.admin,
+                                          modified_by=self.admin)
+        trigger2.contacts.add(self.joe)
+        trigger2.contacts.add(self.frank)
+        self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 2)
+
+        self.assertTrue(self.joe.trigger_set.all())
+
+        self.joe.block(self.admin)
+
+        self.assertFalse(self.joe.trigger_set.all())
+
+        self.assertEqual(Trigger.objects.filter(is_archived=True).count(), 1)
+        self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 1)
+
+    def test_stop_contact_clear_triggers(self):
+        flow = self.get_flow('favorites')
+        trigger = Trigger.objects.create(org=self.org, flow=flow, keyword="join", created_by=self.admin,
+                                         modified_by=self.admin)
+        trigger.contacts.add(self.joe)
+
+        trigger2 = Trigger.objects.create(org=self.org, flow=flow, keyword="register", created_by=self.admin,
+                                          modified_by=self.admin)
+        trigger2.contacts.add(self.joe)
+        trigger2.contacts.add(self.frank)
+        self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 2)
+
+        self.assertTrue(self.joe.trigger_set.all())
+
+        self.joe.stop(self.admin)
+
+        self.assertFalse(self.joe.trigger_set.all())
+        self.assertEqual(Trigger.objects.filter(is_archived=True).count(), 1)
+        self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 1)
+
     def test_fail_and_block_and_release(self):
         msg1 = self.create_msg(text="Test 1", direction='I', contact=self.joe, msg_type='I', status='H')
         msg2 = self.create_msg(text="Test 2", direction='I', contact=self.joe, msg_type='F', status='H')
@@ -952,6 +993,12 @@ class ContactTest(TembaTest):
         self.assertEqual(parse_query('will'), ContactQuery(Condition('*', '=', 'will')))
 
         # boolean combinations of implicit conditions
+        self.assertEqual(parse_query('will felix', optimize=False), ContactQuery(
+            BoolCombination(BoolCombination.AND, Condition('*', '=', 'will'), Condition('*', '=', 'felix'))
+        ))
+        self.assertEqual(parse_query('will felix'), ContactQuery(
+            SinglePropCombination('*', BoolCombination.AND, Condition('*', '=', 'will'), Condition('*', '=', 'felix'))
+        ))
         self.assertEqual(parse_query('will and felix', optimize=False), ContactQuery(
             BoolCombination(BoolCombination.AND, Condition('*', '=', 'will'), Condition('*', '=', 'felix'))
         ))
@@ -1082,12 +1129,13 @@ class ContactTest(TembaTest):
         def q(query):
             return Contact.search(self.org, query).count()
 
-        # non-complex queries
+        # implicit property queries (name or URN path)
         self.assertEqual(q('trey'), 23)
         self.assertEqual(q('MIKE'), 23)
         self.assertEqual(q('  paige  '), 22)
         self.assertEqual(q('fish'), 22)
-        self.assertEqual(q('0788382011'), 1)  # does a contains
+        self.assertEqual(q('0788382011'), 1)
+        self.assertEqual(q('trey 0788382'), 23)
 
         # name as property
         self.assertEqual(q('name is "trey"'), 23)
@@ -1327,6 +1375,20 @@ class ContactTest(TembaTest):
 
             # but not by frank number
             self.assertEqual(omnibox_request("search=222"), [])
+
+        # exclude blocked and stopped contacts
+        self.joe.block(self.admin)
+        self.frank.stop(self.admin)
+
+        # lookup by contact uuids
+        self.assertEqual(omnibox_request("c=%s,%s" % (self.joe.uuid, self.frank.uuid)), [])
+
+        # but still lookup by URN ids
+        urn_query = "u=%d,%d" % (self.joe.get_urn(TWITTER_SCHEME).pk, self.frank.get_urn(TEL_SCHEME).pk)
+        self.assertEqual(omnibox_request(urn_query), [
+            dict(id='u-%d' % frank_tel.pk, text="0782 222 222", extra="Frank Smith", scheme='tel'),
+            dict(id='u-%d' % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme='twitter')
+        ])
 
     def test_history(self):
         url = reverse('contacts.contact_history', args=[self.joe.uuid])
@@ -2431,6 +2493,10 @@ class ContactTest(TembaTest):
         self.assertEquals(1, Contact.objects.filter(name='Nic Pottier').count())
         self.assertEquals(1, Contact.objects.filter(name='Jen Newcomer').count())
 
+        # eric opts out
+        eric = Contact.objects.get(name='Eric Newcomer')
+        eric.stop(self.admin)
+
         jen_pk = Contact.objects.get(name='Jen Newcomer').pk
 
         # import again, should be no more records
@@ -2440,6 +2506,13 @@ class ContactTest(TembaTest):
         # But there should be another group
         self.assertEquals(2, len(ContactGroup.user_groups.all()))
         self.assertEquals(1, ContactGroup.user_groups.filter(name="Sample Contacts 2").count())
+
+        # assert eric didn't get added to a group
+        eric.refresh_from_db()
+        self.assertEqual(0, eric.user_groups.count())
+
+        # ok, unstop eric
+        eric.unstop(self.admin)
 
         # update file changes a name, and adds one more
         records = self.do_import(user, 'sample_contacts_update.csv')

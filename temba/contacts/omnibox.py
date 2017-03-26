@@ -1,14 +1,17 @@
 from __future__ import unicode_literals
 
-from collections import namedtuple
-from django.db.models import Count
-from temba.contacts.models import Contact, ContactGroup, ContactURN
-from temba.msgs.models import Label
-from temba.utils import PageableQuery
+import operator
 
-RESULT_TYPE_GROUP = 1
-RESULT_TYPE_CONTACT = 2
-RESULT_TYPE_URN = 3
+from django.db.models import Q
+from django.db.models.functions import Upper
+from temba.contacts.models import Contact, ContactGroup, ContactGroupCount, ContactURN
+from temba.msgs.models import Label
+from six.moves import reduce
+
+SEARCH_ALL_GROUPS = 'g'
+SEARCH_STATIC_GROUPS = 's'
+SEARCH_CONTACTS = 'c'
+SEARCH_URNS = 'u'
 
 
 def omnibox_query(org, **kwargs):
@@ -23,12 +26,12 @@ def omnibox_query(org, **kwargs):
     group_uuids = kwargs.get('g', None)    # groups with ids
     urn_ids = kwargs.get('u', None)      # URNs with ids
     search = kwargs.get('search', None)  # search of groups, contacts and URNs
-    types = kwargs.get('types', None)    # limit search to types (g | s | c | u)
+    types = list(kwargs.get('types', ''))    # limit search to types (g | s | c | u)
     simulation = kwargs.get('simulation', 'false') == 'true'
 
     # these lookups return a Contact queryset
     if contact_uuids or step_uuid or message_ids or label_id:
-        qs = Contact.objects.filter(org=org, is_blocked=False, is_active=True, is_test=simulation)
+        qs = Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True, is_test=simulation)
 
         if contact_uuids:
             qs = qs.filter(uuid__in=contact_uuids.split(","))
@@ -51,8 +54,7 @@ def omnibox_query(org, **kwargs):
 
     # this lookup returns a ContactGroup queryset
     elif group_uuids:
-        qs = ContactGroup.user_groups.filter(org=org, uuid__in=group_uuids.split(","))
-        return qs.annotate(members=Count('contacts')).order_by('name')
+        return ContactGroup.user_groups.filter(org=org, uuid__in=group_uuids.split(",")).order_by('name')
 
     # this lookup returns a ContactURN queryset
     elif urn_ids:
@@ -63,91 +65,66 @@ def omnibox_query(org, **kwargs):
     return omnibox_mixed_search(org, search, types)
 
 
+def term_search(queryset, fields, terms):
+    term_queries = []
+    for term in terms:
+        field_queries = []
+        for field in fields:
+            field_queries.append(Q(**{field: term}))
+        term_queries.append(reduce(operator.or_, field_queries))
+
+    return queryset.filter(reduce(operator.and_, term_queries))
+
+
 def omnibox_mixed_search(org, search, types):
     """
-    Performs a mixed group, contact and URN search, returning a page-able query
+    Performs a mixed group, contact and URN search, returning the first N matches of each type.
     """
-    from temba.channels.models import Channel
+    search_terms = search.split(' ') if search else None
+    search_types = types or (SEARCH_ALL_GROUPS, SEARCH_CONTACTS, SEARCH_URNS)
+    per_type_limit = 25
+    results = []
 
-    search_terms = search.split(" ") if search else None
+    if SEARCH_ALL_GROUPS in search_types or SEARCH_STATIC_GROUPS in search_types:
+        groups = ContactGroup.user_groups.filter(org=org, is_active=True)
 
-    if not types:
-        types = 'gcu'
+        # exclude dynamic groups if not searching all groups
+        if SEARCH_ALL_GROUPS not in search_types:
+            groups = groups.filter(query=None)
 
-    # only include URNs that are send-able
-    allowed_schemes = list(org.get_schemes(Channel.ROLE_SEND)) if not org.is_anon else None
+        if search:
+            groups = term_search(groups, ('name__icontains',), search_terms)
 
-    def add_search(col, _clauses, _params, by_id=False):
-        """
-        Adds a text search clause to the current query
-        """
-        term_clauses = []
+        results += list(groups.order_by(Upper('name'))[:per_type_limit])
 
-        join_op = ' AND '
-        for term in search_terms:
-            term_clauses.append(col + " ILIKE %s")
-            _params.append(r'%' + term + r'%')
+    if SEARCH_CONTACTS in search_types:
+        contacts = Contact.objects.filter(org=org, is_active=True, is_blocked=False, is_stopped=False, is_test=False)
 
-            # if this is an anonymous org, maybe they are querying by id
-            if by_id:
-                try:
-                    join_op = ' OR '
-                    term_as_int = int(term)
-                    term_clauses.append("id = %s")
-                    _params.append(term_as_int)
-                except ValueError:  # pragma: needs cover
-                    pass
+        try:
+            search_id = int(search)
+        except (ValueError, TypeError):
+            search_id = None
 
-        _clauses.append('AND (' + join_op.join(term_clauses) + ')')
+        if org.is_anon and search_id is not None:
+            contacts = contacts.filter(id=search_id)
+        elif search:
+            contacts = term_search(contacts, ('name__icontains',), search_terms)
 
-    # each unionised select returns 4 columns:
-    # 1. id (prefixed with the type letter)
-    # 2. text
-    # 3. owner (contact name for URNs)
-    # 4. scheme (only used for URNs)
+        results += list(contacts.order_by(Upper('name'))[:per_type_limit])
 
-    union_queries = []
-    query_component = namedtuple('query_component', 'clauses params')
+    if SEARCH_URNS in search_types:
+        # only include URNs that are send-able
+        from temba.channels.models import Channel
+        allowed_schemes = org.get_schemes(Channel.ROLE_SEND) if not org.is_anon else []
 
-    if 'g' in types or 's' in types:
-        group_query = """SELECT 1 AS type, g.uuid AS id, g.name AS text, NULL AS owner, NULL AS scheme
-                         FROM contacts_contactgroup g
-                         WHERE g.is_active = TRUE AND g.group_type = 'U' AND g.org_id = %s"""
+        urns = ContactURN.objects.filter(org=org, scheme__in=allowed_schemes).exclude(contact=None)
 
-        # do we include non-static groups?
-        if 'g' not in types:
-            group_query += " AND g.query IS NULL"
+        if search:
+            urns = term_search(urns, ('path__icontains',), search_terms)
 
-        clauses = [group_query]
-        params = [org.pk]
-        if search_terms:
-            add_search('name', clauses, params)
-        union_queries.append(query_component(clauses, params))
+        results += list(urns.prefetch_related('contact').order_by(Upper('path'))[:per_type_limit])
 
-    if 'c' in types:
-        clauses = ["""SELECT 2 AS type, c.uuid AS id, c.name AS text, NULL AS owner, NULL AS scheme
-                      FROM contacts_contact c
-                      WHERE c.is_active = TRUE AND c.is_blocked = FALSE AND c.is_test = FALSE AND c.org_id = %s"""]
-        params = [org.pk]
-        if search_terms:
-            add_search('name', clauses, params, org.is_anon)
-        union_queries.append(query_component(clauses, params))
-
-    if 'u' in types and not org.is_anon and allowed_schemes:
-        clauses = ["""SELECT 3 AS type, cast(cu.id as text) AS id, cu.path AS text, c.name AS owner, cu.scheme AS scheme
-                      FROM contacts_contacturn cu
-                      INNER JOIN contacts_contact c ON c.id = cu.contact_id
-                      WHERE cu.org_id = %s AND cu.scheme = ANY(%s)"""]
-        params = [org.pk, allowed_schemes]
-        if search_terms:
-            add_search('path', clauses, params)
-        union_queries.append(query_component(clauses, params))
-
-    # join all clauses and gather master list of parameters
-    sql = ' UNION ALL '.join([' '.join(s.clauses) for s in union_queries])
-    params = [p for s in union_queries for p in s.params]
-
-    return PageableQuery(sql, ('type', 'text'), params)
+    return results  # sorted(results, key=lambda o: o.name if hasattr(o, 'name') else o.path)
 
 
 def omnibox_results_to_dict(org, results):
@@ -156,39 +133,28 @@ def omnibox_results_to_dict(org, results):
     """
     formatted = []
 
+    groups = [r for r in results if isinstance(r, ContactGroup)]
+    group_counts = ContactGroupCount.get_totals(groups) if groups else {}
+
     for obj in results:
-        result = {}
-
-        if isinstance(obj, dict):
-            _id, text = obj['id'], obj['text']
-
-            if obj['type'] == RESULT_TYPE_GROUP:
-                result['id'] = 'g-%s' % _id
-                result['text'] = text
-                result['extra'] = ContactGroup.user_groups.get(uuid=_id).get_member_count()
-            elif obj['type'] == RESULT_TYPE_CONTACT:
-                result['id'] = 'c-%s' % _id
-                if not text:
-                    result['text'] = Contact.objects.get(uuid=_id).get_display(org)
-                else:
-                    result['text'] = text
-            elif obj['type'] == RESULT_TYPE_URN:
-                result['id'] = 'u-%s' % _id
-                result['text'] = text
-                result['extra'] = obj['owner']
-                result['scheme'] = obj['scheme']
-        elif isinstance(obj, ContactGroup):
-            result['id'] = 'g-%s' % obj.uuid
-            result['text'] = obj.name
-            result['extra'] = obj.members
+        if isinstance(obj, ContactGroup):
+            result = {
+                'id': 'g-%s' % obj.uuid,
+                'text': obj.name,
+                'extra': group_counts[obj]
+            }
         elif isinstance(obj, Contact):
-            result['id'] = 'c-%s' % obj.uuid
-            result['text'] = obj.get_display(org)
+            result = {
+                'id': 'c-%s' % obj.uuid,
+                'text': obj.get_display(org)
+            }
         elif isinstance(obj, ContactURN):
-            result['id'] = 'u-%d' % obj.pk
-            result['text'] = obj.get_display(org)
-            result['extra'] = obj.contact.get_display(org)
-            result['scheme'] = obj.scheme
+            result = {
+                'id': 'u-%d' % obj.id,
+                'text': obj.get_display(org),
+                'extra': obj.contact.name or None,
+                'scheme': obj.scheme
+            }
 
         formatted.append(result)
 

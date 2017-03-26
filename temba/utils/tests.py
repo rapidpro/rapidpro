@@ -15,7 +15,6 @@ from django.contrib.auth.models import User, Group
 from django.core import mail
 from django.core.management import call_command, CommandError
 from django.core.urlresolvers import reverse
-from django.core.paginator import Paginator
 from django.test import override_settings, SimpleTestCase
 from django.utils import timezone
 from django_redis import get_redis_connection
@@ -23,11 +22,13 @@ from mock import patch, PropertyMock
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.locations.models import AdminBoundary
+from temba.msgs.models import Msg, SystemLabel
+from temba.flows.models import FlowRun
 from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, date_to_utc_range, truncate, random_string
-from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
+from . import json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, non_atomic_gets, clean_string
 from . import datetime_to_str, chunk_list, get_country_code_by_name, datetime_to_epoch, voicexml
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
@@ -660,45 +661,6 @@ class QueueTest(TembaTest):
         mock_redis_get.assert_called_once_with('celery-task-lock:test_task1')
         self.assertEqual(mock_redis_lock.call_count, 0)
         self.assertEqual(task_calls, ['1-11-12', '2-21-22', '3-31-32'])
-
-
-class PageableQueryTest(TembaTest):
-    def setUp(self):
-        TembaTest.setUp(self)
-
-        self.joe = self.create_contact("Joe Blow", "1234", "blow80")
-        self.frank = self.create_contact("Frank Smith", "2345")
-        self.mary = self.create_contact("Mary Jo", "3456")
-        self.anne = self.create_contact("Anne Smith", "4567")
-        self.billy = self.create_contact("Billy Joel")
-
-    def test_query(self):
-        def assertResultNames(names, result):
-            self.assertEqual(names, [r['name'] for r in result])
-
-        def assertPage(names, has_next, page):
-            assertResultNames(names, page)
-            self.assertEqual(has_next, page.has_next())
-
-        # simple parameterless select
-        query = PageableQuery("SELECT * FROM contacts_contact", ('name',), ())
-        self.assertEqual(5, query.count())
-        self.assertEqual(5, len(query))
-        assertResultNames(["Anne Smith", "Billy Joel"], query[0:2])
-        assertResultNames(["Frank Smith", "Joe Blow"], query[2:4])
-        assertResultNames(["Mary Jo"], query[4:6])
-
-        # check use with paginator
-        paginator = Paginator(query, 2)
-        assertPage(["Anne Smith", "Billy Joel"], True, paginator.page(1))
-        assertPage(["Frank Smith", "Joe Blow"], True, paginator.page(2))
-        assertPage(["Mary Jo"], False, paginator.page(3))
-
-        # select with parameter
-        query = PageableQuery("SELECT * FROM contacts_contact WHERE name ILIKE %s", ('name',), ('%jo%',))
-        paginator = Paginator(query, 2)
-        assertPage(["Billy Joel", "Joe Blow"], True, paginator.page(1))
-        assertPage(["Mary Jo"], False, paginator.page(2))
 
 
 class ExpressionsTest(TembaTest):
@@ -1502,29 +1464,39 @@ class MakeTestDBTest(SimpleTestCase):
     allow_database_queries = True
 
     def tearDown(self):
+        Msg.objects.all().delete()
+        FlowRun.objects.all().delete()
+        SystemLabel.objects.all().delete()
         Org.objects.all().delete()
         User.objects.all().delete()
         Group.objects.all().delete()
         AdminBoundary.objects.all().delete()
 
     def test_command(self):
-        call_command('make_test_db', num_orgs=2, num_contacts=12, seed=123456)
+        call_command('make_test_db', num_orgs=3, num_contacts=30, num_runs=20, seed=1234)
 
-        org_1, org_2 = list(Org.objects.order_by('id'))
+        org1, org2, org3 = tuple(Org.objects.order_by('id'))
 
-        self.assertEqual(User.objects.count(), 10)  # 4 for each org + superuser + anonymous
-        self.assertEqual(ContactField.objects.count(), 12)  # 6 per org
-        self.assertEqual(ContactGroup.user_groups.count(), 20)  # 10 per org
-        self.assertEqual(Contact.objects.filter(is_test=True).count(), 8)  # 1 for each user
-        self.assertEqual(Contact.objects.filter(is_test=False).count(), 4)
+        def assertOrgCounts(qs, counts):
+            self.assertEqual([qs.filter(org=o).count() for o in (org1, org2, org3)], counts)
 
-        org_1_all_contacts = ContactGroup.system_groups.get(org=org_1, name="All Contacts")
+        self.assertEqual(User.objects.count(), 15)  # 4 for each org + superuser + anonymous + flow user
+        assertOrgCounts(ContactField.objects.all(), [6, 6, 6])
+        assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
+        assertOrgCounts(Contact.objects.filter(is_test=True), [4, 4, 4])  # 1 for each user
+        assertOrgCounts(Contact.objects.filter(is_test=False), [17, 7, 6])
+        assertOrgCounts(FlowRun.objects.filter(contact__is_test=True), [12, 12, 12])  # each input template per org
+        assertOrgCounts(FlowRun.objects.filter(contact__is_test=False), [10, 4, 6])
+        assertOrgCounts(Msg.objects.filter(contact__is_test=False), [12, 4, 8])
 
-        self.assertEqual(org_1_all_contacts.contacts.count(), 3)
-        self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(3,)])
+        org_1_all_contacts = ContactGroup.system_groups.get(org=org1, name="All Contacts")
+
+        self.assertEqual(org_1_all_contacts.contacts.count(), 17)
+        self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(17,)])
+        self.assertEqual(SystemLabel.get_counts(org1), {'I': 0, 'W': 1, 'A': 0, 'O': 0, 'S': 11, 'X': 0, 'E': 0, 'C': 0})
 
         # same seed should generate objects with same UUIDs
-        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'cec602da-1406-e378-df14-b8d4a99b7cc4')
+        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'ea60312b-25f5-47a0-cac7-4fe0c2064f3e')
 
         # check can't be run again on a now non-empty database
         with self.assertRaises(CommandError):

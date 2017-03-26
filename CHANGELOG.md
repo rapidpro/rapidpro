@@ -1,20 +1,48 @@
+v3.0.87
+----------
+ * Set higher priority when sending responses through Kannel
+
+v3.0.86
+----------
+ * Do not add stopped contacts to groups when importing
+ * Fix an entire flow start batch failing if one run throws an exception
+ * Limit images file size to be less than 500kB
+ * Send Facebook message attachments in a different request as the text message
+ * Include skuid for open range tranfertto accounts
+
+v3.0.85
+----------
+ * Fix exception when handling Viber msg with no text
+ * Migration to remove no longer used ContactGroup.count
+ * Fix search queries like 'foo bar' where there are more than one condition on name/URN
+ * Add indexes for Contact.name and ContactURN.path
+ * Replace current omnibox search function with faster and simpler top-25-of-each-type approach
+
+v3.0.84
+----------
+ * Fix Line, FCM icons, add Junebug icon
+
+v3.0.83
+----------
+ * Render missing field and URN values as "--" rather than "None" on Contact list page
+
+v3.0.82
+----------
+ * Add ROLE_USSD
+ * Add Junebug USSD Channel
+ * Fix Vumi USSD to use USSD Role
+
+v3.0.81
+----------
+ * Archive triggers that do not have a contact to send to
+ * Disable sending of messages for blocked and stopped contacts
+
 v3.0.80
 ----------
  * Add support for outbound media on reply messages for Twilio MMS (US, CA), Telegram, and Facebook
- * Allow excel import filename that we can successfully upload to S3 as key
- * Reject viber message missing text
  * Do not throw when viber sends us message missing the media
- * Remove no longer used Contact.get_contactsy
- * Fix redirect after contact export so it goes back to current search
- * Include search in contact export and cleanup tests
- * Make sure the channel is active and has an org before getting its IVR client
+ * Optimizations around Contact searching
  * Send flow UUID with webhook flow events
- * Include org maximum in results html
- * Allow removing and adding attachments in action editor
- * File types in media fields
- * Fix css errors and use ng-src for attachment viewer
- * Fix media type for contact history
- * Refactor to not break multi parts messages
 
 v3.0.78
 ----------

@@ -33,7 +33,7 @@ from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING, DELIVERED
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, SENT, Label, PENDING, DELIVERED, USSD as MSG_TYPE_USSD
 from temba.msgs.models import OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
@@ -1448,7 +1448,6 @@ class Flow(TembaModel):
 
         all_contact_ids = Contact.all().filter(Q(all_groups__in=group_qs) | Q(pk__in=contact_qs))
         all_contact_ids = all_contact_ids.only('is_test').order_by('pk').values_list('pk', flat=True).distinct('pk')
-
         if not restart_participants:
             # exclude anybody who has already participated in the flow
             already_started = set(self.runs.all().values_list('contact_id', flat=True))
@@ -1522,7 +1521,7 @@ class Flow(TembaModel):
             if not session:
                 contact = Contact.objects.filter(pk=contact_id, org=self.org).first()
                 contact_urn = contact.get_urn(TEL_SCHEME)
-                channel = self.org.get_send_channel(contact_urn=contact_urn)
+                channel = self.org.get_ussd_channel(contact_urn=contact_urn)
 
                 session = USSDSession.objects.create(channel=channel, contact=contact, contact_urn=contact_urn,
                                                      org=self.org, direction=USSDSession.USSD_PUSH,
@@ -1539,7 +1538,6 @@ class Flow(TembaModel):
                 entry_rule = RuleSet.objects.filter(uuid=self.entry_uuid).first()
 
                 step = self.add_step(run, entry_rule, is_start=True, arrived_on=timezone.now())
-
                 if entry_rule.is_ussd():
                     # create an empty placeholder message
                     msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
@@ -1766,52 +1764,65 @@ class Flow(TembaModel):
             run_msgs = message_map.get(contact_id, [])
             arrived_on = timezone.now()
 
-            if entry_actions:
-                run_msgs += entry_actions.execute_actions(run, start_msg, started_flows_by_contact,
-                                                          skip_leading_reply_actions=not optimize_sending_action)
+            try:
+                if entry_actions:
+                    run_msgs += entry_actions.execute_actions(run, start_msg, started_flows_by_contact,
+                                                              skip_leading_reply_actions=not optimize_sending_action)
 
-                step = self.add_step(run, entry_actions, run_msgs, is_start=True, arrived_on=arrived_on)
+                    step = self.add_step(run, entry_actions, run_msgs, is_start=True, arrived_on=arrived_on)
 
-                # and onto the destination
-                if entry_actions.destination:
-                    destination = Flow.get_node(entry_actions.flow,
-                                                entry_actions.destination,
-                                                entry_actions.destination_type)
+                    # and onto the destination
+                    if entry_actions.destination:
+                        destination = Flow.get_node(entry_actions.flow,
+                                                    entry_actions.destination,
+                                                    entry_actions.destination_type)
 
-                    next_step = self.add_step(run, destination, previous_step=step)
+                        next_step = self.add_step(run, destination, previous_step=step)
 
-                    msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
-                    handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
-                                                                 is_test_contact=simulation, trigger_send=False)
-                    run_msgs += step_msgs
+                        msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
+                        handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
+                                                                     is_test_contact=simulation, trigger_send=False)
+                        run_msgs += step_msgs
 
-                else:
-                    run.set_completed(final_step=step)
+                    else:
+                        run.set_completed(final_step=step)
 
-            elif entry_rules:
-                step = self.add_step(run, entry_rules, run_msgs, is_start=True, arrived_on=arrived_on)
+                elif entry_rules:
+                    step = self.add_step(run, entry_rules, run_msgs, is_start=True, arrived_on=arrived_on)
 
-                # if we have a start message, go and handle the rule
+                    # if we have a start message, go and handle the rule
+                    if start_msg:
+                        Flow.find_and_handle(start_msg, started_flows_by_contact, triggered_start=True)
+
+                    # if we didn't get an incoming message, see if we need to evaluate it passively
+                    elif not entry_rules.is_pause() or entry_rules.is_ussd():
+                        # create an empty placeholder message
+                        msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
+                        handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False)
+                        run_msgs += step_msgs
+
                 if start_msg:
-                    Flow.find_and_handle(start_msg, started_flows_by_contact, triggered_start=True)
+                    step.add_message(start_msg)
 
-                # if we didn't get an incoming message, see if we need to evaluate it passively
-                elif not entry_rules.is_pause() or entry_rules.is_ussd():
-                    # create an empty placeholder message
-                    msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
-                    handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False)
-                    run_msgs += step_msgs
+                # set the msgs that were sent by this run so that any caller can deal with them
+                run.start_msgs = run_msgs
+                runs.append(run)
 
-            if start_msg:
-                step.add_message(start_msg)
+                # add these messages as ones that are ready to send
+                for msg in run_msgs:
+                    msgs.append(msg)
 
-            # set the msgs that were sent by this run so that any caller can deal with them
-            run.start_msgs = run_msgs
-            runs.append(run)
+            except Exception:
+                logger.error('Failed starting flow %d for contact %d' % (self.id, contact_id), exc_info=1, extra={'stack': True})
 
-            # add these messages as ones that are ready to send
-            for msg in run_msgs:
-                msgs.append(msg)
+                # mark this flow as interrupted
+                run.set_interrupted()
+
+                # mark our messages as failed
+                Msg.objects.filter(id__in=[m.id for m in run_msgs]).update(status=FAILED)
+
+                # remove our msgs from our parent's concerns
+                run.start_msgs = []
 
         # trigger our messages to be sent
         if msgs and not parent_run:
@@ -2613,7 +2624,7 @@ class FlowRun(models.Model):
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
         if isinstance(fields, six.string_types):
-            return fields[:640], count + 1
+            return fields[:Msg.MAX_SIZE], count + 1
 
         elif isinstance(fields, numbers.Number):
             return fields, count + 1
@@ -2966,7 +2977,7 @@ class FlowStep(models.Model):
     rule_category = models.CharField(max_length=36, null=True,
                                      help_text=_("The category label that matched on this ruleset, null on ActionSets"))
 
-    rule_value = models.CharField(max_length=640, null=True,
+    rule_value = models.CharField(max_length=Msg.MAX_SIZE, null=True,
                                   help_text=_("The value that was matched in our category for this ruleset, null on ActionSets"))
 
     rule_decimal_value = models.DecimalField(max_digits=36, decimal_places=8, null=True,
@@ -3100,7 +3111,7 @@ class FlowStep(models.Model):
 
         if value is None:
             value = ''
-        self.rule_value = six.text_type(value)[:640]
+        self.rule_value = six.text_type(value)[:Msg.MAX_SIZE]
 
         if isinstance(value, Decimal):
             self.rule_decimal_value = value
@@ -3501,7 +3512,7 @@ class RuleSet(models.Model):
         return None, None
 
     def save_run_value(self, run, rule, value):
-        value = six.text_type(value)[:640]
+        value = six.text_type(value)[:Msg.MAX_SIZE]
         location_value = None
         dec_value = None
         dt_value = None
@@ -4258,7 +4269,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
                     # write our contact fields if any
                     for cf in contact_fields:
-                        field_value = Contact.get_field_display_for_value(cf, run_step.contact.get_field(cf.key.lower()))
+                        field_value = Contact.get_field_display_for_value(cf, run_step.contact.get_field(cf.key.lower()), org)
                         if field_value is None:
                             field_value = ''
 
@@ -5085,6 +5096,7 @@ class ReplyAction(Action):
     """
     TYPE = 'reply'
     MESSAGE = 'msg'
+    MSG_TYPE = None
     MEDIA = 'media'
 
     def __init__(self, msg=None, media=None):
@@ -5137,10 +5149,10 @@ class ReplyAction(Action):
                 try:
                     if msg:
                         reply = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session,
-                                          media=media)
+                                          media=media, msg_type=self.MSG_TYPE)
                     else:
                         reply = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                                 session=run.session, media=media)
+                                                 session=run.session, msg_type=self.MSG_TYPE, media=media)
                 except UnreachableException:
                     pass
 
@@ -5157,6 +5169,7 @@ class UssdAction(ReplyAction):
     MESSAGE = 'ussd_message'
     TYPE_WAIT_USSD_MENU = 'wait_menu'
     TYPE_WAIT_USSD = 'wait_ussd'
+    MSG_TYPE = MSG_TYPE_USSD
 
     def __init__(self, msg=None, base_language=None, languages=None, primary_language=None):
         super(UssdAction, self).__init__(msg)
@@ -5608,7 +5621,7 @@ class SaveToContactAction(Action):
                     contact.update_urns(user, urns)
 
         else:
-            new_value = value[:640]
+            new_value = value[:Msg.MAX_SIZE]
             contact.set_field(user, self.field, new_value)
             self.logger(run, new_value)
 

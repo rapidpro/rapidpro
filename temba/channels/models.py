@@ -77,6 +77,7 @@ class Channel(TembaModel):
     TYPE_INFOBIP = 'IB'
     TYPE_JASMIN = 'JS'
     TYPE_JUNEBUG = 'JN'
+    TYPE_JUNEBUG_USSD = 'JNU'
     TYPE_KANNEL = 'KN'
     TYPE_LINE = 'LN'
     TYPE_M3TECH = 'M3'
@@ -139,6 +140,9 @@ class Channel(TembaModel):
     ROLE_RECEIVE = 'R'
     ROLE_CALL = 'C'
     ROLE_ANSWER = 'A'
+    ROLE_USSD = 'U'
+
+    DEFAULT_ROLE = ROLE_SEND + ROLE_RECEIVE
 
     # how many outgoing messages we will queue at once
     SEND_QUEUE_DEPTH = 500
@@ -187,6 +191,7 @@ class Channel(TembaModel):
         TYPE_INFOBIP: dict(scheme='tel', max_length=1600),
         TYPE_JASMIN: dict(scheme='tel', max_length=1600),
         TYPE_JUNEBUG: dict(scheme='tel', max_length=1600),
+        TYPE_JUNEBUG_USSD: dict(scheme='tel', max_length=1600),
         TYPE_KANNEL: dict(scheme='tel', max_length=1600),
         TYPE_LINE: dict(scheme='line', max_length=1600),
         TYPE_M3TECH: dict(scheme='tel', max_length=160),
@@ -226,6 +231,7 @@ class Channel(TembaModel):
                     (TYPE_INFOBIP, "Infobip"),
                     (TYPE_JASMIN, "Jasmin"),
                     (TYPE_JUNEBUG, "Junebug"),
+                    (TYPE_JUNEBUG_USSD, "Junebug USSD"),
                     (TYPE_KANNEL, "Kannel"),
                     (TYPE_LINE, "Line"),
                     (TYPE_M3TECH, "M3 Tech"),
@@ -250,7 +256,7 @@ class Channel(TembaModel):
                     (TYPE_ZENVIA, "Zenvia"))
 
     # list of all USSD channels
-    USSD_CHANNELS = [TYPE_VUMI_USSD]
+    USSD_CHANNELS = [TYPE_VUMI_USSD, TYPE_JUNEBUG_USSD]
 
     TWIML_CHANNELS = [TYPE_TWILIO, TYPE_VERBOICE, TYPE_TWIML]
 
@@ -303,7 +309,7 @@ class Channel(TembaModel):
     scheme = models.CharField(verbose_name="URN Scheme", max_length=8, default='tel',
                               help_text=_("The URN scheme this channel can handle"))
 
-    role = models.CharField(verbose_name="Channel Role", max_length=4, default=ROLE_SEND + ROLE_RECEIVE,
+    role = models.CharField(verbose_name="Channel Role", max_length=4, default=DEFAULT_ROLE,
                             help_text=_("The roles this channel can fulfill"))
 
     parent = models.ForeignKey('self', blank=True, null=True,
@@ -313,7 +319,7 @@ class Channel(TembaModel):
                            help_text=_("Any channel specific state data"))
 
     @classmethod
-    def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=ROLE_SEND + ROLE_RECEIVE, scheme=None, **kwargs):
+    def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=DEFAULT_ROLE, scheme=None, **kwargs):
         type_settings = Channel.CHANNEL_SETTINGS[channel_type]
         fixed_scheme = type_settings.get('scheme')
 
@@ -421,7 +427,7 @@ class Channel(TembaModel):
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number,
-                                           username, password, channel_type, url):
+                                           username, password, channel_type, url, role=DEFAULT_ROLE):
         try:
             parsed = phonenumbers.parse(phone_number, None)
             phone = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
@@ -430,10 +436,11 @@ class Channel(TembaModel):
             phone = phone_number
 
         config = dict(username=username, password=password, send_url=url)
-        return Channel.create(org, user, country, channel_type, name=phone, address=phone_number, config=config)
+        return Channel.create(org, user, country, channel_type, name=phone, address=phone_number, config=config,
+                              role=role)
 
     @classmethod
-    def add_config_external_channel(cls, org, user, country, address, channel_type, config, role=ROLE_SEND + ROLE_RECEIVE,
+    def add_config_external_channel(cls, org, user, country, address, channel_type, config, role=DEFAULT_ROLE,
                                     scheme='tel', parent=None):
         return Channel.create(org, user, country, channel_type, name=address, address=address,
                               config=config, role=role, scheme=scheme, parent=parent)
@@ -1397,7 +1404,7 @@ class Channel(TembaModel):
 
     @classmethod
     def send_junebug_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
+        from temba.msgs.models import WIRED, Msg
 
         # the event url Junebug will relay events to
         event_url = 'https://%s%s' % (
@@ -1405,22 +1412,35 @@ class Channel(TembaModel):
             reverse('handlers.junebug_handler',
                     args=['event', channel.uuid]))
 
+        is_ussd = channel.channel_type == Channel.TYPE_JUNEBUG_USSD
+
         # build our payload
         payload = dict()
-        payload['to'] = msg.urn_path
         payload['from'] = channel.address
         payload['event_url'] = event_url
         payload['content'] = text
+
+        if is_ussd:
+            external_id, session_status = Msg.objects.values_list('response_to__external_id', 'session__status').get(pk=msg.id)
+            # NOTE: Only one of `to` or `reply_to` may be specified
+            payload['reply_to'] = external_id
+            payload['channel_data'] = {
+                'continue_session': session_status not in ChannelSession.DONE,
+            }
+        else:
+            payload['to'] = msg.urn_path
 
         log_url = channel.config[Channel.CONFIG_SEND_URL]
         start = time.time()
 
         event = HttpEvent('POST', log_url, json.dumps(payload))
+        headers = {'Content-Type': 'application/json'}
+        headers.update(TEMBA_HEADERS)
 
         try:
             response = requests.post(
                 channel.config[Channel.CONFIG_SEND_URL], verify=True,
-                json=payload, timeout=15,
+                json=payload, timeout=15, headers=headers,
                 auth=(channel.config[Channel.CONFIG_USERNAME],
                       channel.config[Channel.CONFIG_PASSWORD]))
 
@@ -1453,14 +1473,6 @@ class Channel(TembaModel):
             payload['recipient'] = dict(id=msg.urn_path)
 
         message = dict(text=text)
-
-        from temba.msgs.models import Msg
-        media_type, media_url = Msg.get_media(msg)
-
-        if media_type and media_url:
-            media_type = media_type.split('/')[0]
-            message['attachment'] = dict(type=media_type, payload=dict(url=media_url))
-
         payload['message'] = message
         payload = json.dumps(payload)
 
@@ -1477,6 +1489,25 @@ class Channel(TembaModel):
             event.response_body = response.text
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
+
+        from temba.msgs.models import Msg
+        media_type, media_url = Msg.get_media(msg)
+
+        if media_type and media_url:
+            media_type = media_type.split('/')[0]
+
+            payload = json.loads(payload)
+            payload['message'] = dict(attachment=dict(type=media_type, payload=dict(url=media_url)))
+            payload = json.dumps(payload)
+
+            event = HttpEvent('POST', url, payload)
+
+            try:
+                response = requests.post(url, payload, params=params, headers=headers, timeout=15)
+                event.status_code = response.status_code
+                event.response_body = response.text
+            except Exception as e:
+                raise SendException(six.text_type(e), event=event, start=start)
 
         if response.status_code != 200:
             raise SendException("Got non-200 response [%d] from Facebook" % response.status_code,
@@ -1618,6 +1649,10 @@ class Channel(TembaModel):
         payload['to'] = msg.urn_path
         payload['dlr-url'] = dlr_url
         payload['dlr-mask'] = dlr_mask
+
+        # if this a reply to a message, set a higher priority
+        if msg.response_to_id:
+            payload['priority'] = 1
 
         # should our to actually be in national format?
         use_national = channel.config.get(Channel.CONFIG_USE_NATIONAL, False)
@@ -3009,6 +3044,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_INFOBIP: Channel.send_infobip_message,
                   Channel.TYPE_JASMIN: Channel.send_jasmin_message,
                   Channel.TYPE_JUNEBUG: Channel.send_junebug_message,
+                  Channel.TYPE_JUNEBUG_USSD: Channel.send_junebug_message,
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,
                   Channel.TYPE_LINE: Channel.send_line_message,
                   Channel.TYPE_M3TECH: Channel.send_m3tech_message,

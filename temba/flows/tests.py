@@ -26,7 +26,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.ivr.models import IVRCall
 from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, WIRED, OUTGOING
+from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, WIRED, OUTGOING, FAILED
 from temba.orgs.models import Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
 from temba.triggers.models import Trigger
@@ -2788,6 +2788,11 @@ class ActionTest(TembaTest):
         self.assertEquals(self.contact, response.contact)
 
     def test_ussd_action(self):
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
@@ -2824,6 +2829,11 @@ class ActionTest(TembaTest):
         Broadcast.objects.all().delete()
 
     def test_multilanguage_ussd_menu_partly_translated(self):
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
@@ -3702,6 +3712,12 @@ class FlowRunTest(TembaTest):
         self.assertTrue(FlowRun.objects.get(contact=self.contact).is_completed())
 
     def test_is_interrupted(self):
+        self.channel.delete()
+        # Create a USSD channel type to test USSDSession.INTERRUPTED status
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
         flow = self.get_flow('ussd_example')
         flow.start([], [self.contact])
 
@@ -4116,6 +4132,10 @@ class SimulationTest(FlowFileTest):
 
     @patch('temba.ussd.models.USSDSession.handle_incoming')
     def test_ussd_simulation(self, handle_incoming):
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE,
+                                      uuid='00000000-0000-0000-0000-000000001234')
         flow = self.get_flow('ussd_example')
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
@@ -4135,6 +4155,10 @@ class SimulationTest(FlowFileTest):
 
     @patch('temba.ussd.models.USSDSession.handle_incoming')
     def test_ussd_simulation_interrupt(self, handle_incoming):
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE,
+                                      uuid='00000000-0000-0000-0000-000000001234')
         flow = self.get_flow('ussd_example')
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
@@ -4939,8 +4963,10 @@ class FlowsTest(FlowFileTest):
 
         # rule turning back on ourselves
         self.update_destination_no_check(flow, group_ruleset.uuid, group_ruleset.uuid, rule=group_one_rule.uuid)
-        with self.assertRaises(FlowException):
-            self.send_message(flow, "1", assert_reply=False)
+        self.send_message(flow, "1", assert_reply=False, assert_handle=False)
+
+        # should have an interrupted run
+        self.assertEqual(1, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count())
 
         flow.runs.all().delete()
         flow.delete()
@@ -4961,11 +4987,10 @@ class FlowsTest(FlowFileTest):
         group_a.contacts.remove(self.contact)
 
         self.update_destination_no_check(flow, name_ruleset.uuid, group_ruleset.uuid, rule=rowan_rule.uuid)
-        with self.assertRaises(FlowException):
-            self.send_message(flow, "2", assert_reply=False)
+        self.send_message(flow, "2", assert_reply=False, assert_handle=False)
 
-        flow.runs.all().delete()
-        flow.delete()
+        # should have an interrupted run
+        self.assertEqual(1, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count())
 
     def test_decimal_substitution(self):
         flow = self.get_flow('pick_a_number')
@@ -5718,6 +5743,12 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('Bleck', response['messages'][1]['text'])
 
     def test_interrupted_state(self):
+        self.channel.delete()
+        # Create a USSD channel type to test USSDSession.INTERRUPTED status
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
         flow = self.get_flow('ussd_interrupt_example')
 
         # start the flow, check if we are interrupted yet
@@ -5737,6 +5768,12 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(interrupted_group.contacts.filter(id=contact.id).exists())
 
     def test_empty_interrupt_state(self):
+        self.channel.delete()
+        # Create a USSD channel type to test USSDSession.INTERRUPTED status
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+                                      role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
         flow = self.get_flow('ussd_interrupt_example')
 
         # disconnect action from interrupt state
@@ -5794,7 +5831,8 @@ class FlowsTest(FlowFileTest):
     def test_airtime_trigger_event(self, mock_post_transferto):
         mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\ncurrency=USD\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
-                                                              "product_list=5,10,20,30\r\n"),
+                                                              "product_list=0.25,0.5,1,1.5\r\n"
+                                                              "local_info_value_list=5,10,20,30\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
@@ -5816,7 +5854,8 @@ class FlowsTest(FlowFileTest):
         mock_post_transferto.reset_mock()
 
         mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=Rwanda\r\n"
-                                                              "product_list=5,10,20,30\r\n"),
+                                                              "product_list=0.25,0.5,1,1.5\r\n"
+                                                              "local_info_value_list=5,10,20,30\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
@@ -5835,7 +5874,8 @@ class FlowsTest(FlowFileTest):
         mock_post_transferto.reset_mock()
 
         mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
-                                                              "product_list=5,10,20,30\r\n"),
+                                                              "product_list=0.25,0.5,1,1.5\r\n"
+                                                              "local_info_value_list=5,10,20,30\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
@@ -5867,7 +5907,8 @@ class FlowsTest(FlowFileTest):
         self.org.remove_transferto_account(self.admin)
 
         mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
-                                                              "product_list=5,10,20,30\r\n"),
+                                                              "product_list=0.25,0.5,1,1.5\r\n"
+                                                              "local_info_value_list=5,10,20,30\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
@@ -6583,12 +6624,16 @@ class FlowBatchTest(FlowFileTest):
         """
         Tests starting a flow for a group of contacts
         """
-        flow = self.get_flow('favorites')
+        flow = self.get_flow('two_in_row')
 
         # create 10 contacts
         contacts = []
         for i in range(11):
             contacts.append(self.create_contact("Contact %d" % i, "2507883833%02d" % i))
+
+        # stop our last contact
+        stopped = contacts[10]
+        stopped.stop(self.admin)
 
         # start our flow, this will take two batches
         flow.start([], contacts)
@@ -6596,21 +6641,25 @@ class FlowBatchTest(FlowFileTest):
         # ensure 11 flow runs were created
         self.assertEquals(11, FlowRun.objects.all().count())
 
-        # ensure 11 outgoing messages were created
-        self.assertEquals(11, Msg.objects.all().count())
+        # ensure 20 outgoing messages were created (2 for each successful run)
+        self.assertEquals(20, Msg.objects.all().exclude(contact=stopped).count())
 
         # but only one broadcast
         self.assertEquals(1, Broadcast.objects.all().count())
         broadcast = Broadcast.objects.get()
 
         # ensure that our flowsteps all have the broadcast set on them
-        for step in FlowStep.objects.filter(step_type=FlowStep.TYPE_ACTION_SET):
+        for step in FlowStep.objects.filter(step_type=FlowStep.TYPE_ACTION_SET).exclude(run__contact=stopped):
             self.assertEqual(broadcast, step.broadcasts.all().get())
 
         # make sure that adding a msg more than once doesn't blow up
         step.add_message(step.messages.all()[0])
-        self.assertEqual(step.messages.all().count(), 1)
+        self.assertEqual(step.messages.all().count(), 2)
         self.assertEqual(step.broadcasts.all().count(), 1)
+
+        # our stopped contact should have only received one msg before blowing up
+        self.assertEqual(1, Msg.objects.filter(contact=stopped, status=FAILED).count())
+        self.assertEqual(1, FlowRun.objects.filter(contact=stopped, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count())
 
 
 class TwoInRowTest(FlowFileTest):
@@ -7173,3 +7222,28 @@ class AndroidChildStatus(FlowFileTest):
         msgs = Msg.objects.filter(contact=self.contact, status=PENDING, direction=OUTGOING).order_by('created_on')
         self.assertEquals(msgs[0].text, "Child Msg 1")
         self.assertEquals(msgs[1].text, "Child Msg 2")
+
+
+class FlowChannelSelectionTest(FlowFileTest):
+
+    def setUp(self):
+        super(FlowChannelSelectionTest, self).setUp()
+        self.channel.delete()
+        self.sms_channel = Channel.create(
+            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG, None, '+250788123123',
+            scheme='tel', uuid='00000000-0000-0000-0000-000000001111',
+            role=Channel.DEFAULT_ROLE)
+        self.ussd_channel = Channel.create(
+            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
+            scheme='tel', uuid='00000000-0000-0000-0000-000000002222',
+            role=Channel.ROLE_USSD)
+
+    def test_sms_channel_selection(self):
+        contact_urn = self.contact.get_urn(TEL_SCHEME)
+        channel = self.contact.org.get_send_channel(contact_urn=contact_urn)
+        self.assertEqual(channel, self.sms_channel)
+
+    def test_ussd_channel_selection(self):
+        contact_urn = self.contact.get_urn(TEL_SCHEME)
+        channel = self.contact.org.get_ussd_channel(contact_urn=contact_urn)
+        self.assertEqual(channel, self.ussd_channel)
