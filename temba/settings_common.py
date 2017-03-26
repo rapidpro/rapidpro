@@ -1239,7 +1239,7 @@ LIBRATO_TOKEN = os.environ.get('LIBRATO_TOKEN', '')
 IP_ADDRESSES = ('172.16.10.10', '162.16.10.20')
 
 # -----------------------------------------------------------------------------------
-# Install can choose how big they want their text messages and contact fields to be
+# Installs may choose how big they want their text messages and contact fields to be
 # by default we use 640 chars or about 4 normal text messages
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640
