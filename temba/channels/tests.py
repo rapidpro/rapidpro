@@ -6219,6 +6219,12 @@ class TwilioTest(TembaTest):
         self.assertTrue(msg.media.startswith('text/x-vcard:https://%s' % settings.AWS_BUCKET_DOMAIN))
         self.assertTrue(msg.media.endswith('.vcf'))
 
+    def test_receive_base64(self):
+        post_data = dict(To=self.channel.address, From='+250788383383', Body="QmFubm9uIEV4cGxhaW5zIFRoZSBXb3JsZCAuLi4K4oCcVGhlIENhbXAgb2YgdGhlIFNhaW50c+KA\r")
+        twilio_url = reverse('handlers.twilio_handler')
+        self.signed_request(twilio_url, post_data)
+        self.assertIsNotNone(Msg.objects.filter(text__contains='Bannon Explains').first())
+
     def test_receive(self):
         post_data = dict(To=self.channel.address, From='+250788383383', Body="Hello World")
         twilio_url = reverse('handlers.twilio_handler')

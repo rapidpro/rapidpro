@@ -42,9 +42,21 @@ from .profiler import time_monitor
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .voicexml import VoiceXMLException
+from . import decode_base64
 
 
 class InitTest(TembaTest):
+
+    def test_decode_base64(self):
+
+        self.assertEqual('Please vote NO on the confirmation of Gorsuch.',
+                         decode_base64('Please vote NO on the confirmation of Gorsuch.'))
+
+        self.assertEqual('Bannon Explains The World ...\n\u201cThe Camp of the Saints',
+                         decode_base64('QmFubm9uIEV4cGxhaW5zIFRoZSBXb3JsZCAuLi4K4oCcVGhlIENhbXAgb2YgdGhlIFNhaW50c+KA\r'))
+
+        self.assertEqual('the sweat, the tears and the sacrifice of working America',
+                         decode_base64('dGhlIHN3ZWF0LCB0aGUgdGVhcnMgYW5kIHRoZSBzYWNyaWZpY2Ugb2Ygd29ya2luZyBBbWVyaWNh\r'))
 
     def test_datetime_to_ms(self):
         d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, tzinfo=pytz.utc)

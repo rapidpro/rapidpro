@@ -7,9 +7,12 @@ import locale
 import pytz
 import random
 import regex
+import re
 import resource
+import string
 import six
 
+from collections import Counter
 from dateutil.parser import parse
 from decimal import Decimal
 from django.conf import settings
@@ -505,3 +508,38 @@ def on_transaction_commit(func):
         func()
     else:
         transaction.on_commit(func)
+
+
+def decode_base64(str):
+    """
+    Try to detect base64 messages by doing:
+    * Check divisible by 4
+    * check there's no whitespace
+    * check it's at least 60 characters
+    * check the decoded string contains at least 50% ascii
+
+    Returns decoded base64 or the original string
+    """
+    str = str.replace('\r', '').replace('\n', '')
+    if len(str.strip()) % 4 != 0:
+        return str
+
+    p = re.compile(r'\s+')
+    if len(p.findall(str)) > 0:
+        return str
+
+    if len(str) < 60:
+        return str
+
+    decoded = str
+    try:
+        decoded = str.decode('base64', 'strict').decode('utf-8', 'ignore')
+        count = Counter(decoded)
+    except:
+        return str
+
+    letters = sum(count[letter] for letter in string.ascii_letters)
+    if float(letters) / len(str) < 0.5:
+        return str
+
+    return decoded
