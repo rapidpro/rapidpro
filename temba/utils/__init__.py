@@ -520,26 +520,28 @@ def decode_base64(str):
 
     Returns decoded base64 or the original string
     """
-    str = str.replace('\r', '').replace('\n', '')
-    if len(str.strip()) % 4 != 0:
-        return str
-
-    p = re.compile(r'\s+')
-    if len(p.findall(str)) > 0:
-        return str
+    str = str.replace('\r', '').replace('\n', '').strip()
 
     if len(str) < 60:
+        return str
+
+    if len(str) % 4 != 0:
+        return str
+
+    p = re.compile(r'^([a-zA-Z0-9+]{4})+$')
+    if not p.match(str[0:-4]):
         return str
 
     decoded = str
     try:
         decoded = str.decode('base64', 'strict').decode('utf-8', 'ignore')
         count = Counter(decoded)
-    except:
-        return str
 
-    letters = sum(count[letter] for letter in string.ascii_letters)
-    if float(letters) / len(str) < 0.5:
+        letters = sum(count[letter] for letter in string.ascii_letters)
+        if float(letters) / len(str) < 0.5:
+            return str
+
+    except:
         return str
 
     return decoded
