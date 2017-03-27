@@ -22,3 +22,4 @@ cd /usr/share/postgresql/$PG_MAJOR/contrib/postgis-$POSTGIS_MAJOR
 #psql --dbname temba < postgis.sql # commented to avoid probles with django
 psql --dbname temba < topology.sql
 psql --dbname temba -c 'create extension hstore;'
+sed -i -e"s/^max_connections = 100.*$/max_connections = 1000/" /var/lib/postgresql/data/postgresql.conf
