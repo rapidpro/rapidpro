@@ -1733,6 +1733,7 @@ class ChannelCRUDL(SmartCRUDL):
         class JunebugForm(forms.Form):
             channel_type = forms.ChoiceField(choices=((Channel.TYPE_JUNEBUG, 'SMS'),
                                                       (Channel.TYPE_JUNEBUG_USSD, 'USSD')),
+                                             widget=forms.RadioSelect,
                                              label=_('Channel Type'),
                                              help_text=_('The type of channel you are wanting to connect.'))
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
