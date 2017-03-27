@@ -487,17 +487,16 @@ def decode_base64(str):
     if len(str) % 4 != 0:
         return str
 
-    p = re.compile(r'^([a-zA-Z0-9+]{4})+$')
-    if not p.match(str[0:-4]):
+    p = re.compile(r'^([a-zA-Z0-9+/=]{4})+$')
+    if not p.match(str[:-4]):
         return str
 
     decoded = str
     try:
         decoded = str.decode('base64', 'strict').decode('utf-8', 'ignore')
         count = Counter(decoded)
-
         letters = sum(count[letter] for letter in string.ascii_letters)
-        if float(letters) / len(str) < 0.5:
+        if float(letters) / len(decoded) < 0.5:
             return str
 
     except:
