@@ -33,6 +33,7 @@ from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_co
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
+from temba.utils import decode_base64
 from twilio import twiml
 from .tasks import fb_channel_subscribe
 
@@ -244,6 +245,8 @@ class TwimlAPIHandler(BaseChannelHandler):
                 Msg.create_incoming(channel, urn, path, media=media_url)
 
             if body:
+                # Twilio sometimes sends concat sms as base64 encoded MMS
+                body = decode_base64(body)
                 Msg.create_incoming(channel, urn, body)
 
             return HttpResponse("", status=201)
