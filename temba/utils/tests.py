@@ -1461,7 +1461,7 @@ class MakeTestDBTest(SimpleTestCase):
         AdminBoundary.objects.all().delete()
 
     def test_command(self):
-        call_command('make_test_db', num_orgs=3, num_contacts=30, num_events=5, seed=1234)
+        call_command('test_db', 'generate', num_orgs=3, num_contacts=30, seed=1234)
 
         org1, org2, org3 = tuple(Org.objects.order_by('id'))
 
@@ -1473,21 +1473,18 @@ class MakeTestDBTest(SimpleTestCase):
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
         assertOrgCounts(Contact.objects.filter(is_test=True), [4, 4, 4])  # 1 for each user
         assertOrgCounts(Contact.objects.filter(is_test=False), [17, 7, 6])
-        assertOrgCounts(FlowRun.objects.all(), [12, 1, 1])
-        assertOrgCounts(Msg.objects.all(), [16, 9, 3])
 
         org_1_all_contacts = ContactGroup.system_groups.get(org=org1, name="All Contacts")
 
         self.assertEqual(org_1_all_contacts.contacts.count(), 17)
         self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(17,)])
-        self.assertEqual(SystemLabel.get_counts(org1), {'I': 0, 'W': 2, 'A': 0, 'O': 3, 'S': 11, 'X': 0, 'E': 0, 'C': 0})
 
         # same seed should generate objects with same UUIDs
         self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'ea60312b-25f5-47a0-cac7-4fe0c2064f3e')
 
-        # check can't be run again on a now non-empty database
+        # check generate can't be run again on a now non-empty database
         with self.assertRaises(CommandError):
-            call_command('make_test_db', num_orgs=2, num_contacts=4)
+            call_command('test_db', 'generate', num_orgs=3, num_contacts=30, seed=1234)
 
-        # unless we're resuming
-        call_command('make_test_db', num_events=2, resume=True)
+        # but simulate can
+        call_command('test_db', 'simulate', num_runs=2)
