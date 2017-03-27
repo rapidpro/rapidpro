@@ -1,3 +1,8 @@
+v3.0.88
+----------
+ * Deal with Twilio arbitrarily sending messages as base64
+ * Allow configuration of max text size via settings
+
 v3.0.87
 ----------
  * Set higher priority when sending responses through Kannel
