@@ -22,7 +22,7 @@ from django_redis import get_redis_connection
 from subprocess import check_call, CalledProcessError
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, ContactGroupCount, URN, TEL_SCHEME, TWITTER_SCHEME
-from temba.flows.models import Flow, FlowStart, FlowRun
+from temba.flows.models import FlowStart, FlowRun
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label, Msg
 from temba.orgs.models import Org
