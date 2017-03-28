@@ -1392,7 +1392,7 @@ class Flow(TembaModel):
         results = sorted(results, reverse=True, key=lambda result: result['first_seen'] if result['first_seen'] else now)
         return results
 
-    def async_start(self, user, groups, contacts, restart_participants=False, include_active=False):
+    def async_start(self, user, groups, contacts, restart_participants=False, include_active=True):
         """
         Causes us to schedule a flow to start in a background thread.
         """
@@ -4470,7 +4470,7 @@ class FlowStart(SmartModel):
                                                help_text=_("Whether to restart any participants already in this flow"))
 
     include_active = models.BooleanField(default=True,
-                                         help_text=_("Include contacts current active in flows"))
+                                         help_text=_("Include contacts currently active in flows"))
 
     contact_count = models.IntegerField(default=0,
                                         help_text=_("How many unique contacts were started down the flow"))
