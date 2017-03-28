@@ -50,6 +50,8 @@ class InitTest(TembaTest):
 
     def test_decode_base64(self):
 
+        self.assertEqual('This test\nhas a newline', decode_base64('This test\nhas a newline'))
+
         self.assertEqual('Please vote NO on the confirmation of Gorsuch.',
                          decode_base64('Please vote NO on the confirmation of Gorsuch.'))
 
