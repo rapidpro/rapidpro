@@ -73,13 +73,13 @@
               %label{ for:"id_restart_participants" }
                 -trans "Restart contacts who have already entered this flow"
 
-      .control-group.include-active-contacts
-        %label.control-label{ for:"id_include_active_contacts" }
+      .control-group.include-active
+        %label.control-label{ for:"id_include_active" }
           -trans "Include Active Contacts"
         .controls
-          %input#id_include_active_contacts{ name:"include_active_contacts", type:"checkbox" }
+          %input#id_include_active{ name:"include_active", type:"checkbox" }
             .help-block
-              %label{ for:"id_include_active_contacts" }
+              %label{ for:"id_include_active" }
                 -trans "Interrupt contacts currently active in flows"
 
 -block form-buttons
@@ -117,7 +117,7 @@
   :javascript
     $(document).ready(function () {
       useFontCheckbox("#id_restart_participants");
-      useFontCheckbox("#id_include_active_contacts");
+      useFontCheckbox("#id_include_active");
     });
 
     prepareOmnibox();

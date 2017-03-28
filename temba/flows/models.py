@@ -4482,14 +4482,16 @@ class FlowStart(SmartModel):
                              help_text=_("Any extra parameters to pass to the flow start (json)"))
 
     @classmethod
-    def create(cls, flow, user, groups=None, contacts=None, restart_participants=True, extra=None):
+    def create(cls, flow, user, groups=None, contacts=None, restart_participants=True, extra=None, include_active=True):
         if contacts is None:  # pragma: needs cover
             contacts = []
 
         if groups is None:  # pragma: needs cover
             groups = []
 
-        start = FlowStart.objects.create(flow=flow, restart_participants=restart_participants,
+        start = FlowStart.objects.create(flow=flow,
+                                         restart_participants=restart_participants,
+                                         include_active=include_active,
                                          extra=json.dumps(extra) if extra else None,
                                          created_by=user, modified_by=user)
 
