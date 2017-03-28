@@ -95,24 +95,17 @@ findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
         html += "<p class='help-block'>" + help.text() + "</p>"
     html += "</div></div>"
 
-    controlGroup.replaceWith(html)
-
-    console.log(this)
-    console.log(controlGroup)
-    ele = controlGroup.find(".font-checkbox")
-    window.ele = ele
+    ele = $(html)
+    controlGroup.replaceWith(ele)
 
     helpText = ele.children('.controls').children('.help-block').children('label')
-
-    console.log(helpText)
-
     helpText.on 'click', (event) ->
       $(this).parent().parent('.field-input').children('.glyph.notif-checkbox').click()
       event.preventDefault();
 
     glyphCheck = ele.children('.controls').children('.glyph.notif-checkbox')
+
     glyphCheck.on 'click', ->
-      console.log(event)
       cell = $(this).parent('.field-input')
       ipt = cell.children().children("input[type='checkbox']")
 
