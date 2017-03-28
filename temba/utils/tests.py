@@ -24,7 +24,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGr
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, SystemLabel
 from temba.flows.models import FlowRun
-from temba.orgs.models import Org
+from temba.orgs.models import Org, UserSettings
 from temba.tests import TembaTest
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, date_to_utc_range, truncate, random_string
@@ -1433,7 +1433,7 @@ class NCCOTest(TembaTest):
 
 class MiddlewareTest(TembaTest):
 
-    def test_orgheader(self):
+    def test_org_header(self):
         response = self.client.get(reverse('public.public_index'))
         self.assertFalse(response.has_header('X-Temba-Org'))
 
@@ -1446,6 +1446,29 @@ class MiddlewareTest(TembaTest):
 
         response = self.client.get(reverse('public.public_index'))
         self.assertEqual(response['X-Temba-Org'], six.text_type(self.org.id))
+
+    def test_branding(self):
+        response = self.client.get(reverse('public.public_index'))
+        self.assertEqual(response.context['request'].branding, settings.BRANDING['rapidpro.io'])
+
+    def test_flow_simulation(self):
+        Contact.set_simulation(True)
+
+        self.client.get(reverse('public.public_index'))
+
+        self.assertFalse(Contact.get_simulation())
+
+    def test_activate_language(self):
+        self.assertContains(self.client.get(reverse('public.public_index')), "Create Account")
+
+        self.login(self.admin)
+
+        self.assertContains(self.client.get(reverse('public.public_index')), "Create Account")
+        self.assertContains(self.client.get(reverse('contacts.contact_list')), "Import Contacts")
+
+        UserSettings.objects.filter(user=self.admin).update(language='fr')
+
+        self.assertContains(self.client.get(reverse('contacts.contact_list')), "Importer des contacts")
 
 
 class ProfilerTest(TembaTest):
