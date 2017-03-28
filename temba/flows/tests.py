@@ -2363,14 +2363,24 @@ class FlowTest(TembaTest):
 
         # test broadcast view
         response = self.client.get(reverse('flows.flow_broadcast', args=[flow.pk]))
-        self.assertEquals(3, len(response.context['form'].fields))
+        self.assertEquals(4, len(response.context['form'].fields))
         self.assertTrue('omnibox' in response.context['form'].fields)
         self.assertTrue('restart_participants' in response.context['form'].fields)
+        self.assertTrue('include_active' in response.context['form'].fields)
 
         post_data = dict()
         post_data['omnibox'] = "c-%s" % self.contact.uuid
         post_data['restart_participants'] = 'on'
 
+        # nothing should happen, contacts are already active in the flow
+        count = Broadcast.objects.all().count()
+        self.client.post(reverse('flows.flow_broadcast', args=[flow.pk]), post_data, follow=True)
+        self.assertEquals(count, Broadcast.objects.all().count())
+
+        FlowStart.objects.all().delete()
+
+        # include people active in flows
+        post_data['include_active'] = 'on'
         count = Broadcast.objects.all().count()
         self.client.post(reverse('flows.flow_broadcast', args=[flow.pk]), post_data, follow=True)
         self.assertEquals(count + 1, Broadcast.objects.all().count())

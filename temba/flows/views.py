@@ -1471,6 +1471,9 @@ class FlowCRUDL(SmartCRUDL):
             restart_participants = forms.BooleanField(label=_("Restart Participants"), required=False, initial=False,
                                                       help_text=_("Restart any contacts already participating in this flow"))
 
+            include_active = forms.BooleanField(label=_("Include Active Contacts"), required=False, initial=False,
+                                                help_text=_("Include contacts currently active in a flow"))
+
             def clean_omnibox(self):
                 starting = self.cleaned_data['omnibox']
                 if not starting['groups'] and not starting['contacts']:  # pragma: needs cover
@@ -1492,10 +1495,10 @@ class FlowCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Flow
-                fields = ('omnibox', 'restart_participants')
+                fields = ('omnibox', 'restart_participants', 'include_active')
 
         form_class = BroadcastForm
-        fields = ('omnibox', 'restart_participants')
+        fields = ('omnibox', 'restart_participants', 'include_active')
         success_message = ''
         submit_button_name = _("Add Contacts to Flow")
         success_url = 'uuid@flows.flow_editor'
@@ -1527,7 +1530,8 @@ class FlowCRUDL(SmartCRUDL):
             # activate all our contacts
             flow.async_start(self.request.user,
                              list(omnibox['groups']), list(omnibox['contacts']),
-                             restart_participants=form.cleaned_data['restart_participants'])
+                             restart_participants=form.cleaned_data['restart_participants'],
+                             include_active=form.cleaned_data['include_active'])
             return flow
 
 
