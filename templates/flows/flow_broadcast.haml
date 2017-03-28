@@ -50,14 +50,23 @@
     .field.omnibox
       {% render_field 'omnibox' %}
 
-      .control-group.restart-participants
-        %label.control-label{ for:"id_restart_participants" }
-          -trans "Restart Participants"
-        .controls
-          %input#id_restart_participants{ name:"restart_participants", type:"checkbox" }
-            .help-block
-              %label{ for:"id_restart_participants" }
-                -trans "Restart any of the above contacts already participating in this flow"
+    .control-group.restart-participants
+      %label.control-label{ for:"id_restart_participants" }
+        -trans "Restart Participants"
+      .controls
+        %input#id_restart_participants{ name:"restart_participants", type:"checkbox" }
+          .help-block
+            %label{ for:"id_restart_participants" }
+              -trans "Restart contacts who have already entered this flow"
+
+    .control-group.include-active-contacts
+      %label.control-label{ for:"id_include_active_contacts" }
+        -trans "Include Active Contacts"
+      .controls
+        %input#id_include_active_contacts{ name:"include_active_contacts", type:"checkbox" }
+          .help-block
+            %label{ for:"id_include_active_contacts" }
+              -trans "Interrupt contacts currently active in flows"
 
 -block form-buttons
   -if send_channel
@@ -94,6 +103,7 @@
   :javascript
     $(document).ready(function () {
       useFontCheckbox("#id_restart_participants");
+      useFontCheckbox("#id_include_active_contacts");
     });
 
     prepareOmnibox();

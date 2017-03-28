@@ -97,33 +97,40 @@ findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
 
     controlGroup.replaceWith(html)
 
-  ele = $(".font-checkbox")
+    console.log(this)
+    console.log(controlGroup)
+    ele = controlGroup.find(".font-checkbox")
+    window.ele = ele
 
-  helpText = ele.children('.controls').children('.help-block').children('label')
-  helpText.on 'click', (event) ->
-    $(this).parent().parent('.field-input').children('.glyph.notif-checkbox').click()
-    event.preventDefault();
+    helpText = ele.children('.controls').children('.help-block').children('label')
 
-  glyphCheck = ele.children('.controls').children('.glyph.notif-checkbox')
-  glyphCheck.on 'click', ->
-    cell = $(this).parent('.field-input')
-    ipt = cell.children().children("input[type='checkbox']")
+    console.log(helpText)
 
-    if ipt.prop('checked')
-      cell.removeClass 'checked'
-      ipt.prop('checked', false)
-    else
-      cell.addClass 'checked'
-      ipt.prop('checked', true)
+    helpText.on 'click', (event) ->
+      $(this).parent().parent('.field-input').children('.glyph.notif-checkbox').click()
+      event.preventDefault();
 
-  chkBox = ele.find("input[type=checkbox]")
-  chkBox.on 'change', ->
-    cell = ele.find('.field-input')
+    glyphCheck = ele.children('.controls').children('.glyph.notif-checkbox')
+    glyphCheck.on 'click', ->
+      console.log(event)
+      cell = $(this).parent('.field-input')
+      ipt = cell.children().children("input[type='checkbox']")
 
-    if $(this).prop('checked')
-      cell.addClass 'checked'
-    else
-      cell.removeClass 'checked'
+      if ipt.prop('checked')
+        cell.removeClass 'checked'
+        ipt.prop('checked', false)
+      else
+        cell.addClass 'checked'
+        ipt.prop('checked', true)
+
+    chkBox = ele.find("input[type=checkbox]")
+    chkBox.on 'change', ->
+      cell = ele.find('.field-input')
+
+      if $(this).prop('checked')
+        cell.addClass 'checked'
+      else
+        cell.removeClass 'checked'
 
 
 @select2div = (selector, width="350px", placeholder=null, add_prefix=null) ->
