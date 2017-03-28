@@ -1,19 +1,15 @@
 from __future__ import absolute_import, unicode_literals
 
+import cProfile
 import pstats
 import traceback
 
-from cStringIO import StringIO
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone, translation
+from io import StringIO
 from temba.orgs.models import Org
 from temba.contacts.models import Contact
-
-try:
-    import cProfile as profile
-except ImportError:  # pragma: no cover
-    import profile
 
 
 class ExceptionMiddleware(object):
@@ -112,6 +108,9 @@ class OrgTimezoneMiddleware(object):
 
 
 class FlowSimulationMiddleware(object):
+    """
+    Resets Contact.set_simulation(False) for every request
+    """
     def process_request(self, request):
         Contact.set_simulation(False)
         return None
@@ -140,7 +139,7 @@ class ProfilerMiddleware(object):  # pragma: no cover
 
     def process_view(self, request, callback, callback_args, callback_kwargs):
         if self.can(request):
-            self.profiler = profile.Profile()
+            self.profiler = cProfile.Profile()
             args = (request,) + callback_args
             return self.profiler.runcall(callback, *args, **callback_kwargs)
 
