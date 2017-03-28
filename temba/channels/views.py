@@ -855,28 +855,6 @@ class UpdateChannelForm(forms.ModelForm):
         helps = {'address': _('The number or address of this channel')}
 
 
-class UpdateJunebugForm(UpdateChannelForm):
-    send_url = forms.URLField(label=_("URL"),
-                              help_text=_("The URL for the Junebug channel. ex: https://junebug.praekelt.org/jb/channels/3853bb51-d38a-4bca-b332-8a57c00f2a48/messages.json"))
-    username = forms.CharField(label=_("Username"),
-                               help_text=_("The username to be used to authenticate to Junebug"),
-                               required=False)
-    password = forms.CharField(label=_("Password"),
-                               help_text=_("The password to be used to authenticate to Junebug"),
-                               required=False)
-
-    def add_config_fields(self):
-        config = json.loads(self.object.config)
-        self.fields['send_url'].initial = config.get('send_url')
-        self.fields['username'].initial = config.get('username')
-        self.fields['password'].initial = config.get('password')
-
-    class Meta(UpdateChannelForm.Meta):
-        fields = ('name', 'alert_email', 'address', 'country', 'send_url', 'username', 'password')
-        readonly = []
-        config_fields = ('username', 'password', 'send_url')
-
-
 class UpdateNexmoForm(UpdateChannelForm):
     class Meta(UpdateChannelForm.Meta):
         readonly = ('country',)
@@ -1219,8 +1197,6 @@ class ChannelCRUDL(SmartCRUDL):
                 return UpdateAndroidForm
             elif channel_type == Channel.TYPE_NEXMO:
                 return UpdateNexmoForm
-            elif channel_type in (Channel.TYPE_JUNEBUG, Channel.TYPE_JUNEBUG_USSD):
-                return UpdateJunebugForm
             elif scheme == TWITTER_SCHEME:
                 return UpdateTwitterForm
             else:
@@ -1235,7 +1211,7 @@ class ChannelCRUDL(SmartCRUDL):
             if obj.config:
                 config = json.loads(obj.config)
                 for field in self.form.Meta.config_fields:  # pragma: needs cover
-                    config[field] = self.form.cleaned_data[field]
+                    config[field] = bool(self.form.cleaned_data[field])
                 obj.config = json.dumps(config)
             return obj
 
