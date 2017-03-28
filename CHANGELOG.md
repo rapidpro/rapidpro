@@ -1,3 +1,7 @@
+v3.0.89
+----------
+ * Expand base64 charset, fix decode validity heuristic
+
 v3.0.88
 ----------
  * Deal with Twilio arbitrarily sending messages as base64

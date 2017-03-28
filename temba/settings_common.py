@@ -164,7 +164,6 @@ if TESTING:
 
 MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
-    'temba.utils.middleware.DisableMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -174,7 +173,7 @@ MIDDLEWARE_CLASSES = (
     'temba.middleware.FlowSimulationMiddleware',
     'temba.middleware.ActivateLanguageMiddleware',
     'temba.middleware.NonAtomicGetsMiddleware',
-    'temba.utils.middleware.OrgHeaderMiddleware',
+    'temba.middleware.OrgHeaderMiddleware',
 )
 
 ROOT_URLCONF = 'temba.urls'
