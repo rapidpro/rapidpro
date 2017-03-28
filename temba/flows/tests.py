@@ -4163,6 +4163,10 @@ class SimulationTest(FlowFileTest):
 
         self.assertIsNone(handle_incoming.call_args[1]['status'])
 
+        self.channel.delete()
+        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+        self.assertEquals(response.status_code, 200)
+
     @patch('temba.ussd.models.USSDSession.handle_incoming')
     def test_ussd_simulation_interrupt(self, handle_incoming):
         self.channel.delete()
