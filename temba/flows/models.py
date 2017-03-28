@@ -1392,14 +1392,16 @@ class Flow(TembaModel):
         results = sorted(results, reverse=True, key=lambda result: result['first_seen'] if result['first_seen'] else now)
         return results
 
-    def async_start(self, user, groups, contacts, restart_participants=False):
+    def async_start(self, user, groups, contacts, restart_participants=False, include_active=False):
         """
         Causes us to schedule a flow to start in a background thread.
         """
         from .tasks import start_flow_task
 
         # create a flow start object
-        flow_start = FlowStart.objects.create(flow=self, restart_participants=restart_participants,
+        flow_start = FlowStart.objects.create(flow=self,
+                                              restart_participants=restart_participants,
+                                              include_active=include_active,
                                               created_by=user, modified_by=user)
 
         contact_ids = [c.id for c in contacts]
@@ -1411,7 +1413,7 @@ class Flow(TembaModel):
         on_transaction_commit(lambda: start_flow_task.delay(flow_start.pk))
 
     def start(self, groups, contacts, restart_participants=False, started_flows=None,
-              start_msg=None, extra=None, flow_start=None, parent_run=None, interrupt=True, session=None):
+              start_msg=None, extra=None, flow_start=None, parent_run=None, interrupt=True, session=None, include_active=True):
         """
         Starts a flow for the passed in groups and contacts.
         """
@@ -1452,6 +1454,11 @@ class Flow(TembaModel):
             # exclude anybody who has already participated in the flow
             already_started = set(self.runs.all().values_list('contact_id', flat=True))
             all_contact_ids = [contact_id for contact_id in all_contact_ids if contact_id not in already_started]
+
+        if not include_active:
+            # exclude anybody who has an active flow run
+            already_active = set(FlowRun.objects.filter(is_active=True, org=self.org).values_list('contact_id', flat=True))
+            all_contact_ids = [contact_id for contact_id in all_contact_ids if contact_id not in already_active]
 
         # if we have a parent run, find any parents/grandparents that are active, we'll keep these active
         ancestor_ids = []
@@ -4462,6 +4469,9 @@ class FlowStart(SmartModel):
     restart_participants = models.BooleanField(default=True,
                                                help_text=_("Whether to restart any participants already in this flow"))
 
+    include_active = models.BooleanField(default=True,
+                                         help_text=_("Include contacts current active in flows"))
+
     contact_count = models.IntegerField(default=0,
                                         help_text=_("How many unique contacts were started down the flow"))
 
@@ -4506,7 +4516,8 @@ class FlowStart(SmartModel):
             # load up our extra if any
             extra = json.loads(self.extra) if self.extra else None
 
-            self.flow.start(groups, contacts, restart_participants=self.restart_participants, flow_start=self, extra=extra)
+            self.flow.start(groups, contacts, flow_start=self, extra=extra,
+                            restart_participants=self.restart_participants, include_active=self.include_active)
 
         except Exception as e:  # pragma: no cover
             import traceback
