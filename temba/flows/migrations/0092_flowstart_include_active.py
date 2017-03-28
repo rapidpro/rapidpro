@@ -15,6 +15,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='flowstart',
             name='include_active',
-            field=models.BooleanField(default=True, help_text='Include contacts current active in flows'),
+            field=models.BooleanField(default=True, help_text='Include contacts currently active in flows'),
         ),
     ]
