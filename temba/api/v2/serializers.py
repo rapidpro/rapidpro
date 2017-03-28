@@ -107,7 +107,7 @@ class BroadcastReadSerializer(ReadSerializer):
 
 
 class BroadcastWriteSerializer(WriteSerializer):
-    text = serializers.CharField(required=True, max_length=640)
+    text = serializers.CharField(required=True, max_length=Msg.MAX_SIZE)
     urns = fields.URNListField(required=False)
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)

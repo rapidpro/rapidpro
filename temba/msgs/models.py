@@ -184,7 +184,7 @@ class Broadcast(models.Model):
     recipient_count = models.IntegerField(verbose_name=_("Number of recipients"), null=True,
                                           help_text=_("Number of urns which received this broadcast"))
 
-    text = models.TextField(max_length=640, verbose_name=_("Text"),
+    text = models.TextField(max_length=settings.MSG_FIELD_SIZE, verbose_name=_("Text"),
                             help_text=_("The message to send out"))
 
     channel = models.ForeignKey(Channel, null=True, verbose_name=_("Channel"),
@@ -624,6 +624,8 @@ class Msg(models.Model):
     PRIORITY_NORMAL = 500
     PRIORITY_BULK = 100
 
+    MAX_SIZE = settings.MSG_FIELD_SIZE
+
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))
 
@@ -643,7 +645,7 @@ class Msg(models.Model):
                                   related_name='msgs', verbose_name=_("Broadcast"),
                                   help_text=_("If this message was sent to more than one recipient"))
 
-    text = models.TextField(max_length=640, verbose_name=_("Text"),
+    text = models.TextField(max_length=MAX_SIZE, verbose_name=_("Text"),
                             help_text=_("The actual message content that was sent"))
 
     priority = models.IntegerField(default=PRIORITY_NORMAL,
@@ -1235,9 +1237,9 @@ class Msg(models.Model):
         elif not contact.is_test:
             (topup_id, amount) = org.decrement_credit()
 
-        # we limit text messages to 640 characters
+        # we limit our text message length
         if text:
-            text = text[:640]
+            text = text[:Msg.MAX_SIZE]
 
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,

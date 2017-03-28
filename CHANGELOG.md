@@ -1,3 +1,24 @@
+v3.0.89
+----------
+ * Expand base64 charset, fix decode validity heuristic
+
+v3.0.88
+----------
+ * Deal with Twilio arbitrarily sending messages as base64
+ * Allow configuration of max text size via settings
+
+v3.0.87
+----------
+ * Set higher priority when sending responses through Kannel
+
+v3.0.86
+----------
+ * Do not add stopped contacts to groups when importing
+ * Fix an entire flow start batch failing if one run throws an exception
+ * Limit images file size to be less than 500kB
+ * Send Facebook message attachments in a different request as the text message
+ * Include skuid for open range tranfertto accounts
+
 v3.0.85
 ----------
  * Fix exception when handling Viber msg with no text

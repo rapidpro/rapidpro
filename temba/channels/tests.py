@@ -19,7 +19,6 @@ from django.conf import settings
 from django.contrib.auth.models import User, Group
 from django.core import mail
 from django.core.cache import cache
-from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.test.utils import override_settings
 from django.utils import timezone
@@ -4570,9 +4569,12 @@ class KannelTest(TembaTest):
                 self.assertEquals('No capital accented E!', mock.call_args[1]['params']['text'])
                 self.assertEquals('788383383', mock.call_args[1]['params']['to'])
                 self.assertFalse('coding' in mock.call_args[1]['params'])
+                self.assertFalse('priority' in mock.call_args[1]['params'])
                 self.clear_cache()
 
+            incoming = Msg.create_incoming(self.channel, "tel:+250788383383", "start")
             msg.text = "Unicode. ☺"
+            msg.response_to = incoming
             msg.save()
 
             with patch('requests.get') as mock:
@@ -4590,6 +4592,7 @@ class KannelTest(TembaTest):
                 self.assertEquals("Unicode. ☺", mock.call_args[1]['params']['text'])
                 self.assertEquals('2', mock.call_args[1]['params']['coding'])
                 self.assertEquals('utf8', mock.call_args[1]['params']['charset'])
+                self.assertEquals(1, mock.call_args[1]['params']['priority'])
 
                 self.clear_cache()
 
@@ -6287,15 +6290,18 @@ class TwilioTest(TembaTest):
         self.assertTrue(msg.media.startswith('text/x-vcard:https://%s' % settings.AWS_BUCKET_DOMAIN))
         self.assertTrue(msg.media.endswith('.vcf'))
 
+    def test_receive_base64(self):
+        post_data = dict(To=self.channel.address, From='+250788383383', Body="QmFubm9uIEV4cGxhaW5zIFRoZSBXb3JsZCAuLi4K4oCcVGhlIENhbXAgb2YgdGhlIFNhaW50c+KA\r")
+        twilio_url = reverse('handlers.twilio_handler')
+        self.signed_request(twilio_url, post_data)
+        self.assertIsNotNone(Msg.objects.filter(text__contains='Bannon Explains').first())
+
     def test_receive(self):
         post_data = dict(To=self.channel.address, From='+250788383383', Body="Hello World")
         twilio_url = reverse('handlers.twilio_handler')
 
-        try:
-            self.client.post(twilio_url, post_data)
-            self.fail("Invalid signature, should have failed")
-        except ValidationError:
-            pass
+        response = self.client.post(twilio_url, post_data)
+        self.assertEqual(response.status_code, 400)
 
         # this time sign it appropriately, should work
         client = self.org.get_twilio_client()
@@ -6417,11 +6423,8 @@ class TwilioTest(TembaTest):
         post_data = dict(To=self.channel.address, From='+250788383300', Body="Hello World")
         twiml_api_url = reverse('handlers.twiml_api_handler', args=[self.channel.uuid])
 
-        try:
-            self.client.post(twiml_api_url, post_data)
-            self.fail("Invalid signature, should have failed")
-        except ValidationError:
-            pass
+        response = self.client.post(twiml_api_url, post_data)
+        self.assertEqual(response.status_code, 400)
 
         client = self.channel.get_twiml_client()
         validator = RequestValidator(client.auth[1])
@@ -6628,11 +6631,8 @@ class TwilioMessagingServiceTest(TembaTest):
         post_data = dict(message_service_sid=messaging_service_sid, From='+250788383383', Body="Hello World")
         twilio_url = reverse('handlers.twilio_messaging_service_handler', args=['receive', self.channel.uuid])
 
-        try:
-            self.client.post(twilio_url, post_data)
-            self.fail("Invalid signature, should have failed")
-        except ValidationError:
-            pass
+        response = self.client.post(twilio_url, post_data)
+        self.assertEqual(response.status_code, 400)
 
         # this time sign it appropriately, should work
         client = self.org.get_twilio_client()
@@ -9530,13 +9530,48 @@ class FacebookTest(TembaTest):
             self.assertEqual(msg.external_id, 'mid.external')
             self.clear_cache()
 
-            self.assertEqual(mock.call_args[0][0], 'https://graph.facebook.com/v2.5/me/messages')
-            self.assertEqual(json.loads(mock.call_args[0][1]),
+            self.assertEqual(mock.call_count, 2)
+
+            self.assertEqual(mock.call_args_list[0][0][0], 'https://graph.facebook.com/v2.5/me/messages')
+
+            self.assertEqual(json.loads(mock.call_args_list[0][0][1]),
                              dict(recipient=dict(id="1234"),
-                                  message=dict(text="Facebook Msg",
-                                               attachment=dict(type="image",
+                                  message=dict(text="Facebook Msg")))
+
+            self.assertEqual(mock.call_args_list[1][0][0], 'https://graph.facebook.com/v2.5/me/messages')
+
+            self.assertEqual(json.loads(mock.call_args_list[1][0][1]),
+                             dict(recipient=dict(id="1234"),
+                                  message=dict(attachment=dict(type="image",
                                                                payload=dict(
                                                                    url="https://example.com/attachments/pic.jpg")))))
+
+        with patch('requests.get') as mock:
+            mock.return_value = [MockResponse(200, '{"recipient_id":"1234", '
+                                                   '"message_id":"mid.external"}'),
+                                 MockResponse(412, 'Error')]
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message now errored
+            msg.refresh_from_db()
+            self.assertEquals(ERRORED, msg.status)
+
+        with patch('requests.post') as mock:
+            mock.side_effect = [MockResponse(200, '{"recipient_id":"1234", '
+                                                  '"message_id":"mid.external"}'),
+                                Exception('Kaboom!')]
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message now errored
+            msg.refresh_from_db()
+            self.assertEquals(ERRORED, msg.status)
+
+            self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                              "referenced before assignment"))
 
 
 class GlobeTest(TembaTest):

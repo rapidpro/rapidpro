@@ -12,7 +12,6 @@ import xml.etree.ElementTree as ET
 
 from datetime import datetime
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db.models import Q
@@ -34,6 +33,7 @@ from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_co
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
+from temba.utils import decode_base64
 from twilio import twiml
 from .tasks import fb_channel_subscribe
 
@@ -204,8 +204,7 @@ class TwimlAPIHandler(BaseChannelHandler):
             validator = RequestValidator(client.auth[1])
 
             if not validator.validate(url, request.POST, signature):  # pragma: needs cover
-                # raise an exception that things weren't properly signed
-                raise ValidationError("Invalid request signature")
+                return HttpResponse("Invalid request signature.", status=400)
 
             # queued, sending, sent, failed, or received.
             if status == 'sent':
@@ -234,8 +233,7 @@ class TwimlAPIHandler(BaseChannelHandler):
             validator = RequestValidator(client.auth[1])
 
             if not validator.validate(url, request.POST, signature):
-                # raise an exception that things weren't properly signed
-                raise ValidationError("Invalid request signature")
+                return HttpResponse("Invalid request signature.", status=400)
 
             body = request.POST['Body']
             urn = URN.from_tel(request.POST['From'])
@@ -247,6 +245,8 @@ class TwimlAPIHandler(BaseChannelHandler):
                 Msg.create_incoming(channel, urn, path, media=media_url)
 
             if body:
+                # Twilio sometimes sends concat sms as base64 encoded MMS
+                body = decode_base64(body)
                 Msg.create_incoming(channel, urn, body)
 
             return HttpResponse("", status=201)
@@ -314,8 +314,7 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
             validator = RequestValidator(client.auth[1])
 
             if not validator.validate(url, request.POST, signature):
-                # raise an exception that things weren't properly signed
-                raise ValidationError("Invalid request signature")
+                return HttpResponse("Invalid request signature.", status=400)
 
             Msg.create_incoming(channel, URN.from_tel(request.POST['From']), request.POST['Body'])
 
