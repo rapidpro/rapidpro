@@ -31,17 +31,18 @@ class USSDSession(ChannelSession):
     class Meta:
         proxy = True
 
-    def start_session_async(self, flow):
-        flow.start([], [self.contact], start_msg=None, restart_participants=True, session=self)
+    def start_session_async(self, flow, urn, content, date, message_id):
+        from temba.msgs.models import Msg, USSD
+        message = Msg.create_incoming(
+            channel=self.channel, urn=urn, text=content or '', date=date, session=self,
+            msg_type=USSD, external_id=message_id)
+        flow.start([], [self.contact], start_msg=message, restart_participants=True, session=self)
 
     def handle_session_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
-
-        message = Msg.create_incoming(
+        Msg.create_incoming(
             channel=self.channel, urn=urn, text=content or '', date=date, session=self,
-            msg_type=USSD)
-        message.external_id = message_id
-        message.save()
+            msg_type=USSD, external_id=message_id)
 
     def handle_ussd_session_sync(self):  # pragma: needs cover
         # TODO: implement for InfoBip and other sync APIs
@@ -90,7 +91,7 @@ class USSDSession(ChannelSession):
 
         # start session
         if created and async and trigger:
-            session.start_session_async(trigger.flow)
+            session.start_session_async(trigger.flow, urn, content, date, message_id)
 
         # resume session, deal with incoming content and all the other states
         else:
