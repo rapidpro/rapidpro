@@ -3416,16 +3416,16 @@ class ContactTest(TembaTest):
         value = Value.objects.filter(contact=jemila, contact_field=ward_field).first()
         self.assertEquals(value.location_value, ward)
 
-    def test_message_context(self):
-        message_context = self.joe.build_message_context()
+    def test_expressions_context(self):
+        context = self.joe.build_expressions_context()
 
-        self.assertEquals("Joe", message_context['first_name'])
-        self.assertEquals("Joe Blow", message_context['name'])
-        self.assertEquals("Joe Blow", message_context['__default__'])
-        self.assertEquals("0781 111 111", message_context['tel'])
-        self.assertEquals("", message_context['groups'])
-        self.assertTrue('uuid' in message_context)
-        self.assertEquals(self.joe.uuid, message_context['uuid'])
+        self.assertEquals("Joe", context['first_name'])
+        self.assertEquals("Joe Blow", context['name'])
+        self.assertEquals("Joe Blow", context['__default__'])
+        self.assertEquals("0781 111 111", context['tel'])
+        self.assertEquals("", context['groups'])
+        self.assertEquals(context['uuid'], self.joe.uuid)
+        self.assertEquals(self.joe.uuid, context['uuid'])
 
         # add him to a group
         self.create_group("Reporters", [self.joe])
@@ -3442,26 +3442,25 @@ class ContactTest(TembaTest):
         fav_color.is_active = False
         fav_color.save()
 
-        message_context = self.joe.build_message_context()
+        context = self.joe.build_expressions_context()
 
-        self.assertEquals("Joe", message_context['first_name'])
-        self.assertEquals("Joe Blow", message_context['name'])
-        self.assertEquals("Joe Blow", message_context['__default__'])
-        self.assertEquals("0781 111 111", message_context['tel'])
-        self.assertEquals("Reporters", message_context['groups'])
-        self.assertFalse('id' in message_context)
+        self.assertEquals("Joe", context['first_name'])
+        self.assertEquals("Joe Blow", context['name'])
+        self.assertEquals("Joe Blow", context['__default__'])
+        self.assertEquals("0781 111 111", context['tel'])
+        self.assertEquals("Reporters", context['groups'])
+        self.assertNotIn('id', context)
 
-        self.assertEqual("SeaHawks", message_context['team'])
-        self.assertFalse('color' in message_context)
+        self.assertEqual("SeaHawks", context['team'])
+        self.assertNotIn('color', context)
 
         # switch our org to anonymous
-        self.org.is_anon = True
-        self.org.save()
-        self.joe.org.refresh_from_db()
+        with AnonymousOrg(self.org):
+            self.joe.org.refresh_from_db()
 
-        message_context = self.joe.build_message_context()
-        self.assertEqual("********", message_context['tel'])
-        self.assertEqual(self.joe.id, message_context['id'])
+            context = self.joe.build_expressions_context()
+            self.assertEqual("********", context['tel'])
+            self.assertEqual(self.joe.id, context['id'])
 
     def test_urn_priority(self):
         bob = self.create_contact("Bob")
