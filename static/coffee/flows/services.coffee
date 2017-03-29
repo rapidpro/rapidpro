@@ -1297,6 +1297,11 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       actionset._lastActionMissingTranslation = null
 
+      if action.type == "end_ussd"
+        actionset.destination = null
+        Plumb.updateConnection(actionset)
+        @applyActivity(actionset, $rootScope.activity)
+
       found = false
       lastAction = null
       for previous, idx in actionset.actions
