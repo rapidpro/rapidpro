@@ -8765,6 +8765,8 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                 [call] = mock.call_args_list
                 (args, kwargs) = call
                 payload = kwargs['json']
+                self.assertFalse('from' in payload.keys())
+                self.assertFalse('to' in payload.keys())
                 self.assertEquals(payload['reply_to'], 'vumi-message-id')
                 self.assertEquals(payload['channel_data'], {
                     'continue_session': True
@@ -8805,6 +8807,8 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                 [call] = mock.call_args_list
                 (args, kwargs) = call
                 payload = kwargs['json']
+                self.assertFalse('from' in payload.keys())
+                self.assertFalse('to' in payload.keys())
                 self.assertEquals(payload['reply_to'], 'vumi-message-id')
                 self.assertEquals(payload['channel_data'], {
                     'continue_session': False
