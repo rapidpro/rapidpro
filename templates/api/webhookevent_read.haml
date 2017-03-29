@@ -22,6 +22,8 @@
         .result-time
           {{ result.created_on }}
         .result-message= result.message
+        .result-request-time
+          Request time: {{ result.request_time }}
         -if result.status_code
           %pre.result-request.prettyprint{ style:'margin-top:10px;' }<
             :plain
