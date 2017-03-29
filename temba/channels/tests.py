@@ -7398,7 +7398,7 @@ class PlivoTest(TembaTest):
         self.joe = self.create_contact("Joe", "+250788383383")
 
     def test_release(self):
-        with patch('requests.post') as mock:
+        with patch('requests.delete') as mock:
             mock.return_value = MockResponse(200, "Success", method='POST')
             self.channel.release()
             self.channel.refresh_from_db()
@@ -8766,6 +8766,8 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                 [call] = mock.call_args_list
                 (args, kwargs) = call
                 payload = kwargs['json']
+                self.assertFalse('from' in payload.keys())
+                self.assertFalse('to' in payload.keys())
                 self.assertEquals(payload['reply_to'], 'vumi-message-id')
                 self.assertEquals(payload['channel_data'], {
                     'continue_session': True
@@ -8806,6 +8808,8 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                 [call] = mock.call_args_list
                 (args, kwargs) = call
                 payload = kwargs['json']
+                self.assertFalse('from' in payload.keys())
+                self.assertFalse('to' in payload.keys())
                 self.assertEquals(payload['reply_to'], 'vumi-message-id')
                 self.assertEquals(payload['channel_data'], {
                     'continue_session': False
