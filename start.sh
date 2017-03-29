@@ -7,7 +7,8 @@ python manage.py compress --extension=".haml" --force -v0
 #python manage.py syncdb
 python manage.py migrate --fake-initial
 #nohup ./manage.py celery --beat --app=temba  worker --loglevel=INFO --queues=celery,msgs,flows,handler  >/cel.out 2>&1&
-nohup celery --beat --app=temba  worker --loglevel=INFO --queues=celery,msgs,flows,handler >/cel.out 2>&1&
+celery multi start --beat --app=temba  worker --loglevel=INFO --queues=celery,msgs,flows,handler 
+#nohup celery --beat --app=temba  worker --loglevel=INFO --queues=celery,msgs,flows,handler >/cel.out 2>&1&
 #nohup ./manage.py celery worker -B -E --loglevel=INFO --concurrency=10 >/cel.out 2>&1&
 #uwsgi --http-auto-chunked --http-keepalive
 python manage.py runserver 0.0.0.0:8000

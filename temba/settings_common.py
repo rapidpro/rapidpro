@@ -111,7 +111,7 @@ STATICFILES_FINDERS = (
 )
 
 # Make this unique, and don't share it with anybody.
-SECRET_KEY = 'your own secret key'
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 EMAIL_CONTEXT_PROCESSORS = ('temba.utils.email.link_components',)
 
@@ -1104,12 +1104,12 @@ BROKER_URL = 'redis://%s:%d/%d' % (REDIS_HOST, REDIS_PORT, REDIS_DB)
 # by default, celery doesn't have any timeout on our redis connections, this fixes that
 BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 5}
 
-CELERY_RESULT_BACKEND = None
+CELERY_RESULT_BACKEND = BROKER_URL
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
-IS_PROD = False
-HOSTNAME = "localhost"
+IS_PROD = True
+HOSTNAME = "rapidpro.datos.gob.mx"
 
 # The URL and port of the proxy server to use when needed (if any, in requests format)
 OUTGOING_PROXIES = {}
