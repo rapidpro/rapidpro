@@ -1222,7 +1222,7 @@ class BroadcastTest(TembaTest):
         self.joe.save()
         self.assertEquals(("1,2,3", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
 
-    def test_message_context(self):
+    def test_expressions_context(self):
         ContactField.get_or_create(self.org, self.admin, "superhero_name", "Superhero Name")
 
         self.joe.send("keyword remainder-remainder", self.admin)
@@ -1230,7 +1230,7 @@ class BroadcastTest(TembaTest):
         self.joe.save()
 
         msg = Msg.objects.get()
-        context = msg.build_message_context()
+        context = msg.build_expressions_context()
 
         self.assertEqual(context['__default__'], "keyword remainder-remainder")
         self.assertEqual(context['value'], "keyword remainder-remainder")

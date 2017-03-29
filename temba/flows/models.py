@@ -682,7 +682,7 @@ class Flow(TembaModel):
                 if not resume_parent_run:
                     flow_uuid = json.loads(ruleset.config).get('flow').get('uuid')
                     flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
-                    message_context = run.flow.build_message_context(run.contact, msg)
+                    message_context = run.flow.build_expressions_context(run.contact, msg)
 
                     # our extra will be the current flow variables
                     extra = message_context.get('extra', {})
@@ -783,28 +783,24 @@ class Flow(TembaModel):
                 pass
         return changed
 
-    @classmethod
-    def build_flow_context(cls, flow, contact, contact_context=None):
+    def build_flow_context(self, contact, contact_context=None):
         """
         Get a flow context built on the last run for the contact in the given flow
         """
-
-        date_format = get_datetime_format(flow.org.get_dayfirst())[1]
-        tz = flow.org.timezone
+        date_format = get_datetime_format(self.org.get_dayfirst())[1]
 
         # wrapper around our value dict, lets us do a nice representation of both @flow.foo and @flow.foo.text
-        def value_wrapper(value):
-            values = dict(text=value['text'],
-                          time=datetime_to_str(value['time'], format=date_format, tz=tz),
-                          category=flow.get_localized_text(value['category'], contact),
-                          value=six.text_type(value['rule_value']))
-            values['__default__'] = six.text_type(value['rule_value'])
-            return values
+        def value_wrapper(val):
+            return dict(__default__=six.text_type(val['rule_value']),
+                        text=val['text'],
+                        time=datetime_to_str(val['time'], format=date_format, tz=self.org.timezone),
+                        category=self.get_localized_text(val['category'], contact),
+                        value=six.text_type(val['rule_value']))
 
         flow_context = {}
         values = []
         if contact:
-            results = flow.get_results(contact, only_last_run=True)
+            results = self.get_results(contact, only_last_run=True)
             if results and results[0]:
                 for value in results[0]['values']:
                     field = Flow.label_to_slug(value['label'])
@@ -815,7 +811,7 @@ class Flow(TembaModel):
 
             # if we don't have a contact context, build one
             if not contact_context:
-                flow_context['contact'] = contact.build_message_context()
+                flow_context['contact'] = contact.build_expressions_context()
 
         return flow_context
 
@@ -1234,21 +1230,21 @@ class Flow(TembaModel):
 
         return (rulesets, rule_categories)
 
-    def build_message_context(self, contact, msg):
-        contact_context = contact.build_message_context() if contact else dict()
+    def build_expressions_context(self, contact, msg):
+        contact_context = contact.build_expressions_context() if contact else dict()
 
         # our default value
         channel_context = None
 
         # add our message context
         if msg:
-            message_context = msg.build_message_context()
+            message_context = msg.build_expressions_context(contact_context=contact_context)
 
             # some fake channel deets for simulation
             if msg.contact.is_test:
-                channel_context = dict(__default__='(800) 555-1212', name='Simulator', tel='(800) 555-1212', tel_e164='+18005551212')
+                channel_context = Channel.SIMULATOR_CONTEXT
             elif msg.channel:
-                channel_context = msg.channel.build_message_context()
+                channel_context = msg.channel.build_expressions_context()
         elif contact:
             message_context = dict(__default__='', contact=contact_context)
         else:
@@ -1261,25 +1257,26 @@ class Flow(TembaModel):
             # only populate channel if this contact can actually be reached (ie, has a URN)
             if contact_urn:
                 channel = contact.org.get_send_channel(contact_urn=contact_urn)
-                channel_context = channel.build_message_context() if channel else None
+                if channel:
+                    channel_context = channel.build_expressions_context()
 
         run = self.runs.filter(contact=contact).order_by('-created_on').first()
         run_context = run.field_dict() if run else {}
 
         # our current flow context
-        flow_context = Flow.build_flow_context(self, contact, contact_context)
+        flow_context = self.build_flow_context(contact, contact_context)
 
         context = dict(flow=flow_context, channel=channel_context, step=message_context, extra=run_context)
 
         # if we have parent or child contexts, add them in too
         if run:
             if run.parent:
-                context['parent'] = Flow.build_flow_context(run.parent.flow, run.parent.contact)
+                context['parent'] = run.parent.flow.build_flow_context(run.parent.contact)
 
             # see if we spawned any children and add them too
             child_run = FlowRun.objects.filter(parent=run).order_by('-created_on').first()
             if child_run:
-                context['child'] = Flow.build_flow_context(child_run.flow, child_run.contact)
+                context['child'] = child_run.flow.build_flow_context(child_run.contact)
 
         if contact:
             context['contact'] = contact_context
@@ -1730,7 +1727,7 @@ class Flow(TembaModel):
         message_map = dict()
         if broadcasts:
             # create our message context
-            message_context_base = self.build_message_context(None, start_msg)
+            message_context_base = self.build_expressions_context(None, start_msg)
             if extra:
                 message_context_base['extra'] = extra
 
@@ -3393,7 +3390,7 @@ class RuleSet(models.Model):
         if msg:
             orig_text = msg.text
 
-        context = run.flow.build_message_context(run.contact, msg)
+        context = run.flow.build_expressions_context(run.contact, msg)
 
         if resume_after_timeout:
             for rule in self.get_rules():
@@ -3495,7 +3492,7 @@ class RuleSet(models.Model):
                     airtime = AirtimeTransfer.trigger_airtime_event(self.flow.org, self, run.contact, msg)
 
                 # rebuild our context again, the webhook may have populated something
-                context = run.flow.build_message_context(run.contact, msg)
+                context = run.flow.build_expressions_context(run.contact, msg)
 
                 # airtime test evaluate against the status of the airtime
                 text = airtime.status
@@ -4722,7 +4719,7 @@ class EmailAction(Action):
         from .tasks import send_email_action_task
 
         # build our message from our flow variables
-        message_context = run.flow.build_message_context(run.contact, msg)
+        message_context = run.flow.build_expressions_context(run.contact, msg)
         (message, errors) = Msg.substitute_variables(self.message, run.contact, message_context, org=run.flow.org)
         (subject, errors) = Msg.substitute_variables(self.subject, run.contact, message_context, org=run.flow.org)
 
@@ -4779,7 +4776,7 @@ class WebhookAction(Action):
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         from temba.api.models import WebHookEvent
 
-        message_context = run.flow.build_message_context(run.contact, msg)
+        message_context = run.flow.build_expressions_context(run.contact, msg)
         (value, errors) = Msg.substitute_variables(self.webhook, run.contact, message_context,
                                                    org=run.flow.org, url_encode=True)
 
@@ -4859,7 +4856,7 @@ class AddToGroupAction(Action):
             for group in self.groups:
                 if not isinstance(group, ContactGroup):
 
-                    message_context = run.flow.build_message_context(contact, msg)
+                    message_context = run.flow.build_expressions_context(contact, msg)
                     (value, errors) = Msg.substitute_variables(group, contact, message_context, org=run.flow.org)
                     group = None
 
@@ -4995,7 +4992,7 @@ class AddLabelAction(Action):
         for label in self.labels:
             if not isinstance(label, Label):
                 contact = run.contact
-                message_context = run.flow.build_message_context(contact, msg)
+                message_context = run.flow.build_expressions_context(contact, msg)
                 (value, errors) = Msg.substitute_variables(label, contact, message_context, org=run.flow.org)
 
                 if not errors:
@@ -5056,7 +5053,7 @@ class SayAction(Action):
 
         # localize the text for our message, need this either way for logging
         message = run.flow.get_localized_text(self.msg, run.contact)
-        (message, errors) = Msg.substitute_variables(message, run.contact, run.flow.build_message_context(run.contact, event))
+        (message, errors) = Msg.substitute_variables(message, run.contact, run.flow.build_expressions_context(run.contact, event))
 
         msg = run.create_outgoing_ivr(message, media_url, run.session)
 
@@ -5094,7 +5091,7 @@ class PlayAction(Action):
 
     def execute(self, run, actionset_uuid, event, offline_on=None):
 
-        (media, errors) = Msg.substitute_variables(self.url, run.contact, run.flow.build_message_context(run.contact, event))
+        (media, errors) = Msg.substitute_variables(self.url, run.contact, run.flow.build_expressions_context(run.contact, event))
         msg = run.create_outgoing_ivr(_('Played contact recording'), media, run.session)
 
         if msg:
@@ -5162,7 +5159,7 @@ class ReplyAction(Action):
                 reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
                                             created_on=offline_on, response_to=msg, media=media)
             else:
-                context = run.flow.build_message_context(run.contact, msg)
+                context = run.flow.build_expressions_context(run.contact, msg)
 
                 try:
                     if msg:
@@ -5312,7 +5309,7 @@ class VariableContactAction(Action):
         return variables
 
     def build_groups_and_contacts(self, run, msg):
-        message_context = run.flow.build_message_context(run.contact, msg)
+        message_context = run.flow.build_expressions_context(run.contact, msg)
         contacts = list(self.contacts)
         groups = list(self.groups)
 
@@ -5383,7 +5380,7 @@ class TriggerFlowAction(VariableContactAction):
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         if self.flow:
-            message_context = run.flow.build_message_context(run.contact, msg)
+            message_context = run.flow.build_expressions_context(run.contact, msg)
             (groups, contacts) = self.build_groups_and_contacts(run, msg)
             # start our contacts down the flow
             if not run.contact.is_test:
@@ -5491,7 +5488,7 @@ class StartFlowAction(Action):
         msgs = []
 
         # our extra will be our flow variables in our message context
-        message_context = run.flow.build_message_context(run.contact, msg)
+        message_context = run.flow.build_expressions_context(run.contact, msg)
         extra = message_context.get('extra', dict())
 
         # if they are both flow runs, just redirect the call
@@ -5582,7 +5579,7 @@ class SaveToContactAction(Action):
         # evaluate our value
         contact = run.contact
         user = get_flow_user(run.org)
-        message_context = run.flow.build_message_context(contact, msg)
+        message_context = run.flow.build_expressions_context(contact, msg)
         (value, errors) = Msg.substitute_variables(self.value, contact, message_context, org=run.flow.org)
 
         if contact.is_test and errors:  # pragma: needs cover
@@ -5737,7 +5734,7 @@ class SendAction(VariableContactAction):
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         if self.msg or self.media:
             flow = run.flow
-            message_context = flow.build_message_context(run.contact, msg)
+            message_context = flow.build_expressions_context(run.contact, msg)
 
             (groups, contacts) = self.build_groups_and_contacts(run, msg)
 

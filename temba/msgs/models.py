@@ -1118,13 +1118,13 @@ class Msg(models.Model):
             push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
                       dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False))
 
-    def build_message_context(self):
+    def build_expressions_context(self, contact_context=None):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
 
         return {
             '__default__': self.text,
             'value': self.text,
-            'contact': self.contact.build_message_context(),
+            'contact': contact_context or self.contact.build_expressions_context(),
             'time': datetime_to_str(self.created_on, format=date_format, tz=self.org.timezone)
         }
 
@@ -1293,7 +1293,7 @@ class Msg(models.Model):
             return text, []
 
         if contact:
-            message_context['contact'] = contact.build_message_context()
+            message_context['contact'] = contact.build_expressions_context()
 
         # add 'step.contact' if it isn't already populated (like in flow batch starts)
         if 'step' not in message_context or 'contact' not in message_context['step']:
@@ -1370,7 +1370,7 @@ class Msg(models.Model):
 
         # make sure 'channel' is populated if we have a channel
         if channel:
-            message_context['channel'] = channel.build_message_context()
+            message_context['channel'] = channel.build_expressions_context()
 
         (text, errors) = Msg.substitute_variables(text, contact, message_context, org=org)
 

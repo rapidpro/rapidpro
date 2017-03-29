@@ -473,7 +473,7 @@ class FlowTest(TembaTest):
         self.assertEqual(contact1_steps[1].next_uuid, None)
 
         # test our message context
-        context = self.flow.build_message_context(self.contact, None)
+        context = self.flow.build_expressions_context(self.contact, None)
         self.assertEquals(dict(__default__=''), context['flow'])
 
         # check flow activity endpoint response
@@ -556,7 +556,7 @@ class FlowTest(TembaTest):
         self.assertEquals(None, value.datetime_value)
 
         # check what our message context looks like now
-        context = self.flow.build_message_context(self.contact, incoming)
+        context = self.flow.build_expressions_context(self.contact, incoming)
         self.assertTrue(context['flow'])
         self.assertEqual("color: orange", context['flow']['__default__'])
         self.assertEqual("orange", six.text_type(context['flow']['color']['__default__']))
@@ -579,7 +579,7 @@ class FlowTest(TembaTest):
         step.save()
 
         # check our message context again
-        context = self.flow.build_message_context(self.contact, incoming)
+        context = self.flow.build_expressions_context(self.contact, incoming)
         self.assertEquals('10', context['flow']['color']['value'])
         self.assertEquals('Orange', context['flow']['color']['category'])
 
@@ -1361,7 +1361,7 @@ class FlowTest(TembaTest):
         # clear any extra on this run
         run.fields = ""
 
-        context = run.flow.build_message_context(run.contact, None)
+        context = run.flow.build_expressions_context(run.contact, None)
         if extra:
             context['extra'] = extra
 
@@ -1378,7 +1378,7 @@ class FlowTest(TembaTest):
     def assertDateTest(self, expected_test, expected_value, test):
         run = FlowRun.objects.filter(contact=self.contact).first()
         tz = run.flow.org.timezone
-        context = run.flow.build_message_context(run.contact, None)
+        context = run.flow.build_expressions_context(run.contact, None)
 
         tuple = test.evaluate(run, self.sms, context, self.sms.text)
         if expected_test:
@@ -1874,7 +1874,7 @@ class FlowTest(TembaTest):
 
         self.org.country = self.country
         run.flow.org = self.org
-        context = run.flow.build_message_context(run.contact, None)
+        context = run.flow.build_expressions_context(run.contact, None)
 
         # wrong admin level should return None if provided
         lga_tuple = HasDistrictTest('Kano').evaluate(run, sms, context, 'apapa')
@@ -3968,7 +3968,7 @@ class WebhookTest(TembaTest):
             self.assertEquals("Valid", value)
             self.assertEquals(dict(text="Valid", order_number="PX1001"), run.field_dict())
 
-            message_context = self.flow.build_message_context(self.contact, incoming)
+            message_context = self.flow.build_expressions_context(self.contact, incoming)
             self.assertEquals(dict(text="Valid", order_number="PX1001"), message_context['extra'])
 
         with patch('requests.post') as mock:
@@ -3980,7 +3980,7 @@ class WebhookTest(TembaTest):
             self.assertEquals("Valid", value)
             self.assertEquals(dict(text="Valid", order_number="PX1002"), run.field_dict())
 
-            message_context = self.flow.build_message_context(self.contact, incoming)
+            message_context = self.flow.build_expressions_context(self.contact, incoming)
             self.assertEquals(dict(text="Valid", order_number="PX1002"), message_context['extra'])
 
         with patch('requests.post') as mock:
@@ -3994,7 +3994,7 @@ class WebhookTest(TembaTest):
             self.assertIsNone(value)
             self.assertEquals("1001", incoming.text)
 
-            message_context = self.flow.build_message_context(self.contact, incoming)
+            message_context = self.flow.build_expressions_context(self.contact, incoming)
             self.assertEqual(message_context['extra'], {'0': 'zero', '1': 'one', '2': 'two'})
 
         with patch('requests.post') as mock:
@@ -4008,7 +4008,7 @@ class WebhookTest(TembaTest):
             self.assertIsNone(value)
             self.assertEquals("1001", incoming.text)
 
-            message_context = self.flow.build_message_context(self.contact, incoming)
+            message_context = self.flow.build_expressions_context(self.contact, incoming)
             extra = message_context['extra']
 
             # should only keep first 256 values
@@ -4026,7 +4026,7 @@ class WebhookTest(TembaTest):
             self.assertIsNone(value)
             self.assertEquals("1001", incoming.text)
 
-            message_context = self.flow.build_message_context(self.contact, incoming)
+            message_context = self.flow.build_expressions_context(self.contact, incoming)
             self.assertEquals({}, message_context['extra'])
 
         with patch('requests.post') as mock:
@@ -4040,7 +4040,7 @@ class WebhookTest(TembaTest):
             self.assertIsNone(value)
             self.assertEquals("1001", incoming.text)
 
-            message_context = self.flow.build_message_context(self.contact, incoming)
+            message_context = self.flow.build_expressions_context(self.contact, incoming)
             self.assertEquals({}, message_context['extra'])
 
         with patch('requests.post') as mock:
