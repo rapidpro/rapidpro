@@ -24,7 +24,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGr
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, SystemLabel
 from temba.flows.models import FlowRun
-from temba.orgs.models import Org
+from temba.orgs.models import Org, UserSettings
 from temba.tests import TembaTest
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, date_to_utc_range, truncate, random_string
@@ -43,9 +43,26 @@ from .profiler import time_monitor
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .voicexml import VoiceXMLException
+from . import decode_base64
 
 
 class InitTest(TembaTest):
+
+    def test_decode_base64(self):
+
+        self.assertEqual('This test\nhas a newline', decode_base64('This test\nhas a newline'))
+
+        self.assertEqual('Please vote NO on the confirmation of Gorsuch.',
+                         decode_base64('Please vote NO on the confirmation of Gorsuch.'))
+
+        self.assertEqual('Bannon Explains The World ...\n\u201cThe Camp of the Saints',
+                         decode_base64('QmFubm9uIEV4cGxhaW5zIFRoZSBXb3JsZCAuLi4K4oCcVGhlIENhbXAgb2YgdGhlIFNhaW50c+KA\r'))
+
+        self.assertEqual('the sweat, the tears and the sacrifice of working America',
+                         decode_base64('dGhlIHN3ZWF0LCB0aGUgdGVhcnMgYW5kIHRoZSBzYWNyaWZpY2Ugb2Ygd29ya2luZyBBbWVyaWNh\r'))
+
+        self.assertIn('I find them to be friendly',
+                      decode_base64('Tm93IGlzDQp0aGUgdGltZQ0KZm9yIGFsbCBnb29kDQpwZW9wbGUgdG8NCnJlc2lzdC4NCg0KSG93IGFib3V0IGhhaWt1cz8NCkkgZmluZCB0aGVtIHRvIGJlIGZyaWVuZGx5Lg0KcmVmcmlnZXJhdG9yDQoNCjAxMjM0NTY3ODkNCiFAIyQlXiYqKCkgW117fS09Xys7JzoiLC4vPD4/fFx+YA0KQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg=='))
 
     def test_datetime_to_ms(self):
         d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, tzinfo=pytz.utc)
@@ -1416,7 +1433,7 @@ class NCCOTest(TembaTest):
 
 class MiddlewareTest(TembaTest):
 
-    def test_orgheader(self):
+    def test_org_header(self):
         response = self.client.get(reverse('public.public_index'))
         self.assertFalse(response.has_header('X-Temba-Org'))
 
@@ -1429,6 +1446,29 @@ class MiddlewareTest(TembaTest):
 
         response = self.client.get(reverse('public.public_index'))
         self.assertEqual(response['X-Temba-Org'], six.text_type(self.org.id))
+
+    def test_branding(self):
+        response = self.client.get(reverse('public.public_index'))
+        self.assertEqual(response.context['request'].branding, settings.BRANDING['rapidpro.io'])
+
+    def test_flow_simulation(self):
+        Contact.set_simulation(True)
+
+        self.client.get(reverse('public.public_index'))
+
+        self.assertFalse(Contact.get_simulation())
+
+    def test_activate_language(self):
+        self.assertContains(self.client.get(reverse('public.public_index')), "Create Account")
+
+        self.login(self.admin)
+
+        self.assertContains(self.client.get(reverse('public.public_index')), "Create Account")
+        self.assertContains(self.client.get(reverse('contacts.contact_list')), "Import Contacts")
+
+        UserSettings.objects.filter(user=self.admin).update(language='fr')
+
+        self.assertContains(self.client.get(reverse('contacts.contact_list')), "Importer des contacts")
 
 
 class ProfilerTest(TembaTest):

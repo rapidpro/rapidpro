@@ -1,3 +1,16 @@
+v3.0.89
+----------
+ * Expand base64 charset, fix decode validity heuristic
+
+v3.0.88
+----------
+ * Deal with Twilio arbitrarily sending messages as base64
+ * Allow configuration of max text size via settings
+
+v3.0.87
+----------
+ * Set higher priority when sending responses through Kannel
+
 v3.0.86
 ----------
  * Do not add stopped contacts to groups when importing

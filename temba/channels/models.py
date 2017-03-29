@@ -1650,6 +1650,10 @@ class Channel(TembaModel):
         payload['dlr-url'] = dlr_url
         payload['dlr-mask'] = dlr_mask
 
+        # if this a reply to a message, set a higher priority
+        if msg.response_to_id:
+            payload['priority'] = 1
+
         # should our to actually be in national format?
         use_national = channel.config.get(Channel.CONFIG_USE_NATIONAL, False)
         if use_national:

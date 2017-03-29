@@ -257,6 +257,13 @@
     {{block.super}}
 
     :javascript
+      {% if user_org %}
+        {% if user_org.is_anon %}
+          var anon_org = true;
+        {% else %}
+          var anon_org = false;
+        {% endif %}
+      {% endif %}
 
       function removalConfirmation(removal, buttonName) {
         modal = new ConfirmationModal($('.' + removal + ' > .title').html(), $('.' + removal + ' > .body').html());
