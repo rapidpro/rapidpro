@@ -7398,7 +7398,7 @@ class PlivoTest(TembaTest):
         self.joe = self.create_contact("Joe", "+250788383383")
 
     def test_release(self):
-        with patch('requests.post') as mock:
+        with patch('requests.delete') as mock:
             mock.return_value = MockResponse(200, "Success", method='POST')
             self.channel.release()
             self.channel.refresh_from_db()
