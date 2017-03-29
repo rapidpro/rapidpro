@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import six
 
 from django.db import models
+from django.utils import timezone
 from temba.channels.models import ChannelSession
 from temba.contacts.models import Contact, URN
 from temba.triggers.models import Trigger
@@ -33,9 +34,10 @@ class USSDSession(ChannelSession):
 
     def start_session_async(self, flow, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
-        message = Msg.create_incoming(
-            channel=self.channel, urn=urn, text=content or '', date=date, session=self,
-            msg_type=USSD, external_id=message_id)
+        message = Msg.objects.create(
+            channel=self.channel, contact=self.contact, contact_urn=self.contact_urn,
+            sent_on=date, session=self, msg_type=USSD, external_id=message_id,
+            created_on=timezone.now(), modified_on=timezone.now(), org=self.channel.org)
         flow.start([], [self.contact], start_msg=message, restart_participants=True, session=self)
 
     def handle_session_async(self, urn, content, date, message_id):
