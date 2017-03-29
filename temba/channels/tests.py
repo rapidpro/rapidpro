@@ -2529,7 +2529,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(ussd_context['is_ussd_channel'], True)
 
 
-
 class ChannelBatchTest(TembaTest):
 
     def test_time_utils(self):
