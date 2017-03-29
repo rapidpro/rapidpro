@@ -604,11 +604,7 @@ class WebHookResult(SmartModel):
 
         api_user = get_api_user()
 
-        request_time = None
-        try:
-            request_time = int(result['request_time'])
-        except:
-            pass
+        request_time = result.get('request_time', None)
 
         WebHookResult.objects.create(event=event,
                                      url=result['url'],
