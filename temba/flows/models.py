@@ -96,7 +96,6 @@ class FlowStatsCache(Enum):
     runs_started_count = 1    # deprecated, no longer used
     runs_completed_count = 2  # deprecated, no longer used
     contacts_started_set = 3  # deprecated, no longer used
-    visit_count_map = 4
     step_active_set = 5
     cache_check = 6
 
@@ -922,48 +921,65 @@ class Flow(TembaModel):
 
         # activity
         with self.lock_on(FlowLock.activity, lock_ttl=lock_ttl):
-            (active, visits) = self._calculate_activity()
-
-            # remove our old active cache
-            keys = self.calculate_active_step_keys()
-            if keys:
-                r.delete(*keys)
-            r.delete(self.get_stats_cache_key(FlowStatsCache.visit_count_map))
+            runs_at_node = self._calculate_node_counts(simulation=False)
 
             # add current active cache
-            for step, runs in active.items():
+            for node_uuid, runs in six.iteritems(runs_at_node):
                 for run in runs:
-                    r.sadd(self.get_stats_cache_key(FlowStatsCache.step_active_set, step), run)
+                    r.sadd(self.get_stats_cache_key(FlowStatsCache.step_active_set, node_uuid), run)
 
-            if len(visits):
-                r.hmset(self.get_stats_cache_key(FlowStatsCache.visit_count_map), visits)
-
-    def _calculate_activity(self, simulation=False):
-
+    def _calculate_node_counts(self, simulation):
         """
-        Calculate our activity stats from the database. This is expensive. It should only be run
-        for simulation or in an async task to rebuild the activity cache
+        Calculate how many contacts are at each node. This is expensive and should only be run for simulation or in an
+        async task to rebuild the cache.
         """
-        # who is actively at each step
-        steps = FlowStep.objects.values('run__pk', 'step_uuid').filter(run__is_active=True, run__flow=self, left_on=None, run__contact__is_test=simulation).annotate(count=Count('run_id'))
+        # fetch steps in active runs where contact hasn't left
+        steps = FlowStep.objects.filter(run__is_active=True, run__flow=self, left_on=None, run__contact__is_test=simulation)
+        steps = steps.values('run__id', 'step_uuid').annotate(count=Count('run_id'))
 
-        active = {}
+        runs_at_node = defaultdict(set)
         for step in steps:
-            step_id = step['step_uuid']
-            if step_id not in active:
-                active[step_id] = {step['run__pk']}
-            else:
-                active[step_id].add(step['run__pk'])
+            node_uuid = step['step_uuid']
+            runs_at_node[node_uuid].add(step['run__id'])
 
-        # need to be a list for json
-        for key, value in active.items():
-            active[key] = list(value)
+        return runs_at_node
+
+    def get_node_counts(self, simulation):
+        if simulation:
+            runs_at_node = self._calculate_node_counts(simulation=True)
+            return {node_uuid: len(runs) for node_uuid, runs in six.iteritems(runs_at_node)}
+
+        r = get_redis_connection()
+
+        # get all possible active keys
+        keys = self.calculate_active_step_keys()
+
+        runs_at_node = {}
+        for key in keys:
+            count = r.scard(key)
+            # only include stats for steps that actually have people there
+            if count:
+                runs_at_node[key[key.rfind(':') + 1:]] = count
+
+        return runs_at_node
+
+    def get_segment_counts(self, simulation, include_incomplete=False):
+        """
+        Returns how many contacts have taken each flow segment. For simulation mode this is calculated, but for real
+        contacts this is pre-calculated in FlowPathCount.
+        """
+        if not simulation:
+            return FlowPathCount.get_totals(self, include_incomplete)
+
+        steps = FlowStep.objects.filter(run__flow=self, run__contact__is_test=True)
+
+        if not include_incomplete:
+            steps = steps.exclude(next_uuid=None)
+
+        visited_actions = steps.values('step_uuid', 'next_uuid').filter(step_type='A').annotate(count=Count('run_id'))
+        visited_rules = steps.values('rule_uuid', 'next_uuid').filter(step_type='R').annotate(count=Count('run_id'))
 
         visits = {}
-        visited_actions = FlowStep.objects.values('step_uuid', 'next_uuid').filter(run__flow=self, step_type='A', run__contact__is_test=simulation).annotate(count=Count('run_id'))
-        visited_rules = FlowStep.objects.values('rule_uuid', 'next_uuid').filter(run__flow=self, step_type='R', run__contact__is_test=simulation).exclude(rule_uuid=None).annotate(count=Count('run_id'))
-
-        # where have people visited
         for step in visited_actions:
             if step['next_uuid'] and step['count']:
                 visits['%s:%s' % (step['step_uuid'], step['next_uuid'])] = step['count']
@@ -972,7 +988,7 @@ class Flow(TembaModel):
             if step['next_uuid'] and step['count']:
                 visits['%s:%s' % (step['rule_uuid'], step['next_uuid'])] = step['count']
 
-        return (active, visits)
+        return visits
 
     def _check_for_cache_update(self):
         """
@@ -996,53 +1012,15 @@ class Flow(TembaModel):
         # check flow stats for accuracy, rebuilding if necessary
         check_flow_stats_accuracy_task.delay(self.pk)
 
-    def get_visit_counts(self, simulation=False):
-
-        if simulation:  # pragma: needs cover
-            (active, visits) = self._calculate_activity(simulation=True)
-            return visits
-
-        # all the flow path counts for our flow
-        paths = FlowPathCount.objects.filter(flow=self)
-
-        # group by our from and to and sum the counts
-        paths = paths.values('from_uuid', 'to_uuid').order_by().annotate(Sum('count'))
-        return {'%s:%s' % (p['from_uuid'], p['to_uuid']): p['count__sum'] for p in paths}
-
     def get_activity(self, simulation=False, check_cache=True):
         """
         Get the activity summary for a flow as a tuple of the number of active runs
         at each step and a map of the previous visits
         """
-        if simulation:
-            (active, visits) = self._calculate_activity(simulation=True)
-            # we want counts not actual run ids
-            for key, value in active.items():
-                active[key] = len(value)
-            return (active, visits)
-
         if check_cache:
             self._check_for_cache_update()
 
-        r = get_redis_connection()
-
-        # get all possible active keys
-        keys = self.calculate_active_step_keys()
-        active = {}
-        for key in keys:
-            count = r.scard(key)
-            # only include stats for steps that actually have people there
-            if count:
-                active[key[key.rfind(':') + 1:]] = count
-
-        # visited path
-        visited = r.hgetall(self.get_stats_cache_key(FlowStatsCache.visit_count_map))
-
-        # make sure our counts are treated as ints for consistency
-        for k, v in visited.items():
-            visited[k] = int(v)
-
-        return (active, visited)
+        return self.get_node_counts(simulation), self.get_segment_counts(simulation)
 
     def get_base_text(self, language_dict, default=''):
         if not isinstance(language_dict, dict):  # pragma: no cover
@@ -1911,19 +1889,6 @@ class Flow(TembaModel):
         r = get_redis_connection()
         r.srem(self.get_stats_cache_key(FlowStatsCache.step_active_set, step.step_uuid), step.run.pk)
 
-    def remove_visits_for_step(self, step):
-        """
-        Decrements the count for the given step
-        """
-        r = get_redis_connection()
-        step_uuid = step.step_uuid
-        if step.rule_uuid:
-            step_uuid = step.rule_uuid
-
-        # only activity for paths taken are recorded
-        if step.next_uuid:
-            r.hincrby(self.get_stats_cache_key(FlowStatsCache.visit_count_map), "%s:%s" % (step_uuid, step.next_uuid), -1)
-
     def update_activity(self, step, previous_step=None, rule_uuid=None):
         """
         Updates our cache for the given step. This will mark the current active step and
@@ -1932,7 +1897,6 @@ class Flow(TembaModel):
         :param step: the step they just took
         :param previous_step: the step they were just on
         :param rule_uuid: the uuid for the rule they came from (if any)
-        :param simulation: if we are part of a simulation
         """
 
         with self.lock_on(FlowLock.activity):
@@ -1941,14 +1905,6 @@ class Flow(TembaModel):
             # remove our previous active spot
             if previous_step:
                 self.remove_active_for_step(previous_step)
-
-                # mark our path
-                previous_uuid = previous_step.step_uuid
-
-                # if we came from a rule, use that instead of our step
-                if rule_uuid:
-                    previous_uuid = rule_uuid
-                r.hincrby(self.get_stats_cache_key(FlowStatsCache.visit_count_map), "%s:%s" % (previous_uuid, step.step_uuid), 1)
 
             # make us active on our new step
             r.sadd(self.get_stats_cache_key(FlowStatsCache.step_active_set, step.step_uuid), step.run.pk)
@@ -3111,10 +3067,6 @@ class FlowStep(models.Model):
         return steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org')
 
     def release(self):
-        if not self.contact.is_test:
-            self.run.flow.remove_visits_for_step(self)
-
-        # finally delete us
         self.delete()
 
     def save_rule_match(self, rule, value):
@@ -3806,6 +3758,15 @@ class FlowPathCount(SquashableModel):
             params = (distinct_set.flow_id, distinct_set.from_uuid, distinct_set.period) * 2
 
         return sql, params
+
+    @classmethod
+    def get_totals(cls, flow, include_incomplete=False):
+        counts = cls.objects.filter(flow=flow)
+        if not include_incomplete:
+            counts = counts.exclude(to_uuid=None)
+
+        totals = list(counts.values_list('from_uuid', 'to_uuid').annotate(replies=Sum('count')))
+        return {'%s:%s' % (t[0], t[1]): t[2] for t in totals}
 
     def __str__(self):  # pragma: no cover
         return "FlowPathCount(%d) %s:%s %s count: %d" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count)

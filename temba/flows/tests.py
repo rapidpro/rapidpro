@@ -4777,17 +4777,17 @@ class FlowsTest(FlowFileTest):
         self.send_message(flow, 'cyan', contact=tyler, assert_reply=False)
 
         # we should have 2 counts of the cyan rule to nothing
-        self.assertEqual(2, flow.get_visit_counts()[cyan_to_nothing])
+        self.assertEqual(2, flow.get_segment_counts(simulation=False, include_incomplete=True)[cyan_to_nothing])
         self.assertEqual(2, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
 
         # squash our counts and make sure they are still the same
         squash_flowpathcounts()
-        self.assertEqual(2, flow.get_visit_counts()[cyan_to_nothing])
+        self.assertEqual(2, flow.get_segment_counts(simulation=False, include_incomplete=True)[cyan_to_nothing])
 
         # but now we have a single count
         self.assertEqual(1, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
 
-        counts = len(flow.get_visit_counts())
+        counts = len(flow.get_segment_counts(False))
 
         # check that flow interruption counts properly
         rawls = self.create_contact('Thomas Rawls', '+12065557777')
@@ -4798,7 +4798,7 @@ class FlowsTest(FlowFileTest):
         self.send_message(random_word, 'blerg', contact=rawls)
 
         # here's our count for our response path
-        self.assertEqual(1, flow.get_visit_counts()[blue_to_beer])
+        self.assertEqual(1, flow.get_segment_counts(False)[blue_to_beer])
 
         # let's also create a flow run that gets expired
         pete = self.create_contact('Pete', '+12065554444')
@@ -4808,10 +4808,10 @@ class FlowsTest(FlowFileTest):
 
         # but there should be no additional records due to the interruption or expiration
         # ie, there are no counts added with respect to the next question
-        self.assertEqual(counts, len(flow.get_visit_counts()))
+        self.assertEqual(counts, len(flow.get_segment_counts(False)))
 
         # ensure no negative counts
-        for k, v in flow.get_visit_counts().items():
+        for k, v in flow.get_segment_counts(False).items():
             self.assertTrue(v >= 0)
 
     def test_prune_recentsteps(self):
