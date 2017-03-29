@@ -678,7 +678,7 @@ class ExpressionsTest(TembaTest):
         contact.save()
 
         variables = dict()
-        variables['contact'] = contact.build_message_context()
+        variables['contact'] = contact.build_expressions_context()
         variables['flow'] = dict(water_source="Well",     # key with underscore
                                  blank="",                # blank string
                                  arabic="اثنين ثلاثة",    # RTL chars
