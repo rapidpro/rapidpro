@@ -3005,7 +3005,8 @@ class FlowStep(models.Model):
             last_incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
             for action in actions:
-                msgs += action.execute(run, node.uuid, msg=last_incoming, offline_on=arrived_on)
+                context = flow.build_expressions_context(run.contact, last_incoming)
+                msgs += action.execute(run, context, node.uuid, msg=last_incoming, offline_on=arrived_on)
 
         step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, rule=previous_rule)
 
