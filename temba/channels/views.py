@@ -527,7 +527,7 @@ def channel_status_processor(request):
         cutoff = timezone.now() - timedelta(hours=1)
         send_channel = org.get_send_channel(scheme=TEL_SCHEME)
         call_channel = org.get_call_channel()
-        ussd_channel = org.get_ussd_channel(scheme=TEL_SCHEME)
+        ussd_channel = org.get_ussd_channel()
 
         # twitter is a suitable sender
         if not send_channel:
