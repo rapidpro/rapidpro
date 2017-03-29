@@ -3428,8 +3428,7 @@ class RuleSet(models.Model):
             for url in urls:
                 from temba.api.models import WebHookEvent
 
-                (value, errors) = Msg.substitute_variables(url, run.contact, context,
-                                                           org=run.flow.org, url_encode=True)
+                (value, errors) = Msg.substitute_variables(url, context, org=run.flow.org, url_encode=True)
 
                 result = WebHookEvent.trigger_flow_event(value, self.flow, run, self,
                                                          run.contact, msg, action, resthook=resthook)
@@ -3474,7 +3473,7 @@ class RuleSet(models.Model):
             # if we have a custom operand, figure that out
             text = None
             if self.operand:
-                (text, errors) = Msg.substitute_variables(self.operand, run.contact, context, org=run.flow.org)
+                (text, errors) = Msg.substitute_variables(self.operand, context, org=run.flow.org)
             elif msg:
                 text = msg.text
 
@@ -4720,8 +4719,8 @@ class EmailAction(Action):
 
         # build our message from our flow variables
         message_context = run.flow.build_expressions_context(run.contact, msg)
-        (message, errors) = Msg.substitute_variables(self.message, run.contact, message_context, org=run.flow.org)
-        (subject, errors) = Msg.substitute_variables(self.subject, run.contact, message_context, org=run.flow.org)
+        (message, errors) = Msg.substitute_variables(self.message, message_context, org=run.flow.org)
+        (subject, errors) = Msg.substitute_variables(self.subject, message_context, org=run.flow.org)
 
         # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
         subject = regex.sub('\s+', ' ', subject, regex.V0)
@@ -4731,7 +4730,7 @@ class EmailAction(Action):
         for email in self.emails:
             if email.startswith('@'):
                 # a valid email will contain @ so this is very likely to generate evaluation errors
-                (address, errors) = Msg.substitute_variables(email, run.contact, message_context, org=run.flow.org)
+                (address, errors) = Msg.substitute_variables(email, message_context, org=run.flow.org)
             else:
                 address = email
 
@@ -4777,8 +4776,7 @@ class WebhookAction(Action):
         from temba.api.models import WebHookEvent
 
         message_context = run.flow.build_expressions_context(run.contact, msg)
-        (value, errors) = Msg.substitute_variables(self.webhook, run.contact, message_context,
-                                                   org=run.flow.org, url_encode=True)
+        (value, errors) = Msg.substitute_variables(self.webhook, message_context, org=run.flow.org, url_encode=True)
 
         if errors:
             ActionLog.warn(run, _("URL appears to contain errors: %s") % ", ".join(errors))
@@ -4857,7 +4855,7 @@ class AddToGroupAction(Action):
                 if not isinstance(group, ContactGroup):
 
                     message_context = run.flow.build_expressions_context(contact, msg)
-                    (value, errors) = Msg.substitute_variables(group, contact, message_context, org=run.flow.org)
+                    (value, errors) = Msg.substitute_variables(group, message_context, org=run.flow.org)
                     group = None
 
                     if not errors:
@@ -4993,7 +4991,7 @@ class AddLabelAction(Action):
             if not isinstance(label, Label):
                 contact = run.contact
                 message_context = run.flow.build_expressions_context(contact, msg)
-                (value, errors) = Msg.substitute_variables(label, contact, message_context, org=run.flow.org)
+                (value, errors) = Msg.substitute_variables(label, message_context, org=run.flow.org)
 
                 if not errors:
                     try:
@@ -5053,7 +5051,7 @@ class SayAction(Action):
 
         # localize the text for our message, need this either way for logging
         message = run.flow.get_localized_text(self.msg, run.contact)
-        (message, errors) = Msg.substitute_variables(message, run.contact, run.flow.build_expressions_context(run.contact, event))
+        (message, errors) = Msg.substitute_variables(message, run.flow.build_expressions_context(run.contact, event))
 
         msg = run.create_outgoing_ivr(message, media_url, run.session)
 
@@ -5090,8 +5088,8 @@ class PlayAction(Action):
         return dict(type=PlayAction.TYPE, url=self.url, uuid=self.uuid)
 
     def execute(self, run, actionset_uuid, event, offline_on=None):
-
-        (media, errors) = Msg.substitute_variables(self.url, run.contact, run.flow.build_expressions_context(run.contact, event))
+        context = run.flow.build_expressions_context(run.contact, event)
+        (media, errors) = Msg.substitute_variables(self.url, context)
         msg = run.create_outgoing_ivr(_('Played contact recording'), media, run.session)
 
         if msg:
@@ -5327,8 +5325,7 @@ class VariableContactAction(Action):
 
             # other type of variable, perform our substitution
             else:
-                (variable, errors) = Msg.substitute_variables(variable, contact=run.contact,
-                                                              message_context=message_context, org=run.flow.org)
+                (variable, errors) = Msg.substitute_variables(variable, message_context, org=run.flow.org)
 
                 variable_group = ContactGroup.get_user_group(run.flow.org, name=variable)
                 if variable_group:  # pragma: needs cover
@@ -5580,7 +5577,7 @@ class SaveToContactAction(Action):
         contact = run.contact
         user = get_flow_user(run.org)
         message_context = run.flow.build_expressions_context(contact, msg)
-        (value, errors) = Msg.substitute_variables(self.value, contact, message_context, org=run.flow.org)
+        (value, errors) = Msg.substitute_variables(self.value, message_context, org=run.flow.org)
 
         if contact.is_test and errors:  # pragma: needs cover
             ActionLog.warn(run, _("Expression contained errors: %s") % ', '.join(errors))
@@ -5777,7 +5774,7 @@ class SendAction(VariableContactAction):
                 del message_context['contact']
 
                 text = run.flow.get_localized_text(self.msg, run.contact)
-                (message, errors) = Msg.substitute_variables(text, None, message_context,
+                (message, errors) = Msg.substitute_variables(text, message_context,
                                                              org=run.flow.org, partial_vars=True)
 
                 self.logger(run, message, len(unique_contacts))
@@ -6227,7 +6224,7 @@ class ContainsTest(Test):
     def evaluate(self, run, sms, context, text):
         # substitute any variables
         test = run.flow.get_localized_text(self.test, run.contact)
-        test, errors = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
+        test, errors = Msg.substitute_variables(test, context, org=run.flow.org)
 
         # tokenize our test
         tests = tokenize(test.lower())
@@ -6271,7 +6268,7 @@ class ContainsAnyTest(ContainsTest):
     def evaluate(self, run, sms, context, text):
         # substitute any variables
         test = run.flow.get_localized_text(self.test, run.contact)
-        test, errors = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
+        test, errors = Msg.substitute_variables(test, context, org=run.flow.org)
 
         # tokenize our test
         tests = tokenize(test.lower())
@@ -6320,7 +6317,7 @@ class StartsWithTest(Test):
     def evaluate(self, run, sms, context, text):
         # substitute any variables in our test
         test = run.flow.get_localized_text(self.test, run.contact)
-        test, errors = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
+        test, errors = Msg.substitute_variables(test, context, org=run.flow.org)
 
         # strip leading and trailing whitespace
         text = text.strip()
@@ -6381,7 +6378,7 @@ class HasDistrictTest(Test):
             return 0, None
 
         # evaluate our district in case it has a replacement variable
-        state, errors = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
+        state, errors = Msg.substitute_variables(self.state, context, org=run.flow.org)
 
         parent = org.parse_location(state, AdminBoundary.LEVEL_STATE)
         if parent:
@@ -6421,8 +6418,8 @@ class HasWardTest(Test):
         district = None
 
         # evaluate our district in case it has a replacement variable
-        district_name, missing_district = Msg.substitute_variables(self.district, sms.contact, context, org=run.flow.org)
-        state_name, missing_state = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
+        district_name, missing_district = Msg.substitute_variables(self.district, context, org=run.flow.org)
+        state_name, missing_state = Msg.substitute_variables(self.state, context, org=run.flow.org)
         if (district_name and state_name) and (len(missing_district) == 0 and len(missing_state) == 0):
             state = org.parse_location(state_name, AdminBoundary.LEVEL_STATE)
             if state:
@@ -6495,7 +6492,7 @@ class DateTest(Test):
         org = run.flow.org
         dayfirst = org.get_dayfirst()
         tz = org.timezone
-        test, errors = Msg.substitute_variables(self.test, run.contact, context, org=org)
+        test, errors = Msg.substitute_variables(self.test, context, org=org)
 
         text = text.replace(' ', "-")
         if not errors:
@@ -6594,8 +6591,8 @@ class BetweenTest(NumericTest):
         return dict(type=self.TYPE, min=self.min, max=self.max)
 
     def evaluate_numeric_test(self, run, context, decimal_value):
-        min_val, min_errors = Msg.substitute_variables(self.min, run.contact, context, org=run.flow.org)
-        max_val, max_errors = Msg.substitute_variables(self.max, run.contact, context, org=run.flow.org)
+        min_val, min_errors = Msg.substitute_variables(self.min, context, org=run.flow.org)
+        max_val, max_errors = Msg.substitute_variables(self.max, context, org=run.flow.org)
 
         if not min_errors and not max_errors:
             try:
@@ -6648,7 +6645,7 @@ class SimpleNumericTest(Test):
 
     # test every word in the message against our test
     def evaluate(self, run, sms, context, text):
-        test, errors = Msg.substitute_variables(str(self.test), run.contact, context, org=run.flow.org)
+        test, errors = Msg.substitute_variables(str(self.test), context, org=run.flow.org)
 
         text = text.replace(',', '')
         for word in regex.split(r"\s+", text, flags=regex.UNICODE | regex.V0):
