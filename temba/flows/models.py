@@ -963,18 +963,21 @@ class Flow(TembaModel):
 
         return runs_at_node
 
-    def get_segment_counts(self, simulation):
+    def get_segment_counts(self, simulation, include_incomplete=False):
         """
         Returns how many contacts have taken each flow segment. For simulation mode this is calculated, but for real
         contacts this is pre-calculated in FlowPathCount.
         """
         if not simulation:
-            return FlowPathCount.get_totals(self)
+            return FlowPathCount.get_totals(self, include_incomplete)
 
         steps = FlowStep.objects.filter(run__flow=self, run__contact__is_test=True)
 
-        visited_actions = steps.values('step_uuid', 'next_uuid').filter(step_type='A', ).annotate(count=Count('run_id'))
-        visited_rules = steps.values('rule_uuid', 'next_uuid').filter(step_type='R').exclude(rule_uuid=None).annotate(count=Count('run_id'))
+        if not include_incomplete:
+            steps = steps.exclude(next_uuid=None)
+
+        visited_actions = steps.values('step_uuid', 'next_uuid').filter(step_type='A').annotate(count=Count('run_id'))
+        visited_rules = steps.values('rule_uuid', 'next_uuid').filter(step_type='R').annotate(count=Count('run_id'))
 
         visits = {}
         for step in visited_actions:

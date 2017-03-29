@@ -4777,12 +4777,12 @@ class FlowsTest(FlowFileTest):
         self.send_message(flow, 'cyan', contact=tyler, assert_reply=False)
 
         # we should have 2 counts of the cyan rule to nothing
-        self.assertEqual(2, flow.get_segment_counts(False)[cyan_to_nothing])
+        self.assertEqual(2, flow.get_segment_counts(simulation=False, include_incomplete=True)[cyan_to_nothing])
         self.assertEqual(2, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
 
         # squash our counts and make sure they are still the same
         squash_flowpathcounts()
-        self.assertEqual(2, flow.get_segment_counts(False)[cyan_to_nothing])
+        self.assertEqual(2, flow.get_segment_counts(simulation=False, include_incomplete=True)[cyan_to_nothing])
 
         # but now we have a single count
         self.assertEqual(1, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
