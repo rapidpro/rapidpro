@@ -966,7 +966,7 @@ class Flow(TembaModel):
     def get_segment_counts(self, simulation):
         """
         Returns how many contacts have taken each flow segment. For simulation mode this is calculated, but for real
-        contacts this is precalculated in FlowPathCount.
+        contacts this is pre-calculated in FlowPathCount.
         """
         if not simulation:
             return FlowPathCount.get_totals(self)
@@ -3757,8 +3757,12 @@ class FlowPathCount(SquashableModel):
         return sql, params
 
     @classmethod
-    def get_totals(cls, flow):
-        totals = list(cls.objects.filter(flow=flow).values_list('from_uuid', 'to_uuid').annotate(replies=Sum('count')))
+    def get_totals(cls, flow, include_incomplete=False):
+        counts = cls.objects.filter(flow=flow)
+        if not include_incomplete:
+            counts = counts.exclude(to_uuid=None)
+
+        totals = list(counts.values_list('from_uuid', 'to_uuid').annotate(replies=Sum('count')))
         return {'%s:%s' % (t[0], t[1]): t[2] for t in totals}
 
     def __str__(self):  # pragma: no cover
