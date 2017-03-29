@@ -3617,17 +3617,17 @@ class ActionSet(models.Model):
         actions = self.get_actions()
         msgs = []
 
+        context = run.flow.build_expressions_context(run.contact, msg)
+
         seen_other_action = False
-        for action in actions:
+        for a, action in enumerate(actions):
             if not isinstance(action, ReplyAction):
                 seen_other_action = True
 
             # to optimize large flow starts, leading reply actions are handled as a single broadcast so don't repeat
-            # then here
+            # them here
             if not skip_leading_reply_actions and isinstance(action, ReplyAction) and not seen_other_action:
                 continue
-
-            context = run.flow.build_expressions_context(run.contact, msg)
 
             if isinstance(action, StartFlowAction):
                 if action.flow.pk in started_flows:
@@ -3644,6 +3644,11 @@ class ActionSet(models.Model):
                 # actions modify the run.contact, update the msg contact in case they did so
                 if msg:
                     msg.contact = run.contact
+
+            # if there are more actions, rebuild the parts of the context that may have changed
+            if a < len(actions) - 1:
+                context['contact'] = run.contact.build_expressions_context()
+                context['extra'] = run.field_dict()
 
         return msgs
 
