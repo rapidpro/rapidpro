@@ -1416,7 +1416,6 @@ class Channel(TembaModel):
 
         # build our payload
         payload = dict()
-        payload['from'] = channel.address
         payload['event_url'] = event_url
         payload['content'] = text
 
@@ -1428,6 +1427,7 @@ class Channel(TembaModel):
                 'continue_session': session_status not in ChannelSession.DONE,
             }
         else:
+            payload['from'] = channel.address
             payload['to'] = msg.urn_path
 
         log_url = channel.config[Channel.CONFIG_SEND_URL]
