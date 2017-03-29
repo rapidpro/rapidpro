@@ -15,14 +15,16 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management import BaseCommand, CommandError
-from django.db import connection
+from django.core.management.base import CommandParser
+from django.db import connection, transaction
 from django.utils import timezone
+from django_redis import get_redis_connection
 from subprocess import check_call, CalledProcessError
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, ContactGroupCount, URN, TEL_SCHEME, TWITTER_SCHEME
-from temba.flows.models import Flow, FlowRun, FlowStep, FlowRunCount
+from temba.flows.models import FlowStart, FlowRun
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Label, Msg, SystemLabel
+from temba.msgs.models import Label, Msg
 from temba.orgs.models import Org
 from temba.utils import chunk_list, ms_to_datetime, datetime_to_str, datetime_to_ms
 from temba.values.models import Value
@@ -78,12 +80,12 @@ GROUPS = (
 )
 LABELS = ("Reporting", "Testing", "Youth", "Farming", "Health", "Education", "Trade", "Driving", "Building", "Spam")
 FLOWS = (
-    {'file': "favorites.json", 'templates': (
+    {'name': "Favorites", 'file': "favorites.json", 'templates': (
         ["blue", "mutzig", "bob"],
         ["orange", "green", "primus", "jeb"],
     )},
-    {'file': "sms_form.json", 'templates': (["22 F Seattle"], ["35 M MIAMI"])},
-    {'file': "pick_a_number.json", 'templates': (["1"], ["4"], ["5"], ["7"], ["8"])}
+    {'name': "SMS Form", 'file': "sms_form.json", 'templates': (["22 F Seattle"], ["35 M MIAMI"])},
+    {'name': "Pick a Number", 'file': "pick_a_number.json", 'templates': (["1"], ["4"], ["5"], ["7"], ["8"])}
 )
 
 # contact names are generated from these components
@@ -100,57 +102,64 @@ CONTACT_IS_DELETED_PROB = 0.005  # 1/200 contacts are deleted
 CONTACT_HAS_FIELD_PROB = 0.8  # 8/10 fields set for each contact
 
 RUN_RESPONSE_PROB = 0.1  # 1/10 runs will be responded to
+INBOX_MESSAGES = (("What is", "I like", "No"), ("beer", "tea", "coffee"), ("thank you", "please", "today"))
 
 
 class Command(BaseCommand):
+    COMMAND_GENERATE = 'generate'
+    COMMAND_SIMULATE = 'simulate'
+
     help = "Generates a database suitable for performance testing"
 
     def add_arguments(self, parser):
-        parser.add_argument('--num-orgs', type=int, action='store', dest='num_orgs', default=100)
-        parser.add_argument('--num-contacts', type=int, action='store', dest='num_contacts', default=1000000)
-        parser.add_argument('--num-runs', type=int, action='store', dest='num_runs', default=2000000)
-        parser.add_argument('--seed', type=int, action='store', dest='seed', default=None)
+        cmd = self
+        subparsers = parser.add_subparsers(dest='command', help='Command to perform',
+                                           parser_class=lambda **kw: CommandParser(cmd, **kw))
 
-    def handle(self, num_orgs, num_contacts, num_runs, seed, **kwargs):
-        self.check_db_state()
+        gen_parser = subparsers.add_parser('generate', help='Generates a clean testing database')
+        gen_parser.add_argument('--orgs', type=int, action='store', dest='num_orgs', default=100)
+        gen_parser.add_argument('--contacts', type=int, action='store', dest='num_contacts', default=1000000)
+        gen_parser.add_argument('--seed', type=int, action='store', dest='seed', default=None)
 
-        if seed is None:
-            seed = random.randrange(0, 65536)
+        sim_parser = subparsers.add_parser('simulate', help='Simulates activity on an existing database')
+        sim_parser.add_argument('--runs', type=int, action='store', dest='num_runs', default=500)
 
-        self.random = random.Random(seed)
-        self.batch_size = 5000
-        self.bulk_creator = BulkContentCreator()
+    def handle(self, command, *args, **kwargs):
+        start = time.time()
 
-        # monkey patch uuid4 so it returns the same UUIDs for the same seed
-        from temba.utils import models
-        models.uuid4 = lambda: uuid.UUID(int=self.random.getrandbits(128))
+        if command == self.COMMAND_GENERATE:
+            self.handle_generate(kwargs['num_orgs'], kwargs['num_contacts'], kwargs['seed'])
+        else:
+            self.handle_simulate(kwargs['num_runs'])
 
-        self._log("Generating random test database (seed=%d)...\n" % seed)
+        time_taken = time.time() - start
+        self._log("Completed in %d secs, peak memory usage: %d MiB\n" % (int(time_taken), int(self.peak_memory())))
 
-        # We want a variety of large and small orgs so when allocating content like contacts and messages, we apply a
-        # bias toward the beginning orgs. if there are N orgs, then the amount of content the first org will be
-        # allocated is (1/N) ^ (1/bias). This sets the bias so that the first org will get ~50% of the content:
-        self.org_bias = math.log(1.0 / num_orgs, 0.5)
-
-        # The timespan being simulated by this database
-        self.db_ends_on = timezone.now()
-        self.db_begins_on = self.db_ends_on - timedelta(days=CONTENT_AGE)
-
-        self.create_db(num_orgs, num_contacts, num_runs)
-
-    def check_db_state(self):
+    def handle_generate(self, num_orgs, num_contacts, seed):
         """
-        Checks whether database is in correct state before continuing
+        Creates a clean database
         """
+        self._log("Generating random base database (seed=%d)...\n" % seed)
+
         try:
             has_data = Org.objects.exists()
         except Exception:  # pragma: no cover
             raise CommandError("Run migrate command first to create database tables")
         if has_data:
-            raise CommandError("Can only be run on an empty database")
+            raise CommandError("Can't generate content in non-empty database.")
 
-    def create_db(self, num_orgs, num_contacts, num_runs):
-        start = time.time()
+        self.configure_random(num_orgs, seed)
+        self.batch_size = 5000
+
+        # the timespan being modelled by this database
+        self.db_ends_on = timezone.now()
+        self.db_begins_on = self.db_ends_on - timedelta(days=CONTENT_AGE)
+
+        # this is a new database so clear out redis
+        self._log("Clearing out Redis cache... ")
+        r = get_redis_connection()
+        r.flushdb()
+        self._log(self.style.SUCCESS("OK") + '\n')
 
         superuser = User.objects.create_superuser("root", "root@example.com", "password")
 
@@ -162,12 +171,56 @@ class Command(BaseCommand):
         self.create_groups(orgs)
         self.create_labels(orgs)
         self.create_flows(orgs)
-        contacts = self.create_contacts(orgs, locations, num_contacts)
-        self.create_run_templates(orgs)
-        self.create_runs(contacts, num_runs)
+        self.create_contacts(orgs, locations, num_contacts)
 
-        time_taken = time.time() - start
-        self._log("Time taken: %d secs, peak memory usage: %d MiB\n" % (int(time_taken), int(self.peak_memory())))
+    def handle_simulate(self, num_runs):
+        """
+        Prepares to resume simulating flow activity on an existing database
+        """
+        self._log("Resuming flow activity simulation on existing database...\n")
+
+        orgs = list(Org.objects.order_by('id'))
+        if not orgs:
+            raise CommandError("Can't simulate activity on an empty database")
+
+        self.configure_random(len(orgs))
+
+        inputs_by_flow_name = {f['name']: f['templates'] for f in FLOWS}
+
+        self._log("Preparing existing orgs... ")
+
+        for org in orgs:
+            flows = list(org.flows.order_by('id'))
+            for flow in flows:
+                flow.input_templates = inputs_by_flow_name[flow.name]
+
+            org.cache = {
+                'users': list(org.get_org_users().order_by('id')),
+                'channels': list(org.channels.order_by('id')),
+                'groups': list(ContactGroup.user_groups.filter(org=org).order_by('id')),
+                'flows': flows,
+                'contacts': list(org.org_contacts.values_list('id', flat=True)),  # only ids to save memory
+                'activity': None
+            }
+
+        self._log(self.style.SUCCESS("OK") + '\n')
+
+        self.simulate_activity(orgs, num_runs)
+
+    def configure_random(self, num_orgs, seed=None):
+        if not seed:
+            seed = random.randrange(0, 65536)
+
+        self.random = random.Random(seed)
+
+        # monkey patch uuid4 so it returns the same UUIDs for the same seed
+        from temba.utils import models
+        models.uuid4 = lambda: uuid.UUID(int=self.random.getrandbits(128))
+
+        # We want a variety of large and small orgs so when allocating content like contacts and messages, we apply a
+        # bias toward the beginning orgs. if there are N orgs, then the amount of content the first org will be
+        # allocated is (1/N) ^ (1/bias). This sets the bias so that the first org will get ~50% of the content:
+        self.org_bias = math.log(1.0 / num_orgs, 0.5)
 
     def load_locations(self, path):
         """
@@ -217,13 +270,9 @@ class Command(BaseCommand):
             # we'll cache some metadata on each org as it's created to save re-fetching things
             org.cache = {
                 'users': [],
-                'channels': [],
                 'fields': {},
                 'groups': [],
                 'system_groups': {g.group_type: g for g in ContactGroup.system_groups.filter(org=org)},
-                'contacts': [],
-                'labels': [],
-                'flows': []
             }
 
         self._log(self.style.SUCCESS("OK") + '\n')
@@ -254,10 +303,9 @@ class Command(BaseCommand):
         for org in orgs:
             user = org.cache['users'][0]
             for c in CHANNELS:
-                channel = Channel.objects.create(org=org, name=c['name'], channel_type=c['channel_type'],
-                                                 address=c['address'], scheme=c['scheme'],
-                                                 created_by=user, modified_by=user)
-                org.cache['channels'].append(channel)
+                Channel.objects.create(org=org, name=c['name'], channel_type=c['channel_type'],
+                                       address=c['address'], scheme=c['scheme'],
+                                       created_by=user, modified_by=user)
 
         self._log(self.style.SUCCESS("OK") + '\n')
 
@@ -305,8 +353,7 @@ class Command(BaseCommand):
         for org in orgs:
             user = org.cache['users'][0]
             for name in LABELS:
-                label = Label.label_objects.create(org=org, name=name, created_by=user, modified_by=user)
-                org.cache['labels'].append(label)
+                Label.label_objects.create(org=org, name=name, created_by=user, modified_by=user)
 
         self._log(self.style.SUCCESS("OK") + '\n')
 
@@ -321,9 +368,6 @@ class Command(BaseCommand):
             for f in FLOWS:
                 with open('media/test_flows/' + f['file'], 'r') as flow_file:
                     org.import_app(json.load(flow_file), user)
-                    flow = Flow.objects.filter(org=org).order_by('-id').first()
-                    flow.input_templates = f['templates']
-                    org.cache['flows'].append(flow)
 
         self._log(self.style.SUCCESS("OK") + '\n')
 
@@ -332,7 +376,6 @@ class Command(BaseCommand):
         Creates test and regular contacts for this database. Returns tuples of org, contact id and the preferred urn
         id to avoid trying to hold all contact and URN objects in memory.
         """
-        simplified = []
         group_counts = defaultdict(int)
 
         self._log("Creating %d test contacts..." % (len(orgs) * len(USERS)))
@@ -404,13 +447,7 @@ class Command(BaseCommand):
 
                     batch.append(c)
 
-                self.bulk_creator.create_contacts(batch)
-
-                # convert simplified representation of org, contact id and single URN id
-                for c in batch:
-                    preferred_urn_id = c['urns'][len(c['urns']) - 1].id if c['urns'] else None
-                    simplified.append((c['org'], c['object'].id, preferred_urn_id))
-
+                self._create_contact_batch(batch)
                 self._log(" > Created batch %d of %d\n" % (batch_num, max(num_contacts // self.batch_size, 1)))
                 batch_num += 1
 
@@ -421,211 +458,7 @@ class Command(BaseCommand):
             group.count = count
         ContactGroupCount.objects.bulk_create(counts)
 
-        return simplified
-
-    def create_run_templates(self, orgs):
-        """
-        Creates the run templates for each flow in each org
-        """
-        self._log("Creating run templates...")
-
-        # create run templates for each flow in each org using one of that org's test contacts
-        for org in orgs:
-            test_contact = org.cache['test_contacts'][0]
-            for flow in org.cache['flows']:
-                # generate template for no-response from contact
-                flow.nonresponded_template = self.generate_run_template(org, flow, test_contact, [])
-
-                # generate template for each input template
-                flow.run_templates = []
-                for input_template in flow.input_templates:
-                    tpl = self.generate_run_template(org, flow, test_contact, input_template)
-                    flow.run_templates.append(tpl)
-                    # print(json.dumps(tpl, indent=2))
-
-        self._log(self.style.SUCCESS("OK") + '\n')
-
-    def create_runs(self, contacts, num_runs):
-        """
-        Creates the actual runs by following the run templates for each flow
-        """
-        self._log("Creating %d runs...\n" % num_runs)
-
-        flow_run_counts = defaultdict(int)
-        sys_label_counts = defaultdict(int)
-
-        # disable table triggers to speed up insertion
-        with DisableTriggersOn(FlowRun, FlowStep, Msg, Value):
-
-            batch_num = 1
-            for index_batch in chunk_list(six.moves.xrange(num_runs), self.batch_size):
-                batch = []
-
-                for r_index in index_batch:  # pragma: no cover
-                    started_on = self.timeline_date(float(r_index) / num_runs)
-                    org, contact_id, urn_id = self.random_choice(contacts)
-                    flow = self.random_choice(org.cache['flows'])
-                    responded = self.probability(RUN_RESPONSE_PROB)
-                    template = self.random_choice(flow.run_templates) if responded else flow.nonresponded_template
-
-                    def get_time(t):
-                        return started_on + timedelta(seconds=t)
-
-                    r = {
-                        'org': org,
-                        'flow': flow,
-                        'contact_id': contact_id,
-                        'urn_id': urn_id,
-                        'created_on': get_time(0),
-                        'exit_type': template['exit_type'],
-                        'exited_on': get_time(10) if template['exit_type'] else None,
-                        'responded': template['responded'],
-                        'values': template['values'],
-                        'messages': [],
-                        'steps': [],
-                    }
-
-                    msgs_by_tpl_id = {}
-                    for i, m in enumerate(template['messages']):
-                        msg = {'id': m['id'], 'direction': m['direction'], 'text': m['text'], 'time': get_time(i)}
-                        r['messages'].append(msg)
-                        msgs_by_tpl_id[m['id']] = msg
-                        sys_label = SystemLabel.TYPE_FLOWS if m['direction'] == 'I' else SystemLabel.TYPE_SENT
-                        sys_label_counts[(org, sys_label)] += 1
-
-                    for i, s in enumerate(template['steps']):
-                        r['steps'].append({'node': s['node'], 'time': get_time(i),
-                                           'messages': [msgs_by_tpl_id[m_id] for m_id in s['messages']]})
-
-                    flow_run_counts[(flow, r['exit_type'])] += 1
-
-                    batch.append(r)
-
-                self.bulk_creator.create_runs(batch)
-
-                self._log(" > Created batch %d of %d\n" % (batch_num, max(num_runs // self.batch_size, 1)))
-                batch_num += 1
-
-        # create flow run and system label counts
-        run_counts = []
-        for (flow, exit_type), count in flow_run_counts.items():
-            run_counts.append(FlowRunCount(flow=flow, exit_type=exit_type, count=count, is_squashed=True))
-        FlowRunCount.objects.bulk_create(run_counts)
-
-        label_counts = []
-        for (org, label_type), count in sys_label_counts.items():
-            label_counts.append(SystemLabel(org=org, label_type=label_type, count=count, is_squashed=True))
-        SystemLabel.objects.bulk_create(label_counts)
-
-    def generate_run_template(self, org, flow, test_contact, input_template):
-        """
-        Runs a flow with a test contact to construct a template of the steps and values that are generated by a
-        particular set of inputs
-        """
-        Contact.set_simulation(True)
-
-        now = timezone.now()
-        run = flow.start([], [test_contact], restart_participants=True)[0]
-
-        messages = list(Msg.objects.filter(contact=test_contact, created_on__gt=now).order_by('pk'))
-
-        for text in input_template:
-            channel = org.cache['channels'][0]
-            now = timezone.now()
-            Msg.create_incoming(channel, test_contact.urns.first().urn, text)
-
-            messages += list(Msg.objects.filter(contact=test_contact, created_on__gt=now).order_by('pk'))
-
-        Contact.set_simulation(False)
-
-        run.refresh_from_db()
-
-        steps = []
-        for step in run.steps.order_by('pk'):
-            steps.append({
-                'node': step.step_uuid,
-                'messages': [m.id for m in step.messages.all()]
-            })
-
-        values = []
-        for value in run.values.all():
-            values.append({
-                'rule_uuid': value.rule_uuid,
-                'category': value.category,
-                'string_value': value.string_value
-            })
-
-        def message_as_json(m):
-            return {
-                'id': m.id,
-                'direction': m.direction,
-                'text': m.text,
-                'broadcast': {'text': m.broadcast.text} if m.broadcast else None
-            }
-
-        return {
-            'responded': run.responded,
-            'exit_type': run.exit_type,
-            'messages': [message_as_json(m) for m in messages],
-            'steps': steps,
-            'values': values
-        }
-
-    def probability(self, prob):
-        return self.random.random() < prob
-
-    def random_choice(self, seq, bias=1.0):
-        return seq[int(math.pow(self.random.random(), bias) * len(seq))]
-
-    def weighted_choice(self, seq, weights):  # pragma: no cover
-        r = self.random.random() * sum(weights)
-        cum_weight = 0.0
-
-        for i, item in enumerate(seq):
-            cum_weight += weights[i]
-            if r < cum_weight or (i == len(seq) - 1):
-                return item
-
-    def random_org(self, orgs):
-        """
-        Returns a random org with bias toward the orgs with the lowest indexes
-        """
-        return self.random_choice(orgs, bias=self.org_bias)
-
-    def random_date(self, start=None, end=None):
-        if not end:
-            end = timezone.now()
-        if not start:
-            start = end - timedelta(days=365)
-
-        if start == end:
-            return end
-
-        return ms_to_datetime(self.random.randrange(datetime_to_ms(start), datetime_to_ms(end)))
-
-    def timeline_date(self, dist):
-        """
-        Converts a 0..1 distance into a date on this database's overall timeline
-        """
-        seconds_span = (self.db_ends_on - self.db_begins_on).total_seconds()
-
-        return self.db_begins_on + timedelta(seconds=(seconds_span * dist))
-
-    @staticmethod
-    def peak_memory():
-        rusage_denom = 1024
-        if sys.platform == 'darwin':
-            # OSX gives value in bytes, other OSes in kilobytes
-            rusage_denom *= rusage_denom
-        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / rusage_denom
-
-    def _log(self, text):
-        self.stdout.write(text, ending='')
-        self.stdout.flush()
-
-
-class BulkContentCreator(object):
-    def create_contacts(self, batch):
+    def _create_contact_batch(self, batch):
         """
         Bulk creates a batch of contacts from flat representations
         """
@@ -679,53 +512,162 @@ class BulkContentCreator(object):
         Value.objects.bulk_create(batch_values)
         ContactGroup.contacts.through.objects.bulk_create(batch_memberships)
 
-    def create_runs(self, batch):
+    def simulate_activity(self, orgs, num_runs):
+        self._log("Starting simulation. Ctrl+C to cancel...\n")
+
+        runs = 0
+        while runs < num_runs:
+            try:
+                with transaction.atomic():
+                    # make sure every org has an active flow
+                    for org in orgs:
+                        if not org.cache['activity']:
+                            self.start_flow_activity(org)
+
+                with transaction.atomic():
+                    org = self.random_org(orgs)
+
+                    if self.probability(0.1):
+                        self.create_unsolicited_incoming(org)
+                    else:
+                        self.create_flow_run(org)
+                        runs += 1
+
+            except KeyboardInterrupt:
+                self._log("Shutting down...\n")
+                break
+
+    def start_flow_activity(self, org):
+        assert not org.cache['activity']
+
+        user = org.cache['users'][0]
+        flow = self.random_choice(org.cache['flows'])
+
+        if self.probability(0.9):
+            # start a random group using a flow start
+            group = self.random_choice(org.cache['groups'])
+            contacts_started = list(group.contacts.values_list('id', flat=True))
+
+            self._log(" > Starting flow %s for group %s (%d) in org %s\n"
+                      % (flow.name, group.name, len(contacts_started), org.name))
+
+            start = FlowStart.create(flow, user, groups=[group], restart_participants=True)
+            start.start()
+        else:
+            # start a random individual without a flow start
+            if not org.cache['contacts']:
+                return
+
+            contact = Contact.objects.get(id=self.random_choice(org.cache['contacts']))
+            contacts_started = [contact.id]
+
+            self._log(" > Starting flow %s for contact #%d in org %s\n" % (flow.name, contact.id, org.name))
+
+            flow.start([], [contact], restart_participants=True)
+
+        org.cache['activity'] = {'flow': flow, 'unresponded': contacts_started, 'started': list(contacts_started)}
+
+    def end_flow_activity(self, org):
+        self._log(" > Ending flow %s for in org %s\n" % (org.cache['activity']['flow'].name, org.name))
+
+        org.cache['activity'] = None
+
+        runs = FlowRun.objects.filter(org=org, is_active=True)
+        FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_EXPIRED)
+
+    def create_flow_run(self, org):
+        activity = org.cache['activity']
+        flow = activity['flow']
+
+        if activity['unresponded']:
+            contact_id = self.random_choice(activity['unresponded'])
+            activity['unresponded'].remove(contact_id)
+
+            contact = Contact.objects.get(id=contact_id)
+            urn = contact.urns.first()
+
+            if urn:
+                self._log(" > Receiving flow responses for flow %s in org %s\n" % (flow.name, flow.org.name))
+
+                inputs = self.random_choice(flow.input_templates)
+
+                for text in inputs:
+                    channel = flow.org.cache['channels'][0]
+                    Msg.create_incoming(channel, urn.urn, text)
+
+        # if more than 10% of contacts have responded, consider flow activity over
+        if len(activity['unresponded']) <= (len(activity['started']) * 0.9):
+            self.end_flow_activity(flow.org)
+
+    def create_unsolicited_incoming(self, org):
+        if not org.cache['contacts']:
+            return
+
+        self._log(" > Receiving unsolicited incoming message in org %s\n" % org.name)
+
+        available_contacts = list(set(org.cache['contacts']) - set(org.cache['activity']['started']))
+        if available_contacts:
+            contact = Contact.objects.get(id=self.random_choice(available_contacts))
+            channel = self.random_choice(org.cache['channels'])
+            urn = contact.urns.first()
+            if urn:
+                text = ' '.join([self.random_choice(l) for l in INBOX_MESSAGES])
+                Msg.create_incoming(channel, urn.urn, text)
+
+    def probability(self, prob):
+        return self.random.random() < prob
+
+    def random_choice(self, seq, bias=1.0):
+        if not seq:
+            raise ValueError("Can't select random item from empty sequence")
+
+        return seq[int(math.pow(self.random.random(), bias) * len(seq))]
+
+    def weighted_choice(self, seq, weights):
+        r = self.random.random() * sum(weights)
+        cum_weight = 0.0
+
+        for i, item in enumerate(seq):
+            cum_weight += weights[i]
+            if r < cum_weight or (i == len(seq) - 1):
+                return item
+
+    def random_org(self, orgs):
         """
-        Bulk creates a batch of contacts from flat representations
+        Returns a random org with bias toward the orgs with the lowest indexes
         """
-        for r in batch:
-            r['object'] = FlowRun(org=r['org'], flow=r['flow'], contact_id=r['contact_id'],
-                                  created_on=r['created_on'], exit_type=r['exit_type'],
-                                  exited_on=r['exited_on'], responded=r['responded'])
-        FlowRun.objects.bulk_create([r['object'] for r in batch])
+        return self.random_choice(orgs, bias=self.org_bias)
 
-        batch_msgs = []
-        for r in batch:
-            for m in r['messages']:
-                m['object'] = Msg(org=r['org'], contact_id=r['contact_id'], contact_urn_id=r['urn_id'], text=m['text'],
-                                  msg_type='F', direction=m['direction'],
-                                  status='H' if m['direction'] == 'I' else 'S',
-                                  created_on=m['time'])
-                batch_msgs.append(m['object'])
+    def random_date(self, start=None, end=None):
+        if not end:
+            end = timezone.now()
+        if not start:
+            start = end - timedelta(days=365)
 
-        Msg.objects.bulk_create(batch_msgs)
+        if start == end:
+            return end
 
-        # now that runs have pks, bulk create values and step objects
-        batch_values = []
-        batch_steps = []
+        return ms_to_datetime(self.random.randrange(datetime_to_ms(start), datetime_to_ms(end)))
 
-        for r in batch:
-            for v in r['values']:
-                batch_values.append(Value(org=r['org'], run=r['object'], contact_id=r['contact_id'],
-                                          rule_uuid=v['rule_uuid'], category=v['category'],
-                                          string_value=v['string_value']))
-            for s in r['steps']:
-                s['object'] = FlowStep(run=r['object'], contact_id=r['contact_id'], step_uuid=s['node'],
-                                       arrived_on=s['time'])
-                batch_steps.append(s['object'])
+    def timeline_date(self, dist):
+        """
+        Converts a 0..1 distance into a date on this database's overall timeline
+        """
+        seconds_span = (self.db_ends_on - self.db_begins_on).total_seconds()
 
-        Value.objects.bulk_create(batch_values)
-        FlowStep.objects.bulk_create(batch_steps)
+        return self.db_begins_on + timedelta(seconds=(seconds_span * dist))
 
-        # now that steps and messages have pk, bulk create step_messages
-        batch_step_msgs = []
+    @staticmethod
+    def peak_memory():
+        rusage_denom = 1024
+        if sys.platform == 'darwin':
+            # OSX gives value in bytes, other OSes in kilobytes
+            rusage_denom *= rusage_denom
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / rusage_denom
 
-        for r in batch:
-            for s in r['steps']:
-                for m in s['messages']:
-                    batch_step_msgs.append(FlowStep.messages.through(flowstep=s['object'], msg=m['object']))
-
-        FlowStep.messages.through.objects.bulk_create(batch_step_msgs)
+    def _log(self, text):
+        self.stdout.write(text, ending='')
+        self.stdout.flush()
 
 
 class DisableTriggersOn(object):
