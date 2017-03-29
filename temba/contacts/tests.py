@@ -3456,7 +3456,7 @@ class ContactTest(TembaTest):
 
         # switch our org to anonymous
         with AnonymousOrg(self.org):
-            self.joe.refresh_from_db()
+            self.joe.org.refresh_from_db()
 
             context = self.joe.build_expressions_context()
             self.assertEqual("********", context['tel'])
