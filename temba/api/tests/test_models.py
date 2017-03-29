@@ -282,7 +282,7 @@ class WebHookTest(TembaTest):
 
     @patch('temba.api.models.time.time')
     def test_webhook_result_timing(self, mock_time):
-        mock_time.side_effect = [1, 1, 1, 1, 6]
+        mock_time.side_effect = [1, 1, 1, 6, 6]
 
         sms = self.create_msg(contact=self.joe, direction='I', status='H', text="I'm gonna pop some tags")
         self.setupChannel()
@@ -303,9 +303,9 @@ class WebHookTest(TembaTest):
             self.assertIn("Event delivered successfully", result.message)
             self.assertIn("not JSON", result.message)
             self.assertEquals(200, result.status_code)
-            self.assertIsNotNone(result.request_time)
+            self.assertEqual(result.request_time, 5)
 
-            self.assertEqual(mock_time.call_count, 5)
+            self.assertTrue(mock_time.called)
             self.assertTrue(mock.called)
 
     def test_event_deliveries(self):
