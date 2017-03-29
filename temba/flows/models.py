@@ -1545,7 +1545,6 @@ class Flow(TembaModel):
                     for msg in step_msgs:
                         msgs.append(msg)
 
-            # no start msgs in ussd flows but we want the variable there
             run.start_msgs = [start_msg]
 
             runs.append(run)
