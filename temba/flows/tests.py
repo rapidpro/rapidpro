@@ -3328,8 +3328,8 @@ class ActionTest(TembaTest):
         self.assertEqual(set(group.contacts.all()), {self.contact})
 
         # we should have created a group with the name of the contact
-        replace_group = ContactGroup.user_groups.get(name=self.contact.name)
-        self.assertEqual(set(replace_group.contacts.all()), {self.contact})
+        replace_group1 = ContactGroup.user_groups.get(name=self.contact.name)
+        self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
 
         # passing through twice doesn't change anything
         action.execute(run, None, msg)
@@ -3345,14 +3345,17 @@ class ActionTest(TembaTest):
         action.execute(run, None, msg)
 
         self.assertEqual(set(group.contacts.all()), {self.contact})
-        self.assertEqual(set(replace_group.contacts.all()), {self.contact})
+        self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
 
         # with test contact, action logs are also created
         action.execute(test_run, None, test_msg)
 
+        replace_group2 = ContactGroup.user_groups.get(name=test_contact.name)
+
         self.assertEqual(set(group.contacts.all()), {self.contact, test_contact})
-        self.assertEqual(set(replace_group.contacts.all()), {self.contact, test_contact})
-        self.assertEqual(ActionLog.objects.filter(level='I').count(), 2)
+        self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
+        self.assertEqual(set(replace_group2.contacts.all()), {test_contact})
+        self.assertEqual(ActionLog.objects.filter(level='I').count(), 3)
 
         # now try remove action
         action = DeleteFromGroupAction([group, "@step.contact"])
@@ -3363,20 +3366,20 @@ class ActionTest(TembaTest):
 
         # contact should be removed now
         self.assertEqual(set(group.contacts.all()), {test_contact})
-        self.assertEqual(set(replace_group.contacts.all()), {test_contact})
+        self.assertEqual(set(replace_group1.contacts.all()), set())
 
         # no change if we run again
         action.execute(run, None, msg)
 
         self.assertEqual(set(group.contacts.all()), {test_contact})
-        self.assertEqual(set(replace_group.contacts.all()), {test_contact})
+        self.assertEqual(set(replace_group1.contacts.all()), set())
 
         # with test contact, action logs are also created
         action.execute(test_run, None, test_msg)
 
         self.assertEqual(set(group.contacts.all()), set())
-        self.assertEqual(set(replace_group.contacts.all()), set())
-        self.assertEqual(ActionLog.objects.filter(level='I').count(), 4)
+        self.assertEqual(set(replace_group2.contacts.all()), set())
+        self.assertEqual(ActionLog.objects.filter(level='I').count(), 5)
 
         # try when group is inactive
         action = DeleteFromGroupAction([group])
