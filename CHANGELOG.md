@@ -1,3 +1,10 @@
+v3.0.90
+----------
+ * Don't use cache+calculations for flow segment counts - these are pre-calculated in FlowPathCount
+ * Do not include active contacts in flows unless user overrides it
+ * Clean up middleware imports and add tests
+ * Feedback to user when simulating a USSD channel without a USSD channel connected
+
 v3.0.89
 ----------
  * Expand base64 charset, fix decode validity heuristic
