@@ -2,8 +2,6 @@ from __future__ import unicode_literals
 
 import regex
 import six
-from django.conf import settings
-from django.contrib.auth.models import User
 
 from django.db import models
 from django.utils import timezone
@@ -258,10 +256,7 @@ class Trigger(SmartModel):
 
         # only fire the first matching trigger
         if triggers:
-            if contact.is_stopped:
-                user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
-                contact.unstop(user)
-
+            contact.ensure_unstopped()
             triggers[0].flow.start([], [contact], start_msg=start_msg, restart_participants=True, extra=extra)
 
         return bool(triggers)
@@ -311,9 +306,7 @@ class Trigger(SmartModel):
             trigger.trigger_count += 1
             trigger.save()
 
-        if contact.is_stopped:
-            user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
-            contact.unstop(user)
+        contact.ensure_unstopped()
 
         # if we have an associated flow, start this contact in it
         trigger.flow.start([], [contact], start_msg=msg, restart_participants=True)

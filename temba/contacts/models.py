@@ -11,6 +11,9 @@ import six
 import time
 
 from collections import defaultdict
+
+from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import models
@@ -1447,6 +1450,11 @@ class Contact(TembaModel):
 
         # re-add them to any dynamic groups they would belong to
         self.reevaluate_dynamic_groups()
+
+    def ensure_unstopped(self, user=None):
+        if user is None:
+            user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+        self.unstop(user)
 
     def release(self, user):
         """
