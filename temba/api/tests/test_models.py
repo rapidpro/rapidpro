@@ -303,7 +303,7 @@ class WebHookTest(TembaTest):
             self.assertIn("Event delivered successfully", result.message)
             self.assertIn("not JSON", result.message)
             self.assertEquals(200, result.status_code)
-            self.assertEqual(result.request_time, 5)
+            self.assertEqual(result.request_time, 5000)
 
             self.assertTrue(mock_time.called)
             self.assertTrue(mock.called)
