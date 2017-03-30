@@ -25,7 +25,7 @@
         .result-request-time
           Request time:
           %span.result-request-time-value
-            {{ result.request_time|default:"0" }}s
+            {{ result.request_time|default:"0"|intcomma }}ms
         -if result.status_code
           %pre.result-request.prettyprint{ style:'margin-top:10px;' }<
             :plain

@@ -329,7 +329,7 @@ class WebHookEvent(SmartModel):
             if message:
                 message = message[:255]
 
-            request_time = time.time() - start
+            request_time = (time.time() - start) * 1000
 
             result = WebHookResult.objects.create(event=webhook_event,
                                                   url=webhook_url,
@@ -517,7 +517,7 @@ class WebHookEvent(SmartModel):
 
             # any 200 code is ok by us
             self.status = COMPLETE
-            result['request_time'] = time.time() - start
+            result['request_time'] = (time.time() - start) * 1000
             result['message'] = "Event delivered successfully."
 
             # read our body if we have one
