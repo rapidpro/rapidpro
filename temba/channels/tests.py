@@ -8665,6 +8665,23 @@ class JunebugTest(JunebugTestMixin, TembaTest):
             self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
                                                                               "referenced before assignment"))
 
+    def test_send_deal_with_unexpected_response(self):
+        joe = self.create_contact("Joe", "+250788383383")
+        msg = joe.send("événement", self.admin, trigger_send=False)
+
+        settings.SEND_MESSAGES = True
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, json.dumps({
+                'result': {
+                    'unexpected': 'unpleasant surprise',
+                }
+            }))
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+            self.assertTrue(ChannelLog.objects.filter(description__icontains="Unable to read external message_id"))
+
 
 class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
