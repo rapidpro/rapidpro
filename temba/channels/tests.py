@@ -20,6 +20,7 @@ from django.contrib.auth.models import User, Group
 from django.core import mail
 from django.core.cache import cache
 from django.core.urlresolvers import reverse
+from django.test import RequestFactory
 from django.test.utils import override_settings
 from django.utils import timezone
 from django.template import loader, Context
@@ -29,6 +30,7 @@ from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, LINE_SCHEME
 from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING, USSD
+from temba.channels.views import channel_status_processor
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME, FCM_SCHEME
 from temba.ivr.models import IVRCall
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
@@ -2498,6 +2500,32 @@ class ChannelTest(TembaTest):
 
         channel.release()
         self.assertIsNone(channel.get_ivr_client())
+
+    def test_channel_status_processor(self):
+
+        request = RequestFactory().get('/')
+        request.user = self.admin
+
+        def get_context(channel_type, role):
+            Channel.objects.all().delete()
+            Channel.create(
+                self.org, self.admin, 'RW', channel_type, None, '1234',
+                config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
+                uuid='00000000-0000-0000-0000-000000001234', role=role)
+            return channel_status_processor(request)
+
+        Channel.objects.all().delete()
+        no_channel_context = channel_status_processor(request)
+        self.assertFalse(no_channel_context['has_outgoing_channel'])
+        self.assertEqual(no_channel_context['is_ussd_channel'], False)
+
+        sms_context = get_context(Channel.TYPE_JUNEBUG, Channel.ROLE_SEND)
+        self.assertTrue(sms_context['has_outgoing_channel'])
+        self.assertEqual(sms_context['is_ussd_channel'], False)
+
+        ussd_context = get_context(Channel.TYPE_JUNEBUG_USSD, Channel.ROLE_USSD)
+        self.assertTrue(ussd_context['has_outgoing_channel'])
+        self.assertEqual(ussd_context['is_ussd_channel'], True)
 
 
 class ChannelBatchTest(TembaTest):
@@ -7398,7 +7426,7 @@ class PlivoTest(TembaTest):
         self.joe = self.create_contact("Joe", "+250788383383")
 
     def test_release(self):
-        with patch('requests.post') as mock:
+        with patch('requests.delete') as mock:
             mock.return_value = MockResponse(200, "Success", method='POST')
             self.channel.release()
             self.channel.refresh_from_db()
@@ -8584,7 +8612,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, json.dumps({
                 'result': {
-                    'id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
+                    'message_id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
                 }
             }))
 
@@ -8611,7 +8639,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, json.dumps({
                 'result': {
-                    'id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
+                    'message_id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
                 }
             }))
 
@@ -8665,6 +8693,23 @@ class JunebugTest(JunebugTestMixin, TembaTest):
             self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
                                                                               "referenced before assignment"))
 
+    def test_send_deal_with_unexpected_response(self):
+        joe = self.create_contact("Joe", "+250788383383")
+        msg = joe.send("événement", self.admin, trigger_send=False)
+
+        settings.SEND_MESSAGES = True
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, json.dumps({
+                'result': {
+                    'unexpected': 'unpleasant surprise',
+                }
+            }))
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+            self.assertTrue(ChannelLog.objects.filter(description__icontains="Unable to read external message_id"))
+
 
 class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
@@ -8689,6 +8734,30 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         super(JunebugUSSDTest, self).tearDown()
         settings.SEND_MESSAGES = False
 
+    def test_status(self):
+        joe = self.create_contact("Joe Biden", "+254788383383")
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin, msg_type=USSD)
+
+        data = self.mk_event()
+        msg.external_id = data['message_id']
+        msg.save(update_fields=('external_id',))
+
+        def assertStatus(sms, event_type, assert_status):
+            data['event_type'] = event_type
+            response = self.client.post(
+                reverse('handlers.junebug_handler',
+                        args=['event', self.channel.uuid]),
+                data=json.dumps(data),
+                content_type='application/json')
+            self.assertEquals(200, response.status_code)
+            sms = Msg.objects.get(pk=sms.id)
+            self.assertEquals(assert_status, sms.status)
+
+        assertStatus(msg, 'submitted', SENT)
+        assertStatus(msg, 'delivery_succeeded', DELIVERED)
+        assertStatus(msg, 'delivery_failed', FAILED)
+        assertStatus(msg, 'rejected', FAILED)
+
     def test_receive_ussd(self):
         from temba.ussd.models import USSDSession
         from temba.channels.handlers import JunebugHandler
@@ -8703,9 +8772,10 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         self.assertEqual(response.json()['status'], JunebugHandler.ACK)
 
         # load our message
-        msg = Msg.objects.get()
-        self.assertEquals(data["from"], msg.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(msg.session.status, USSDSession.TRIGGERED)
+        inbound_msg, outbound_msg = Msg.objects.all().order_by('pk')
+        self.assertEquals(data["from"], outbound_msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(outbound_msg.response_to, inbound_msg)
+        self.assertEquals(outbound_msg.session.status, USSDSession.TRIGGERED)
 
     def test_receive_ussd_no_sesion(self):
         from temba.channels.handlers import JunebugHandler
@@ -8740,7 +8810,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(200, json.dumps({
                     'result': {
-                        'id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
+                        'message_id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
                     }
                 }))
 
@@ -8765,6 +8835,8 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                 [call] = mock.call_args_list
                 (args, kwargs) = call
                 payload = kwargs['json']
+                self.assertFalse('from' in payload.keys())
+                self.assertFalse('to' in payload.keys())
                 self.assertEquals(payload['reply_to'], 'vumi-message-id')
                 self.assertEquals(payload['channel_data'], {
                     'continue_session': True
@@ -8795,7 +8867,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(200, json.dumps({
                     'result': {
-                        'id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
+                        'message_id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
                     }
                 }))
 
@@ -8805,6 +8877,8 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                 [call] = mock.call_args_list
                 (args, kwargs) = call
                 payload = kwargs['json']
+                self.assertFalse('from' in payload.keys())
+                self.assertFalse('to' in payload.keys())
                 self.assertEquals(payload['reply_to'], 'vumi-message-id')
                 self.assertEquals(payload['channel_data'], {
                     'continue_session': False
