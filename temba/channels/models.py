@@ -1455,8 +1455,15 @@ class Channel(TembaModel):
                                 event=event, start=start)
 
         data = response.json()
-        message_id = data['result']['id']
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=message_id)
+        try:
+            message_id = data['result']['id']
+            Channel.success(channel, msg, WIRED, start, event=event, external_id=message_id)
+        except KeyError, e:
+            raise SendException("Unable to read external message_id: %r" % (e,),
+                                event=HttpEvent('POST', log_url,
+                                                request_body=json.dumps(json.dumps(payload)),
+                                                response_body=json.dumps(data)),
+                                start=start)
 
     @classmethod
     def send_facebook_message(cls, channel, msg, text):
