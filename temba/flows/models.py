@@ -1491,7 +1491,7 @@ class Flow(TembaModel):
         runs = []
         msgs = []
 
-        channel = self.org.get_ussd_channel(scheme=TEL_SCHEME)
+        channel = self.org.get_ussd_channel()
 
         if not channel or Channel.ROLE_USSD not in channel.role:  # pragma: needs cover
             return runs
