@@ -1550,8 +1550,9 @@ class APITest(TembaTest):
 
         # try updating a non-existent field
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
-        self.assertEquals(400, response.status_code)
-        self.assertIsNone(contact.get_field('real_name'))
+        self.assertEquals(201, response.status_code)
+        self.assertIsNotNone(contact.get_field('real_name'))
+        self.assertEquals("Andy", contact.get_field_display("real_name"))
 
         # create field and try again
         ContactField.get_or_create(self.org, self.user, 'real_name', "Real Name", value_type='T')
