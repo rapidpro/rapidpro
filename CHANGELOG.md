@@ -1,3 +1,8 @@
+v3.0.92
+----------
+ * Block on handling incoming msgs so we dont process them forever away
+ * Include Viber channels in new conversation trigger form channel choices
+
 v3.0.90
 ----------
  * Don't use cache+calculations for flow segment counts - these are pre-calculated in FlowPathCount
