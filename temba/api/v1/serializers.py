@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import json
 import phonenumbers
 import six
+import regex
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -397,6 +398,7 @@ class ContactWriteSerializer(WriteSerializer):
         super(ContactWriteSerializer, self).__init__(*args, **kwargs)
         self.parsed_urns = None
         self.group_objs = None
+        self.new_fields = []
 
     def validate_uuid(self, value):
         if value:
@@ -448,7 +450,7 @@ class ContactWriteSerializer(WriteSerializer):
                     if field.key == field_key or field.label == field_key:
                         break
                 else:
-                    raise serializers.ValidationError("Invalid contact field key: '%s'" % field_key)
+                    self.new_fields.append(field_key)
 
         return value
 
@@ -550,6 +552,11 @@ class ContactWriteSerializer(WriteSerializer):
                 if existing_by_key:
                     self.instance.set_field(self.user, existing_by_key.key, value)
                     continue
+                elif self.new_fields and key in self.new_fields:
+                    new_field = ContactField.get_or_create(org=self.org, user=self.user,
+                                                           key=regex.sub('[^A-Za-z0-9]+', '', key).lower(),
+                                                           label=key)
+                    self.instance.set_field(self.user, new_field.key, value)
 
                 # TODO as above, need to get users to stop updating via label
                 existing_by_label = ContactField.get_by_label(self.org, key)
