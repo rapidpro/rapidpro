@@ -554,7 +554,7 @@ class ContactWriteSerializer(WriteSerializer):
                     continue
                 elif self.new_fields and key in self.new_fields:
                     new_field = ContactField.get_or_create(org=self.org, user=self.user,
-                                                           key=regex.sub('[^A-Za-z0-9]+', '', key).lower(),
+                                                           key=regex.sub('[^A-Za-z0-9]+', '_', key).lower(),
                                                            label=key)
                     self.instance.set_field(self.user, new_field.key, value)
 
