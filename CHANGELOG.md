@@ -1,3 +1,7 @@
+v3.0.93
+----------
+ * Change request times to be in ms instead of seconds
+
 v3.0.92
 ----------
  * Block on handling incoming msgs so we dont process them forever away
