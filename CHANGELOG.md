@@ -1,3 +1,7 @@
+v3.0.94
+----------
+ * Fix test, fix template tags
+
 v3.0.93
 ----------
  * Change request times to be in ms instead of seconds
