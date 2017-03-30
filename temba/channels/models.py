@@ -1456,7 +1456,7 @@ class Channel(TembaModel):
 
         data = response.json()
         try:
-            message_id = data['result']['id']
+            message_id = data['result']['message_id']
             Channel.success(channel, msg, WIRED, start, event=event, external_id=message_id)
         except KeyError, e:
             raise SendException("Unable to read external message_id: %r" % (e,),

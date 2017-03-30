@@ -8584,7 +8584,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, json.dumps({
                 'result': {
-                    'id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
+                    'message_id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
                 }
             }))
 
@@ -8611,7 +8611,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, json.dumps({
                 'result': {
-                    'id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
+                    'message_id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
                 }
             }))
 
@@ -8740,7 +8740,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(200, json.dumps({
                     'result': {
-                        'id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
+                        'message_id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
                     }
                 }))
 
@@ -8797,7 +8797,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(200, json.dumps({
                     'result': {
-                        'id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
+                        'message_id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
                     }
                 }))
 
