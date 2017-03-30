@@ -1,3 +1,7 @@
+v3.0.95
+----------
+ * Log request time on channel log success
+
 v3.0.94
 ----------
  * Fix test, fix template tags
