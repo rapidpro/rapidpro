@@ -3258,7 +3258,7 @@ class ChannelLog(models.Model):
     @classmethod
     def log_exception(cls, channel, msg, e):
         # calculate our request time if possible
-        request_time = 0 if not e.start else time.time() - e.start
+        request_time = 0 if not e.start else (time.time() - e.start) * 1000
 
         for event in e.events:
             print(u"[%d] %0.3fs ERROR - %s %s \"%s\" %s \"%s\"" %

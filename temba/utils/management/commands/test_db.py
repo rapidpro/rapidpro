@@ -21,11 +21,15 @@ from django.utils import timezone
 from django_redis import get_redis_connection
 from subprocess import check_call, CalledProcessError
 from temba.channels.models import Channel
+from temba.channels.tasks import squash_channelcounts
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, ContactGroupCount, URN, TEL_SCHEME, TWITTER_SCHEME
 from temba.flows.models import FlowStart, FlowRun
+from temba.flows.tasks import squash_flowpathcounts, squash_flowruncounts, prune_flowpathrecentsteps
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label, Msg
+from temba.msgs.tasks import squash_systemlabels
 from temba.orgs.models import Org
+from temba.orgs.tasks import squash_topupcredits
 from temba.utils import chunk_list, ms_to_datetime, datetime_to_str, datetime_to_ms
 from temba.values.models import Value
 
@@ -139,6 +143,8 @@ class Command(BaseCommand):
         """
         Creates a clean database
         """
+        seed = self.configure_random(num_orgs, seed)
+
         self._log("Generating random base database (seed=%d)...\n" % seed)
 
         try:
@@ -148,7 +154,6 @@ class Command(BaseCommand):
         if has_data:
             raise CommandError("Can't generate content in non-empty database.")
 
-        self.configure_random(num_orgs, seed)
         self.batch_size = 5000
 
         # the timespan being modelled by this database
@@ -184,6 +189,9 @@ class Command(BaseCommand):
             raise CommandError("Can't simulate activity on an empty database")
 
         self.configure_random(len(orgs))
+
+        # in real life Nexmo messages are throttled, but that's not necessary for this simulation
+        del Channel.CHANNEL_SETTINGS[Channel.TYPE_NEXMO]['max_tps']
 
         inputs_by_flow_name = {f['name']: f['templates'] for f in FLOWS}
 
@@ -221,6 +229,8 @@ class Command(BaseCommand):
         # bias toward the beginning orgs. if there are N orgs, then the amount of content the first org will be
         # allocated is (1/N) ^ (1/bias). This sets the bias so that the first org will get ~50% of the content:
         self.org_bias = math.log(1.0 / num_orgs, 0.5)
+
+        return seed
 
     def load_locations(self, path):
         """
@@ -536,6 +546,13 @@ class Command(BaseCommand):
             except KeyboardInterrupt:
                 self._log("Shutting down...\n")
                 break
+
+        squash_channelcounts()
+        squash_flowpathcounts()
+        squash_flowruncounts()
+        prune_flowpathrecentsteps()
+        squash_topupcredits()
+        squash_systemlabels()
 
     def start_flow_activity(self, org):
         assert not org.cache['activity']
