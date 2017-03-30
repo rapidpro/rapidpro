@@ -25,6 +25,7 @@ from django.db import transaction
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
+from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django_countries.data import COUNTRIES
@@ -38,7 +39,6 @@ from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin, AnonMixin
 from temba.channels.models import ChannelSession
 from temba.utils import analytics, on_transaction_commit
-from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import timezone_to_country_code
 from twilio import TwilioRestException
 from twython import Twython
@@ -615,7 +615,7 @@ def get_commands(channel, commands, sync_event=None):
     return commands
 
 
-@disable_middleware
+@csrf_exempt
 def sync(request, channel_id):
     start = time.time()
 
@@ -772,7 +772,7 @@ def sync(request, channel_id):
     return JsonResponse(result)
 
 
-@disable_middleware
+@csrf_exempt
 def register(request):
     """
     Endpoint for Android devices registering with this server
