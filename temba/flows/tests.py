@@ -9,7 +9,6 @@ import re
 import six
 import time
 
-
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
@@ -4200,9 +4199,6 @@ class SimulationTest(FlowFileTest):
 
 class FlowsTest(FlowFileTest):
 
-    def clear_activity(self, flow):
-        flow.clear_stats_cache()
-
     def test_validate_flow_definition(self):
 
         with self.assertRaises(ValueError):
@@ -4486,8 +4482,6 @@ class FlowsTest(FlowFileTest):
     def test_bulk_exit(self):
         flow = self.get_flow('favorites')
         color = RuleSet.objects.get(label='Color', flow=flow)
-        self.clear_activity(flow)
-
         contacts = [self.create_contact("Run Contact %d" % i, "+25078838338%d" % i) for i in range(6)]
 
         # add our contacts to the flow
@@ -4553,12 +4547,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(max_id, FlowRunCount.objects.all().order_by('-id').first().id)
 
     def test_activity(self):
-
         flow = self.get_flow('favorites')
-
-        # clear our previous redis activity
-        self.clear_activity(flow)
-
         color_question = ActionSet.objects.get(y=0, flow=flow)
         other_action = ActionSet.objects.get(y=8, flow=flow)
         beer_question = ActionSet.objects.get(y=237, flow=flow)
@@ -4640,14 +4629,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, len(active))
 
         # half of our flows are now complete
-        self.assertEqual(flow.get_run_stats(),
-                         {'total': 2, 'active': 1, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 50})
-
-        # rebuild our flow stats and make sure they are the same
-        flow.do_calculate_flow_stats()
-        (active, visited) = flow.get_activity()
-        self.assertEquals(1, len(active))
-        self.assertEquals(3, visited[other_rule_to_msg])
         self.assertEqual(flow.get_run_stats(),
                          {'total': 2, 'active': 1, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 50})
 

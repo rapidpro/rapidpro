@@ -11,7 +11,7 @@ import urllib2
 import re
 import six
 
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
@@ -64,12 +64,8 @@ FLOW_LOCK_KEY = 'org:%d:lock:flow:%d:%s'
 
 FLOW_PROP_CACHE_KEY = 'org:%d:cache:flow:%d:%s'
 FLOW_PROP_CACHE_TTL = 24 * 60 * 60 * 7  # 1 week
-FLOW_STAT_CACHE_KEY = 'org:%d:cache:flow:%d:%s'
 
 UNREAD_FLOW_RESPONSES = 'unread_flow_responses'
-
-# the most frequently we will check if our cache needs rebuilding
-FLOW_STAT_CACHE_FREQUENCY = 24 * 60 * 60  # 1 day
 
 
 class FlowLock(Enum):
@@ -77,7 +73,6 @@ class FlowLock(Enum):
     Locks that are flow specific
     """
     participation = 1
-    activity = 2
     definition = 3
 
 
@@ -87,17 +82,6 @@ class FlowPropsCache(Enum):
     """
     terminal_nodes = 1
     category_nodes = 2
-
-
-class FlowStatsCache(Enum):
-    """
-    Stats we calculate and cache for flows
-    """
-    runs_started_count = 1    # deprecated, no longer used
-    runs_completed_count = 2  # deprecated, no longer used
-    contacts_started_set = 3  # deprecated, no longer used
-    step_active_set = 5
-    cache_check = 6
 
 
 def edit_distance(s1, s2):  # pragma: no cover
@@ -860,44 +844,14 @@ class Flow(TembaModel):
 
         # clear all our cached stats
         self.clear_props_cache()
-        self.clear_stats_cache()
 
     def clear_props_cache(self):
         r = get_redis_connection()
         keys = [self.get_props_cache_key(c) for c in FlowPropsCache.__members__.values()]
         r.delete(*keys)
 
-    def clear_stats_cache(self):
-        r = get_redis_connection()
-        keys = [self.get_stats_cache_key(c) for c in FlowStatsCache.__members__.values()]
-        r.delete(*keys)
-
     def get_props_cache_key(self, kind):
         return FLOW_PROP_CACHE_KEY % (self.org_id, self.pk, kind.name)
-
-    def get_stats_cache_key(self, kind, item=None):
-        name = kind
-        if hasattr(kind, 'name'):
-            name = kind.name
-
-        cache_key = FLOW_STAT_CACHE_KEY % (self.org_id, self.pk, name)
-        if item:
-            cache_key += (':%s' % item)
-        return cache_key
-
-    def calculate_active_step_keys(self):
-        """
-        Returns a list of UUIDs for all ActionSets and RuleSets on this flow.
-        :return:
-        """
-        # first look up any action set uuids
-        steps = list(self.action_sets.values('uuid'))
-
-        # then our ruleset uuids
-        steps += list(self.rule_sets.values('uuid'))
-
-        # extract just the uuids
-        return [self.get_stats_cache_key(FlowStatsCache.step_active_set, step['uuid']) for step in steps]
 
     def lock_on(self, lock, qualifier=None, lock_ttl=None):
         """
@@ -913,57 +867,23 @@ class Flow(TembaModel):
 
         return r.lock(lock_key, lock_ttl)
 
-    def do_calculate_flow_stats(self, lock_ttl=None):
-        r = get_redis_connection()
-
-        # activity
-        with self.lock_on(FlowLock.activity, lock_ttl=lock_ttl):
-            runs_at_node = self._calculate_node_counts(simulation=False)
-
-            # add current active cache
-            for node_uuid, runs in six.iteritems(runs_at_node):
-                for run in runs:
-                    r.sadd(self.get_stats_cache_key(FlowStatsCache.step_active_set, node_uuid), run)
-
-    def _calculate_node_counts(self, simulation):
-        """
-        Calculate how many contacts are at each node. This is expensive and should only be run for simulation or in an
-        async task to rebuild the cache.
-        """
-        # fetch steps in active runs where contact hasn't left
-        steps = FlowStep.objects.filter(run__is_active=True, run__flow=self, left_on=None, run__contact__is_test=simulation)
-        steps = steps.values('run__id', 'step_uuid').annotate(count=Count('run_id'))
-
-        runs_at_node = defaultdict(set)
-        for step in steps:
-            node_uuid = step['step_uuid']
-            runs_at_node[node_uuid].add(step['run__id'])
-
-        return runs_at_node
-
     def get_node_counts(self, simulation):
-        if simulation:
-            runs_at_node = self._calculate_node_counts(simulation=True)
-            return {node_uuid: len(runs) for node_uuid, runs in six.iteritems(runs_at_node)}
+        """
+        Gets the number of contacts at each node in the flow. For simulator mode this manual counts steps by test
+        contacts as these are not pre-calculated.
+        """
+        if not simulation:
+            return FlowNodeCount.get_totals(self)
 
-        r = get_redis_connection()
-
-        # get all possible active keys
-        keys = self.calculate_active_step_keys()
-
-        runs_at_node = {}
-        for key in keys:
-            count = r.scard(key)
-            # only include stats for steps that actually have people there
-            if count:
-                runs_at_node[key[key.rfind(':') + 1:]] = count
-
-        return runs_at_node
+        # count steps in active runs where contact hasn't left that node
+        steps = FlowStep.objects.filter(run__is_active=True, run__flow=self, left_on=None, run__contact__is_test=True)
+        totals = steps.values_list('step_uuid').annotate(count=Count('run_id'))
+        return {t[0]: t[1] for t in totals if t[1]}
 
     def get_segment_counts(self, simulation, include_incomplete=False):
         """
-        Returns how many contacts have taken each flow segment. For simulation mode this is calculated, but for real
-        contacts this is pre-calculated in FlowPathCount.
+        Gets the number of contacts to have taken each flow segment. For simulator mode this manual counts steps by test
+        contacts as these are not pre-calculated.
         """
         if not simulation:
             return FlowPathCount.get_totals(self, include_incomplete)
@@ -987,36 +907,11 @@ class Flow(TembaModel):
 
         return visits
 
-    def _check_for_cache_update(self):
-        """
-        Checks if we have a redis cache for our flow stats, or whether they need to be updated.
-        If so, triggers an async rebuild of the cache for our flow.
-        """
-        from .tasks import check_flow_stats_accuracy_task
-
-        r = get_redis_connection()
-
-        # don't do the more expensive check if it was performed recently
-        cache_check = self.get_stats_cache_key(FlowStatsCache.cache_check)
-        if r.exists(cache_check):
-            return
-
-        # don't check again for a day or so, add up to an hour of randomness
-        # to spread things out a bit
-        import random
-        r.set(cache_check, 1, FLOW_STAT_CACHE_FREQUENCY + random.randint(0, 60 * 60))
-
-        # check flow stats for accuracy, rebuilding if necessary
-        check_flow_stats_accuracy_task.delay(self.pk)
-
-    def get_activity(self, simulation=False, check_cache=True):
+    def get_activity(self, simulation=False):
         """
         Get the activity summary for a flow as a tuple of the number of active runs
         at each step and a map of the previous visits
         """
-        if check_cache:
-            self._check_for_cache_update()
-
         return self.get_node_counts(simulation), self.get_segment_counts(simulation)
 
     def get_base_text(self, language_dict, default=''):
@@ -1860,52 +1755,7 @@ class Flow(TembaModel):
         for msg in msgs:
             step.add_message(msg)
 
-        # update the activity for our run
-        if not run.contact.is_test:
-            self.update_activity(step, previous_step, rule_uuid=rule)
-
         return step
-
-    def remove_active_for_run_ids(self, run_ids):
-        """
-        Bulk deletion of activity for a list of run ids. This removes the runs
-        from the active step, but does not remove the visited (path) data
-        for the runs.
-        """
-        r = get_redis_connection()
-        if run_ids:
-            for key in self.calculate_active_step_keys():
-                # remove keys 1,000 at a time
-                for batch in chunk_list(run_ids, 1000):
-                    r.srem(key, *batch)
-
-    def remove_active_for_step(self, step):
-        """
-        Removes the active stat for a run at the given step, but does not
-        remove the (path) data for the runs.
-        """
-        r = get_redis_connection()
-        r.srem(self.get_stats_cache_key(FlowStatsCache.step_active_set, step.step_uuid), step.run.pk)
-
-    def update_activity(self, step, previous_step=None, rule_uuid=None):
-        """
-        Updates our cache for the given step. This will mark the current active step and
-        record history path data for activity.
-
-        :param step: the step they just took
-        :param previous_step: the step they were just on
-        :param rule_uuid: the uuid for the rule they came from (if any)
-        """
-
-        with self.lock_on(FlowLock.activity):
-            r = get_redis_connection()
-
-            # remove our previous active spot
-            if previous_step:
-                self.remove_active_for_step(previous_step)
-
-            # make us active on our new step
-            r.sadd(self.get_stats_cache_key(FlowStatsCache.step_active_set, step.step_uuid), step.run.pk)
 
     def get_entry_send_actions(self):
         """
@@ -2625,7 +2475,6 @@ class FlowRun(models.Model):
         """
         Exits (expires, interrupts) runs in bulk
         """
-
         # when expiring phone calls, we want to issue hangups
         session_runs = runs.exclude(session=None)
         for run in session_runs:
@@ -2635,31 +2484,22 @@ class FlowRun(models.Model):
             if exit_type == FlowRun.EXIT_TYPE_EXPIRED:
                 session.close()
 
-        runs = list(runs.values('id', 'flow_id'))  # select only what we need...
-
-        # organize runs by flow
-        runs_by_flow = defaultdict(list)
-        for run in runs:
-            runs_by_flow[run['flow_id']].append(run['id'])
-
-        # for each flow, remove activity for all runs
-        for flow_id, run_ids in six.iteritems(runs_by_flow):
-            flow = Flow.objects.filter(id=flow_id).first()
-
-            if flow:
-                flow.remove_active_for_run_ids(run_ids)
+        run_ids = list(runs.values_list('id', flat=True))
 
         from .tasks import continue_parent_flows
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
-        for batch in chunk_list(runs, 1000):
-            ids = [r['id'] for r in batch]
-            run_objs = FlowRun.objects.filter(pk__in=ids)
+        for id_batch in chunk_list(run_ids, 1000):
             now = timezone.now()
-            run_objs.update(is_active=False, exited_on=now, exit_type=exit_type, modified_on=now)
+
+            # mark all steps in these runs as having been left
+            FlowStep.objects.filter(run__id__in=id_batch, left_on=None).update(left_on=now)
+
+            runs = FlowRun.objects.filter(id__in=id_batch)
+            runs.update(is_active=False, exited_on=now, exit_type=exit_type, modified_on=now)
 
             # continue the parent flows to continue async
-            on_transaction_commit(lambda: continue_parent_flows.delay(ids))
+            on_transaction_commit(lambda: continue_parent_flows.delay(id_batch))
 
     def get_last_msg(self, direction=INCOMING):
         """
@@ -2766,10 +2606,6 @@ class FlowRun(models.Model):
         for step in self.steps.all():
             step.release()
 
-        # remove our run from the activity
-        with self.flow.lock_on(FlowLock.activity):
-            self.flow.remove_active_for_run_ids([self.pk])
-
         # lastly delete ourselves
         self.delete()
 
@@ -2790,7 +2626,6 @@ class FlowRun(models.Model):
         if final_step:
             final_step.left_on = completed_on
             final_step.save(update_fields=['left_on'])
-            self.flow.remove_active_for_step(final_step)
 
         # mark this flow as inactive
         if not self.keep_active_on_exit():
@@ -2825,7 +2660,6 @@ class FlowRun(models.Model):
         if final_step:
             final_step.left_on = now
             final_step.save(update_fields=['left_on'])
-            self.flow.remove_active_for_step(final_step)
 
         # mark this flow as inactive
         self.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
@@ -3855,6 +3689,34 @@ class FlowPathRecentStep(models.Model):
         cache.set(cls.LAST_PRUNED_KEY, newest_id)
 
         return cursor.rowcount  # number of deleted entries
+
+
+class FlowNodeCount(SquashableModel):
+    """
+    Maintains counts of unique contacts at each flow node.
+    """
+    SQUASH_OVER = ('node_uuid',)
+
+    flow = models.ForeignKey(Flow)
+    node_uuid = models.UUIDField(db_index=True)
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH removed as (
+            DELETE FROM %(table)s WHERE "node_uuid" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("flow_id", "node_uuid", "count", "is_squashed")
+        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+        """ % {'table': cls._meta.db_table}
+
+        return sql, (distinct_set.node_uuid, distinct_set.flow_id, distinct_set.node_uuid)
+
+    @classmethod
+    def get_totals(cls, flow):
+        totals = list(cls.objects.filter(flow=flow).values_list('node_uuid').annotate(replies=Sum('count')))
+        return {six.text_type(t[0]): t[1] for t in totals if t[1]}
 
 
 @six.python_2_unicode_compatible
