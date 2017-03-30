@@ -8920,22 +8920,24 @@ class MbloxTest(TembaTest):
             self.assertEqual(msg.external_id, 'OzYDlvf3SQVc')
             self.clear_cache()
 
-        with patch('requests.get') as mock:
+        with patch('requests.post') as mock:
             mock.return_value = MockResponse(412, 'Error')
 
             # manually send it off
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
+            self.assertTrue(mock.called)
             # check the status of the message now errored
             msg.refresh_from_db()
             self.assertEquals(ERRORED, msg.status)
 
-        with patch('requests.get') as mock:
+        with patch('requests.post') as mock:
             mock.side_effect = Exception('Kaboom!')
 
             # manually send it off
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
+            self.assertTrue(mock.called)
             # check the status of the message now errored
             msg.refresh_from_db()
             self.assertEquals(ERRORED, msg.status)
