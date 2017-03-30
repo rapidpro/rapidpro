@@ -1520,28 +1520,28 @@ class Contact(TembaModel):
             contact = contact_map[urn.contact_id]
             getattr(contact, '__urns').append(urn)
 
-    def build_message_context(self):
+    def build_expressions_context(self):
         """
         Builds a dictionary suitable for use in variable substitution in messages.
         """
         org = self.org
-        contact_dict = dict(__default__=self.get_display(org=org))
-        contact_dict[Contact.NAME] = self.name if self.name else ''
-        contact_dict[Contact.FIRST_NAME] = self.first_name(org)
-        contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False)
-        contact_dict['groups'] = ",".join([_.name for _ in self.user_groups.all()])
-        contact_dict['uuid'] = self.uuid
+        context = {
+            '__default__': self.get_display(),
+            Contact.NAME: self.name or '',
+            Contact.FIRST_NAME: self.first_name(org),
+            Contact.LANGUAGE: self.language,
+            'tel_e164': self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False),
+            'groups': ",".join([_.name for _ in self.user_groups.all()]),
+            'uuid': self.uuid
+        }
 
         # anonymous orgs also get @contact.id
         if org.is_anon:
-            contact_dict['id'] = self.id
-
-        contact_dict[Contact.LANGUAGE] = self.language
+            context['id'] = self.id
 
         # add all URNs
         for scheme, label in ContactURN.SCHEME_CHOICES:
-            urn_value = self.get_urn_display(scheme=scheme, org=org)
-            contact_dict[scheme] = urn_value if urn_value is not None else ''
+            context[scheme] = self.get_urn_display(scheme=scheme, org=org) or ''
 
         field_values = Value.objects.filter(contact=self).exclude(contact_field=None)\
                                                          .exclude(contact_field__is_active=False)\
@@ -1553,9 +1553,9 @@ class Contact(TembaModel):
         # add all active fields to our context
         for field in ContactField.objects.filter(org_id=self.org_id, is_active=True).select_related('org'):
             field_value = Contact.get_field_display_for_value(field, contact_values.get(field.key, None))
-            contact_dict[field.key] = field_value if field_value is not None else ''
+            context[field.key] = field_value if field_value is not None else ''
 
-        return contact_dict
+        return context
 
     def first_name(self, org):
         if not self.name:
