@@ -22,6 +22,10 @@
         .result-time
           {{ result.created_on }}
         .result-message= result.message
+        .result-request-time
+          Request time:
+          %span.result-request-time-value
+            {{ result.request_time|default:"0" }}s
         -if result.status_code
           %pre.result-request.prettyprint{ style:'margin-top:10px;' }<
             :plain
@@ -62,4 +66,8 @@
 
     .result .result-summary {
       margin-left: 70px;
+    }
+
+    .result-request-time-value {
+      font-weight: bold;
     }

@@ -3,6 +3,12 @@
     .time.pull-right
       {{log.created_on|date:"M j, Y g:i:s a"}}
 
+
+    .request-time.pull-right
+      Request time:
+      %span.request-time-value
+        {{ log.request_time|default:"0" }}s
+
     -if log.response_status
       %span.status-code
         {{ log.response_status }}
