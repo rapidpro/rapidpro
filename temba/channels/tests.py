@@ -21,6 +21,7 @@ from django.core import mail
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from django.test import RequestFactory
 from django.test.utils import override_settings
 from django.utils import timezone
 from django.template import loader, Context
@@ -30,6 +31,7 @@ from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, LINE_SCHEME
 from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING, USSD
+from temba.channels.views import channel_status_processor
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME, FCM_SCHEME
 from temba.ivr.models import IVRCall
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
@@ -2499,6 +2501,32 @@ class ChannelTest(TembaTest):
 
         channel.release()
         self.assertIsNone(channel.get_ivr_client())
+
+    def test_channel_status_processor(self):
+
+        request = RequestFactory().get('/')
+        request.user = self.admin
+
+        def get_context(channel_type, role):
+            Channel.objects.all().delete()
+            Channel.create(
+                self.org, self.admin, 'RW', channel_type, None, '1234',
+                config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
+                uuid='00000000-0000-0000-0000-000000001234', role=role)
+            return channel_status_processor(request)
+
+        Channel.objects.all().delete()
+        no_channel_context = channel_status_processor(request)
+        self.assertFalse(no_channel_context['has_outgoing_channel'])
+        self.assertEqual(no_channel_context['is_ussd_channel'], False)
+
+        sms_context = get_context(Channel.TYPE_JUNEBUG, Channel.ROLE_SEND)
+        self.assertTrue(sms_context['has_outgoing_channel'])
+        self.assertEqual(sms_context['is_ussd_channel'], False)
+
+        ussd_context = get_context(Channel.TYPE_JUNEBUG_USSD, Channel.ROLE_USSD)
+        self.assertTrue(ussd_context['has_outgoing_channel'])
+        self.assertEqual(ussd_context['is_ussd_channel'], True)
 
 
 class ChannelBatchTest(TembaTest):
