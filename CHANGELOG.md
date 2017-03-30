@@ -1,3 +1,16 @@
+v3.0.94
+----------
+ * Fix test, fix template tags
+
+v3.0.93
+----------
+ * Change request times to be in ms instead of seconds
+
+v3.0.92
+----------
+ * Block on handling incoming msgs so we dont process them forever away
+ * Include Viber channels in new conversation trigger form channel choices
+
 v3.0.90
 ----------
  * Don't use cache+calculations for flow segment counts - these are pre-calculated in FlowPathCount

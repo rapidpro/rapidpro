@@ -63,19 +63,20 @@ def process_message_task(msg_id, from_mage=False, new_contact=False):
 
     # get a lock on this contact, we process messages one by one to prevent odd behavior in flow processing
     key = 'pcm_%d' % msg.contact_id
-    if not r.get(key):
-        with r.lock(key, timeout=120):
-            print("M[%09d] Processing - %s" % (msg.id, msg.text))
-            start = time.time()
 
-            # if message was created in Mage...
-            if from_mage:
-                mage_handle_new_message(msg.org, msg)
-                if new_contact:
-                    mage_handle_new_contact(msg.org, msg.contact)
+    # wait for the lock as we want to make sure to process the next message as soon as we are free
+    with r.lock(key, timeout=120):
+        print("M[%09d] Processing - %s" % (msg.id, msg.text))
+        start = time.time()
 
-            Msg.process_message(msg)
-            print("M[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text))
+        # if message was created in Mage...
+        if from_mage:
+            mage_handle_new_message(msg.org, msg)
+            if new_contact:
+                mage_handle_new_contact(msg.org, msg.contact)
+
+        Msg.process_message(msg)
+        print("M[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text))
 
 
 @task(track_started=True, name='send_broadcast')
