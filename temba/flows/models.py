@@ -5102,7 +5102,7 @@ class ReplyAction(Action):
     def as_json(self):
         return dict(type=ReplyAction.TYPE, msg=self.msg, media=self.media, send_all=self.send_all)
 
-    def execute(self, run, actionset_uuid, msg, offline_on=None):
+    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []
 
         if self.msg or self.media:
@@ -5121,7 +5121,6 @@ class ReplyAction(Action):
                 if media_url:
                     media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
-            context = run.flow.build_expressions_context(run.contact, msg)
             status = PENDING
             created_on = None
             if offline_on:

@@ -2781,7 +2781,7 @@ class ActionTest(TembaTest):
         run = FlowRun.create(self.flow, self.contact.pk)
 
         action = ReplyAction(dict(base="We love green too!"), None, send_all=True)
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
 
         replies = Msg.objects.filter(contact=contact, direction='O')
         self.assertEqual(replies.count(), 1)
@@ -2803,7 +2803,7 @@ class ActionTest(TembaTest):
         self.assertEquals(dict(base="We love green too!"), action.msg)
         self.assertTrue(action.send_all)
 
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
 
         replies = Msg.objects.filter(contact=contact, direction='O')
         self.assertEqual(replies.count(), 2)
