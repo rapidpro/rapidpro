@@ -8734,6 +8734,30 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         super(JunebugUSSDTest, self).tearDown()
         settings.SEND_MESSAGES = False
 
+    def test_status(self):
+        joe = self.create_contact("Joe Biden", "+254788383383")
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin, msg_type=USSD)
+
+        data = self.mk_event()
+        msg.external_id = data['message_id']
+        msg.save(update_fields=('external_id',))
+
+        def assertStatus(sms, event_type, assert_status):
+            data['event_type'] = event_type
+            response = self.client.post(
+                reverse('handlers.junebug_handler',
+                        args=['event', self.channel.uuid]),
+                data=json.dumps(data),
+                content_type='application/json')
+            self.assertEquals(200, response.status_code)
+            sms = Msg.objects.get(pk=sms.id)
+            self.assertEquals(assert_status, sms.status)
+
+        assertStatus(msg, 'submitted', SENT)
+        assertStatus(msg, 'delivery_succeeded', DELIVERED)
+        assertStatus(msg, 'delivery_failed', FAILED)
+        assertStatus(msg, 'rejected', FAILED)
+
     def test_receive_ussd(self):
         from temba.ussd.models import USSDSession
         from temba.channels.handlers import JunebugHandler
