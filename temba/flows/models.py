@@ -1527,16 +1527,13 @@ class Flow(TembaModel):
 
                 step = self.add_step(run, entry_rule, is_start=True, arrived_on=timezone.now())
                 if entry_rule.is_ussd():
-                    # create an empty placeholder message
-                    msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
-                    handled, step_msgs = Flow.handle_destination(entry_rule, step, run, msg, trigger_send=False)
+                    handled, step_msgs = Flow.handle_destination(entry_rule, step, run, start_msg, trigger_send=False)
 
                     # add these messages as ones that are ready to send
                     for msg in step_msgs:
                         msgs.append(msg)
 
-            # no start msgs in ussd flows but we want the variable there
-            run.start_msgs = []
+            run.start_msgs = [start_msg]
 
             runs.append(run)
 
