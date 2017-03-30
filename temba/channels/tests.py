@@ -8772,9 +8772,10 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         self.assertEqual(response.json()['status'], JunebugHandler.ACK)
 
         # load our message
-        msg = Msg.objects.get()
-        self.assertEquals(data["from"], msg.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(msg.session.status, USSDSession.TRIGGERED)
+        inbound_msg, outbound_msg = Msg.objects.all().order_by('pk')
+        self.assertEquals(data["from"], outbound_msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(outbound_msg.response_to, inbound_msg)
+        self.assertEquals(outbound_msg.session.status, USSDSession.TRIGGERED)
 
     def test_receive_ussd_no_sesion(self):
         from temba.channels.handlers import JunebugHandler
