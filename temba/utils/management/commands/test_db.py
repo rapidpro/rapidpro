@@ -143,6 +143,8 @@ class Command(BaseCommand):
         """
         Creates a clean database
         """
+        seed = self.configure_random(num_orgs, seed)
+
         self._log("Generating random base database (seed=%d)...\n" % seed)
 
         try:
@@ -152,7 +154,6 @@ class Command(BaseCommand):
         if has_data:
             raise CommandError("Can't generate content in non-empty database.")
 
-        self.configure_random(num_orgs, seed)
         self.batch_size = 5000
 
         # the timespan being modelled by this database
@@ -228,6 +229,8 @@ class Command(BaseCommand):
         # bias toward the beginning orgs. if there are N orgs, then the amount of content the first org will be
         # allocated is (1/N) ^ (1/bias). This sets the bias so that the first org will get ~50% of the content:
         self.org_bias = math.log(1.0 / num_orgs, 0.5)
+
+        return seed
 
     def load_locations(self, path):
         """
