@@ -98,22 +98,22 @@ class ChannelTest(TembaTest):
 
         raise Exception("Did not find '%s' cmd in response: '%s'" % (cmd_name, response.content))
 
-    def test_message_context(self):
-        context = self.tel_channel.build_message_context()
+    def test_expressions_context(self):
+        context = self.tel_channel.build_expressions_context()
         self.assertEqual(context['__default__'], '+250 785 551 212')
         self.assertEqual(context['name'], 'Test Channel')
         self.assertEqual(context['address'], '+250 785 551 212')
         self.assertEqual(context['tel'], '+250 785 551 212')
         self.assertEqual(context['tel_e164'], '+250785551212')
 
-        context = self.twitter_channel.build_message_context()
+        context = self.twitter_channel.build_expressions_context()
         self.assertEqual(context['__default__'], '@billy_bob')
         self.assertEqual(context['name'], 'Twitter Channel')
         self.assertEqual(context['address'], '@billy_bob')
         self.assertEqual(context['tel'], '')
         self.assertEqual(context['tel_e164'], '')
 
-        context = self.released_channel.build_message_context()
+        context = self.released_channel.build_expressions_context()
         self.assertEqual(context['__default__'], 'Released Channel')
         self.assertEqual(context['name'], 'Released Channel')
         self.assertEqual(context['address'], '')
@@ -4562,9 +4562,12 @@ class KannelTest(TembaTest):
                 self.assertEquals('No capital accented E!', mock.call_args[1]['params']['text'])
                 self.assertEquals('788383383', mock.call_args[1]['params']['to'])
                 self.assertFalse('coding' in mock.call_args[1]['params'])
+                self.assertFalse('priority' in mock.call_args[1]['params'])
                 self.clear_cache()
 
+            incoming = Msg.create_incoming(self.channel, "tel:+250788383383", "start")
             msg.text = "Unicode. ☺"
+            msg.response_to = incoming
             msg.save()
 
             with patch('requests.get') as mock:
@@ -4582,6 +4585,7 @@ class KannelTest(TembaTest):
                 self.assertEquals("Unicode. ☺", mock.call_args[1]['params']['text'])
                 self.assertEquals('2', mock.call_args[1]['params']['coding'])
                 self.assertEquals('utf8', mock.call_args[1]['params']['charset'])
+                self.assertEquals(1, mock.call_args[1]['params']['priority'])
 
                 self.clear_cache()
 
@@ -6278,6 +6282,12 @@ class TwilioTest(TembaTest):
         msg = Msg.objects.get()
         self.assertTrue(msg.media.startswith('text/x-vcard:https://%s' % settings.AWS_BUCKET_DOMAIN))
         self.assertTrue(msg.media.endswith('.vcf'))
+
+    def test_receive_base64(self):
+        post_data = dict(To=self.channel.address, From='+250788383383', Body="QmFubm9uIEV4cGxhaW5zIFRoZSBXb3JsZCAuLi4K4oCcVGhlIENhbXAgb2YgdGhlIFNhaW50c+KA\r")
+        twilio_url = reverse('handlers.twilio_handler')
+        self.signed_request(twilio_url, post_data)
+        self.assertIsNotNone(Msg.objects.filter(text__contains='Bannon Explains').first())
 
     def test_receive(self):
         post_data = dict(To=self.channel.address, From='+250788383383', Body="Hello World")
