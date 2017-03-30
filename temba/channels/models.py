@@ -267,6 +267,8 @@ class Channel(TembaModel):
     GET_STARTED = 'get_started'
     VIBER_NO_SERVICE_ID = 'no_service_id'
 
+    SIMULATOR_CONTEXT = dict(__default__='(800) 555-1212', name='Simulator', tel='(800) 555-1212', tel_e164='+18005551212')
+
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=TYPE_CHOICES,
                                     default=TYPE_ANDROID, help_text=_("Type of this channel, whether Android, Twilio or SMSC"))
 
@@ -945,7 +947,7 @@ class Channel(TembaModel):
 
         return self.address
 
-    def build_message_context(self):
+    def build_expressions_context(self):
         from temba.contacts.models import TEL_SCHEME
 
         address = self.get_address_display()
@@ -1231,7 +1233,6 @@ class Channel(TembaModel):
 
     @classmethod
     def success(cls, channel, msg, msg_status, start, external_id=None, event=None, events=None):
-
         request_time = time.time() - start
 
         from temba.msgs.models import Msg
@@ -1244,6 +1245,9 @@ class Channel(TembaModel):
         # logs that a message was sent for this channel type if our latency is known
         if request_time > 0:
             analytics.gauge('temba.msg_sent_%s' % channel.channel_type.lower(), request_time)
+
+        # log our request time in ms
+        request_time_ms = request_time * 1000
 
         if events is None and event:
             events = [event]
@@ -1263,7 +1267,7 @@ class Channel(TembaModel):
                                       request=event.request_body,
                                       response=event.response_body,
                                       response_status=event.status_code,
-                                      request_time=request_time)
+                                      request_time=request_time_ms)
 
     @classmethod
     def send_fcm_message(cls, channel, msg, text):
@@ -3262,6 +3266,9 @@ class ChannelLog(models.Model):
             print(u"[%d] %0.3fs ERROR - %s %s \"%s\" %s \"%s\"" %
                   (msg.id, request_time, event.method, event.url, event.request_body, event.status_code, event.response_body))
 
+            # log our request time in ms
+            request_time_ms = request_time * 1000
+
             ChannelLog.objects.create(channel_id=msg.channel,
                                       msg_id=msg.id,
                                       is_error=True,
@@ -3270,9 +3277,9 @@ class ChannelLog(models.Model):
                                       url=event.url,
                                       request=event.request_body,
                                       response=event.response_body,
-                                      response_status=event.status_code)
+                                      response_status=event.status_code,
+                                      request_time=request_time_ms)
 
-        # log our request type if possible
         if request_time > 0:
             analytics.gauge('temba.msg_sent_%s' % channel.channel_type.lower(), request_time)
 

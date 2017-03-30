@@ -98,22 +98,22 @@ class ChannelTest(TembaTest):
 
         raise Exception("Did not find '%s' cmd in response: '%s'" % (cmd_name, response.content))
 
-    def test_message_context(self):
-        context = self.tel_channel.build_message_context()
+    def test_expressions_context(self):
+        context = self.tel_channel.build_expressions_context()
         self.assertEqual(context['__default__'], '+250 785 551 212')
         self.assertEqual(context['name'], 'Test Channel')
         self.assertEqual(context['address'], '+250 785 551 212')
         self.assertEqual(context['tel'], '+250 785 551 212')
         self.assertEqual(context['tel_e164'], '+250785551212')
 
-        context = self.twitter_channel.build_message_context()
+        context = self.twitter_channel.build_expressions_context()
         self.assertEqual(context['__default__'], '@billy_bob')
         self.assertEqual(context['name'], 'Twitter Channel')
         self.assertEqual(context['address'], '@billy_bob')
         self.assertEqual(context['tel'], '')
         self.assertEqual(context['tel_e164'], '')
 
-        context = self.released_channel.build_message_context()
+        context = self.released_channel.build_expressions_context()
         self.assertEqual(context['__default__'], 'Released Channel')
         self.assertEqual(context['name'], 'Released Channel')
         self.assertEqual(context['address'], '')
@@ -8920,22 +8920,24 @@ class MbloxTest(TembaTest):
             self.assertEqual(msg.external_id, 'OzYDlvf3SQVc')
             self.clear_cache()
 
-        with patch('requests.get') as mock:
+        with patch('requests.post') as mock:
             mock.return_value = MockResponse(412, 'Error')
 
             # manually send it off
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
+            self.assertTrue(mock.called)
             # check the status of the message now errored
             msg.refresh_from_db()
             self.assertEquals(ERRORED, msg.status)
 
-        with patch('requests.get') as mock:
+        with patch('requests.post') as mock:
             mock.side_effect = Exception('Kaboom!')
 
             # manually send it off
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
+            self.assertTrue(mock.called)
             # check the status of the message now errored
             msg.refresh_from_db()
             self.assertEquals(ERRORED, msg.status)

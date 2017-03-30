@@ -473,7 +473,7 @@ class FlowTest(TembaTest):
         self.assertEqual(contact1_steps[1].next_uuid, None)
 
         # test our message context
-        context = self.flow.build_message_context(self.contact, None)
+        context = self.flow.build_expressions_context(self.contact, None)
         self.assertEquals(dict(__default__=''), context['flow'])
 
         # check flow activity endpoint response
@@ -556,7 +556,7 @@ class FlowTest(TembaTest):
         self.assertEquals(None, value.datetime_value)
 
         # check what our message context looks like now
-        context = self.flow.build_message_context(self.contact, incoming)
+        context = self.flow.build_expressions_context(self.contact, incoming)
         self.assertTrue(context['flow'])
         self.assertEqual("color: orange", context['flow']['__default__'])
         self.assertEqual("orange", six.text_type(context['flow']['color']['__default__']))
@@ -579,7 +579,7 @@ class FlowTest(TembaTest):
         step.save()
 
         # check our message context again
-        context = self.flow.build_message_context(self.contact, incoming)
+        context = self.flow.build_expressions_context(self.contact, incoming)
         self.assertEquals('10', context['flow']['color']['value'])
         self.assertEquals('Orange', context['flow']['color']['category'])
 
@@ -1361,7 +1361,7 @@ class FlowTest(TembaTest):
         # clear any extra on this run
         run.fields = ""
 
-        context = run.flow.build_message_context(run.contact, None)
+        context = run.flow.build_expressions_context(run.contact, None)
         if extra:
             context['extra'] = extra
 
@@ -1378,7 +1378,7 @@ class FlowTest(TembaTest):
     def assertDateTest(self, expected_test, expected_value, test):
         run = FlowRun.objects.filter(contact=self.contact).first()
         tz = run.flow.org.timezone
-        context = run.flow.build_message_context(run.contact, None)
+        context = run.flow.build_expressions_context(run.contact, None)
 
         tuple = test.evaluate(run, self.sms, context, self.sms.text)
         if expected_test:
@@ -1874,7 +1874,7 @@ class FlowTest(TembaTest):
 
         self.org.country = self.country
         run.flow.org = self.org
-        context = run.flow.build_message_context(run.contact, None)
+        context = run.flow.build_expressions_context(run.contact, None)
 
         # wrong admin level should return None if provided
         lga_tuple = HasDistrictTest('Kano').evaluate(run, sms, context, 'apapa')
@@ -2741,6 +2741,10 @@ class ActionTest(TembaTest):
 
         self.other_group = self.create_group("Other", [])
 
+    def execute_action(self, action, run, msg, **kwargs):
+        context = run.flow.build_expressions_context(run.contact, msg)
+        return action.execute(run, context, None, msg, **kwargs)
+
     def test_reply_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
@@ -2755,7 +2759,7 @@ class ActionTest(TembaTest):
             ReplyAction.from_json(self.org, {'type': ReplyAction.TYPE, ReplyAction.MESSAGE: dict(base="")})
 
         action = ReplyAction(dict(base="We love green too!"))
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
         msg = Msg.objects.get(contact=self.contact, direction='O')
         self.assertEquals("We love green too!", msg.text)
 
@@ -2765,7 +2769,7 @@ class ActionTest(TembaTest):
         action = ReplyAction.from_json(self.org, action_json)
         self.assertEquals(dict(base="We love green too!"), action.msg)
 
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
 
         response = msg.responses.get()
         self.assertEquals("We love green too!", response.text)
@@ -2776,7 +2780,7 @@ class ActionTest(TembaTest):
         run = FlowRun.create(self.flow, self.contact.pk)
 
         action = ReplyAction(dict(base="We love green too!"), 'image/jpeg:path/to/media.jpg')
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
         reply_msg = Msg.objects.get(contact=self.contact, direction='O')
         self.assertEquals("We love green too!", reply_msg.text)
         self.assertEquals(reply_msg.media, "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg'))
@@ -2790,7 +2794,7 @@ class ActionTest(TembaTest):
         self.assertEquals(dict(base="We love green too!"), action.msg)
         self.assertEquals('image/jpeg:path/to/media.jpg', action.media)
 
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
 
         response = msg.responses.get()
         self.assertEquals("We love green too!", response.text)
@@ -2812,7 +2816,7 @@ class ActionTest(TembaTest):
 
         # without USSD config we only get an empty UssdAction
         action = UssdAction.from_ruleset(ussd_ruleset, run)
-        execution = action.execute(run, None, msg)
+        execution = self.execute_action(action, run, msg)
 
         self.assertIsNone(action.msg)
         self.assertEquals(execution, [])
@@ -2829,7 +2833,7 @@ class ActionTest(TembaTest):
         }
         ussd_ruleset.config = json.dumps(config)
         action = UssdAction.from_ruleset(ussd_ruleset, run)
-        execution = action.execute(run, None, msg)
+        execution = self.execute_action(action, run, msg)
 
         self.assertIsNotNone(action.msg)
         self.assertEquals(action.msg, {u'base': u'test\n1: Test1\n2: Test2\n'})
@@ -2869,7 +2873,7 @@ class ActionTest(TembaTest):
 
         ussd_ruleset.config = json.dumps(config)
         action = UssdAction.from_ruleset(ussd_ruleset, run)
-        execution = action.execute(run, None, msg)
+        execution = self.execute_action(action, run, msg)
 
         self.assertIsNotNone(action.msg)
         # we have three languages, although only 2 are (partly) translated
@@ -2898,7 +2902,7 @@ class ActionTest(TembaTest):
         run = FlowRun.create(self.flow, self.contact.pk)
 
         # resend the message to him
-        execution = action.execute(run, None, msg)
+        execution = self.execute_action(action, run, msg)
 
         # he will still get the english (base language)
         self.assertIsInstance(execution[0], Msg)
@@ -2910,7 +2914,7 @@ class ActionTest(TembaTest):
         run = FlowRun.create(self.flow, self.contact.pk)
 
         # resend the message to him
-        execution = action.execute(run, None, msg)
+        execution = self.execute_action(action, run, msg)
 
         # he will get the partly translated hungarian version
         self.assertIsInstance(execution[0], Msg)
@@ -2923,7 +2927,7 @@ class ActionTest(TembaTest):
         run = FlowRun.create(self.flow, self.contact.pk)
 
         action = TriggerFlowAction(flow, [], [self.contact], [])
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
 
         action_json = action.as_json()
         action = TriggerFlowAction.from_json(self.org, action_json)
@@ -2933,7 +2937,7 @@ class ActionTest(TembaTest):
 
         action = TriggerFlowAction(flow, [self.other_group], [], [])
         run = FlowRun.create(self.flow, self.contact.pk)
-        msgs = action.execute(run, None, None)
+        msgs = self.execute_action(action, run, None)
 
         self.assertFalse(msgs)
 
@@ -2941,7 +2945,7 @@ class ActionTest(TembaTest):
 
         action = TriggerFlowAction(flow, [self.other_group], [self.contact], [])
         run = FlowRun.create(self.flow, self.contact.pk)
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
 
         self.assertTrue(FlowRun.objects.filter(contact=self.contact2, flow=flow))
 
@@ -2965,7 +2969,7 @@ class ActionTest(TembaTest):
 
         action = SendAction(dict(base=msg_body),
                             [], [self.contact2], [])
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
 
         action_json = action.as_json()
         action = SendAction.from_json(self.org, action_json)
@@ -2980,7 +2984,7 @@ class ActionTest(TembaTest):
 
         # empty message should be a no-op
         action = SendAction(dict(base=""), [], [self.contact], [])
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
         self.assertEqual(Broadcast.objects.all().count(), 1)
 
         # try with a test contact and a group
@@ -2993,7 +2997,7 @@ class ActionTest(TembaTest):
 
         action = SendAction(dict(base=msg_body), [self.other_group], [test_contact], [])
         run = FlowRun.create(self.flow, test_contact.pk)
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
 
         # since we are test contact now, no new broadcasts
         self.assertEqual(Broadcast.objects.all().count(), 1)
@@ -3018,7 +3022,7 @@ class ActionTest(TembaTest):
         msg_body = 'I am a media message message'
 
         action = SendAction(dict(base=msg_body), [], [self.contact2], [], dict(base='image/jpeg:attachments/picture.jpg'))
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
 
         action_json = action.as_json()
         action = SendAction.from_json(self.org, action_json)
@@ -3037,7 +3041,7 @@ class ActionTest(TembaTest):
 
         # also send if we have empty message but have an attachment
         action = SendAction(dict(base=""), [], [self.contact], [], dict(base='image/jpeg:attachments/picture.jpg'))
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
         self.assertEqual(Broadcast.objects.all().count(), 3)
 
     def test_variable_contact_parsing(self):
@@ -3056,7 +3060,7 @@ class ActionTest(TembaTest):
         action_json = action.as_json()
         action = EmailAction.from_json(self.org, action_json)
 
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
 
         self.assertEquals(len(mail.outbox), 1)
         self.assertEquals(mail.outbox[0].subject, "Subject")
@@ -3077,7 +3081,7 @@ class ActionTest(TembaTest):
         action_json = action.as_json()
         action = EmailAction.from_json(self.org, action_json)
 
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
 
         self.assertEquals(len(mail.outbox), 2)
         self.assertEquals(mail.outbox[1].subject, "Eric added in subject")
@@ -3088,7 +3092,7 @@ class ActionTest(TembaTest):
         test_contact = Contact.get_test_contact(self.user)
         test_run = FlowRun.create(self.flow, test_contact.pk)
 
-        action.execute(test_run, None, msg)
+        self.execute_action(action, test_run, msg)
 
         logs = list(ActionLog.objects.order_by('pk'))
         self.assertEqual(logs[0].level, ActionLog.LEVEL_INFO)
@@ -3098,7 +3102,7 @@ class ActionTest(TembaTest):
 
         # check that all white space is replaced with single spaces in the subject
         test = EmailAction(["steve@apple.com"], "Allo \n allo\tmessage", "Email notification for allo allo")
-        test.execute(run, None, msg)
+        self.execute_action(test, run, msg)
 
         self.assertEquals(len(mail.outbox), 3)
         self.assertEquals(mail.outbox[2].subject, 'Allo allo message')
@@ -3108,7 +3112,7 @@ class ActionTest(TembaTest):
         self.org.add_smtp_config('support@example.com', 'smtp.example.com', 'support@example.com', 'secret', '465', 'T', self.admin)
 
         action = EmailAction(["steve@apple.com"], "Subject", "Body")
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
 
         self.assertEquals(len(mail.outbox), 4)
         self.assertEquals(mail.outbox[3].from_email, 'support@example.com')
@@ -3124,7 +3128,7 @@ class ActionTest(TembaTest):
         field = ContactField.objects.get(org=self.org, key="superhero_name")
         self.assertEquals("Superhero Name", field.label)
 
-        test.execute(run, None, sms)
+        self.execute_action(test, run, sms)
 
         # user should now have a nickname field with a value of batman
         contact = Contact.objects.get(id=self.contact.pk)
@@ -3133,14 +3137,14 @@ class ActionTest(TembaTest):
         # test clearing our value
         test = SaveToContactAction.from_json(self.org, test.as_json())
         test.value = ""
-        test.execute(run, None, sms)
+        self.execute_action(test, run, sms)
         contact = Contact.objects.get(id=self.contact.pk)
         self.assertEquals(None, contact.get_field_raw('superhero_name'))
 
         # test setting our name
         test = SaveToContactAction.from_json(self.org, dict(type='save', label="Name", value='', field='name'))
         test.value = "Eric Newcomer"
-        test.execute(run, None, sms)
+        self.execute_action(test, run, sms)
         contact = Contact.objects.get(id=self.contact.pk)
         self.assertEquals("Eric Newcomer", contact.name)
         run.contact = contact
@@ -3148,7 +3152,7 @@ class ActionTest(TembaTest):
         # test setting just the first name
         test = SaveToContactAction.from_json(self.org, dict(type='save', label="First Name", value='', field='first_name'))
         test.value = "Jen"
-        test.execute(run, None, sms)
+        self.execute_action(test, run, sms)
         contact = Contact.objects.get(id=self.contact.pk)
         self.assertEquals("Jen Newcomer", contact.name)
 
@@ -3158,13 +3162,13 @@ class ActionTest(TembaTest):
                 with self.assertRaises(Exception):
                     test = SaveToContactAction.from_json(self.org, dict(type='save', label=word, value='', field=word))
                     test.value = "Jen"
-                    test.execute(run, None, sms)
+                    self.execute_action(test, run, sms)
 
         # we should strip whitespace
         run.contact = contact
         test = SaveToContactAction.from_json(self.org, dict(type='save', label="First Name", value='', field='first_name'))
         test.value = " Jackson "
-        test.execute(run, None, sms)
+        self.execute_action(test, run, sms)
         contact = Contact.objects.get(id=self.contact.pk)
         self.assertEquals("Jackson Newcomer", contact.name)
 
@@ -3175,7 +3179,7 @@ class ActionTest(TembaTest):
 
         test = SaveToContactAction.from_json(self.org, dict(type='save', label="First Name", value='', field='first_name'))
         test.value = " Cole"
-        test.execute(run, None, sms)
+        self.execute_action(test, run, sms)
         contact = Contact.objects.get(id=self.contact.pk)
         self.assertEquals("Cole", contact.name)
 
@@ -3184,7 +3188,7 @@ class ActionTest(TembaTest):
         test.value = "This is a long message, longer than 160 characters, longer than 250 characters, all the way up "\
                      "to 500 some characters long because sometimes people save entire messages to their contact " \
                      "fields and we want to enable that for them so that they can do what they want with the platform."
-        test.execute(run, None, sms)
+        self.execute_action(test, run, sms)
         contact = Contact.objects.get(id=self.contact.pk)
         self.assertEquals(test.value, contact.get_field('last_message').string_value)
 
@@ -3206,7 +3210,7 @@ class ActionTest(TembaTest):
         # create another contact with that phone number, to test stealing
         robbed = self.create_contact("Robzor", "+12065551212")
 
-        test.execute(run, None, sms)
+        self.execute_action(test, run, sms)
 
         # updating Phone Number should not create a contact field
         self.assertIsNone(ContactField.objects.filter(org=self.org, key='tel_e164').first())
@@ -3232,17 +3236,17 @@ class ActionTest(TembaTest):
         test_contact = Contact.get_test_contact(self.admin)
         test_contact_urn = test_contact.urns.all().first()
         run = FlowRun.create(self.flow, test_contact.pk)
-        test.execute(run, None, sms)
+        self.execute_action(test, run, sms)
 
         ActionLog.objects.all().delete()
         action = SaveToContactAction.from_json(self.org, dict(type='save', label="mailto", value='foo@bar.com'))
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
         self.assertEquals(ActionLog.objects.get().text, "Added foo@bar.com as @contact.mailto - skipped in simulator")
 
         # Invalid email
         ActionLog.objects.all().delete()
         action = SaveToContactAction.from_json(self.org, dict(type='save', label="mailto", value='foobar.com'))
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
         self.assertEquals(ActionLog.objects.get().text, "Contact not updated, invalid connection for contact (mailto:foobar.com)")
 
         # URN should be unchanged on the simulator contact
@@ -3257,7 +3261,7 @@ class ActionTest(TembaTest):
         # try saving some empty data into mailto
         ActionLog.objects.all().delete()
         action = SaveToContactAction.from_json(self.org, dict(type='save', label="mailto", value='@contact.mailto'))
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
         self.assertEquals(ActionLog.objects.get().text, "Contact not updated, missing connection for contact")
 
     def test_set_language_action(self):
@@ -3272,14 +3276,14 @@ class ActionTest(TembaTest):
 
         # execute our action and check we are Klingon now, eeektorp shnockahltip.
         run = FlowRun.create(self.flow, self.contact.pk)
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
         self.assertEquals('kli', Contact.objects.get(pk=self.contact.pk).language)
 
         # try setting the language to something thats not three characters
         action_json['lang'] = 'base'
         action_json['name'] = 'Default'
         action = SetLanguageAction.from_json(self.org, action_json)
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
 
         # should clear the contacts language
         self.assertIsNone(Contact.objects.get(pk=self.contact.pk).language)
@@ -3301,7 +3305,7 @@ class ActionTest(TembaTest):
         action_json = action.as_json()
         action = StartFlowAction.from_json(self.org, action_json)
 
-        action.execute(run, None, sms, [])
+        self.execute_action(action, run, sms, started_flows=[])
 
         # our contact should now be in the flow
         self.assertTrue(FlowStep.objects.filter(run__flow=new_flow, run__contact=self.contact))
@@ -3322,17 +3326,17 @@ class ActionTest(TembaTest):
         action_json = action.as_json()
         action = AddToGroupAction.from_json(self.org, action_json)
 
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
 
         # user should now be in the group
         self.assertEqual(set(group.contacts.all()), {self.contact})
 
         # we should have created a group with the name of the contact
-        replace_group = ContactGroup.user_groups.get(name=self.contact.name)
-        self.assertEqual(set(replace_group.contacts.all()), {self.contact})
+        replace_group1 = ContactGroup.user_groups.get(name=self.contact.name)
+        self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
 
         # passing through twice doesn't change anything
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
 
         self.assertEqual(set(group.contacts.all()), {self.contact})
         self.assertEqual(self.contact.user_groups.all().count(), 2)
@@ -3342,41 +3346,44 @@ class ActionTest(TembaTest):
         self.contact.save()
         run.contact = self.contact
 
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
 
         self.assertEqual(set(group.contacts.all()), {self.contact})
-        self.assertEqual(set(replace_group.contacts.all()), {self.contact})
+        self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
 
         # with test contact, action logs are also created
-        action.execute(test_run, None, test_msg)
+        self.execute_action(action, test_run, test_msg)
+
+        replace_group2 = ContactGroup.user_groups.get(name=test_contact.name)
 
         self.assertEqual(set(group.contacts.all()), {self.contact, test_contact})
-        self.assertEqual(set(replace_group.contacts.all()), {self.contact, test_contact})
-        self.assertEqual(ActionLog.objects.filter(level='I').count(), 2)
+        self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
+        self.assertEqual(set(replace_group2.contacts.all()), {test_contact})
+        self.assertEqual(ActionLog.objects.filter(level='I').count(), 3)
 
         # now try remove action
         action = DeleteFromGroupAction([group, "@step.contact"])
         action_json = action.as_json()
         action = DeleteFromGroupAction.from_json(self.org, action_json)
 
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
 
         # contact should be removed now
         self.assertEqual(set(group.contacts.all()), {test_contact})
-        self.assertEqual(set(replace_group.contacts.all()), {test_contact})
+        self.assertEqual(set(replace_group1.contacts.all()), set())
 
         # no change if we run again
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
 
         self.assertEqual(set(group.contacts.all()), {test_contact})
-        self.assertEqual(set(replace_group.contacts.all()), {test_contact})
+        self.assertEqual(set(replace_group1.contacts.all()), set())
 
         # with test contact, action logs are also created
-        action.execute(test_run, None, test_msg)
+        self.execute_action(action, test_run, test_msg)
 
         self.assertEqual(set(group.contacts.all()), set())
-        self.assertEqual(set(replace_group.contacts.all()), set())
-        self.assertEqual(ActionLog.objects.filter(level='I').count(), 4)
+        self.assertEqual(set(replace_group2.contacts.all()), set())
+        self.assertEqual(ActionLog.objects.filter(level='I').count(), 5)
 
         # try when group is inactive
         action = DeleteFromGroupAction([group])
@@ -3395,13 +3402,13 @@ class ActionTest(TembaTest):
         dynamic_group = self.create_group("Dynamic", query="isalive=YES")
         action = AddToGroupAction([dynamic_group])
 
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
 
         # should do nothing
         self.assertEqual(dynamic_group.contacts.count(), 0)
 
         # tho if contact is a test contact, log as error
-        action.execute(test_run, None, test_msg)
+        self.execute_action(action, test_run, test_msg)
 
         self.assertEqual(dynamic_group.contacts.count(), 0)
 
@@ -3414,13 +3421,13 @@ class ActionTest(TembaTest):
         action_json = test.as_json()
         test = AddToGroupAction.from_json(self.org, action_json)
 
-        test.execute(run, None, test_msg)
+        self.execute_action(test, run, test_msg)
 
         test = AddToGroupAction([group2])
         action_json = test.as_json()
         test = AddToGroupAction.from_json(self.org, action_json)
 
-        test.execute(run, None, test_msg)
+        self.execute_action(test, run, test_msg)
 
         # user should be in both groups now
         self.assertTrue(group1.contacts.filter(id=self.contact.pk))
@@ -3432,7 +3439,7 @@ class ActionTest(TembaTest):
         action_json = test.as_json()
         test = DeleteFromGroupAction.from_json(self.org, action_json)
 
-        test.execute(run, None, test_msg)
+        self.execute_action(test, run, test_msg)
 
         # user should be gone from both groups now
         self.assertFalse(group1.contacts.filter(id=self.contact.pk))
@@ -3454,7 +3461,7 @@ class ActionTest(TembaTest):
         self.assertEqual(urn.channel, tel1_channel)
 
         action = SetChannelAction(tel2_channel)
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
 
         # check the affinity on our urn again, should now be the second channel
         urn.refresh_from_db()
@@ -3462,7 +3469,7 @@ class ActionTest(TembaTest):
 
         # try to set it to a channel that we don't have a URN for
         action = SetChannelAction(fb_channel)
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
 
         # affinity is unchanged
         urn.refresh_from_db()
@@ -3478,7 +3485,7 @@ class ActionTest(TembaTest):
         # but if we set our channel to tel, will override that
         run.contact.clear_urn_cache()
         action = SetChannelAction(tel1_channel)
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
 
         contact.clear_urn_cache()
         contact, resolved_urn = Msg.resolve_recipient(self.org, self.admin, self.contact, None)
@@ -3492,7 +3499,7 @@ class ActionTest(TembaTest):
 
         # action shouldn't blow up without a channel
         action = SetChannelAction(None)
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
 
         # incoming messages will still cause preference to switch
         Msg.create_incoming(tel2_channel, str(urn), "Incoming msg")
@@ -3518,12 +3525,12 @@ class ActionTest(TembaTest):
         action = AddLabelAction.from_json(self.org, action_json)
 
         # no message yet; such Add Label action on entry Actionset. No error should be raised
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
 
         self.assertFalse(label.get_messages())
         self.assertEqual(label.get_visible_count(), 0)
 
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
 
         # new label should have been created with the name of the contact
         new_label = Label.label_objects.get(name=self.contact.name)
@@ -3538,7 +3545,7 @@ class ActionTest(TembaTest):
         self.assertEqual(new_label.get_visible_count(), 1)
 
         # passing through twice doesn't change anything
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
 
         self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label, new_label})
         self.assertEquals(Label.label_objects.get(pk=label.pk).get_visible_count(), 1)
@@ -3563,7 +3570,7 @@ class ActionTest(TembaTest):
         run = FlowRun.create(self.flow, self.contact.pk)
 
         # test with no incoming message
-        action.execute(run, None, None)
+        self.execute_action(action, run, None)
 
         # check webhook was called with correct payload
         mock_requests_post.assert_called_once_with('http://example.com/callback.php',
@@ -3593,7 +3600,7 @@ class ActionTest(TembaTest):
 
         # test with an incoming message
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        action.execute(run, None, msg)
+        self.execute_action(action, run, msg)
 
         # check webhook was called with correct payload
         mock_requests_post.assert_called_once_with('http://example.com/callback.php',
@@ -3622,7 +3629,7 @@ class ActionTest(TembaTest):
         test_contact = Contact.get_test_contact(self.user)
         test_run = FlowRun.create(self.flow, test_contact.pk)
 
-        action.execute(test_run, None, None)
+        self.execute_action(action, test_run, None)
 
         event = WebHookEvent.objects.order_by('-pk').first()
 
@@ -3968,7 +3975,7 @@ class WebhookTest(TembaTest):
             self.assertEquals("Valid", value)
             self.assertEquals(dict(text="Valid", order_number="PX1001"), run.field_dict())
 
-            message_context = self.flow.build_message_context(self.contact, incoming)
+            message_context = self.flow.build_expressions_context(self.contact, incoming)
             self.assertEquals(dict(text="Valid", order_number="PX1001"), message_context['extra'])
 
         with patch('requests.post') as mock:
@@ -3980,7 +3987,7 @@ class WebhookTest(TembaTest):
             self.assertEquals("Valid", value)
             self.assertEquals(dict(text="Valid", order_number="PX1002"), run.field_dict())
 
-            message_context = self.flow.build_message_context(self.contact, incoming)
+            message_context = self.flow.build_expressions_context(self.contact, incoming)
             self.assertEquals(dict(text="Valid", order_number="PX1002"), message_context['extra'])
 
         with patch('requests.post') as mock:
@@ -3994,7 +4001,7 @@ class WebhookTest(TembaTest):
             self.assertIsNone(value)
             self.assertEquals("1001", incoming.text)
 
-            message_context = self.flow.build_message_context(self.contact, incoming)
+            message_context = self.flow.build_expressions_context(self.contact, incoming)
             self.assertEqual(message_context['extra'], {'0': 'zero', '1': 'one', '2': 'two'})
 
         with patch('requests.post') as mock:
@@ -4008,7 +4015,7 @@ class WebhookTest(TembaTest):
             self.assertIsNone(value)
             self.assertEquals("1001", incoming.text)
 
-            message_context = self.flow.build_message_context(self.contact, incoming)
+            message_context = self.flow.build_expressions_context(self.contact, incoming)
             extra = message_context['extra']
 
             # should only keep first 256 values
@@ -4026,7 +4033,7 @@ class WebhookTest(TembaTest):
             self.assertIsNone(value)
             self.assertEquals("1001", incoming.text)
 
-            message_context = self.flow.build_message_context(self.contact, incoming)
+            message_context = self.flow.build_expressions_context(self.contact, incoming)
             self.assertEquals({}, message_context['extra'])
 
         with patch('requests.post') as mock:
@@ -4040,7 +4047,7 @@ class WebhookTest(TembaTest):
             self.assertIsNone(value)
             self.assertEquals("1001", incoming.text)
 
-            message_context = self.flow.build_message_context(self.contact, incoming)
+            message_context = self.flow.build_expressions_context(self.contact, incoming)
             self.assertEquals({}, message_context['extra'])
 
         with patch('requests.post') as mock:
@@ -4162,6 +4169,10 @@ class SimulationTest(FlowFileTest):
         self.assertEqual(handle_incoming.call_count, 1)
 
         self.assertIsNone(handle_incoming.call_args[1]['status'])
+
+        self.channel.delete()
+        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+        self.assertEquals(response.status_code, 200)
 
     @patch('temba.ussd.models.USSDSession.handle_incoming')
     def test_ussd_simulation_interrupt(self, handle_incoming):
@@ -4773,17 +4784,17 @@ class FlowsTest(FlowFileTest):
         self.send_message(flow, 'cyan', contact=tyler, assert_reply=False)
 
         # we should have 2 counts of the cyan rule to nothing
-        self.assertEqual(2, flow.get_visit_counts()[cyan_to_nothing])
+        self.assertEqual(2, flow.get_segment_counts(simulation=False, include_incomplete=True)[cyan_to_nothing])
         self.assertEqual(2, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
 
         # squash our counts and make sure they are still the same
         squash_flowpathcounts()
-        self.assertEqual(2, flow.get_visit_counts()[cyan_to_nothing])
+        self.assertEqual(2, flow.get_segment_counts(simulation=False, include_incomplete=True)[cyan_to_nothing])
 
         # but now we have a single count
         self.assertEqual(1, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
 
-        counts = len(flow.get_visit_counts())
+        counts = len(flow.get_segment_counts(False))
 
         # check that flow interruption counts properly
         rawls = self.create_contact('Thomas Rawls', '+12065557777')
@@ -4794,7 +4805,7 @@ class FlowsTest(FlowFileTest):
         self.send_message(random_word, 'blerg', contact=rawls)
 
         # here's our count for our response path
-        self.assertEqual(1, flow.get_visit_counts()[blue_to_beer])
+        self.assertEqual(1, flow.get_segment_counts(False)[blue_to_beer])
 
         # let's also create a flow run that gets expired
         pete = self.create_contact('Pete', '+12065554444')
@@ -4804,10 +4815,10 @@ class FlowsTest(FlowFileTest):
 
         # but there should be no additional records due to the interruption or expiration
         # ie, there are no counts added with respect to the next question
-        self.assertEqual(counts, len(flow.get_visit_counts()))
+        self.assertEqual(counts, len(flow.get_segment_counts(False)))
 
         # ensure no negative counts
-        for k, v in flow.get_visit_counts().items():
+        for k, v in flow.get_segment_counts(False).items():
             self.assertTrue(v >= 0)
 
     def test_prune_recentsteps(self):
