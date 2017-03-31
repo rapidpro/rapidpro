@@ -689,14 +689,14 @@ class MsgTest(TembaTest):
         msg3.save()
 
         # create a dummy export task so that we won't be able to export
-        blocking_export = ExportMessagesTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
-        response = self.client.post(reverse('msgs.msg_export'), follow=True)
+        blocking_export = ExportMessagesTask.create(self.org, self.admin, SystemLabel.TYPE_INBOX)
+        response = self.client.post(reverse('msgs.msg_export') + '?l=I', follow=True)
         self.assertContains(response, "already an export in progress")
 
         # perform the export manually, assert how many queries
         self.assertNumQueries(8, lambda: blocking_export.perform())
 
-        self.client.post(reverse('msgs.msg_export'))
+        self.client.post(reverse('msgs.msg_export') + '?l=I')
         task = ExportMessagesTask.objects.all().order_by('-id').first()
 
         filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
@@ -747,10 +747,10 @@ class MsgTest(TembaTest):
         ExportMessagesTask.objects.all().delete()
 
         # visit the filter page
-        response = self.client.get(reverse('msgs.msg_filter', args=[label.pk]))
+        response = self.client.get(reverse('msgs.msg_filter', args=[label.id]))
         self.assertContains(response, "Export Data")
 
-        self.client.post("%s?label=%s" % (reverse('msgs.msg_export'), label.pk))
+        self.client.post("%s?l=%s" % (reverse('msgs.msg_export') + '?l=I', label.uuid))
         task = ExportMessagesTask.objects.get()
 
         filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)

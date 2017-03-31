@@ -1921,9 +1921,22 @@ class ExportMessagesTask(BaseExportTask):
 
     label = models.ForeignKey(Label, null=True)
 
+    system_label = models.CharField(null=True, max_length=1)
+
     start_date = models.DateField(null=True, blank=True, help_text=_("The date for the oldest message to export"))
 
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
+
+    @classmethod
+    def create(cls, org, user, system_label=None, label=None, groups=(), start_date=None, end_date=None):
+        if label and system_label or (not label and not system_label):
+            raise ValueError("Must specify one and only one of label and system label")
+
+        export = cls.objects.create(org=org, system_label=system_label, label=label,
+                                    start_date=start_date, end_date=end_date,
+                                    created_by=user, modified_by=user)
+        export.groups.add(*groups)
+        return export
 
     def write_export(self):
         from openpyxl import Workbook
@@ -1941,25 +1954,25 @@ class ExportMessagesTask(BaseExportTask):
                             self.WIDTH_MEDIUM,  # Labels
                             self.WIDTH_SMALL]   # Status
 
-        all_messages = Msg.get_messages(self.org).order_by('-created_on')
+        if self.system_label:
+            messages = SystemLabel.get_queryset(self.org, self.system_label)
+        else:
+            messages = self.label.messages.all()
 
         tz = self.org.timezone
 
         if self.start_date:  # pragma: needs cover
             start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
-            all_messages = all_messages.filter(created_on__gte=start_date)
+            messages = messages.filter(created_on__gte=start_date)
 
         if self.end_date:  # pragma: needs cover
             end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
-            all_messages = all_messages.filter(created_on__lte=end_date)
+            messages = messages.filter(created_on__lte=end_date)
 
         if self.groups.all():  # pragma: needs cover
-            all_messages = all_messages.filter(contact__all_groups__in=self.groups.all())
+            messages = messages.filter(contact__all_groups__in=self.groups.all())
 
-        if self.label:  # pragma: needs cover
-            all_messages = all_messages.filter(labels=self.label)
-
-        all_message_ids = [m['id'] for m in all_messages.values('id')]
+        all_message_ids = list(messages.order_by('-created_on').values_list('id', flat=True))
 
         messages_sheet_number = 1
 
