@@ -1,3 +1,16 @@
+v3.0.98
+----------
+ * Fix sidebar nav LESS so that level2 lists don't have fixed height and separate scrolling
+ * Unstop a contact when we get an explicit user interaction such as follow
+
+v3.0.96
+----------
+ * Fix possible race condition between receiving and handling messages
+ * Do away with scheme for USSD, will always be TEL
+ * Make sure events are handled properly for USSD
+ * Do not specify to & from when using reply_to
+ * Update JunebugForm for editing Junebug Channel + config fields
+
 v3.0.95
 ----------
  * Log request time on channel log success

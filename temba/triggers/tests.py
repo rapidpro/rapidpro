@@ -960,6 +960,19 @@ class TriggerTest(TembaTest):
         run = FlowRun.objects.get()
         self.assertTrue(run.responded)
 
+        # unstop contact if needed
+        self.contact.stop(self.admin)
+
+        self.contact.refresh_from_db()
+        self.assertTrue(self.contact.is_stopped)
+
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="when is it?")
+        self.assertTrue(Trigger.find_and_handle(incoming))
+
+        self.contact.refresh_from_db()
+        self.assertFalse(self.contact.is_stopped)
+        self.assertEqual(FlowRun.objects.all().count(), 2)
+
         # create trigger for specific contact group
         group = self.create_group("first", [self.contact2])
         trigger = Trigger.objects.create(org=self.org, keyword='where', flow=flow,
