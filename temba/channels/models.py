@@ -1419,7 +1419,6 @@ class Channel(TembaModel):
 
         # build our payload
         payload = dict()
-        payload['from'] = channel.address
         payload['event_url'] = event_url
         payload['content'] = text
 
@@ -1432,6 +1431,7 @@ class Channel(TembaModel):
                 'continue_session': session and not session.should_end,
             }
         else:
+            payload['from'] = channel.address
             payload['to'] = msg.urn_path
 
         log_url = channel.config[Channel.CONFIG_SEND_URL]
@@ -1459,12 +1459,19 @@ class Channel(TembaModel):
                                 event=event, start=start)
 
         data = response.json()
-        message_id = data['result']['id']
 
         if is_ussd and session and session.should_end:
             session.close()
 
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=message_id)
+        try:
+            message_id = data['result']['message_id']
+            Channel.success(channel, msg, WIRED, start, event=event, external_id=message_id)
+        except KeyError, e:
+            raise SendException("Unable to read external message_id: %r" % (e,),
+                                event=HttpEvent('POST', log_url,
+                                                request_body=json.dumps(json.dumps(payload)),
+                                                response_body=json.dumps(data)),
+                                start=start)
 
     @classmethod
     def send_facebook_message(cls, channel, msg, text):
@@ -2839,9 +2846,10 @@ class Channel(TembaModel):
 
         now = timezone.now()
         hours_ago = now - timedelta(hours=12)
+        five_minutes_ago = now - timedelta(minutes=5)
 
         pending = Msg.objects.filter(org=org, direction=OUTGOING)
-        pending = pending.filter(Q(status=PENDING) |
+        pending = pending.filter(Q(status=PENDING, created_on__lte=five_minutes_ago) |
                                  Q(status=QUEUED, queued_on__lte=hours_ago) |
                                  Q(status=ERRORED, next_attempt__lte=now))
         pending = pending.exclude(channel__channel_type=Channel.TYPE_ANDROID)

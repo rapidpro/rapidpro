@@ -15,8 +15,8 @@ from django_redis import get_redis_connection
 
 from temba.channels.models import Channel
 from temba.channels.tests import JunebugTestMixin
-from temba.contacts.models import Contact, TEL_SCHEME
-from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING, USSD
+from temba.contacts.models import Contact, TEL_SCHEME, URN
+from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING, USSD, DELIVERED, FAILED
 from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
 from temba.flows.models import FlowRun
@@ -811,6 +811,30 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         super(JunebugUSSDTest, self).tearDown()
         settings.SEND_MESSAGES = False
 
+    def test_status(self):
+        joe = self.create_contact("Joe Biden", "+254788383383")
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin, msg_type=USSD)
+
+        data = self.mk_event()
+        msg.external_id = data['message_id']
+        msg.save(update_fields=('external_id',))
+
+        def assertStatus(sms, event_type, assert_status):
+            data['event_type'] = event_type
+            response = self.client.post(
+                reverse('handlers.junebug_handler',
+                        args=['event', self.channel.uuid]),
+                data=json.dumps(data),
+                content_type='application/json')
+            self.assertEquals(200, response.status_code)
+            sms = Msg.objects.get(pk=sms.id)
+            self.assertEquals(assert_status, sms.status)
+
+        assertStatus(msg, 'submitted', SENT)
+        assertStatus(msg, 'delivery_succeeded', DELIVERED)
+        assertStatus(msg, 'delivery_failed', FAILED)
+        assertStatus(msg, 'rejected', FAILED)
+
     def test_receive_ussd(self):
         from temba.ussd.models import USSDSession
         from temba.channels.handlers import JunebugHandler
@@ -825,11 +849,12 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         self.assertEqual(response.json()['status'], JunebugHandler.ACK)
 
         # load our message
-        msg = Msg.objects.get()
-        self.assertEquals(data["from"], msg.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(msg.session.status, USSDSession.TRIGGERED)
+        inbound_msg, outbound_msg = Msg.objects.all().order_by('pk')
+        self.assertEquals(data["from"], outbound_msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(outbound_msg.response_to, inbound_msg)
+        self.assertEquals(outbound_msg.session.status, USSDSession.TRIGGERED)
 
-    def test_receive_ussd_no_session(self):
+    def test_receive_ussd_no_sesion(self):
         from temba.channels.handlers import JunebugHandler
 
         # Delete the trigger to prevent the sesion from being created
@@ -843,6 +868,102 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()['status'], JunebugHandler.NACK)
+
+    def test_send_ussd_continue_session(self):
+        joe = self.create_contact("Joe", "+250788383383")
+        self.create_group("Reporters", [joe])
+
+        inbound = Msg.create_incoming(self.channel, "tel:+250788383383", "Send an inbound message",
+                                      external_id='vumi-message-id', msg_type=USSD)
+        msg = inbound.reply("Test message", self.admin, trigger_send=False)
+
+        # our outgoing message
+        msg.refresh_from_db()
+        r = get_redis_connection()
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, json.dumps({
+                    'result': {
+                        'message_id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
+                    }
+                }))
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+                self.assertEquals("07033084-5cfd-4812-90a4-e4d24ffb6e3d", msg.external_id)
+                self.assertEquals(1, mock.call_count)
+
+                # should have a failsafe that it was sent
+                self.assertTrue(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
+
+                # try sending again, our failsafe should kick in
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # we shouldn't have been called again
+                self.assertEquals(1, mock.call_count)
+                [call] = mock.call_args_list
+                (args, kwargs) = call
+                payload = kwargs['json']
+                self.assertFalse('from' in payload.keys())
+                self.assertFalse('to' in payload.keys())
+                self.assertEquals(payload['reply_to'], 'vumi-message-id')
+                self.assertEquals(payload['channel_data'], {
+                    'continue_session': True
+                })
+                self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_ussd_end_session(self):
+        from temba.ussd.models import USSDSession
+
+        joe = self.create_contact("Joe", "+250788383383")
+        self.create_group("Reporters", [joe])
+
+        inbound = Msg.create_incoming(self.channel, "tel:+250788383383", "Send an inbound message",
+                                      msg_type=USSD, external_id='vumi-message-id')
+        session = USSDSession.objects.create(channel=self.channel, org=self.channel.org, contact=joe,
+                                             contact_urn=joe.urn_objects[URN.from_tel('+250788383383')],
+                                             external_id=inbound.external_id, status=USSDSession.COMPLETED)
+        msg = inbound.reply("Test message", self.admin, trigger_send=False, session=session)
+
+        # our outgoing message
+        msg.refresh_from_db()
+        self.clear_cache()
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, json.dumps({
+                    'result': {
+                        'message_id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
+                    }
+                }))
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+                self.assertEquals(1, mock.call_count)
+                [call] = mock.call_args_list
+                (args, kwargs) = call
+                payload = kwargs['json']
+                self.assertFalse('from' in payload.keys())
+                self.assertFalse('to' in payload.keys())
+                self.assertEquals(payload['reply_to'], 'vumi-message-id')
+                self.assertEquals(payload['channel_data'], {
+                    'continue_session': False
+                })
+                self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
 
     def test_send_ussd_continue_and_end_session(self):
         flow = self.get_flow('ussd_session_end')
