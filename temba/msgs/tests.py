@@ -14,7 +14,7 @@ from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
-from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, UnreachableException
+from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, SystemLabelCount, UnreachableException
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.orgs.models import Language, Debit, Org
 from temba.schedules.models import Schedule
@@ -106,18 +106,8 @@ class MsgTest(TembaTest):
         counts = SystemLabel.get_counts(self.org)
         self.assertEqual(counts[label], 1)
 
-        # recalculate, check the count again
-        SystemLabel.recalculate_counts(self.org, label)
-        counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(counts[label], 1)
-
         # release the msg, count should now be 0
         msg.release()
-        counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(counts[label], 0)
-
-        # more recalculations
-        SystemLabel.recalculate_counts(self.org, label)
         counts = SystemLabel.get_counts(self.org)
         self.assertEqual(counts[label], 0)
 
@@ -1989,7 +1979,7 @@ class SystemLabelTest(TembaTest):
 
         msg5.resend()
 
-        self.assertTrue(SystemLabel.objects.all().count() > 8)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 25)
 
         # squash our counts
         squash_systemlabels()
@@ -2000,7 +1990,7 @@ class SystemLabelTest(TembaTest):
                                                             SystemLabel.TYPE_SCHEDULED: 2, SystemLabel.TYPE_CALLS: 1})
 
         # we should only have one system label per type
-        self.assertEqual(SystemLabel.objects.all().count(), 8)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 7)
 
 
 class TagsTest(TembaTest):

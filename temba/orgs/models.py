@@ -1183,14 +1183,11 @@ class Org(SmartModel):
             return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
         return None
 
-    def create_system_labels_and_groups(self):
+    def create_system_groups(self):
         """
-        Creates our system labels and groups for this organization so that we can keep track of counts etc..
+        Creates our system groups for this organization so that we can keep track of counts etc..
         """
         from temba.contacts.models import ContactGroup
-        from temba.msgs.models import SystemLabel
-
-        SystemLabel.create_all(self)
 
         self.all_groups.create(name='All Contacts', group_type=ContactGroup.TYPE_ALL,
                                created_by=self.created_by, modified_by=self.modified_by)
@@ -1767,7 +1764,7 @@ class Org(SmartModel):
         if not branding:
             branding = BrandingMiddleware.get_branding_for_host('')
 
-        self.create_system_labels_and_groups()
+        self.create_system_groups()
         self.create_sample_flows(branding.get('api_link', ""))
         self.create_welcome_topup(topup_size)
 

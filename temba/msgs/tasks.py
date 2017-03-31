@@ -17,7 +17,7 @@ from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import start_task, complete_task, nonoverlapping_task
 from temba.utils import json_date_to_datetime, chunk_list
 from .models import Msg, Broadcast, BroadcastRecipient, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
-from .models import FIRE_EVENT, TIMEOUT_EVENT, SystemLabel
+from .models import FIRE_EVENT, TIMEOUT_EVENT, SystemLabelCount
 
 logger = logging.getLogger(__name__)
 
@@ -344,7 +344,7 @@ def purge_broadcasts_task():
 
 @nonoverlapping_task(track_started=True, name="squash_systemlabels")
 def squash_systemlabels():
-    SystemLabel.squash()
+    SystemLabelCount.squash()
 
 
 @nonoverlapping_task(track_started=True, name='clear_old_msg_external_ids', time_limit=60 * 60 * 36)

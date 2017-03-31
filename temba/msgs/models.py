@@ -1605,12 +1605,7 @@ STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,
              'who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
-class SystemLabel(SquashableModel):
-    """
-    Counts of messages/broadcasts/calls maintained by database level triggers
-    """
-    SQUASH_OVER = ('org_id', 'label_type')
-
+class SystemLabel(object):
     TYPE_INBOX = 'I'
     TYPE_FLOWS = 'W'
     TYPE_ARCHIVED = 'A'
@@ -1629,33 +1624,9 @@ class SystemLabel(SquashableModel):
                     (TYPE_SCHEDULED, "Scheduled"),
                     (TYPE_CALLS, "Calls"))
 
-    org = models.ForeignKey(Org, related_name='system_labels')
-
-    label_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
-
-    count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
-
     @classmethod
-    def get_squash_query(cls, distinct_set):
-        sql = """
-        WITH deleted as (
-            DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s RETURNING "count"
-        )
-        INSERT INTO %(table)s("org_id", "label_type", "count", "is_squashed")
-        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
-        """ % {'table': cls._meta.db_table}
-
-        return sql, (distinct_set.org_id, distinct_set.label_type) * 2
-
-    @classmethod
-    def create_all(cls, org):
-        """
-        Creates all system labels for the given org
-        """
-        labels = []
-        for label_type, _name in cls.TYPE_CHOICES:
-            labels.append(cls.objects.create(org=org, label_type=label_type))
-        return labels
+    def get_counts(cls, org, label_types=None):
+        return SystemLabelCount.get_totals(org, label_types)
 
     @classmethod
     def get_queryset(cls, org, label_type, exclude_test_contacts=True):
@@ -1673,7 +1644,8 @@ class SystemLabel(SquashableModel):
         elif label_type == cls.TYPE_OUTBOX:
             qs = Msg.objects.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(PENDING, QUEUED))
         elif label_type == cls.TYPE_SENT:
-            qs = Msg.objects.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(WIRED, SENT, DELIVERED))
+            qs = Msg.objects.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE,
+                                    status__in=(WIRED, SENT, DELIVERED))
         elif label_type == cls.TYPE_FAILED:
             qs = Msg.objects.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status=FAILED)
         elif label_type == cls.TYPE_SCHEDULED:
@@ -1693,41 +1665,44 @@ class SystemLabel(SquashableModel):
 
         return qs
 
-    @classmethod
-    def recalculate_counts(cls, org, label_types=None):
-        """
-        Recalculates the system label counts for the passed in org, updating them in our database
-        """
-        if label_types is None:  # pragma: needs cover
-            label_types = [cls.TYPE_INBOX, cls.TYPE_FLOWS, cls.TYPE_ARCHIVED, cls.TYPE_OUTBOX, cls.TYPE_SENT,
-                           cls.TYPE_FAILED, cls.TYPE_SCHEDULED, cls.TYPE_CALLS]
 
-        counts_by_type = {}
+class SystemLabelCount(SquashableModel):
+    """
+    Counts of messages/broadcasts/calls maintained by database level triggers
+    """
+    SQUASH_OVER = ('org_id', 'label_type')
 
-        # for each type
-        for label_type in label_types:
-            count = cls.get_queryset(org, label_type).count()
-            counts_by_type[label_type] = count
+    org = models.ForeignKey(Org, related_name='system_labels')
 
-            # delete existing counts
-            cls.objects.filter(org=org, label_type=label_type).delete()
+    label_type = models.CharField(max_length=1, choices=SystemLabel.TYPE_CHOICES)
 
-            # and create our new count
-            cls.objects.create(org=org, label_type=label_type, count=count)
-
-        return counts_by_type
+    count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
 
     @classmethod
-    def get_counts(cls, org, label_types=None):
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH deleted as (
+            DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("org_id", "label_type", "count", "is_squashed")
+        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+        """ % {'table': cls._meta.db_table}
+
+        return sql, (distinct_set.org_id, distinct_set.label_type) * 2
+
+    @classmethod
+    def get_totals(cls, org, label_types=None):
         """
         Gets all system label counts by type for the given org
         """
-        labels = cls.objects.filter(org=org)
+        counts = cls.objects.filter(org=org)
         if label_types:
-            labels = labels.filter(label_type__in=label_types)
-        label_counts = labels.values('label_type').order_by('label_type').annotate(count_sum=Sum('count'))
+            counts = counts.filter(label_type__in=label_types)
+        counts = counts.values_list('label_type').annotate(count_sum=Sum('count'))
+        counts_by_type = {c[0]: c[1] for c in counts}
 
-        return {l['label_type']: l['count_sum'] for l in label_counts}
+        # for convenience, include all label types
+        return {l: counts_by_type.get(l, 0) for l, n in SystemLabel.TYPE_CHOICES}
 
     class Meta:
         index_together = ('org', 'label_type')
