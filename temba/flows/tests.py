@@ -507,7 +507,7 @@ class FlowTest(TembaTest):
 
         # create and send a reply
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Orange")
-        self.assertFalse(Flow.find_and_handle(incoming))
+        self.assertFalse(Flow.find_and_handle(incoming)[0])
 
         # no reply, our flow isn't active
         self.assertFalse(Msg.objects.filter(response_to=incoming))
@@ -521,7 +521,7 @@ class FlowTest(TembaTest):
 
         # simulate a response from contact #1
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
-        self.assertTrue(Flow.find_and_handle(incoming))
+        self.assertTrue(Flow.find_and_handle(incoming)[0])
 
         contact1_run.refresh_from_db()
         self.assertTrue(contact1_run.responded)
@@ -611,7 +611,7 @@ class FlowTest(TembaTest):
 
         # at this point there are no more steps to take in the flow, so we shouldn't match anymore
         extra = self.create_msg(direction=INCOMING, contact=self.contact, text="Hello ther")
-        self.assertFalse(Flow.find_and_handle(extra))
+        self.assertFalse(Flow.find_and_handle(extra)[0])
 
         # try getting our results
         results = self.flow.get_results()
@@ -4896,7 +4896,7 @@ class FlowsTest(FlowFileTest):
 
         # send a message, no flow should handle us since we are done
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Unhandled")
-        handled = Flow.find_and_handle(incoming)
+        handled = Flow.find_and_handle(incoming)[0]
         self.assertFalse(handled)
 
         # now wire up our finished action to the start of our flow
