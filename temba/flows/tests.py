@@ -1846,7 +1846,7 @@ class FlowTest(TembaTest):
         # start the flow
         flow.start([], [self.contact])
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="My answer is 15")
-        self.assertTrue(Flow.find_and_handle(sms))
+        self.assertTrue(Flow.find_and_handle(sms)[0])
 
         step = FlowStep.objects.get(step_uuid=uuid(5))
         self.assertEquals("> 10", step.rule_category)
@@ -2614,7 +2614,7 @@ class FlowTest(TembaTest):
 
         # send in a message
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Orange", created_on=timezone.now())
-        self.assertTrue(Flow.find_and_handle(incoming))
+        self.assertTrue(Flow.find_and_handle(incoming)[0])
 
         # only the second flow should get it
         self.assertEquals(2, FlowStep.objects.filter(run__flow=self.flow).count())
@@ -2633,7 +2633,7 @@ class FlowTest(TembaTest):
 
         # send in a message, this should be handled by our first flow, which has a more recent run active
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="blue")
-        self.assertTrue(Flow.find_and_handle(incoming))
+        self.assertTrue(Flow.find_and_handle(incoming)[0])
 
         self.assertEquals(3, runs[0].steps.all().count())
 
@@ -2687,7 +2687,7 @@ class FlowTest(TembaTest):
 
         # complete the flow
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
-        self.assertTrue(Flow.find_and_handle(incoming))
+        self.assertTrue(Flow.find_and_handle(incoming)[0])
 
         # now we should trigger the other flow as we are at our terminal flow
         self.assertTrue(Trigger.find_and_handle(other_incoming))
@@ -6586,7 +6586,7 @@ class TriggerStartTest(FlowFileTest):
         # create our message that will start our flow
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="trigger")
 
-        self.assertTrue(Trigger.find_and_handle(incoming))
+        self.assertTrue(Trigger.find_and_handle(incoming)[0])
 
         # flow should have started
         self.assertTrue(FlowRun.objects.filter(flow=flow, contact=self.contact))
@@ -6599,7 +6599,7 @@ class TriggerStartTest(FlowFileTest):
 
         # if we send another message, that should set our name
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Rudolph")
-        self.assertTrue(Flow.find_and_handle(incoming))
+        self.assertTrue(Flow.find_and_handle(incoming)[0])
 
         contact = Contact.objects.get(pk=self.contact.pk)
         self.assertEqual(contact.name, "Rudolph")
