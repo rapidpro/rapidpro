@@ -135,4 +135,3 @@ class USSDSession(ChannelSession):
             session.handle_session_async(urn, content, date, message_id)
 
         return session
-
