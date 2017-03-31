@@ -135,12 +135,11 @@ class InboxView(OrgPermsMixin, SmartListView):
 
         label = self.derive_label()
 
-        # if there isn't a search filtering the queryset, we can replace the count function with a quick cache lookup to
-        # speed up paging
+        # if there isn't a search filtering the queryset, we can replace the count function with a pre-calculated value
         if 'search' not in self.request.GET:
-            if isinstance(label, Label):
+            if isinstance(label, Label) and not label.is_folder():
                 self.object_list.count = lambda: label.get_visible_count()
-            else:
+            elif isinstance(label, six.string_types):
                 self.object_list.count = lambda: counts[label]
 
         context = super(InboxView, self).get_context_data(**kwargs)
