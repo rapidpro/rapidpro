@@ -7896,13 +7896,29 @@ class MageHandlerTest(TembaTest):
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(2, contact_counts[ContactGroup.TYPE_ALL])
 
+        # simulate a a follow from existing stopped contact
+        contact.stop(self.admin)
+
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(1, contact_counts[ContactGroup.TYPE_ALL])
+
+        response = self.client.post(url, dict(channel_id=channel.id, contact_urn_id=urn.id), **headers)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(2, flow.runs.all().count())
+
+        contact_counts = ContactGroup.get_system_group_counts(self.org)
+        self.assertEqual(2, contact_counts[ContactGroup.TYPE_ALL])
+
+        contact.refresh_from_db()
+        self.assertFalse(contact.is_stopped)
+
         # simulate scenario where Mage has added new contact with name that should put it into a dynamic group
         mage_contact, mage_contact_urn = self.create_contact_like_mage("Bob", "bobby81")
 
         response = self.client.post(url, dict(channel_id=channel.id,
                                               contact_urn_id=mage_contact_urn.id, new_contact=True), **headers)
         self.assertEqual(200, response.status_code)
-        self.assertEqual(2, flow.runs.all().count())
+        self.assertEqual(3, flow.runs.all().count())
 
         # check that contact ended up dynamic group
         self.assertEqual([mage_contact], list(self.dyn_group.contacts.order_by('name')))

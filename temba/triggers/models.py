@@ -256,6 +256,7 @@ class Trigger(SmartModel):
 
         # only fire the first matching trigger
         if triggers:
+            contact.ensure_unstopped()
             triggers[0].flow.start([], [contact], start_msg=start_msg, restart_participants=True, extra=extra)
 
         return bool(triggers)
@@ -304,6 +305,8 @@ class Trigger(SmartModel):
             trigger.last_triggered = msg.created_on
             trigger.trigger_count += 1
             trigger.save()
+
+        contact.ensure_unstopped()
 
         # if we have an associated flow, start this contact in it
         trigger.flow.start([], [contact], start_msg=msg, restart_participants=True)
