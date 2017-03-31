@@ -361,8 +361,10 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
   $scope.onConnectorDrop = (connection) ->
 
-    $(connection.sourceId).parent().removeClass('reconnecting')
+    if not $rootScope.ghost and connection.targetId == connection.suspendedElementId
+      return false
 
+    $(connection.sourceId).parent().removeClass('reconnecting')
     source = connection.sourceId.split('_')
 
     createdNewNode = false
@@ -418,7 +420,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       $rootScope.ghost = null
 
     if not createdNewNode
-
       to = connection.targetId
 
       # When we make a bad drop, jsplumb will give us a sourceId but no source

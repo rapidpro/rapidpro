@@ -636,6 +636,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
                 body: -> "Sorry, but we were unable to save your flow. Please reload the page and try again, this may clear your latest changes."
                 details: -> data.description
                 ok: -> 'Reload'
+                hideCancel: -> true
                 details: -> ''
 
               modalInstance = utils.openModal("/partials/modal?v=" + version, ModalController, resolveObj)
@@ -668,6 +669,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
                 title: -> "Editing Conflict"
                 body: -> data.saved_by + " is currently editing this Flow. Your changes will not be saved until the Flow is reloaded."
                 ok: -> 'Reload'
+                hideCancel: -> false
                 details: -> ''
               modalInstance = utils.openModal("/partials/modal?v=" + version, ModalController, resolveObj)
 
@@ -770,12 +772,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       source = sourceId.split('_')[0]
       path = [ source ]
-
-      sourceNode = @getNode(source)
-      targetNode = @getNode(targetId)
-
-      if @isPausingRuleset(sourceNode) and @isPausingRuleset(targetNode)
-        return 'The flow cannot wait for two consecutive responses from the contact. Instead, send them a message between waiting for a response.'
 
       try
         @detectLoop(source, targetId, path)
@@ -934,6 +930,19 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     updateDestination: (source, target) ->
 
       source = source.split('_')
+
+      sourceNode = Flow.getNode(source[0])
+      targetNode = Flow.getNode(target)
+      if sourceNode and targetNode
+        if Flow.isPausingRuleset(sourceNode) and Flow.isPausingRuleset(targetNode) and source[0] != target
+          resolveObj =
+            type: -> "warning"
+            title: -> "Warning"
+            body: -> "You've connected two steps that wait for a response. The contact will need to send more than one message to continue through the flow."
+            ok: -> 'Ok'
+            details: -> ''
+            hideCancel: -> false
+          utils.openModal("/partials/modal?v=" + version, ModalController, resolveObj)
 
       # We handle both UI described sources, or raw ids, trim off 'source' if its there
       if source.length > 1 and source[source.length-1] == 'source'
@@ -1345,12 +1354,13 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
 ]
 
-ModalController = ($scope, $modalInstance, type, title, body, details=null, ok=null) ->
+ModalController = ($scope, $modalInstance, type, title, body, hideCancel=false, details=null, ok=null) ->
   $scope.type = type
   $scope.title = title
   $scope.body = body
   $scope.error = error
   $scope.details = details
+  $scope.hideCancel = hideCancel
 
   if ok
     $scope.okButton = ok
