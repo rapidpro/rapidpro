@@ -6586,7 +6586,7 @@ class TriggerStartTest(FlowFileTest):
         # create our message that will start our flow
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="trigger")
 
-        self.assertTrue(Trigger.find_and_handle(incoming)[0])
+        self.assertTrue(Trigger.find_and_handle(incoming))
 
         # flow should have started
         self.assertTrue(FlowRun.objects.filter(flow=flow, contact=self.contact))
