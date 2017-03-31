@@ -1,3 +1,8 @@
+v3.0.98
+----------
+ * Fix sidebar nav LESS so that level2 lists don't have fixed height and separate scrolling
+ * Unstop a contact when we get an explicit user interaction such as follow
+
 v3.0.96
 ----------
  * Fix possible race condition between receiving and handling messages
