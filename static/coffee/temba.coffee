@@ -95,35 +95,35 @@ findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
         html += "<p class='help-block'>" + help.text() + "</p>"
     html += "</div></div>"
 
-    controlGroup.replaceWith(html)
+    ele = $(html)
+    controlGroup.replaceWith(ele)
 
-  ele = $(".font-checkbox")
+    helpText = ele.children('.controls').children('.help-block').children('label')
+    helpText.on 'click', (event) ->
+      $(this).parent().parent('.field-input').children('.glyph.notif-checkbox').click()
+      event.preventDefault();
 
-  helpText = ele.children('.controls').children('.help-block').children('label')
-  helpText.on 'click', (event) ->
-    $(this).parent().parent('.field-input').children('.glyph.notif-checkbox').click()
-    event.preventDefault();
+    glyphCheck = ele.children('.controls').children('.glyph.notif-checkbox')
 
-  glyphCheck = ele.children('.controls').children('.glyph.notif-checkbox')
-  glyphCheck.on 'click', ->
-    cell = $(this).parent('.field-input')
-    ipt = cell.children().children("input[type='checkbox']")
+    glyphCheck.on 'click', ->
+      cell = $(this).parent('.field-input')
+      ipt = cell.children().children("input[type='checkbox']")
 
-    if ipt.prop('checked')
-      cell.removeClass 'checked'
-      ipt.prop('checked', false)
-    else
-      cell.addClass 'checked'
-      ipt.prop('checked', true)
+      if ipt.prop('checked')
+        cell.removeClass 'checked'
+        ipt.prop('checked', false)
+      else
+        cell.addClass 'checked'
+        ipt.prop('checked', true)
 
-  chkBox = ele.find("input[type=checkbox]")
-  chkBox.on 'change', ->
-    cell = ele.find('.field-input')
+    chkBox = ele.find("input[type=checkbox]")
+    chkBox.on 'change', ->
+      cell = ele.find('.field-input')
 
-    if $(this).prop('checked')
-      cell.addClass 'checked'
-    else
-      cell.removeClass 'checked'
+      if $(this).prop('checked')
+        cell.addClass 'checked'
+      else
+        cell.removeClass 'checked'
 
 
 @select2div = (selector, width="350px", placeholder=null, add_prefix=null) ->

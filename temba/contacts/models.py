@@ -11,6 +11,9 @@ import six
 import time
 
 from collections import defaultdict
+
+from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import models
@@ -1320,7 +1323,9 @@ class Contact(TembaModel):
             if getattr(contact, 'is_new', False):
                 num_creates += 1
 
-            group.contacts.add(contact)
+            # do not add blocked or stopped contacts
+            if not contact.is_stopped and not contact.is_blocked:
+                group.contacts.add(contact)
 
         # if we aren't whitelisted, check for sequential phone numbers
         if not group_org.is_whitelisted():
@@ -1446,6 +1451,11 @@ class Contact(TembaModel):
         # re-add them to any dynamic groups they would belong to
         self.reevaluate_dynamic_groups()
 
+    def ensure_unstopped(self, user=None):
+        if user is None:
+            user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+        self.unstop(user)
+
     def release(self, user):
         """
         Releases (i.e. deletes) this contact, provided it is currently not deleted
@@ -1518,28 +1528,28 @@ class Contact(TembaModel):
             contact = contact_map[urn.contact_id]
             getattr(contact, '__urns').append(urn)
 
-    def build_message_context(self):
+    def build_expressions_context(self):
         """
         Builds a dictionary suitable for use in variable substitution in messages.
         """
         org = self.org
-        contact_dict = dict(__default__=self.get_display(org=org))
-        contact_dict[Contact.NAME] = self.name if self.name else ''
-        contact_dict[Contact.FIRST_NAME] = self.first_name(org)
-        contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False)
-        contact_dict['groups'] = ",".join([_.name for _ in self.user_groups.all()])
-        contact_dict['uuid'] = self.uuid
+        context = {
+            '__default__': self.get_display(),
+            Contact.NAME: self.name or '',
+            Contact.FIRST_NAME: self.first_name(org),
+            Contact.LANGUAGE: self.language,
+            'tel_e164': self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False),
+            'groups': ",".join([_.name for _ in self.user_groups.all()]),
+            'uuid': self.uuid
+        }
 
         # anonymous orgs also get @contact.id
         if org.is_anon:
-            contact_dict['id'] = self.id
-
-        contact_dict[Contact.LANGUAGE] = self.language
+            context['id'] = self.id
 
         # add all URNs
         for scheme, label in ContactURN.SCHEME_CHOICES:
-            urn_value = self.get_urn_display(scheme=scheme, org=org)
-            contact_dict[scheme] = urn_value if urn_value is not None else ''
+            context[scheme] = self.get_urn_display(scheme=scheme, org=org) or ''
 
         field_values = Value.objects.filter(contact=self).exclude(contact_field=None)\
                                                          .exclude(contact_field__is_active=False)\
@@ -1551,9 +1561,9 @@ class Contact(TembaModel):
         # add all active fields to our context
         for field in ContactField.objects.filter(org_id=self.org_id, is_active=True).select_related('org'):
             field_value = Contact.get_field_display_for_value(field, contact_values.get(field.key, None))
-            contact_dict[field.key] = field_value if field_value is not None else ''
+            context[field.key] = field_value if field_value is not None else ''
 
-        return contact_dict
+        return context
 
     def first_name(self, org):
         if not self.name:
@@ -1811,7 +1821,8 @@ class ContactURN(models.Model):
     IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
 
     SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME}  # schemes that support "follow" triggers
-    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME}  # schemes that support "new conversation" triggers
+    # schemes that support "new conversation" triggers
+    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME}
     SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
     EXPORT_FIELDS = {
