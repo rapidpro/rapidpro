@@ -449,7 +449,7 @@ class FlowFileTest(TembaTest):
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming)
             else:
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
-                handled = Flow.find_and_handle(incoming)
+                (handled, msgs) = Flow.find_and_handle(incoming)
 
                 Msg.mark_handled(incoming)
 
