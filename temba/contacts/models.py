@@ -1700,8 +1700,8 @@ class Contact(TembaModel):
         # detach any existing URNs that weren't included
         urn_ids = [u.pk for u in (urns_created + urns_attached + urns_retained)]
         urns_detached_qs = ContactURN.objects.filter(contact=self).exclude(pk__in=urn_ids)
-        urns_detached_qs.update(contact=None)
         urns_detached = list(urns_detached_qs)
+        urns_detached_qs.update(contact=None)
 
         self.modified_by = user
         self.save(update_fields=('modified_on', 'modified_by'))
