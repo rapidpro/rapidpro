@@ -5831,6 +5831,8 @@ class Test(object):
                 AndTest.TYPE: AndTest,
                 OrTest.TYPE: OrTest,
                 ContainsTest.TYPE: ContainsTest,
+                ContainsPhraseTest.TYPE: ContainsPhraseTest,
+                MatchesExactlyTest.TYPE: MatchesExactlyTest,
                 ContainsAnyTest.TYPE: ContainsAnyTest,
                 NumberTest.TYPE: NumberTest,
                 LtTest.TYPE: LtTest,
@@ -6252,6 +6254,78 @@ class ContainsAnyTest(ContainsTest):
         if matches:
             matches = sorted(list(matches))
             matched_words = " ".join([raw_words[idx] for idx in matches])
+            return 1, matched_words
+        else:
+            return 0, None
+
+
+class MatchesExactlyTest(ContainsTest):
+    """
+    { op: "matches_exactly", "test": "red" }
+    """
+    TEST = 'test'
+    TYPE = 'matches_exactly'
+
+    def as_json(self):
+        return dict(type=MatchesExactlyTest.TYPE, test=self.test)
+
+    def evaluate(self, run, sms, context, text):
+        # substitute any variables
+        test = run.flow.get_localized_text(self.test, run.contact)
+        test, errors = Msg.substitute_variables(test, context, org=run.flow.org)
+
+        # tokenize our test
+        tests = tokenize(test.lower())
+
+        # tokenize our sms
+        words = tokenize(text.lower())
+        raw_words = tokenize(text)
+
+        # they are the same? then we matched
+        if tests == words:
+            return 1, " ".join(raw_words)
+        else:
+            return 0, None
+
+
+class ContainsPhraseTest(ContainsTest):
+    """
+    { op: "contains_phrase", "test": "red" }
+    """
+    TEST = 'test'
+    TYPE = 'contains_phrase'
+
+    def as_json(self):
+        return dict(type=ContainsPhraseTest.TYPE, test=self.test)
+
+    def evaluate(self, run, sms, context, text):
+        # substitute any variables
+        test = run.flow.get_localized_text(self.test, run.contact)
+        test, errors = Msg.substitute_variables(test, context, org=run.flow.org)
+
+        # tokenize our test
+        tests = tokenize(test.lower())
+
+        # tokenize our sms
+        words = tokenize(text.lower())
+        raw_words = tokenize(text)
+
+        # look for the phrase
+        test_idx = 0
+        matches = []
+        for i in range(len(words)):
+            if tests[test_idx] == words[i]:
+                matches.append(raw_words[i])
+                test_idx += 1
+                if test_idx == len(tests):
+                    break
+            else:
+                matches = []
+                test_idx = 0
+
+        # we found the phrase
+        if test_idx == len(tests):
+            matched_words = " ".join(matches)
             return 1, matched_words
         else:
             return 0, None
