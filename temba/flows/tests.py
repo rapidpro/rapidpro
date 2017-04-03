@@ -506,7 +506,7 @@ class FlowTest(TembaTest):
 
         # create and send a reply
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Orange")
-        self.assertFalse(Flow.find_and_handle(incoming))
+        self.assertFalse(Flow.find_and_handle(incoming)[0])
 
         # no reply, our flow isn't active
         self.assertFalse(Msg.objects.filter(response_to=incoming))
@@ -520,7 +520,7 @@ class FlowTest(TembaTest):
 
         # simulate a response from contact #1
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
-        self.assertTrue(Flow.find_and_handle(incoming))
+        self.assertTrue(Flow.find_and_handle(incoming)[0])
 
         contact1_run.refresh_from_db()
         self.assertTrue(contact1_run.responded)
@@ -610,7 +610,7 @@ class FlowTest(TembaTest):
 
         # at this point there are no more steps to take in the flow, so we shouldn't match anymore
         extra = self.create_msg(direction=INCOMING, contact=self.contact, text="Hello ther")
-        self.assertFalse(Flow.find_and_handle(extra))
+        self.assertFalse(Flow.find_and_handle(extra)[0])
 
         # try getting our results
         results = self.flow.get_results()
@@ -1845,7 +1845,7 @@ class FlowTest(TembaTest):
         # start the flow
         flow.start([], [self.contact])
         sms = self.create_msg(direction=INCOMING, contact=self.contact, text="My answer is 15")
-        self.assertTrue(Flow.find_and_handle(sms))
+        self.assertTrue(Flow.find_and_handle(sms)[0])
 
         step = FlowStep.objects.get(step_uuid=uuid(5))
         self.assertEquals("> 10", step.rule_category)
@@ -2613,7 +2613,7 @@ class FlowTest(TembaTest):
 
         # send in a message
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Orange", created_on=timezone.now())
-        self.assertTrue(Flow.find_and_handle(incoming))
+        self.assertTrue(Flow.find_and_handle(incoming)[0])
 
         # only the second flow should get it
         self.assertEquals(2, FlowStep.objects.filter(run__flow=self.flow).count())
@@ -2632,7 +2632,7 @@ class FlowTest(TembaTest):
 
         # send in a message, this should be handled by our first flow, which has a more recent run active
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="blue")
-        self.assertTrue(Flow.find_and_handle(incoming))
+        self.assertTrue(Flow.find_and_handle(incoming)[0])
 
         self.assertEquals(3, runs[0].steps.all().count())
 
@@ -2686,7 +2686,7 @@ class FlowTest(TembaTest):
 
         # complete the flow
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
-        self.assertTrue(Flow.find_and_handle(incoming))
+        self.assertTrue(Flow.find_and_handle(incoming)[0])
 
         # now we should trigger the other flow as we are at our terminal flow
         self.assertTrue(Trigger.find_and_handle(other_incoming))
@@ -4877,7 +4877,7 @@ class FlowsTest(FlowFileTest):
 
         # send a message, no flow should handle us since we are done
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Unhandled")
-        handled = Flow.find_and_handle(incoming)
+        handled = Flow.find_and_handle(incoming)[0]
         self.assertFalse(handled)
 
         # now wire up our finished action to the start of our flow
@@ -6580,7 +6580,7 @@ class TriggerStartTest(FlowFileTest):
 
         # if we send another message, that should set our name
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="Rudolph")
-        self.assertTrue(Flow.find_and_handle(incoming))
+        self.assertTrue(Flow.find_and_handle(incoming)[0])
 
         contact = Contact.objects.get(pk=self.contact.pk)
         self.assertEqual(contact.name, "Rudolph")
