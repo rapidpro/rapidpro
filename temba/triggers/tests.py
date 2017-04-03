@@ -625,6 +625,51 @@ class TriggerTest(TembaTest):
         self.assertEquals(1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count())
         self.assertFalse(active_trigger.pk == Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL)[0].pk)
 
+    def test_new_conversation_trigger_viber(self):
+        self.login(self.admin)
+        flow = self.create_flow()
+        flow2 = self.create_flow()
+
+        # see if we list new conversation triggers on the trigger page
+        create_trigger_url = reverse('triggers.trigger_create', args=[])
+        response = self.client.get(create_trigger_url)
+        self.assertNotContains(response, "conversation is started")
+
+        # add a viber public channel
+        viber_channel = Channel.create(self.org, self.user, None, Channel.TYPE_VIBER_PUBLIC, None, '1001',
+                                       uuid='00000000-0000-0000-0000-000000001234',
+                                       config={Channel.CONFIG_AUTH_TOKEN: "auth_token"})
+
+        # should now be able to create one
+        response = self.client.get(create_trigger_url)
+        self.assertContains(response, "conversation is started")
+
+        response = self.client.get(reverse('triggers.trigger_new_conversation', args=[]))
+        self.assertEqual(response.context['form'].fields['channel'].queryset.count(), 1)
+        self.assertTrue(viber_channel in response.context['form'].fields['channel'].queryset.all())
+
+        # create a facebook channel
+        fb_channel = Channel.add_facebook_channel(self.org, self.user, 'Temba', 1001, 'fb_token')
+
+        response = self.client.get(reverse('triggers.trigger_new_conversation', args=[]))
+        self.assertEqual(response.context['form'].fields['channel'].queryset.count(), 2)
+        self.assertTrue(viber_channel in response.context['form'].fields['channel'].queryset.all())
+        self.assertTrue(fb_channel in response.context['form'].fields['channel'].queryset.all())
+
+        response = self.client.post(reverse('triggers.trigger_new_conversation', args=[]),
+                                    data=dict(channel=viber_channel.id, flow=flow.id))
+        self.assertEqual(response.status_code, 200)
+
+        trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False)
+        self.assertEqual(trigger.channel, viber_channel)
+        self.assertEqual(trigger.flow, flow)
+
+        # try to create another one, fails as we already have a trigger for that channel
+        response = self.client.post(reverse('triggers.trigger_new_conversation', args=[]),
+                                    data=dict(channel=viber_channel.id, flow=flow2.id))
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, 'form', 'channel', 'Trigger with this Channel already exists.')
+
     def test_new_conversation_trigger(self):
         self.login(self.admin)
         flow = self.create_flow()
@@ -914,6 +959,19 @@ class TriggerTest(TembaTest):
         # should also have a flow run
         run = FlowRun.objects.get()
         self.assertTrue(run.responded)
+
+        # unstop contact if needed
+        self.contact.stop(self.admin)
+
+        self.contact.refresh_from_db()
+        self.assertTrue(self.contact.is_stopped)
+
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="when is it?")
+        self.assertTrue(Trigger.find_and_handle(incoming))
+
+        self.contact.refresh_from_db()
+        self.assertFalse(self.contact.is_stopped)
+        self.assertEqual(FlowRun.objects.all().count(), 2)
 
         # create trigger for specific contact group
         group = self.create_group("first", [self.contact2])
