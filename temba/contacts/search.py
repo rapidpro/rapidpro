@@ -219,17 +219,7 @@ class Condition(QueryNode):
         prop_type, prop_obj = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
-            # empty string equality means contacts without that field set
-            if self.comparator.lower() in ('=', 'is') and self.value == "":
-                values_query = Value.objects.filter(contact_field=prop_obj).values('contact_id')
-
-                # optimize for the single membership test case
-                if base_set:
-                    values_query = values_query.filter(contact__in=base_set)
-
-                return ~Q(id__in=values_query)
-            else:
-                return self._build_value_query(prop_obj, base_set)
+            return self._build_value_query(prop_obj, base_set)
         elif prop_type == ContactQuery.PROP_SCHEME:
             if org.is_anon:
                 return Q(id=-1)
