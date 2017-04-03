@@ -32,7 +32,7 @@ from temba.utils import datetime_to_str, datetime_to_ms, get_datetime_format
 from temba.values.models import Value
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
 from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
-from .search import parse_query, ContactQuery, Condition, BoolCombination, SinglePropCombination, SearchException
+from .search import parse_query, ContactQuery, Condition, IsSetCondition, BoolCombination, SinglePropCombination, SearchException
 from .tasks import squash_contactgroupcounts
 
 
@@ -846,19 +846,23 @@ class ContactTest(TembaTest):
         # create some dynamic groups
         ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
         ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type=Value.TYPE_DECIMAL)
+        has_twitter = self.create_group("Has twitter", query='twitter != ""')
         no_gender = self.create_group("No gender", query='gender is ""')
         males = self.create_group("Male", query='gender is M or gender is Male')
         youth = self.create_group("Male", query='age > 18 or age < 30')
         joes = self.create_group("Joes", query='Joe')
 
+        self.assertEqual(set(has_twitter.contacts.all()), {self.joe})
         self.assertEqual(set(no_gender.contacts.all()), {self.joe, self.frank, self.billy, self.voldemort})
         self.assertEqual(set(males.contacts.all()), set())
         self.assertEqual(set(youth.contacts.all()), set())
         self.assertEqual(set(joes.contacts.all()), {self.joe})
 
+        self.joe.update_urns(self.admin, ['tel:+250781111111'])
         self.joe.set_field(self.admin, 'gender', "M")
         self.joe.set_field(self.admin, 'age', "28")
 
+        self.assertEqual(set(has_twitter.contacts.all()), set())
         self.assertEqual(set(no_gender.contacts.all()), {self.frank, self.billy, self.voldemort})
         self.assertEqual(set(males.contacts.all()), {self.joe})
         self.assertEqual(set(youth.contacts.all()), {self.joe})
@@ -1013,6 +1017,10 @@ class ContactTest(TembaTest):
         # property conditions
         self.assertEqual(parse_query('name=will'), ContactQuery(Condition('name', '=', 'will')))
         self.assertEqual(parse_query('name ~ "felix"'), ContactQuery(Condition('name', '~', 'felix')))
+
+        # empty string conditions
+        self.assertEqual(parse_query('name is ""'), ContactQuery(IsSetCondition('name', 'is')))
+        self.assertEqual(parse_query('name!=""'), ContactQuery(IsSetCondition('name', '!=')))
 
         # boolean combinations of property conditions
         self.assertEqual(parse_query('name=will or name ~ "felix"', optimize=False), ContactQuery(
@@ -1209,6 +1217,7 @@ class ContactTest(TembaTest):
             self.assertEqual(q('0788382011'), 0)
             self.assertEqual(q('tel is +250788382011'), 0)
             self.assertEqual(q('twitter has blow'), 0)
+            self.assertEqual(q('twitter = ""'), 0)
 
             # anon orgs can search by id, with or without zero padding
             self.assertTrue(contact in Contact.search(self.org, '%d' % contact.pk))
