@@ -1100,7 +1100,7 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, self.admin, 'isureporter', "Is UReporter", value_type='T')
         ContactField.get_or_create(self.org, self.admin, 'hasbirth', "Has Birth", value_type='T')
 
-        names = ['Trey', 'Mike', 'Paige', 'Fish']
+        names = ['Trey', 'Mike', 'Paige', None]
         districts = ['Gatsibo', 'Kayônza', 'Rwamagana']
         wards = ['Kageyo', 'Kabara', 'Bukure']
         date_format = get_datetime_format(True)[0]
@@ -1109,7 +1109,7 @@ class ContactTest(TembaTest):
         for i in range(10, 100):
             name = names[(i + 2) % len(names)]
             number = "0788382%s" % str(i).zfill(3)
-            twitter = "tweep_%d" % (i + 1)
+            twitter = ("tweep_%d" % (i + 1)) if (i % 3 == 0) else None  # 1 in 3 have twitter URN
             contact = self.create_contact(name=name, number=number, twitter=twitter)
             join_date = datetime_to_str(date(2013, 12, 22) + timezone.timedelta(days=i), date_format)
 
@@ -1133,7 +1133,6 @@ class ContactTest(TembaTest):
         self.assertEqual(q('trey'), 23)
         self.assertEqual(q('MIKE'), 23)
         self.assertEqual(q('  paige  '), 22)
-        self.assertEqual(q('fish'), 22)
         self.assertEqual(q('0788382011'), 1)
         self.assertEqual(q('trey 0788382'), 23)
 
@@ -1141,14 +1140,17 @@ class ContactTest(TembaTest):
         self.assertEqual(q('name is "trey"'), 23)
         self.assertEqual(q('name is mike'), 23)
         self.assertEqual(q('name = paige'), 22)
-        self.assertEqual(q('NAME=fish'), 22)
+        self.assertEqual(q('name is ""'), 22)
+        self.assertEqual(q('NAME=""'), 22)
         self.assertEqual(q('name has e'), 68)
 
         # URN as property
         self.assertEqual(q('tel is +250788382011'), 1)
         self.assertEqual(q('tel has 0788382011'), 1)
-        self.assertEqual(q('twitter = tweep_12'), 1)
-        self.assertEqual(q('TWITTER has tweep'), 90)
+        self.assertEqual(q('twitter = tweep_13'), 1)
+        self.assertEqual(q('twitter = ""'), 60)
+        self.assertEqual(q('twitter != ""'), 30)
+        self.assertEqual(q('TWITTER has tweep'), 30)
 
         # contact field as property
         self.assertEqual(q('age > 30'), 69)
