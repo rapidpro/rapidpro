@@ -18,6 +18,7 @@ from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from guardian.utils import get_anonymous_user
 from requests import Request
@@ -30,7 +31,6 @@ from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, 
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
 from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit
-from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
 from temba.utils import decode_base64
@@ -45,7 +45,7 @@ class BaseChannelHandler(View):
     url = None
     url_name = None
 
-    @disable_middleware
+    @csrf_exempt
     def dispatch(self, request, *args, **kwargs):
         return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
 
@@ -1936,15 +1936,13 @@ class JunebugHandler(BaseChannelHandler):
         data = json.load(request)
         is_ussd = self.is_ussd_message(data)
         channel_data = data.get('channel_data', {})
-        channel_type = (Channel.TYPE_JUNEBUG_USSD
-                        if is_ussd
-                        else Channel.TYPE_JUNEBUG)
+        channel_types = (Channel.TYPE_JUNEBUG_USSD, Channel.TYPE_JUNEBUG)
 
         # look up the channel
         channel = Channel.objects.filter(
             uuid=request_uuid,
             is_active=True,
-            channel_type=channel_type).exclude(org=None).first()
+            channel_type__in=channel_types).exclude(org=None).first()
 
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)

@@ -1,5 +1,5 @@
 {% extends "smartmin/list.html" %}
--load i18n contacts smartmin
+-load i18n contacts smartmin humanize
 
 -block page-title
   -trans "Channel Events"
@@ -36,6 +36,7 @@
         -if request.GET.sessions
           %th{ style:'width:150px' }
 
+        %th{ style:'width:200px'}
         %th{ style:'width:160px;text-align:right;'}
 
       -for obj in object_list
@@ -69,6 +70,11 @@
                 -else
                   {{obj.get_status_display}}
 
+            %td
+              Request time:
+              %span
+                {{ log.request_time|default:"0"|intcomma }}ms
+
             %td{ style:'text-align: right', nowrap:'true' }
               {{obj.created_on|date:"M d, Y, H:m:s"}}
         -else
@@ -82,6 +88,11 @@
                 %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.description
               -else
                 {{obj.description}}
+
+            %td
+              Request time:
+              %span
+                {{ log.request_time|default:"0"|intcomma }}ms
 
             %td{ style:'text-align: right', nowrap:'true' }
               {{obj.created_on}}

@@ -24,7 +24,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGr
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, SystemLabel
 from temba.flows.models import FlowRun
-from temba.orgs.models import Org
+from temba.orgs.models import Org, UserSettings
 from temba.tests import TembaTest
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, date_to_utc_range, truncate, random_string
@@ -678,7 +678,7 @@ class ExpressionsTest(TembaTest):
         contact.save()
 
         variables = dict()
-        variables['contact'] = contact.build_message_context()
+        variables['contact'] = contact.build_expressions_context()
         variables['flow'] = dict(water_source="Well",     # key with underscore
                                  blank="",                # blank string
                                  arabic="اثنين ثلاثة",    # RTL chars
@@ -1433,7 +1433,7 @@ class NCCOTest(TembaTest):
 
 class MiddlewareTest(TembaTest):
 
-    def test_orgheader(self):
+    def test_org_header(self):
         response = self.client.get(reverse('public.public_index'))
         self.assertFalse(response.has_header('X-Temba-Org'))
 
@@ -1446,6 +1446,29 @@ class MiddlewareTest(TembaTest):
 
         response = self.client.get(reverse('public.public_index'))
         self.assertEqual(response['X-Temba-Org'], six.text_type(self.org.id))
+
+    def test_branding(self):
+        response = self.client.get(reverse('public.public_index'))
+        self.assertEqual(response.context['request'].branding, settings.BRANDING['rapidpro.io'])
+
+    def test_flow_simulation(self):
+        Contact.set_simulation(True)
+
+        self.client.get(reverse('public.public_index'))
+
+        self.assertFalse(Contact.get_simulation())
+
+    def test_activate_language(self):
+        self.assertContains(self.client.get(reverse('public.public_index')), "Create Account")
+
+        self.login(self.admin)
+
+        self.assertContains(self.client.get(reverse('public.public_index')), "Create Account")
+        self.assertContains(self.client.get(reverse('contacts.contact_list')), "Import Contacts")
+
+        UserSettings.objects.filter(user=self.admin).update(language='fr')
+
+        self.assertContains(self.client.get(reverse('contacts.contact_list')), "Importer des contacts")
 
 
 class ProfilerTest(TembaTest):
@@ -1478,7 +1501,7 @@ class MakeTestDBTest(SimpleTestCase):
         AdminBoundary.objects.all().delete()
 
     def test_command(self):
-        call_command('make_test_db', num_orgs=3, num_contacts=30, num_runs=20, seed=1234)
+        call_command('test_db', 'generate', num_orgs=3, num_contacts=30, seed=1234)
 
         org1, org2, org3 = tuple(Org.objects.order_by('id'))
 
@@ -1490,19 +1513,18 @@ class MakeTestDBTest(SimpleTestCase):
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
         assertOrgCounts(Contact.objects.filter(is_test=True), [4, 4, 4])  # 1 for each user
         assertOrgCounts(Contact.objects.filter(is_test=False), [17, 7, 6])
-        assertOrgCounts(FlowRun.objects.filter(contact__is_test=True), [12, 12, 12])  # each input template per org
-        assertOrgCounts(FlowRun.objects.filter(contact__is_test=False), [10, 4, 6])
-        assertOrgCounts(Msg.objects.filter(contact__is_test=False), [12, 4, 8])
 
         org_1_all_contacts = ContactGroup.system_groups.get(org=org1, name="All Contacts")
 
         self.assertEqual(org_1_all_contacts.contacts.count(), 17)
         self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(17,)])
-        self.assertEqual(SystemLabel.get_counts(org1), {'I': 0, 'W': 1, 'A': 0, 'O': 0, 'S': 11, 'X': 0, 'E': 0, 'C': 0})
 
         # same seed should generate objects with same UUIDs
         self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'ea60312b-25f5-47a0-cac7-4fe0c2064f3e')
 
-        # check can't be run again on a now non-empty database
+        # check generate can't be run again on a now non-empty database
         with self.assertRaises(CommandError):
-            call_command('make_test_db', num_orgs=2, num_contacts=4)
+            call_command('test_db', 'generate', num_orgs=3, num_contacts=30, seed=1234)
+
+        # but simulate can
+        call_command('test_db', 'simulate', num_runs=2)

@@ -24,7 +24,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SC
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
@@ -1115,16 +1115,16 @@ class Msg(models.Model):
 
         # others do in celery
         else:
-            push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
-                      dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False))
+            on_transaction_commit(lambda: push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
+                                                    dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False)))
 
-    def build_message_context(self):
+    def build_expressions_context(self, contact_context=None):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
 
         return {
             '__default__': self.text,
             'value': self.text,
-            'contact': self.contact.build_message_context(),
+            'contact': contact_context or self.contact.build_expressions_context(),
             'time': datetime_to_str(self.created_on, format=date_format, tz=self.org.timezone)
         }
 
@@ -1241,15 +1241,17 @@ class Msg(models.Model):
         if text:
             text = text[:Msg.MAX_SIZE]
 
+        now = timezone.now()
+
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,
                         org=org,
                         channel=channel,
                         text=text,
                         sent_on=date,
-                        created_on=timezone.now(),
-                        modified_on=timezone.now(),
-                        queued_on=timezone.now(),
+                        created_on=now,
+                        modified_on=now,
+                        queued_on=now,
                         direction=INCOMING,
                         msg_type=msg_type,
                         media=media,
@@ -1279,8 +1281,7 @@ class Msg(models.Model):
         return msg
 
     @classmethod
-    def substitute_variables(cls, text, contact, message_context,
-                             org=None, url_encode=False, partial_vars=False):
+    def substitute_variables(cls, text, context, contact=None, org=None, url_encode=False, partial_vars=False):
         """
         Given input ```text```, tries to find variables in the format @foo.bar and replace them according to
         the passed in context, contact and org. If some variables are not resolved to values, then the variable
@@ -1292,12 +1293,13 @@ class Msg(models.Model):
         if not text or text.find('@') < 0:
             return text, []
 
+        # a provided contact overrides the run contact, e.g. sending to a different contact
         if contact:
-            message_context['contact'] = contact.build_message_context()
+            context['contact'] = contact.build_expressions_context()
 
         # add 'step.contact' if it isn't already populated (like in flow batch starts)
-        if 'step' not in message_context or 'contact' not in message_context['step']:
-            message_context['step'] = dict(contact=message_context['contact'])
+        if 'step' not in context or 'contact' not in context['step']:
+            context['step'] = dict(contact=context['contact'])
 
         if not org:
             dayfirst = True
@@ -1308,17 +1310,18 @@ class Msg(models.Model):
 
         (format_date, format_time) = get_datetime_format(dayfirst)
 
-        date_context = dict()
-        date_context['__default__'] = datetime_to_str(timezone.now(), format=format_time, tz=tz)
-        date_context['now'] = datetime_to_str(timezone.now(), format=format_time, tz=tz)
-        date_context['today'] = datetime_to_str(timezone.now(), format=format_date, tz=tz)
-        date_context['tomorrow'] = datetime_to_str(timezone.now() + timedelta(days=1), format=format_date, tz=tz)
-        date_context['yesterday'] = datetime_to_str(timezone.now() - timedelta(days=1), format=format_date, tz=tz)
+        date_context = {
+            '__default__': datetime_to_str(timezone.now(), format=format_time, tz=tz),
+            'now': datetime_to_str(timezone.now(), format=format_time, tz=tz),
+            'today': datetime_to_str(timezone.now(), format=format_date, tz=tz),
+            'tomorrow': datetime_to_str(timezone.now() + timedelta(days=1), format=format_date, tz=tz),
+            'yesterday': datetime_to_str(timezone.now() - timedelta(days=1), format=format_date, tz=tz)
+        }
 
-        message_context['date'] = date_context
+        context['date'] = date_context
 
         date_style = DateStyle.DAY_FIRST if dayfirst else DateStyle.MONTH_FIRST
-        context = EvaluationContext(message_context, tz, date_style)
+        context = EvaluationContext(context, tz, date_style)
 
         # returns tuple of output and errors
         return evaluate_template(text, context, url_encode, partial_vars)
@@ -1370,9 +1373,9 @@ class Msg(models.Model):
 
         # make sure 'channel' is populated if we have a channel
         if channel:
-            message_context['channel'] = channel.build_message_context()
+            message_context['channel'] = channel.build_expressions_context()
 
-        (text, errors) = Msg.substitute_variables(text, contact, message_context, org=org)
+        (text, errors) = Msg.substitute_variables(text, message_context, contact=contact, org=org)
 
         # if we are doing a single message, check whether this might be a loop of some kind
         if insert_object:

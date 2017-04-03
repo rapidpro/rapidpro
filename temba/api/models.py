@@ -4,6 +4,7 @@ import hmac
 import json
 import requests
 import six
+import time
 import uuid
 
 from collections import OrderedDict
@@ -273,6 +274,8 @@ class WebHookEvent(SmartModel):
         message = "None"
         body = None
 
+        start = time.time()
+
         # webhook events fire immediately since we need the results back
         try:
             # only send webhooks when we are configured to, otherwise fail
@@ -326,12 +329,15 @@ class WebHookEvent(SmartModel):
             if message:
                 message = message[:255]
 
+            request_time = (time.time() - start) * 1000
+
             result = WebHookResult.objects.create(event=webhook_event,
                                                   url=webhook_url,
                                                   status_code=status_code,
                                                   body=body,
                                                   message=message,
                                                   data=urlencode(data, doseq=True),
+                                                  request_time=request_time,
                                                   created_by=api_user,
                                                   modified_by=api_user)
 
@@ -455,6 +461,7 @@ class WebHookEvent(SmartModel):
 
     def deliver(self):
         from .v1.serializers import MsgCreateSerializer
+        start = time.time()
 
         # create our post parameters
         post_data = json.loads(self.data)
@@ -510,6 +517,7 @@ class WebHookEvent(SmartModel):
 
             # any 200 code is ok by us
             self.status = COMPLETE
+            result['request_time'] = (time.time() - start) * 1000
             result['message'] = "Event delivered successfully."
 
             # read our body if we have one
@@ -534,6 +542,7 @@ class WebHookEvent(SmartModel):
         except Exception as e:
             # we had an error, log it
             self.status = ERRORED
+            result['request_time'] = time.time() - start
             result['message'] = "Error when delivering event - %s" % six.text_type(e)
 
         # if we had an error of some kind, schedule a retry for five minutes from now
@@ -572,6 +581,8 @@ class WebHookResult(SmartModel):
     body = models.TextField(null=True, blank=True,
                             help_text="The body of the HTTP response as returned by the web hook")
 
+    request_time = models.IntegerField(null=True, help_text=_('Time it took to process this request'))
+
     def stripped_body(self):  # pragma: needs cover
         return self.body.strip() if self.body else ""
 
@@ -592,6 +603,8 @@ class WebHookResult(SmartModel):
 
         api_user = get_api_user()
 
+        request_time = result.get('request_time', None)
+
         WebHookResult.objects.create(event=event,
                                      url=result['url'],
                                      # Flow webhooks won't have 'request'
@@ -600,6 +613,7 @@ class WebHookResult(SmartModel):
                                      message=message,
                                      status_code=result.get('status_code', 503),
                                      body=result.get('body', None),
+                                     request_time=request_time,
                                      created_by=api_user,
                                      modified_by=api_user)
 

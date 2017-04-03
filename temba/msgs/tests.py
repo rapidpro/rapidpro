@@ -1152,35 +1152,38 @@ class BroadcastTest(TembaTest):
         ContactField.get_or_create(self.org, self.admin, 'dob', "Date of birth", False, Value.TYPE_DATETIME)
         self.joe.set_field(self.user, 'dob', "28/5/1981")
 
-        self.assertEquals(("Hello World", []), Msg.substitute_variables("Hello World", self.joe, dict()))
-        self.assertEquals(("Hello World Joe", []), Msg.substitute_variables("Hello World @contact.first_name", self.joe, dict()))
-        self.assertEquals(("Hello World Joe Blow", []), Msg.substitute_variables("Hello World @contact", self.joe, dict()))
-        self.assertEquals(("Hello World: Well", []), Msg.substitute_variables("Hello World: @flow.water_source", self.joe, dict(flow=dict(water_source="Well"))))
-        self.assertEquals(("Hello World: Well  Boil: @flow.boil", ["Undefined variable: flow.boil"]), Msg.substitute_variables("Hello World: @flow.water_source  Boil: @flow.boil", self.joe, dict(flow=dict(water_source="Well"))))
+        def substitute(s, context):
+            return Msg.substitute_variables(s, context, contact=self.joe)
 
-        self.assertEquals(("Hello joe", []), Msg.substitute_variables("Hello @(LOWER(contact.first_name))", self.joe, dict()))
-        self.assertEquals(("Hello Joe", []), Msg.substitute_variables("Hello @(PROPER(LOWER(contact.first_name)))", self.joe, dict()))
-        self.assertEquals(("Hello Joe", []), Msg.substitute_variables("Hello @(first_word(contact))", self.joe, dict()))
-        self.assertEquals(("Hello Blow", []), Msg.substitute_variables("Hello @(Proper(remove_first_word(contact)))", self.joe, dict()))
-        self.assertEquals(("Hello Joe Blow", []), Msg.substitute_variables("Hello @(PROPER(contact))", self.joe, dict()))
-        self.assertEquals(("Hello JOE", []), Msg.substitute_variables("Hello @(UPPER(contact.first_name))", self.joe, dict()))
-        self.assertEquals(("Hello 3", []), Msg.substitute_variables("Hello @(contact.goats)", self.joe, dict()))
+        self.assertEquals(("Hello World", []), substitute("Hello World", dict()))
+        self.assertEquals(("Hello World Joe", []), substitute("Hello World @contact.first_name", dict()))
+        self.assertEquals(("Hello World Joe Blow", []), substitute("Hello World @contact", dict()))
+        self.assertEquals(("Hello World: Well", []), substitute("Hello World: @flow.water_source", dict(flow=dict(water_source="Well"))))
+        self.assertEquals(("Hello World: Well  Boil: @flow.boil", ["Undefined variable: flow.boil"]), substitute("Hello World: @flow.water_source  Boil: @flow.boil", dict(flow=dict(water_source="Well"))))
+
+        self.assertEquals(("Hello joe", []), substitute("Hello @(LOWER(contact.first_name))", dict()))
+        self.assertEquals(("Hello Joe", []), substitute("Hello @(PROPER(LOWER(contact.first_name)))", dict()))
+        self.assertEquals(("Hello Joe", []), substitute("Hello @(first_word(contact))", dict()))
+        self.assertEquals(("Hello Blow", []), substitute("Hello @(Proper(remove_first_word(contact)))", dict()))
+        self.assertEquals(("Hello Joe Blow", []), substitute("Hello @(PROPER(contact))", dict()))
+        self.assertEquals(("Hello JOE", []), substitute("Hello @(UPPER(contact.first_name))", dict()))
+        self.assertEquals(("Hello 3", []), substitute("Hello @(contact.goats)", dict()))
 
         self.assertEquals(("Email is: foo@bar.com", []),
-                          Msg.substitute_variables("Email is: @(remove_first_word(flow.sms))", self.joe, dict(flow=dict(sms="Join foo@bar.com"))))
+                          substitute("Email is: @(remove_first_word(flow.sms))", dict(flow=dict(sms="Join foo@bar.com"))))
         self.assertEquals(("Email is: foo@@bar.com", []),
-                          Msg.substitute_variables("Email is: @(remove_first_word(flow.sms))", self.joe, dict(flow=dict(sms="Join foo@@bar.com"))))
+                          substitute("Email is: @(remove_first_word(flow.sms))", dict(flow=dict(sms="Join foo@@bar.com"))))
 
         # check date variables
-        text, errors = Msg.substitute_variables("Today is @date.today", self.joe, dict())
+        text, errors = substitute("Today is @date.today", dict())
         self.assertEquals(errors, [])
         self.assertRegexpMatches(text, "Today is \d\d-\d\d-\d\d\d\d")
 
-        text, errors = Msg.substitute_variables("Today is @date.now", self.joe, dict())
+        text, errors = substitute("Today is @date.now", dict())
         self.assertEquals(errors, [])
         self.assertRegexpMatches(text, "Today is \d\d-\d\d-\d\d\d\d \d\d:\d\d")
 
-        text, errors = Msg.substitute_variables("Your DOB is @contact.dob", self.joe, dict())
+        text, errors = substitute("Your DOB is @contact.dob", dict())
         self.assertEquals(errors, [])
         # TODO clearly this is not ideal but unavoidable for now as we always add current time to parsed dates
         self.assertRegexpMatches(text, "Your DOB is 28-05-1981 \d\d:\d\d")
@@ -1189,40 +1192,40 @@ class BroadcastTest(TembaTest):
         self.joe.name = u"شاملیدل عمومی"
         self.joe.save()
 
-        self.assertEquals((u"شاملیدل", []), Msg.substitute_variables("@(first_word(contact))", self.joe, dict()))
-        self.assertEquals((u"عمومی", []), Msg.substitute_variables("@(proper(remove_first_word(contact)))", self.joe, dict()))
+        self.assertEquals((u"شاملیدل", []), substitute("@(first_word(contact))", dict()))
+        self.assertEquals((u"عمومی", []), substitute("@(proper(remove_first_word(contact)))", dict()))
 
         # credit card
         self.joe.name = '1234567890123456'
         self.joe.save()
-        self.assertEquals(("1 2 3 4 , 5 6 7 8 , 9 0 1 2 , 3 4 5 6", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
+        self.assertEquals(("1 2 3 4 , 5 6 7 8 , 9 0 1 2 , 3 4 5 6", []), substitute("@(read_digits(contact))", dict()))
 
         # phone number
         self.joe.name = '123456789012'
         self.joe.save()
-        self.assertEquals(("1 2 3 , 4 5 6 , 7 8 9 , 0 1 2", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
+        self.assertEquals(("1 2 3 , 4 5 6 , 7 8 9 , 0 1 2", []), substitute("@(read_digits(contact))", dict()))
 
         # triplets
         self.joe.name = '123456'
         self.joe.save()
-        self.assertEquals(("1 2 3 , 4 5 6", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
+        self.assertEquals(("1 2 3 , 4 5 6", []), substitute("@(read_digits(contact))", dict()))
 
         # soc security
         self.joe.name = '123456789'
         self.joe.save()
-        self.assertEquals(("1 2 3 , 4 5 , 6 7 8 9", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
+        self.assertEquals(("1 2 3 , 4 5 , 6 7 8 9", []), substitute("@(read_digits(contact))", dict()))
 
         # regular number, street address, etc
         self.joe.name = '12345'
         self.joe.save()
-        self.assertEquals(("1,2,3,4,5", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
+        self.assertEquals(("1,2,3,4,5", []), substitute("@(read_digits(contact))", dict()))
 
         # regular number, street address, etc
         self.joe.name = '123'
         self.joe.save()
-        self.assertEquals(("1,2,3", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
+        self.assertEquals(("1,2,3", []), substitute("@(read_digits(contact))", dict()))
 
-    def test_message_context(self):
+    def test_expressions_context(self):
         ContactField.get_or_create(self.org, self.admin, "superhero_name", "Superhero Name")
 
         self.joe.send("keyword remainder-remainder", self.admin)
@@ -1230,7 +1233,7 @@ class BroadcastTest(TembaTest):
         self.joe.save()
 
         msg = Msg.objects.get()
-        context = msg.build_message_context()
+        context = msg.build_expressions_context()
 
         self.assertEqual(context['__default__'], "keyword remainder-remainder")
         self.assertEqual(context['value'], "keyword remainder-remainder")
@@ -1775,7 +1778,12 @@ class ScheduleTest(TembaTest):
         # let's trigger a sending of the messages
         self.org.trigger_send()
 
-        # we should now have 11 messages that have sent
+        # we still should have 11 messages that have sent
+        self.assertEquals(11, Msg.objects.filter(channel=self.channel, status=PENDING).count())
+
+        # let's trigger a sending of the messages again
+        self.org.trigger_send(Msg.objects.filter(channel=self.channel, status=PENDING))
+
         self.assertEquals(11, Msg.objects.filter(channel=self.channel, status=WIRED).count())
 
 

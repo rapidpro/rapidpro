@@ -1,3 +1,40 @@
+v3.0.98
+----------
+ * Fix sidebar nav LESS so that level2 lists don't have fixed height and separate scrolling
+ * Unstop a contact when we get an explicit user interaction such as follow
+
+v3.0.96
+----------
+ * Fix possible race condition between receiving and handling messages
+ * Do away with scheme for USSD, will always be TEL
+ * Make sure events are handled properly for USSD
+ * Do not specify to & from when using reply_to
+ * Update JunebugForm for editing Junebug Channel + config fields
+
+v3.0.95
+----------
+ * Log request time on channel log success
+
+v3.0.94
+----------
+ * Fix test, fix template tags
+
+v3.0.93
+----------
+ * Change request times to be in ms instead of seconds
+
+v3.0.92
+----------
+ * Block on handling incoming msgs so we dont process them forever away
+ * Include Viber channels in new conversation trigger form channel choices
+
+v3.0.90
+----------
+ * Don't use cache+calculations for flow segment counts - these are pre-calculated in FlowPathCount
+ * Do not include active contacts in flows unless user overrides it
+ * Clean up middleware imports and add tests
+ * Feedback to user when simulating a USSD channel without a USSD channel connected
+
 v3.0.89
 ----------
  * Expand base64 charset, fix decode validity heuristic

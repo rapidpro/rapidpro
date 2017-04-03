@@ -88,7 +88,7 @@ PyJWT==1.4.2
 pyparsing==2.1.10
 python-dateutil==2.2
 python-gcm==0.1.5
-python-magic==0.4.12
+python-magic==0.4.13
 python-telegram-bot==3.3b1
 pytz==2016.4
 PyYAML==3.11
