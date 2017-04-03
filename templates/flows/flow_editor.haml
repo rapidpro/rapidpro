@@ -435,6 +435,10 @@
 
                 // starting flows
                 %span{ng-show:'action.type == "flow" || action.type == "trigger-flow"'}
+                  .action-link.pull-right{ng-click:'$event.stopPropagation();'}
+                    %a{href:'../[[action.flow.uuid]]'}
+                      .icon-tree-2
+
                   .start-flow
                     [[action.flow.name]]
 
