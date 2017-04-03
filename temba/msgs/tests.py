@@ -1768,7 +1768,12 @@ class ScheduleTest(TembaTest):
         # let's trigger a sending of the messages
         self.org.trigger_send()
 
-        # we should now have 11 messages that have sent
+        # we still should have 11 messages that have sent
+        self.assertEquals(11, Msg.objects.filter(channel=self.channel, status=PENDING).count())
+
+        # let's trigger a sending of the messages again
+        self.org.trigger_send(Msg.objects.filter(channel=self.channel, status=PENDING))
+
         self.assertEquals(11, Msg.objects.filter(channel=self.channel, status=WIRED).count())
 
 

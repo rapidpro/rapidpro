@@ -24,7 +24,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SC
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
@@ -1115,8 +1115,8 @@ class Msg(models.Model):
 
         # others do in celery
         else:
-            push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
-                      dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False))
+            on_transaction_commit(lambda: push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
+                                                    dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False)))
 
     def build_expressions_context(self, contact_context=None):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
@@ -1241,15 +1241,17 @@ class Msg(models.Model):
         if text:
             text = text[:Msg.MAX_SIZE]
 
+        now = timezone.now()
+
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,
                         org=org,
                         channel=channel,
                         text=text,
                         sent_on=date,
-                        created_on=timezone.now(),
-                        modified_on=timezone.now(),
-                        queued_on=timezone.now(),
+                        created_on=now,
+                        modified_on=now,
+                        queued_on=now,
                         direction=INCOMING,
                         msg_type=msg_type,
                         media=media,
