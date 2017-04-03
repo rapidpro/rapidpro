@@ -1171,6 +1171,8 @@ class ContactTest(TembaTest):
 
         self.assertEqual(q('home is ""'), 0)
         self.assertEqual(q('profession = ""'), 60)
+        self.assertEqual(q('profession is ""'), 60)
+        self.assertEqual(q('profession != ""'), 30)
 
         # contact fields beginning with 'is' or 'has'
         self.assertEqual(q('isureporter = "yes"'), 90)
