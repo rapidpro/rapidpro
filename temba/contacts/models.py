@@ -1787,8 +1787,13 @@ class Contact(TembaModel):
             return tel.path
 
     def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
-             msg_type=None, status='P', created_on=None):
+             msg_type=None, created_on=None):
         from temba.msgs.models import Msg, INBOX
+
+        if created_on is None:
+            status = 'P'
+        else:
+            status = 'S'
 
         recipient = self
         if status != 'P':
@@ -1804,10 +1809,15 @@ class Contact(TembaModel):
         return msg
 
     def send_all(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
-                 msg_type=None, status='P', created_on=None):
+                 msg_type=None, created_on=None):
         from temba.msgs.models import Msg, UnreachableException, INBOX
 
         msgs = []
+
+        if created_on is None:
+            status = 'P'
+        else:
+            status = 'S'
 
         contact_urns = self.get_urns()
         for c_urn in contact_urns:

@@ -33,7 +33,8 @@ from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, SENT, Label, PENDING, DELIVERED, USSD as MSG_TYPE_USSD
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
+from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD
 from temba.msgs.models import OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
@@ -5121,38 +5122,34 @@ class ReplyAction(Action):
                 if media_url:
                     media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
-            status = PENDING
-            created_on = None
             if offline_on:
-                status = SENT
                 context = None
                 created_on = offline_on
+            else:
+                created_on = None
 
-            reply_msgs = None
             try:
                 if msg:
-                    reply_msgs = msg.reply(text, user, trigger_send=False, message_context=context,
-                                           session=run.session, msg_type=self.MSG_TYPE, media=media,
-                                           send_all=self.send_all, status=status, created_on=created_on)
+                    reply_msg = msg.reply(text, user, trigger_send=False, message_context=context,
+                                          session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                          send_all=self.send_all, created_on=created_on)
+
+                    if reply_msg:
+                        replies.append(reply_msg)
                 else:
                     if self.send_all:
-                        reply_msgs = run.contact.send_all(text, user, trigger_send=False, message_context=context,
-                                                          session=run.session, msg_type=self.MSG_TYPE, media=media,
-                                                          status=status, created_on=created_on)
+                        replies = run.contact.send_all(text, user, trigger_send=False, message_context=context,
+                                                       session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                                       created_on=created_on)
                     else:
-                        reply_msgs = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                                      session=run.session, msg_type=self.MSG_TYPE, media=media,
-                                                      status=status, created_on=created_on)
+                        reply_msg = run.contact.send(text, user, trigger_send=False, message_context=context,
+                                                     session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                                     created_on=created_on)
+                        if reply_msg:
+                            replies.append(reply_msg)
 
             except UnreachableException:
                 pass
-
-            finally:
-                if reply_msgs:
-                    if self.send_all:
-                        replies = reply_msgs
-                    else:
-                        replies = [reply_msgs]
 
         return replies
 
