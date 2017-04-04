@@ -1225,11 +1225,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         _base: categoryName
 
   $scope.isVisibleOperator = (operator) ->
-    if $scope.formData.rulesetConfig.type == 'wait_digits'
-      if not operator.voice
-        return false
-
-    return operator.show
+    return flow.flow_type in operator.filter
 
   $scope.isVisibleRulesetType = (rulesetConfig) ->
     valid = flow.flow_type in rulesetConfig.filter
