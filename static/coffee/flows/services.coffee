@@ -505,8 +505,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       @operators = [
         { type: 'contains_any', name:'Contains any', verbose_name:'has any of these words', operands: 1, localized:true, filter: ALL_TEXT }
         { type: 'contains', name: 'Contains all', verbose_name:'has all of the words', operands: 1, localized:true, filter: ALL_TEXT }
-        { type: 'contains_only', name:'Contains only', verbose_name:'has only the words', operands: 1, localized:true, filter: ONLINE_TEXT }
         { type: 'contains_phrase', name:'Contains Phrase', verbose_name:'has the phrase', operands: 1, localized:true, filter: ONLINE_TEXT }
+        { type: 'contains_only_phrase', name:'Contains only phrase', verbose_name:'has only the phrase', operands: 1, localized:true, filter: ONLINE_TEXT }
         { type: 'not_empty', name: 'Not empty', verbose_name:'is not empty', operands: 0, localized:true, filter: ALL_TEXT }
         { type: 'starts', name: 'Starts with', verbose_name:'starts with', operands: 1, localized:true, filter: ALL }
         { type: 'number', name: 'Has a number', verbose_name:'has a number', operands: 0, filter: ALL }

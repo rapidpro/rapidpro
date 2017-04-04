@@ -38,7 +38,7 @@ from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
 from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user
 from .models import FlowPathRecentStep, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
-from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest, ContainsOnlyTest, ContainsPhraseTest
+from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest, ContainsOnlyPhraseTest, ContainsPhraseTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import HasStateTest, HasDistrictTest, HasWardTest, HasEmailTest
@@ -1455,13 +1455,14 @@ class FlowTest(TembaTest):
         self.assertTest(True, "Greenn", test)
 
         sms.text = "RESIST!!"
-        test = ContainsOnlyTest(test=dict(base="resist"))
+        test = ContainsOnlyPhraseTest(test=dict(base="resist"))
         self.assertTest(True, "RESIST", test)
 
         sms.text = "RESIST TODAY!!"
         self.assertTest(False, None, test)
 
-        test = ContainsOnlyTest(test=dict(base="resist now"))
+        test = ContainsOnlyPhraseTest(test=dict(base="resist now"))
+        test = ContainsOnlyPhraseTest.from_json(self.org, test.as_json())
         sms.text = " resist NOW "
         self.assertTest(True, "resist NOW", test)
 
@@ -1476,14 +1477,8 @@ class FlowTest(TembaTest):
         sms.text = "this is an email email@foo.bar TODAY!!"
         self.assertTest(True, "email@foo.bar", test)
 
-        test = ContainsOnlyTest(test=dict(base="resist now"))
-        sms.text = " resist NOW "
-        self.assertTest(True, "resist NOW", test)
-
-        sms.text = " NOW resist"
-        self.assertTest(False, None, test)
-
         test = ContainsPhraseTest(test=dict(base="resist now"))
+        test = ContainsPhraseTest.from_json(self.org, test.as_json())
         sms.text = "we must resist! NOW "
         self.assertTest(True, "resist NOW", test)
 

@@ -5829,9 +5829,9 @@ class Test(object):
                 AndTest.TYPE: AndTest,
                 BetweenTest.TYPE: BetweenTest,
                 ContainsAnyTest.TYPE: ContainsAnyTest,
+                ContainsOnlyPhraseTest.TYPE: ContainsOnlyPhraseTest,
                 ContainsPhraseTest.TYPE: ContainsPhraseTest,
                 ContainsTest.TYPE: ContainsTest,
-                ContainsOnlyTest.TYPE: ContainsOnlyTest,
                 DateAfterTest.TYPE: DateAfterTest,
                 DateBeforeTest.TYPE: DateBeforeTest,
                 DateEqualTest.TYPE: DateEqualTest,
@@ -6290,15 +6290,15 @@ class ContainsAnyTest(ContainsTest):
             return 0, None
 
 
-class ContainsOnlyTest(ContainsTest):
+class ContainsOnlyPhraseTest(ContainsTest):
     """
-    { op: "contains_only", "test": "red" }
+    { op: "contains_only_phrase", "test": "red" }
     """
     TEST = 'test'
-    TYPE = 'contains_only'
+    TYPE = 'contains_only_phrase'
 
     def as_json(self):
-        return dict(type=ContainsOnlyTest.TYPE, test=self.test)
+        return dict(type=ContainsOnlyPhraseTest.TYPE, test=self.test)
 
     def evaluate(self, run, sms, context, text):
         # substitute any variables
