@@ -11,6 +11,9 @@ import six
 import time
 
 from collections import defaultdict
+
+from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import models
@@ -1448,6 +1451,11 @@ class Contact(TembaModel):
         # re-add them to any dynamic groups they would belong to
         self.reevaluate_dynamic_groups()
 
+    def ensure_unstopped(self, user=None):
+        if user is None:
+            user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+        self.unstop(user)
+
     def release(self, user):
         """
         Releases (i.e. deletes) this contact, provided it is currently not deleted
@@ -1692,8 +1700,8 @@ class Contact(TembaModel):
         # detach any existing URNs that weren't included
         urn_ids = [u.pk for u in (urns_created + urns_attached + urns_retained)]
         urns_detached_qs = ContactURN.objects.filter(contact=self).exclude(pk__in=urn_ids)
-        urns_detached_qs.update(contact=None)
         urns_detached = list(urns_detached_qs)
+        urns_detached_qs.update(contact=None)
 
         self.modified_by = user
         self.save(update_fields=('modified_on', 'modified_by'))
@@ -1855,7 +1863,8 @@ class ContactURN(models.Model):
     IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
 
     SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME}  # schemes that support "follow" triggers
-    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME}  # schemes that support "new conversation" triggers
+    # schemes that support "new conversation" triggers
+    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME}
     SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
     EXPORT_FIELDS = {

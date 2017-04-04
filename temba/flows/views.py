@@ -923,7 +923,7 @@ class FlowCRUDL(SmartCRUDL):
             if start.exists() and start[0].status in [FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING]:  # pragma: needs cover
                 starting = True
             context['starting'] = starting
-            context['has_ussd_channel'] = True if org and org.get_ussd_channel(scheme=TEL_SCHEME) else False
+            context['has_ussd_channel'] = True if org and org.get_ussd_channel() else False
 
             return context
 
