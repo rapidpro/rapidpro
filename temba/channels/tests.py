@@ -6557,7 +6557,7 @@ class TwilioTest(TembaTest):
             self.assertEquals(1, self.channel.get_success_log_count())
 
             # view the detailed information for one of them
-            response = self.client.get(reverse('channels.channellog_read', args=[ChannelLog.objects.all()[1].pk]))
+            response = self.client.get(reverse('channels.channellog_read', args=[ChannelLog.objects.order_by('id')[1].id]))
 
             # check that it contains the log of our exception
             self.assertContains(response, "Request Timeout")
