@@ -1834,7 +1834,6 @@ class Label(TembaModel):
         if self.is_folder():
             raise ValueError("Message counts are not tracked for user folders")
 
-        # TODO
         return LabelCount.get_totals([self])[self]
 
     def toggle_label(self, msgs, add):
