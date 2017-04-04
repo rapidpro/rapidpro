@@ -100,7 +100,7 @@ redis==2.10.1
 regex==2014.6.28
 requests==2.9.1
 requests-oauthlib==0.4.0
-responses-0.5.1
+responses==0.5.1
 rsa==3.4.2
 selenium==2.31.0
 simplejson==3.4.1
