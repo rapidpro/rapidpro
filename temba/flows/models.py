@@ -526,7 +526,7 @@ class Flow(TembaModel):
     @classmethod
     def find_and_handle(cls, msg, started_flows=None, voice_response=None,
                         triggered_start=False, resume_parent_run=False,
-                        resume_after_timeout=False, user_input=True):
+                        resume_after_timeout=False, user_input=True, trigger_send=True):
 
         if started_flows is None:
             started_flows = []
@@ -545,16 +545,16 @@ class Flow(TembaModel):
             (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
                                                       user_input=user_input, triggered_start=triggered_start,
                                                       resume_parent_run=resume_parent_run,
-                                                      resume_after_timeout=resume_after_timeout)
+                                                      resume_after_timeout=resume_after_timeout, trigger_send=trigger_send)
 
             if handled:
                 # increment our unread count if this isn't the simulator
                 if not msg.contact.is_test:
                     flow.increment_unread_responses()
 
-                return True
+                return True, msgs
 
-        return False
+        return False, []
 
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
@@ -632,6 +632,10 @@ class Flow(TembaModel):
 
             resume_parent_run = False
             resume_after_timeout = False
+
+        # if we have a parent to continue, do so
+        if getattr(run, 'continue_parent', False):
+            msgs += FlowRun.continue_parent_flow_run(run, trigger_send=False)
 
         if handled:
             analytics.gauge('temba.flow_execution', time.time() - start_time)
@@ -1491,7 +1495,7 @@ class Flow(TembaModel):
         runs = []
         msgs = []
 
-        channel = self.org.get_ussd_channel(scheme=TEL_SCHEME)
+        channel = self.org.get_ussd_channel()
 
         if not channel or Channel.ROLE_USSD not in channel.role:  # pragma: needs cover
             return runs
@@ -1527,16 +1531,13 @@ class Flow(TembaModel):
 
                 step = self.add_step(run, entry_rule, is_start=True, arrived_on=timezone.now())
                 if entry_rule.is_ussd():
-                    # create an empty placeholder message
-                    msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
-                    handled, step_msgs = Flow.handle_destination(entry_rule, step, run, msg, trigger_send=False)
+                    handled, step_msgs = Flow.handle_destination(entry_rule, step, run, start_msg, trigger_send=False)
 
                     # add these messages as ones that are ready to send
                     for msg in step_msgs:
                         msgs.append(msg)
 
-            # no start msgs in ussd flows but we want the variable there
-            run.start_msgs = []
+            run.start_msgs = [start_msg]
 
             runs.append(run)
 
@@ -2676,31 +2677,39 @@ class FlowRun(models.Model):
         """
         runs = runs.filter(parent__flow__is_active=True, parent__flow__is_archived=False)
         for run in runs:
+            cls.continue_parent_flow_run(run)
 
-            steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
-            step = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org').first()
+    @classmethod
+    def continue_parent_flow_run(cls, run, trigger_send=True):
+        msgs = []
 
-            if step:
+        steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
+        step = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org').first()
 
-                # if our child was interrupted, so shall we be
-                if run.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED and run.contact.id == step.run.contact.id:
-                    FlowRun.bulk_exit(FlowRun.objects.filter(id=step.run.id), FlowRun.EXIT_TYPE_INTERRUPTED)
-                    return
+        if step:
+            # if our child was interrupted, so shall we be
+            if run.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED and run.contact.id == step.run.contact.id:
+                FlowRun.bulk_exit(FlowRun.objects.filter(id=step.run.id), FlowRun.EXIT_TYPE_INTERRUPTED)
+                return
 
-                ruleset = RuleSet.objects.filter(uuid=step.step_uuid, ruleset_type=RuleSet.TYPE_SUBFLOW, flow__org=step.run.org).first()
-                if ruleset:
-                    # use the last incoming message on this step
-                    msg = step.messages.filter(direction=INCOMING).order_by('-created_on').first()
+            ruleset = RuleSet.objects.filter(uuid=step.step_uuid, ruleset_type=RuleSet.TYPE_SUBFLOW,
+                                             flow__org=step.run.org).first()
+            if ruleset:
+                # use the last incoming message on this step
+                msg = step.messages.filter(direction=INCOMING).order_by('-created_on').first()
 
-                    # if we are routing back to the parent before a msg was sent, we need a placeholder
-                    if not msg:
-                        msg = Msg()
-                        msg.text = ''
-                        msg.org = run.org
-                        msg.contact = run.contact
+                # if we are routing back to the parent before a msg was sent, we need a placeholder
+                if not msg:
+                    msg = Msg()
+                    msg.text = ''
+                    msg.org = run.org
+                    msg.contact = run.contact
 
-                    # finally, trigger our parent flow
-                    Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
+                # finally, trigger our parent flow
+                (handled, msgs) = Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow],
+                                                       resume_parent_run=True, trigger_send=trigger_send)
+
+        return msgs
 
     def is_ivr(self):
         """
@@ -2800,19 +2809,14 @@ class FlowRun(models.Model):
             self.is_active = False
             self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
-        # let our parent know we finished
-        if self.contact.is_test:
-            # test contacts should operate in same thread
-            FlowRun.continue_parent_flow_runs(FlowRun.objects.filter(id=self.id))
+        if hasattr(self, 'voice_response') and self.parent and self.parent.is_active:
+            callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.session.pk]))
+            self.voice_response.redirect(url=callback + '?resume=1')
         else:
-            from .tasks import continue_parent_flows
-
-            if hasattr(self, 'voice_response') and self.parent and self.parent.is_active:
-                callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.session.pk]))
-                self.voice_response.redirect(url=callback + '?resume=1')
-            else:
-                # we delay this by a second to allow current flow execution to complete (and msgs to be sent)
-                on_transaction_commit(lambda: continue_parent_flows.apply_async(args=[[self.id]], countdown=1))
+            # if we have a parent to continue
+            if self.parent:
+                # mark it for continuation
+                self.continue_parent = True
 
     def set_interrupted(self, final_step=None):
         """

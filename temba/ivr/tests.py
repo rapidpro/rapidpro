@@ -973,7 +973,7 @@ class IVRTests(FlowFileTest):
         # make sure a message from the person on the call goes to the
         # inbox since our flow doesn't handle text messages
         msg = self.create_msg(direction='I', contact=eric, text="message during phone call")
-        self.assertFalse(Flow.find_and_handle(msg))
+        self.assertFalse(Flow.find_and_handle(msg)[0])
 
         # updated our status and duration accordingly
         call = IVRCall.objects.get(pk=call.pk)
@@ -1154,7 +1154,7 @@ class IVRTests(FlowFileTest):
         # make sure a message from the person on the call goes to the
         # inbox since our flow doesn't handle text messages
         msg = self.create_msg(direction='I', contact=test_contact, text="message during phone call")
-        self.assertFalse(Flow.find_and_handle(msg))
+        self.assertFalse(Flow.find_and_handle(msg)[0])
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
