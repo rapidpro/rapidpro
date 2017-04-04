@@ -130,16 +130,6 @@ class APITest(TembaTest):
         response = self.fetchHTML(url)
         self.assertEquals(403, response.status_code)
 
-    def assertRedirect(self, response, url, status_code=302, msg=None):
-        """
-        See https://github.com/nyaruka/smartmin/pull/96
-        """
-        from six.moves.urllib.parse import urlparse
-
-        self.assertEqual(response.status_code, status_code, msg=msg)
-        segments = urlparse(response.get('Location', None))
-        self.assertEqual(segments.path, url, msg=msg)
-
     def test_redirection(self):
         self.login(self.admin)
 
