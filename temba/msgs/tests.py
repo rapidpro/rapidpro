@@ -1550,6 +1550,10 @@ class LabelTest(TembaTest):
         self.assertEqual(label.get_visible_count(), 2)
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
+        # check still correct after squashing
+        squash_systemlabels()
+        self.assertEqual(label.get_visible_count(), 2)
+
         msg2.archive()  # won't remove label from msg, but msg no longer counts toward visible count
 
         label = Label.label_objects.get(pk=label.pk)
