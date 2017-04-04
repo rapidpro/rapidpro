@@ -1242,3 +1242,10 @@ IP_ADDRESSES = ('172.16.10.10', '162.16.10.20')
 # by default we use 640 chars or about 4 normal text messages
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640
+
+# -----------------------------------------------------------------------------------
+# Installs may choose how long to keep the channel logs in hours
+# by default we keep success logs for 48 hours and error_logs for 30 days(30 * 24 hours)
+# -----------------------------------------------------------------------------------
+SUCCESS_LOGS_TRIM_TIME = 48
+ERROR_LOGS_TRIM_TIME = 24 * 30

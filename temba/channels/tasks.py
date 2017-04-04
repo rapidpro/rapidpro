@@ -95,12 +95,16 @@ def trim_channel_log_task():  # pragma: needs cover
     Runs daily and clears any channel log items older than 48 hours.
     """
 
-    # keep success messages for only two days
-    two_days_ago = timezone.now() - timedelta(hours=48)
-    ChannelLog.objects.filter(created_on__lte=two_days_ago, is_error=False).delete()
+    # keep success messages for only SUCCESS_LOGS_TRIM_TIME hours
+    success_logs_trim_time = settings.SUCCESS_LOGS_TRIM_TIME
 
     # keep errors for 30 days
-    month_ago = timezone.now() - timedelta(days=30)
+    error_logs_trim_time = settings.ERROR_LOGS_TRIM_TIME
+
+    two_days_ago = timezone.now() - timedelta(hours=success_logs_trim_time)
+    ChannelLog.objects.filter(created_on__lte=two_days_ago, is_error=False).delete()
+
+    month_ago = timezone.now() - timedelta(hours=error_logs_trim_time)
     ChannelLog.objects.filter(created_on__lte=month_ago).delete()
 
 
