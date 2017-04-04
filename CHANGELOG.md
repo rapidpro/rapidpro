@@ -1,3 +1,8 @@
+v3.0.101
+----------
+ * Migration to clear no-longer-used flow stats redis keys
+ * Replace remaining cache-based flow stats code with trigger based FlowNodeCount
+
 v3.0.100
 ----------
  * Fix intermittently failing Twilio test
