@@ -1616,8 +1616,14 @@ class LabelTest(TembaTest):
 
         with self.assertNumQueries(2):
             hierarchy = Label.get_hierarchy(self.org)
-            self.assertEqual(list(hierarchy), [label3, folder1, folder2])
-            self.assertEqual(list(hierarchy[1].children.all()), [label2, label1])
+            self.assertEqual(hierarchy, [
+                {'obj': label3, 'count': 1, 'children': []},
+                {'obj': folder1, 'count': None, 'children': [
+                    {'obj': label2, 'count': 2, 'children': []},
+                    {'obj': label1, 'count': 2, 'children': []},
+                ]},
+                {'obj': folder2, 'count': None, 'children': []}
+            ])
 
     def test_delete_folder(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Folder")

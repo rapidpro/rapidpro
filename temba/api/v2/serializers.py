@@ -730,7 +730,8 @@ class LabelReadSerializer(ReadSerializer):
     count = serializers.SerializerMethodField()
 
     def get_count(self, obj):
-        return obj.get_visible_count()
+        # count may be cached on the object
+        return obj.count if hasattr(obj, 'count') else obj.get_visible_count()
 
     class Meta:
         model = Label

@@ -1678,7 +1678,7 @@ class APITest(TembaTest):
         important.toggle_label([msg], add=True)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
             response = self.fetchJSON(url)
 
         resp_json = response.json()

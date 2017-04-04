@@ -14,7 +14,8 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import Q, Count, Prefetch, Sum
+from django.db.models import Count, Prefetch, Sum
+from django.db.models.functions import Upper
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
@@ -1743,9 +1744,6 @@ class Label(TembaModel):
 
     label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_LABEL, help_text=_("Label type"))
 
-    visible_count = models.PositiveIntegerField(default=0,
-                                                help_text=_("Number of non-archived messages with this label"))
-
     # define some custom managers to do the filtering of label types for us
     all_objects = models.Manager()
     folder_objects = UserFolderManager()
@@ -1784,14 +1782,28 @@ class Label(TembaModel):
     @classmethod
     def get_hierarchy(cls, org):
         """
-        Gets top-level user labels and folders, with children pre-fetched and ordered by name
+        Gets labels and folders organized into their hierarchy and with their message counts
         """
-        qs = Label.all_objects.filter(org=org).order_by('name')
-        qs = qs.filter(Q(label_type=cls.TYPE_LABEL, folder=None) | Q(label_type=cls.TYPE_FOLDER))
+        labels_and_folders = list(Label.all_objects.filter(org=org).order_by(Upper('name')))
+        label_counts = LabelCount.get_totals([l for l in labels_and_folders if not l.is_folder()])
 
-        children_prefetch = Prefetch('children', queryset=Label.all_objects.order_by('name'))
+        folder_nodes = {}
+        all_nodes = []
+        for obj in labels_and_folders:
+            node = {'obj': obj, 'count': label_counts.get(obj), 'children': []}
+            all_nodes.append(node)
 
-        return qs.select_related('folder').prefetch_related(children_prefetch)
+            if obj.is_folder():
+                folder_nodes[obj.id] = node
+
+        top_nodes = []
+        for node in all_nodes:
+            if node['obj'].folder_id is None:
+                top_nodes.append(node)
+            else:
+                folder_nodes[node['obj'].folder_id]['children'].append(node)
+
+        return top_nodes
 
     @classmethod
     def is_valid_name(cls, name):
@@ -1822,7 +1834,8 @@ class Label(TembaModel):
         if self.is_folder():
             raise ValueError("Message counts are not tracked for user folders")
 
-        return self.visible_count
+        # TODO
+        return LabelCount.get_totals([self])[self]
 
     def toggle_label(self, msgs, add):
         """
@@ -1870,6 +1883,38 @@ class Label(TembaModel):
 
     class Meta:
         unique_together = ('org', 'name')
+
+
+class LabelCount(SquashableModel):
+    """
+    Counts of user labels maintained by database level triggers
+    """
+    SQUASH_OVER = ('label_id',)
+
+    label = models.ForeignKey(Label, related_name='counts')
+
+    count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
+
+    @classmethod
+    def get_squash_query(cls, distinct_set):
+        sql = """
+            WITH deleted as (
+                DELETE FROM %(table)s WHERE "label_id" = %%s RETURNING "count"
+            )
+            INSERT INTO %(table)s("label_id", "count", "is_squashed")
+            VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+            """ % {'table': cls._meta.db_table}
+
+        return sql, (distinct_set.label_id, distinct_set.label_id)
+
+    @classmethod
+    def get_totals(cls, labels):
+        """
+        Gets total counts for all the given labels
+        """
+        counts = cls.objects.filter(label__in=labels).values_list('label_id').annotate(count_sum=Sum('count'))
+        counts_by_label_id = {c[0]: c[1] for c in counts}
+        return {l: counts_by_label_id.get(l.id, 0) for l in labels}
 
 
 class MsgIterator(object):
