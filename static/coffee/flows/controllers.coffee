@@ -1272,6 +1272,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       categoryName = "state"
     else if op == "phone"
       categoryName = "phone"
+    else if op == "has_email"
+      categoryName = "email"
     else if op == "regex"
       categoryName = "matches"
     else if op == "date"

@@ -38,10 +38,10 @@ from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
 from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user
 from .models import FlowPathRecentStep, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
-from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest, MatchesExactlyTest, ContainsPhraseTest
+from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest, ContainsOnlyTest, ContainsPhraseTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
-from .models import HasStateTest, HasDistrictTest, HasWardTest
+from .models import HasStateTest, HasDistrictTest, HasWardTest, HasEmailTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction, SetChannelAction
 from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog
 from .models import VariableContactAction, UssdAction
@@ -1455,13 +1455,28 @@ class FlowTest(TembaTest):
         self.assertTest(True, "Greenn", test)
 
         sms.text = "RESIST!!"
-        test = MatchesExactlyTest(test=dict(base="resist"))
+        test = ContainsOnlyTest(test=dict(base="resist"))
         self.assertTest(True, "RESIST", test)
 
         sms.text = "RESIST TODAY!!"
         self.assertTest(False, None, test)
 
-        test = MatchesExactlyTest(test=dict(base="resist now"))
+        test = ContainsOnlyTest(test=dict(base="resist now"))
+        sms.text = " resist NOW "
+        self.assertTest(True, "resist NOW", test)
+
+        sms.text = " NOW resist"
+        self.assertTest(False, None, test)
+
+        sms.text = "this isn't an email@asdf"
+        test = HasEmailTest()
+        test = HasEmailTest.from_json(self.org, test.as_json())
+        self.assertTest(False, None, test)
+
+        sms.text = "this is an email email@foo.bar TODAY!!"
+        self.assertTest(True, "email@foo.bar", test)
+
+        test = ContainsOnlyTest(test=dict(base="resist now"))
         sms.text = " resist NOW "
         self.assertTest(True, "resist NOW", test)
 

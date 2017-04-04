@@ -502,8 +502,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       @operators = [
         { type: 'contains_any', name:'Contains any', verbose_name:'has any of these words', operands: 1, localized:true, show:true }
         { type: 'contains', name: 'Contains all', verbose_name:'has all of the words', operands: 1, localized:true, show:true }
-        { type: 'contains_phrase', name:'Contains Phrase', verbose_name:'contains the phrase', operands: 1, localized:true, show:true }
-        { type: 'matches_exactly', name:'Matches Exactly', verbose_name:'matches exactly', operands: 1, localized:true, show:true }
+        { type: 'contains_only', name:'Contains only', verbose_name:'has only the words', operands: 1, localized:true, show:true }
+        { type: 'contains_phrase', name:'Contains Phrase', verbose_name:'has the phrase', operands: 1, localized:true, show:true }
         { type: 'not_empty', name: 'Not empty', verbose_name:'is not empty', operands: 0, localized:true, show:true }
         { type: 'starts', name: 'Starts with', verbose_name:'starts with', operands: 1, voice:true, localized:true, show:true }
         { type: 'number', name: 'Has a number', verbose_name:'has a number', operands: 0, voice:true, show:true }
@@ -515,6 +515,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'date_before', name: 'Date before', verbose_name:'has a date before', operands: 1, validate:'date', show:true }
         { type: 'date_equal', name: 'Date equal to', verbose_name:'has a date equal to', operands: 1, validate:'date', show:true }
         { type: 'date_after', name: 'Date after', verbose_name:'has a date after', operands: 1, validate:'date', show:true }
+        { type: 'has_email', name: 'Has email', verbose_name:'has an email address', operands: 0, voice:false, show:true }
         { type: 'phone', name: 'Has a phone', verbose_name:'has a phone number', operands: 0, voice:true, show:true }
         { type: 'state', name: 'Has a state', verbose_name:'has a state', operands: 0, show:true }
         { type: 'district', name: 'Has a district', verbose_name:'has a district', operands: 1, auto_complete: true, placeholder:'@flow.state', show:true }
