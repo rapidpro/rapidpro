@@ -1,3 +1,7 @@
+v3.0.103
+----------
+ * Migration to populate FlowNodeCount shouldn't include test contacts
+
 v3.0.102
 ----------
  * Add migration to populate FlowNodeCount
