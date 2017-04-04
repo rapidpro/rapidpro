@@ -1,3 +1,19 @@
+v3.0.100
+----------
+ * Fix intermittently failing Twilio test
+ * make sure calls have expiration on initiation
+ * Update to latest smartmin
+ * Add redirection for v1 endpoints
+ * Fix webhook docs
+ * Fix MsgCreateSerializer not using specified channel
+ * Test coverage
+ * Fix test coverage issues caused by removing API v1 tests
+ * Ensure surveyor users still have access to the API v2 endpoint thats they need
+ * Remove djangorestframework-xml
+ * Restrict API v1 access to surveyor users
+ * Block all API v2 writes for suspended orgs
+ * Remove all parts of API v1 not used by Surveyor
+
 v3.0.99
 ----------
  * Prioritize msg handling over timeotus and event fires
