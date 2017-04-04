@@ -1116,7 +1116,8 @@ class Msg(models.Model):
         # others do in celery
         else:
             on_transaction_commit(lambda: push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
-                                                    dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False)))
+                                                    dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False),
+                                                    priority=HIGH_PRIORITY))
 
     def build_expressions_context(self, contact_context=None):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]

@@ -384,6 +384,10 @@ class Flow(TembaModel):
     def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
         run = FlowRun.objects.filter(session=call, is_active=True).order_by('-created_on').first()
 
+        # set our initial expiration date if we don't have one yet
+        if not run.expires_on:
+            run.update_expiration()
+
         # what we will send back
         voice_response = call.channel.generate_ivr_response()
 
@@ -1470,6 +1474,9 @@ class Flow(TembaModel):
             run = FlowRun.create(self, contact_id, start=flow_start, parent=parent_run)
             if extra:  # pragma: needs cover
                 run.update_fields(extra)
+
+            # set our initial run expiration
+            run.update_expiration()
 
             # create our call objects
             if parent_run and parent_run.session:
@@ -2682,7 +2689,7 @@ class FlowRun(models.Model):
             self.timeout_on = now + timedelta(minutes=minutes)
             self.save(update_fields=['timeout_on', 'modified_on'])
 
-    def update_expiration(self, point_in_time):
+    def update_expiration(self, point_in_time=None):
         """
         Set our expiration according to the flow settings
         """
