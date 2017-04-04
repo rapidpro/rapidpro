@@ -46,7 +46,7 @@ $$ LANGUAGE plpgsql;
 ----------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION temba_reset_system_labels(_label_types CHAR(1)[]) RETURNS VOID AS $$
 BEGIN
-  UPDATE msgs_systemlabelcount SET "count" = 0 WHERE label_type = ANY(_label_types);
+  DELETE FROM msgs_systemlabelcount WHERE label_type = ANY(_label_types);
 END;
 $$ LANGUAGE plpgsql;
 
