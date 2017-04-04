@@ -33,16 +33,24 @@ class Command(BaseCommand):
         destination_dir = options['dir']
         relation_ids = options['relation_ids']
         repo = options['repo']
+        oauth_token = options['oauth_token']
+
+        if oauth_token:
+            headers = {
+                'Authorization': 'token %s' % (oauth_token,)
+            }
+        else:
+            headers = {}
 
         data = requests.get(
             "https://api.github.com/repos/%s/git/trees/master" % (
-                repo,)).json()
+                repo,), headers=headers).json()
         [geojson] = filter(lambda obj: obj['path'] == "geojson", data['tree'])
         geojson_sha = geojson['sha']
 
         files = requests.get(
             'https://api.github.com/repos/%s/git/trees/%s' % (
-                repo, geojson_sha,)).json()
+                repo, geojson_sha,), headers=headers).json()
 
         if not os.path.exists(destination_dir):
             os.makedirs(destination_dir)
@@ -58,5 +66,5 @@ class Command(BaseCommand):
                     response = requests.get(
                         'https://raw.githubusercontent.com/%s/'
                         'master/geojson/%s' % (
-                            repo, relation_file['path']))
+                            repo, relation_file['path']), headers=headers)
                     fp.write(response.content)
