@@ -13,7 +13,8 @@ def do_populate(FlowStep, FlowNodeCount):
 
     counts = []
     for flow_id, node_uuid in nodes:
-        contact_count = FlowStep.objects.filter(step_uuid=node_uuid, left_on=None, run__is_active=True).count()
+        contact_count = FlowStep.objects.filter(step_uuid=node_uuid, left_on=None,
+                                                run__is_active=True, run__contact__is_test=False).count()
 
         FlowNodeCount.objects.filter(flow_id=flow_id, node_uuid=node_uuid).delete()
         counts.append(FlowNodeCount(flow_id=flow_id, node_uuid=node_uuid, count=contact_count))
