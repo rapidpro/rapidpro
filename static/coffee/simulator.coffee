@@ -328,7 +328,7 @@ $("#simulator .send-message").on "click", ->
   # add the progress gif
   if window.ussd and newMessage.length <= 182
     appendMessage newMessage, true
-  else if newMessage.length <= 160
+  else if newMessage.length <= 160 and newMessage.length > 0
     appendMessage newMessage
 
 # send new message on key press (enter)
