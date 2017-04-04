@@ -130,6 +130,28 @@ class APITest(TembaTest):
         response = self.fetchHTML(url)
         self.assertEquals(403, response.status_code)
 
+    def assertRedirect(self, response, url, status_code=302, msg=None):
+        """
+        See https://github.com/nyaruka/smartmin/pull/96
+        """
+        from six.moves.urllib.parse import urlparse
+
+        self.assertEqual(response.status_code, status_code, msg=msg)
+        segments = urlparse(response.get('Location', None))
+        self.assertEqual(segments.path, url, msg=msg)
+
+    def test_redirection(self):
+        self.login(self.admin)
+
+        # check the views which redirect
+        self.assertRedirect(self.client.get('/api/v1/'), '/api/v2/', status_code=301)
+        self.assertRedirect(self.client.get('/api/v1/explorer/'), '/api/v2/explorer/', status_code=301)
+
+        # check some removed endpoints
+        expected_msg = "API v1 no longer exists. Please migrate to API v2. See http://testserver/api/v2/."
+        self.assertContains(self.client.get('/api/v1/messages.json'), expected_msg, status_code=410)
+        self.assertContains(self.client.get('/api/v1/runs.json'), expected_msg, status_code=410)
+
     def test_api_serializer_fields(self):
         dict_field = StringDictField(source='test')
 
