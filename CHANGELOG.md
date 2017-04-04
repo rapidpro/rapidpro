@@ -1,3 +1,7 @@
+v3.0.102
+----------
+ * Add migration to populate FlowNodeCount
+
 v3.0.101
 ----------
  * Migration to clear no-longer-used flow stats redis keys
