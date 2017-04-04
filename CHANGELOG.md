@@ -1,3 +1,10 @@
+v3.0.99
+----------
+ * Prioritize msg handling over timeotus and event fires
+ * Remove hamlcompress command as deployments should use regular compress these days
+ * Fix not correctly refreshing dynamic groups when a URN is removed
+ * Allow searching for contacts *with any* value for a given field
+
 v3.0.98
 ----------
  * Fix sidebar nav LESS so that level2 lists don't have fixed height and separate scrolling
