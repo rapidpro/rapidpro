@@ -16,10 +16,12 @@ app.directive "ussd", [ "$rootScope", "$log", "Flow", "utils", ($rootScope, $log
     scope.ruleset.config.ussd_message ?= {}
     scope.ruleset.config.ussd_message[Flow.flow.base_language] ?= ""
 
-    menu = null
+    isVisible = (rule) ->
+      return Flow.flow.flow_type in rule._config.filter
 
+    menu = null
     do refreshMenu = ->
-      menu = scope.ruleset.rules.filter (rule) -> rule._config.show
+      menu = scope.ruleset.rules.filter (rule) -> isVisible(rule)
 
     updateCategory = (item) ->
       if not item.category._autoName
@@ -36,8 +38,8 @@ app.directive "ussd", [ "$rootScope", "$log", "Flow", "utils", ($rootScope, $log
       refreshMenu()
       if scope.USSD_MENU
         # when we switch back from "wait_ussd", filter out arbitrary rules
-        if (scope.ruleset.rules.filter (rule) -> not rule.label and rule._config.show)
-          scope.ruleset.rules = scope.ruleset.rules.filter (rule) -> rule.label or (not rule.label and not rule._config.show)
+        if (scope.ruleset.rules.filter (rule) -> not rule.label and isVisible(rule))
+          scope.ruleset.rules = scope.ruleset.rules.filter (rule) -> rule.label or (not rule.label and not isVisible(rule))
           refreshMenu()
 
         if menu.length == 0 or menu[menu.length - 1].category?._base != ""
@@ -71,8 +73,7 @@ app.directive "ussd", [ "$rootScope", "$log", "Flow", "utils", ($rootScope, $log
     do scope.countCharacters = ->
       sumMenuItems = (items) ->
         items
-          .filter (rule) ->
-            rule._config.show
+          .filter (rule) -> isVisible(rule)
           .reduce (prev, current) ->
             current.label[Flow.flow.base_language] ?= ""
             prev + current.test._base.toString().length + current.label[Flow.flow.base_language].length + 2 # 1 for space 1 for newline char
