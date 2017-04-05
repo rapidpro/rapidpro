@@ -1578,6 +1578,7 @@ class ContactTest(TembaTest):
         from temba.contacts.templatetags.contacts import activity_icon, history_class
 
         self.assertEquals('non-msg', history_class(call))
+        self.assertEquals('msg', history_class(msg))
 
         call.status = IVRCall.FAILED
         self.assertEquals('non-msg warning', history_class(call))
