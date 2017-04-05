@@ -23,7 +23,7 @@ from temba.utils import dict_to_struct, datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.values.models import Value
 from .management.commands.msg_console import MessageConsole
-from .tasks import squash_label_counts, clear_old_msg_external_ids, purge_broadcasts_task
+from .tasks import squash_labelcounts, clear_old_msg_external_ids, purge_broadcasts_task
 from .templatetags.sms import as_icon
 
 
@@ -1551,7 +1551,7 @@ class LabelTest(TembaTest):
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         # check still correct after squashing
-        squash_label_counts()
+        squash_labelcounts()
         self.assertEqual(label.get_visible_count(), 2)
 
         msg2.archive()  # won't remove label from msg, but msg no longer counts toward visible count
@@ -1997,7 +1997,7 @@ class SystemLabelTest(TembaTest):
         self.assertEqual(SystemLabelCount.objects.all().count(), 25)
 
         # squash our counts
-        squash_label_counts()
+        squash_labelcounts()
 
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 2, SystemLabel.TYPE_FLOWS: 0,
                                                             SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 1,

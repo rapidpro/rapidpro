@@ -342,7 +342,7 @@ def purge_broadcasts_task():
 
 
 @nonoverlapping_task(track_started=True, name="squash_systemlabels")
-def squash_label_counts():
+def squash_labelcounts():
     SystemLabelCount.squash()
     LabelCount.squash()
 
