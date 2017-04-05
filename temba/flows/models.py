@@ -6236,11 +6236,10 @@ class HasEmailTest(Test):
 
     def evaluate(self, run, sms, context, text):
         # split on whitespace
-        match = None
         words = text.split()
         for word in words:
             if is_valid_address(word):
-                return 1, match
+                return 1, word
 
         return 0, None
 
