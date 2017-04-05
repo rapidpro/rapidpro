@@ -158,8 +158,7 @@ class InboxView(OrgPermsMixin, SmartListView):
         context['org'] = org
         context['folders'] = folders
         context['labels'] = Label.get_hierarchy(org)
-        context['has_labels'] = Label.label_objects.filter(org=org).exists()
-        context['has_messages'] = org.has_messages() or self.object_list.exists()
+        context['has_messages'] = any(counts.values())
         context['send_form'] = SendMessageForm(self.request.user)
         context['org_is_purged'] = org.is_purgeable
         context['actions'] = self.actions
