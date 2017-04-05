@@ -55,6 +55,12 @@ class WriteSerializer(serializers.Serializer):
                 'non_field_errors': ["Request body should be a single JSON object"]
             })
 
+        if self.context['org'].is_suspended():
+            raise serializers.ValidationError(detail={
+                'non_field_errors': ["Sorry, your account is currently suspended. "
+                                     "To enable sending messages, please contact support."]
+            })
+
         return super(WriteSerializer, self).run_validation(data)
 
 
@@ -108,10 +114,6 @@ class BroadcastWriteSerializer(WriteSerializer):
     channel = fields.ChannelField(required=False)
 
     def validate(self, data):
-        if self.context['org'].is_suspended():
-            raise serializers.ValidationError("Sorry, your account is currently suspended. "
-                                              "To enable sending messages, please contact support.")
-
         if not (data.get('urns') or data.get('contacts') or data.get('groups')):
             raise serializers.ValidationError("Must provide either urns, contacts or groups")
 

@@ -1133,6 +1133,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if $scope.formData.rulesetConfig
       return $scope.formData.rulesetConfig.type in Flow.supportsRules
 
+  $scope.isRuleVisible = (rule) ->
+    return flow.flow_type in rule._config.filter
+
   $scope.getFlowsUrl = (flow) ->
     url = "/flow/?_format=select2"
     if Flow.flow.flow_type == 'S'
@@ -1226,11 +1229,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         _base: categoryName
 
   $scope.isVisibleOperator = (operator) ->
-    if $scope.formData.rulesetConfig.type == 'wait_digits'
-      if not operator.voice
-        return false
-
-    return operator.show
+    return flow.flow_type in operator.filter
 
   $scope.isVisibleRulesetType = (rulesetConfig) ->
     valid = flow.flow_type in rulesetConfig.filter
@@ -1273,6 +1272,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       categoryName = "state"
     else if op == "phone"
       categoryName = "phone"
+    else if op == "has_email"
+      categoryName = "email"
     else if op == "regex"
       categoryName = "matches"
     else if op == "date"
