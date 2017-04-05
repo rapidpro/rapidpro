@@ -2,8 +2,12 @@ from __future__ import print_function, unicode_literals
 
 from celery.task import task
 from datetime import timedelta
+
+from django.conf import settings
 from django.utils import timezone
 from django_redis import get_redis_connection
+
+from temba.utils.queues import nonoverlapping_task
 from .models import WebHookEvent, WebHookResult, COMPLETE, FAILED, ERRORED, PENDING, FLOW
 
 
@@ -46,3 +50,24 @@ def retry_events_task():  # pragma: no cover
     fifteen_minutes_ago = now - timedelta(minutes=15)
     for event in WebHookEvent.objects.filter(status=ERRORED, modified_on__lte=fifteen_minutes_ago).exclude(event=FLOW):
         deliver_event_task.delay(event.pk)
+
+
+@nonoverlapping_task(track_started=True, name='trim_webhook_event_task')
+def trim_webhook_event_task():
+    """
+    Runs daily and clears any webhoook events older than settings.SUCCESS_LOGS_TRIM_TIME(default: 48) hours.
+    """
+
+    # keep success messages for only SUCCESS_LOGS_TRIM_TIME hours
+    success_logs_trim_time = settings.SUCCESS_LOGS_TRIM_TIME
+
+    # keep errors for 30 days
+    error_logs_trim_time = settings.ERROR_LOGS_TRIM_TIME
+
+    if success_logs_trim_time:
+        two_days_ago = timezone.now() - timedelta(hours=success_logs_trim_time)
+        WebHookEvent.objects.filter(created_on__lte=two_days_ago, status=COMPLETE).delete()
+
+    if error_logs_trim_time:
+        month_ago = timezone.now() - timedelta(hours=error_logs_trim_time)
+        WebHookEvent.objects.filter(created_on__lte=month_ago).delete()
