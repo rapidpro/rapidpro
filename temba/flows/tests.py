@@ -107,12 +107,12 @@ class FlowTest(TembaTest):
         flow = self.create_flow()
 
         flow.start([], [self.contact, self.contact2])
-        self.assertEquals(2, flow.runs.filter(exit_type=None).count())
+        self.assertEqual(flow.runs.filter(exit_type=None).count(), 2)
 
         flow.archive()
 
-        self.assertEquals(0, flow.runs.filter(exit_type=None).count())
-        self.assertEquals(2, flow.runs.filter(exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count())
+        self.assertEqual(flow.runs.filter(exit_type=None).count(), 0)
+        self.assertEqual(flow.runs.filter(exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count(), 2)
 
     def test_flow_get_results_queries(self):
 
