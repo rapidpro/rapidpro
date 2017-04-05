@@ -1,3 +1,7 @@
+v3.0.104
+----------
+ * Add new has email test, contains phrase test and contains only phrase test
+
 v3.0.103
 ----------
  * Migration to populate FlowNodeCount shouldn't include test contacts
