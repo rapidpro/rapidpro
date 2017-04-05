@@ -236,7 +236,7 @@ $$ LANGUAGE plpgsql;
 ----------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION temba_insert_flownodecount(_flow_id INTEGER, _node_uuid UUID, _count INTEGER) RETURNS VOID AS $$
   BEGIN
-    INSERT INTO flows_flowpathcount("flow_id", "node_uuid", "count", "is_squashed")
+    INSERT INTO flows_flownodecount("flow_id", "node_uuid", "count", "is_squashed")
       VALUES(_flow_id, _node_uuid, _count, FALSE);
   END;
 $$ LANGUAGE plpgsql;
