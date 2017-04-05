@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0086_auto_20170331_0827'),
+        ('msgs', '0087_remove_label_visible_count'),
     ]
 
     operations = [

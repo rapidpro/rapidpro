@@ -466,12 +466,14 @@ class MsgCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            # label is either a UUID of a Label instance (36 chars) or a system label type code (1 char)
-            label_id = self.request.GET.get('l')
+            # label is either a UUID of a Label instance (36 chars) or a system label type code (1 char) or none
+            label_id = self.request.GET.get('l', '')
             if len(label_id) == 1:
                 system_label, label = label_id, None
-            else:
+            elif len(label_id) == 36:
                 system_label, label = None, Label.label_objects.get(org=org, uuid=label_id)
+            else:
+                system_label, label = None, None
 
             groups = form.cleaned_data['groups']
             start_date = form.cleaned_data['start_date']

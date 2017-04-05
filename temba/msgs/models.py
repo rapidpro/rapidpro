@@ -1976,8 +1976,8 @@ class ExportMessagesTask(BaseExportTask):
 
     @classmethod
     def create(cls, org, user, system_label=None, label=None, groups=(), start_date=None, end_date=None):
-        if label and system_label or (not label and not system_label):
-            raise ValueError("Must specify one and only one of label and system label")
+        if label and system_label:
+            raise ValueError("Can't specify both label and system label")
 
         export = cls.objects.create(org=org, system_label=system_label, label=label,
                                     start_date=start_date, end_date=end_date,
@@ -2003,8 +2003,10 @@ class ExportMessagesTask(BaseExportTask):
 
         if self.system_label:
             messages = SystemLabel.get_queryset(self.org, self.system_label)
+        elif self.label:
+            messages = self.label.msgs.all()
         else:
-            messages = self.label.messages.all()
+            messages = Msg.get_messages(self.org)
 
         tz = self.org.timezone
 
