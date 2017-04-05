@@ -1132,6 +1132,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if $scope.formData.rulesetConfig
       return $scope.formData.rulesetConfig.type in Flow.supportsRules
 
+  $scope.isRuleVisible = (rule) ->
+    return flow.flow_type in rule._config.filter
+
   $scope.getFlowsUrl = (flow) ->
     url = "/flow/?_format=select2"
     if Flow.flow.flow_type == 'S'

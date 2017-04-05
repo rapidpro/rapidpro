@@ -15,7 +15,7 @@
   %span
     %div{ui-sortable:"sortableOptions",ng-model:"ruleset.rules"}
       .rule{ng-repeat:"item in ruleset.rules"}
-        .ng-form{name:"menuItem", ng-if:'item._config.show'}
+        .ng-form{name:"menuItem", ng-if:'isRuleVisible(item)'}
           .icon.icon-menu
           .ordinals
             %input{ng-model:"item.test._base",type:"text",class:"number",placeholder:"#",number:"true",ng-change:"countCharacters()"}
