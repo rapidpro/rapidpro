@@ -41,5 +41,5 @@ Kigali, Rwanda where it was first developed.
 
 ## Commercial Licensing
 
-If you wish to license RapidPro under a different license, you may contact
-<a href="http://nyaruka.com/#hire">Nyaruka</a> to discuss your options.
+If you wish to license portions of RapidPro under a different license, you may contact
+<a href="http://nyaruka.com/#hire">Nyaruka</a> to discuss options.
