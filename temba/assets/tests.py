@@ -45,7 +45,7 @@ class AssetTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # create contact export and check that we can access it
-        contact_export_task = ExportContactsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
+        contact_export_task = ExportContactsTask.create(self.org, self.admin)
         contact_export_task.perform()
 
         response = self.client.get(reverse('assets.download',

@@ -12,7 +12,7 @@ from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org
 from temba.utils import format_decimal, get_dict_from_cursor, dict_to_json, json_to_dict
 from stop_words import safe_get_stop_words
-
+from django.conf import settings
 
 VALUE_SUMMARY_CACHE_KEY = 'value_summary'
 CONTACT_KEY = 'vsd::vsc%d'
@@ -72,7 +72,7 @@ class Value(models.Model):
     category = models.CharField(max_length=128, null=True,
                                 help_text="The name of the category this value matched in the RuleSet")
 
-    string_value = models.TextField(max_length=640,
+    string_value = models.TextField(max_length=settings.MSG_FIELD_SIZE,
                                     help_text="The string value or string representation of this value")
     decimal_value = models.DecimalField(max_digits=36, decimal_places=8, null=True,
                                         help_text="The decimal value of this value if any.")

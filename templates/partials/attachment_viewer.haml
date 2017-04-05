@@ -1,0 +1,12 @@
+-load i18n
+
+%html
+  %body
+    .modal{class:'[[type]]', data-dismiss:"modal"}
+      .modal-body
+        %button{ng-click:"cancel()", data-dimiss:"modal",type:"button",class:"pull-right close", aria-hidden:"true"}
+          x
+        %a.download-btn.icon.icon-file_download{ng-if:'action._media && action._media.type == "image"', type:"button", class:"pull-right", target:"_self", download:"", href:"[[action._media.url]]"}
+        %img.attachment-media{ng-if:'action._media && action._media.type == "image"', id:'[[action.uuid]]_image', ng-src:'[[action._media.url]]'}
+        %video.attachment-media{ng-if:'action._media && action._media.type == "video"', controls:'', id:'[[action.uuid]]_video', ng-src:'[[action._media.url]]'}
+        %audio.attachment-media{ng-if:'action._media && action._media.type == "audio"', controls:'', id:'[[action.uuid]]_audio', ng-src:'[[action._media.url]]'}

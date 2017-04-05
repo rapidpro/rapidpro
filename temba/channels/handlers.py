@@ -12,13 +12,13 @@ import xml.etree.ElementTree as ET
 
 from datetime import datetime
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from guardian.utils import get_anonymous_user
 from requests import Request
@@ -31,9 +31,9 @@ from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, 
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
 from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit
-from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
+from temba.utils import decode_base64
 from twilio import twiml
 from .tasks import fb_channel_subscribe
 
@@ -45,7 +45,7 @@ class BaseChannelHandler(View):
     url = None
     url_name = None
 
-    @disable_middleware
+    @csrf_exempt
     def dispatch(self, request, *args, **kwargs):
         return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
 
@@ -204,8 +204,7 @@ class TwimlAPIHandler(BaseChannelHandler):
             validator = RequestValidator(client.auth[1])
 
             if not validator.validate(url, request.POST, signature):  # pragma: needs cover
-                # raise an exception that things weren't properly signed
-                raise ValidationError("Invalid request signature")
+                return HttpResponse("Invalid request signature.", status=400)
 
             # queued, sending, sent, failed, or received.
             if status == 'sent':
@@ -234,8 +233,7 @@ class TwimlAPIHandler(BaseChannelHandler):
             validator = RequestValidator(client.auth[1])
 
             if not validator.validate(url, request.POST, signature):
-                # raise an exception that things weren't properly signed
-                raise ValidationError("Invalid request signature")
+                return HttpResponse("Invalid request signature.", status=400)
 
             body = request.POST['Body']
             urn = URN.from_tel(request.POST['From'])
@@ -247,6 +245,8 @@ class TwimlAPIHandler(BaseChannelHandler):
                 Msg.create_incoming(channel, urn, path, media=media_url)
 
             if body:
+                # Twilio sometimes sends concat sms as base64 encoded MMS
+                body = decode_base64(body)
                 Msg.create_incoming(channel, urn, body)
 
             return HttpResponse("", status=201)
@@ -314,8 +314,7 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
             validator = RequestValidator(client.auth[1])
 
             if not validator.validate(url, request.POST, signature):
-                # raise an exception that things weren't properly signed
-                raise ValidationError("Invalid request signature")
+                return HttpResponse("Invalid request signature.", status=400)
 
             Msg.create_incoming(channel, URN.from_tel(request.POST['From']), request.POST['Body'])
 
@@ -1919,9 +1918,14 @@ class JunebugHandler(BaseChannelHandler):
 
     url = r'^junebug/(?P<action>event|inbound)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.junebug_handler'
+    ACK = 'ack'
+    NACK = 'nack'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=400)
+
+    def is_ussd_message(self, msg):
+        return 'session_event' in msg.get('channel_data', {})
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
@@ -1929,37 +1933,35 @@ class JunebugHandler(BaseChannelHandler):
         action = kwargs['action'].lower()
         request_uuid = kwargs['uuid']
 
+        data = json.load(request)
+        is_ussd = self.is_ussd_message(data)
+        channel_data = data.get('channel_data', {})
+        channel_types = (Channel.TYPE_JUNEBUG_USSD, Channel.TYPE_JUNEBUG)
+
         # look up the channel
         channel = Channel.objects.filter(
             uuid=request_uuid,
             is_active=True,
-            channel_type=Channel.TYPE_JUNEBUG).exclude(org=None).first()
+            channel_type__in=channel_types).exclude(org=None).first()
 
         if not channel:
-            return HttpResponse(
-                "Channel not found for id: %s" % request_uuid, status=400)
-
-        data = json.load(request)
+            return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
         # Junebug is sending an event
         if action == 'event':
             expected_keys = ["event_type", "message_id", "timestamp"]
             if not set(expected_keys).issubset(data.keys()):
-                return HttpResponse(
-                    "Missing one of %s in request parameters." % (
-                        ', '.join(expected_keys)), status=400)
+                return HttpResponse("Missing one of %s in request parameters." % (', '.join(expected_keys)),
+                                    status=400)
 
             message_id = data['message_id']
             event_type = data["event_type"]
 
             # look up the message
-            message = Msg.objects.filter(
-                channel=channel, external_id=message_id
-            ).select_related('channel')
+            message = Msg.objects.filter(channel=channel, external_id=message_id).select_related('channel')
             if not message:
-                return HttpResponse(
-                    "Message with external id of '%s' not found" % message_id,
-                    status=400)
+                return HttpResponse("Message with external id of '%s' not found" % message_id,
+                                    status=400)
 
             if event_type == 'submitted':
                 for message_obj in message:
@@ -1972,7 +1974,10 @@ class JunebugHandler(BaseChannelHandler):
                     message_obj.status_fail()
 
             # Let Junebug know we're happy
-            return HttpResponse('OK')
+            return JsonResponse({
+                'status': self.ACK,
+                'message_ids': [message_obj.pk for message_obj in message]
+            })
 
         # Handle an inbound message
         elif action == 'inbound':
@@ -1988,15 +1993,41 @@ class JunebugHandler(BaseChannelHandler):
             ]
             if not set(expected_keys).issubset(data.keys()):
                 return HttpResponse(
-                    "Missing one of %s in request parameters." % (
-                        ', '.join(expected_keys)), status=400)
+                    "Missing one of %s in request parameters." % (', '.join(expected_keys)),
+                    status=400)
 
-            content = data['content']
-            message = Msg.create_incoming(
-                channel, URN.from_tel(data['from']), content)
-            Msg.objects.filter(pk=message.id).update(
-                external_id=data['message_id'])
-            return HttpResponse('OK')
+            if is_ussd:
+                status = {
+                    'close': USSDSession.INTERRUPTED,
+                    'new': USSDSession.TRIGGERED,
+                }.get(channel_data.get('session_event'), USSDSession.IN_PROGRESS)
+
+                message_date = datetime.strptime(data['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
+                gmt_date = pytz.timezone('GMT').localize(message_date)
+                session_id = '%s.%s' % (data['from'], gmt_date.toordinal())
+
+                session = USSDSession.handle_incoming(channel=channel, urn=data['from'], content=data['content'],
+                                                      status=status, date=gmt_date, external_id=session_id,
+                                                      message_id=data['message_id'], starcode=data['to'])
+
+                if session:
+                    return JsonResponse({
+                        'status': self.ACK,
+                        'session_id': session.pk,
+                    })
+                else:
+                    return JsonResponse({
+                        'status': self.NACK,
+                        'reason': 'No suitable session found for this message.'
+                    }, status=400)
+            else:
+                content = data['content']
+                message = Msg.create_incoming(channel, URN.from_tel(data['from']), content)
+                Msg.objects.filter(pk=message.id).update(external_id=data['message_id'])
+                return JsonResponse({
+                    'status': self.ACK,
+                    'message_id': message.pk,
+                })
 
 
 class MbloxHandler(BaseChannelHandler):
@@ -2616,18 +2647,30 @@ class ViberPublicHandler(BaseChannelHandler):
             message_type = message['type']
             if message_type == 'text':
                 # "text": "a message from pa"
-                text = message['text']
+                text = message.get('text', None)
 
-            elif message_type == 'picture':  # pragma: needs cover
+            elif message_type == 'picture':
                 # "media": "http://www.images.com/img.jpg"
                 caption = message.get('text')
-                media = '%s:%s' % (Msg.MEDIA_IMAGE, channel.org.download_and_save_media(Request('GET', message['media'])))
+                if message.get('media', None):  # pragma: needs cover
+                    media = '%s:%s' % (Msg.MEDIA_IMAGE, channel.org.download_and_save_media(Request('GET',
+                                                                                                    message['media'])))
+                else:
+                    # not media then make it the caption and ignore the caption
+                    media = caption
+                    caption = None
                 text = media
 
-            elif message_type == 'video':  # pragma: needs cover
+            elif message_type == 'video':
                 caption = message.get('text')
                 # "media": "http://www.images.com/video.mp4"
-                media = '%s:%s' % (Msg.MEDIA_VIDEO, channel.org.download_and_save_media(Request('GET', message['media'])))
+                if message.get('media', None):  # pragma: needs cover
+                    media = '%s:%s' % (Msg.MEDIA_VIDEO, channel.org.download_and_save_media(Request('GET',
+                                                                                                    message['media'])))
+                else:
+                    # not media then make it the caption and ignore the caption
+                    media = caption
+                    caption = None
                 text = media
 
             elif message_type == 'contact':
@@ -2648,6 +2691,9 @@ class ViberPublicHandler(BaseChannelHandler):
 
             else:  # pragma: needs cover
                 return HttpResponse("Unknown message type: %s" % message_type, status=400)
+
+            if text is None:
+                return HttpResponse("Missing 'text' key in 'message' in request_body.", status=400)
 
             # get or create our contact with any name sent in
             urn = URN.from_viber(body['sender']['id'])

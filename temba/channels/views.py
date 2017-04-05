@@ -25,6 +25,7 @@ from django.db import transaction
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
+from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django_countries.data import COUNTRIES
@@ -38,7 +39,6 @@ from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin, AnonMixin
 from temba.channels.models import ChannelSession
 from temba.utils import analytics, on_transaction_commit
-from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import timezone_to_country_code
 from twilio import TwilioRestException
 from twython import Twython
@@ -527,6 +527,7 @@ def channel_status_processor(request):
         cutoff = timezone.now() - timedelta(hours=1)
         send_channel = org.get_send_channel(scheme=TEL_SCHEME)
         call_channel = org.get_call_channel()
+        ussd_channel = org.get_ussd_channel()
 
         # twitter is a suitable sender
         if not send_channel:
@@ -546,8 +547,8 @@ def channel_status_processor(request):
 
         status['send_channel'] = send_channel
         status['call_channel'] = call_channel
-        status['has_outgoing_channel'] = send_channel or call_channel
-        status['is_ussd_channel'] = send_channel.is_ussd() if send_channel else False
+        status['has_outgoing_channel'] = send_channel or call_channel or ussd_channel
+        status['is_ussd_channel'] = True if ussd_channel else False
 
         channels = org.channels.filter(is_active=True)
         for channel in channels:
@@ -615,7 +616,7 @@ def get_commands(channel, commands, sync_event=None):
     return commands
 
 
-@disable_middleware
+@csrf_exempt
 def sync(request, channel_id):
     start = time.time()
 
@@ -772,7 +773,7 @@ def sync(request, channel_id):
     return JsonResponse(result)
 
 
-@disable_middleware
+@csrf_exempt
 def register(request):
     """
     Endpoint for Android devices registering with this server
@@ -1707,12 +1708,17 @@ class ChannelCRUDL(SmartCRUDL):
 
     class ClaimJunebug(ClaimAuthenticatedExternal):
         class JunebugForm(forms.Form):
+            channel_type = forms.ChoiceField(choices=((Channel.TYPE_JUNEBUG, 'SMS'),
+                                                      (Channel.TYPE_JUNEBUG_USSD, 'USSD')),
+                                             widget=forms.RadioSelect,
+                                             label=_('Channel Type'),
+                                             help_text=_('The type of channel you are wanting to connect.'))
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
                                         help_text=_("The country this phone number is used in"))
             number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
                                      help_text=("The shortcode or phone number you are connecting."))
             url = forms.URLField(label=_("URL"),
-                                 help_text=_("The URL for the Junebug channel. ex: https://junebug.praekelt.org/jb/channels/3853bb51-d38a-4bca-b332-8a57c00f2a48"))
+                                 help_text=_("The URL for the Junebug channel. ex: https://junebug.praekelt.org/jb/channels/3853bb51-d38a-4bca-b332-8a57c00f2a48/messages.json"))
             username = forms.CharField(label=_("Username"),
                                        help_text=_("The username to be used to authenticate to Junebug"),
                                        required=False)
@@ -1721,9 +1727,26 @@ class ChannelCRUDL(SmartCRUDL):
                                        required=False)
 
         title = _("Connect Junebug")
-        channel_type = Channel.TYPE_JUNEBUG
         form_class = JunebugForm
-        fields = ('country', 'number', 'url', 'username', 'password')
+        fields = ('channel_type', 'country', 'number', 'url', 'username', 'password')
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+            data = form.cleaned_data
+
+            if data['channel_type'] == Channel.TYPE_JUNEBUG_USSD:
+                role = Channel.ROLE_USSD
+            else:
+                role = Channel.DEFAULT_ROLE
+
+            self.object = Channel.add_authenticated_external_channel(org, self.request.user,
+                                                                     self.get_submitted_country(data),
+                                                                     data['number'], data['username'],
+                                                                     data['password'], data['channel_type'],
+                                                                     data.get('url'),
+                                                                     role=role)
+
+            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
     class ClaimMblox(ClaimAuthenticatedExternal):
         class MBloxForm(forms.Form):
@@ -1977,6 +2000,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         title = _("Connect Vumi")
         channel_type = Channel.TYPE_VUMI
+        channel_role = Channel.DEFAULT_ROLE
         form_class = VumiClaimForm
         fields = ('country', 'number', 'account_key', 'conversation_key', 'api_url')
 
@@ -1997,12 +2021,14 @@ class ChannelCRUDL(SmartCRUDL):
                                                               dict(account_key=data['account_key'],
                                                                    access_token=str(uuid4()),
                                                                    conversation_key=data['conversation_key'],
-                                                                   api_url=api_url))
+                                                                   api_url=api_url),
+                                                              role=self.channel_role)
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
     class ClaimVumiUssd(ClaimVumi):
         channel_type = Channel.TYPE_VUMI_USSD
+        channel_role = Channel.ROLE_USSD
 
     class ClaimClickatell(ClaimAuthenticatedExternal):
         class ClickatellForm(forms.Form):

@@ -132,7 +132,7 @@ a:hover.clear-link {
   -moz-transform: rotate(-90deg);
   -ms-transform: rotate(-90deg);
   -o-transform: rotate(-90deg);
-  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=3);
+  filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=3)";
 }
 
 .float-left {
@@ -1601,7 +1601,7 @@ input[type='text'].search-query {
 
 #sidebar-nav {
   border: 1px solid #e6e6e6;
-  .nav.nav-list {
+  .nav.nav-list:not(.level2) {
     .scroll-y();
     height: 450px;
     li {
@@ -3021,6 +3021,9 @@ span.label a {
   -webkit-transition: -webkit-transform 400ms;
 }
 
+img.image-full.featherlight-inner {
+  max-height: 80%;
+}
 // *****************************************************
 // NOTE NOTE NOTE NOTE!!
 //

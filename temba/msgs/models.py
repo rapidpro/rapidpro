@@ -24,7 +24,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SC
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
@@ -63,6 +63,7 @@ OUTGOING = 'O'
 INBOX = 'I'
 FLOW = 'F'
 IVR = 'V'
+USSD = 'U'
 
 MSG_SENT_KEY = 'msgs_sent_%y_%m_%d'
 
@@ -183,7 +184,7 @@ class Broadcast(models.Model):
     recipient_count = models.IntegerField(verbose_name=_("Number of recipients"), null=True,
                                           help_text=_("Number of urns which received this broadcast"))
 
-    text = models.TextField(max_length=640, verbose_name=_("Text"),
+    text = models.TextField(max_length=settings.MSG_FIELD_SIZE, verbose_name=_("Text"),
                             help_text=_("The message to send out"))
 
     channel = models.ForeignKey(Channel, null=True, verbose_name=_("Channel"),
@@ -220,9 +221,13 @@ class Broadcast(models.Model):
     purged = models.BooleanField(default=False,
                                  help_text="If the messages for this broadcast have been purged")
 
+    media_dict = models.TextField(verbose_name=_("Media"),
+                                  help_text=_("The localized versions of the media"), null=True)
+
     @classmethod
-    def create(cls, org, user, text, recipients, channel=None, **kwargs):
-        create_args = dict(org=org, text=text, channel=channel, created_by=user, modified_by=user)
+    def create(cls, org, user, text, recipients, channel=None, media_dict=None, **kwargs):
+        create_args = dict(org=org, text=text, channel=channel, media_dict=media_dict, created_by=user,
+                           modified_by=user)
         create_args.update(kwargs)
         broadcast = Broadcast.objects.create(**create_args)
         broadcast.update_recipients(recipients)
@@ -380,6 +385,11 @@ class Broadcast(models.Model):
             return []
         return get_cacheable_attr(self, '_translations', lambda: json.loads(self.language_dict))
 
+    def get_media_translations(self):
+        if not self.media_dict:
+            return dict()
+        return get_cacheable_attr(self, '_media_translations', lambda: json.loads(self.media_dict))
+
     def get_translated_text(self, contact, org=None):
         """
         Gets the appropriate translation for the given contact. base_language may be provided
@@ -387,6 +397,14 @@ class Broadcast(models.Model):
         translations = self.get_translations()
         preferred_languages = self.get_preferred_languages(contact, self.base_language, org)
         return Language.get_localized_text(translations, preferred_languages, self.text)
+
+    def get_translated_media(self, contact, org=None):
+        """
+        Gets the appropriate media for the given contact. base_language may be provided
+        """
+        media_translations = self.get_media_translations()
+        preferred_languages = self.get_preferred_languages(contact, self.base_language, org)
+        return Language.get_localized_text(media_translations, preferred_languages, None)
 
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
              created_on=None, partial_recipients=None, run_map=None):
@@ -440,6 +458,14 @@ class Broadcast(models.Model):
             # get the appropriate translation for this contact
             text = self.get_translated_text(contact)
 
+            media = self.get_translated_media(contact)
+            if media:
+                media_type, media_url = media.split(':')
+
+                # if we have a localized media, create the url
+                if media_url:
+                    media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
+
             # add in our parent context if the message references @parent
             if run_map:
                 run = run_map.get(recipient.pk, None)
@@ -465,6 +491,7 @@ class Broadcast(models.Model):
                                           status=status,
                                           msg_type=msg_type,
                                           insert_object=False,
+                                          media=media,
                                           priority=priority,
                                           created_on=created_on)
 
@@ -583,7 +610,8 @@ class Msg(models.Model):
 
     MSG_TYPES = ((INBOX, _("Inbox Message")),
                  (FLOW, _("Flow Message")),
-                 (IVR, _("IVR Message")))
+                 (IVR, _("IVR Message")),
+                 (USSD, _("USSD Message")))
 
     MEDIA_GPS = 'geo'
     MEDIA_IMAGE = 'image'
@@ -595,6 +623,8 @@ class Msg(models.Model):
     PRIORITY_HIGH = 1000
     PRIORITY_NORMAL = 500
     PRIORITY_BULK = 100
+
+    MAX_SIZE = settings.MSG_FIELD_SIZE
 
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))
@@ -615,7 +645,7 @@ class Msg(models.Model):
                                   related_name='msgs', verbose_name=_("Broadcast"),
                                   help_text=_("If this message was sent to more than one recipient"))
 
-    text = models.TextField(max_length=640, verbose_name=_("Text"),
+    text = models.TextField(max_length=MAX_SIZE, verbose_name=_("Text"),
                             help_text=_("The actual message content that was sent"))
 
     priority = models.IntegerField(default=PRIORITY_NORMAL,
@@ -702,14 +732,14 @@ class Msg(models.Model):
                 # update them to queued
                 send_messages = Msg.objects.filter(id__in=msg_ids)\
                                            .exclude(channel__channel_type=Channel.TYPE_ANDROID)\
-                                           .exclude(msg_type=IVR)\
+                                           .exclude(msg_type__in=(IVR, USSD))\
                                            .exclude(topup=None)\
                                            .exclude(contact__is_test=True)
                 send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
 
                 # now push each onto our queue
                 for msg in msgs:
-                    if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and \
+                    if (msg.msg_type != IVR and msg.msg_type != USSD and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and \
                             msg.topup and not msg.contact.is_test:
 
                         # if this is a different contact than our last, and we have msgs for that last contact, queue the task
@@ -909,6 +939,14 @@ class Msg(models.Model):
         else:
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
+    @classmethod
+    def get_media(cls, msg):
+        if msg.media:
+            parts = msg.media.split(':', 1)
+            if len(parts) == 2:
+                return parts
+        return None, None
+
     def as_json(self):
         return dict(direction=self.direction,
                     text=self.text,
@@ -1024,9 +1062,10 @@ class Msg(models.Model):
     def is_media_type_image(self):
         return Msg.MEDIA_IMAGE == self.get_media_type()
 
-    def reply(self, text, user, trigger_send=False, message_context=None, session=None):
+    def reply(self, text, user, trigger_send=False, message_context=None, session=None, media=None, msg_type=None):
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None, session=session)
+                                 response_to=self if self.id else None, session=session, media=media,
+                                 msg_type=msg_type or self.msg_type)
 
     def update(self, cmd):
         """
@@ -1076,16 +1115,16 @@ class Msg(models.Model):
 
         # others do in celery
         else:
-            push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
-                      dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False))
+            on_transaction_commit(lambda: push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
+                                                    dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False)))
 
-    def build_message_context(self):
+    def build_expressions_context(self, contact_context=None):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
 
         return {
             '__default__': self.text,
             'value': self.text,
-            'contact': self.contact.build_message_context(),
+            'contact': contact_context or self.contact.build_expressions_context(),
             'time': datetime_to_str(self.created_on, format=date_format, tz=self.org.timezone)
         }
 
@@ -1143,7 +1182,7 @@ class Msg(models.Model):
                     text=self.text, urn_path=self.contact_urn.path,
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
-                    status=self.status, direction=self.direction,
+                    status=self.status, direction=self.direction, media=self.media,
                     external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
                     created_on=self.created_on, modified_on=self.modified_on)
@@ -1198,9 +1237,11 @@ class Msg(models.Model):
         elif not contact.is_test:
             (topup_id, amount) = org.decrement_credit()
 
-        # we limit text messages to 640 characters
+        # we limit our text message length
         if text:
-            text = text[:640]
+            text = text[:Msg.MAX_SIZE]
+
+        now = timezone.now()
 
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,
@@ -1208,9 +1249,9 @@ class Msg(models.Model):
                         channel=channel,
                         text=text,
                         sent_on=date,
-                        created_on=timezone.now(),
-                        modified_on=timezone.now(),
-                        queued_on=timezone.now(),
+                        created_on=now,
+                        modified_on=now,
+                        queued_on=now,
                         direction=INCOMING,
                         msg_type=msg_type,
                         media=media,
@@ -1240,8 +1281,7 @@ class Msg(models.Model):
         return msg
 
     @classmethod
-    def substitute_variables(cls, text, contact, message_context,
-                             org=None, url_encode=False, partial_vars=False):
+    def substitute_variables(cls, text, context, contact=None, org=None, url_encode=False, partial_vars=False):
         """
         Given input ```text```, tries to find variables in the format @foo.bar and replace them according to
         the passed in context, contact and org. If some variables are not resolved to values, then the variable
@@ -1253,12 +1293,13 @@ class Msg(models.Model):
         if not text or text.find('@') < 0:
             return text, []
 
+        # a provided contact overrides the run contact, e.g. sending to a different contact
         if contact:
-            message_context['contact'] = contact.build_message_context()
+            context['contact'] = contact.build_expressions_context()
 
         # add 'step.contact' if it isn't already populated (like in flow batch starts)
-        if 'step' not in message_context or 'contact' not in message_context['step']:
-            message_context['step'] = dict(contact=message_context['contact'])
+        if 'step' not in context or 'contact' not in context['step']:
+            context['step'] = dict(contact=context['contact'])
 
         if not org:
             dayfirst = True
@@ -1269,17 +1310,18 @@ class Msg(models.Model):
 
         (format_date, format_time) = get_datetime_format(dayfirst)
 
-        date_context = dict()
-        date_context['__default__'] = datetime_to_str(timezone.now(), format=format_time, tz=tz)
-        date_context['now'] = datetime_to_str(timezone.now(), format=format_time, tz=tz)
-        date_context['today'] = datetime_to_str(timezone.now(), format=format_date, tz=tz)
-        date_context['tomorrow'] = datetime_to_str(timezone.now() + timedelta(days=1), format=format_date, tz=tz)
-        date_context['yesterday'] = datetime_to_str(timezone.now() - timedelta(days=1), format=format_date, tz=tz)
+        date_context = {
+            '__default__': datetime_to_str(timezone.now(), format=format_time, tz=tz),
+            'now': datetime_to_str(timezone.now(), format=format_time, tz=tz),
+            'today': datetime_to_str(timezone.now(), format=format_date, tz=tz),
+            'tomorrow': datetime_to_str(timezone.now() + timedelta(days=1), format=format_date, tz=tz),
+            'yesterday': datetime_to_str(timezone.now() - timedelta(days=1), format=format_date, tz=tz)
+        }
 
-        message_context['date'] = date_context
+        context['date'] = date_context
 
         date_style = DateStyle.DAY_FIRST if dayfirst else DateStyle.MONTH_FIRST
-        context = EvaluationContext(message_context, tz, date_style)
+        context = EvaluationContext(context, tz, date_style)
 
         # returns tuple of output and errors
         return evaluate_template(text, context, url_encode, partial_vars)
@@ -1287,13 +1329,18 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
-                        media=None, topup_id=None, msg_type=INBOX, session=None):
+                        media=None, topup_id=None, msg_type=INBOX, session=None, role=None):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
 
         # for IVR messages we need a channel that can call
-        role = Channel.ROLE_CALL if msg_type == IVR else Channel.ROLE_SEND
+        if msg_type == IVR:
+            role = Channel.ROLE_CALL
+        elif msg_type == USSD:
+            role = Channel.ROLE_USSD
+        else:
+            role = Channel.ROLE_SEND
 
         if status != SENT:
             # if message will be sent, resolve the recipient to a contact and URN
@@ -1305,6 +1352,8 @@ class Msg(models.Model):
             if not channel:
                 if msg_type == IVR:
                     channel = org.get_call_channel()
+                elif msg_type == USSD:
+                    channel = org.get_ussd_channel(contact_urn=contact_urn)
                 else:
                     channel = org.get_send_channel(contact_urn=contact_urn)
 
@@ -1324,9 +1373,9 @@ class Msg(models.Model):
 
         # make sure 'channel' is populated if we have a channel
         if channel:
-            message_context['channel'] = channel.build_message_context()
+            message_context['channel'] = channel.build_expressions_context()
 
-        (text, errors) = Msg.substitute_variables(text, contact, message_context, org=org)
+        (text, errors) = Msg.substitute_variables(text, message_context, contact=contact, org=org)
 
         # if we are doing a single message, check whether this might be a loop of some kind
         if insert_object:

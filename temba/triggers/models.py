@@ -141,6 +141,17 @@ class Trigger(SmartModel):
             matches.exclude(id=self.id).update(is_archived=True, modified_on=now, modified_by=user)
 
     @classmethod
+    def archive_triggers_for_contact(cls, contact):
+        contact_triggers = list(contact.trigger_set.all())
+
+        for trigger in contact_triggers:
+            trigger.contacts.remove(contact)
+
+            if not trigger.groups.exists() and not trigger.contacts.exists():
+                trigger.is_archived = True
+                trigger.save()
+
+    @classmethod
     def import_triggers(cls, exported_json, org, user, same_site=False):
         """
         Import triggers from our export file
@@ -245,6 +256,7 @@ class Trigger(SmartModel):
 
         # only fire the first matching trigger
         if triggers:
+            contact.ensure_unstopped()
             triggers[0].flow.start([], [contact], start_msg=start_msg, restart_participants=True, extra=extra)
 
         return bool(triggers)
@@ -293,6 +305,8 @@ class Trigger(SmartModel):
             trigger.last_triggered = msg.created_on
             trigger.trigger_count += 1
             trigger.save()
+
+        contact.ensure_unstopped()
 
         # if we have an associated flow, start this contact in it
         trigger.flow.start([], [contact], start_msg=msg, restart_participants=True)
@@ -356,7 +370,8 @@ class Trigger(SmartModel):
 
         # for any new convo triggers, clear out the call to action payload
         for trigger in triggers.filter(trigger_type=Trigger.TYPE_NEW_CONVERSATION):
-            trigger.channel.set_fb_call_to_action_payload(None)
+            if trigger.channel and trigger.channel.channel_type == Channel.TYPE_FACEBOOK:
+                trigger.channel.set_fb_call_to_action_payload(None)
 
         return [each_trigger.pk for each_trigger in triggers]
 

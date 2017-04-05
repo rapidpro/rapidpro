@@ -2,6 +2,8 @@ from __future__ import print_function, unicode_literals
 
 import json
 import logging
+from uuid import uuid4
+
 import regex
 import six
 import traceback
@@ -352,7 +354,8 @@ class PartialTemplate(SmartTemplateView):  # pragma: no cover
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'simulate', 'export_results',
                'upload_action_recording', 'read', 'editor', 'results', 'run_table', 'json', 'broadcast', 'activity',
-               'activity_chart', 'filter', 'campaign', 'completion', 'revisions', 'recent_messages')
+               'activity_chart', 'filter', 'campaign', 'completion', 'revisions', 'recent_messages',
+               'upload_media_action')
 
     model = Flow
 
@@ -650,6 +653,19 @@ class FlowCRUDL(SmartCRUDL):
             flow = self.get_object()
             return default_storage.save('recordings/%d/%d/steps/%s.wav' % (flow.org.pk, flow.id, action_uuid), file)
 
+    class UploadMediaAction(OrgPermsMixin, SmartUpdateView):
+        def post(self, request, *args, **kwargs):
+            generated_uuid = six.text_type(uuid4())
+            path = self.save_media_upload(self.request.FILES['file'], self.request.POST.get('actionset'),
+                                          generated_uuid)
+            return JsonResponse(dict(path=path))
+
+        def save_media_upload(self, file, actionset_id, name_uuid):
+            flow = self.get_object()
+            extension = file.name.split('.')[-1]
+            return default_storage.save('attachments/%d/%d/steps/%s.%s' % (flow.org.pk, flow.id, name_uuid, extension),
+                                        file)
+
     class BaseList(FlowActionMixin, OrgQuerysetMixin, OrgPermsMixin, SmartListView):
         title = _("Flows")
         refresh = 10000
@@ -907,6 +923,7 @@ class FlowCRUDL(SmartCRUDL):
             if start.exists() and start[0].status in [FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING]:  # pragma: needs cover
                 starting = True
             context['starting'] = starting
+            context['has_ussd_channel'] = True if org and org.get_ussd_channel() else False
 
             return context
 
@@ -963,7 +980,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Editor, self).get_context_data(*args, **kwargs)
 
-            context['media_url'] = 'https://%s/' % settings.AWS_BUCKET_DOMAIN
+            context['media_url'] = '%s://%s/' % ('http' if settings.DEBUG else 'https', settings.AWS_BUCKET_DOMAIN)
 
             # are there pending starts?
             starting = False
@@ -1349,7 +1366,7 @@ class FlowCRUDL(SmartCRUDL):
                             status = USSDSession.INTERRUPTED
                         else:
                             status = None
-                        USSDSession.handle_incoming(test_contact.org.get_send_channel(contact_urn=test_contact.get_urn(TEL_SCHEME)),
+                        USSDSession.handle_incoming(test_contact.org.get_ussd_channel(contact_urn=test_contact.get_urn(TEL_SCHEME)),
                                                     test_contact.get_urn(TEL_SCHEME).path,
                                                     content=new_message,
                                                     date=timezone.now(),
@@ -1455,6 +1472,9 @@ class FlowCRUDL(SmartCRUDL):
             restart_participants = forms.BooleanField(label=_("Restart Participants"), required=False, initial=False,
                                                       help_text=_("Restart any contacts already participating in this flow"))
 
+            include_active = forms.BooleanField(label=_("Include Active Contacts"), required=False, initial=False,
+                                                help_text=_("Include contacts currently active in a flow"))
+
             def clean_omnibox(self):
                 starting = self.cleaned_data['omnibox']
                 if not starting['groups'] and not starting['contacts']:  # pragma: needs cover
@@ -1476,10 +1496,10 @@ class FlowCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Flow
-                fields = ('omnibox', 'restart_participants')
+                fields = ('omnibox', 'restart_participants', 'include_active')
 
         form_class = BroadcastForm
-        fields = ('omnibox', 'restart_participants')
+        fields = ('omnibox', 'restart_participants', 'include_active')
         success_message = ''
         submit_button_name = _("Add Contacts to Flow")
         success_url = 'uuid@flows.flow_editor'
@@ -1511,7 +1531,8 @@ class FlowCRUDL(SmartCRUDL):
             # activate all our contacts
             flow.async_start(self.request.user,
                              list(omnibox['groups']), list(omnibox['contacts']),
-                             restart_participants=form.cleaned_data['restart_participants'])
+                             restart_participants=form.cleaned_data['restart_participants'],
+                             include_active=form.cleaned_data['include_active'])
             return flow
 
 

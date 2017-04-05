@@ -96,9 +96,6 @@ class WebHookTest(TembaTest):
         super(WebHookTest, self).tearDown()
         settings.SEND_WEBHOOKS = False
 
-    def assertStringContains(self, test, str):
-        self.assertTrue(str.find(test) >= 0, "'%s' not found in '%s'" % (test, str))
-
     def setupChannel(self):
         org = self.channel.org
         org.webhook = u'{"url": "http://fake.com/webhook.php"}'
@@ -145,8 +142,8 @@ class WebHookTest(TembaTest):
             self.assertFalse(event.next_attempt)
 
             result = WebHookResult.objects.get()
-            self.assertStringContains("Event delivered successfully", result.message)
-            self.assertStringContains("not JSON", result.message)
+            self.assertIn("Event delivered successfully", result.message)
+            self.assertIn("not JSON", result.message)
             self.assertEquals(200, result.status_code)
             self.assertEquals("Hello World", result.body)
 
@@ -205,7 +202,7 @@ class WebHookTest(TembaTest):
             self.assertFalse(event.next_attempt)
 
             result = WebHookResult.objects.get()
-            self.assertStringContains("Event delivered successfully", result.message)
+            self.assertIn("Event delivered successfully", result.message)
             self.assertEquals(200, result.status_code)
             self.assertEquals("", result.body)
 
@@ -255,22 +252,25 @@ class WebHookTest(TembaTest):
             self.assertFalse(event.next_attempt)
 
             result = WebHookResult.objects.get()
-            self.assertStringContains("successfully", result.message)
+            self.assertIn("successfully", result.message)
             self.assertEquals(200, result.status_code)
 
             self.assertTrue(mock.called)
 
             args = mock.call_args_list[0][0]
             prepared_request = args[0]
-            self.assertStringContains(self.channel.org.get_webhook_url(), prepared_request.url)
+            self.assertIn(self.channel.org.get_webhook_url(), prepared_request.url)
 
             data = parse_qs(prepared_request.body)
-            self.assertEquals(self.channel.pk, int(data['channel'][0]))
-            self.assertEquals(actionset.uuid, data['step'][0])
-            self.assertEquals(flow.pk, int(data['flow'][0]))
-            self.assertEquals(self.joe.uuid, data['contact'][0])
-            self.assertEquals(self.joe.name, data['contact_name'][0])
-            self.assertEquals(six.text_type(self.joe.get_urn('tel')), data['urn'][0])
+
+            self.assertEqual(data['channel'], [str(self.channel.id)])
+            self.assertEqual(data['channel_uuid'], [self.channel.uuid])
+            self.assertEqual(data['step'], [actionset.uuid])
+            self.assertEqual(data['flow'], [str(flow.id)])
+            self.assertEqual(data['flow_uuid'], [flow.uuid])
+            self.assertEqual(data['contact'], [self.joe.uuid])
+            self.assertEqual(data['contact_name'], [self.joe.name])
+            self.assertEqual(data['urn'], [six.text_type(self.joe.get_urn('tel'))])
 
             values = json.loads(data['values'][0])
 
@@ -279,6 +279,34 @@ class WebHookTest(TembaTest):
             self.assertEquals('Mauve', values[0]['text'])
             self.assertTrue(values[0]['time'])
             self.assertTrue(data['time'])
+
+    @patch('temba.api.models.time.time')
+    def test_webhook_result_timing(self, mock_time):
+        mock_time.side_effect = [1, 1, 1, 6, 6]
+
+        sms = self.create_msg(contact=self.joe, direction='I', status='H', text="I'm gonna pop some tags")
+        self.setupChannel()
+        now = timezone.now()
+
+        with patch('requests.Session.send') as mock:
+            mock.return_value = MockResponse(200, "Hello World")
+
+            # trigger an event
+            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            event = WebHookEvent.objects.get()
+
+            self.assertEquals('C', event.status)
+            self.assertEquals(1, event.try_count)
+            self.assertFalse(event.next_attempt)
+
+            result = WebHookResult.objects.get()
+            self.assertIn("Event delivered successfully", result.message)
+            self.assertIn("not JSON", result.message)
+            self.assertEquals(200, result.status_code)
+            self.assertEqual(result.request_time, 5000)
+
+            self.assertTrue(mock_time.called)
+            self.assertTrue(mock.called)
 
     def test_event_deliveries(self):
         sms = self.create_msg(contact=self.joe, direction='I', status='H', text="I'm gonna pop some tags")
@@ -324,7 +352,7 @@ class WebHookTest(TembaTest):
             self.assertFalse(event.next_attempt)
 
             result = WebHookResult.objects.get()
-            self.assertStringContains("No active user", result.message)
+            self.assertIn("No active user", result.message)
             self.assertEquals(0, result.status_code)
 
             self.assertFalse(mock.called)
@@ -349,8 +377,8 @@ class WebHookTest(TembaTest):
             self.assertFalse(event.next_attempt)
 
             result = WebHookResult.objects.get()
-            self.assertStringContains("Event delivered successfully", result.message)
-            self.assertStringContains("not JSON", result.message)
+            self.assertIn("Event delivered successfully", result.message)
+            self.assertIn("not JSON", result.message)
             self.assertEquals(200, result.status_code)
 
             self.assertTrue(mock.called)
@@ -398,8 +426,8 @@ class WebHookTest(TembaTest):
             self.assertTrue(mock.called)
 
             result = WebHookResult.objects.get()
-            self.assertStringContains("Event delivered successfully", result.message)
-            self.assertStringContains("ignoring", result.message)
+            self.assertIn("Event delivered successfully", result.message)
+            self.assertIn("ignoring", result.message)
             self.assertEquals(200, result.status_code)
             self.assertEquals(bad_json, result.body)
 
@@ -460,7 +488,7 @@ class WebHookTest(TembaTest):
             self.assertTrue(next_attempt_earliest < event.next_attempt and next_attempt_latest > event.next_attempt)
 
             result = WebHookResult.objects.get()
-            self.assertStringContains("Error", result.message)
+            self.assertIn("Error", result.message)
             self.assertEquals(500, result.status_code)
             self.assertEquals("I am error", result.body)
 
@@ -476,7 +504,7 @@ class WebHookTest(TembaTest):
             self.assertFalse(event.next_attempt)
 
             result = WebHookResult.objects.get()
-            self.assertStringContains("Error", result.message)
+            self.assertIn("Error", result.message)
             self.assertEquals(500, result.status_code)
             self.assertEquals("I am error", result.body)
             self.assertEquals("http://fake.com/webhook.php", result.url)
@@ -507,8 +535,8 @@ class WebHookTest(TembaTest):
 
             result = WebHookResult.objects.get()
             # both headers should be in the json-encoded url string
-            self.assertStringContains('X-My-Header: foobar', result.request)
-            self.assertStringContains('Authorization: Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==', result.request)
+            self.assertIn('X-My-Header: foobar', result.request)
+            self.assertIn('Authorization: Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==', result.request)
 
     def test_webhook(self):
         response = self.client.get(reverse('api.webhook'))
