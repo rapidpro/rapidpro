@@ -6231,7 +6231,7 @@ class HasEmailTest(Test):
     def from_json(cls, org, json):
         return cls()
 
-    def as_json(self):  # pragma: needs cover
+    def as_json(self):
         return dict(type=self.TYPE)
 
     def evaluate(self, run, sms, context, text):
@@ -6240,12 +6240,9 @@ class HasEmailTest(Test):
         words = text.split()
         for word in words:
             if is_valid_address(word):
-                match = word
+                return 1, match
 
-        if match:
-            return 1, match
-        else:
-            return 0, None
+        return 0, None
 
 
 class ContainsAnyTest(ContainsTest):
