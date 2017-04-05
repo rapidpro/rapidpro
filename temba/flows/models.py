@@ -1030,6 +1030,9 @@ class Flow(TembaModel):
         self.is_archived = True
         self.save(update_fields=['is_archived'])
 
+        # any outstanding active runs should interrupted
+        FlowRun.bulk_exit(self.runs.filter(is_active=True), FlowRun.EXIT_TYPE_INTERRUPTED)
+
         # archive our triggers as well
         from temba.triggers.models import Trigger
         Trigger.objects.filter(flow=self).update(is_archived=True)
