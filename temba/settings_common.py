@@ -11,7 +11,7 @@ from django.utils.translation import ugettext_lazy as _
 # -----------------------------------------------------------------------------------
 # Default to debugging
 # -----------------------------------------------------------------------------------
-DEBUG = os.getenv('DEBUG')
+DEBUG = 'off'
 ALLOWED_HOSTS=['*']
 
 # -----------------------------------------------------------------------------------
@@ -500,6 +500,7 @@ PERMISSIONS = {
                    'run_table',
                    'simulate',
                    'upload_action_recording',
+                   'upload_media_action',
                    ),
 
     'flows.ruleset': ('analytics',
@@ -1102,7 +1103,7 @@ REDIS_DB = 10 if TESTING else 15
 BROKER_URL = 'redis://%s:%d/%d' % (REDIS_HOST, REDIS_PORT, REDIS_DB)
 
 # by default, celery doesn't have any timeout on our redis connections, this fixes that
-BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 5}
+BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 15}
 
 CELERY_RESULT_BACKEND = BROKER_URL
 CELERY_ACCEPT_CONTENT = ['json']

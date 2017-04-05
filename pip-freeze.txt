@@ -126,3 +126,4 @@ xlrd==1.0.0
 xlwt==1.1.2
 elasticsearch==5.0.1
 uwsgi
+flower

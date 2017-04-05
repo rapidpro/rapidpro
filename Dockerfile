@@ -38,7 +38,7 @@ RUN apt-get update && \
 ENV C_FORCE_ROOT True
 ENV UWSGI_WSGI_FILE=temba/wsgi.py UWSGI_HTTP=:8000 UWSGI_MASTER=1 UWSGI_WORKERS=8 UWSGI_HARAKIRI=20
 RUN mkdir rapidpro
-
+RUN mkdir /var/log/celery
 ADD . rapidpro/
 
 WORKDIR rapidpro
