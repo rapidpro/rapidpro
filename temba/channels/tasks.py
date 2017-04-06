@@ -98,7 +98,7 @@ def trim_channel_log_task():  # pragma: needs cover
     # keep success messages for only SUCCESS_LOGS_TRIM_TIME hours
     success_logs_trim_time = settings.SUCCESS_LOGS_TRIM_TIME
 
-    # keep all errors for 30 days
+    # keep all errors for ALL_LOGS_TRIM_TIME days
     all_logs_trim_time = settings.ALL_LOGS_TRIM_TIME
 
     if success_logs_trim_time:

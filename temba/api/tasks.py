@@ -61,7 +61,7 @@ def trim_webhook_event_task():
     # keep success messages for only SUCCESS_LOGS_TRIM_TIME hours
     success_logs_trim_time = settings.SUCCESS_LOGS_TRIM_TIME
 
-    # keep errors for 30 days
+    # keep errors for ALL_LOGS_TRIM_TIME days
     all_logs_trim_time = settings.ALL_LOGS_TRIM_TIME
 
     if success_logs_trim_time:
