@@ -4,15 +4,24 @@ from __future__ import unicode_literals
 
 from django.db import migrations
 
+from temba.utils import chunk_list
+
+
+def do_populate_send_all(Broadcast):
+    broadcast_ids = Broadcast.objects.all().values_list('id', flat=True)
+
+    for chunk in chunk_list(broadcast_ids, 1000):
+        Broadcast.objects.filter(pk__in=chunk).update(send_all=False)
+
 
 def apply_as_migration(apps, schema_editor):
     Broadcast = apps.get_model('msgs', 'Broadcast')
-    Broadcast.objects.all().update(send_all=False)
+    do_populate_send_all(Broadcast)
 
 
 def apply_manual():
     from temba.msgs.models import Broadcast
-    Broadcast.objects.all().update(send_all=False)
+    do_populate_send_all(Broadcast)
 
 
 class Migration(migrations.Migration):
