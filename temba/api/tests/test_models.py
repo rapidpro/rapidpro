@@ -350,17 +350,17 @@ class WebHookTest(TembaTest):
             event.status = FAILED
             event.save()
 
-            with override_settings(ERROR_LOGS_TRIM_TIME=0):
+            with override_settings(ALL_LOGS_TRIM_TIME=0):
                 trim_webhook_event_task()
                 self.assertTrue(WebHookEvent.objects.all())
                 self.assertTrue(WebHookResult.objects.all())
 
-            with override_settings(ERROR_LOGS_TRIM_TIME=12):
+            with override_settings(ALL_LOGS_TRIM_TIME=12):
                 trim_webhook_event_task()
                 self.assertTrue(WebHookEvent.objects.all())
                 self.assertTrue(WebHookResult.objects.all())
 
-            with override_settings(ERROR_LOGS_TRIM_TIME=2):
+            with override_settings(ALL_LOGS_TRIM_TIME=2):
                 trim_webhook_event_task()
                 self.assertFalse(WebHookEvent.objects.all())
                 self.assertFalse(WebHookResult.objects.all())

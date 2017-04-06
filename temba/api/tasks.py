@@ -62,12 +62,12 @@ def trim_webhook_event_task():
     success_logs_trim_time = settings.SUCCESS_LOGS_TRIM_TIME
 
     # keep errors for 30 days
-    error_logs_trim_time = settings.ERROR_LOGS_TRIM_TIME
+    all_logs_trim_time = settings.ALL_LOGS_TRIM_TIME
 
     if success_logs_trim_time:
-        two_days_ago = timezone.now() - timedelta(hours=success_logs_trim_time)
-        WebHookEvent.objects.filter(created_on__lte=two_days_ago, status=COMPLETE).delete()
+        success_log_later = timezone.now() - timedelta(hours=success_logs_trim_time)
+        WebHookEvent.objects.filter(created_on__lte=success_log_later, status=COMPLETE).delete()
 
-    if error_logs_trim_time:
-        month_ago = timezone.now() - timedelta(hours=error_logs_trim_time)
-        WebHookEvent.objects.filter(created_on__lte=month_ago).delete()
+    if all_logs_trim_time:
+        all_log_later = timezone.now() - timedelta(hours=all_logs_trim_time)
+        WebHookEvent.objects.filter(created_on__lte=all_log_later).delete()

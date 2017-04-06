@@ -98,16 +98,16 @@ def trim_channel_log_task():  # pragma: needs cover
     # keep success messages for only SUCCESS_LOGS_TRIM_TIME hours
     success_logs_trim_time = settings.SUCCESS_LOGS_TRIM_TIME
 
-    # keep errors for 30 days
-    error_logs_trim_time = settings.ERROR_LOGS_TRIM_TIME
+    # keep all errors for 30 days
+    all_logs_trim_time = settings.ALL_LOGS_TRIM_TIME
 
     if success_logs_trim_time:
-        two_days_ago = timezone.now() - timedelta(hours=success_logs_trim_time)
-        ChannelLog.objects.filter(created_on__lte=two_days_ago, is_error=False).delete()
+        success_log_later = timezone.now() - timedelta(hours=success_logs_trim_time)
+        ChannelLog.objects.filter(created_on__lte=success_log_later, is_error=False).delete()
 
-    if error_logs_trim_time:
-        month_ago = timezone.now() - timedelta(hours=error_logs_trim_time)
-        ChannelLog.objects.filter(created_on__lte=month_ago).delete()
+    if all_logs_trim_time:
+        all_log_later = timezone.now() - timedelta(hours=all_logs_trim_time)
+        ChannelLog.objects.filter(created_on__lte=all_log_later).delete()
 
 
 @task(track_started=True, name='notify_mage_task')

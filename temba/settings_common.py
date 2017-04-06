@@ -1253,4 +1253,4 @@ MSG_FIELD_SIZE = 640
 # Falsy values to keep the logs forever
 # -----------------------------------------------------------------------------------
 SUCCESS_LOGS_TRIM_TIME = 48
-ERROR_LOGS_TRIM_TIME = 24 * 30
+ALL_LOGS_TRIM_TIME = 24 * 30
