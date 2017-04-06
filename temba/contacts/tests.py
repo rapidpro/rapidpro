@@ -657,6 +657,17 @@ class ContactTest(TembaTest):
         self.assertEqual(Trigger.objects.filter(is_archived=True).count(), 1)
         self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 1)
 
+    def test_contact_send_all(self):
+        contact = self.create_contact('Stephen', '+12078778899', twitter='stephen')
+        Channel.create(self.org, self.user, None, 'TT')
+
+        msgs = contact.send_all('Allo', self.admin)
+        self.assertEqual(len(msgs), 2)
+        out_msgs = Msg.objects.filter(contact=contact, direction='O')
+        self.assertEqual(out_msgs.count(), 2)
+        self.assertIsNotNone(out_msgs.filter(contact_urn__path='stephen').first())
+        self.assertIsNotNone(out_msgs.filter(contact_urn__path='+12078778899').first())
+
     def test_stop_contact_clear_triggers(self):
         flow = self.get_flow('favorites')
         trigger = Trigger.objects.create(org=self.org, flow=flow, keyword="join", created_by=self.admin,

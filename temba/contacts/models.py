@@ -1794,16 +1794,58 @@ class Contact(TembaModel):
         if tel:
             return tel.path
 
-    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None, msg_type=None):
-        from temba.msgs.models import Msg, INBOX
+    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
+             msg_type=None, created_on=None):
+        from temba.msgs.models import Msg, INBOX, PENDING, SENT
 
-        msg = Msg.create_outgoing(self.org, user, self, text, priority=Msg.PRIORITY_HIGH, response_to=response_to,
-                                  message_context=message_context, session=session, media=media, msg_type=msg_type or INBOX)
+        if created_on is None:
+            status = PENDING
+        else:
+            status = SENT
+
+        recipient = self
+        if status == SENT:
+            recipient = (self, None)
+
+        msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH, response_to=response_to,
+                                  message_context=message_context, session=session, media=media,
+                                  msg_type=msg_type or INBOX, status=status, created_on=created_on)
 
         if trigger_send:
             self.org.trigger_send([msg])
 
         return msg
+
+    def send_all(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
+                 msg_type=None, created_on=None):
+        from temba.msgs.models import Msg, UnreachableException, INBOX, PENDING, SENT
+
+        msgs = []
+
+        if created_on is None:
+            status = PENDING
+        else:
+            status = SENT
+
+        contact_urns = self.get_urns()
+        for c_urn in contact_urns:
+            try:
+
+                recipient = c_urn
+                if status == SENT:
+                    recipient = (c_urn.contact, c_urn)
+
+                msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH,
+                                          response_to=response_to, message_context=message_context, session=session,
+                                          media=media, msg_type=msg_type or INBOX, status=status, created_on=created_on)
+                msgs.append(msg)
+            except UnreachableException:
+                pass
+
+        if trigger_send:
+            self.org.trigger_send(msgs)
+
+        return msgs
 
     def __str__(self):
         return self.get_display()
