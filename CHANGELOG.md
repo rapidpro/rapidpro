@@ -1,3 +1,8 @@
+v3.0.105
+----------
+ * Link subflow starts in actions
+ * Allow wait to wait in flows with warning
+
 v3.0.104
 ----------
  * Add new has email test, contains phrase test and contains only phrase test
