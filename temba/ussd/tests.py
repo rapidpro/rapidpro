@@ -853,6 +853,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         self.assertEquals(data["from"], outbound_msg.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(outbound_msg.response_to, inbound_msg)
         self.assertEquals(outbound_msg.session.status, USSDSession.TRIGGERED)
+        self.assertEquals(inbound_msg.direction, INCOMING)
 
     def test_receive_ussd_no_session(self):
         from temba.channels.handlers import JunebugHandler
