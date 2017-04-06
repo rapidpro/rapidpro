@@ -1796,15 +1796,15 @@ class Contact(TembaModel):
 
     def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
              msg_type=None, created_on=None):
-        from temba.msgs.models import Msg, INBOX
+        from temba.msgs.models import Msg, INBOX, PENDING, SENT
 
         if created_on is None:
-            status = 'P'
+            status = PENDING
         else:
-            status = 'S'
+            status = SENT
 
         recipient = self
-        if status != 'P':
+        if status == SENT:
             recipient = (self, None)
 
         msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH, response_to=response_to,
