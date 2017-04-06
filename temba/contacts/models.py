@@ -1818,21 +1818,21 @@ class Contact(TembaModel):
 
     def send_all(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
                  msg_type=None, created_on=None):
-        from temba.msgs.models import Msg, UnreachableException, INBOX
+        from temba.msgs.models import Msg, UnreachableException, INBOX, PENDING, SENT
 
         msgs = []
 
         if created_on is None:
-            status = 'P'
+            status = PENDING
         else:
-            status = 'S'
+            status = SENT
 
         contact_urns = self.get_urns()
         for c_urn in contact_urns:
             try:
 
                 recipient = c_urn
-                if status != 'P':
+                if status == SENT:
                     recipient = (c_urn.contact, c_urn)
 
                 msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH,
