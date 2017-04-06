@@ -2010,15 +2010,15 @@ class ExportMessagesTask(BaseExportTask):
 
         tz = self.org.timezone
 
-        if self.start_date:  # pragma: needs cover
+        if self.start_date:
             start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
             messages = messages.filter(created_on__gte=start_date)
 
-        if self.end_date:  # pragma: needs cover
+        if self.end_date:
             end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
             messages = messages.filter(created_on__lte=end_date)
 
-        if self.groups.all():  # pragma: needs cover
+        if self.groups.all():
             messages = messages.filter(contact__all_groups__in=self.groups.all())
 
         all_message_ids = list(messages.order_by('-created_on').values_list('id', flat=True))

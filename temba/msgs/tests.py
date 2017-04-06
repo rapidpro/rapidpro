@@ -2,9 +2,10 @@
 from __future__ import unicode_literals
 
 import json
+import pytz
 import six
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
@@ -646,36 +647,33 @@ class MsgTest(TembaTest):
         self.joe.save()
 
         # create some messages...
-        joe_urn = self.joe.get_urn(TEL_SCHEME).urn
-        msg1 = Msg.create_incoming(self.channel, joe_urn, "hello 1")
-        msg2 = Msg.create_incoming(self.channel, joe_urn, "hello 2")
-        msg3 = Msg.create_incoming(self.channel, joe_urn, "hello 3")
-        msg4 = Msg.create_incoming(None, None, "hello 4", org=self.org, contact=self.joe)  # like a surveyor message
+        # joe_urn = self.joe.get_urn(TEL_SCHEME).urn
+
+        msg1 = self.create_msg(contact=self.joe, text="hello 1", direction='I', status=HANDLED,
+                               created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
+        msg2 = self.create_msg(contact=self.joe, text="hello 2", direction='I', status=HANDLED,
+                               created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC))
+        msg3 = self.create_msg(contact=self.joe, text="hello 3", direction='I', status=HANDLED,
+                               created_on=datetime(2017, 1, 3, 10, tzinfo=pytz.UTC))
+
+        # inbound message that looks like a surveyor message
+        msg4 = self.create_msg(contact=self.joe, contact_urn=None, text="hello 4", direction='I', status=HANDLED,
+                               channel=None, created_on=datetime(2017, 1, 4, 10, tzinfo=pytz.UTC))
 
         # inbound message with media attached, such as an ivr recording
-        msg5 = Msg.create_incoming(self.channel, joe_urn, "Media message", media='audio:http://rapidpro.io/audio/sound.mp3')
+        msg5 = self.create_msg(contact=self.joe, text="Media message", direction='I', status=HANDLED,
+                               media='audio:http://rapidpro.io/audio/sound.mp3',
+                               created_on=datetime(2017, 1, 5, 10, tzinfo=pytz.UTC))
 
-        # outgoing message
-        msg6 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 6")
-        msg7 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 7")
-        msg8 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 8")
-        msg9 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 9")
-
-        # mark msg as sent
-        msg6.status = SENT
-        msg6.save()
-
-        # mark msg as delivered
-        msg7.status = DELIVERED
-        msg7.save()
-
-        # mark msg as errored
-        msg8.status = ERRORED
-        msg8.save()
-
-        # mark message as failed
-        msg9.status = FAILED
-        msg9.save()
+        # create some outbound messages with different statuses
+        msg6 = self.create_msg(contact=self.joe, text="Hey out 6", direction='O', status=SENT,
+                               created_on=datetime(2017, 1, 6, 10, tzinfo=pytz.UTC))
+        msg7 = self.create_msg(contact=self.joe, text="Hey out 7", direction='O', status=DELIVERED,
+                               created_on=datetime(2017, 1, 7, 10, tzinfo=pytz.UTC))
+        msg8 = self.create_msg(contact=self.joe, text="Hey out 8", direction='O', status=ERRORED,
+                               created_on=datetime(2017, 1, 8, 10, tzinfo=pytz.UTC))
+        msg9 = self.create_msg(contact=self.joe, text="Hey out 9", direction='O', status=FAILED,
+                               created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC))
 
         self.assertTrue(msg5.is_media_type_audio())
         self.assertEqual('http://rapidpro.io/audio/sound.mp3', msg5.get_media_path())
@@ -694,19 +692,19 @@ class MsgTest(TembaTest):
         self.assertContains(response, "already an export in progress")
 
         # perform the export manually, assert how many queries
-        self.assertNumQueries(8, lambda: blocking_export.perform())
+        self.assertNumQueries(6, lambda: blocking_export.perform())
 
-        def request_export(query=''):
-            response = self.client.post(reverse('msgs.msg_export') + query)
+        def request_export(query, data=None):
+            response = self.client.post(reverse('msgs.msg_export') + query, data)
             self.assertEqual(response.status_code, 302)
             task = ExportMessagesTask.objects.order_by('-id').first()
             filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
             workbook = load_workbook(filename=filename)
             return workbook.worksheets[0]
 
-        # no system label or label specified, so will default to all visible messages (i.e. not msg3)
+        # export all visible messages (i.e. not msg3) using export_all param
         with self.assertNumQueries(25):
-            self.assertExcelSheet(request_export(), [
+            self.assertExcelSheet(request_export('?l=I', {'export_all': 1}), [
                 ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
                 [msg9.created_on, "123", "tel", "Joe Blow", msg9.contact.uuid, "Outgoing", "Hey out 9", "", "Failed Sending"],
                 [msg8.created_on, "123", "tel", "Joe Blow", msg8.contact.uuid, "Outgoing", "Hey out 8", "", "Error Sending"],
@@ -727,22 +725,42 @@ class MsgTest(TembaTest):
         self.assertIn('https://app.rapidpro.io/assets/download/message_export/%d/' % export.id, email_args[2])
         self.assertNotIn('{{', email_args[2])
 
+        # export just archived messages
+        self.assertExcelSheet(request_export('?l=A', {'export_all': 0}), [
+            ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+            [msg3.created_on, "123", "tel", "Joe Blow", msg3.contact.uuid, "Incoming", "hello 3", "", "Handled"],
+        ], self.org.timezone)
+
         # filter page should have an export option
         response = self.client.get(reverse('msgs.msg_filter', args=[label.id]))
-        self.assertContains(response, "Export Data")
+        self.assertContains(response, "Export")
 
         # try export with user label
-        with self.assertNumQueries(27):
-            self.assertExcelSheet(request_export('?l=%s' % label.uuid), [
-                ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
-                [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"]
-            ], self.org.timezone)
+        self.assertExcelSheet(request_export('?l=%s' % label.uuid, {'export_all': 0}), [
+            ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+            [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"]
+        ], self.org.timezone)
+
+        # try export with groups and date range
+        export_data = {
+            'export_all': 1,
+            'groups': [self.just_joe.id],
+            'start_date': msg5.created_on.strftime('%B %d, %Y'),
+            'end_date': msg7.created_on.strftime('%B %d, %Y'),
+        }
+
+        self.assertExcelSheet(request_export('?l=I', export_data), [
+            ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+            [msg7.created_on, "123", "tel", "Joe Blow", msg7.contact.uuid, "Outgoing", "Hey out 7", "", "Delivered"],
+            [msg6.created_on, "123", "tel", "Joe Blow", msg6.contact.uuid, "Outgoing", "Hey out 6", "", "Sent"],
+            [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming", "Media message", "", "Handled"],
+        ], self.org.timezone)
 
         # test as anon org to check that URNs don't end up in exports
         with AnonymousOrg(self.org):
             joe_anon_id = "%010d" % self.joe.id
 
-            self.assertExcelSheet(request_export(), [
+            self.assertExcelSheet(request_export('?l=I', {'export_all': 1}), [
                 ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
                 [msg9.created_on, joe_anon_id, "tel", "Joe Blow", msg9.contact.uuid, "Outgoing", "Hey out 9", "", "Failed Sending"],
                 [msg8.created_on, joe_anon_id, "tel", "Joe Blow", msg8.contact.uuid, "Outgoing", "Hey out 8", "", "Error Sending"],

@@ -218,6 +218,27 @@
   - if org_perms.msgs.broadcast_send
     -include "msgs/msg_send_modal.haml"
 
+-block extra-style
+  {{ block.super }}
+  :css
+    #id_export_all {
+      margin-left: 0;
+    }
+    #id_export_all li {
+      display: inline-block;
+      margin-right: 10px;
+    }
+    #id_export_all label {
+      display: inline-block;
+    }
+    #id_export_all input {
+      width: auto;
+    }
+    label[for="id_export_all"] {
+      display: none;
+    }
+
+
 -block extra-script
   {{ block.super }}
   :javascript

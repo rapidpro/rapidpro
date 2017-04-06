@@ -104,6 +104,7 @@ class InboxView(OrgPermsMixin, SmartListView):
     search_fields = ('text__icontains', 'contact__name__icontains', 'contact__urns__path__icontains')
     paginate_by = 100
     actions = ()
+    allow_export = False
 
     def derive_label(self):
         return self.system_label
@@ -165,6 +166,12 @@ class InboxView(OrgPermsMixin, SmartListView):
         context['current_label'] = label
         context['export_url'] = self.derive_export_url()
         return context
+
+    def get_gear_links(self):
+        links = []
+        if self.allow_export and self.has_org_perm('msgs.msg_export'):
+            links.append(dict(title=_('Export'), href='#', js_class="msg-export-btn"))
+        return links
 
 
 class BroadcastForm(forms.ModelForm):
@@ -416,18 +423,29 @@ class TestMessageForm(forms.Form):
 
 
 class ExportForm(Form):
-    groups = forms.ModelMultipleChoiceField(queryset=ContactGroup.user_groups.filter(pk__lt=0),
+    LABEL_CHOICES = ((False, _("Just this label")), (True, _("All messages")))
+    SYSTEM_LABEL_CHOICES = ((False, _("Just this folder")), (True, _("All messages")))
+
+    export_all = forms.BooleanField(required=False, widget=forms.RadioSelect(choices=()), label=' ', initial=False)
+
+    groups = forms.ModelMultipleChoiceField(queryset=ContactGroup.user_groups.none(),
                                             required=False, label=_("Groups"))
     start_date = forms.DateField(required=False,
-                                 help_text=_("The date for the oldest message to export. (Leave blank to export from the oldest message)."))
+                                 help_text=_("The date for the oldest message to export. "
+                                             "(Leave blank to export from the oldest message)."))
     end_date = forms.DateField(required=False,
-                               help_text=_("The date for the latest message to export. (Leave blank to export up to the latest message)."))
+                               help_text=_("The date for the latest message to export. "
+                                           "(Leave blank to export up to the latest message)."))
 
-    def __init__(self, user, *args, **kwargs):
+    def __init__(self, user, label, *args, **kwargs):
         super(ExportForm, self).__init__(*args, **kwargs)
         self.user = user
+
+        self.fields['export_all'].widget.choices = self.LABEL_CHOICES if label else self.SYSTEM_LABEL_CHOICES
+
         self.fields['groups'].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
-        self.fields['groups'].help_text = _("Export only messages from these contact groups. (Leave blank to export all messages).")
+        self.fields['groups'].help_text = _("Export only messages from these contact groups. "
+                                            "(Leave blank to export all messages).")
 
     def clean(self):
         cleaned_data = super(ExportForm, self).clean()
@@ -435,10 +453,10 @@ class ExportForm(Form):
         end_date = cleaned_data['end_date']
 
         if start_date and start_date > date.today():  # pragma: needs cover
-            raise forms.ValidationError(_("The Start Date should not be a date in the future."))
+            raise forms.ValidationError(_("Start date can't be in the future."))
 
-        if end_date and start_date and end_date <= start_date:  # pragma: needs cover
-            raise forms.ValidationError(_("The End Date should be a date after the Start Date"))
+        if end_date and start_date and end_date < start_date:  # pragma: needs cover
+            raise forms.ValidationError(_("End date can't be before start date"))
 
         return cleaned_data
 
@@ -453,6 +471,14 @@ class MsgCRUDL(SmartCRUDL):
         submit_button_name = "Export"
         success_url = "@msgs.msg_inbox"
 
+        def derive_label(self):
+            # label is either a UUID of a Label instance (36 chars) or a system label type code (1 char)
+            label_id = self.request.GET['l']
+            if len(label_id) == 1:
+                return label_id, None
+            else:
+                return None, Label.label_objects.get(org=self.request.user.get_org(), uuid=label_id)
+
         def get_success_url(self):
             return self.request.GET.get('redirect') or reverse('msgs.msg_inbox')
 
@@ -466,18 +492,12 @@ class MsgCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            # label is either a UUID of a Label instance (36 chars) or a system label type code (1 char) or none
-            label_id = self.request.GET.get('l', '')
-            if len(label_id) == 1:
-                system_label, label = label_id, None
-            elif len(label_id) == 36:
-                system_label, label = None, Label.label_objects.get(org=org, uuid=label_id)
-            else:
-                system_label, label = None, None
-
+            export_all = form.cleaned_data['export_all']
             groups = form.cleaned_data['groups']
             start_date = form.cleaned_data['start_date']
             end_date = form.cleaned_data['end_date']
+
+            system_label, label = (None, None) if export_all else self.derive_label()
 
             # is there already an export taking place?
             existing = ExportMessagesTask.get_recent_unfinished(org)
@@ -517,6 +537,7 @@ class MsgCRUDL(SmartCRUDL):
         def get_form_kwargs(self):
             kwargs = super(MsgCRUDL.Export, self).get_form_kwargs()
             kwargs['user'] = self.request.user
+            kwargs['label'] = self.derive_label()[1]
             return kwargs
 
     class Test(SmartFormView):
@@ -554,12 +575,7 @@ class MsgCRUDL(SmartCRUDL):
         template_name = 'msgs/message_box.haml'
         system_label = SystemLabel.TYPE_INBOX
         actions = ['archive', 'label']
-
-        def get_gear_links(self):
-            links = []
-            if self.has_org_perm('msgs.msg_export'):
-                links.append(dict(title=_('Export'), href='#', js_class="msg-export-btn"))
-            return links
+        allow_export = True
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Inbox, self).get_queryset(**kwargs)
@@ -570,6 +586,7 @@ class MsgCRUDL(SmartCRUDL):
         template_name = 'msgs/message_box.haml'
         system_label = SystemLabel.TYPE_FLOWS
         actions = ['label']
+        allow_export = True
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Flow, self).get_queryset(**kwargs)
@@ -580,6 +597,7 @@ class MsgCRUDL(SmartCRUDL):
         template_name = 'msgs/msg_archived.haml'
         system_label = SystemLabel.TYPE_ARCHIVED
         actions = ['restore', 'label', 'delete']
+        allow_export = True
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Archived, self).get_queryset(**kwargs)
@@ -590,6 +608,7 @@ class MsgCRUDL(SmartCRUDL):
         template_name = 'msgs/message_box.haml'
         system_label = SystemLabel.TYPE_OUTBOX
         actions = ()
+        allow_export = True
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Outbox, self).get_queryset(**kwargs)
@@ -600,6 +619,7 @@ class MsgCRUDL(SmartCRUDL):
         template_name = 'msgs/msg_sent.haml'
         system_label = SystemLabel.TYPE_SENT
         actions = ()
+        allow_export = True
 
         def get_queryset(self, **kwargs):  # pragma: needs cover
             qs = super(MsgCRUDL.Sent, self).get_queryset(**kwargs)
@@ -611,6 +631,7 @@ class MsgCRUDL(SmartCRUDL):
         success_message = ''
         system_label = SystemLabel.TYPE_FAILED
         actions = ['resend']
+        allow_export = True
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Failed, self).get_queryset(**kwargs)
@@ -629,19 +650,13 @@ class MsgCRUDL(SmartCRUDL):
             edit_btn_cls = 'folder-update-btn' if self.derive_label().is_folder() else 'label-update-btn'
 
             if self.has_org_perm('msgs.msg_update'):
-                links.append(dict(title=_('Edit'),
-                                  href='#',
-                                  js_class=edit_btn_cls))
+                links.append(dict(title=_('Edit'), href='#', js_class=edit_btn_cls))
 
             if self.has_org_perm('msgs.msg_export'):
-                links.append(dict(title=_('Export Data'),
-                                  href='#',
-                                  js_class="msg-export-btn"))
+                links.append(dict(title=_('Export'), href='#', js_class="msg-export-btn"))
 
             if self.has_org_perm('msgs.broadcast_send'):
-                links.append(dict(title=_('Send All'),
-                                  style='btn-primary',
-                                  href="#",
+                links.append(dict(title=_('Send All'), style='btn-primary', href="#",
                                   js_class='filter-send-all-send-button'))
 
             if self.has_org_perm('msgs.label_delete'):
