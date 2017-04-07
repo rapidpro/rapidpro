@@ -1,3 +1,14 @@
+v3.0.106
+----------
+ * Remove non_atomic_gets and display message at /api/v1/ to explain API v1 has been replaced
+ * Add squashable model for label counts
+ * Split system label functionality into SystemLabel and SystemLabelCount
+
+v3.0.105
+----------
+ * Link subflow starts in actions
+ * Allow wait to wait in flows with warning
+
 v3.0.104
 ----------
  * Add new has email test, contains phrase test and contains only phrase test
