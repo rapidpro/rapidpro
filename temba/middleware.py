@@ -5,7 +5,6 @@ import pstats
 import traceback
 
 from django.conf import settings
-from django.db import transaction
 from django.utils import timezone, translation
 from io import StringIO
 from temba.orgs.models import Org
@@ -165,18 +164,3 @@ class ProfilerMiddleware(object):  # pragma: no cover
             stats.print_stats(int(request.GET.get('count', 100)))
             response.content = '<pre>%s</pre>' % io.getvalue()
         return response
-
-
-class NonAtomicGetsMiddleware(object):
-    """
-    Django's non_atomic_requests decorator gives us no way of enabling/disabling transactions depending on the request
-    type. This middleware will make the current request non-atomic if an _non_atomic_gets attribute is set on the view
-    function, and if the request method is GET.
-    """
-    def process_view(self, request, view_func, view_args, view_kwargs):
-        if getattr(view_func, '_non_atomic_gets', False):
-            if request.method.lower() == 'get':
-                transaction.non_atomic_requests(view_func)
-            else:
-                view_func._non_atomic_requests = set()
-        return None

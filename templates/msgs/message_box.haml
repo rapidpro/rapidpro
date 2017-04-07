@@ -56,25 +56,25 @@
                 %li.nav-header
                   - trans "Labels"
                 - for node in labels
-                  - if node.is_folder
-                    %li{ class:'{% if current_label.id == node.id %}active{% endif %} lbl-parent {% if current_label.id == node.id or current_label.folder.id == node.id %}expanded{% endif %}' }
-                      %a{'href':'{% url "msgs.msg_filter" node.id %}'}
-                        {{ node.name }}
-                        - if node.children.all
-                          - if current_label.id == node.id or current_label.folder.id == node.id
+                  - if node.obj.is_folder
+                    %li{ class:'{% if current_label.id == node.obj.id %}active{% endif %} lbl-parent {% if current_label.id == node.obj.id or current_label.folder_id == node.obj.id %}expanded{% endif %}' }
+                      %a{'href':'{% url "msgs.msg_filter" node.obj.id %}'}
+                        {{ node.obj.name }}
+                        - if node.children
+                          - if current_label.id == node.obj.id or current_label.folder_id == node.obj.id
                             .glyph.icon-arrow-down-2
                           -else
                             .glyph.icon-arrow-right-8
 
                       %ul.nav.nav-list.level2
-                        - for label in node.children.all
-                          %li{ class:'{% if current_label.id == label.id %}active{% endif %}' }
-                            %a{ href:"{% url 'msgs.msg_filter' label.id %}" }
-                              {{ label.name }} ({{ label.get_visible_count | intcomma }})
+                        - for child in node.children
+                          %li{ class:'{% if current_label.id == child.obj.id %}active{% endif %}' }
+                            %a{ href:"{% url 'msgs.msg_filter' child.obj.id %}" }
+                              {{ child.obj.name }} ({{ child.count | intcomma }})
                   - else
-                    %li{ class:'{% if current_label.id == node.id %}active{% endif %}' }
-                      %a{ href:"{% url 'msgs.msg_filter' node.id %}", class:'{% if current_label.id == node.id %}active{% endif %}' }
-                        {{ node.name }} ({{ node.get_visible_count | intcomma }})
+                    %li{ class:'{% if current_label.id == node.obj.id %}active{% endif %}' }
+                      %a{ href:"{% url 'msgs.msg_filter' node.obj.id %}", class:'{% if current_label.id == node.obj.id %}active{% endif %}' }
+                        {{ node.obj.name }} ({{ node.count | intcomma }})
 
           %div{style:"margin-top: 10px"}
             - if org_perms.msgs.label_create
@@ -141,24 +141,24 @@
                             %span.caret
                           %ul.dropdown-menu.label-menu{role:'menu', aria-labelledby:'dlabel'}
                             - for node in labels
-                              - if node.is_folder and node.children.all
+                              - if node.obj.is_folder and node.children
                                 %li.dropdown-submenu
-                                  %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{node.id}}'}
-                                    {{ node.name }}
+                                  %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{node.obj.id}}'}
+                                    {{ node.obj.name }}
                                   %ul.dropdown-menu.label-menu
-                                    - for label in node.children.all
+                                    - for child in node.children
                                       %li
-                                        %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{label.id}}'}
+                                        %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{child.obj.id}}'}
                                           .glyph.message-label.label-checkbox
-                                          {{ label.name }}
-                              - elif not node.is_folder
+                                          {{ child.obj.name }}
+                              - elif not node.obj.is_folder
                                 %li
-                                  %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{node.id}}'}
+                                  %a.lbl-menu.object-btn-label{href:'#', tabindex:'-1', data-id:'{{node.obj.id}}'}
                                     .glyph.message-label.label-checkbox
-                                    {{ node.name }}
+                                    {{ node.obj.name }}
 
                             - if org_perms.msgs.label_create
-                              - if has_labels
+                              - if labels
                                 %li.divider
                               %li
                                 %a.lbl-menu.add-label{href:'#'}
