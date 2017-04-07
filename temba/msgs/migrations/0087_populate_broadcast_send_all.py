@@ -9,8 +9,13 @@ from temba.utils import chunk_list
 def do_populate_send_all(Broadcast):
     broadcast_ids = Broadcast.objects.all().values_list('id', flat=True)
 
+    broadcast_count = len(broadcast_ids)
+    print('Starting to update %d broadcasts send all field...' % broadcast_count)
+
+    updated = 0
     for chunk in chunk_list(broadcast_ids, 1000):
         Broadcast.objects.filter(pk__in=chunk).update(send_all=False)
+        print("Updated %d of %d broadcasts" % (updated + len(chunk), broadcast_count))
 
 
 def apply_as_migration(apps, schema_editor):
