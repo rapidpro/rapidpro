@@ -868,9 +868,6 @@ class Channel(TembaModel):
     def is_delegate_caller(self):
         return self.parent and Channel.ROLE_CALL in self.role
 
-    def is_delegate_ussd(self):
-        return self.parent and Channel.ROLE_USSD in self.role
-
     def generate_ivr_response(self):
         if self.channel_type in Channel.TWIML_CHANNELS:
             return twiml.Response()

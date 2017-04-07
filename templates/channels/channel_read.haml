@@ -36,9 +36,6 @@
           -if channel.is_delegate_caller
             -trans "Voice calls enabled"
 
-          - if channel.is_delegate_ussd
-            -trans "USSD enabled"
-
       -if channel.has_configuration_page
         <a class="btn btn-tiny" href="{% url 'channels.channel_configuration' channel.id %}">{%trans "Settings"%}</a>
 
@@ -167,9 +164,6 @@
 
       -if channel.is_delegate_caller
         -trans "Voice calls enabled"
-
-      -if channel.is_delegate_ussd
-        -trans "USSD enabled"
 
 -block post-fields
   -block charts-zone
