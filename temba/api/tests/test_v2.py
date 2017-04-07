@@ -227,6 +227,17 @@ class APITest(TembaTest):
         self.assertRaises(serializers.ValidationError, field.to_internal_value, '12345')  # un-parseable
         self.assertRaises(serializers.ValidationError, field.to_internal_value, 'tel:800-123-4567')  # no country code
 
+        field = fields.TranslatableField(source='test', max_length=10)
+        field.context = {'org': self.org}
+
+        self.assertEqual(field.to_internal_value("Hello"), "Hello")
+        self.assertEqual(field.to_internal_value({'eng': "Hello"}), {'eng': "Hello"})
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, 123)  # not a string or dict
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {'eng': 123})
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {123: "Hello"})
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, "HelloHello1")  # too long
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {'eng': "HelloHello1"})  # also too long
+
     def test_authentication(self):
         def api_request(endpoint, token):
             return self.client.get(endpoint + '.json', content_type="application/json",

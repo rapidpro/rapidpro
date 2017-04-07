@@ -219,7 +219,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
     unit = serializers.ChoiceField(required=True, choices=UNITS.keys())
     delivery_hour = serializers.IntegerField(required=True, min_value=-1, max_value=23)
     relative_to = fields.ContactFieldField(required=True)
-    message = serializers.CharField(required=False, max_length=320)
+    message = fields.TranslatableField(required=False, max_length=320)
     flow = fields.FlowField(required=False)
 
     def validate_unit(self, value):
