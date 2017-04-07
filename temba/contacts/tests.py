@@ -34,6 +34,7 @@ from .models import Contact, ContactGroup, ContactField, ContactURN, ExportConta
 from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
 from .search import parse_query, ContactQuery, Condition, IsSetCondition, BoolCombination, SinglePropCombination, SearchException
 from .tasks import squash_contactgroupcounts
+from .templatetags.contacts import activity_icon, history_class
 
 
 class ContactCRUDLTest(_CRUDLTest):
@@ -1448,17 +1449,17 @@ class ContactTest(TembaTest):
         # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
         activity = response.context['activity']
         self.assertEqual(len(activity), 94)
-        self.assertIsInstance(activity[0], IVRCall)
-        self.assertIsInstance(activity[1], ChannelEvent)
-        self.assertIsInstance(activity[2], Msg)
-        self.assertEqual(activity[2].direction, 'O')
-        self.assertIsInstance(activity[3], FlowRun)
-        self.assertIsInstance(activity[4], Msg)
-        self.assertEqual(activity[4].media, "video:http://blah/file.mp4")
-        self.assertIsInstance(activity[5], Msg)
-        self.assertEqual(activity[5].text, "Inbound message 98")
-        self.assertIsInstance(activity[8], EventFire)
-        self.assertEqual(activity[-1].text, "Inbound message 11")
+        self.assertIsInstance(activity[0]['obj'], IVRCall)
+        self.assertIsInstance(activity[1]['obj'], ChannelEvent)
+        self.assertIsInstance(activity[2]['obj'], Msg)
+        self.assertEqual(activity[2]['obj'].direction, 'O')
+        self.assertIsInstance(activity[3]['obj'], FlowRun)
+        self.assertIsInstance(activity[4]['obj'], Msg)
+        self.assertEqual(activity[4]['obj'].media, "video:http://blah/file.mp4")
+        self.assertIsInstance(activity[5]['obj'], Msg)
+        self.assertEqual(activity[5]['obj'].text, "Inbound message 98")
+        self.assertIsInstance(activity[8]['obj'], EventFire)
+        self.assertEqual(activity[-1]['obj'].text, "Inbound message 11")
 
         # fetch next page
         before = datetime_to_ms(timezone.now() - timedelta(days=90))
@@ -1471,9 +1472,9 @@ class ContactTest(TembaTest):
         # activity should include 11 remaining messages and the event fire
         activity = response.context['activity']
         self.assertEqual(len(activity), 12)
-        self.assertEqual(activity[0].text, "Inbound message 10")
-        self.assertEqual(activity[10].text, "Inbound message 0")
-        self.assertEqual(activity[11].text, "Very old inbound message")
+        self.assertEqual(activity[0]['obj'].text, "Inbound message 10")
+        self.assertEqual(activity[10]['obj'].text, "Inbound message 0")
+        self.assertEqual(activity[11]['obj'].text, "Very old inbound message")
 
         # if a broadcast is purged, it appears in place of the message
         bcast = Broadcast.objects.get()
@@ -1492,9 +1493,9 @@ class ContactTest(TembaTest):
         self.assertContains(response, 'icon-bubble-notification')
 
         self.assertEqual(len(activity), 94)
-        self.assertIsInstance(activity[3], Broadcast)  # TODO fix order so initial broadcasts come after their run
-        self.assertEqual(activity[3].text, "What is your favorite color?")
-        self.assertEqual(activity[3].translated_text, "What is your favorite color?")
+        self.assertIsInstance(activity[3]['obj'], Broadcast)  # TODO fix order so initial broadcasts come after their run
+        self.assertEqual(activity[3]['obj'].text, "What is your favorite color?")
+        self.assertEqual(activity[3]['obj'].translated_text, "What is your favorite color?")
 
         # if a new message comes in
         self.create_msg(direction='I', contact=self.joe, text="Newer message")
@@ -1502,9 +1503,9 @@ class ContactTest(TembaTest):
 
         # now we'll see the message that just came in first, followed by the call event
         activity = response.context['activity']
-        self.assertIsInstance(activity[0], Msg)
-        self.assertEqual(activity[0].text, "Newer message")
-        self.assertIsInstance(activity[1], IVRCall)
+        self.assertIsInstance(activity[0]['obj'], Msg)
+        self.assertEqual(activity[0]['obj'].text, "Newer message")
+        self.assertIsInstance(activity[1]['obj'], IVRCall)
 
         recent_start = datetime_to_ms(timezone.now() - timedelta(days=1))
         response = self.fetch_protected(url + "?after=%s" % recent_start, self.admin)
@@ -1539,19 +1540,19 @@ class ContactTest(TembaTest):
         activity = response.context['activity']
         self.assertEqual(len(activity), 98)
 
-        self.assertIsInstance(activity[0], Msg)
-        self.assertEqual(activity[0].direction, 'O')
-        self.assertIsInstance(activity[1], FlowRun)
-        self.assertEqual(activity[1].exit_type, None)
-        self.assertFalse(hasattr(activity[1], 'run_event_type'))
-        self.assertIsInstance(activity[2], FlowRun)
-        self.assertEqual(activity[2].exit_type, FlowRun.EXIT_TYPE_COMPLETED)
-        self.assertEqual(activity[2].run_event_type, "Exited")
-        self.assertIsInstance(activity[3], Msg)
-        self.assertEqual(activity[3].direction, 'I')
-        self.assertIsInstance(activity[4], IVRCall)
-        self.assertIsInstance(activity[5], ChannelEvent)
-        self.assertIsInstance(activity[6], FlowRun)
+        self.assertIsInstance(activity[0]['obj'], Msg)
+        self.assertEqual(activity[0]['obj'].direction, 'O')
+        self.assertEqual(activity[1]['type'], 'run-start')
+        self.assertIsInstance(activity[1]['obj'], FlowRun)
+        self.assertEqual(activity[1]['obj'].exit_type, None)
+        self.assertEqual(activity[2]['type'], 'run-exit')
+        self.assertIsInstance(activity[2]['obj'], FlowRun)
+        self.assertEqual(activity[2]['obj'].exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+        self.assertIsInstance(activity[3]['obj'], Msg)
+        self.assertEqual(activity[3]['obj'].direction, 'I')
+        self.assertIsInstance(activity[4]['obj'], IVRCall)
+        self.assertIsInstance(activity[5]['obj'], ChannelEvent)
+        self.assertIsInstance(activity[6]['obj'], FlowRun)
 
     def test_event_times(self):
 
@@ -1589,70 +1590,69 @@ class ContactTest(TembaTest):
         call = IVRCall.create_incoming(self.channel, contact, contact.urns.all().first(),
                                        self.admin, self.admin)
 
-        from temba.contacts.templatetags.contacts import activity_icon, history_class
-
-        self.assertEquals('non-msg', history_class(call))
+        item = {'type': 'call', 'obj': call}
+        self.assertEqual(history_class(item), 'non-msg')
 
         call.status = IVRCall.FAILED
-        self.assertEquals('non-msg warning', history_class(call))
+        self.assertEqual(history_class(item), 'non-msg warning')
 
         # inbound
-        self.assertEquals('<span class="glyph icon-bubble-user"></span>', activity_icon(msg))
+        item = {'type': 'msg', 'obj': msg}
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-user"></span>')
 
         # outgoing sent
         msg.direction = 'O'
         msg.status = 'S'
-        self.assertEquals('<span class="glyph icon-bubble-right"></span>', activity_icon(msg))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-right"></span>')
 
         # outgoing delivered
         msg.status = 'D'
-        self.assertEquals('<span class="glyph icon-bubble-check"></span>', activity_icon(msg))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-check"></span>')
 
         # failed
         msg.status = 'F'
-        self.assertEquals('<span class="glyph icon-bubble-notification"></span>', activity_icon(msg))
-        self.assertEquals('msg warning', history_class(msg))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-notification"></span>')
+        self.assertEqual(history_class(item), 'msg warning')
 
         # outgoing voice
         msg.msg_type = 'V'
-        self.assertEquals('<span class="glyph icon-call-outgoing"></span>', activity_icon(msg))
-        self.assertEquals('msg warning', history_class(msg))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-call-outgoing"></span>')
+        self.assertEqual(history_class(item), 'msg warning')
 
         # incoming voice
         msg.direction = 'I'
-        self.assertEquals('<span class="glyph icon-call-incoming"></span>', activity_icon(msg))
-        self.assertEquals('msg warning', history_class(msg))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-call-incoming"></span>')
+        self.assertEqual(history_class(item), 'msg warning')
 
         # simulate a broadcast to 5 people
-        from temba.msgs.models import Broadcast
         msg.broadcast = Broadcast.create(self.org, self.admin, 'Test message', [])
         msg.broadcast.recipient_count = 5
         msg.status = 'F'
-        self.assertEquals('<span class="glyph icon-bubble-notification"></span>', activity_icon(msg))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-notification"></span>')
 
         msg.status = 'S'
-        self.assertEquals('<span class="glyph icon-bullhorn"></span>', activity_icon(msg))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-bullhorn"></span>')
 
         flow = self.create_flow()
         flow.start([], [self.joe])
         run = FlowRun.objects.last()
 
-        self.assertEquals('<span class="glyph icon-tree-2"></span>', activity_icon(run))
+        item = {'type': 'run-start', 'obj': run}
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-tree-2"></span>')
 
         run.run_event_type = 'Invalid'
-        self.assertEquals('<span class="glyph icon-tree-2"></span>', activity_icon(run))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-tree-2"></span>')
 
-        run.run_event_type = 'Exited'
-        self.assertEquals('<span class="glyph icon-tree-2"></span>', activity_icon(run))
+        item = {'type': 'run-exit', 'obj': run}
 
         run.exit_type = FlowRun.EXIT_TYPE_COMPLETED
-        self.assertEquals('<span class="glyph icon-checkmark"></span>', activity_icon(run))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-checkmark"></span>')
 
         run.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
-        self.assertEquals('<span class="glyph icon-warning"></span>', activity_icon(run))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-warning"></span>')
 
         run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
-        self.assertEquals('<span class="glyph icon-clock"></span>', activity_icon(run))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
 
     def test_media_tags(self):
 

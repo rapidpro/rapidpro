@@ -5,6 +5,8 @@ from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import ContactURN, EMAIL_SCHEME, EXTERNAL_SCHEME, FACEBOOK_SCHEME, FCM_SCHEME
 from temba.contacts.models import TELEGRAM_SCHEME, TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, LINE_SCHEME
+from temba.ivr.models import IVRCall
+from temba.msgs.models import ERRORED, FAILED
 
 register = template.Library()
 
@@ -36,16 +38,15 @@ ACTIVITY_ICONS = {
     'Completed': 'icon-checkmark'
 }
 
+PLAYABLE_AUDIO_TYPES = {'audio/wav', 'audio/x-wav', 'audio/vnd.wav', 'application/octet-stream'}
+
 MISSING_VALUE = '--'
 
 
 @register.filter
 def contact_field(contact, arg):
     value = contact.get_field_display(arg)
-    if value:
-        return value
-    else:  # pragma: no cover
-        return MISSING_VALUE
+    return value or MISSING_VALUE
 
 
 @register.filter
@@ -78,9 +79,9 @@ def format_urn(urn, org):
 
 @register.filter
 def urn(contact, org):
-    urn = contact.get_urn()
-    if urn:
-        return format_urn(urn, org)
+    contact_urn = contact.get_urn()
+    if contact_urn:
+        return format_urn(contact_urn, org)
     else:
         return MISSING_VALUE
 
@@ -97,8 +98,8 @@ def urn_icon(urn):
 
 @register.filter
 def osm_link(geo_url):
-    (media_type, delim, location) = geo_url.partition(':')
-    coords = location.split(',')
+    (content_type, delim, loc) = geo_url.partition(':')
+    coords = loc.split(',')
     if len(coords) == 2:
         (lat, lng) = coords
         return 'http://www.openstreetmap.org/?mlat=%(lat)s&mlon=%(lng)s#map=18/%(lat)s/%(lng)s' % {"lat": lat, "lng": lng}
@@ -106,15 +107,14 @@ def osm_link(geo_url):
 
 @register.filter
 def location(geo_url):
-    (media_type, delim, location) = geo_url.partition(':')
-    if len(location.split(',')) == 2:
-        return location
+    (content_type, delim, loc) = geo_url.partition(':')
+    if len(loc.split(',')) == 2:
+        return loc
 
 
 @register.filter
 def media_url(media):
     if media:
-        # TODO: remove after migration msgs.0053
         if media.startswith('http'):  # pragma: needs cover
             return media
         return media.partition(':')[2]
@@ -128,23 +128,23 @@ def media_content_type(media):
 
 @register.filter
 def media_type(media):
-    type = media_content_type(media)
-    if type == 'application/octet-stream' and media.endswith('.oga'):  # pragma: needs cover
+    content_type = media_content_type(media)
+    if content_type == 'application/octet-stream' and media.endswith('.oga'):  # pragma: needs cover
         return 'audio'
-    if type and '/' in type:  # pragma: needs cover
-        type = type.split('/')[0]
-    return type
+    if content_type and '/' in content_type:  # pragma: needs cover
+        content_type = content_type.split('/')[0]
+    return content_type
 
 
 @register.filter
-def is_supported_audio(content_type):  # pragma: needs cover
-    return content_type in ['audio/wav', 'audio/x-wav', 'audio/vnd.wav', 'application/octet-stream']
+def is_playable_audio(content_type):
+    return content_type in PLAYABLE_AUDIO_TYPES
 
 
 @register.filter
-def is_document(media_url):
-    type = media_type(media_url)
-    return type in ['application', 'text']
+def is_document(url):
+    content_type = media_type(url)
+    return content_type in ['application', 'text']
 
 
 @register.filter
@@ -154,62 +154,56 @@ def extension(url):  # pragma: needs cover
 
 @register.filter
 def activity_icon(item):
-    name = type(item).__name__
+    obj = item['obj']
 
-    if name == 'Broadcast':
-        if item.purged_status in ('E', 'F'):
-            name = 'Failed'
-    elif name == 'Msg':
-        if item.broadcast and item.broadcast.recipient_count > 1:
-            name = 'Broadcast'
-            if item.status in ('E', 'F'):
-                name = 'Failed'
-        elif item.msg_type == 'V':
-            if item.direction == 'I':
-                name = 'DTMF'
-            else:
-                name = 'IVRCall'
-        elif item.direction == 'I':
-            name = 'Incoming'
+    if item['type'] == 'broadcast':
+        icon = 'Failed' if obj.purged_status in ('E', 'F') else 'Broadcast'
+    elif item['type'] == 'msg':
+        if obj.broadcast and obj.broadcast.recipient_count > 1:
+            icon = 'Failed' if obj.status in ('E', 'F') else 'Broadcast'
+        elif obj.msg_type == 'V':
+            icon = 'DTMF' if obj.direction == 'I' else 'IVRCall'
+        elif obj.direction == 'I':
+            icon = 'Incoming'
         else:
-            name = 'Outgoing'
-            if hasattr(item, 'status'):
-                if item.status in ('F', 'E'):
-                    name = 'Failed'
-                elif item.status == 'D':
-                    name = 'Delivered'
-    elif name == 'FlowRun':
-        if hasattr(item, 'run_event_type'):
-            if item.exit_type == 'C':
-                name = 'Completed'
-            elif item.exit_type == 'I':
-                name = 'Interrupted'
-            elif item.exit_type == 'E':
-                name = 'Expired'
+            if obj.status in ('F', 'E'):
+                icon = 'Failed'
+            elif obj.status == 'D':
+                icon = 'Delivered'
+            else:
+                icon = 'Outgoing'
+    elif item['type'] == 'run-start':
+        icon = 'FlowRun'
+    elif item['type'] == 'run-exit':
+        if obj.exit_type == 'C':
+            icon = 'Completed'
+        elif obj.exit_type == 'I':
+            icon = 'Interrupted'
+        else:
+            icon = 'Expired'
+    else:
+        icon = type(obj).__name__
 
-    return mark_safe('<span class="glyph %s"></span>' % (ACTIVITY_ICONS.get(name, '')))
+    return mark_safe('<span class="glyph %s"></span>' % (ACTIVITY_ICONS.get(icon, '')))
 
 
 @register.filter
 def history_class(item):
-    css = ''
-    from temba.msgs.models import Msg, ERRORED, FAILED
-    from temba.ivr.models import IVRCall
+    obj = item['obj']
+    classes = []
 
-    if isinstance(item, Msg):
-        if item.media and item.media[:6] == 'video:':
-            css = '%s %s' % (css, 'video')
-        if item.direction or item.recipient_count:
-            css = '%s %s' % (css, 'msg')
-        if item.status in (ERRORED, FAILED):
-            css = '%s %s' % (css, 'warning')
+    if item['type'] == 'msg':
+        classes.append('msg')
+        if obj.media and obj.media[:6] == 'video:':
+            classes.append('video')
+        if obj.status in (ERRORED, FAILED):
+            classes.append('warning')
     else:
-        css = '%s %s' % (css, 'non-msg')
+        classes.append('non-msg')
 
-        if isinstance(item, IVRCall):
-            if item.status == IVRCall.FAILED:
-                css = '%s %s' % (css, 'warning')
-    return css.strip()
+        if item['type'] == 'call' and obj.status == IVRCall.FAILED:
+            classes.append('warning')
+    return ' '.join(classes)
 
 
 @register.filter
