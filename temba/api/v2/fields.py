@@ -22,6 +22,9 @@ def validate_size(value, max_size):
 
 
 def validate_translations(data, max_length):
+    if len(data) == 0:
+        raise serializers.ValidationError("Must include at least one translation.")
+
     for lang, trans in six.iteritems(data):
         if not isinstance(lang, six.string_types) or len(lang) > 3:
             raise serializers.ValidationError("Language code %s is not valid." % six.text_type(lang))

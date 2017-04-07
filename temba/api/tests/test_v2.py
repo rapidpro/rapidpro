@@ -234,6 +234,7 @@ class APITest(TembaTest):
         self.assertEqual(field.to_internal_value({'eng': "Hello"}), {'eng': "Hello"})
         self.assertRaises(serializers.ValidationError, field.to_internal_value, 123)  # not a string or dict
         self.assertRaises(serializers.ValidationError, field.to_internal_value, {'eng': 123})
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {})
         self.assertRaises(serializers.ValidationError, field.to_internal_value, {123: "Hello"})
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "HelloHello1")  # too long
         self.assertRaises(serializers.ValidationError, field.to_internal_value, {'eng': "HelloHello1"})  # also too long
@@ -591,10 +592,22 @@ class APITest(TembaTest):
 
         broadcast = Broadcast.objects.get(pk=response.json()['id'])
         self.assertEqual(broadcast.text, "Hello")
+        self.assertEqual(broadcast.language_dict, None)
         self.assertEqual(set(broadcast.urns.values_list('urn', flat=True)), {"twitter:franky"})
         self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
         self.assertEqual(set(broadcast.groups.all()), {reporters})
         self.assertEqual(broadcast.channel, self.channel)
+
+        # create new broadcast with translations
+        response = self.postJSON(url, None, {
+            'text': {'eng': "Hello", 'fre': "Bonjour"},
+            'contacts': [self.joe.uuid, self.frank.uuid],
+        })
+
+        broadcast = Broadcast.objects.get(pk=response.json()['id'])
+        self.assertIn(broadcast.text, ("Hello", "Bonjour"))
+        self.assertEqual(json.loads(broadcast.language_dict), {'eng': "Hello", 'fre': "Bonjour"})
+        self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
 
         # try sending as a suspended org
         self.org.set_suspended()
@@ -824,13 +837,13 @@ class APITest(TembaTest):
             'offset': 15,
             'unit': 'weeks',
             'delivery_hour': -1,
-            'message': "OK"
+            'message': {'eng': "OK", 'fre': "D'accord"}
         })
         self.assertEqual(response.status_code, 200)
 
         event2.refresh_from_db()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
-        self.assertEqual(event2.message, "OK")
+        self.assertEqual(json.loads(event2.message), {'eng': "OK", 'fre': "D'accord"})
 
         # try to change an existing event's campaign
         response = self.postJSON(url, 'uuid=%s' % event1.uuid, {
