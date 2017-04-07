@@ -1,3 +1,41 @@
+v3.0.105
+----------
+ * Link subflow starts in actions
+ * Allow wait to wait in flows with warning
+
+v3.0.104
+----------
+ * Add new has email test, contains phrase test and contains only phrase test
+
+v3.0.103
+----------
+ * Migration to populate FlowNodeCount shouldn't include test contacts
+
+v3.0.102
+----------
+ * Add migration to populate FlowNodeCount
+
+v3.0.101
+----------
+ * Migration to clear no-longer-used flow stats redis keys
+ * Replace remaining cache-based flow stats code with trigger based FlowNodeCount
+
+v3.0.100
+----------
+ * Fix intermittently failing Twilio test
+ * make sure calls have expiration on initiation
+ * Update to latest smartmin
+ * Add redirection for v1 endpoints
+ * Fix webhook docs
+ * Fix MsgCreateSerializer not using specified channel
+ * Test coverage
+ * Fix test coverage issues caused by removing API v1 tests
+ * Ensure surveyor users still have access to the API v2 endpoint thats they need
+ * Remove djangorestframework-xml
+ * Restrict API v1 access to surveyor users
+ * Block all API v2 writes for suspended orgs
+ * Remove all parts of API v1 not used by Surveyor
+
 v3.0.99
 ----------
  * Prioritize msg handling over timeotus and event fires
