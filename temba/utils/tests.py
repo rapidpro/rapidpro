@@ -22,7 +22,7 @@ from mock import patch, PropertyMock
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, SystemLabel
+from temba.msgs.models import Msg, SystemLabelCount
 from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
 from temba.tests import TembaTest
@@ -1494,7 +1494,7 @@ class MakeTestDBTest(SimpleTestCase):
     def tearDown(self):
         Msg.objects.all().delete()
         FlowRun.objects.all().delete()
-        SystemLabel.objects.all().delete()
+        SystemLabelCount.objects.all().delete()
         Org.objects.all().delete()
         User.objects.all().delete()
         Group.objects.all().delete()
