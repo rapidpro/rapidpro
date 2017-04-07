@@ -34,7 +34,7 @@ from .models import Contact, ContactGroup, ContactField, ContactURN, ExportConta
 from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
 from .search import parse_query, ContactQuery, Condition, IsSetCondition, BoolCombination, SinglePropCombination, SearchException
 from .tasks import squash_contactgroupcounts
-from .templatetags.contacts import activity_icon, history_class
+from .templatetags.contacts import activity_icon, history_class, is_playable_audio
 
 
 class ContactCRUDLTest(_CRUDLTest):
@@ -1657,19 +1657,22 @@ class ContactTest(TembaTest):
     def test_media_tags(self):
 
         # malformed
-        self.assertEqual(None, location('malformed'))
-        self.assertEqual(None, location('geo:latlngs'))
-        self.assertEqual(None, osm_link('malformed'))
-        self.assertEqual(None, osm_link('geo:latlngs'))
+        self.assertIsNone(location('malformed'))
+        self.assertIsNone(location('geo:latlngs'))
+        self.assertIsNone(osm_link('malformed'))
+        self.assertIsNone(osm_link('geo:latlngs'))
 
         # valid
         media = 'geo:47.5414799,-122.6359908'
-        self.assertEqual('http://www.openstreetmap.org/?mlat=47.5414799&mlon=-122.6359908#map=18/47.5414799/-122.6359908', osm_link(media))
-        self.assertEqual('47.5414799,-122.6359908', location(media))
+        self.assertEqual(osm_link(media), 'http://www.openstreetmap.org/?mlat=47.5414799&mlon=-122.6359908#map=18/47.5414799/-122.6359908')
+        self.assertEqual(location(media), '47.5414799,-122.6359908')
 
         # splitting the type and path
-        self.assertEqual('geo', media_type(media))
-        self.assertEqual('47.5414799,-122.6359908', media_url(media))
+        self.assertEqual(media_type(media), 'geo')
+        self.assertEqual(media_url(media), '47.5414799,-122.6359908')
+
+        self.assertTrue(is_playable_audio('audio/wav'))
+        self.assertFalse(is_playable_audio('audio/midi'))
 
     def test_get_scheduled_messages(self):
         self.just_joe = self.create_group("Just Joe", [self.joe])
