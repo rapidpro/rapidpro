@@ -31,7 +31,7 @@ def apply_manual():
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0086_broadcast_send_all'),
+        ('msgs', '0088_broadcast_send_all'),
     ]
 
     operations = [
