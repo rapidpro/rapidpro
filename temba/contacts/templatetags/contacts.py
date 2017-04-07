@@ -115,8 +115,6 @@ def location(geo_url):
 @register.filter
 def media_url(media):
     if media:
-        if media.startswith('http'):  # pragma: needs cover
-            return media
         return media.partition(':')[2]
 
 
