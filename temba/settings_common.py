@@ -172,7 +172,6 @@ MIDDLEWARE_CLASSES = (
     'temba.middleware.OrgTimezoneMiddleware',
     'temba.middleware.FlowSimulationMiddleware',
     'temba.middleware.ActivateLanguageMiddleware',
-    'temba.middleware.NonAtomicGetsMiddleware',
     'temba.middleware.OrgHeaderMiddleware',
 )
 

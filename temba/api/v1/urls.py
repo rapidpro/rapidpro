@@ -6,7 +6,7 @@ from django.http import HttpResponseGone
 from django.views.generic.base import RedirectView
 from rest_framework.urlpatterns import format_suffix_patterns
 from .views import AuthenticateEndpoint, OrgEndpoint, ContactEndpoint, FlowEndpoint, FlowDefinitionEndpoint
-from .views import BoundaryEndpoint, FlowStepEndpoint, FieldEndpoint
+from .views import BoundaryEndpoint, FlowStepEndpoint, FieldEndpoint, RootView
 
 
 def v1_gone(request, *args, **kwargs):
@@ -15,11 +15,11 @@ def v1_gone(request, *args, **kwargs):
 
 
 urlpatterns = [
-    # these HTML views redirect to their v2 equivalent
-    url(r'^$', RedirectView.as_view(pattern_name='api.v2', permanent=True)),
+    # this HTML view redirects to its v2 equivalent
     url(r'^explorer/$', RedirectView.as_view(pattern_name='api.v2.explorer', permanent=True)),
 
     # these endpoints are retained for Android Surveyor clients
+    url(r'^$', RootView.as_view()),
     url(r'^authenticate$', AuthenticateEndpoint.as_view(), name='api.v1.authenticate'),
     url(r'^boundaries$', BoundaryEndpoint.as_view(), name='api.v1.boundaries'),
     url(r'^contacts$', ContactEndpoint.as_view(), name='api.v1.contacts'),
