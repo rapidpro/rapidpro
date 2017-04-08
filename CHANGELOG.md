@@ -1,3 +1,7 @@
+v3.0.107
+----------
+ * Add send_all broadcast field
+
 v3.0.106
 ----------
  * Remove non_atomic_gets and display message at /api/v1/ to explain API v1 has been replaced
