@@ -145,6 +145,18 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {'detail': "Not found."})
 
+    @override_settings(REST_HANDLE_EXCEPTIONS=True)
+    @patch('temba.api.v2.views.FieldsEndpoint.get_queryset')
+    def test_error_handling(self, mock_get_queryset):
+        mock_get_queryset.side_effect = ValueError("DOH!")
+
+        self.login(self.admin)
+
+        response = self.client.get(reverse('api.v2.fields') + '.json', content_type="application/json",
+                                   HTTP_X_FORWARDED_HTTPS='https')
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.content, "Server Error. Site administrators have been notified.")
+
     def test_serializer_fields(self):
         group = self.create_group("Customers")
         field_obj = ContactField.get_or_create(self.org, self.admin, 'registered', "Registered On")
@@ -1678,7 +1690,7 @@ class APITest(TembaTest):
         important.toggle_label([msg], add=True)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
             response = self.fetchJSON(url)
 
         resp_json = response.json()

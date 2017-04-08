@@ -9,7 +9,6 @@ import re
 import six
 import time
 
-
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
@@ -38,10 +37,10 @@ from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
 from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user
 from .models import FlowPathRecentStep, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
-from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
+from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest, ContainsOnlyPhraseTest, ContainsPhraseTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
-from .models import HasStateTest, HasDistrictTest, HasWardTest
+from .models import HasStateTest, HasDistrictTest, HasWardTest, HasEmailTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction, SetChannelAction
 from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog
 from .models import VariableContactAction, UssdAction
@@ -1441,6 +1440,9 @@ class FlowTest(TembaTest):
         test = ContainsTest(test=dict(base="Green green GREEN"))
         self.assertTest(True, "GReen", test)
 
+        test = ContainsTest(test=dict(base="Green green GREEN"))
+        self.assertTest(True, "GReen", test)
+
         sms.text = "Blue is my favorite"
         self.assertTest(False, None, test)
 
@@ -1450,6 +1452,40 @@ class FlowTest(TembaTest):
         # edit distance
         sms.text = "Greenn is ok though"
         self.assertTest(True, "Greenn", test)
+
+        sms.text = "RESIST!!"
+        test = ContainsOnlyPhraseTest(test=dict(base="resist"))
+        self.assertTest(True, "RESIST", test)
+
+        sms.text = "RESIST TODAY!!"
+        self.assertTest(False, None, test)
+
+        test = ContainsOnlyPhraseTest(test=dict(base="resist now"))
+        test = ContainsOnlyPhraseTest.from_json(self.org, test.as_json())
+        sms.text = " resist NOW "
+        self.assertTest(True, "resist NOW", test)
+
+        sms.text = " NOW resist"
+        self.assertTest(False, None, test)
+
+        sms.text = "this isn't an email@asdf"
+        test = HasEmailTest()
+        test = HasEmailTest.from_json(self.org, test.as_json())
+        self.assertTest(False, None, test)
+
+        sms.text = "this is an email email@foo.bar TODAY!!"
+        self.assertTest(True, "email@foo.bar", test)
+
+        test = ContainsPhraseTest(test=dict(base="resist now"))
+        test = ContainsPhraseTest.from_json(self.org, test.as_json())
+        sms.text = "we must resist! NOW "
+        self.assertTest(True, "resist NOW", test)
+
+        sms.text = "we must resist but perhaps not NOW "
+        self.assertTest(False, None, test)
+
+        sms.text = "  RESIST now "
+        self.assertTest(True, "RESIST now", test)
 
         test = ContainsTest(test=dict(base="Green green %%$"))
         sms.text = "GReen is my favorite!, %%$"
@@ -4200,9 +4236,6 @@ class SimulationTest(FlowFileTest):
 
 class FlowsTest(FlowFileTest):
 
-    def clear_activity(self, flow):
-        flow.clear_stats_cache()
-
     def test_validate_flow_definition(self):
 
         with self.assertRaises(ValueError):
@@ -4486,8 +4519,6 @@ class FlowsTest(FlowFileTest):
     def test_bulk_exit(self):
         flow = self.get_flow('favorites')
         color = RuleSet.objects.get(label='Color', flow=flow)
-        self.clear_activity(flow)
-
         contacts = [self.create_contact("Run Contact %d" % i, "+25078838338%d" % i) for i in range(6)]
 
         # add our contacts to the flow
@@ -4553,12 +4584,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(max_id, FlowRunCount.objects.all().order_by('-id').first().id)
 
     def test_activity(self):
-
         flow = self.get_flow('favorites')
-
-        # clear our previous redis activity
-        self.clear_activity(flow)
-
         color_question = ActionSet.objects.get(y=0, flow=flow)
         other_action = ActionSet.objects.get(y=8, flow=flow)
         beer_question = ActionSet.objects.get(y=237, flow=flow)
@@ -4640,14 +4666,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, len(active))
 
         # half of our flows are now complete
-        self.assertEqual(flow.get_run_stats(),
-                         {'total': 2, 'active': 1, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 50})
-
-        # rebuild our flow stats and make sure they are the same
-        flow.do_calculate_flow_stats()
-        (active, visited) = flow.get_activity()
-        self.assertEquals(1, len(active))
-        self.assertEquals(3, visited[other_rule_to_msg])
         self.assertEqual(flow.get_run_stats(),
                          {'total': 2, 'active': 1, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 50})
 

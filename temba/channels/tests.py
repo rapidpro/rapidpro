@@ -122,13 +122,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(context['tel'], '')
         self.assertEqual(context['tel_e164'], '')
 
-    def test_deactivate(self):
-        self.login(self.admin)
-        self.tel_channel.is_active = False
-        self.tel_channel.save()
-        response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.uuid]))
-        self.assertEquals(404, response.status_code)
-
     def test_delegate_channels(self):
 
         self.login(self.admin)
@@ -2109,6 +2102,20 @@ class ChannelTest(TembaTest):
         self.assertIsNone(nexmo.org)
         self.assertFalse(nexmo.is_active)
 
+    def test_release_twitter(self):
+        # check that removing Twitter channel notifies Mage
+        with patch('temba.utils.mage.MageClient._request') as mock_mage_request:
+            mock_mage_request.return_value = ""
+
+            self.twitter_channel.release()
+
+            mock_mage_request.assert_called_once_with('DELETE', 'twitter/%s' % self.twitter_channel.uuid)
+
+        # can't view a released channel
+        self.login(self.admin)
+        response = self.client.get(reverse('channels.channel_read', args=[self.twitter_channel.uuid]))
+        self.assertEqual(response.status_code, 404)
+
     def test_unclaimed(self):
         response = self.sync(self.released_channel)
         self.assertEquals(200, response.status_code)
@@ -2818,7 +2825,6 @@ class ChannelClaimTest(TembaTest):
         post_data['username'] = 'uname'
         post_data['password'] = 'pword'
         post_data['url'] = 'http://test.com/send.php'
-        post_data['key'] = 'secret_key'
         post_data['number'] = '301'
 
         response = self.client.post(reverse('channels.channel_claim_shaqodoon'), post_data)
@@ -2831,7 +2837,6 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(post_data['url'], channel.config_json()['send_url'])
         self.assertEquals(post_data['username'], channel.config_json()['username'])
         self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals(post_data['key'], channel.config_json()['key'])
         self.assertEquals(Channel.TYPE_SHAQODOON, channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
@@ -4208,8 +4213,7 @@ class ShaqodoonTest(TembaTest):
         self.channel = Channel.create(self.org, self.user, 'SO', 'SQ', None, '+250788123123',
                                       config={Channel.CONFIG_SEND_URL: 'http://foo.com/send',
                                               Channel.CONFIG_USERNAME: 'username',
-                                              Channel.CONFIG_PASSWORD: 'password',
-                                              Channel.CONFIG_KEY: 'key'},
+                                              Channel.CONFIG_PASSWORD: 'password'},
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_receive(self):
