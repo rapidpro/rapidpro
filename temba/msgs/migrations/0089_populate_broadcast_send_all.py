@@ -10,7 +10,8 @@ def do_populate_send_all(Broadcast):
     broadcast_ids = Broadcast.objects.all().values_list('id', flat=True)
 
     broadcast_count = len(broadcast_ids)
-    print('Starting to update %d broadcasts send all field...' % broadcast_count)
+    if broadcast_count:
+        print('Starting to update %d broadcasts send all field...' % broadcast_count)
 
     updated = 0
     for chunk in chunk_list(broadcast_ids, 1000):
