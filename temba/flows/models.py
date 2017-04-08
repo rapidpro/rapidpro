@@ -5694,36 +5694,39 @@ class Test(object):
     def from_json(cls, org, json_dict):
         if not cls.__test_mapping:
             cls.__test_mapping = {
-                SubflowTest.TYPE: SubflowTest,
-                TrueTest.TYPE: TrueTest,
-                FalseTest.TYPE: FalseTest,
+                AirtimeStatusTest.TYPE: AirtimeStatusTest,
                 AndTest.TYPE: AndTest,
-                OrTest.TYPE: OrTest,
-                ContainsTest.TYPE: ContainsTest,
-                ContainsAnyTest.TYPE: ContainsAnyTest,
-                NumberTest.TYPE: NumberTest,
-                LtTest.TYPE: LtTest,
-                LteTest.TYPE: LteTest,
-                GtTest.TYPE: GtTest,
-                GteTest.TYPE: GteTest,
-                EqTest.TYPE: EqTest,
                 BetweenTest.TYPE: BetweenTest,
-                StartsWithTest.TYPE: StartsWithTest,
-                HasDateTest.TYPE: HasDateTest,
-                DateEqualTest.TYPE: DateEqualTest,
+                ContainsAnyTest.TYPE: ContainsAnyTest,
+                ContainsOnlyPhraseTest.TYPE: ContainsOnlyPhraseTest,
+                ContainsPhraseTest.TYPE: ContainsPhraseTest,
+                ContainsTest.TYPE: ContainsTest,
                 DateAfterTest.TYPE: DateAfterTest,
                 DateBeforeTest.TYPE: DateBeforeTest,
+                DateEqualTest.TYPE: DateEqualTest,
+                EqTest.TYPE: EqTest,
+                FalseTest.TYPE: FalseTest,
+                GtTest.TYPE: GtTest,
+                GteTest.TYPE: GteTest,
+                HasDateTest.TYPE: HasDateTest,
+                HasDistrictTest.TYPE: HasDistrictTest,
+                HasEmailTest.TYPE: HasEmailTest,
+                HasStateTest.TYPE: HasStateTest,
+                HasWardTest.TYPE: HasWardTest,
+                InGroupTest.TYPE: InGroupTest,
+                InterruptTest.TYPE: InterruptTest,
+                LtTest.TYPE: LtTest,
+                LteTest.TYPE: LteTest,
+                NotEmptyTest.TYPE: NotEmptyTest,
+                NumberTest.TYPE: NumberTest,
+                OrTest.TYPE: OrTest,
                 PhoneTest.TYPE: PhoneTest,
                 RegexTest.TYPE: RegexTest,
-                HasWardTest.TYPE: HasWardTest,
-                HasDistrictTest.TYPE: HasDistrictTest,
-                HasStateTest.TYPE: HasStateTest,
-                NotEmptyTest.TYPE: NotEmptyTest,
-                InterruptTest.TYPE: InterruptTest,
+                StartsWithTest.TYPE: StartsWithTest,
+                SubflowTest.TYPE: SubflowTest,
                 TimeoutTest.TYPE: TimeoutTest,
-                AirtimeStatusTest.TYPE: AirtimeStatusTest,
+                TrueTest.TYPE: TrueTest,
                 WebhookStatusTest.TYPE: WebhookStatusTest,
-                InGroupTest.TYPE: InGroupTest
             }
 
         type = json_dict.get(cls.TYPE, None)
@@ -6084,6 +6087,32 @@ class ContainsTest(Test):
             return 0, None
 
 
+class HasEmailTest(Test):
+    """
+    { op: "has_email" }
+    """
+    TYPE = 'has_email'
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls()
+
+    def as_json(self):
+        return dict(type=self.TYPE)
+
+    def evaluate(self, run, sms, context, text):
+        # split on whitespace
+        words = text.split()
+        for word in words:
+            if is_valid_address(word):
+                return 1, word
+
+        return 0, None
+
+
 class ContainsAnyTest(ContainsTest):
     """
     { op: "contains_any", "test": "red" }
@@ -6121,6 +6150,78 @@ class ContainsAnyTest(ContainsTest):
         if matches:
             matches = sorted(list(matches))
             matched_words = " ".join([raw_words[idx] for idx in matches])
+            return 1, matched_words
+        else:
+            return 0, None
+
+
+class ContainsOnlyPhraseTest(ContainsTest):
+    """
+    { op: "contains_only_phrase", "test": "red" }
+    """
+    TEST = 'test'
+    TYPE = 'contains_only_phrase'
+
+    def as_json(self):
+        return dict(type=ContainsOnlyPhraseTest.TYPE, test=self.test)
+
+    def evaluate(self, run, sms, context, text):
+        # substitute any variables
+        test = run.flow.get_localized_text(self.test, run.contact)
+        test, errors = Msg.substitute_variables(test, context, org=run.flow.org)
+
+        # tokenize our test
+        tests = tokenize(test.lower())
+
+        # tokenize our sms
+        words = tokenize(text.lower())
+        raw_words = tokenize(text)
+
+        # they are the same? then we matched
+        if tests == words:
+            return 1, " ".join(raw_words)
+        else:
+            return 0, None
+
+
+class ContainsPhraseTest(ContainsTest):
+    """
+    { op: "contains_phrase", "test": "red" }
+    """
+    TEST = 'test'
+    TYPE = 'contains_phrase'
+
+    def as_json(self):
+        return dict(type=ContainsPhraseTest.TYPE, test=self.test)
+
+    def evaluate(self, run, sms, context, text):
+        # substitute any variables
+        test = run.flow.get_localized_text(self.test, run.contact)
+        test, errors = Msg.substitute_variables(test, context, org=run.flow.org)
+
+        # tokenize our test
+        tests = tokenize(test.lower())
+
+        # tokenize our sms
+        words = tokenize(text.lower())
+        raw_words = tokenize(text)
+
+        # look for the phrase
+        test_idx = 0
+        matches = []
+        for i in range(len(words)):
+            if tests[test_idx] == words[i]:
+                matches.append(raw_words[i])
+                test_idx += 1
+                if test_idx == len(tests):
+                    break
+            else:
+                matches = []
+                test_idx = 0
+
+        # we found the phrase
+        if test_idx == len(tests):
+            matched_words = " ".join(matches)
             return 1, matched_words
         else:
             return 0, None

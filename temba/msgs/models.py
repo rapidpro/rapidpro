@@ -225,6 +225,9 @@ class Broadcast(models.Model):
     media_dict = models.TextField(verbose_name=_("Media"),
                                   help_text=_("The localized versions of the media"), null=True)
 
+    send_all = models.NullBooleanField(null=True,
+                                       help_text="Whether this broadcast should send to all URNs for each contact")
+
     @classmethod
     def create(cls, org, user, text, recipients, channel=None, media_dict=None, **kwargs):
         create_args = dict(org=org, text=text, channel=channel, media_dict=media_dict, created_by=user,
