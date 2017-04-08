@@ -1,3 +1,7 @@
+v3.0.108
+----------
+ * Add webhook events trim task with configurable retain times for success and error logs
+
 v3.0.107
 ----------
  * Add send_all broadcast field
