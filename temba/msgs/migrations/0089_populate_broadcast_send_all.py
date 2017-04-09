@@ -14,7 +14,7 @@ def do_populate_send_all(Broadcast):
         print('Starting to update %d broadcasts send all field...' % broadcast_count)
 
     updated = 0
-    for chunk in chunk_list(broadcast_ids, 1000):
+    for chunk in chunk_list(broadcast_ids, 5000):
         Broadcast.objects.filter(pk__in=chunk).update(send_all=False)
         print("Updated %d of %d broadcasts" % (updated + len(chunk), broadcast_count))
 
@@ -36,12 +36,11 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(apply_as_migration),
-
         migrations.AlterField(
             model_name='broadcast',
             name='send_all',
             field=models.NullBooleanField(default=False,
                                           help_text='Whether this broadcast should send to all URNs for each contact'),
         ),
+        migrations.RunPython(apply_as_migration),
     ]
