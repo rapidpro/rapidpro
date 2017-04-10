@@ -27,7 +27,7 @@ from django.template import loader, Context
 from django_redis import get_redis_connection
 from mock import patch
 from smartmin.tests import SmartminTest
-from temba.api.models import WebHookEvent, SMS_RECEIVED
+from temba.api.models import WebHookEvent
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, LINE_SCHEME
 from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING, USSD
 from temba.channels.views import channel_status_processor
@@ -7822,7 +7822,7 @@ class MageHandlerTest(TembaTest):
         self.assertEqual(self.welcome_topup, msg.topup)
 
         # check for a web hook event
-        event = json.loads(WebHookEvent.objects.get(org=self.org, event=SMS_RECEIVED).data)
+        event = json.loads(WebHookEvent.objects.get(org=self.org, event=WebHookEvent.TYPE_SMS_RECEIVED).data)
         self.assertEqual(msg.id, event['sms'])
 
         msg_counts = SystemLabel.get_counts(self.org)
