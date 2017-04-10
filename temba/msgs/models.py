@@ -1075,7 +1075,7 @@ class Msg(models.Model):
         """
         Updates our message according to the provided client command
         """
-        from temba.api.models import WebHookEvent, SMS_DELIVERED, SMS_SENT, SMS_FAIL
+        from temba.api.models import WebHookEvent
         date = datetime.fromtimestamp(int(cmd['ts']) / 1000).replace(tzinfo=pytz.utc)
 
         keyword = cmd['cmd']
@@ -1088,18 +1088,18 @@ class Msg(models.Model):
         elif keyword == 'mt_fail':
             self.status = FAILED
             handled = True
-            WebHookEvent.trigger_sms_event(SMS_FAIL, self, date)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_FAIL, self, date)
 
         elif keyword == 'mt_sent':
             self.status = SENT
             self.sent_on = date
             handled = True
-            WebHookEvent.trigger_sms_event(SMS_SENT, self, date)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_SENT, self, date)
 
         elif keyword == 'mt_dlvd':
             self.status = DELIVERED
             handled = True
-            WebHookEvent.trigger_sms_event(SMS_DELIVERED, self, date)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_DELIVERED, self, date)
 
         self.save()  # first save message status before updating the broadcast status
 
@@ -1204,7 +1204,7 @@ class Msg(models.Model):
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
                         status=PENDING, media=None, msg_type=None, topup=None, external_id=None, session=None):
 
-        from temba.api.models import WebHookEvent, SMS_RECEIVED
+        from temba.api.models import WebHookEvent
         if not org and channel:
             org = channel.org
 
@@ -1281,7 +1281,7 @@ class Msg(models.Model):
             msg.handle()
 
             # fire an event off for this message
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, msg, date)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, date)
 
         return msg
 
