@@ -49,23 +49,11 @@ def process_run_timeout(run_id, timeout_on):
                 print("T[%09d] %08.3f s" % (run.id, time.time() - start))
 
 
-@task(track_started=True, name='process_message_task')  # pragma: no cover
-def process_message_task(msg_id, from_mage=False, new_contact=False):
+def process_message(msg, from_mage=False, new_contact=False):
     """
-    Processes a single incoming message through our queue.
+    Processes the passed in message dealing with new contacts or mage messages appropriately.
     """
-    r = get_redis_connection()
-    msg = Msg.objects.filter(pk=msg_id, status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
-
-    # somebody already handled this message, move on
-    if not msg:  # pragma: needs cover
-        return
-
-    # get a lock on this contact, we process messages one by one to prevent odd behavior in flow processing
-    key = 'pcm_%d' % msg.contact_id
-
-    # wait for the lock as we want to make sure to process the next message as soon as we are free
-    with r.lock(key, timeout=120):
+    if msg:
         print("M[%09d] Processing - %s" % (msg.id, msg.text))
         start = time.time()
 
@@ -77,6 +65,42 @@ def process_message_task(msg_id, from_mage=False, new_contact=False):
 
         Msg.process_message(msg)
         print("M[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text))
+
+
+@task(track_started=True, name='process_message_task')
+def process_message_task(msg_event):
+    """
+    Given the task JSON from our queue, processes the message, is two implementations to deal with
+    backwards compatibility of using contact queues (second branch can be removed later)
+    """
+    r = get_redis_connection()
+
+    # we have a contact id, we want to get the msg from that queue after acquiring our lock
+    if msg_event.get('contact_id'):
+        key = 'pcm_%d' % msg_event['contact_id']
+        contact_queue = Msg.CONTACT_HANDLING_QUEUE % msg_event['contact_id']
+
+        # wait for the lock as we want to make sure to process the next message as soon as we are free
+        with r.lock(key, timeout=120):
+            # pop the next message to process off our contact queue
+            with r.pipeline() as pipe:
+                pipe.zrange(contact_queue, 0, 0)
+                pipe.zremrangebyrank(contact_queue, 0, 0)
+                (msg_event, deleted) = pipe.execute()
+
+            msg = Msg.objects.filter(pk=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
+
+            if msg:
+                process_message(msg, msg_event.get('from_mage', False), msg_event.get('new_contact', False))
+
+    # backwards compatibility for events without contact ids, we handle the message directly
+    else:
+        msg = Msg.objects.filter(pk=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
+        if msg:
+            # grab our contact lock and handle this message
+            key = 'pcm_%d' % msg.contact_id
+            with r.lock(key, timeout=120):
+                process_message(msg, msg_event.get('from_mage', False), msg_event.get('new_contact', False))
 
 
 @task(track_started=True, name='send_broadcast')
@@ -229,7 +253,7 @@ def handle_event_task():
 
     try:
         if event_task['type'] == MSG_EVENT:
-            process_message_task(event_task['id'], event_task.get('from_mage', False), event_task.get('new_contact', False))
+            process_message_task(event_task)
 
         elif event_task['type'] == FIRE_EVENT:
             # use a lock to make sure we don't do two at once somehow

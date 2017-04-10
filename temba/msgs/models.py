@@ -18,13 +18,14 @@ from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
+from django_redis import get_redis_connection
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit, datetime_to_ms
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
@@ -624,6 +625,8 @@ class Msg(models.Model):
     PRIORITY_NORMAL = 500
     PRIORITY_BULK = 100
 
+    CONTACT_HANDLING_QUEUE = 'ch:%d'
+
     MAX_SIZE = settings.MSG_FIELD_SIZE
 
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
@@ -1105,6 +1108,16 @@ class Msg(models.Model):
 
         return handled
 
+    def queue_handling(self):
+        payload = dict(type=MSG_EVENT, contact_id=self.contact.id, id=self.id, from_mage=False, new_contact=False)
+
+        # first push our msg on our contact's queue using our created date
+        r = get_redis_connection('default')
+        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_ms(self.sent_on), payload)
+
+        # queue up our celery task
+        push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)
+
     def handle(self):
         if self.direction == OUTGOING:
             raise ValueError(ugettext("Cannot process an outgoing message."))
@@ -1115,9 +1128,7 @@ class Msg(models.Model):
 
         # others do in celery
         else:
-            on_transaction_commit(lambda: push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
-                                                    dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False),
-                                                    priority=HIGH_PRIORITY))
+            on_transaction_commit(lambda: self.queue_handling())
 
     def build_expressions_context(self, contact_context=None):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
