@@ -423,10 +423,10 @@ class TestMessageForm(forms.Form):
 
 
 class ExportForm(Form):
-    LABEL_CHOICES = ((False, _("Just this label")), (True, _("All messages")))
-    SYSTEM_LABEL_CHOICES = ((False, _("Just this folder")), (True, _("All messages")))
+    LABEL_CHOICES = ((0, _("Just this label")), (1, _("All messages")))
+    SYSTEM_LABEL_CHOICES = ((0, _("Just this folder")), (1, _("All messages")))
 
-    export_all = forms.BooleanField(required=False, widget=forms.RadioSelect(choices=()), label=' ', initial=False)
+    export_all = forms.ChoiceField(choices=(), label=_("Selection"), initial=0)
 
     groups = forms.ModelMultipleChoiceField(queryset=ContactGroup.user_groups.none(),
                                             required=False, label=_("Groups"))
@@ -441,7 +441,7 @@ class ExportForm(Form):
         super(ExportForm, self).__init__(*args, **kwargs)
         self.user = user
 
-        self.fields['export_all'].widget.choices = self.LABEL_CHOICES if label else self.SYSTEM_LABEL_CHOICES
+        self.fields['export_all'].choices = self.LABEL_CHOICES if label else self.SYSTEM_LABEL_CHOICES
 
         self.fields['groups'].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
         self.fields['groups'].help_text = _("Export only messages from these contact groups. "
@@ -492,7 +492,7 @@ class MsgCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            export_all = form.cleaned_data['export_all']
+            export_all = bool(int(form.cleaned_data['export_all']))
             groups = form.cleaned_data['groups']
             start_date = form.cleaned_data['start_date']
             end_date = form.cleaned_data['end_date']
