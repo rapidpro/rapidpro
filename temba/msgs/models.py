@@ -1109,6 +1109,9 @@ class Msg(models.Model):
         return handled
 
     def queue_handling(self):
+        """
+        Queues this message to be handled by one of our celery queues
+        """
         payload = dict(type=MSG_EVENT, contact_id=self.contact.id, id=self.id, from_mage=False, new_contact=False)
 
         # first push our msg on our contact's queue using our created date
