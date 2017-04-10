@@ -3,6 +3,7 @@ from __future__ import print_function, unicode_literals
 import logging
 import six
 import time
+import json
 
 from celery.task import task
 from collections import defaultdict
@@ -85,12 +86,14 @@ def process_message_task(msg_event):
             with r.pipeline() as pipe:
                 pipe.zrange(contact_queue, 0, 0)
                 pipe.zremrangebyrank(contact_queue, 0, 0)
-                (msg_event, deleted) = pipe.execute()
+                (contact_msg, deleted) = pipe.execute()
 
-            msg = Msg.objects.filter(pk=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
+            if contact_msg:
+                msg_event = json.loads(contact_msg[0])
+                msg = Msg.objects.filter(pk=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
 
-            if msg:
-                process_message(msg, msg_event.get('from_mage', False), msg_event.get('new_contact', False))
+                if msg:
+                    process_message(msg, msg_event.get('from_mage', False), msg_event.get('new_contact', False))
 
     # backwards compatibility for events without contact ids, we handle the message directly
     else:
