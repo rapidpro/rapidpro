@@ -1590,9 +1590,23 @@ class ContactTest(TembaTest):
         self.assertEquals("1 minute before Planting Date", event_time(event))
 
     def test_activity_tags(self):
+        self.create_campaign()
 
         contact = self.create_contact('Joe Blow', 'tel:+1234')
         msg = Msg.create_incoming(self.channel, 'tel:+1234', "Inbound message")
+
+        self.reminder_flow.start([], [self.joe])
+
+        # pretend that flow run made a webhook request
+        WebHookEvent.trigger_flow_event(FlowRun.objects.get(), 'https://example.com', '1234', msg=None)
+        result = WebHookResult.objects.get()
+
+        item = {'type': 'webhook-result', 'obj': result}
+        self.assertEqual(history_class(item), 'non-msg')
+
+        result.status_code = 404
+        self.assertEqual(history_class(item), 'non-msg warning')
+
         call = IVRCall.create_incoming(self.channel, contact, contact.urns.all().first(),
                                        self.admin, self.admin)
 
