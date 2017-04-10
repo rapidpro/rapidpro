@@ -35,7 +35,6 @@ Django-Select2==4.3.2
 django-storages==1.5.2
 django-timezone-field==2.0
 djangorestframework==3.5.1
-djangorestframework-xml==1.2.0
 djorm-ext-core==0.7
 djorm-ext-expressions==0.6
 djorm-ext-hstore==0.5

@@ -23,7 +23,6 @@ xlutils
 phonenumbers
 django-countries
 djangorestframework
-djangorestframework-xml
 iptools
 requests
 mock
