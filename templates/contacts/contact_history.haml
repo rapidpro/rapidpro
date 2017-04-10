@@ -159,18 +159,18 @@
 
               .activity-body
                 .text
-                  -if item.media and media_type == 'audio'
+                  -if message.media and media_type == 'audio'
                     .recording-text
                       %span.text
                         -if message.direction == 'O'
-                          -if message.text not in item.media
+                          -if message.text not in message.media
                             {{message.text}}
                           -else
                             -trans "Listened to a recording"
                         -else
                           -trans "Audio recording"
                       %span.link
-                        (<a href="{{media_url}}" download>{%if message.text not in item.media%}recording{%else%}download{%endif%}</a>)
+                        (<a href="{{media_url}}" download>{%if message.text not in message.media%}recording{%else%}download{%endif%}</a>)
                   -else
                     {{message.text}}
 
