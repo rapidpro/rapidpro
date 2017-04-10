@@ -21,6 +21,7 @@ from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
 from temba.channels.models import Channel, ChannelEvent, TEMBA_HEADERS
 from temba.contacts.models import TEL_SCHEME
+from temba.flows.models import FlowRun, ActionLog
 from temba.orgs.models import Org
 from temba.utils import datetime_to_str, prepped_request_to_str
 from temba.utils.cache import get_cacheable_attr
@@ -186,6 +187,8 @@ class WebHookEvent(SmartModel):
                                  help_text="The associated resthook to this event. (optional)")
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='P',
                               help_text="The state this event is currently in")
+    run = models.ForeignKey(FlowRun, null=True,
+                            help_text="The flow run that triggered this event")
     channel = models.ForeignKey(Channel, null=True, blank=True,
                                 help_text="The channel that this event is relating to")
     event = models.CharField(max_length=16, choices=TYPE_CHOICES,
@@ -260,7 +263,7 @@ class WebHookEvent(SmartModel):
             action = 'POST'
 
         webhook_event = cls.objects.create(org=org, event=cls.TYPE_FLOW, channel=channel, data=json.dumps(data),
-                                           try_count=1, action=action, resthook=resthook,
+                                           run=run, try_count=1, action=action, resthook=resthook,
                                            created_by=api_user, modified_by=api_user)
 
         status_code = -1
@@ -336,7 +339,6 @@ class WebHookEvent(SmartModel):
 
             # if this is a test contact, add an entry to our action log
             if run.contact.is_test:
-                from temba.flows.models import ActionLog
                 log_txt = "Triggered <a href='%s' target='_log'>webhook event</a> - %d" % (reverse('api.log_read', args=[webhook_event.pk]), status_code)
                 ActionLog.create(run, log_txt, safe=True)
 
