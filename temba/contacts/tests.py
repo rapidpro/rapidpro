@@ -3665,7 +3665,7 @@ class ContactTest(TembaTest):
                                  contact_urn=ContactURN.get_or_create(self.org, self.joe, 'twitter:macklemore', twitter),
                                  text="Incoming twitter DM", created_on=timezone.now())
 
-        process_message_task(msg.id, from_mage=True, new_contact=False)
+        process_message_task(dict(id=msg.id, from_mage=True, new_contact=False))
 
         # twitter should be preferred outgoing again
         self.assertEqual(self.joe.urns.all()[0].scheme, TWITTER_SCHEME)
