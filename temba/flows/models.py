@@ -3229,8 +3229,7 @@ class RuleSet(models.Model):
 
                 (value, errors) = Msg.substitute_variables(url, context, org=run.flow.org, url_encode=True)
 
-                result = WebHookEvent.trigger_flow_event(value, self.flow, run, self,
-                                                         run.contact, msg, action, resthook=resthook)
+                result = WebHookEvent.trigger_flow_event(run, value, self, msg, action, resthook=resthook)
 
                 # we haven't recorded any status yet, do so
                 if not status_code:
@@ -4622,7 +4621,7 @@ class WebhookAction(Action):
         if errors:
             ActionLog.warn(run, _("URL appears to contain errors: %s") % ", ".join(errors))
 
-        WebHookEvent.trigger_flow_event(value, run.flow, run, actionset_uuid, run.contact, msg, self.action)
+        WebHookEvent.trigger_flow_event(run, value, actionset_uuid, msg, self.action)
         return []
 
 

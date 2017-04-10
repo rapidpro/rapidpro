@@ -17,6 +17,7 @@ from openpyxl import load_workbook
 from smartmin.models import SmartImportRowError
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
+from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.templatetags.contacts import contact_field, osm_link, location, media_url, media_type
@@ -1429,6 +1430,9 @@ class ContactTest(TembaTest):
         # start a joe flow
         self.reminder_flow.start([], [self.joe])
 
+        # pretend that flow run made a webhook request
+        WebHookEvent.trigger_flow_event(FlowRun.objects.get(), 'https://example.com', '1234', msg=None)
+
         # create an event from the past
         scheduled = timezone.now() - timedelta(days=5)
         EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
@@ -1448,17 +1452,18 @@ class ContactTest(TembaTest):
 
         # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
         activity = response.context['activity']
-        self.assertEqual(len(activity), 94)
+        self.assertEqual(len(activity), 95)
         self.assertIsInstance(activity[0]['obj'], IVRCall)
         self.assertIsInstance(activity[1]['obj'], ChannelEvent)
-        self.assertIsInstance(activity[2]['obj'], Msg)
-        self.assertEqual(activity[2]['obj'].direction, 'O')
-        self.assertIsInstance(activity[3]['obj'], FlowRun)
-        self.assertIsInstance(activity[4]['obj'], Msg)
-        self.assertEqual(activity[4]['obj'].media, "video:http://blah/file.mp4")
+        self.assertIsInstance(activity[2]['obj'], WebHookResult)
+        self.assertIsInstance(activity[3]['obj'], Msg)
+        self.assertEqual(activity[3]['obj'].direction, 'O')
+        self.assertIsInstance(activity[4]['obj'], FlowRun)
         self.assertIsInstance(activity[5]['obj'], Msg)
-        self.assertEqual(activity[5]['obj'].text, "Inbound message 98")
-        self.assertIsInstance(activity[8]['obj'], EventFire)
+        self.assertEqual(activity[5]['obj'].media, "video:http://blah/file.mp4")
+        self.assertIsInstance(activity[6]['obj'], Msg)
+        self.assertEqual(activity[6]['obj'].text, "Inbound message 98")
+        self.assertIsInstance(activity[9]['obj'], EventFire)
         self.assertEqual(activity[-1]['obj'].text, "Inbound message 11")
 
         # fetch next page
@@ -1492,10 +1497,10 @@ class ContactTest(TembaTest):
         # our broadcast recipient purged_status is failed
         self.assertContains(response, 'icon-bubble-notification')
 
-        self.assertEqual(len(activity), 94)
-        self.assertIsInstance(activity[3]['obj'], Broadcast)  # TODO fix order so initial broadcasts come after their run
-        self.assertEqual(activity[3]['obj'].text, "What is your favorite color?")
-        self.assertEqual(activity[3]['obj'].translated_text, "What is your favorite color?")
+        self.assertEqual(len(activity), 95)
+        self.assertIsInstance(activity[4]['obj'], Broadcast)  # TODO fix order so initial broadcasts come after their run
+        self.assertEqual(activity[4]['obj'].text, "What is your favorite color?")
+        self.assertEqual(activity[4]['obj'].translated_text, "What is your favorite color?")
 
         # if a new message comes in
         self.create_msg(direction='I', contact=self.joe, text="Newer message")
@@ -1512,7 +1517,7 @@ class ContactTest(TembaTest):
 
         # with our recent flag on, should not see the older messages
         activity = response.context['activity']
-        self.assertEqual(len(activity), 6)
+        self.assertEqual(len(activity), 7)
         self.assertContains(response, 'file.mp4')
 
         # can't view history of contact in another org
@@ -1527,7 +1532,7 @@ class ContactTest(TembaTest):
 
         # super users can view history of any contact
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.superuser)
-        self.assertEqual(len(response.context['activity']), 95)
+        self.assertEqual(len(response.context['activity']), 96)
         response = self.fetch_protected(reverse('contacts.contact_history', args=[hans.uuid]), self.superuser)
         self.assertEqual(len(response.context['activity']), 0)
 
@@ -1538,7 +1543,7 @@ class ContactTest(TembaTest):
         self.reminder_flow.start([], [self.joe], restart_participants=True)
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
         activity = response.context['activity']
-        self.assertEqual(len(activity), 98)
+        self.assertEqual(len(activity), 99)
 
         self.assertIsInstance(activity[0]['obj'], Msg)
         self.assertEqual(activity[0]['obj'].direction, 'O')
@@ -1552,7 +1557,8 @@ class ContactTest(TembaTest):
         self.assertEqual(activity[3]['obj'].direction, 'I')
         self.assertIsInstance(activity[4]['obj'], IVRCall)
         self.assertIsInstance(activity[5]['obj'], ChannelEvent)
-        self.assertIsInstance(activity[6]['obj'], FlowRun)
+        self.assertIsInstance(activity[6]['obj'], WebHookResult)
+        self.assertIsInstance(activity[7]['obj'], FlowRun)
 
     def test_event_times(self):
 

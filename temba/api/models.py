@@ -211,13 +211,15 @@ class WebHookEvent(SmartModel):
         deliver_event_task.delay(self.id)
 
     @classmethod
-    def trigger_flow_event(cls, webhook_url, flow, run, node_uuid, contact, event, action='POST', resthook=None):
+    def trigger_flow_event(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None):
+        flow = run.flow
         org = flow.org
+        contact = run.contact
         api_user = get_api_user()
         json_time = datetime_to_str(timezone.now())
 
         # get the results for this contact
-        results = flow.get_results(contact)
+        results = run.flow.get_results(run.contact)
         values = []
 
         if results and results[0]:
@@ -226,16 +228,15 @@ class WebHookEvent(SmartModel):
                 value['time'] = datetime_to_str(value['time'])
                 value['value'] = six.text_type(value['value'])
 
-        # if the action is on the first node
-        # we might not have an sms (or channel) yet
-        channel = None
-        text = None
-        contact_urn = contact.get_urn()
-
-        if event:
-            text = event.text
-            channel = event.channel
-            contact_urn = event.contact_urn
+        if msg:
+            text = msg.text
+            channel = msg.channel
+            contact_urn = msg.contact_urn
+        else:
+            # if the action is on the first node we might not have an sms (or channel) yet
+            channel = None
+            text = None
+            contact_urn = contact.get_urn()
 
         steps = []
         for step in run.steps.prefetch_related('messages', 'broadcasts').order_by('arrived_on'):
