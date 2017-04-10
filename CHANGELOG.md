@@ -1,3 +1,7 @@
+v3.0.109
+----------
+ * Data migration to populate broadcast send_all field
+
 v3.0.108
 ----------
  * Add webhook events trim task with configurable retain times for success and error logs

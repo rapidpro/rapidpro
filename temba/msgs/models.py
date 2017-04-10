@@ -225,7 +225,7 @@ class Broadcast(models.Model):
     media_dict = models.TextField(verbose_name=_("Media"),
                                   help_text=_("The localized versions of the media"), null=True)
 
-    send_all = models.NullBooleanField(null=True,
+    send_all = models.NullBooleanField(null=True, default=False,
                                        help_text="Whether this broadcast should send to all URNs for each contact")
 
     @classmethod
