@@ -74,6 +74,15 @@
             %a{href:'{%url "campaigns.campaignevent_read" eventfire.event.pk %}'}
               {{eventfire.event|event_time}}
 
+        -elif item.type == 'webhook-result'
+          -with item.obj as result
+            -if result.is_success
+              -trans "Successfully called"
+            -else
+              -trans "Failed to call"
+
+            {{result.url}} (<a href="{%url "api.log_read" result.event.id %}">log</a>)
+
         -elif media_type == 'geo'
           .activity-message
             .activity-body

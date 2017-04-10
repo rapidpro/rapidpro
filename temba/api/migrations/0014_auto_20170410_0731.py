@@ -24,4 +24,11 @@ class Migration(migrations.Migration):
             name='event',
             field=models.CharField(choices=[('mo_sms', 'Incoming SMS Message'), ('mt_sent', 'Outgoing SMS Sent'), ('mt_dlvd', 'Outgoing SMS Delivered to Recipient'), ('mt_fail', 'Outgoing SMS Failed to be Delivered to Recipient'), ('mt_call', 'Outgoing Call'), ('mt_miss', 'Missed Outgoing Call'), ('mo_call', 'Incoming Call'), ('mo_miss', 'Missed Incoming Call'), ('alarm', 'Channel Alarm'), ('flow', 'Flow Step Reached'), ('categorize', 'Flow Categorization')], help_text='The event type for this event', max_length=16),
         ),
+        migrations.AlterField(
+            model_name='webhookresult',
+            name='event',
+            field=models.ForeignKey(help_text='The event that this result is tied to',
+                                    on_delete=django.db.models.deletion.CASCADE, related_name='results',
+                                    to='api.WebHookEvent'),
+        ),
     ]

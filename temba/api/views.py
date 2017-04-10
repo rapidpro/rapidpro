@@ -11,7 +11,7 @@ from smartmin.views import SmartTemplateView, SmartReadView, SmartListView, Smar
 from temba.channels.models import ChannelEvent
 from temba.orgs.views import OrgPermsMixin
 from urlparse import parse_qs
-from .models import WebHookEvent, WebHookResult, APIToken, Resthook
+from .models import WebHookEvent, APIToken, Resthook
 
 
 def webhook_status_processor(request):
@@ -94,7 +94,7 @@ class WebHookEventReadView(WebHookEventMixin, SmartReadView):
     def get_context_data(self, *args, **kwargs):  # pragma: needs cover
         context = super(WebHookEventReadView, self).get_context_data(*args, **kwargs)
 
-        context['results'] = WebHookResult.objects.filter(event=self.object)
+        context['results'] = self.object.results.all()
         return context
 
 

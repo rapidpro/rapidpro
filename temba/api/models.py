@@ -274,27 +274,31 @@ class WebHookEvent(SmartModel):
 
         # webhook events fire immediately since we need the results back
         try:
-            # only send webhooks when we are configured to, otherwise fail
-            if not settings.SEND_WEBHOOKS:
-                raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
-
             # no url, bail!
             if not webhook_url:
                 raise Exception("No webhook_url specified, skipping send")
 
-            # some hosts deny generic user agents, use Temba as our user agent
-            if action == 'GET':
-                response = requests.get(webhook_url, headers=TEMBA_HEADERS, timeout=10)
+            # only send webhooks when we are configured to, otherwise fail
+            if settings.SEND_WEBHOOKS:
+
+                # some hosts deny generic user agents, use Temba as our user agent
+                if action == 'GET':
+                    response = requests.get(webhook_url, headers=TEMBA_HEADERS, timeout=10)
+                else:
+                    response = requests.post(webhook_url, data=data, headers=TEMBA_HEADERS, timeout=10)
+
+                body = response.text
+                if body:
+                    body = body.strip()
+                status_code = response.status_code
             else:
-                response = requests.post(webhook_url, data=data, headers=TEMBA_HEADERS, timeout=10)
+                print("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
+                body = 'Skipped actual send'
+                status_code = 200
 
-            response_text = response.text
-            body = response.text
-            status_code = response.status_code
-
-            if response.status_code == 200 or response.status_code == 201:
+            if 200 <= status_code < 300:
                 try:
-                    response_json = json.loads(response_text, object_pairs_hook=OrderedDict)
+                    response_json = json.loads(body, object_pairs_hook=OrderedDict)
 
                     # only update if we got a valid JSON dictionary or list
                     if not isinstance(response_json, dict) and not isinstance(response_json, list):
@@ -302,7 +306,7 @@ class WebHookEvent(SmartModel):
 
                     run.update_fields(response_json)
                     message = "Webhook called successfully."
-                except ValueError as e:
+                except ValueError:
                     message = "Response must be a JSON dictionary, ignoring response."
 
                 webhook_event.status = cls.STATUS_COMPLETE
@@ -550,7 +554,7 @@ class WebHookResult(SmartModel):
     """
     Represents the result of trying to deliver an event to a web hook
     """
-    event = models.ForeignKey(WebHookEvent,
+    event = models.ForeignKey(WebHookEvent, related_name='results',
                               help_text="The event that this result is tied to")
     url = models.TextField(null=True, blank=True,
                            help_text="The URL the event was delivered to")
@@ -565,9 +569,6 @@ class WebHookResult(SmartModel):
                             help_text="The body of the HTTP response as returned by the web hook")
 
     request_time = models.IntegerField(null=True, help_text=_('Time it took to process this request'))
-
-    def stripped_body(self):  # pragma: needs cover
-        return self.body.strip() if self.body else ""
 
     @classmethod
     def record_result(cls, event, result):
@@ -598,6 +599,10 @@ class WebHookResult(SmartModel):
                            request_time=request_time,
                            created_by=api_user,
                            modified_by=api_user)
+
+    @property
+    def is_success(self):
+        return 200 <= self.status_code < 300
 
 
 @six.python_2_unicode_compatible
