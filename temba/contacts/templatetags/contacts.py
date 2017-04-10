@@ -199,7 +199,7 @@ def history_class(item):
     if isinstance(item, Msg):
         if item.media and item.media[:6] == 'video:':
             css = '%s %s' % (css, 'video')
-        if item.direction or item.recipient_count:
+        if item.direction or (item.broadcast and item.broadcast.recipient_count > 1):
             css = '%s %s' % (css, 'msg')
         if item.status in (ERRORED, FAILED):
             css = '%s %s' % (css, 'warning')
