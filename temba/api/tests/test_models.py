@@ -8,11 +8,14 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.urlresolvers import reverse
+from django.test import override_settings
 from django.utils import timezone
 from mock import patch
+
+from temba.api.tasks import trim_webhook_event_task
 from temba.channels.models import ChannelEvent, SyncEvent
 from temba.contacts.models import Contact, TEL_SCHEME
-from temba.msgs.models import Broadcast
+from temba.msgs.models import Broadcast, FAILED
 from temba.orgs.models import ALL_EVENTS
 from temba.tests import MockResponse, TembaTest
 from urlparse import parse_qs
@@ -307,6 +310,60 @@ class WebHookTest(TembaTest):
 
             self.assertTrue(mock_time.called)
             self.assertTrue(mock.called)
+
+    def test_webhook_event_trim_task(self):
+        sms = self.create_msg(contact=self.joe, direction='I', status='H', text="I'm gonna pop some tags")
+        self.setupChannel()
+        now = timezone.now()
+
+        with patch('requests.Session.send') as mock:
+            mock.return_value = MockResponse(200, "Hello World")
+
+            # trigger an event
+            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            event = WebHookEvent.objects.get()
+
+            five_hours_ago = timezone.now() - timedelta(hours=5)
+            event.created_on = five_hours_ago
+            event.save()
+
+            with override_settings(SUCCESS_LOGS_TRIM_TIME=0):
+                trim_webhook_event_task()
+                self.assertTrue(WebHookEvent.objects.all())
+                self.assertTrue(WebHookResult.objects.all())
+
+            with override_settings(SUCCESS_LOGS_TRIM_TIME=12):
+                trim_webhook_event_task()
+                self.assertTrue(WebHookEvent.objects.all())
+                self.assertTrue(WebHookResult.objects.all())
+
+            with override_settings(SUCCESS_LOGS_TRIM_TIME=2):
+                trim_webhook_event_task()
+                self.assertFalse(WebHookEvent.objects.all())
+                self.assertFalse(WebHookResult.objects.all())
+
+            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            event = WebHookEvent.objects.get()
+
+            five_hours_ago = timezone.now() - timedelta(hours=5)
+            event.created_on = five_hours_ago
+            event.status = FAILED
+            event.save()
+
+            with override_settings(ALL_LOGS_TRIM_TIME=0):
+                trim_webhook_event_task()
+                self.assertTrue(WebHookEvent.objects.all())
+                self.assertTrue(WebHookResult.objects.all())
+
+            with override_settings(ALL_LOGS_TRIM_TIME=12):
+                trim_webhook_event_task()
+                self.assertTrue(WebHookEvent.objects.all())
+                self.assertTrue(WebHookResult.objects.all())
+
+            with override_settings(ALL_LOGS_TRIM_TIME=2):
+                trim_webhook_event_task()
+                self.assertFalse(WebHookEvent.objects.all())
+                self.assertFalse(WebHookResult.objects.all())
 
     def test_event_deliveries(self):
         sms = self.create_msg(contact=self.joe, direction='I', status='H', text="I'm gonna pop some tags")

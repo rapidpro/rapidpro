@@ -9,7 +9,7 @@ from django.core.cache import cache
 from django.db.models import Prefetch
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework import generics, mixins, status, pagination
+from rest_framework import generics, mixins, status, pagination, views
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartFormView
@@ -17,7 +17,7 @@ from temba.api.models import APIToken
 from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.utils import json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
+from temba.utils import json_date_to_datetime, splitting_getlist, str_to_bool
 from ..models import APIPermission, SSLPermission
 from .serializers import BoundarySerializer, AliasSerializer, ContactReadSerializer, ContactWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, FlowReadSerializer
@@ -26,6 +26,10 @@ from .serializers import FlowRunReadSerializer, FlowRunWriteSerializer
 # caching of counts from API requests
 REQUEST_COUNT_CACHE_KEY = 'org:%d:cache:api_request_counts:%s'
 REQUEST_COUNT_CACHE_TTL = 5 * 60  # 5 minutes
+
+
+class RootView(views.APIView):
+    pass
 
 
 class AuthenticateEndpoint(SmartFormView):
@@ -72,10 +76,6 @@ class BaseAPIView(generics.GenericAPIView):
     Base class of all our API endpoints
     """
     permission_classes = (SSLPermission, APIPermission)
-
-    @non_atomic_gets
-    def dispatch(self, request, *args, **kwargs):
-        return super(BaseAPIView, self).dispatch(request, *args, **kwargs)
 
 
 class ListAPIMixin(mixins.ListModelMixin):
