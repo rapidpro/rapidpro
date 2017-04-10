@@ -200,6 +200,11 @@ class WebHookEvent(SmartModel):
                                         help_text="When this event will be retried")
     action = models.CharField(max_length=8, default='POST', help_text='What type of HTTP event is it')
 
+    @classmethod
+    def get_recent_errored(cls, org):
+        past_hour = timezone.now() - timedelta(hours=1)
+        return cls.objects.filter(org=org, status__in=(cls.STATUS_FAILED, cls.STATUS_ERRORED), created_on__gte=past_hour)
+
     def fire(self):
         # start our task with this event id
         from .tasks import deliver_event_task

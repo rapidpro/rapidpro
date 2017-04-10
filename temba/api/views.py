@@ -2,37 +2,14 @@ from __future__ import absolute_import, unicode_literals
 
 import requests
 
-from datetime import timedelta
 from django.http import HttpResponse, JsonResponse
-from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
+from six.moves.urllib.parse import parse_qs
 from smartmin.views import SmartTemplateView, SmartReadView, SmartListView, SmartView
 from temba.channels.models import ChannelEvent
 from temba.orgs.views import OrgPermsMixin
-from urlparse import parse_qs
 from .models import WebHookEvent, APIToken, Resthook
-
-
-def webhook_status_processor(request):
-    status = dict()
-    user = request.user
-
-    if user.is_superuser or user.is_anonymous():
-        return status
-
-    # get user's org
-    org = user.get_org()
-
-    if org:
-        past_hour = timezone.now() - timedelta(hours=1)
-        failed = WebHookEvent.objects.filter(org=org, status__in=['F', 'E'], created_on__gte=past_hour).order_by('-created_on')
-
-        if failed:  # pragma: needs cover
-            status['failed_webhooks'] = True
-            status['webhook_errors_count'] = failed.count()
-
-    return status
 
 
 class RefreshAPITokenView(OrgPermsMixin, SmartView, View):
