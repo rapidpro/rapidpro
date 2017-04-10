@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0087_remove_label_visible_count'),
+        ('msgs', '0089_populate_broadcast_send_all'),
     ]
 
     operations = [
