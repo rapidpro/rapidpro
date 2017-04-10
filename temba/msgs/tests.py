@@ -688,7 +688,7 @@ class MsgTest(TembaTest):
 
         # create a dummy export task so that we won't be able to export
         blocking_export = ExportMessagesTask.create(self.org, self.admin, SystemLabel.TYPE_INBOX)
-        response = self.client.post(reverse('msgs.msg_export') + '?l=I', follow=True)
+        response = self.client.post(reverse('msgs.msg_export') + '?l=I', {'export_all': 1}, follow=True)
         self.assertContains(response, "already an export in progress")
 
         # perform the export manually, assert how many queries
