@@ -67,6 +67,9 @@ class ChannelTest(TembaTest):
         self.released_channel = Channel.create(None, self.user, None, 'NX', name="Released Channel", address=None,
                                                secret=None, gcm_id="000")
 
+        self.ussd_channel = Channel.create(self.org, self.user, None, Channel.TYPE_JUNEBUG_USSD, name="Junebug USSD",
+                                           address="*123#", role=Channel.ROLE_USSD)
+
     def send_message(self, numbers, message, org=None, user=None):
         if not org:
             org = self.org
@@ -128,6 +131,21 @@ class ChannelTest(TembaTest):
         self.tel_channel.save()
         response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.uuid]))
         self.assertEquals(404, response.status_code)
+
+    def test_channelog_links(self):
+        self.login(self.admin)
+
+        channel_types = (
+            (Channel.TYPE_JUNEBUG, Channel.DEFAULT_ROLE, 'Sending Log'),
+            (Channel.TYPE_JUNEBUG_USSD, Channel.ROLE_USSD, 'USSD Log'),
+            (Channel.TYPE_TWILIO, Channel.ROLE_CALL, 'Call Log'),
+            (Channel.TYPE_TWILIO, Channel.ROLE_SEND + Channel.ROLE_CALL, 'Channel Log')
+        )
+
+        for channel_type, channel_role, link_text in channel_types:
+            channel = Channel.create(self.org, self.user, None, channel_type, name="Test Channel", role=channel_role)
+            response = self.client.get(reverse('channels.channel_read', args=[channel.uuid]))
+            self.assertContains(response, link_text)
 
     def test_delegate_channels(self):
 
