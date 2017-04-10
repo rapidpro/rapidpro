@@ -1698,13 +1698,11 @@ class SystemLabelCount(SquashableModel):
         return sql, (distinct_set.org_id, distinct_set.label_type) * 2
 
     @classmethod
-    def get_totals(cls, org, label_types=None):
+    def get_totals(cls, org):
         """
         Gets all system label counts by type for the given org
         """
         counts = cls.objects.filter(org=org)
-        if label_types:
-            counts = counts.filter(label_type__in=label_types)
         counts = counts.values_list('label_type').annotate(count_sum=Sum('count'))
         counts_by_type = {c[0]: c[1] for c in counts}
 
