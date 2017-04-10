@@ -1,0 +1,58 @@
+-extends "frame.html"
+
+-load rest_framework static
+-load smartmin i18n
+
+-block page-top
+
+-block extra-style
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{% static "rest_framework/css/prettify.css" %}"/>
+  <link rel="stylesheet" type="text/css" href="{% static "css/codemirror.css" %}"/>
+
+  <style>
+   .button-form {
+       float: right;
+   }
+
+   #get-form {
+       margin-left: 5px;
+   }
+
+   .form-horizontal .form-actions {
+       margin-top: 0px;
+       margin-bottom: 0px;
+       padding-top: 0px;
+       padding-bottom: 0px;
+   }
+
+   .nav.nav-tabs {
+       margin-bottom: 0px;
+   }
+
+   pre {
+       line-height: 18px;
+       font-size:  12px;
+       font-family: monospace;
+   }
+
+   .CodeMirror {
+       background: #fff;
+       border: 1px solid #eee;
+       margin-bottom: 10px;
+       height: 200px;
+   }
+
+   .str, .atv {
+       color: teal;
+   }
+  </style>
+
+-block content
+  #content
+    .content-main
+      %strong
+        -url 'api.v2' as v2_url
+        -blocktrans
+          API v1 has been replaced by <a href="{{ v2_url }}">API v2</a>. Please migrate your applications accordingly.
+

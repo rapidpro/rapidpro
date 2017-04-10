@@ -134,13 +134,15 @@ class APITest(TembaTest):
         self.login(self.admin)
 
         # check the views which redirect
-        self.assertRedirect(self.client.get('/api/v1/'), '/api/v2/', status_code=301)
         self.assertRedirect(self.client.get('/api/v1/explorer/'), '/api/v2/explorer/', status_code=301)
 
         # check some removed endpoints
         expected_msg = "API v1 no longer exists. Please migrate to API v2. See http://testserver/api/v2/."
         self.assertContains(self.client.get('/api/v1/messages.json'), expected_msg, status_code=410)
         self.assertContains(self.client.get('/api/v1/runs.json'), expected_msg, status_code=410)
+
+        # check docs at root
+        self.assertContains(self.client.get('/api/v1/'), "API v1 has been replaced", status_code=405)
 
     def test_api_serializer_fields(self):
         dict_field = StringDictField(source='test')
