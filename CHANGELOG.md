@@ -1,3 +1,7 @@
+v3.0.112
+----------
+ * Archiving a flow should interrupt all the current runs
+
 v3.0.111
 ----------
  * Display webhook results on contact history
