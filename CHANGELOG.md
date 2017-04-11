@@ -1,3 +1,9 @@
+v3.0.111
+----------
+ * Display webhook results on contact history
+ * Clean up template tags used on contact history
+ * Allow broadcasts to be sent to all urns belonging to the specified contacts
+
 v3.0.109
 ----------
  * Data migration to populate broadcast send_all field
