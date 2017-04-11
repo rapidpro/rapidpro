@@ -57,12 +57,12 @@
             .activity-run
               .activity-body
                 .summary
-                  -if item.type == 'run-exit'
-                    {{ run.get_exit_type_display }}
-                  -else
-                    Started
-                  %a{href:'{% url "flows.flow_editor" run.flow.uuid %}'}
-                    {{run.flow.name}}
+                -if item.type == 'run-exit'
+                  {{ run.get_exit_type_display }}
+                -else
+                  Started
+                %a{href:'{% url "flows.flow_editor" run.flow.uuid %}'}
+                  {{run.flow.name}}
 
         -elif item.type == 'event-fire'
           -with item.obj as eventfire
