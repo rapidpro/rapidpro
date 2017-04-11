@@ -1322,6 +1322,8 @@ class ChannelTest(TembaTest):
                 Channel.objects.get(channel_type='T', org=self.org)
 
         twilio_channel = self.org.channels.all().first()
+        twilio_channel.role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE * Channel.ROLE_ANSWER + Channel.ROLE_CALL
+        twilio_channel.save()
         self.assertEquals('T', twilio_channel.channel_type)
 
         with self.settings(IS_PROD=True):
