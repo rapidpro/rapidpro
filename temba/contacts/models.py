@@ -533,14 +533,7 @@ class Contact(TembaModel):
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
         runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
-        exited_runs = runs.exclude(exit_type=None)
-
         runs = runs.select_related('flow')
-        exited_runs = exited_runs.select_related('flow')
-
-        for exit_run in exited_runs:
-            exit_run.created_on = exit_run.exited_on
-            exit_run.run_event_type = 'Exited'
 
         channel_events = self.channel_events.filter(created_on__gte=after, created_on__lt=before)
         channel_events = channel_events.select_related('channel')
@@ -548,19 +541,24 @@ class Contact(TembaModel):
         event_fires = self.fire_events.filter(fired__gte=after, fired__lt=before).exclude(fired=None)
         event_fires = event_fires.select_related('event__campaign')
 
-        # for easier comparison and display - give event fires same time attribute as other activity items
-        for event_fire in event_fires:
-            event_fire.created_on = event_fire.fired
-
         # and the contact's failed IVR calls
         calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
             IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED
         ])
         calls = calls.select_related('channel')
 
-        # chain them all together in the same list and sort by time
-        activity = chain(msgs, broadcasts, runs, exited_runs, event_fires, channel_events, calls)
-        return sorted(activity, key=lambda i: i.created_on, reverse=True)
+        # wrap items, chain and sort by time
+        activity = chain(
+            [{'type': 'msg', 'time': m.created_on, 'obj': m} for m in msgs],
+            [{'type': 'broadcast', 'time': b.created_on, 'obj': b} for b in broadcasts],
+            [{'type': 'run-start', 'time': r.created_on, 'obj': r} for r in runs],
+            [{'type': 'run-exit', 'time': r.exited_on, 'obj': r} for r in runs.exclude(exit_type=None)],
+            [{'type': 'channel-event', 'time': e.created_on, 'obj': e} for e in channel_events],
+            [{'type': 'event-fire', 'time': f.fired, 'obj': f} for f in event_fires],
+            [{'type': 'call', 'time': c.created_on, 'obj': c} for c in calls],
+        )
+
+        return sorted(activity, key=lambda i: i['time'], reverse=True)
 
     def get_field(self, key):
         """
