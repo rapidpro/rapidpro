@@ -132,12 +132,9 @@ class BroadcastWriteSerializer(WriteSerializer):
             contact_urn = contact.urn_objects[urn]
             recipients.append(contact_urn)
 
-        if isinstance(self.validated_data['text'], dict):
-            text = next(iter(self.validated_data['text'].values()))
-            translations = json.dumps(self.validated_data['text'])
-        else:
-            text = self.validated_data['text']
-            translations = None
+        # TODO remove Broadcast.text
+        text = next(iter(self.validated_data['text'].values()))
+        translations = json.dumps(self.validated_data['text'])
 
         # create the broadcast
         broadcast = Broadcast.create(self.context['org'], self.context['user'],
@@ -203,6 +200,7 @@ class CampaignEventReadSerializer(ReadSerializer):
     flow = serializers.SerializerMethodField()
     relative_to = fields.ContactFieldField()
     unit = serializers.SerializerMethodField()
+    message = serializers.SerializerMethodField()
 
     def get_flow(self, obj):
         if obj.event_type == CampaignEvent.TYPE_FLOW:
@@ -212,6 +210,9 @@ class CampaignEventReadSerializer(ReadSerializer):
 
     def get_unit(self, obj):
         return self.UNITS.get(obj.unit)
+
+    def get_message(self, obj):
+        return obj.get_message()
 
     class Meta:
         model = CampaignEvent
@@ -268,7 +269,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
 
             # we are being set to a message
             else:
-                self.instance.message = json.dumps(message) if isinstance(message, dict) else message
+                self.instance.message = json.dumps(message)
 
                 # if we aren't currently a message event, we need to create our hidden message flow
                 if self.instance.event_type != CampaignEvent.TYPE_MESSAGE:

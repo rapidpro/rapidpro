@@ -820,7 +820,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
      * **offset** - the offset from our contact field (positive or negative integer).
      * **unit** - the unit for our offset (one of "minutes, "hours", "days", "weeks").
      * **delivery_hour** - the hour of the day to deliver the message (integer 0-24, -1 indicates send at the same hour as the contact field).
-     * **message** - the message to send to the contact if this is a message event (string)
+     * **message** - the message to send to the contact if this is a message event (string or translation dict)
      * **flow** - the UUID and name of the flow if this is a flow event (object).
      * **created_on** - when the event was created (datetime).
 
@@ -882,7 +882,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
             "offset": 160,
             "unit": "W",
             "delivery_hour": -1,
-            "message": "Feeling sick and helpless, lost the compass where self is."
+            "message": {"eng": "Feeling sick and helpless, lost the compass where self is."},
             "flow": null,
             "created_on": "2013-08-19T19:11:21.088453Z"
         }

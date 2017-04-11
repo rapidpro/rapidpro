@@ -60,6 +60,10 @@ class TranslatableField(serializers.Field):
         if isinstance(data, six.string_types):
             if len(data) > self.max_length:
                 raise serializers.ValidationError("Ensure this field has no more than %d characters." % self.max_length)
+
+            base_language = 'base' if not self.context['org'].primary_language else self.context['org'].primary_language.iso_code
+            data = {base_language: data}
+
         elif isinstance(data, dict):
             validate_translations(data, self.max_length)
         else:

@@ -313,13 +313,24 @@ class CampaignEvent(TembaModel):
         return hours
 
     def get_message(self):
-        message = self.message
+        if self.message is None:
+            return None
         try:
-            message = json.loads(message).get(self.flow.base_language, '')
-        except:
-            pass
+            return json.loads(self.message)
+        except ValueError:
+            # old campaign events will have untranslated non-dict messages
+            return {'base': self.message}
 
-        return message
+    def get_contact_message(self, contact):
+        message = self.get_message()
+        if not message:
+            return None
+
+        if contact.language and contact.language in message:
+            return message[contact.language]
+        if self.flow.base_language in message:
+            return message[self.flow.base_language]
+        return message['base']
 
     def update_flow_name(self):
         """

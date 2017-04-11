@@ -23,6 +23,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowLabel, ReplyAction
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
+from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
 from urllib import quote_plus
@@ -230,8 +231,15 @@ class APITest(TembaTest):
         field = fields.TranslatableField(source='test', max_length=10)
         field.context = {'org': self.org}
 
-        self.assertEqual(field.to_internal_value("Hello"), "Hello")
+        self.assertEqual(field.to_internal_value("Hello"), {'base': "Hello"})
         self.assertEqual(field.to_internal_value({'eng': "Hello"}), {'eng': "Hello"})
+
+        self.org.primary_language = Language.create(self.org, self.user, "Kinyarwanda", 'kin')
+        self.org.save()
+
+        self.assertEqual(field.to_internal_value("Hello"), {'kin': "Hello"})
+        self.assertEqual(field.to_internal_value({'eng': "Hello"}), {'eng': "Hello"})
+
         self.assertRaises(serializers.ValidationError, field.to_internal_value, 123)  # not a string or dict
         self.assertRaises(serializers.ValidationError, field.to_internal_value, {'eng': 123})
         self.assertRaises(serializers.ValidationError, field.to_internal_value, {})
@@ -592,7 +600,7 @@ class APITest(TembaTest):
 
         broadcast = Broadcast.objects.get(pk=response.json()['id'])
         self.assertEqual(broadcast.text, "Hello")
-        self.assertEqual(broadcast.language_dict, None)
+        self.assertEqual(json.loads(broadcast.language_dict), {'base': "Hello"})
         self.assertEqual(set(broadcast.urns.values_list('urn', flat=True)), {"twitter:franky"})
         self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
         self.assertEqual(set(broadcast.groups.all()), {reporters})
@@ -721,7 +729,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(resp_json['next'], None)
         self.assertResultsByUUID(response, [event2, event1])
-        self.assertEqual(resp_json['results'][0], {
+        self.assertEqual(resp_json['results'], [{
             'uuid': event2.uuid,
             'campaign': {'uuid': campaign2.uuid, 'name': "Notifications"},
             'relative_to': {'key': "registration", 'label': "Registration"},
@@ -731,7 +739,17 @@ class APITest(TembaTest):
             'flow': {'uuid': flow.uuid, 'name': "Color Flow"},
             'message': None,
             'created_on': format_datetime(event2.created_on)
-        })
+        }, {
+            'uuid': event1.uuid,
+            'campaign': {'uuid': campaign1.uuid, 'name': "Reminders"},
+            'relative_to': {'key': "registration", 'label': "Registration"},
+            'offset': 1,
+            'unit': 'days',
+            'delivery_hour': -1,
+            'flow': None,
+            'message': {'base': "Don't forget to brush your teeth"},
+            'created_on': format_datetime(event1.created_on)
+        }])
 
         # filter by UUID
         response = self.fetchJSON(url, 'uuid=%s' % event1.uuid)
@@ -789,7 +807,7 @@ class APITest(TembaTest):
         })
         self.assertEqual(response.status_code, 201)
 
-        event1 = CampaignEvent.objects.get(campaign=campaign1, message="Nice job")
+        event1 = CampaignEvent.objects.get(campaign=campaign1, message='{"base": "Nice job"}')
         self.assertEqual(event1.event_type, CampaignEvent.TYPE_MESSAGE)
         self.assertEqual(event1.relative_to, registration)
         self.assertEqual(event1.offset, 15)
