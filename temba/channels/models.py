@@ -528,6 +528,9 @@ class Channel(TembaModel):
 
         channel_uuid = generate_uuid()
 
+        # to avoid getting 429 error, too much requests
+        time.sleep(1)
+
         nexmo_phones = client.get_numbers(phone_number)
         features = [elt.upper() for elt in nexmo_phones[0]['features']]
         role = ''

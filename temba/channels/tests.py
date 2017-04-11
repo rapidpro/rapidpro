@@ -1613,7 +1613,9 @@ class ChannelTest(TembaTest):
 
             self.assertEquals(response.json(), ['+1 360-788-4540', '+1 360-788-4550'])
 
-    def test_claim_nexmo(self):
+    @patch('temba.channels.models.time.sleep')
+    def test_claim_nexmo(self, mock_time_sleep):
+        mock_time_sleep.return_value = None
         self.login(self.admin)
 
         # remove any existing channels
@@ -1653,6 +1655,7 @@ class ChannelTest(TembaTest):
                 self.assertTrue(Channel.ROLE_RECEIVE in channel.role)
                 self.assertFalse(Channel.ROLE_ANSWER in channel.role)
                 self.assertFalse(Channel.ROLE_CALL in channel.role)
+                mock_time_sleep.assert_called_once_with(1)
                 Channel.objects.all().delete()
 
         # try buying a number not on the account
