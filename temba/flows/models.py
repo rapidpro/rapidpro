@@ -1031,6 +1031,9 @@ class Flow(TembaModel):
         self.is_archived = True
         self.save(update_fields=['is_archived'])
 
+        from .tasks import interrupt_flow_runs_task
+        interrupt_flow_runs_task.delay(self.id)
+
         # archive our triggers as well
         from temba.triggers.models import Trigger
         Trigger.objects.filter(flow=self).update(is_archived=True)

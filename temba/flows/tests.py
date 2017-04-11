@@ -103,6 +103,17 @@ class FlowTest(TembaTest):
         self.create_secondary_org()
         self.assertEqual(Flow.get_unique_name(self.org2, "Sheep Poll"), "Sheep Poll")  # different org
 
+    def test_archive_interrupt_runs(self):
+        flow = self.create_flow()
+
+        flow.start([], [self.contact, self.contact2])
+        self.assertEqual(flow.runs.filter(exit_type=None).count(), 2)
+
+        flow.archive()
+
+        self.assertEqual(flow.runs.filter(exit_type=None).count(), 0)
+        self.assertEqual(flow.runs.filter(exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count(), 2)
+
     def test_flow_get_results_queries(self):
 
         contact3 = self.create_contact('George', '+250788382234')
