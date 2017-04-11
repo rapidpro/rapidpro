@@ -1324,22 +1324,24 @@ class ChannelTest(TembaTest):
         twilio_channel = self.org.channels.all().first()
         self.assertEquals('T', twilio_channel.channel_type)
 
-        with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.update') as mock_numbers:
+        with self.settings(IS_PROD=True):
+            with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.update') as mock_numbers:
 
-            # our twilio channel removal should fail on bad auth
-            mock_numbers.side_effect = TwilioRestException(401, 'http://twilio', msg='Authentication Failure', code=20003)
-            self.client.post(reverse('channels.channel_delete', args=[twilio_channel.pk]))
-            self.assertIsNotNone(self.org.channels.all().first())
+                # our twilio channel removal should fail on bad auth
+                mock_numbers.side_effect = TwilioRestException(401, 'http://twilio', msg='Authentication Failure',
+                                                               code=20003)
+                self.client.post(reverse('channels.channel_delete', args=[twilio_channel.pk]))
+                self.assertIsNotNone(self.org.channels.all().first())
 
-            # or other arbitrary twilio errors
-            mock_numbers.side_effect = TwilioRestException(400, 'http://twilio', msg='Twilio Error', code=123)
-            self.client.post(reverse('channels.channel_delete', args=[twilio_channel.pk]))
-            self.assertIsNotNone(self.org.channels.all().first())
+                # or other arbitrary twilio errors
+                mock_numbers.side_effect = TwilioRestException(400, 'http://twilio', msg='Twilio Error', code=123)
+                self.client.post(reverse('channels.channel_delete', args=[twilio_channel.pk]))
+                self.assertIsNotNone(self.org.channels.all().first())
 
-            # now lets be successful
-            mock_numbers.side_effect = None
-            self.client.post(reverse('channels.channel_delete', args=[twilio_channel.pk]))
-            self.assertIsNone(self.org.channels.all().first())
+                # now lets be successful
+                mock_numbers.side_effect = None
+                self.client.post(reverse('channels.channel_delete', args=[twilio_channel.pk]))
+                self.assertIsNone(self.org.channels.all().first())
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -1516,12 +1518,13 @@ class ChannelTest(TembaTest):
                 self.assertEqual(mock_post.call_count, 1)
 
             # release the channel
-            with patch('requests.delete') as mock_delete:
-                mock_delete.return_value = MockResponse(200, json.dumps(dict(success=True)))
-                channel.release()
+            with self.settings(IS_PROD=True):
+                with patch('requests.delete') as mock_delete:
+                    mock_delete.return_value = MockResponse(200, json.dumps(dict(success=True)))
+                    channel.release()
 
-                mock_delete.assert_called_once_with('https://graph.facebook.com/v2.5/me/subscribed_apps',
-                                                    params=dict(access_token=channel.config_json()[Channel.CONFIG_AUTH_TOKEN]))
+                    mock_delete.assert_called_once_with('https://graph.facebook.com/v2.5/me/subscribed_apps',
+                                                        params=dict(access_token=channel.config_json()[Channel.CONFIG_AUTH_TOKEN]))
 
     def test_claim_viber_public(self):
         self.login(self.admin)
@@ -1571,11 +1574,12 @@ class ChannelTest(TembaTest):
             self.assertEqual(mock.call_args[0][0], 'https://chatapi.viber.com/pa/set_webhook')
 
         # remove the channel
-        with patch('requests.post') as mock:
-            mock.side_effect = [MockResponse(200, json.dumps(dict(status=0, status_message="ok")))]
-            channel.release()
+        with self.settings(IS_PROD=True):
+            with patch('requests.post') as mock:
+                mock.side_effect = [MockResponse(200, json.dumps(dict(status=0, status_message="ok")))]
+                channel.release()
 
-            self.assertEqual(mock.call_args[0][0], 'https://chatapi.viber.com/pa/set_webhook')
+                self.assertEqual(mock.call_args[0][0], 'https://chatapi.viber.com/pa/set_webhook')
 
     def test_search_nexmo(self):
         self.login(self.admin)
@@ -7444,11 +7448,13 @@ class PlivoTest(TembaTest):
         self.joe = self.create_contact("Joe", "+250788383383")
 
     def test_release(self):
-        with patch('requests.delete') as mock:
-            mock.return_value = MockResponse(200, "Success", method='POST')
-            self.channel.release()
-            self.channel.refresh_from_db()
-            self.assertFalse(self.channel.is_active)
+        with self.settings(IS_PROD=True):
+            with patch('requests.delete') as mock:
+                mock.return_value = MockResponse(200, "Success", method='POST')
+                self.channel.release()
+                self.channel.refresh_from_db()
+                self.assertFalse(self.channel.is_active)
+                self.assertTrue(mock.called)
 
     def test_receive(self):
         response = self.client.get(reverse('handlers.plivo_handler', args=['receive', 'not-real-uuid']), dict())
