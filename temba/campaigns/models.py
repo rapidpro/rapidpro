@@ -330,7 +330,7 @@ class CampaignEvent(TembaModel):
             return message[contact.language]
         if self.flow.base_language in message:
             return message[self.flow.base_language]
-        return message['base']
+        return message['base']  # pragma: no cover
 
     def update_flow_name(self):
         """
