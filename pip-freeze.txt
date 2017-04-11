@@ -1,5 +1,6 @@
 amqp==1.4.9
 analytics-python==0.4.4
+antlr4-python2-runtime==4.5.2
 anyjson==0.3.3
 appdirs==1.4.3
 asn1crypto==0.22.0
