@@ -80,8 +80,7 @@
               -trans "Successfully called"
             -else
               -trans "Failed to call"
-
-            {{result.url}} (<a href="{%url "api.log_read" result.event.id %}">log</a>)
+            {{result.url}}
 
         -elif media_type == 'geo'
           .activity-message
@@ -182,8 +181,8 @@
           {{item.time}}
 
       .log-icon
-        -if item.type == 'msg' or item.type == 'call'
-          -if not user_org.is_anon or perms.contacts.contact_break_anon
+        -if not user_org.is_anon or perms.contacts.contact_break_anon
+          -if item.type == 'msg' or item.type == 'call'
             -with item.obj.get_last_log as log
               -if log
                 -if log.session
@@ -192,6 +191,11 @@
                 -else
                   %a{href:"{% url 'channels.channellog_read' log.id %}"}
                     .icon-docs-2
+          -if item.type == 'webhook-result'
+            -with item.obj.event as event
+              %a{href:"{%url 'api.log_read' event.id %}"}
+                .icon-docs-2
+
 
 -if has_older and not recent
   %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{after}}&before={{before}}", 
