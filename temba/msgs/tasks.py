@@ -53,18 +53,17 @@ def process_message(msg, from_mage=False, new_contact=False):
     """
     Processes the passed in message dealing with new contacts or mage messages appropriately.
     """
-    if msg:
-        print("M[%09d] Processing - %s" % (msg.id, msg.text))
-        start = time.time()
+    print("M[%09d] Processing - %s" % (msg.id, msg.text))
+    start = time.time()
 
-        # if message was created in Mage...
-        if from_mage:
-            mage_handle_new_message(msg.org, msg)
-            if new_contact:
-                mage_handle_new_contact(msg.org, msg.contact)
+    # if message was created in Mage...
+    if from_mage:
+        mage_handle_new_message(msg.org, msg)
+        if new_contact:
+            mage_handle_new_contact(msg.org, msg.contact)
 
-        Msg.process_message(msg)
-        print("M[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text))
+    Msg.process_message(msg)
+    print("M[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text))
 
 
 @task(track_started=True, name='process_message_task')
@@ -90,14 +89,14 @@ def process_message_task(msg_event):
 
             if contact_msg:
                 msg_event = json.loads(contact_msg[0])
-                msg = Msg.objects.filter(pk=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
+                msg = Msg.objects.filter(id=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
 
                 if msg:
                     process_message(msg, msg_event.get('from_mage', False), msg_event.get('new_contact', False))
 
     # backwards compatibility for events without contact ids, we handle the message directly
     else:
-        msg = Msg.objects.filter(pk=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
+        msg = Msg.objects.filter(id=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
         if msg:
             # grab our contact lock and handle this message
             key = 'pcm_%d' % msg.contact_id
