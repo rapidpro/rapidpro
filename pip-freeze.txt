@@ -50,7 +50,7 @@ geojson==1.0.7
 google==1.7
 graphviz==0.6
 gunicorn==19.3.0
-httplib2==0.10.3
+httplib2==0.9
 idna==2.1
 ipaddress==1.0.17
 iptools==0.6.1
@@ -80,7 +80,7 @@ ply==3.10
 polib==1.0.8
 prettytable==0.7.2
 psycopg2==2.5.2
-pyasn1==0.2.3
+pyasn1==0.1.9
 pycodestyle==2.3.1
 pycountry==1.20
 pycparser==2.14
@@ -111,7 +111,7 @@ responses==0.5.1
 rjsmin==1.0.12
 s3transfer==0.1.10
 selenium==2.31.0
-simplejson==3.10.0
+simplejson==3.4.1
 six==1.10.0
 smartmin==1.10.8
 sqlparse==0.2.3
