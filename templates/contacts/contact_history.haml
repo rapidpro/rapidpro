@@ -80,7 +80,7 @@
               -trans "Successfully called"
             -else
               -trans "Failed to call"
-            {{result.url}}
+            {{result.url|truncatechars:100}}
 
         -elif media_type == 'geo'
           .activity-message
