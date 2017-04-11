@@ -980,7 +980,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Editor, self).get_context_data(*args, **kwargs)
 
-            context['media_url'] = '%s://%s/' % ('http' if settings.DEBUG else 'https', settings.AWS_BUCKET_DOMAIN)
+            context['media_url'] = '%s' % (settings.MEDIA_URL)
 
             # are there pending starts?
             starting = False

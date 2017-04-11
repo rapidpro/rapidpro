@@ -464,7 +464,7 @@ class Broadcast(models.Model):
 
                 # if we have a localized media, create the url
                 if media_url:
-                    media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
+                    media = "%s:https://%s%s%s" % (media_type, settings.TEMBA_HOST,settings.MEDIA_URL, media_url)
 
             # add in our parent context if the message references @parent
             if run_map:

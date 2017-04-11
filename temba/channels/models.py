@@ -457,7 +457,7 @@ class Channel(TembaModel):
         client = plivo.RestAPI(auth_id, auth_token)
 
         message_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.plivo_handler', args=['receive', plivo_uuid])
-        answer_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/plivo_voice_unavailable.xml"
+        answer_url = "https://" + settings.TEMBA_HOST + settings.MEDIA_URL  + "/plivo_voice_unavailable.xml"
 
         plivo_response_status, plivo_response = client.create_application(params=dict(app_name=app_name,
                                                                                       answer_url=answer_url,

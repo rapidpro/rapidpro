@@ -54,8 +54,9 @@ EMAIL_USE_TLS = True
 FLOW_FROM_EMAIL = 'no-reply@temba.io'
 
 # where recordings and exports are stored
-AWS_STORAGE_BUCKET_NAME = 'dl-temba-io'
-AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + '.s3.amazonaws.com'
+#AWS_STORAGE_BUCKET_NAME = 'dl-temba-io'
+#AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + '.s3.amazonaws.com'
+
 STORAGE_ROOT_DIR = 'test_orgs' if TESTING else 'orgs'
 
 # -----------------------------------------------------------------------------------
@@ -239,6 +240,7 @@ INSTALLED_APPS = (
     'temba.orgs',
     'temba.contacts',
     'temba.channels',
+    #'temba.elasticsearch',
     'temba.msgs',
     'temba.flows',
     'temba.reports',

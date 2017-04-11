@@ -15,7 +15,6 @@ from django.conf.urls.static import static
 js_info_dict = {
     'packages': (),  # this is empty due to the fact that all translation are in one folder
 }
-
 urlpatterns = [
     url(r'^', include('temba.public.urls')),
     url(r'^', include('temba.msgs.urls')),
@@ -25,6 +24,7 @@ urlpatterns = [
     url(r'^', include('temba.flows.urls')),
     url(r'^', include('temba.reports.urls')),
     url(r'^', include('temba.triggers.urls')),
+    url(r'^', include('temba.elasticsearch.urls')),
     url(r'^', include('temba.campaigns.urls')),
     url(r'^', include('temba.ivr.urls')),
     url(r'^', include('temba.locations.urls')),
@@ -39,8 +39,10 @@ urlpatterns = [
     url(r'^jsi18n/$', javascript_catalog, js_info_dict, name='django.views.i18n.javascript_catalog'),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+#if settings.DEBUG:
+#    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
 
 # import any additional urls
 for app in settings.APP_URLS:  # pragma: needs cover

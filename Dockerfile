@@ -50,5 +50,6 @@ RUN cp temba/settings.py.dev temba/settings.py && \
 
 
 EXPOSE 8000
+EXPOSE 5555
 
 CMD ["./start.sh"]

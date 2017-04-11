@@ -833,7 +833,7 @@ class Org(SmartModel):
             app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler')
 
             # the the twiml to run when the voice app fails
-            fallback_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/voice_unavailable.xml"
+            fallback_url =  "https://" + settings.TEMBA_HOST + "/voice_unavailable.xml"
 
             temba_app = client.applications.create(friendly_name=app_name,
                                                    voice_url=app_url,
@@ -1814,12 +1814,9 @@ class Org(SmartModel):
         path = '%s/%d/media/%s' % (settings.STORAGE_ROOT_DIR, self.pk, filename)
         location = default_storage.save(path, file)
 
-        # force http for localhost
-        scheme = 'https'
-        if 'localhost' in settings.AWS_BUCKET_DOMAIN:  # pragma: no cover
-            scheme = 'http'
+        # force http for localhost'
 
-        return "%s://%s/%s" % (scheme, settings.AWS_BUCKET_DOMAIN, location)
+        return "http://%s%s%s" % (settings.TEMBA_HOST,settings.MEDIA_URL, location)
 
     @classmethod
     def create_user(cls, email, password):

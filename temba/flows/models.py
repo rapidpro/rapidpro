@@ -1072,7 +1072,7 @@ class Flow(TembaModel):
                 return None
 
             try:  # pragma: needs cover
-                url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
+                url = "http://%s%s%s" % (settings.TEMBA_HOST,settings.MEDIA_URL, url)
                 temp = NamedTemporaryFile(delete=True)
                 temp.write(urllib2.urlopen(url).read())
                 temp.flush()
@@ -5016,7 +5016,7 @@ class SayAction(Action):
 
             # if we have a localized recording, create the url
             if recording:  # pragma: needs cover
-                media_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, recording)
+                media_url = "http://%s%s%s" % (settings.TEMBA_HOST,settings.MEDIA_URL, recording)
 
         # localize the text for our message, need this either way for logging
         message = run.flow.get_localized_text(self.msg, run.contact)
@@ -5119,7 +5119,7 @@ class ReplyAction(Action):
 
                 # if we have a localized media, create the url
                 if media_url:
-                    media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
+                    media = "%s:http://%s%s%s" % (media_type, settings.TEMBA_HOST, settings.MEDIA_URL, media_url)
 
             if offline_on:
                 reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
