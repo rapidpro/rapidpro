@@ -19,7 +19,7 @@ from temba.msgs.models import Broadcast, FAILED
 from temba.orgs.models import ALL_EVENTS
 from temba.tests import MockResponse, TembaTest
 from urlparse import parse_qs
-from ..models import APIToken, WebHookEvent, WebHookResult, SMS_RECEIVED
+from ..models import APIToken, WebHookEvent, WebHookResult
 
 
 class APITokenTest(TembaTest):
@@ -295,7 +295,7 @@ class WebHookTest(TembaTest):
             mock.return_value = MockResponse(200, "Hello World")
 
             # trigger an event
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, sms, now)
             event = WebHookEvent.objects.get()
 
             self.assertEquals('C', event.status)
@@ -320,7 +320,7 @@ class WebHookTest(TembaTest):
             mock.return_value = MockResponse(200, "Hello World")
 
             # trigger an event
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, sms, now)
             event = WebHookEvent.objects.get()
 
             five_hours_ago = timezone.now() - timedelta(hours=5)
@@ -342,7 +342,7 @@ class WebHookTest(TembaTest):
                 self.assertFalse(WebHookEvent.objects.all())
                 self.assertFalse(WebHookResult.objects.all())
 
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, sms, now)
             event = WebHookEvent.objects.get()
 
             five_hours_ago = timezone.now() - timedelta(hours=5)
@@ -373,7 +373,7 @@ class WebHookTest(TembaTest):
             mock.return_value = MockResponse(200, "Hello World")
 
             # trigger an event, shouldnn't fire as we don't have a webhook
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, sms, now)
             self.assertFalse(WebHookEvent.objects.all())
 
         self.setupChannel()
@@ -387,7 +387,7 @@ class WebHookTest(TembaTest):
             mock.return_value = MockResponse(200, "Hello World")
 
             # trigger an event, shouldnn't fire as we don't have a webhook
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, sms, now)
             self.assertFalse(WebHookEvent.objects.all())
 
         self.setupChannel()
@@ -401,7 +401,7 @@ class WebHookTest(TembaTest):
             mock.return_value = MockResponse(200, "Hello World")
 
             # trigger an event
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, sms, now)
             event = WebHookEvent.objects.get()
 
             self.assertEquals('F', event.status)
@@ -426,7 +426,7 @@ class WebHookTest(TembaTest):
             mock.return_value = MockResponse(200, "Hello World")
 
             # trigger an event
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, sms, now)
             event = WebHookEvent.objects.get()
 
             self.assertEquals('C', event.status)
@@ -447,7 +447,7 @@ class WebHookTest(TembaTest):
             mock.side_effect = [MockResponse(500, "I am error")]
 
             # trigger an event
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, sms, now)
             event = WebHookEvent.objects.all().first()
 
             self.assertEquals('E', event.status)
@@ -473,7 +473,7 @@ class WebHookTest(TembaTest):
             bad_json = '{ "thrift_shops": ["Goodwill", "Value Village"] }'
             mock.return_value = MockResponse(200, bad_json)
 
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, sms, now)
             event = WebHookEvent.objects.get()
 
             self.assertEquals('C', event.status)
@@ -494,7 +494,7 @@ class WebHookTest(TembaTest):
         with patch('requests.Session.send') as mock:
             mock.return_value = MockResponse(200, '{ "phone": "+250788123123", "text": "I am success" }')
 
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, sms, now)
             event = WebHookEvent.objects.get()
 
             self.assertEquals('C', event.status)
@@ -523,7 +523,7 @@ class WebHookTest(TembaTest):
             self.assertEquals(self.joe.name, data['contact_name'][0])
             self.assertEquals(sms.pk, int(data['sms'][0]))
             self.assertEquals(self.channel.pk, int(data['channel'][0]))
-            self.assertEquals(SMS_RECEIVED, data['event'][0])
+            self.assertEquals(WebHookEvent.TYPE_SMS_RECEIVED, data['event'][0])
             self.assertEquals("I'm gonna pop some tags", data['text'][0])
             self.assertTrue('time' in data)
 
@@ -536,7 +536,7 @@ class WebHookTest(TembaTest):
             next_attempt_earliest = timezone.now() + timedelta(minutes=4)
             next_attempt_latest = timezone.now() + timedelta(minutes=6)
 
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, sms, now)
             event = WebHookEvent.objects.get()
 
             self.assertEquals('E', event.status)
@@ -587,7 +587,7 @@ class WebHookTest(TembaTest):
 
         with patch('requests.Session.send') as mock:
             mock.return_value = MockResponse(200, "Boom")
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, sms, now)
             event = WebHookEvent.objects.get()
 
             result = WebHookResult.objects.get()

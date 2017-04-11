@@ -513,6 +513,7 @@ class Contact(TembaModel):
         """
         Gets this contact's activity of messages, calls, runs etc in the given time window
         """
+        from temba.api.models import WebHookResult
         from temba.flows.models import Flow
         from temba.ivr.models import IVRCall
         from temba.msgs.models import Msg, BroadcastRecipient
@@ -541,6 +542,9 @@ class Contact(TembaModel):
         event_fires = self.fire_events.filter(fired__gte=after, fired__lt=before).exclude(fired=None)
         event_fires = event_fires.select_related('event__campaign')
 
+        webhook_result = WebHookResult.objects.filter(created_on__gte=after, created_on__lt=before, event__run__contact=self)
+        webhook_result = webhook_result.select_related('event')
+
         # and the contact's failed IVR calls
         calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
             IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED
@@ -555,6 +559,7 @@ class Contact(TembaModel):
             [{'type': 'run-exit', 'time': r.exited_on, 'obj': r} for r in runs.exclude(exit_type=None)],
             [{'type': 'channel-event', 'time': e.created_on, 'obj': e} for e in channel_events],
             [{'type': 'event-fire', 'time': f.fired, 'obj': f} for f in event_fires],
+            [{'type': 'webhook-result', 'time': r.created_on, 'obj': r} for r in webhook_result],
             [{'type': 'call', 'time': c.created_on, 'obj': c} for c in calls],
         )
 
