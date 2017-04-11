@@ -509,6 +509,8 @@ class Channel(TembaModel):
         if not nexmo_phones:
             parsed = phonenumbers.parse(phone_number, None)
             shortcode = str(parsed.national_number)
+            # to avoid getting 429 error, too much requests
+            time.sleep(1)
             nexmo_phones = client.get_numbers(shortcode)
             if nexmo_phones:
                 is_shortcode = True

@@ -1655,7 +1655,7 @@ class ChannelTest(TembaTest):
                 self.assertTrue(Channel.ROLE_RECEIVE in channel.role)
                 self.assertFalse(Channel.ROLE_ANSWER in channel.role)
                 self.assertFalse(Channel.ROLE_CALL in channel.role)
-                mock_time_sleep.assert_called_once_with(1)
+                self.assertEqual(mock_time_sleep.call_count, 2)
                 Channel.objects.all().delete()
 
         # try buying a number not on the account
