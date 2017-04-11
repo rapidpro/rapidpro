@@ -1113,8 +1113,13 @@ class Channel(TembaModel):
         for delegate_channel in Channel.objects.filter(parent=self, org=self.org):
             delegate_channel.release()
 
-        if not settings.DEBUG:
-            # only call out to external aggregator services if not in debug mode
+        if settings.IS_PROD:
+            # only call out to external aggregator services if we are on prod servers
+
+            # hangup all its calls
+            from temba.ivr.models import IVRCall
+            for call in IVRCall.objects.filter(channel=self):
+                call.close()
 
             # delete Plivo application
             if self.channel_type == Channel.TYPE_PLIVO:

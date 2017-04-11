@@ -45,7 +45,8 @@ from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
 from xml.etree import ElementTree as ET
-from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, TEMBA_HEADERS, HUB9_ENDPOINT
+from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, TEMBA_HEADERS, HUB9_ENDPOINT, \
+    ChannelSession
 from .models import DART_MEDIA_ENDPOINT
 from .tasks import check_channels_task, squash_channelcounts
 from .views import TWILIO_SUPPORTED_COUNTRIES
@@ -2115,6 +2116,19 @@ class ChannelTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse('channels.channel_read', args=[self.twitter_channel.uuid]))
         self.assertEqual(response.status_code, 404)
+
+    @override_settings(IS_PROD=True)
+    def test_release_ivr_channel(self):
+
+        # create outgoing call for the channel
+        contact = self.create_contact('Bruno Mars', '+252788123123')
+        call = IVRCall.create_outgoing(self.tel_channel, contact, contact.get_urn(TEL_SCHEME), self.admin)
+
+        self.assertNotEqual(call.status, ChannelSession.INTERRUPTED)
+        self.tel_channel.release()
+
+        call.refresh_from_db()
+        self.assertEqual(call.status, ChannelSession.INTERRUPTED)
 
     def test_unclaimed(self):
         response = self.sync(self.released_channel)
