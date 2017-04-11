@@ -226,13 +226,13 @@ class Broadcast(models.Model):
     media_dict = models.TextField(verbose_name=_("Media"),
                                   help_text=_("The localized versions of the media"), null=True)
 
-    send_all = models.NullBooleanField(null=True, default=False,
-                                       help_text="Whether this broadcast should send to all URNs for each contact")
+    send_all = models.BooleanField(default=False,
+                                   help_text="Whether this broadcast should send to all URNs for each contact")
 
     @classmethod
-    def create(cls, org, user, text, recipients, channel=None, media_dict=None, **kwargs):
-        create_args = dict(org=org, text=text, channel=channel, media_dict=media_dict, created_by=user,
-                           modified_by=user)
+    def create(cls, org, user, text, recipients, channel=None, media_dict=None, send_all=False, **kwargs):
+        create_args = dict(org=org, text=text, channel=channel, media_dict=media_dict, send_all=send_all,
+                           created_by=user, modified_by=user)
         create_args.update(kwargs)
         broadcast = Broadcast.objects.create(**create_args)
         broadcast.update_recipients(recipients)
@@ -436,6 +436,16 @@ class Broadcast(models.Model):
 
         Contact.bulk_cache_initialize(self.org, contacts)
         recipients = list(urns) + list(contacts)
+
+        if self.send_all:
+            recipients = list(urns)
+            contact_list = list(contacts)
+            for contact in contact_list:
+                contact_urns = contact.get_urns()
+                for c_urn in contact_urns:
+                    recipients.append(c_urn)
+
+            recipients = set(recipients)
 
         RelatedRecipient = Broadcast.recipients.through
 
@@ -1069,10 +1079,16 @@ class Msg(models.Model):
     def is_media_type_image(self):
         return Msg.MEDIA_IMAGE == self.get_media_type()
 
-    def reply(self, text, user, trigger_send=False, message_context=None, session=None, media=None, msg_type=None):
+    def reply(self, text, user, trigger_send=False, message_context=None, session=None, media=None, msg_type=None,
+              send_all=False, created_on=None):
+
+        if send_all:
+            return self.contact.send_all(text, user, trigger_send=trigger_send, message_context=message_context,
+                                         response_to=self if self.id else None, session=session, media=media,
+                                         msg_type=msg_type or self.msg_type, created_on=created_on)
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
                                  response_to=self if self.id else None, session=session, media=media,
-                                 msg_type=msg_type or self.msg_type)
+                                 msg_type=msg_type or self.msg_type, created_on=created_on)
 
     def update(self, cmd):
         """

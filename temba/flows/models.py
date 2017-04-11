@@ -33,7 +33,8 @@ from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, SENT, Label, PENDING, DELIVERED, USSD as MSG_TYPE_USSD
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
+from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD
 from temba.msgs.models import OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
@@ -1530,7 +1531,8 @@ class Flow(TembaModel):
 
             if message_text or media_dict:
                 broadcast = Broadcast.create(self.org, self.created_by, message_text, [], media_dict=media_dict,
-                                             language_dict=language_dict, base_language=self.base_language)
+                                             language_dict=language_dict, base_language=self.base_language,
+                                             send_all=send_action.send_all)
                 broadcast.update_contacts(all_contact_ids)
 
                 # manually set our broadcast status to QUEUED, our sub processes will send things off for us
@@ -4947,10 +4949,12 @@ class ReplyAction(Action):
     MESSAGE = 'msg'
     MSG_TYPE = None
     MEDIA = 'media'
+    SEND_ALL = 'send_all'
 
-    def __init__(self, msg=None, media=None):
+    def __init__(self, msg=None, media=None, send_all=False):
         self.msg = msg
         self.media = media if media else {}
+        self.send_all = send_all
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -4965,13 +4969,14 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
 
-        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE), media=json_obj.get(ReplyAction.MEDIA, None))
+        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE), media=json_obj.get(ReplyAction.MEDIA, None),
+                           send_all=json_obj.get(ReplyAction.SEND_ALL, False))
 
     def as_json(self):
-        return dict(type=ReplyAction.TYPE, msg=self.msg, media=self.media)
+        return dict(type=ReplyAction.TYPE, msg=self.msg, media=self.media, send_all=self.send_all)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
-        reply = None
+        replies = []
 
         if self.msg or self.media:
             user = get_flow_user(run.org)
@@ -4990,20 +4995,35 @@ class ReplyAction(Action):
                     media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
             if offline_on:
-                reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
-                                            created_on=offline_on, response_to=msg, media=media)
+                context = None
+                created_on = offline_on
             else:
-                try:
-                    if msg:
-                        reply = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session,
-                                          media=media, msg_type=self.MSG_TYPE)
-                    else:
-                        reply = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                                 session=run.session, msg_type=self.MSG_TYPE, media=media)
-                except UnreachableException:
-                    pass
+                created_on = None
 
-        return [reply] if reply else []
+            try:
+                if msg:
+                    reply_msg = msg.reply(text, user, trigger_send=False, message_context=context,
+                                          session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                          send_all=self.send_all, created_on=created_on)
+
+                    if reply_msg:
+                        replies.append(reply_msg)
+                else:
+                    if self.send_all:
+                        replies = run.contact.send_all(text, user, trigger_send=False, message_context=context,
+                                                       session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                                       created_on=created_on)
+                    else:
+                        reply_msg = run.contact.send(text, user, trigger_send=False, message_context=context,
+                                                     session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                                     created_on=created_on)
+                        if reply_msg:
+                            replies.append(reply_msg)
+
+            except UnreachableException:
+                pass
+
+        return replies
 
 
 class UssdAction(ReplyAction):
