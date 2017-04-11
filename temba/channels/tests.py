@@ -1322,7 +1322,8 @@ class ChannelTest(TembaTest):
                 Channel.objects.get(channel_type='T', org=self.org)
 
         twilio_channel = self.org.channels.all().first()
-        twilio_channel.role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE * Channel.ROLE_ANSWER + Channel.ROLE_CALL
+        # make channel support both sms and voice to check we clear both applications
+        twilio_channel.role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE + Channel.ROLE_ANSWER + Channel.ROLE_CALL
         twilio_channel.save()
         self.assertEquals('T', twilio_channel.channel_type)
 
@@ -1344,6 +1345,8 @@ class ChannelTest(TembaTest):
                 mock_numbers.side_effect = None
                 self.client.post(reverse('channels.channel_delete', args=[twilio_channel.pk]))
                 self.assertIsNone(self.org.channels.all().first())
+                self.assertEqual(mock_numbers.call_args_list[-1][1], dict(voice_application_sid='',
+                                                                          sms_application_sid=''))
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
