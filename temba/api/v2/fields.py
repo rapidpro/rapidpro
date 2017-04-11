@@ -53,7 +53,7 @@ class TranslatableField(serializers.Field):
         self.max_length = kwargs.pop('max_length', None)
         super(TranslatableField, self).__init__(**kwargs)
 
-    def to_representation(self, obj):
+    def to_representation(self, obj):  # pragma: no cover
         return obj
 
     def to_internal_value(self, data):

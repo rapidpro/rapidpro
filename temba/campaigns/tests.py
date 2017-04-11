@@ -21,7 +21,7 @@ class CampaignTest(TembaTest):
         super(CampaignTest, self).setUp()
 
         self.farmer1 = self.create_contact("Rob Jasper", "+250788111111")
-        self.farmer2 = self.create_contact("Mike Gordon", "+250788222222")
+        self.farmer2 = self.create_contact("Mike Gordon", "+250788222222", language='spa')
 
         self.nonfarmer = self.create_contact("Trey Anastasio", "+250788333333")
         self.farmers = self.create_group("Farmers", [self.farmer1, self.farmer2])
@@ -152,16 +152,17 @@ class CampaignTest(TembaTest):
 
         entry = ActionSet.objects.filter(uuid=flow.entry_uuid)[0]
         msg = entry.get_actions()[0].msg
-        self.assertEqual('base', flow.base_language)
-        self.assertEqual("This is my message", msg['base'])
-        self.assertEqual("hola", msg['spa'])
-        self.assertEqual("", msg['ace'])
+        self.assertEqual(flow.base_language, 'base')
+        self.assertEqual(msg, {'base': "This is my message", 'spa': "hola", 'ace': ""})
         self.assertFalse(RuleSet.objects.filter(flow=flow))
 
         self.assertEqual(-1, event.offset)
         self.assertEqual(13, event.delivery_hour)
         self.assertEqual('W', event.unit)
         self.assertEqual('M', event.event_type)
+
+        self.assertEqual(event.get_contact_message(self.farmer1), "This is my message")
+        self.assertEqual(event.get_contact_message(self.farmer2), "hola")
 
         url = reverse('campaigns.campaignevent_update', args=[event.id])
         response = self.client.get(url)
