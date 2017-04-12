@@ -1662,8 +1662,8 @@ class SystemLabel(object):
                     (TYPE_CALLS, "Calls"))
 
     @classmethod
-    def get_counts(cls, org, label_types=None):
-        return SystemLabelCount.get_totals(org, label_types)
+    def get_counts(cls, org):
+        return SystemLabelCount.get_totals(org)
 
     @classmethod
     def get_queryset(cls, org, label_type, exclude_test_contacts=True):
