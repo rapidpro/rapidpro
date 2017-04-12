@@ -2007,7 +2007,7 @@ class ExportMessagesTask(BaseExportTask):
 
     @classmethod
     def create(cls, org, user, system_label=None, label=None, groups=(), start_date=None, end_date=None):
-        if label and system_label:
+        if label and system_label:  # pragma: no cover
             raise ValueError("Can't specify both label and system label")
 
         export = cls.objects.create(org=org, system_label=system_label, label=label,
