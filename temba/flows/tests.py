@@ -7375,6 +7375,36 @@ class StackedExitsTest(FlowFileTest):
         self.assertEqual("Stacker", runs[1].flow.name)
         self.assertEqual("Stacked", runs[2].flow.name)
 
+    def test_response_exits(self):
+        self.get_flow('stacked_response_exits')
+        flow = Flow.objects.get(name="Stacked")
+
+        flow.start([], [self.contact])
+
+        msgs = Msg.objects.filter(contact=self.contact).order_by('sent_on')
+        self.assertEqual(2, msgs.count())
+        self.assertEqual("Start!", msgs[0].text)
+        self.assertEqual("Send something!", msgs[1].text)
+
+        # nobody completed yet
+        self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).count())
+
+        # ok, send a response, should unwind all our flows
+        msg = self.create_msg(contact=self.contact, direction='I', text="something")
+        Msg.process_message(msg)
+
+        msgs = Msg.objects.filter(contact=self.contact, direction='O').order_by('sent_on')
+        self.assertEqual(3, msgs.count())
+        self.assertEqual("Start!", msgs[0].text)
+        self.assertEqual("Send something!", msgs[1].text)
+        self.assertEqual("End!", msgs[2].text)
+
+        runs = FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).order_by('exited_on')
+        self.assertEqual(3, runs.count())
+        self.assertEqual("Stacker Leaf", runs[0].flow.name)
+        self.assertEqual("Stacker", runs[1].flow.name)
+        self.assertEqual("Stacked", runs[2].flow.name)
+
 
 class ParentChildOrderingTest(FlowFileTest):
 

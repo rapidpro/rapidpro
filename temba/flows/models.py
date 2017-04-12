@@ -515,7 +515,7 @@ class Flow(TembaModel):
     @classmethod
     def find_and_handle(cls, msg, started_flows=None, voice_response=None,
                         triggered_start=False, resume_parent_run=False,
-                        resume_after_timeout=False, user_input=True, trigger_send=True):
+                        resume_after_timeout=False, user_input=True, trigger_send=True, continue_parent=True):
 
         if started_flows is None:
             started_flows = []
@@ -534,7 +534,8 @@ class Flow(TembaModel):
             (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
                                                       user_input=user_input, triggered_start=triggered_start,
                                                       resume_parent_run=resume_parent_run,
-                                                      resume_after_timeout=resume_after_timeout, trigger_send=trigger_send)
+                                                      resume_after_timeout=resume_after_timeout, trigger_send=trigger_send,
+                                                      continue_parent=continue_parent)
 
             if handled:
                 # increment our unread count if this isn't the simulator
@@ -548,7 +549,7 @@ class Flow(TembaModel):
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
                            started_flows=None, is_test_contact=False, user_input=False,
-                           triggered_start=False, trigger_send=True, resume_parent_run=False, resume_after_timeout=False):
+                           triggered_start=False, trigger_send=True, resume_parent_run=False, resume_after_timeout=False, continue_parent=True):
 
         if started_flows is None:
             started_flows = []
@@ -623,8 +624,8 @@ class Flow(TembaModel):
             resume_after_timeout = False
 
         # if we have a parent to continue, do so
-        if getattr(run, 'continue_parent', False) and trigger_send:
-            msgs += FlowRun.continue_parent_flow_run(run, trigger_send=False)
+        if getattr(run, 'continue_parent', False) and continue_parent:
+            msgs += FlowRun.continue_parent_flow_run(run, trigger_send=False, continue_parent=True)
 
         if handled:
             analytics.gauge('temba.flow_execution', time.time() - start_time)
@@ -1437,7 +1438,7 @@ class Flow(TembaModel):
 
                 step = self.add_step(run, entry_rule, is_start=True, arrived_on=timezone.now())
                 if entry_rule.is_ussd():
-                    handled, step_msgs = Flow.handle_destination(entry_rule, step, run, start_msg, trigger_send=False)
+                    handled, step_msgs = Flow.handle_destination(entry_rule, step, run, start_msg, trigger_send=False, continue_parent=False)
 
                     # add these messages as ones that are ready to send
                     for msg in step_msgs:
@@ -1680,7 +1681,7 @@ class Flow(TembaModel):
 
                         msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
                         handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
-                                                                     is_test_contact=simulation, trigger_send=False)
+                                                                     is_test_contact=simulation, trigger_send=False, continue_parent=False)
                         run_msgs += step_msgs
 
                     else:
@@ -1697,7 +1698,7 @@ class Flow(TembaModel):
                     elif not entry_rules.is_pause() or entry_rules.is_ussd():
                         # create an empty placeholder message
                         msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
-                        handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False)
+                        handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False, continue_parent=False)
                         run_msgs += step_msgs
 
                 if start_msg:
@@ -2534,7 +2535,7 @@ class FlowRun(models.Model):
             cls.continue_parent_flow_run(run)
 
     @classmethod
-    def continue_parent_flow_run(cls, run, trigger_send=True):
+    def continue_parent_flow_run(cls, run, trigger_send=True, continue_parent=True):
         msgs = []
 
         steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
@@ -2561,7 +2562,7 @@ class FlowRun(models.Model):
 
                 # finally, trigger our parent flow
                 (handled, msgs) = Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow],
-                                                       resume_parent_run=True, trigger_send=trigger_send)
+                                                       resume_parent_run=True, trigger_send=trigger_send, continue_parent=continue_parent)
 
         return msgs
 
