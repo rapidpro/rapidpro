@@ -1,0 +1,345 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "https://textit.in", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": "c236395b-ddda-4b7d-b778-28ec380ff551", 
+          "uuid": "9bdd48e7-cf7a-4dff-890c-5b4e993da9a1", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Start!"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 369, 
+          "x": 105, 
+          "destination": null, 
+          "uuid": "57af1146-0eef-4f72-ac21-9a89ebacd101", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "End!"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "9bdd48e7-cf7a-4dff-890c-5b4e993da9a1", 
+      "rule_sets": [
+        {
+          "uuid": "c236395b-ddda-4b7d-b778-28ec380ff551", 
+          "rules": [
+            {
+              "test": {
+                "type": "subflow", 
+                "exit_type": "completed"
+              }, 
+              "category": {
+                "eng": "Completed"
+              }, 
+              "destination": "57af1146-0eef-4f72-ac21-9a89ebacd101", 
+              "uuid": "e6bfb149-4156-469c-a1f2-339b80f48019", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "type": "subflow", 
+                "exit_type": "expired"
+              }, 
+              "category": {
+                "eng": "Expired"
+              }, 
+              "uuid": "f0feb3e1-7aa6-4a3a-ad9e-d49fcb3c8f90"
+            }
+          ], 
+          "ruleset_type": "subflow", 
+          "label": "Response 1", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 162, 
+          "x": 178, 
+          "config": {
+            "flow": {
+              "name": "Stacker", 
+              "uuid": "ce3498a7-ac5c-4753-942a-acdef962e13f"
+            }
+          }
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "saved_on": "2017-04-12T13:00:40.090248Z", 
+        "uuid": "99c0d2df-a8cf-40ad-9a60-e6a61a8a2741", 
+        "name": "Stacked", 
+        "revision": 9
+      }
+    }, 
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 442, 
+          "x": 304, 
+          "destination": null, 
+          "uuid": "38b36d67-9b4a-4825-be1d-e63ced7beb5e", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Middle!"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "e38a810c-4e2a-424d-98c6-682418a721de", 
+      "rule_sets": [
+        {
+          "uuid": "e38a810c-4e2a-424d-98c6-682418a721de", 
+          "rules": [
+            {
+              "test": {
+                "max": "0.5", 
+                "type": "between", 
+                "min": "0"
+              }, 
+              "category": {
+                "eng": "Bucket 1"
+              }, 
+              "destination": "43d1a992-9e36-407b-8b67-4c2c1c4f5c28", 
+              "uuid": "af2a67bc-527f-41d0-9fce-4615685df72e", 
+              "destination_type": "R"
+            }, 
+            {
+              "test": {
+                "max": "1", 
+                "type": "between", 
+                "min": "0.5"
+              }, 
+              "category": {
+                "eng": "Bucket 2"
+              }, 
+              "destination": "43d1a992-9e36-407b-8b67-4c2c1c4f5c28", 
+              "uuid": "c2695e94-b117-46bb-b12a-55ad8fb912d6", 
+              "destination_type": "R"
+            }
+          ], 
+          "ruleset_type": "random", 
+          "label": "Response 1", 
+          "operand": "@(RAND())", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 0, 
+          "x": 333, 
+          "config": {}
+        }, 
+        {
+          "uuid": "43d1a992-9e36-407b-8b67-4c2c1c4f5c28", 
+          "rules": [
+            {
+              "test": {
+                "type": "subflow", 
+                "exit_type": "completed"
+              }, 
+              "category": {
+                "eng": "Completed"
+              }, 
+              "destination": "38b36d67-9b4a-4825-be1d-e63ced7beb5e", 
+              "uuid": "08560bc2-195e-4dad-9949-24664bb356c7", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "type": "subflow", 
+                "exit_type": "expired"
+              }, 
+              "category": {
+                "eng": "Expired"
+              }, 
+              "destination": "38b36d67-9b4a-4825-be1d-e63ced7beb5e", 
+              "uuid": "09e4c559-dbdc-4de7-a7e3-68b979694fb3", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "subflow", 
+          "label": "Response 2", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 200, 
+          "x": 292, 
+          "config": {
+            "flow": {
+              "name": "Stacker Leaf", 
+              "uuid": "48d9f1ee-dcd5-4142-8bec-c0fc09f33027"
+            }
+          }
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 10, 
+        "uuid": "ce3498a7-ac5c-4753-942a-acdef962e13f", 
+        "name": "Stacker", 
+        "saved_on": "2017-04-12T15:06:14.072877Z"
+      }
+    }, 
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 367, 
+          "x": 185, 
+          "destination": null, 
+          "uuid": "b0fd3a5b-0457-41cf-8c58-afc40a314240", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Leaf!"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "08badc99-4e04-4e8a-9a06-404658da32af", 
+      "rule_sets": [
+        {
+          "uuid": "08badc99-4e04-4e8a-9a06-404658da32af", 
+          "rules": [
+            {
+              "test": {
+                "status": "success", 
+                "type": "webhook_status"
+              }, 
+              "category": {
+                "eng": "Success"
+              }, 
+              "destination": "2a2bbe3f-2a9b-430a-b40c-23e8a8110a88", 
+              "uuid": "e0a1872a-8cef-4701-a276-0d941921f1f5", 
+              "destination_type": "R"
+            }, 
+            {
+              "test": {
+                "status": "failure", 
+                "type": "webhook_status"
+              }, 
+              "category": {
+                "eng": "Failure"
+              }, 
+              "destination": "62a89ff0-39b6-43fe-8b7a-2386eb176b5e", 
+              "uuid": "d30de5c8-faac-4c61-ab81-c44040641e5b", 
+              "destination_type": "R"
+            }
+          ], 
+          "ruleset_type": "webhook", 
+          "label": "Foo", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 0, 
+          "x": 160, 
+          "config": {
+            "webhook": "http://foo.bar/", 
+            "webhook_action": "GET"
+          }
+        }, 
+        {
+          "uuid": "2a2bbe3f-2a9b-430a-b40c-23e8a8110a88", 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "All Responses"
+              }, 
+              "destination": "b0fd3a5b-0457-41cf-8c58-afc40a314240", 
+              "uuid": "c1b352e8-3bc4-4c93-a278-46653b090387", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "expression", 
+          "label": "URL", 
+          "operand": "@extra.url", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 198, 
+          "x": 29, 
+          "config": {}
+        }, 
+        {
+          "uuid": "62a89ff0-39b6-43fe-8b7a-2386eb176b5e", 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "All Responses"
+              }, 
+              "destination": "b0fd3a5b-0457-41cf-8c58-afc40a314240", 
+              "uuid": "2a77f3a5-40a8-4370-9496-456548d6dce3", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "expression", 
+          "label": "URL", 
+          "operand": "@(\"http://foo.bar\")", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 195, 
+          "x": 297, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 15, 
+        "uuid": "48d9f1ee-dcd5-4142-8bec-c0fc09f33027", 
+        "name": "Stacker Leaf", 
+        "saved_on": "2017-04-12T15:06:32.885134Z"
+      }
+    }
+  ], 
+  "triggers": [
+    {
+      "trigger_type": "K", 
+      "flow": {
+        "name": "Stacked", 
+        "uuid": "99c0d2df-a8cf-40ad-9a60-e6a61a8a2741"
+      }, 
+      "groups": [], 
+      "keyword": "stacked", 
+      "channel": null
+    }
+  ]
+}
