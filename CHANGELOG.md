@@ -1,3 +1,31 @@
+v3.0.112
+----------
+ * Archiving a flow should interrupt all the current runs
+
+v3.0.111
+----------
+ * Display webhook results on contact history
+ * Clean up template tags used on contact history
+ * Allow broadcasts to be sent to all urns belonging to the specified contacts
+
+v3.0.109
+----------
+ * Data migration to populate broadcast send_all field
+
+v3.0.108
+----------
+ * Add webhook events trim task with configurable retain times for success and error logs
+
+v3.0.107
+----------
+ * Add send_all broadcast field
+
+v3.0.106
+----------
+ * Remove non_atomic_gets and display message at /api/v1/ to explain API v1 has been replaced
+ * Add squashable model for label counts
+ * Split system label functionality into SystemLabel and SystemLabelCount
+
 v3.0.105
 ----------
  * Link subflow starts in actions
