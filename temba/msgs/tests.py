@@ -650,19 +650,19 @@ class MsgTest(TembaTest):
         # joe_urn = self.joe.get_urn(TEL_SCHEME).urn
 
         msg1 = self.create_msg(contact=self.joe, text="hello 1", direction='I', status=HANDLED,
-                               created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
+                               msg_type='I', created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
         msg2 = self.create_msg(contact=self.joe, text="hello 2", direction='I', status=HANDLED,
-                               created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC))
+                               msg_type='I', created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC))
         msg3 = self.create_msg(contact=self.joe, text="hello 3", direction='I', status=HANDLED,
-                               created_on=datetime(2017, 1, 3, 10, tzinfo=pytz.UTC))
+                               msg_type='I', created_on=datetime(2017, 1, 3, 10, tzinfo=pytz.UTC))
 
         # inbound message that looks like a surveyor message
         msg4 = self.create_msg(contact=self.joe, contact_urn=None, text="hello 4", direction='I', status=HANDLED,
-                               channel=None, created_on=datetime(2017, 1, 4, 10, tzinfo=pytz.UTC))
+                               channel=None, msg_type='I', created_on=datetime(2017, 1, 4, 10, tzinfo=pytz.UTC))
 
         # inbound message with media attached, such as an ivr recording
         msg5 = self.create_msg(contact=self.joe, text="Media message", direction='I', status=HANDLED,
-                               media='audio:http://rapidpro.io/audio/sound.mp3',
+                               msg_type='I', media='audio:http://rapidpro.io/audio/sound.mp3',
                                created_on=datetime(2017, 1, 5, 10, tzinfo=pytz.UTC))
 
         # create some outbound messages with different statuses
@@ -692,7 +692,7 @@ class MsgTest(TembaTest):
         self.assertContains(response, "already an export in progress")
 
         # perform the export manually, assert how many queries
-        self.assertNumQueries(6, lambda: blocking_export.perform())
+        self.assertNumQueries(8, lambda: blocking_export.perform())
 
         def request_export(query, data=None):
             response = self.client.post(reverse('msgs.msg_export') + query, data)
