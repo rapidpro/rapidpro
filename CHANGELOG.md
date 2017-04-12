@@ -1,3 +1,8 @@
+v3.0.115
+----------
+ * Allow message exports by label, system label or all messages
+ * Fix for double stacked subflows with immediate exits
+
 v3.0.112
 ----------
  * Archiving a flow should interrupt all the current runs
