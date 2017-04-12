@@ -7328,6 +7328,54 @@ class TriggerFlowTest(FlowFileTest):
         self.assertTrue(run.is_active)
 
 
+class StackedExitsTest(FlowFileTest):
+
+    def setUp(self):
+        super(StackedExitsTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', scheme='tel',
+                                      config=dict(send_url='https://google.com'),
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_stacked_exits(self):
+        self.get_flow('stacked_exits')
+        flow = Flow.objects.get(name="Stacked")
+
+        flow.start([], [self.contact])
+
+        msgs = Msg.objects.filter(contact=self.contact).order_by('sent_on')
+        self.assertEqual(3, msgs.count())
+        self.assertEqual("Start!", msgs[0].text)
+        self.assertEqual("Leaf!", msgs[1].text)
+        self.assertEqual("End!", msgs[2].text)
+
+        runs = FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).order_by('exited_on')
+        self.assertEqual(3, runs.count())
+        self.assertEqual("Stacker Leaf", runs[0].flow.name)
+        self.assertEqual("Stacker", runs[1].flow.name)
+        self.assertEqual("Stacked", runs[2].flow.name)
+
+    def test_stacked_webhook_exits(self):
+        self.get_flow('stacked_webhook_exits')
+        flow = Flow.objects.get(name="Stacked")
+
+        flow.start([], [self.contact])
+
+        msgs = Msg.objects.filter(contact=self.contact).order_by('sent_on')
+        self.assertEqual(4, msgs.count())
+        self.assertEqual("Start!", msgs[0].text)
+        self.assertEqual("Leaf!", msgs[1].text)
+        self.assertEqual("Middle!", msgs[2].text)
+        self.assertEqual("End!", msgs[3].text)
+
+        runs = FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).order_by('exited_on')
+        self.assertEqual(3, runs.count())
+        self.assertEqual("Stacker Leaf", runs[0].flow.name)
+        self.assertEqual("Stacker", runs[1].flow.name)
+        self.assertEqual("Stacked", runs[2].flow.name)
+
+
 class ParentChildOrderingTest(FlowFileTest):
 
     def setUp(self):
