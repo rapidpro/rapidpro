@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0089_populate_broadcast_send_all'),
+        ('msgs', '0090_auto_20170407_2017'),
     ]
 
     operations = [
