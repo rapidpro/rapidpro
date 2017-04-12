@@ -35,7 +35,6 @@ Django-Select2==4.3.2
 django-storages==1.5.2
 django-timezone-field==2.0
 djangorestframework==3.5.1
-djangorestframework-xml==1.2.0
 djorm-ext-core==0.7
 djorm-ext-expressions==0.6
 djorm-ext-hstore==0.5
@@ -105,7 +104,7 @@ rsa==3.4.2
 selenium==2.31.0
 simplejson==3.4.1
 six==1.10.0
-smartmin==1.10.8
+smartmin==1.10.10
 sqlparse==0.2.3
 stop-words==2015.2.23.1
 stripe==1.11.0

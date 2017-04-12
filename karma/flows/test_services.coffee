@@ -307,10 +307,6 @@ describe 'Services:', ->
         ruleActionLoop = flowService.isConnectionAllowed(groupSplit, messageOne, groupA)
         expect(ruleActionLoop).toBe(false, "Rule to action loop without blocking ruleset")
 
-      it 'should detect back to back pause rules', ->
-        rulePauseLoop = flowService.isConnectionAllowed(messageSplitB, messageSplitA, messageSplitRule)
-        expect(rulePauseLoop).toBe(false, "Two pausing rulesets in a row")
-
       it 'should allow top level connection with downstream splits to same node', ->
         flowService.updateDestination(messageOne, null)
 

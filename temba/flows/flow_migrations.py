@@ -204,7 +204,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
             if metadata.get('id', None):
                 remap_flow(metadata)
             else:
-                del metadata['id']
+                del metadata['id']  # pragma: no cover
 
     for trigger in exported_json.get('triggers', []):
         if 'flow' in trigger:

@@ -390,15 +390,6 @@ def json_to_dict(json_string):
     return json.loads(json_string, object_hook=datetime_decoder)
 
 
-def non_atomic_gets(view_func):
-    """
-    Decorator which disables atomic requests for a view/dispatch function when the request method is GET. Works in
-    conjunction with the NonAtomicGetsMiddleware.
-    """
-    view_func._non_atomic_gets = True
-    return view_func
-
-
 def splitting_getlist(request, name, default=None):
     """
     Used for backward compatibility in the API where some list params can be provided as comma separated values
