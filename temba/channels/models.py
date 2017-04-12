@@ -503,15 +503,17 @@ class Channel(TembaModel):
         app_id = org_config.get(NEXMO_APP_ID)
 
         nexmo_phones = client.get_numbers(phone_number)
+        # to avoid getting 429 error, too many requests
+        time.sleep(1)
         is_shortcode = False
 
         # try it with just the national code (for short codes)
         if not nexmo_phones:
             parsed = phonenumbers.parse(phone_number, None)
             shortcode = str(parsed.national_number)
-            # to avoid getting 429 error, too much requests
-            time.sleep(1)
             nexmo_phones = client.get_numbers(shortcode)
+            # to avoid getting 429 error, too many requests
+            time.sleep(1)
             if nexmo_phones:
                 is_shortcode = True
                 phone_number = shortcode
@@ -530,10 +532,9 @@ class Channel(TembaModel):
 
         channel_uuid = generate_uuid()
 
-        # to avoid getting 429 error, too much requests
-        time.sleep(1)
-
         nexmo_phones = client.get_numbers(phone_number)
+        # to avoid getting 429 error, too many requests
+        time.sleep(1)
         features = [elt.upper() for elt in nexmo_phones[0]['features']]
         role = ''
         if 'SMS' in features:
