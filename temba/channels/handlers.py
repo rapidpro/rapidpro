@@ -1975,7 +1975,7 @@ class JunebugHandler(BaseChannelHandler):
                 status = 400
                 response_body = "Message with external id of '%s' not found" % (message_id,)
                 event = HttpEvent(request_method, request_path, request_body, status, response_body)
-                ChannelLog.log_message(message, 'Failed to handle %s event_type.' % (event_type), event)
+                log_channel(channel, 'Failed to handle %s event_type.' % (event_type), event)
                 return HttpResponse(response_body, status=status)
 
             if event_type == 'submitted':
