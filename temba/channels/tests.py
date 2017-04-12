@@ -1648,6 +1648,7 @@ class ChannelTest(TembaTest):
                                  '{"count":1,"numbers":[{"features": ["SMS"], "type":"mobile-lvn",'
                                  '"country":"US","msisdn":"8080"}] }'),
                 ]
+                nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
                 response = self.client.post(claim_nexmo, dict(country='US', phone_number='8080'))
                 self.assertRedirects(response, reverse('public.public_welcome') + "?success")
                 channel = Channel.objects.filter(address='8080').first()
@@ -1655,7 +1656,7 @@ class ChannelTest(TembaTest):
                 self.assertTrue(Channel.ROLE_RECEIVE in channel.role)
                 self.assertFalse(Channel.ROLE_ANSWER in channel.role)
                 self.assertFalse(Channel.ROLE_CALL in channel.role)
-                self.assertEqual(mock_time_sleep.call_count, 3)
+                self.assertFalse(mock_time_sleep.called)
                 Channel.objects.all().delete()
 
         # try buying a number not on the account
@@ -1677,6 +1678,35 @@ class ChannelTest(TembaTest):
                 self.assertTrue(Channel.ROLE_ANSWER in channel.role)
                 self.assertTrue(Channel.ROLE_CALL in channel.role)
                 Channel.objects.all().delete()
+
+        # Try when we get 429 too many requests, we retry
+        with patch('requests.get') as nexmo_get:
+            with patch('requests.post') as nexmo_post:
+                nexmo_get.side_effect = [
+                    MockResponse(429, '{"error_code":429,"message":"max limit, retry later" }'),
+                    MockResponse(200, '{"count":0,"numbers":[] }'),
+                    MockResponse(429, '{"error_code":429,"message":"max limit, retry later" }'),
+                    MockResponse(200, '{"count":0,"numbers":[] }'),
+                    MockResponse(429, '{"error_code":429,"message":"max limit, retry later" }'),
+                    MockResponse(200,
+                                 '{"count":1,"numbers":[{"features": ["sms", "voice"], "type":"mobile",'
+                                 '"country":"US","msisdn":"+12065551212"}] }'),
+                ]
+                nexmo_post.side_effect = [
+                    MockResponse(429, '{"error_code":429,"message":"max limit, retry later" }'),
+                    MockResponse(200, '{"error-code": "200"}'),
+                    MockResponse(429, '{"error_code":429,"message":"max limit, retry later" }'),
+                    MockResponse(200, '{"error-code": "200"}')
+                ]
+                response = self.client.post(claim_nexmo, dict(country='US', phone_number='+12065551212'))
+                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+                channel = Channel.objects.filter(address='+12065551212').first()
+                self.assertTrue(Channel.ROLE_SEND in channel.role)
+                self.assertTrue(Channel.ROLE_RECEIVE in channel.role)
+                self.assertTrue(Channel.ROLE_ANSWER in channel.role)
+                self.assertTrue(Channel.ROLE_CALL in channel.role)
+                Channel.objects.all().delete()
+                self.assertEqual(mock_time_sleep.call_count, 5)
 
         # try failing to buy a number not on the account
         with patch('requests.get') as nexmo_get:
