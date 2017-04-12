@@ -24,7 +24,7 @@ urlpatterns = [
     url(r'^', include('temba.flows.urls')),
     url(r'^', include('temba.reports.urls')),
     url(r'^', include('temba.triggers.urls')),
-    url(r'^', include('temba.elasticsearch.urls')),
+    #url(r'^', include('temba.elasticsearch.urls')),
     url(r'^', include('temba.campaigns.urls')),
     url(r'^', include('temba.ivr.urls')),
     url(r'^', include('temba.locations.urls')),

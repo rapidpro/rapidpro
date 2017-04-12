@@ -63,7 +63,8 @@ INSTALLED_APPS = INSTALLED_APPS + ('storages',)
 # In development, add in extra logging for exceptions and the debug toolbar
 # -----------------------------------------------------------------------------------
 MIDDLEWARE_CLASSES = ('temba.middleware.ExceptionMiddleware',) + MIDDLEWARE_CLASSES
-
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+MIDDLEWARE_CLASSES = list(MIDDLEWARE_CLASSES) + ['whitenoise.middleware.WhiteNoiseMiddleware']
 # -----------------------------------------------------------------------------------
 # In development, perform background tasks in the web thread (synchronously)
 # -----------------------------------------------------------------------------------

@@ -128,3 +128,4 @@ xlwt==1.1.2
 elasticsearch==5.0.1
 uwsgi
 flower
+whitenoise==3.2.2

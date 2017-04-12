@@ -11,7 +11,7 @@ from django.utils.translation import ugettext_lazy as _
 # -----------------------------------------------------------------------------------
 # Default to debugging
 # -----------------------------------------------------------------------------------
-DEBUG = 'off'
+DEBUG = False
 ALLOWED_HOSTS=['*']
 
 # -----------------------------------------------------------------------------------
@@ -989,12 +989,7 @@ TEST_EXCLUDE = ('smartmin',)
 # -----------------------------------------------------------------------------------
 # Debug Toolbar
 # -----------------------------------------------------------------------------------
-INTERNAL_IPS = iptools.IpRangeList(
-    '127.0.0.1',
-    '192.168.0.10',
-    '192.168.0.0/24',  # network block
-    '0.0.0.0'
-)
+INTERNAL_IPS = ('*',)
 
 DEBUG_TOOLBAR_CONFIG = {
     'INTERCEPT_REDIRECTS': False,  # disable redirect traps
@@ -1177,8 +1172,8 @@ else:
     )
 
 COMPRESS_ENABLED = True
-COMPRESS_OFFLINE = True
-#COMPRESS_URL = '/sitestatic/'
+COMPRESS_OFFLINE = False
+COMPRESS_URL = STATIC_URL
 
 
 # build up our offline compression context based on available brands
@@ -1218,7 +1213,7 @@ SEND_AIRTIME = True
 ######
 # DANGER: only turn this on if you know what you are doing!
 #         could cause calls in test environments
-SEND_CALLS = False
+SEND_CALLS = True
 
 
 MESSAGE_HANDLERS = ['temba.triggers.handlers.TriggerHandler',
