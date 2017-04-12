@@ -27,7 +27,7 @@ from temba.flows.models import FlowStart, FlowRun
 from temba.flows.tasks import squash_flowpathcounts, squash_flowruncounts, prune_flowpathrecentsteps
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label, Msg
-from temba.msgs.tasks import squash_systemlabels
+from temba.msgs.tasks import squash_labelcounts
 from temba.orgs.models import Org
 from temba.orgs.tasks import squash_topupcredits
 from temba.utils import chunk_list, ms_to_datetime, datetime_to_str, datetime_to_ms
@@ -552,7 +552,7 @@ class Command(BaseCommand):
         squash_flowruncounts()
         prune_flowpathrecentsteps()
         squash_topupcredits()
-        squash_systemlabels()
+        squash_labelcounts()
 
     def start_flow_activity(self, org):
         assert not org.cache['activity']

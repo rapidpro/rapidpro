@@ -513,6 +513,7 @@ class Contact(TembaModel):
         """
         Gets this contact's activity of messages, calls, runs etc in the given time window
         """
+        from temba.api.models import WebHookResult
         from temba.flows.models import Flow
         from temba.ivr.models import IVRCall
         from temba.msgs.models import Msg, BroadcastRecipient
@@ -533,14 +534,7 @@ class Contact(TembaModel):
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
         runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
-        exited_runs = runs.exclude(exit_type=None)
-
         runs = runs.select_related('flow')
-        exited_runs = exited_runs.select_related('flow')
-
-        for exit_run in exited_runs:
-            exit_run.created_on = exit_run.exited_on
-            exit_run.run_event_type = 'Exited'
 
         channel_events = self.channel_events.filter(created_on__gte=after, created_on__lt=before)
         channel_events = channel_events.select_related('channel')
@@ -548,9 +542,8 @@ class Contact(TembaModel):
         event_fires = self.fire_events.filter(fired__gte=after, fired__lt=before).exclude(fired=None)
         event_fires = event_fires.select_related('event__campaign')
 
-        # for easier comparison and display - give event fires same time attribute as other activity items
-        for event_fire in event_fires:
-            event_fire.created_on = event_fire.fired
+        webhook_result = WebHookResult.objects.filter(created_on__gte=after, created_on__lt=before, event__run__contact=self)
+        webhook_result = webhook_result.select_related('event')
 
         # and the contact's failed IVR calls
         calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
@@ -558,9 +551,19 @@ class Contact(TembaModel):
         ])
         calls = calls.select_related('channel')
 
-        # chain them all together in the same list and sort by time
-        activity = chain(msgs, broadcasts, runs, exited_runs, event_fires, channel_events, calls)
-        return sorted(activity, key=lambda i: i.created_on, reverse=True)
+        # wrap items, chain and sort by time
+        activity = chain(
+            [{'type': 'msg', 'time': m.created_on, 'obj': m} for m in msgs],
+            [{'type': 'broadcast', 'time': b.created_on, 'obj': b} for b in broadcasts],
+            [{'type': 'run-start', 'time': r.created_on, 'obj': r} for r in runs],
+            [{'type': 'run-exit', 'time': r.exited_on, 'obj': r} for r in runs.exclude(exit_type=None)],
+            [{'type': 'channel-event', 'time': e.created_on, 'obj': e} for e in channel_events],
+            [{'type': 'event-fire', 'time': f.fired, 'obj': f} for f in event_fires],
+            [{'type': 'webhook-result', 'time': r.created_on, 'obj': r} for r in webhook_result],
+            [{'type': 'call', 'time': c.created_on, 'obj': c} for c in calls],
+        )
+
+        return sorted(activity, key=lambda i: i['time'], reverse=True)
 
     def get_field(self, key):
         """
@@ -1700,8 +1703,8 @@ class Contact(TembaModel):
         # detach any existing URNs that weren't included
         urn_ids = [u.pk for u in (urns_created + urns_attached + urns_retained)]
         urns_detached_qs = ContactURN.objects.filter(contact=self).exclude(pk__in=urn_ids)
-        urns_detached_qs.update(contact=None)
         urns_detached = list(urns_detached_qs)
+        urns_detached_qs.update(contact=None)
 
         self.modified_by = user
         self.save(update_fields=('modified_on', 'modified_by'))
@@ -1794,16 +1797,58 @@ class Contact(TembaModel):
         if tel:
             return tel.path
 
-    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None, msg_type=None):
-        from temba.msgs.models import Msg, INBOX
+    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
+             msg_type=None, created_on=None):
+        from temba.msgs.models import Msg, INBOX, PENDING, SENT
 
-        msg = Msg.create_outgoing(self.org, user, self, text, priority=Msg.PRIORITY_HIGH, response_to=response_to,
-                                  message_context=message_context, session=session, media=media, msg_type=msg_type or INBOX)
+        if created_on is None:
+            status = PENDING
+        else:
+            status = SENT
+
+        recipient = self
+        if status == SENT:
+            recipient = (self, None)
+
+        msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH, response_to=response_to,
+                                  message_context=message_context, session=session, media=media,
+                                  msg_type=msg_type or INBOX, status=status, created_on=created_on)
 
         if trigger_send:
             self.org.trigger_send([msg])
 
         return msg
+
+    def send_all(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
+                 msg_type=None, created_on=None):
+        from temba.msgs.models import Msg, UnreachableException, INBOX, PENDING, SENT
+
+        msgs = []
+
+        if created_on is None:
+            status = PENDING
+        else:
+            status = SENT
+
+        contact_urns = self.get_urns()
+        for c_urn in contact_urns:
+            try:
+
+                recipient = c_urn
+                if status == SENT:
+                    recipient = (c_urn.contact, c_urn)
+
+                msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH,
+                                          response_to=response_to, message_context=message_context, session=session,
+                                          media=media, msg_type=msg_type or INBOX, status=status, created_on=created_on)
+                msgs.append(msg)
+            except UnreachableException:
+                pass
+
+        if trigger_send:
+            self.org.trigger_send(msgs)
+
+        return msgs
 
     def __str__(self):
         return self.get_display()

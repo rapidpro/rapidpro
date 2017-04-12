@@ -1954,14 +1954,12 @@ class ChannelCRUDL(SmartCRUDL):
                                        help_text=_("The username provided to use their API"))
             password = forms.CharField(label=_("Password"),
                                        help_text=_("The password provided to use their API"))
-            key = forms.CharField(label=_("Key"),
-                                  help_text=_("The key provided to sign requests"))
 
         title = _("Connect Shaqodoon")
         channel_type = Channel.TYPE_SHAQODOON
         readonly = ('country',)
         form_class = ShaqodoonForm
-        fields = ('country', 'number', 'url', 'username', 'password', 'key')
+        fields = ('country', 'number', 'url', 'username', 'password')
 
         def get_country(self, obj):
             return "Somalia"
@@ -1978,8 +1976,7 @@ class ChannelCRUDL(SmartCRUDL):
             data = form.cleaned_data
             self.object = Channel.add_config_external_channel(org, self.request.user,
                                                               'SO', data['number'], Channel.TYPE_SHAQODOON,
-                                                              dict(key=data['key'],
-                                                                   send_url=data['url'],
+                                                              dict(send_url=data['url'],
                                                                    username=data['username'],
                                                                    password=data['password']))
 

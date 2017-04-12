@@ -1,3 +1,76 @@
+v3.0.112
+----------
+ * Archiving a flow should interrupt all the current runs
+
+v3.0.111
+----------
+ * Display webhook results on contact history
+ * Clean up template tags used on contact history
+ * Allow broadcasts to be sent to all urns belonging to the specified contacts
+
+v3.0.109
+----------
+ * Data migration to populate broadcast send_all field
+
+v3.0.108
+----------
+ * Add webhook events trim task with configurable retain times for success and error logs
+
+v3.0.107
+----------
+ * Add send_all broadcast field
+
+v3.0.106
+----------
+ * Remove non_atomic_gets and display message at /api/v1/ to explain API v1 has been replaced
+ * Add squashable model for label counts
+ * Split system label functionality into SystemLabel and SystemLabelCount
+
+v3.0.105
+----------
+ * Link subflow starts in actions
+ * Allow wait to wait in flows with warning
+
+v3.0.104
+----------
+ * Add new has email test, contains phrase test and contains only phrase test
+
+v3.0.103
+----------
+ * Migration to populate FlowNodeCount shouldn't include test contacts
+
+v3.0.102
+----------
+ * Add migration to populate FlowNodeCount
+
+v3.0.101
+----------
+ * Migration to clear no-longer-used flow stats redis keys
+ * Replace remaining cache-based flow stats code with trigger based FlowNodeCount
+
+v3.0.100
+----------
+ * Fix intermittently failing Twilio test
+ * make sure calls have expiration on initiation
+ * Update to latest smartmin
+ * Add redirection for v1 endpoints
+ * Fix webhook docs
+ * Fix MsgCreateSerializer not using specified channel
+ * Test coverage
+ * Fix test coverage issues caused by removing API v1 tests
+ * Ensure surveyor users still have access to the API v2 endpoint thats they need
+ * Remove djangorestframework-xml
+ * Restrict API v1 access to surveyor users
+ * Block all API v2 writes for suspended orgs
+ * Remove all parts of API v1 not used by Surveyor
+
+v3.0.99
+----------
+ * Prioritize msg handling over timeotus and event fires
+ * Remove hamlcompress command as deployments should use regular compress these days
+ * Fix not correctly refreshing dynamic groups when a URN is removed
+ * Allow searching for contacts *with any* value for a given field
+
 v3.0.98
 ----------
  * Fix sidebar nav LESS so that level2 lists don't have fixed height and separate scrolling
