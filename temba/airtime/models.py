@@ -9,7 +9,6 @@ import time
 from django.conf import settings
 from django.db import models
 from smartmin.models import SmartModel
-from temba.api.models import get_api_user
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, TEL_SCHEME
 from temba.orgs.models import Org, TRANSFERTO_ACCOUNT_LOGIN, TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_CURRENCY
@@ -97,7 +96,7 @@ class AirtimeTransfer(SmartModel):
 
     @classmethod
     def trigger_airtime_event(cls, org, ruleset, contact, event):
-
+        from temba.api.models import get_api_user
         api_user = get_api_user()
 
         channel = None

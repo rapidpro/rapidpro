@@ -19,13 +19,14 @@ from django.db.models.functions import Upper
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
+from django_redis import get_redis_connection
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit, datetime_to_ms, dict_to_json
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
@@ -225,13 +226,13 @@ class Broadcast(models.Model):
     media_dict = models.TextField(verbose_name=_("Media"),
                                   help_text=_("The localized versions of the media"), null=True)
 
-    send_all = models.NullBooleanField(null=True, default=False,
-                                       help_text="Whether this broadcast should send to all URNs for each contact")
+    send_all = models.BooleanField(default=False,
+                                   help_text="Whether this broadcast should send to all URNs for each contact")
 
     @classmethod
-    def create(cls, org, user, text, recipients, channel=None, media_dict=None, **kwargs):
-        create_args = dict(org=org, text=text, channel=channel, media_dict=media_dict, created_by=user,
-                           modified_by=user)
+    def create(cls, org, user, text, recipients, channel=None, media_dict=None, send_all=False, **kwargs):
+        create_args = dict(org=org, text=text, channel=channel, media_dict=media_dict, send_all=send_all,
+                           created_by=user, modified_by=user)
         create_args.update(kwargs)
         broadcast = Broadcast.objects.create(**create_args)
         broadcast.update_recipients(recipients)
@@ -436,6 +437,16 @@ class Broadcast(models.Model):
         Contact.bulk_cache_initialize(self.org, contacts)
         recipients = list(urns) + list(contacts)
 
+        if self.send_all:
+            recipients = list(urns)
+            contact_list = list(contacts)
+            for contact in contact_list:
+                contact_urns = contact.get_urns()
+                for c_urn in contact_urns:
+                    recipients.append(c_urn)
+
+            recipients = set(recipients)
+
         RelatedRecipient = Broadcast.recipients.through
 
         # we batch up our SQL calls to speed up the creation of our SMS objects
@@ -627,6 +638,8 @@ class Msg(models.Model):
     PRIORITY_HIGH = 1000
     PRIORITY_NORMAL = 500
     PRIORITY_BULK = 100
+
+    CONTACT_HANDLING_QUEUE = 'ch:%d'
 
     MAX_SIZE = settings.MSG_FIELD_SIZE
 
@@ -1066,16 +1079,22 @@ class Msg(models.Model):
     def is_media_type_image(self):
         return Msg.MEDIA_IMAGE == self.get_media_type()
 
-    def reply(self, text, user, trigger_send=False, message_context=None, session=None, media=None, msg_type=None):
+    def reply(self, text, user, trigger_send=False, message_context=None, session=None, media=None, msg_type=None,
+              send_all=False, created_on=None):
+
+        if send_all:
+            return self.contact.send_all(text, user, trigger_send=trigger_send, message_context=message_context,
+                                         response_to=self if self.id else None, session=session, media=media,
+                                         msg_type=msg_type or self.msg_type, created_on=created_on)
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
                                  response_to=self if self.id else None, session=session, media=media,
-                                 msg_type=msg_type or self.msg_type)
+                                 msg_type=msg_type or self.msg_type, created_on=created_on)
 
     def update(self, cmd):
         """
         Updates our message according to the provided client command
         """
-        from temba.api.models import WebHookEvent, SMS_DELIVERED, SMS_SENT, SMS_FAIL
+        from temba.api.models import WebHookEvent
         date = datetime.fromtimestamp(int(cmd['ts']) / 1000).replace(tzinfo=pytz.utc)
 
         keyword = cmd['cmd']
@@ -1088,18 +1107,18 @@ class Msg(models.Model):
         elif keyword == 'mt_fail':
             self.status = FAILED
             handled = True
-            WebHookEvent.trigger_sms_event(SMS_FAIL, self, date)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_FAIL, self, date)
 
         elif keyword == 'mt_sent':
             self.status = SENT
             self.sent_on = date
             handled = True
-            WebHookEvent.trigger_sms_event(SMS_SENT, self, date)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_SENT, self, date)
 
         elif keyword == 'mt_dlvd':
             self.status = DELIVERED
             handled = True
-            WebHookEvent.trigger_sms_event(SMS_DELIVERED, self, date)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_DELIVERED, self, date)
 
         self.save()  # first save message status before updating the broadcast status
 
@@ -1108,6 +1127,19 @@ class Msg(models.Model):
             self.broadcast.update()
 
         return handled
+
+    def queue_handling(self):
+        """
+        Queues this message to be handled by one of our celery queues
+        """
+        payload = dict(type=MSG_EVENT, contact_id=self.contact.id, id=self.id, from_mage=False, new_contact=False)
+
+        # first push our msg on our contact's queue using our created date
+        r = get_redis_connection('default')
+        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_ms(self.sent_on), dict_to_json(payload))
+
+        # queue up our celery task
+        push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)
 
     def handle(self):
         if self.direction == OUTGOING:
@@ -1119,9 +1151,7 @@ class Msg(models.Model):
 
         # others do in celery
         else:
-            on_transaction_commit(lambda: push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
-                                                    dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False),
-                                                    priority=HIGH_PRIORITY))
+            on_transaction_commit(lambda: self.queue_handling())
 
     def build_expressions_context(self, contact_context=None):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
@@ -1204,7 +1234,7 @@ class Msg(models.Model):
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
                         status=PENDING, media=None, msg_type=None, topup=None, external_id=None, session=None):
 
-        from temba.api.models import WebHookEvent, SMS_RECEIVED
+        from temba.api.models import WebHookEvent
         if not org and channel:
             org = channel.org
 
@@ -1281,7 +1311,7 @@ class Msg(models.Model):
             msg.handle()
 
             # fire an event off for this message
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, msg, date)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, date)
 
         return msg
 

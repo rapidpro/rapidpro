@@ -27,7 +27,7 @@ from django.template import loader, Context
 from django_redis import get_redis_connection
 from mock import patch
 from smartmin.tests import SmartminTest
-from temba.api.models import WebHookEvent, SMS_RECEIVED
+from temba.api.models import WebHookEvent
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, LINE_SCHEME
 from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING, USSD
 from temba.channels.views import channel_status_processor
@@ -66,6 +66,9 @@ class ChannelTest(TembaTest):
 
         self.released_channel = Channel.create(None, self.user, None, 'NX', name="Released Channel", address=None,
                                                secret=None, gcm_id="000")
+
+        self.ussd_channel = Channel.create(self.org, self.user, None, Channel.TYPE_JUNEBUG_USSD, name="Junebug USSD",
+                                           address="*123#", role=Channel.ROLE_USSD)
 
     def send_message(self, numbers, message, org=None, user=None):
         if not org:
@@ -121,6 +124,28 @@ class ChannelTest(TembaTest):
         self.assertEqual(context['address'], '')
         self.assertEqual(context['tel'], '')
         self.assertEqual(context['tel_e164'], '')
+
+    def test_deactivate(self):
+        self.login(self.admin)
+        self.tel_channel.is_active = False
+        self.tel_channel.save()
+        response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.uuid]))
+        self.assertEquals(404, response.status_code)
+
+    def test_channelog_links(self):
+        self.login(self.admin)
+
+        channel_types = (
+            (Channel.TYPE_JUNEBUG, Channel.DEFAULT_ROLE, 'Sending Log'),
+            (Channel.TYPE_JUNEBUG_USSD, Channel.ROLE_USSD, 'USSD Log'),
+            (Channel.TYPE_TWILIO, Channel.ROLE_CALL, 'Call Log'),
+            (Channel.TYPE_TWILIO, Channel.ROLE_SEND + Channel.ROLE_CALL, 'Channel Log')
+        )
+
+        for channel_type, channel_role, link_text in channel_types:
+            channel = Channel.create(self.org, self.user, None, channel_type, name="Test Channel", role=channel_role)
+            response = self.client.get(reverse('channels.channel_read', args=[channel.uuid]))
+            self.assertContains(response, link_text)
 
     def test_delegate_channels(self):
 
@@ -7822,7 +7847,7 @@ class MageHandlerTest(TembaTest):
         self.assertEqual(self.welcome_topup, msg.topup)
 
         # check for a web hook event
-        event = json.loads(WebHookEvent.objects.get(org=self.org, event=SMS_RECEIVED).data)
+        event = json.loads(WebHookEvent.objects.get(org=self.org, event=WebHookEvent.TYPE_SMS_RECEIVED).data)
         self.assertEqual(msg.id, event['sms'])
 
         msg_counts = SystemLabel.get_counts(self.org)
@@ -8796,6 +8821,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         self.assertEquals(data["from"], outbound_msg.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(outbound_msg.response_to, inbound_msg)
         self.assertEquals(outbound_msg.session.status, USSDSession.TRIGGERED)
+        self.assertEquals(inbound_msg.direction, INCOMING)
 
     def test_receive_ussd_no_sesion(self):
         from temba.channels.handlers import JunebugHandler

@@ -1956,6 +1956,13 @@ class OrgCRUDL(SmartCRUDL):
 
             return obj
 
+        def get_context_data(self, **kwargs):
+            from temba.api.models import WebHookEvent
+
+            context = super(OrgCRUDL.Webhook, self).get_context_data(**kwargs)
+            context['failed_webhooks'] = WebHookEvent.get_recent_errored(self.request.user.get_org()).exists()
+            return context
+
     class Home(FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
 
