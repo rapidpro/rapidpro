@@ -55,6 +55,12 @@ class WriteSerializer(serializers.Serializer):
                 'non_field_errors': ["Request body should be a single JSON object"]
             })
 
+        if self.context['org'].is_suspended():
+            raise serializers.ValidationError(detail={
+                'non_field_errors': ["Sorry, your account is currently suspended. "
+                                     "To enable sending messages, please contact support."]
+            })
+
         return super(WriteSerializer, self).run_validation(data)
 
 
@@ -101,17 +107,13 @@ class BroadcastReadSerializer(ReadSerializer):
 
 
 class BroadcastWriteSerializer(WriteSerializer):
-    text = serializers.CharField(required=True, max_length=640)
+    text = serializers.CharField(required=True, max_length=Msg.MAX_SIZE)
     urns = fields.URNListField(required=False)
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
     channel = fields.ChannelField(required=False)
 
     def validate(self, data):
-        if self.context['org'].is_suspended():
-            raise serializers.ValidationError("Sorry, your account is currently suspended. "
-                                              "To enable sending messages, please contact support.")
-
         if not (data.get('urns') or data.get('contacts') or data.get('groups')):
             raise serializers.ValidationError("Must provide either urns, contacts or groups")
 
@@ -730,7 +732,8 @@ class LabelReadSerializer(ReadSerializer):
     count = serializers.SerializerMethodField()
 
     def get_count(self, obj):
-        return obj.get_visible_count()
+        # count may be cached on the object
+        return obj.count if hasattr(obj, 'count') else obj.get_visible_count()
 
     class Meta:
         model = Label

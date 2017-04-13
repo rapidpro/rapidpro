@@ -1,0 +1,57 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "https://app.rapidpro.io", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": null, 
+          "uuid": "a42b6981-1b8c-44a9-8260-3bf504c9bb25", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "first message"
+              }, 
+              "media": {}, 
+              "send_all": true, 
+              "type": "reply"
+            }, 
+            {
+              "type": "add_group", 
+              "groups": [
+                {
+                  "name": "Here", 
+                  "uuid": "edead5ec-bfc5-4430-8899-29ba20db51bb"
+                }
+              ]
+            }, 
+            {
+              "msg": {
+                "eng": "second message"
+              }, 
+              "media": {}, 
+              "send_all": true, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "a42b6981-1b8c-44a9-8260-3bf504c9bb25", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 3, 
+        "uuid": "a9de95b7-2959-40b7-afdd-99ef1975b812", 
+        "name": "Two to all", 
+        "saved_on": "2017-03-17T14:27:29.032085Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

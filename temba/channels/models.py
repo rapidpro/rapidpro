@@ -267,6 +267,8 @@ class Channel(TembaModel):
     GET_STARTED = 'get_started'
     VIBER_NO_SERVICE_ID = 'no_service_id'
 
+    SIMULATOR_CONTEXT = dict(__default__='(800) 555-1212', name='Simulator', tel='(800) 555-1212', tel_e164='+18005551212')
+
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=TYPE_CHOICES,
                                     default=TYPE_ANDROID, help_text=_("Type of this channel, whether Android, Twilio or SMSC"))
 
@@ -857,6 +859,9 @@ class Channel(TembaModel):
     def get_caller(self):
         return self.get_delegate(Channel.ROLE_CALL)
 
+    def get_ussd_delegate(self):
+        return self.get_delegate(Channel.ROLE_USSD)
+
     def is_delegate_sender(self):
         return self.parent and Channel.ROLE_SEND in self.role
 
@@ -945,7 +950,7 @@ class Channel(TembaModel):
 
         return self.address
 
-    def build_message_context(self):
+    def build_expressions_context(self):
         from temba.contacts.models import TEL_SCHEME
 
         address = self.get_address_display()
@@ -1231,7 +1236,6 @@ class Channel(TembaModel):
 
     @classmethod
     def success(cls, channel, msg, msg_status, start, external_id=None, event=None, events=None):
-
         request_time = time.time() - start
 
         from temba.msgs.models import Msg
@@ -1244,6 +1248,9 @@ class Channel(TembaModel):
         # logs that a message was sent for this channel type if our latency is known
         if request_time > 0:
             analytics.gauge('temba.msg_sent_%s' % channel.channel_type.lower(), request_time)
+
+        # log our request time in ms
+        request_time_ms = request_time * 1000
 
         if events is None and event:
             events = [event]
@@ -1263,7 +1270,7 @@ class Channel(TembaModel):
                                       request=event.request_body,
                                       response=event.response_body,
                                       response_status=event.status_code,
-                                      request_time=request_time)
+                                      request_time=request_time_ms)
 
     @classmethod
     def send_fcm_message(cls, channel, msg, text):
@@ -1416,7 +1423,6 @@ class Channel(TembaModel):
 
         # build our payload
         payload = dict()
-        payload['from'] = channel.address
         payload['event_url'] = event_url
         payload['content'] = text
 
@@ -1428,6 +1434,7 @@ class Channel(TembaModel):
                 'continue_session': session_status not in ChannelSession.DONE,
             }
         else:
+            payload['from'] = channel.address
             payload['to'] = msg.urn_path
 
         log_url = channel.config[Channel.CONFIG_SEND_URL]
@@ -1455,8 +1462,15 @@ class Channel(TembaModel):
                                 event=event, start=start)
 
         data = response.json()
-        message_id = data['result']['id']
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=message_id)
+        try:
+            message_id = data['result']['message_id']
+            Channel.success(channel, msg, WIRED, start, event=event, external_id=message_id)
+        except KeyError, e:
+            raise SendException("Unable to read external message_id: %r" % (e,),
+                                event=HttpEvent('POST', log_url,
+                                                request_body=json.dumps(json.dumps(payload)),
+                                                response_body=json.dumps(data)),
+                                start=start)
 
     @classmethod
     def send_facebook_message(cls, channel, msg, text):
@@ -1473,14 +1487,6 @@ class Channel(TembaModel):
             payload['recipient'] = dict(id=msg.urn_path)
 
         message = dict(text=text)
-
-        from temba.msgs.models import Msg
-        media_type, media_url = Msg.get_media(msg)
-
-        if media_type and media_url:
-            media_type = media_type.split('/')[0]
-            message['attachment'] = dict(type=media_type, payload=dict(url=media_url))
-
         payload['message'] = message
         payload = json.dumps(payload)
 
@@ -1497,6 +1503,25 @@ class Channel(TembaModel):
             event.response_body = response.text
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
+
+        from temba.msgs.models import Msg
+        media_type, media_url = Msg.get_media(msg)
+
+        if media_type and media_url:
+            media_type = media_type.split('/')[0]
+
+            payload = json.loads(payload)
+            payload['message'] = dict(attachment=dict(type=media_type, payload=dict(url=media_url)))
+            payload = json.dumps(payload)
+
+            event = HttpEvent('POST', url, payload)
+
+            try:
+                response = requests.post(url, payload, params=params, headers=headers, timeout=15)
+                event.status_code = response.status_code
+                event.response_body = response.text
+            except Exception as e:
+                raise SendException(six.text_type(e), event=event, start=start)
 
         if response.status_code != 200:
             raise SendException("Got non-200 response [%d] from Facebook" % response.status_code,
@@ -1638,6 +1663,10 @@ class Channel(TembaModel):
         payload['to'] = msg.urn_path
         payload['dlr-url'] = dlr_url
         payload['dlr-mask'] = dlr_mask
+
+        # if this a reply to a message, set a higher priority
+        if msg.response_to_id:
+            payload['priority'] = 1
 
         # should our to actually be in national format?
         use_national = channel.config.get(Channel.CONFIG_USE_NATIONAL, False)
@@ -3248,6 +3277,9 @@ class ChannelLog(models.Model):
             print(u"[%d] %0.3fs ERROR - %s %s \"%s\" %s \"%s\"" %
                   (msg.id, request_time, event.method, event.url, event.request_body, event.status_code, event.response_body))
 
+            # log our request time in ms
+            request_time_ms = request_time * 1000
+
             ChannelLog.objects.create(channel_id=msg.channel,
                                       msg_id=msg.id,
                                       is_error=True,
@@ -3256,9 +3288,9 @@ class ChannelLog(models.Model):
                                       url=event.url,
                                       request=event.request_body,
                                       response=event.response_body,
-                                      response_status=event.status_code)
+                                      response_status=event.status_code,
+                                      request_time=request_time_ms)
 
-        # log our request type if possible
         if request_time > 0:
             analytics.gauge('temba.msg_sent_%s' % channel.channel_type.lower(), request_time)
 

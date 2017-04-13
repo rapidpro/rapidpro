@@ -4,6 +4,7 @@ import hmac
 import json
 import requests
 import six
+import time
 import uuid
 
 from collections import OrderedDict
@@ -20,41 +21,11 @@ from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
 from temba.channels.models import Channel, ChannelEvent, TEMBA_HEADERS
 from temba.contacts.models import TEL_SCHEME
+from temba.flows.models import FlowRun, ActionLog
 from temba.orgs.models import Org
 from temba.utils import datetime_to_str, prepped_request_to_str
 from temba.utils.cache import get_cacheable_attr
 from urllib import urlencode
-
-PENDING = 'P'
-COMPLETE = 'C'
-FAILED = 'F'
-ERRORED = 'E'
-
-STATUS_CHOICES = ((PENDING, "Pending"),
-                  (COMPLETE, "Complete"),
-                  (ERRORED, "Errored"),
-                  (FAILED, "Failed"))
-
-SMS_RECEIVED = 'mo_sms'
-SMS_SENT = 'mt_sent'
-SMS_DELIVERED = 'mt_dlvd'
-SMS_FAIL = 'mt_fail'
-
-RELAYER_ALARM = 'alarm'
-
-FLOW = 'flow'
-CATEGORIZE = 'categorize'
-
-EVENT_CHOICES = ((SMS_RECEIVED, "Incoming SMS Message"),
-                 (SMS_SENT, "Outgoing SMS Sent"),
-                 (SMS_DELIVERED, "Outgoing SMS Delivered to Recipient"),
-                 (ChannelEvent.TYPE_CALL_OUT, "Outgoing Call"),
-                 (ChannelEvent.TYPE_CALL_OUT_MISSED, "Missed Outgoing Call"),
-                 (ChannelEvent.TYPE_CALL_IN, "Incoming Call"),
-                 (ChannelEvent.TYPE_CALL_IN_MISSED, "Missed Incoming Call"),
-                 (RELAYER_ALARM, "Channel Alarm"),
-                 (FLOW, "Flow Step Reached"),
-                 (CATEGORIZE, "Flow Categorization"))
 
 
 class APIPermission(BasePermission):
@@ -180,15 +151,47 @@ class WebHookEvent(SmartModel):
     """
     Represents an event that needs to be sent to the web hook for a channel.
     """
+    TYPE_SMS_RECEIVED = 'mo_sms'
+    TYPE_SMS_SENT = 'mt_sent'
+    TYPE_SMS_DELIVERED = 'mt_dlvd'
+    TYPE_SMS_FAIL = 'mt_fail'
+    TYPE_RELAYER_ALARM = 'alarm'
+    TYPE_FLOW = 'flow'
+    TYPE_CATEGORIZE = 'categorize'
+
+    TYPE_CHOICES = ((TYPE_SMS_RECEIVED, "Incoming SMS Message"),
+                    (TYPE_SMS_SENT, "Outgoing SMS Sent"),
+                    (TYPE_SMS_DELIVERED, "Outgoing SMS Delivered to Recipient"),
+                    (TYPE_SMS_FAIL, "Outgoing SMS Failed to be Delivered to Recipient"),
+                    (ChannelEvent.TYPE_CALL_OUT, "Outgoing Call"),
+                    (ChannelEvent.TYPE_CALL_OUT_MISSED, "Missed Outgoing Call"),
+                    (ChannelEvent.TYPE_CALL_IN, "Incoming Call"),
+                    (ChannelEvent.TYPE_CALL_IN_MISSED, "Missed Incoming Call"),
+                    (TYPE_RELAYER_ALARM, "Channel Alarm"),
+                    (TYPE_FLOW, "Flow Step Reached"),
+                    (TYPE_CATEGORIZE, "Flow Categorization"))
+
+    STATUS_PENDING = 'P'
+    STATUS_COMPLETE = 'C'
+    STATUS_FAILED = 'F'
+    STATUS_ERRORED = 'E'
+
+    STATUS_CHOICES = ((STATUS_PENDING, "Pending"),
+                      (STATUS_COMPLETE, "Complete"),
+                      (STATUS_ERRORED, "Errored"),
+                      (STATUS_FAILED, "Failed"))
+
     org = models.ForeignKey(Org,
                             help_text="The organization that this event was triggered for")
     resthook = models.ForeignKey(Resthook, null=True,
                                  help_text="The associated resthook to this event. (optional)")
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='P',
                               help_text="The state this event is currently in")
+    run = models.ForeignKey(FlowRun, null=True,
+                            help_text="The flow run that triggered this event")
     channel = models.ForeignKey(Channel, null=True, blank=True,
                                 help_text="The channel that this event is relating to")
-    event = models.CharField(max_length=16, choices=EVENT_CHOICES,
+    event = models.CharField(max_length=16, choices=TYPE_CHOICES,
                              help_text="The event type for this event")
     data = models.TextField(help_text="The JSON encoded data that will be POSTED to the web hook")
     try_count = models.IntegerField(default=0,
@@ -197,19 +200,26 @@ class WebHookEvent(SmartModel):
                                         help_text="When this event will be retried")
     action = models.CharField(max_length=8, default='POST', help_text='What type of HTTP event is it')
 
+    @classmethod
+    def get_recent_errored(cls, org):
+        past_hour = timezone.now() - timedelta(hours=1)
+        return cls.objects.filter(org=org, status__in=(cls.STATUS_FAILED, cls.STATUS_ERRORED), created_on__gte=past_hour)
+
     def fire(self):
         # start our task with this event id
         from .tasks import deliver_event_task
         deliver_event_task.delay(self.id)
 
     @classmethod
-    def trigger_flow_event(cls, webhook_url, flow, run, node_uuid, contact, event, action='POST', resthook=None):
+    def trigger_flow_event(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None):
+        flow = run.flow
         org = flow.org
+        contact = run.contact
         api_user = get_api_user()
         json_time = datetime_to_str(timezone.now())
 
         # get the results for this contact
-        results = flow.get_results(contact)
+        results = run.flow.get_results(run.contact)
         values = []
 
         if results and results[0]:
@@ -218,16 +228,15 @@ class WebHookEvent(SmartModel):
                 value['time'] = datetime_to_str(value['time'])
                 value['value'] = six.text_type(value['value'])
 
-        # if the action is on the first node
-        # we might not have an sms (or channel) yet
-        channel = None
-        text = None
-        contact_urn = contact.get_urn()
-
-        if event:
-            text = event.text
-            channel = event.channel
-            contact_urn = event.contact_urn
+        if msg:
+            text = msg.text
+            channel = msg.channel
+            contact_urn = msg.contact_urn
+        else:
+            # if the action is on the first node we might not have an sms (or channel) yet
+            channel = None
+            text = None
+            contact_urn = contact.get_urn()
 
         steps = []
         for step in run.steps.prefetch_related('messages', 'broadcasts').order_by('arrived_on'):
@@ -259,43 +268,43 @@ class WebHookEvent(SmartModel):
         if not action:  # pragma: needs cover
             action = 'POST'
 
-        webhook_event = WebHookEvent.objects.create(org=org,
-                                                    event=FLOW,
-                                                    channel=channel,
-                                                    data=json.dumps(data),
-                                                    try_count=1,
-                                                    action=action,
-                                                    resthook=resthook,
-                                                    created_by=api_user,
-                                                    modified_by=api_user)
+        webhook_event = cls.objects.create(org=org, event=cls.TYPE_FLOW, channel=channel, data=json.dumps(data),
+                                           run=run, try_count=1, action=action, resthook=resthook,
+                                           created_by=api_user, modified_by=api_user)
 
         status_code = -1
         message = "None"
         body = None
 
+        start = time.time()
+
         # webhook events fire immediately since we need the results back
         try:
-            # only send webhooks when we are configured to, otherwise fail
-            if not settings.SEND_WEBHOOKS:
-                raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
-
             # no url, bail!
             if not webhook_url:
                 raise Exception("No webhook_url specified, skipping send")
 
-            # some hosts deny generic user agents, use Temba as our user agent
-            if action == 'GET':
-                response = requests.get(webhook_url, headers=TEMBA_HEADERS, timeout=10)
+            # only send webhooks when we are configured to, otherwise fail
+            if settings.SEND_WEBHOOKS:
+
+                # some hosts deny generic user agents, use Temba as our user agent
+                if action == 'GET':
+                    response = requests.get(webhook_url, headers=TEMBA_HEADERS, timeout=10)
+                else:
+                    response = requests.post(webhook_url, data=data, headers=TEMBA_HEADERS, timeout=10)
+
+                body = response.text
+                if body:
+                    body = body.strip()
+                status_code = response.status_code
             else:
-                response = requests.post(webhook_url, data=data, headers=TEMBA_HEADERS, timeout=10)
+                print("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
+                body = 'Skipped actual send'
+                status_code = 200
 
-            response_text = response.text
-            body = response.text
-            status_code = response.status_code
-
-            if response.status_code == 200 or response.status_code == 201:
+            if 200 <= status_code < 300:
                 try:
-                    response_json = json.loads(response_text, object_pairs_hook=OrderedDict)
+                    response_json = json.loads(body, object_pairs_hook=OrderedDict)
 
                     # only update if we got a valid JSON dictionary or list
                     if not isinstance(response_json, dict) and not isinstance(response_json, list):
@@ -303,12 +312,12 @@ class WebHookEvent(SmartModel):
 
                     run.update_fields(response_json)
                     message = "Webhook called successfully."
-                except ValueError as e:
+                except ValueError:
                     message = "Response must be a JSON dictionary, ignoring response."
 
-                webhook_event.status = COMPLETE
+                webhook_event.status = cls.STATUS_COMPLETE
             else:
-                webhook_event.status = FAILED
+                webhook_event.status = cls.STATUS_FAILED
                 message = "Got non 200 response (%d) from webhook." % response.status_code
                 raise Exception("Got non 200 response (%d) from webhook." % response.status_code)
 
@@ -316,7 +325,7 @@ class WebHookEvent(SmartModel):
             import traceback
             traceback.print_exc()
 
-            webhook_event.status = FAILED
+            webhook_event.status = cls.STATUS_FAILED
             message = "Error calling webhook: %s" % six.text_type(e)
 
         finally:
@@ -326,18 +335,20 @@ class WebHookEvent(SmartModel):
             if message:
                 message = message[:255]
 
+            request_time = (time.time() - start) * 1000
+
             result = WebHookResult.objects.create(event=webhook_event,
                                                   url=webhook_url,
                                                   status_code=status_code,
                                                   body=body,
                                                   message=message,
                                                   data=urlencode(data, doseq=True),
+                                                  request_time=request_time,
                                                   created_by=api_user,
                                                   modified_by=api_user)
 
             # if this is a test contact, add an entry to our action log
             if run.contact.is_test:
-                from temba.flows.models import ActionLog
                 log_txt = "Triggered <a href='%s' target='_log'>webhook event</a> - %d" % (reverse('api.log_read', args=[webhook_event.pk]), status_code)
                 ActionLog.create(run, log_txt, safe=True)
 
@@ -355,7 +366,7 @@ class WebHookEvent(SmartModel):
             return
 
         # if the org doesn't care about this type of message, ignore it
-        if (event == SMS_RECEIVED and not org.is_notified_of_mo_sms()) or (event == SMS_SENT and not org.is_notified_of_mt_sms()) or (event == SMS_DELIVERED and not org.is_notified_of_mt_sms()):
+        if (event == cls.TYPE_SMS_RECEIVED and not org.is_notified_of_mo_sms()) or (event == cls.TYPE_SMS_SENT and not org.is_notified_of_mt_sms()) or (event == cls.TYPE_SMS_DELIVERED and not org.is_notified_of_mt_sms()):
             return
 
         api_user = get_api_user()
@@ -371,12 +382,8 @@ class WebHookEvent(SmartModel):
                     status=msg.status,
                     direction=msg.direction)
 
-        hook_event = WebHookEvent.objects.create(org=org,
-                                                 channel=msg.channel,
-                                                 event=event,
-                                                 data=json.dumps(data),
-                                                 created_by=api_user,
-                                                 modified_by=api_user)
+        hook_event = cls.objects.create(org=org, channel=msg.channel, event=event, data=json.dumps(data),
+                                        created_by=api_user, modified_by=api_user)
         hook_event.fire()
         return hook_event
 
@@ -410,12 +417,8 @@ class WebHookEvent(SmartModel):
                     urn=six.text_type(call.contact_urn),
                     duration=call.duration,
                     time=json_time)
-        hook_event = WebHookEvent.objects.create(org=org,
-                                                 channel=call.channel,
-                                                 event=event,
-                                                 data=json.dumps(data),
-                                                 created_by=api_user,
-                                                 modified_by=api_user)
+        hook_event = cls.objects.create(org=org, channel=call.channel, event=event, data=json.dumps(data),
+                                        created_by=api_user, modified_by=api_user)
         hook_event.fire()
         return hook_event
 
@@ -444,17 +447,14 @@ class WebHookEvent(SmartModel):
                     retry_message_count=sync_event.retry_message_count,
                     last_seen=json_time)
 
-        hook_event = WebHookEvent.objects.create(org=org,
-                                                 channel=channel,
-                                                 event=RELAYER_ALARM,
-                                                 data=json.dumps(data),
-                                                 created_by=api_user,
-                                                 modified_by=api_user)
+        hook_event = cls.objects.create(org=org, channel=channel, event=cls.TYPE_RELAYER_ALARM, data=json.dumps(data),
+                                        created_by=api_user, modified_by=api_user)
         hook_event.fire()
         return hook_event
 
     def deliver(self):
         from .v1.serializers import MsgCreateSerializer
+        start = time.time()
 
         # create our post parameters
         post_data = json.loads(self.data)
@@ -469,7 +469,7 @@ class WebHookEvent(SmartModel):
         if not self.org.get_webhook_url():  # pragma: no cover
             result['status_code'] = 0
             result['message'] = "No webhook registered for this org, ignoring event"
-            self.status = FAILED
+            self.status = self.STATUS_FAILED
             self.next_attempt = None
             return result
 
@@ -480,7 +480,7 @@ class WebHookEvent(SmartModel):
         if not user:
             result['status_code'] = 0
             result['message'] = "No active user for this org, ignoring event"
-            self.status = FAILED
+            self.status = self.STATUS_FAILED
             self.next_attempt = None
             return result
 
@@ -509,7 +509,8 @@ class WebHookEvent(SmartModel):
             r.raise_for_status()
 
             # any 200 code is ok by us
-            self.status = COMPLETE
+            self.status = self.STATUS_COMPLETE
+            result['request_time'] = (time.time() - start) * 1000
             result['message'] = "Event delivered successfully."
 
             # read our body if we have one
@@ -520,27 +521,27 @@ class WebHookEvent(SmartModel):
 
                     if serializer.is_valid():
                         result['serializer'] = serializer
-                        obj = serializer.object
-                        result['message'] = "SMS message to %d recipient(s) with text: '%s'" % (len(obj.contacts), obj.text)  # pragma: needs cover
+                        result['message'] = "Response body contains message which will be sent"
                     else:
                         errors = serializer.errors
                         result['message'] = "Event delivered successfully, ignoring response body, wrong format: %s" % \
                                             ",".join("%s: %s" % (_, ",".join(errors[_])) for _ in errors.keys())
 
-                except Exception as e:
+                except ValueError as e:
                     # we were unable to make anything of the body, that's ok though because
                     # get a 200, so just save our error for posterity
                     result['message'] = "Event delivered successfully, ignoring response body, not JSON: %s" % six.text_type(e)
 
         except Exception as e:
             # we had an error, log it
-            self.status = ERRORED
+            self.status = self.STATUS_ERRORED
+            result['request_time'] = time.time() - start
             result['message'] = "Error when delivering event - %s" % six.text_type(e)
 
         # if we had an error of some kind, schedule a retry for five minutes from now
         self.try_count += 1
 
-        if self.status == ERRORED:
+        if self.status == self.STATUS_ERRORED:
             if self.try_count < 3:
                 self.next_attempt = timezone.now() + timedelta(minutes=5)
             else:
@@ -559,7 +560,7 @@ class WebHookResult(SmartModel):
     """
     Represents the result of trying to deliver an event to a web hook
     """
-    event = models.ForeignKey(WebHookEvent,
+    event = models.ForeignKey(WebHookEvent, related_name='results',
                               help_text="The event that this result is tied to")
     url = models.TextField(null=True, blank=True,
                            help_text="The URL the event was delivered to")
@@ -573,8 +574,7 @@ class WebHookResult(SmartModel):
     body = models.TextField(null=True, blank=True,
                             help_text="The body of the HTTP response as returned by the web hook")
 
-    def stripped_body(self):  # pragma: needs cover
-        return self.body.strip() if self.body else ""
+    request_time = models.IntegerField(null=True, help_text=_('Time it took to process this request'))
 
     @classmethod
     def record_result(cls, event, result):
@@ -593,20 +593,22 @@ class WebHookResult(SmartModel):
 
         api_user = get_api_user()
 
-        WebHookResult.objects.create(event=event,
-                                     url=result['url'],
-                                     # Flow webhooks won't have 'request'
-                                     request=result.get('request'),
-                                     data=result['data'],
-                                     message=message,
-                                     status_code=result.get('status_code', 503),
-                                     body=result.get('body', None),
-                                     created_by=api_user,
-                                     modified_by=api_user)
+        request_time = result.get('request_time', None)
 
-        # keep only the most recent 100 events for each org
-        for old_event in WebHookEvent.objects.filter(org=event.org, status__in=['C', 'F']).order_by('-created_on')[100:]:  # pragma: no cover
-            old_event.delete()
+        cls.objects.create(event=event,
+                           url=result['url'],
+                           request=result.get('request'),  # flow webhooks won't have 'request'
+                           data=result['data'],
+                           message=message,
+                           status_code=result.get('status_code', 503),
+                           body=result.get('body', None),
+                           request_time=request_time,
+                           created_by=api_user,
+                           modified_by=api_user)
+
+    @property
+    def is_success(self):
+        return 200 <= self.status_code < 300
 
 
 @six.python_2_unicode_compatible

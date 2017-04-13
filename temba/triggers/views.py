@@ -879,7 +879,8 @@ class TriggerCRUDL(SmartCRUDL):
             trigger = Trigger.objects.create(created_by=user, modified_by=user, org=org, trigger_type=Trigger.TYPE_NEW_CONVERSATION,
                                              flow=form.cleaned_data['flow'], channel=form.cleaned_data['channel'])
             trigger.archive_conflicts(user)
-            trigger.channel.set_fb_call_to_action_payload(Channel.GET_STARTED)
+            if trigger.channel and trigger.channel.channel_type == Channel.TYPE_FACEBOOK:
+                trigger.channel.set_fb_call_to_action_payload(Channel.GET_STARTED)
 
             analytics.track(self.request.user.username, 'temba.trigger_created_new_conversation')
 

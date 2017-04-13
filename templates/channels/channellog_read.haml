@@ -1,5 +1,5 @@
 {% extends "smartmin/read.html" %}
--load i18n compress humanize
+-load i18n compress
 
 -block page-title
   -trans "Channel Event"
@@ -132,6 +132,14 @@
           pre, .prettyprint {
             border: 0;
             margin-bottom: 0px;
+          }
+
+          .request-time {
+            margin-right: 50px;
+
+            .request-time-value {
+              font-weight: bold
+            }
           }
 
           .status-code {

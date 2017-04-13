@@ -14,7 +14,7 @@ from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
-from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, UnreachableException
+from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, SystemLabelCount, UnreachableException
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.orgs.models import Language, Debit, Org
 from temba.schedules.models import Schedule
@@ -23,7 +23,7 @@ from temba.utils import dict_to_struct, datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.values.models import Value
 from .management.commands.msg_console import MessageConsole
-from .tasks import squash_systemlabels, clear_old_msg_external_ids, purge_broadcasts_task
+from .tasks import squash_labelcounts, clear_old_msg_external_ids, purge_broadcasts_task
 from .templatetags.sms import as_icon
 
 
@@ -106,18 +106,8 @@ class MsgTest(TembaTest):
         counts = SystemLabel.get_counts(self.org)
         self.assertEqual(counts[label], 1)
 
-        # recalculate, check the count again
-        SystemLabel.recalculate_counts(self.org, label)
-        counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(counts[label], 1)
-
         # release the msg, count should now be 0
         msg.release()
-        counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(counts[label], 0)
-
-        # more recalculations
-        SystemLabel.recalculate_counts(self.org, label)
         counts = SystemLabel.get_counts(self.org)
         self.assertEqual(counts[label], 0)
 
@@ -1152,35 +1142,38 @@ class BroadcastTest(TembaTest):
         ContactField.get_or_create(self.org, self.admin, 'dob', "Date of birth", False, Value.TYPE_DATETIME)
         self.joe.set_field(self.user, 'dob', "28/5/1981")
 
-        self.assertEquals(("Hello World", []), Msg.substitute_variables("Hello World", self.joe, dict()))
-        self.assertEquals(("Hello World Joe", []), Msg.substitute_variables("Hello World @contact.first_name", self.joe, dict()))
-        self.assertEquals(("Hello World Joe Blow", []), Msg.substitute_variables("Hello World @contact", self.joe, dict()))
-        self.assertEquals(("Hello World: Well", []), Msg.substitute_variables("Hello World: @flow.water_source", self.joe, dict(flow=dict(water_source="Well"))))
-        self.assertEquals(("Hello World: Well  Boil: @flow.boil", ["Undefined variable: flow.boil"]), Msg.substitute_variables("Hello World: @flow.water_source  Boil: @flow.boil", self.joe, dict(flow=dict(water_source="Well"))))
+        def substitute(s, context):
+            return Msg.substitute_variables(s, context, contact=self.joe)
 
-        self.assertEquals(("Hello joe", []), Msg.substitute_variables("Hello @(LOWER(contact.first_name))", self.joe, dict()))
-        self.assertEquals(("Hello Joe", []), Msg.substitute_variables("Hello @(PROPER(LOWER(contact.first_name)))", self.joe, dict()))
-        self.assertEquals(("Hello Joe", []), Msg.substitute_variables("Hello @(first_word(contact))", self.joe, dict()))
-        self.assertEquals(("Hello Blow", []), Msg.substitute_variables("Hello @(Proper(remove_first_word(contact)))", self.joe, dict()))
-        self.assertEquals(("Hello Joe Blow", []), Msg.substitute_variables("Hello @(PROPER(contact))", self.joe, dict()))
-        self.assertEquals(("Hello JOE", []), Msg.substitute_variables("Hello @(UPPER(contact.first_name))", self.joe, dict()))
-        self.assertEquals(("Hello 3", []), Msg.substitute_variables("Hello @(contact.goats)", self.joe, dict()))
+        self.assertEquals(("Hello World", []), substitute("Hello World", dict()))
+        self.assertEquals(("Hello World Joe", []), substitute("Hello World @contact.first_name", dict()))
+        self.assertEquals(("Hello World Joe Blow", []), substitute("Hello World @contact", dict()))
+        self.assertEquals(("Hello World: Well", []), substitute("Hello World: @flow.water_source", dict(flow=dict(water_source="Well"))))
+        self.assertEquals(("Hello World: Well  Boil: @flow.boil", ["Undefined variable: flow.boil"]), substitute("Hello World: @flow.water_source  Boil: @flow.boil", dict(flow=dict(water_source="Well"))))
+
+        self.assertEquals(("Hello joe", []), substitute("Hello @(LOWER(contact.first_name))", dict()))
+        self.assertEquals(("Hello Joe", []), substitute("Hello @(PROPER(LOWER(contact.first_name)))", dict()))
+        self.assertEquals(("Hello Joe", []), substitute("Hello @(first_word(contact))", dict()))
+        self.assertEquals(("Hello Blow", []), substitute("Hello @(Proper(remove_first_word(contact)))", dict()))
+        self.assertEquals(("Hello Joe Blow", []), substitute("Hello @(PROPER(contact))", dict()))
+        self.assertEquals(("Hello JOE", []), substitute("Hello @(UPPER(contact.first_name))", dict()))
+        self.assertEquals(("Hello 3", []), substitute("Hello @(contact.goats)", dict()))
 
         self.assertEquals(("Email is: foo@bar.com", []),
-                          Msg.substitute_variables("Email is: @(remove_first_word(flow.sms))", self.joe, dict(flow=dict(sms="Join foo@bar.com"))))
+                          substitute("Email is: @(remove_first_word(flow.sms))", dict(flow=dict(sms="Join foo@bar.com"))))
         self.assertEquals(("Email is: foo@@bar.com", []),
-                          Msg.substitute_variables("Email is: @(remove_first_word(flow.sms))", self.joe, dict(flow=dict(sms="Join foo@@bar.com"))))
+                          substitute("Email is: @(remove_first_word(flow.sms))", dict(flow=dict(sms="Join foo@@bar.com"))))
 
         # check date variables
-        text, errors = Msg.substitute_variables("Today is @date.today", self.joe, dict())
+        text, errors = substitute("Today is @date.today", dict())
         self.assertEquals(errors, [])
         self.assertRegexpMatches(text, "Today is \d\d-\d\d-\d\d\d\d")
 
-        text, errors = Msg.substitute_variables("Today is @date.now", self.joe, dict())
+        text, errors = substitute("Today is @date.now", dict())
         self.assertEquals(errors, [])
         self.assertRegexpMatches(text, "Today is \d\d-\d\d-\d\d\d\d \d\d:\d\d")
 
-        text, errors = Msg.substitute_variables("Your DOB is @contact.dob", self.joe, dict())
+        text, errors = substitute("Your DOB is @contact.dob", dict())
         self.assertEquals(errors, [])
         # TODO clearly this is not ideal but unavoidable for now as we always add current time to parsed dates
         self.assertRegexpMatches(text, "Your DOB is 28-05-1981 \d\d:\d\d")
@@ -1189,40 +1182,40 @@ class BroadcastTest(TembaTest):
         self.joe.name = u"شاملیدل عمومی"
         self.joe.save()
 
-        self.assertEquals((u"شاملیدل", []), Msg.substitute_variables("@(first_word(contact))", self.joe, dict()))
-        self.assertEquals((u"عمومی", []), Msg.substitute_variables("@(proper(remove_first_word(contact)))", self.joe, dict()))
+        self.assertEquals((u"شاملیدل", []), substitute("@(first_word(contact))", dict()))
+        self.assertEquals((u"عمومی", []), substitute("@(proper(remove_first_word(contact)))", dict()))
 
         # credit card
         self.joe.name = '1234567890123456'
         self.joe.save()
-        self.assertEquals(("1 2 3 4 , 5 6 7 8 , 9 0 1 2 , 3 4 5 6", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
+        self.assertEquals(("1 2 3 4 , 5 6 7 8 , 9 0 1 2 , 3 4 5 6", []), substitute("@(read_digits(contact))", dict()))
 
         # phone number
         self.joe.name = '123456789012'
         self.joe.save()
-        self.assertEquals(("1 2 3 , 4 5 6 , 7 8 9 , 0 1 2", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
+        self.assertEquals(("1 2 3 , 4 5 6 , 7 8 9 , 0 1 2", []), substitute("@(read_digits(contact))", dict()))
 
         # triplets
         self.joe.name = '123456'
         self.joe.save()
-        self.assertEquals(("1 2 3 , 4 5 6", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
+        self.assertEquals(("1 2 3 , 4 5 6", []), substitute("@(read_digits(contact))", dict()))
 
         # soc security
         self.joe.name = '123456789'
         self.joe.save()
-        self.assertEquals(("1 2 3 , 4 5 , 6 7 8 9", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
+        self.assertEquals(("1 2 3 , 4 5 , 6 7 8 9", []), substitute("@(read_digits(contact))", dict()))
 
         # regular number, street address, etc
         self.joe.name = '12345'
         self.joe.save()
-        self.assertEquals(("1,2,3,4,5", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
+        self.assertEquals(("1,2,3,4,5", []), substitute("@(read_digits(contact))", dict()))
 
         # regular number, street address, etc
         self.joe.name = '123'
         self.joe.save()
-        self.assertEquals(("1,2,3", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
+        self.assertEquals(("1,2,3", []), substitute("@(read_digits(contact))", dict()))
 
-    def test_message_context(self):
+    def test_expressions_context(self):
         ContactField.get_or_create(self.org, self.admin, "superhero_name", "Superhero Name")
 
         self.joe.send("keyword remainder-remainder", self.admin)
@@ -1230,7 +1223,7 @@ class BroadcastTest(TembaTest):
         self.joe.save()
 
         msg = Msg.objects.get()
-        context = msg.build_message_context()
+        context = msg.build_expressions_context()
 
         self.assertEqual(context['__default__'], "keyword remainder-remainder")
         self.assertEqual(context['value'], "keyword remainder-remainder")
@@ -1557,6 +1550,10 @@ class LabelTest(TembaTest):
         self.assertEqual(label.get_visible_count(), 2)
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
+        # check still correct after squashing
+        squash_labelcounts()
+        self.assertEqual(label.get_visible_count(), 2)
+
         msg2.archive()  # won't remove label from msg, but msg no longer counts toward visible count
 
         label = Label.label_objects.get(pk=label.pk)
@@ -1623,8 +1620,14 @@ class LabelTest(TembaTest):
 
         with self.assertNumQueries(2):
             hierarchy = Label.get_hierarchy(self.org)
-            self.assertEqual(list(hierarchy), [label3, folder1, folder2])
-            self.assertEqual(list(hierarchy[1].children.all()), [label2, label1])
+            self.assertEqual(hierarchy, [
+                {'obj': label3, 'count': 1, 'children': []},
+                {'obj': folder1, 'count': None, 'children': [
+                    {'obj': label2, 'count': 2, 'children': []},
+                    {'obj': label1, 'count': 2, 'children': []},
+                ]},
+                {'obj': folder2, 'count': None, 'children': []}
+            ])
 
     def test_delete_folder(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Folder")
@@ -1991,10 +1994,10 @@ class SystemLabelTest(TembaTest):
 
         msg5.resend()
 
-        self.assertTrue(SystemLabel.objects.all().count() > 8)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 25)
 
         # squash our counts
-        squash_systemlabels()
+        squash_labelcounts()
 
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 2, SystemLabel.TYPE_FLOWS: 0,
                                                             SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 1,
@@ -2002,7 +2005,7 @@ class SystemLabelTest(TembaTest):
                                                             SystemLabel.TYPE_SCHEDULED: 2, SystemLabel.TYPE_CALLS: 1})
 
         # we should only have one system label per type
-        self.assertEqual(SystemLabel.objects.all().count(), 8)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 7)
 
 
 class TagsTest(TembaTest):

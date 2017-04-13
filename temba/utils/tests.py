@@ -22,12 +22,14 @@ from mock import patch, PropertyMock
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.locations.models import AdminBoundary
-from temba.orgs.models import Org
+from temba.msgs.models import Msg, SystemLabelCount
+from temba.flows.models import FlowRun
+from temba.orgs.models import Org, UserSettings
 from temba.tests import TembaTest
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, date_to_utc_range, truncate, random_string
 from . import json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
-from . import percentage, datetime_to_json_date, json_date_to_datetime, non_atomic_gets, clean_string
+from . import percentage, datetime_to_json_date, json_date_to_datetime, clean_string
 from . import datetime_to_str, chunk_list, get_country_code_by_name, datetime_to_epoch, voicexml
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from .currencies import currency_for_country
@@ -41,9 +43,26 @@ from .profiler import time_monitor
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .voicexml import VoiceXMLException
+from . import decode_base64
 
 
 class InitTest(TembaTest):
+
+    def test_decode_base64(self):
+
+        self.assertEqual('This test\nhas a newline', decode_base64('This test\nhas a newline'))
+
+        self.assertEqual('Please vote NO on the confirmation of Gorsuch.',
+                         decode_base64('Please vote NO on the confirmation of Gorsuch.'))
+
+        self.assertEqual('Bannon Explains The World ...\n\u201cThe Camp of the Saints',
+                         decode_base64('QmFubm9uIEV4cGxhaW5zIFRoZSBXb3JsZCAuLi4K4oCcVGhlIENhbXAgb2YgdGhlIFNhaW50c+KA\r'))
+
+        self.assertEqual('the sweat, the tears and the sacrifice of working America',
+                         decode_base64('dGhlIHN3ZWF0LCB0aGUgdGVhcnMgYW5kIHRoZSBzYWNyaWZpY2Ugb2Ygd29ya2luZyBBbWVyaWNh\r'))
+
+        self.assertIn('I find them to be friendly',
+                      decode_base64('Tm93IGlzDQp0aGUgdGltZQ0KZm9yIGFsbCBnb29kDQpwZW9wbGUgdG8NCnJlc2lzdC4NCg0KSG93IGFib3V0IGhhaWt1cz8NCkkgZmluZCB0aGVtIHRvIGJlIGZyaWVuZGx5Lg0KcmVmcmlnZXJhdG9yDQoNCjAxMjM0NTY3ODkNCiFAIyQlXiYqKCkgW117fS09Xys7JzoiLC4vPD4/fFx+YA0KQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg=='))
 
     def test_datetime_to_ms(self):
         d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, tzinfo=pytz.utc)
@@ -172,16 +191,6 @@ class InitTest(TembaTest):
         rs = random_string(1000)
         self.assertEquals(1000, len(rs))
         self.assertFalse('1' in rs or 'I' in rs or '0' in rs or 'O' in rs)
-
-    def test_non_atomic_gets(self):
-        @non_atomic_gets
-        def dispatch_func(*args, **kwargs):
-            return args[0] + kwargs['arg2']
-
-        self.assertTrue(hasattr(dispatch_func, '_non_atomic_gets'))
-
-        # check that function calls correctly
-        self.assertEqual(dispatch_func(1, arg2=2), 3)
 
     def test_percentage(self):
         self.assertEquals(0, percentage(0, 100))
@@ -659,7 +668,7 @@ class ExpressionsTest(TembaTest):
         contact.save()
 
         variables = dict()
-        variables['contact'] = contact.build_message_context()
+        variables['contact'] = contact.build_expressions_context()
         variables['flow'] = dict(water_source="Well",     # key with underscore
                                  blank="",                # blank string
                                  arabic="اثنين ثلاثة",    # RTL chars
@@ -1414,7 +1423,7 @@ class NCCOTest(TembaTest):
 
 class MiddlewareTest(TembaTest):
 
-    def test_orgheader(self):
+    def test_org_header(self):
         response = self.client.get(reverse('public.public_index'))
         self.assertFalse(response.has_header('X-Temba-Org'))
 
@@ -1427,6 +1436,29 @@ class MiddlewareTest(TembaTest):
 
         response = self.client.get(reverse('public.public_index'))
         self.assertEqual(response['X-Temba-Org'], six.text_type(self.org.id))
+
+    def test_branding(self):
+        response = self.client.get(reverse('public.public_index'))
+        self.assertEqual(response.context['request'].branding, settings.BRANDING['rapidpro.io'])
+
+    def test_flow_simulation(self):
+        Contact.set_simulation(True)
+
+        self.client.get(reverse('public.public_index'))
+
+        self.assertFalse(Contact.get_simulation())
+
+    def test_activate_language(self):
+        self.assertContains(self.client.get(reverse('public.public_index')), "Create Account")
+
+        self.login(self.admin)
+
+        self.assertContains(self.client.get(reverse('public.public_index')), "Create Account")
+        self.assertContains(self.client.get(reverse('contacts.contact_list')), "Import Contacts")
+
+        UserSettings.objects.filter(user=self.admin).update(language='fr')
+
+        self.assertContains(self.client.get(reverse('contacts.contact_list')), "Importer des contacts")
 
 
 class ProfilerTest(TembaTest):
@@ -1450,30 +1482,39 @@ class MakeTestDBTest(SimpleTestCase):
     allow_database_queries = True
 
     def tearDown(self):
+        Msg.objects.all().delete()
+        FlowRun.objects.all().delete()
+        SystemLabelCount.objects.all().delete()
         Org.objects.all().delete()
         User.objects.all().delete()
         Group.objects.all().delete()
         AdminBoundary.objects.all().delete()
 
     def test_command(self):
-        call_command('make_test_db', num_orgs=2, num_contacts=12, seed=123456)
+        call_command('test_db', 'generate', num_orgs=3, num_contacts=30, seed=1234)
 
-        org_1, org_2 = list(Org.objects.order_by('id'))
+        org1, org2, org3 = tuple(Org.objects.order_by('id'))
 
-        self.assertEqual(User.objects.count(), 10)  # 4 for each org + superuser + anonymous
-        self.assertEqual(ContactField.objects.count(), 12)  # 6 per org
-        self.assertEqual(ContactGroup.user_groups.count(), 20)  # 10 per org
-        self.assertEqual(Contact.objects.filter(is_test=True).count(), 8)  # 1 for each user
-        self.assertEqual(Contact.objects.filter(is_test=False).count(), 4)
+        def assertOrgCounts(qs, counts):
+            self.assertEqual([qs.filter(org=o).count() for o in (org1, org2, org3)], counts)
 
-        org_1_all_contacts = ContactGroup.system_groups.get(org=org_1, name="All Contacts")
+        self.assertEqual(User.objects.count(), 15)  # 4 for each org + superuser + anonymous + flow user
+        assertOrgCounts(ContactField.objects.all(), [6, 6, 6])
+        assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
+        assertOrgCounts(Contact.objects.filter(is_test=True), [4, 4, 4])  # 1 for each user
+        assertOrgCounts(Contact.objects.filter(is_test=False), [17, 7, 6])
 
-        self.assertEqual(org_1_all_contacts.contacts.count(), 3)
-        self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(3,)])
+        org_1_all_contacts = ContactGroup.system_groups.get(org=org1, name="All Contacts")
+
+        self.assertEqual(org_1_all_contacts.contacts.count(), 17)
+        self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(17,)])
 
         # same seed should generate objects with same UUIDs
-        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'cec602da-1406-e378-df14-b8d4a99b7cc4')
+        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'ea60312b-25f5-47a0-cac7-4fe0c2064f3e')
 
-        # check can't be run again on a now non-empty database
+        # check generate can't be run again on a now non-empty database
         with self.assertRaises(CommandError):
-            call_command('make_test_db', num_orgs=2, num_contacts=4)
+            call_command('test_db', 'generate', num_orgs=3, num_contacts=30, seed=1234)
+
+        # but simulate can
+        call_command('test_db', 'simulate', num_runs=2)

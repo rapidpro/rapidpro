@@ -22,7 +22,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactGroupCount, ContactField, URN
 from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart, RuleSet
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
+from temba.msgs.models import Broadcast, Msg, Label, LabelCount, SystemLabel
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
 from .serializers import AdminBoundaryReadSerializer, BroadcastReadSerializer, BroadcastWriteSerializer
 from .serializers import CampaignReadSerializer, CampaignWriteSerializer, CampaignEventReadSerializer
@@ -2065,6 +2065,11 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             queryset = queryset.filter(name__iexact=name)
 
         return queryset.filter(is_active=True)
+
+    def prepare_for_serialization(self, object_list):
+        label_counts = LabelCount.get_totals(object_list)
+        for label in object_list:
+            label.count = label_counts[label]
 
     @classmethod
     def get_read_explorer(cls):

@@ -76,7 +76,7 @@ class SearchLexer(object):
         return self.lexer.token()
 
     def t_COMPARATOR(self, t):
-        r"""(?i)~|=|[<>]=?|~~?"""
+        r"""(?i)=|!=|~|[<>]=?"""
         return t
 
     def t_STRING(self, t):
@@ -219,17 +219,7 @@ class Condition(QueryNode):
         prop_type, prop_obj = prop_map[self.prop]
 
         if prop_type == ContactQuery.PROP_FIELD:
-            # empty string equality means contacts without that field set
-            if self.comparator.lower() in ('=', 'is') and self.value == "":
-                values_query = Value.objects.filter(contact_field=prop_obj).values('contact_id')
-
-                # optimize for the single membership test case
-                if base_set:
-                    values_query = values_query.filter(contact__in=base_set)
-
-                return ~Q(id__in=values_query)
-            else:
-                return self._build_value_query(prop_obj, base_set)
+            return self._build_value_query(prop_obj, base_set)
         elif prop_type == ContactQuery.PROP_SCHEME:
             if org.is_anon:
                 return Q(id=-1)
@@ -341,7 +331,7 @@ class Condition(QueryNode):
     def _build_location_field_params(self, field):
         lookup = self.LOCATION_LOOKUPS.get(self.comparator)
         if not lookup:
-            raise SearchException("Unsupported comparator %s for location field" % self.comparator)
+            raise SearchException(_("Unsupported comparator %s for location field") % self.comparator)
 
         level_query = Q(level=BOUNDARY_LEVELS_BY_VALUE_TYPE.get(field.value_type))
 
@@ -372,6 +362,54 @@ class Condition(QueryNode):
 
     def __str__(self):
         return '%s%s%s' % (self.prop, self.comparator, self.value)
+
+
+class IsSetCondition(Condition):
+    """
+    A special type of condition which is just checking whether a property is set or not.
+      * A condition of the form x != "" is interpreted as "x is set"
+      * A condition of the form x = "" is interpreted as "x is not set"
+    """
+    IS_SET_LOOKUPS = ('!=',)
+    IS_NOT_SET_LOOKUPS = ('is', '=')
+
+    def __init__(self, prop, comparator):
+        super(IsSetCondition, self).__init__(prop, comparator, "")
+
+    def as_query(self, org, prop_map, base_set):
+        prop_type, prop_obj = prop_map[self.prop]
+
+        if self.comparator.lower() in self.IS_SET_LOOKUPS:
+            is_set = True
+        elif self.comparator.lower() in self.IS_NOT_SET_LOOKUPS:
+            is_set = False
+        else:
+            raise SearchException(_("Invalid operator for empty string comparison"))
+
+        if prop_type == ContactQuery.PROP_FIELD:
+            values_query = Value.objects.filter(contact_field=prop_obj).values('contact_id')
+
+            # optimize for the single membership test case
+            if base_set:
+                values_query = values_query.filter(contact__in=base_set)
+
+            return Q(id__in=values_query) if is_set else ~Q(id__in=values_query)
+
+        elif prop_type == ContactQuery.PROP_SCHEME:
+            if org.is_anon:
+                return Q(id=-1)
+            else:
+                urns_query = ContactURN.objects.filter(org=org, scheme=prop_obj).values('contact_id')
+
+                # optimize for the single membership test case
+                if base_set:
+                    urns_query = urns_query.filter(contact__in=base_set)
+
+                return Q(id__in=urns_query) if is_set else ~Q(id__in=urns_query)
+        else:
+            # for attributes, being not-set can mean a NULL value or empty string value
+            where_not_set = Q(**{prop_obj: ""}) | Q(**{prop_obj: None})
+            return ~where_not_set if is_set else where_not_set
 
 
 @six.python_2_unicode_compatible
@@ -527,7 +565,10 @@ def p_expression_grouping(p):
 
 def p_condition(p):
     """expression : TEXT COMPARATOR literal"""
-    p[0] = Condition(p[1].lower(), p[2].lower(), p[3])
+    if p[3] == "":
+        p[0] = IsSetCondition(p[1].lower(), p[2].lower())
+    else:
+        p[0] = Condition(p[1].lower(), p[2].lower(), p[3])
 
 
 def p_condition_implicit(p):

@@ -545,9 +545,10 @@ class Org(SmartModel):
         from temba.channels.models import Channel
         return self.get_channel_for_role(Channel.ROLE_SEND, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
 
-    def get_ussd_channel(self, scheme=None, contact_urn=None, country_code=None):
+    def get_ussd_channel(self, contact_urn=None, country_code=None):
+        from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import Channel
-        return self.get_channel_for_role(Channel.ROLE_USSD, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
+        return self.get_channel_for_role(Channel.ROLE_USSD, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
     def get_receive_channel(self, scheme, contact_urn=None, country_code=None):
         from temba.channels.models import Channel
@@ -1183,14 +1184,11 @@ class Org(SmartModel):
             return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
         return None
 
-    def create_system_labels_and_groups(self):
+    def create_system_groups(self):
         """
-        Creates our system labels and groups for this organization so that we can keep track of counts etc..
+        Creates our system groups for this organization so that we can keep track of counts etc..
         """
         from temba.contacts.models import ContactGroup
-        from temba.msgs.models import SystemLabel
-
-        SystemLabel.create_all(self)
 
         self.all_groups.create(name='All Contacts', group_type=ContactGroup.TYPE_ALL,
                                created_by=self.created_by, modified_by=self.modified_by)
@@ -1767,7 +1765,7 @@ class Org(SmartModel):
         if not branding:
             branding = BrandingMiddleware.get_branding_for_host('')
 
-        self.create_system_labels_and_groups()
+        self.create_system_groups()
         self.create_sample_flows(branding.get('api_link', ""))
         self.create_welcome_topup(topup_size)
 

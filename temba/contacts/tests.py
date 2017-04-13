@@ -17,6 +17,7 @@ from openpyxl import load_workbook
 from smartmin.models import SmartImportRowError
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
+from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.templatetags.contacts import contact_field, osm_link, location, media_url, media_type
@@ -32,8 +33,9 @@ from temba.utils import datetime_to_str, datetime_to_ms, get_datetime_format
 from temba.values.models import Value
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
 from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
-from .search import parse_query, ContactQuery, Condition, BoolCombination, SinglePropCombination, SearchException
+from .search import parse_query, ContactQuery, Condition, IsSetCondition, BoolCombination, SinglePropCombination, SearchException
 from .tasks import squash_contactgroupcounts
+from .templatetags.contacts import activity_icon, history_class, is_playable_audio
 
 
 class ContactCRUDLTest(_CRUDLTest):
@@ -657,6 +659,17 @@ class ContactTest(TembaTest):
         self.assertEqual(Trigger.objects.filter(is_archived=True).count(), 1)
         self.assertEqual(Trigger.objects.filter(is_archived=False).count(), 1)
 
+    def test_contact_send_all(self):
+        contact = self.create_contact('Stephen', '+12078778899', twitter='stephen')
+        Channel.create(self.org, self.user, None, 'TT')
+
+        msgs = contact.send_all('Allo', self.admin)
+        self.assertEqual(len(msgs), 2)
+        out_msgs = Msg.objects.filter(contact=contact, direction='O')
+        self.assertEqual(out_msgs.count(), 2)
+        self.assertIsNotNone(out_msgs.filter(contact_urn__path='stephen').first())
+        self.assertIsNotNone(out_msgs.filter(contact_urn__path='+12078778899').first())
+
     def test_stop_contact_clear_triggers(self):
         flow = self.get_flow('favorites')
         trigger = Trigger.objects.create(org=self.org, flow=flow, keyword="join", created_by=self.admin,
@@ -846,19 +859,23 @@ class ContactTest(TembaTest):
         # create some dynamic groups
         ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
         ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type=Value.TYPE_DECIMAL)
+        has_twitter = self.create_group("Has twitter", query='twitter != ""')
         no_gender = self.create_group("No gender", query='gender is ""')
         males = self.create_group("Male", query='gender is M or gender is Male')
         youth = self.create_group("Male", query='age > 18 or age < 30')
         joes = self.create_group("Joes", query='Joe')
 
+        self.assertEqual(set(has_twitter.contacts.all()), {self.joe})
         self.assertEqual(set(no_gender.contacts.all()), {self.joe, self.frank, self.billy, self.voldemort})
         self.assertEqual(set(males.contacts.all()), set())
         self.assertEqual(set(youth.contacts.all()), set())
         self.assertEqual(set(joes.contacts.all()), {self.joe})
 
+        self.joe.update_urns(self.admin, ['tel:+250781111111'])
         self.joe.set_field(self.admin, 'gender', "M")
         self.joe.set_field(self.admin, 'age', "28")
 
+        self.assertEqual(set(has_twitter.contacts.all()), set())
         self.assertEqual(set(no_gender.contacts.all()), {self.frank, self.billy, self.voldemort})
         self.assertEqual(set(males.contacts.all()), {self.joe})
         self.assertEqual(set(youth.contacts.all()), {self.joe})
@@ -1014,6 +1031,10 @@ class ContactTest(TembaTest):
         self.assertEqual(parse_query('name=will'), ContactQuery(Condition('name', '=', 'will')))
         self.assertEqual(parse_query('name ~ "felix"'), ContactQuery(Condition('name', '~', 'felix')))
 
+        # empty string conditions
+        self.assertEqual(parse_query('name is ""'), ContactQuery(IsSetCondition('name', 'is')))
+        self.assertEqual(parse_query('name!=""'), ContactQuery(IsSetCondition('name', '!=')))
+
         # boolean combinations of property conditions
         self.assertEqual(parse_query('name=will or name ~ "felix"', optimize=False), ContactQuery(
             BoolCombination(BoolCombination.OR, Condition('name', '=', 'will'), Condition('name', '~', 'felix'))
@@ -1100,22 +1121,22 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, self.admin, 'isureporter', "Is UReporter", value_type='T')
         ContactField.get_or_create(self.org, self.admin, 'hasbirth', "Has Birth", value_type='T')
 
-        names = ['Trey', 'Mike', 'Paige', 'Fish']
+        names = ['Trey', 'Mike', 'Paige', 'Fish', "", None]
         districts = ['Gatsibo', 'Kayônza', 'Rwamagana']
         wards = ['Kageyo', 'Kabara', 'Bukure']
         date_format = get_datetime_format(True)[0]
 
         # create some contacts
-        for i in range(10, 100):
-            name = names[(i + 2) % len(names)]
+        for i in range(90):
+            name = names[i % len(names)]
             number = "0788382%s" % str(i).zfill(3)
-            twitter = "tweep_%d" % (i + 1)
+            twitter = ("tweep_%d" % (i + 1)) if (i % 3 == 0) else None  # 1 in 3 have twitter URN
             contact = self.create_contact(name=name, number=number, twitter=twitter)
-            join_date = datetime_to_str(date(2013, 12, 22) + timezone.timedelta(days=i), date_format)
+            join_date = datetime_to_str(date(2014, 1, 1) + timezone.timedelta(days=i), date_format)
 
             # some field data so we can do some querying
-            contact.set_field(self.user, 'age', '%s' % i)
-            contact.set_field(self.user, 'join_date', '%s' % join_date)
+            contact.set_field(self.user, 'age', str(i + 10))
+            contact.set_field(self.user, 'join_date', str(join_date))
             contact.set_field(self.user, 'state', "Eastern Province")
             contact.set_field(self.user, 'home', districts[i % len(districts)])
             contact.set_field(self.user, 'ward', wards[i % len(wards)])
@@ -1130,25 +1151,27 @@ class ContactTest(TembaTest):
             return Contact.search(self.org, query).count()
 
         # implicit property queries (name or URN path)
-        self.assertEqual(q('trey'), 23)
-        self.assertEqual(q('MIKE'), 23)
-        self.assertEqual(q('  paige  '), 22)
-        self.assertEqual(q('fish'), 22)
+        self.assertEqual(q('trey'), 15)
+        self.assertEqual(q('MIKE'), 15)
+        self.assertEqual(q('  paige  '), 15)
         self.assertEqual(q('0788382011'), 1)
-        self.assertEqual(q('trey 0788382'), 23)
+        self.assertEqual(q('trey 0788382'), 15)
 
         # name as property
-        self.assertEqual(q('name is "trey"'), 23)
-        self.assertEqual(q('name is mike'), 23)
-        self.assertEqual(q('name = paige'), 22)
-        self.assertEqual(q('NAME=fish'), 22)
-        self.assertEqual(q('name has e'), 68)
+        self.assertEqual(q('name is "trey"'), 15)
+        self.assertEqual(q('name is mike'), 15)
+        self.assertEqual(q('name = paige'), 15)
+        self.assertEqual(q('name is ""'), 30)  # includes null and blank names
+        self.assertEqual(q('NAME=""'), 30)
+        self.assertEqual(q('name has e'), 45)
 
         # URN as property
         self.assertEqual(q('tel is +250788382011'), 1)
         self.assertEqual(q('tel has 0788382011'), 1)
-        self.assertEqual(q('twitter = tweep_12'), 1)
-        self.assertEqual(q('TWITTER has tweep'), 90)
+        self.assertEqual(q('twitter = tweep_13'), 1)
+        self.assertEqual(q('twitter = ""'), 60)
+        self.assertEqual(q('twitter != ""'), 30)
+        self.assertEqual(q('TWITTER has tweep'), 30)
 
         # contact field as property
         self.assertEqual(q('age > 30'), 69)
@@ -1169,6 +1192,8 @@ class ContactTest(TembaTest):
 
         self.assertEqual(q('home is ""'), 0)
         self.assertEqual(q('profession = ""'), 60)
+        self.assertEqual(q('profession is ""'), 60)
+        self.assertEqual(q('profession != ""'), 30)
 
         # contact fields beginning with 'is' or 'has'
         self.assertEqual(q('isureporter = "yes"'), 90)
@@ -1180,10 +1205,10 @@ class ContactTest(TembaTest):
         self.assertEqual(q('hasbirth = yes'), 0)
 
         # boolean combinations
-        self.assertEqual(q('name is trey or name is mike'), 46)
-        self.assertEqual(q('name is trey and age < 20'), 3)
+        self.assertEqual(q('name is trey or name is mike'), 30)
+        self.assertEqual(q('name is trey and age < 20'), 2)
         self.assertEqual(q('(home is gatsibo or home is "Rwamagana")'), 60)
-        self.assertEqual(q('(home is gatsibo or home is "Rwamagana") and name is mike'), 16)
+        self.assertEqual(q('(home is gatsibo or home is "Rwamagana") and name is trey'), 15)
         self.assertEqual(q('name is MIKE and profession = ""'), 15)
         self.assertEqual(q('profession = doctor or profession = farmer'), 30)  # same field
         self.assertEqual(q('age = 20 or age = 21'), 2)
@@ -1197,14 +1222,15 @@ class ContactTest(TembaTest):
 
         with AnonymousOrg(self.org):
             # still allow name and field searches
-            self.assertEqual(q('trey'), 23)
-            self.assertEqual(q('name is mike'), 23)
+            self.assertEqual(q('trey'), 15)
+            self.assertEqual(q('name is mike'), 15)
             self.assertEqual(q('age > 30'), 69)
 
             # don't allow matching on URNs
             self.assertEqual(q('0788382011'), 0)
             self.assertEqual(q('tel is +250788382011'), 0)
             self.assertEqual(q('twitter has blow'), 0)
+            self.assertEqual(q('twitter = ""'), 0)
 
             # anon orgs can search by id, with or without zero padding
             self.assertTrue(contact in Contact.search(self.org, '%d' % contact.pk))
@@ -1222,6 +1248,7 @@ class ContactTest(TembaTest):
         self.assertRaises(SearchException, q, 'home > kigali')  # unrecognized location-field operator
         self.assertRaises(SearchException, q, 'credits > 10')  # non-existent field or attribute
         self.assertRaises(SearchException, q, 'tel < +250788382011')  # unsupported comparator for a URN
+        self.assertRaises(SearchException, q, 'tel < ""')  # unsupported comparator for an empty string
 
     def test_omnibox(self):
         # add a group with members and an empty group
@@ -1414,6 +1441,9 @@ class ContactTest(TembaTest):
         # start a joe flow
         self.reminder_flow.start([], [self.joe])
 
+        # pretend that flow run made a webhook request
+        WebHookEvent.trigger_flow_event(FlowRun.objects.get(), 'https://example.com', '1234', msg=None)
+
         # create an event from the past
         scheduled = timezone.now() - timedelta(days=5)
         EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
@@ -1428,23 +1458,24 @@ class ContactTest(TembaTest):
                                contact_urn=self.joe.urns.all().first())
 
         # fetch our contact history
-        with self.assertNumQueries(66):
+        with self.assertNumQueries(67):
             response = self.fetch_protected(url, self.admin)
 
         # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
         activity = response.context['activity']
-        self.assertEqual(len(activity), 94)
-        self.assertIsInstance(activity[0], IVRCall)
-        self.assertIsInstance(activity[1], ChannelEvent)
-        self.assertIsInstance(activity[2], Msg)
-        self.assertEqual(activity[2].direction, 'O')
-        self.assertIsInstance(activity[3], FlowRun)
-        self.assertIsInstance(activity[4], Msg)
-        self.assertEqual(activity[4].media, "video:http://blah/file.mp4")
-        self.assertIsInstance(activity[5], Msg)
-        self.assertEqual(activity[5].text, "Inbound message 98")
-        self.assertIsInstance(activity[8], EventFire)
-        self.assertEqual(activity[-1].text, "Inbound message 11")
+        self.assertEqual(len(activity), 95)
+        self.assertIsInstance(activity[0]['obj'], IVRCall)
+        self.assertIsInstance(activity[1]['obj'], ChannelEvent)
+        self.assertIsInstance(activity[2]['obj'], WebHookResult)
+        self.assertIsInstance(activity[3]['obj'], Msg)
+        self.assertEqual(activity[3]['obj'].direction, 'O')
+        self.assertIsInstance(activity[4]['obj'], FlowRun)
+        self.assertIsInstance(activity[5]['obj'], Msg)
+        self.assertEqual(activity[5]['obj'].media, "video:http://blah/file.mp4")
+        self.assertIsInstance(activity[6]['obj'], Msg)
+        self.assertEqual(activity[6]['obj'].text, "Inbound message 98")
+        self.assertIsInstance(activity[9]['obj'], EventFire)
+        self.assertEqual(activity[-1]['obj'].text, "Inbound message 11")
 
         # fetch next page
         before = datetime_to_ms(timezone.now() - timedelta(days=90))
@@ -1457,9 +1488,9 @@ class ContactTest(TembaTest):
         # activity should include 11 remaining messages and the event fire
         activity = response.context['activity']
         self.assertEqual(len(activity), 12)
-        self.assertEqual(activity[0].text, "Inbound message 10")
-        self.assertEqual(activity[10].text, "Inbound message 0")
-        self.assertEqual(activity[11].text, "Very old inbound message")
+        self.assertEqual(activity[0]['obj'].text, "Inbound message 10")
+        self.assertEqual(activity[10]['obj'].text, "Inbound message 0")
+        self.assertEqual(activity[11]['obj'].text, "Very old inbound message")
 
         # if a broadcast is purged, it appears in place of the message
         bcast = Broadcast.objects.get()
@@ -1477,10 +1508,10 @@ class ContactTest(TembaTest):
         # our broadcast recipient purged_status is failed
         self.assertContains(response, 'icon-bubble-notification')
 
-        self.assertEqual(len(activity), 94)
-        self.assertIsInstance(activity[3], Broadcast)  # TODO fix order so initial broadcasts come after their run
-        self.assertEqual(activity[3].text, "What is your favorite color?")
-        self.assertEqual(activity[3].translated_text, "What is your favorite color?")
+        self.assertEqual(len(activity), 95)
+        self.assertIsInstance(activity[4]['obj'], Broadcast)  # TODO fix order so initial broadcasts come after their run
+        self.assertEqual(activity[4]['obj'].text, "What is your favorite color?")
+        self.assertEqual(activity[4]['obj'].translated_text, "What is your favorite color?")
 
         # if a new message comes in
         self.create_msg(direction='I', contact=self.joe, text="Newer message")
@@ -1488,16 +1519,16 @@ class ContactTest(TembaTest):
 
         # now we'll see the message that just came in first, followed by the call event
         activity = response.context['activity']
-        self.assertIsInstance(activity[0], Msg)
-        self.assertEqual(activity[0].text, "Newer message")
-        self.assertIsInstance(activity[1], IVRCall)
+        self.assertIsInstance(activity[0]['obj'], Msg)
+        self.assertEqual(activity[0]['obj'].text, "Newer message")
+        self.assertIsInstance(activity[1]['obj'], IVRCall)
 
         recent_start = datetime_to_ms(timezone.now() - timedelta(days=1))
         response = self.fetch_protected(url + "?after=%s" % recent_start, self.admin)
 
         # with our recent flag on, should not see the older messages
         activity = response.context['activity']
-        self.assertEqual(len(activity), 6)
+        self.assertEqual(len(activity), 7)
         self.assertContains(response, 'file.mp4')
 
         # can't view history of contact in another org
@@ -1512,7 +1543,7 @@ class ContactTest(TembaTest):
 
         # super users can view history of any contact
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.superuser)
-        self.assertEqual(len(response.context['activity']), 95)
+        self.assertEqual(len(response.context['activity']), 96)
         response = self.fetch_protected(reverse('contacts.contact_history', args=[hans.uuid]), self.superuser)
         self.assertEqual(len(response.context['activity']), 0)
 
@@ -1523,21 +1554,22 @@ class ContactTest(TembaTest):
         self.reminder_flow.start([], [self.joe], restart_participants=True)
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
         activity = response.context['activity']
-        self.assertEqual(len(activity), 98)
+        self.assertEqual(len(activity), 99)
 
-        self.assertIsInstance(activity[0], Msg)
-        self.assertEqual(activity[0].direction, 'O')
-        self.assertIsInstance(activity[1], FlowRun)
-        self.assertEqual(activity[1].exit_type, None)
-        self.assertFalse(hasattr(activity[1], 'run_event_type'))
-        self.assertIsInstance(activity[2], FlowRun)
-        self.assertEqual(activity[2].exit_type, FlowRun.EXIT_TYPE_COMPLETED)
-        self.assertEqual(activity[2].run_event_type, "Exited")
-        self.assertIsInstance(activity[3], Msg)
-        self.assertEqual(activity[3].direction, 'I')
-        self.assertIsInstance(activity[4], IVRCall)
-        self.assertIsInstance(activity[5], ChannelEvent)
-        self.assertIsInstance(activity[6], FlowRun)
+        self.assertIsInstance(activity[0]['obj'], Msg)
+        self.assertEqual(activity[0]['obj'].direction, 'O')
+        self.assertEqual(activity[1]['type'], 'run-start')
+        self.assertIsInstance(activity[1]['obj'], FlowRun)
+        self.assertEqual(activity[1]['obj'].exit_type, None)
+        self.assertEqual(activity[2]['type'], 'run-exit')
+        self.assertIsInstance(activity[2]['obj'], FlowRun)
+        self.assertEqual(activity[2]['obj'].exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+        self.assertIsInstance(activity[3]['obj'], Msg)
+        self.assertEqual(activity[3]['obj'].direction, 'I')
+        self.assertIsInstance(activity[4]['obj'], IVRCall)
+        self.assertIsInstance(activity[5]['obj'], ChannelEvent)
+        self.assertIsInstance(activity[6]['obj'], WebHookResult)
+        self.assertIsInstance(activity[7]['obj'], FlowRun)
 
     def test_event_times(self):
 
@@ -1569,93 +1601,109 @@ class ContactTest(TembaTest):
         self.assertEquals("1 minute before Planting Date", event_time(event))
 
     def test_activity_tags(self):
+        self.create_campaign()
 
         contact = self.create_contact('Joe Blow', 'tel:+1234')
         msg = Msg.create_incoming(self.channel, 'tel:+1234', "Inbound message")
+
+        self.reminder_flow.start([], [self.joe])
+
+        # pretend that flow run made a webhook request
+        WebHookEvent.trigger_flow_event(FlowRun.objects.get(), 'https://example.com', '1234', msg=None)
+        result = WebHookResult.objects.get()
+
+        item = {'type': 'webhook-result', 'obj': result}
+        self.assertEqual(history_class(item), 'non-msg')
+
+        result.status_code = 404
+        self.assertEqual(history_class(item), 'non-msg warning')
+
         call = IVRCall.create_incoming(self.channel, contact, contact.urns.all().first(),
                                        self.admin, self.admin)
 
-        from temba.contacts.templatetags.contacts import activity_icon, history_class
-
-        self.assertEquals('non-msg', history_class(call))
+        item = {'type': 'call', 'obj': call}
+        self.assertEqual(history_class(item), 'non-msg')
 
         call.status = IVRCall.FAILED
-        self.assertEquals('non-msg warning', history_class(call))
+        self.assertEqual(history_class(item), 'non-msg warning')
 
         # inbound
-        self.assertEquals('<span class="glyph icon-bubble-user"></span>', activity_icon(msg))
+        item = {'type': 'msg', 'obj': msg}
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-user"></span>')
 
         # outgoing sent
         msg.direction = 'O'
         msg.status = 'S'
-        self.assertEquals('<span class="glyph icon-bubble-right"></span>', activity_icon(msg))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-right"></span>')
 
         # outgoing delivered
         msg.status = 'D'
-        self.assertEquals('<span class="glyph icon-bubble-check"></span>', activity_icon(msg))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-check"></span>')
 
         # failed
         msg.status = 'F'
-        self.assertEquals('<span class="glyph icon-bubble-notification"></span>', activity_icon(msg))
-        self.assertEquals('msg warning', history_class(msg))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-notification"></span>')
+        self.assertEqual(history_class(item), 'msg warning')
 
         # outgoing voice
         msg.msg_type = 'V'
-        self.assertEquals('<span class="glyph icon-call-outgoing"></span>', activity_icon(msg))
-        self.assertEquals('msg warning', history_class(msg))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-call-outgoing"></span>')
+        self.assertEqual(history_class(item), 'msg warning')
 
         # incoming voice
         msg.direction = 'I'
-        self.assertEquals('<span class="glyph icon-call-incoming"></span>', activity_icon(msg))
-        self.assertEquals('msg warning', history_class(msg))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-call-incoming"></span>')
+        self.assertEqual(history_class(item), 'msg warning')
 
         # simulate a broadcast to 5 people
-        from temba.msgs.models import Broadcast
         msg.broadcast = Broadcast.create(self.org, self.admin, 'Test message', [])
         msg.broadcast.recipient_count = 5
         msg.status = 'F'
-        self.assertEquals('<span class="glyph icon-bubble-notification"></span>', activity_icon(msg))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-bubble-notification"></span>')
 
         msg.status = 'S'
-        self.assertEquals('<span class="glyph icon-bullhorn"></span>', activity_icon(msg))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-bullhorn"></span>')
 
         flow = self.create_flow()
         flow.start([], [self.joe])
         run = FlowRun.objects.last()
 
-        self.assertEquals('<span class="glyph icon-tree-2"></span>', activity_icon(run))
+        item = {'type': 'run-start', 'obj': run}
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-tree-2"></span>')
 
         run.run_event_type = 'Invalid'
-        self.assertEquals('<span class="glyph icon-tree-2"></span>', activity_icon(run))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-tree-2"></span>')
 
-        run.run_event_type = 'Exited'
-        self.assertEquals('<span class="glyph icon-tree-2"></span>', activity_icon(run))
+        item = {'type': 'run-exit', 'obj': run}
 
         run.exit_type = FlowRun.EXIT_TYPE_COMPLETED
-        self.assertEquals('<span class="glyph icon-checkmark"></span>', activity_icon(run))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-checkmark"></span>')
 
         run.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
-        self.assertEquals('<span class="glyph icon-warning"></span>', activity_icon(run))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-warning"></span>')
 
         run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
-        self.assertEquals('<span class="glyph icon-clock"></span>', activity_icon(run))
+        self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
 
     def test_media_tags(self):
 
         # malformed
-        self.assertEqual(None, location('malformed'))
-        self.assertEqual(None, location('geo:latlngs'))
-        self.assertEqual(None, osm_link('malformed'))
-        self.assertEqual(None, osm_link('geo:latlngs'))
+        self.assertIsNone(location('malformed'))
+        self.assertIsNone(location('geo:latlngs'))
+        self.assertIsNone(osm_link('malformed'))
+        self.assertIsNone(osm_link('geo:latlngs'))
 
         # valid
         media = 'geo:47.5414799,-122.6359908'
-        self.assertEqual('http://www.openstreetmap.org/?mlat=47.5414799&mlon=-122.6359908#map=18/47.5414799/-122.6359908', osm_link(media))
-        self.assertEqual('47.5414799,-122.6359908', location(media))
+        self.assertEqual(osm_link(media), 'http://www.openstreetmap.org/?mlat=47.5414799&mlon=-122.6359908#map=18/47.5414799/-122.6359908')
+        self.assertEqual(location(media), '47.5414799,-122.6359908')
 
         # splitting the type and path
-        self.assertEqual('geo', media_type(media))
-        self.assertEqual('47.5414799,-122.6359908', media_url(media))
+        self.assertEqual(media_type(media), 'geo')
+        self.assertEqual(media_url(media), '47.5414799,-122.6359908')
+
+        self.assertTrue(is_playable_audio('audio/wav'))
+        self.assertFalse(is_playable_audio('audio/midi'))
 
     def test_get_scheduled_messages(self):
         self.just_joe = self.create_group("Just Joe", [self.joe])
@@ -2493,6 +2541,10 @@ class ContactTest(TembaTest):
         self.assertEquals(1, Contact.objects.filter(name='Nic Pottier').count())
         self.assertEquals(1, Contact.objects.filter(name='Jen Newcomer').count())
 
+        # eric opts out
+        eric = Contact.objects.get(name='Eric Newcomer')
+        eric.stop(self.admin)
+
         jen_pk = Contact.objects.get(name='Jen Newcomer').pk
 
         # import again, should be no more records
@@ -2502,6 +2554,13 @@ class ContactTest(TembaTest):
         # But there should be another group
         self.assertEquals(2, len(ContactGroup.user_groups.all()))
         self.assertEquals(1, ContactGroup.user_groups.filter(name="Sample Contacts 2").count())
+
+        # assert eric didn't get added to a group
+        eric.refresh_from_db()
+        self.assertEqual(0, eric.user_groups.count())
+
+        # ok, unstop eric
+        eric.unstop(self.admin)
 
         # update file changes a name, and adds one more
         records = self.do_import(user, 'sample_contacts_update.csv')
@@ -3405,16 +3464,16 @@ class ContactTest(TembaTest):
         value = Value.objects.filter(contact=jemila, contact_field=ward_field).first()
         self.assertEquals(value.location_value, ward)
 
-    def test_message_context(self):
-        message_context = self.joe.build_message_context()
+    def test_expressions_context(self):
+        context = self.joe.build_expressions_context()
 
-        self.assertEquals("Joe", message_context['first_name'])
-        self.assertEquals("Joe Blow", message_context['name'])
-        self.assertEquals("Joe Blow", message_context['__default__'])
-        self.assertEquals("0781 111 111", message_context['tel'])
-        self.assertEquals("", message_context['groups'])
-        self.assertTrue('uuid' in message_context)
-        self.assertEquals(self.joe.uuid, message_context['uuid'])
+        self.assertEquals("Joe", context['first_name'])
+        self.assertEquals("Joe Blow", context['name'])
+        self.assertEquals("Joe Blow", context['__default__'])
+        self.assertEquals("0781 111 111", context['tel'])
+        self.assertEquals("", context['groups'])
+        self.assertEquals(context['uuid'], self.joe.uuid)
+        self.assertEquals(self.joe.uuid, context['uuid'])
 
         # add him to a group
         self.create_group("Reporters", [self.joe])
@@ -3431,26 +3490,25 @@ class ContactTest(TembaTest):
         fav_color.is_active = False
         fav_color.save()
 
-        message_context = self.joe.build_message_context()
+        context = self.joe.build_expressions_context()
 
-        self.assertEquals("Joe", message_context['first_name'])
-        self.assertEquals("Joe Blow", message_context['name'])
-        self.assertEquals("Joe Blow", message_context['__default__'])
-        self.assertEquals("0781 111 111", message_context['tel'])
-        self.assertEquals("Reporters", message_context['groups'])
-        self.assertFalse('id' in message_context)
+        self.assertEquals("Joe", context['first_name'])
+        self.assertEquals("Joe Blow", context['name'])
+        self.assertEquals("Joe Blow", context['__default__'])
+        self.assertEquals("0781 111 111", context['tel'])
+        self.assertEquals("Reporters", context['groups'])
+        self.assertNotIn('id', context)
 
-        self.assertEqual("SeaHawks", message_context['team'])
-        self.assertFalse('color' in message_context)
+        self.assertEqual("SeaHawks", context['team'])
+        self.assertNotIn('color', context)
 
         # switch our org to anonymous
-        self.org.is_anon = True
-        self.org.save()
-        self.joe.org.refresh_from_db()
+        with AnonymousOrg(self.org):
+            self.joe.org.refresh_from_db()
 
-        message_context = self.joe.build_message_context()
-        self.assertEqual("********", message_context['tel'])
-        self.assertEqual(self.joe.id, message_context['id'])
+            context = self.joe.build_expressions_context()
+            self.assertEqual("********", context['tel'])
+            self.assertEqual(self.joe.id, context['id'])
 
     def test_urn_priority(self):
         bob = self.create_contact("Bob")
@@ -3638,7 +3696,7 @@ class ContactTest(TembaTest):
                                  contact_urn=ContactURN.get_or_create(self.org, self.joe, 'twitter:macklemore', twitter),
                                  text="Incoming twitter DM", created_on=timezone.now())
 
-        process_message_task(msg.id, from_mage=True, new_contact=False)
+        process_message_task(dict(id=msg.id, from_mage=True, new_contact=False))
 
         # twitter should be preferred outgoing again
         self.assertEqual(self.joe.urns.all()[0].scheme, TWITTER_SCHEME)
