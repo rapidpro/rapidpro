@@ -1,3 +1,7 @@
+v3.0.118
+----------
+ * Add flow link on subflow rulesets in flows
+
 v3.0.117
 ----------
  * Fix styling on campaign event modal
