@@ -5,6 +5,7 @@ import datetime
 import json
 import os
 import pytz
+import re
 import six
 import time
 
@@ -4308,12 +4309,15 @@ class FlowsTest(FlowFileTest):
     def test_flow_results(self):
 
         favorites = self.get_flow('favorites')
-        jimmy = self.create_contact('Jimmy', '+12065553026')
-        self.send_message(favorites, 'red', contact=jimmy)
-        self.send_message(favorites, 'turbo', contact=jimmy)
+
+        FlowCRUDL.RunTable.paginate_by = 1
 
         pete = self.create_contact('Pete', '+12065553027')
         self.send_message(favorites, 'blue', contact=pete)
+
+        jimmy = self.create_contact('Jimmy', '+12065553026')
+        self.send_message(favorites, 'red', contact=jimmy)
+        self.send_message(favorites, 'turbo', contact=jimmy)
 
         kobe = Contact.get_test_contact(self.admin)
         self.send_message(favorites, 'green', contact=kobe)
@@ -4329,7 +4333,8 @@ class FlowsTest(FlowFileTest):
 
         # fetch our intercooler rows for the run table
         response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
-        self.assertEqual(len(response.context['runs']), 2)
+
+        self.assertEqual(len(response.context['runs']), 1)
         self.assertEqual(200, response.status_code)
         self.assertContains(response, 'Jimmy')
         self.assertContains(response, 'red')
@@ -4337,6 +4342,14 @@ class FlowsTest(FlowFileTest):
         self.assertContains(response, 'turbo')
         self.assertContains(response, 'Turbo King')
         self.assertNotContains(response, 'skol')
+
+        next_link = re.search('ic-append-from=\"(.*)\" ic-trigger-on', response.content).group(1)
+        response = self.client.get(next_link)
+        self.assertEqual(200, response.status_code)
+
+        # one more row to add
+        self.assertEqual(1, len(response.context['runs']))
+        self.assertNotContains(response, "ic-append-from")
 
         FlowCRUDL.ActivityChart.HISTOGRAM_MIN = 0
         FlowCRUDL.ActivityChart.PERIOD_MIN = 0
@@ -4384,6 +4397,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(7, len(response.context['dow']))
 
         # delete a run
+        FlowCRUDL.RunTable.paginate_by = 100
         response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
         self.assertEqual(len(response.context['runs']), 2)
         self.client.post(reverse('flows.flowrun_delete', args=[response.context['runs'][0].id]))

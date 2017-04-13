@@ -1113,10 +1113,10 @@ class FlowCRUDL(SmartCRUDL):
         """
 
         # the min number of responses to show a histogram
-        HISTOGRAM_MIN = 1000
+        HISTOGRAM_MIN = 0
 
         # the min number of responses to show the period charts
-        PERIOD_MIN = 200
+        PERIOD_MIN = 0
 
         EXIT_TYPES = {
             None: 'active',
@@ -1176,16 +1176,19 @@ class FlowCRUDL(SmartCRUDL):
                 histogram = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids)
                 if date_range < timedelta(days=21):
                     histogram = histogram.extra({"bucket": "date_trunc('hour', period)"})
+                    min_date = end_date - timedelta(hours=100)
                 elif date_range < timedelta(days=500):
                     histogram = histogram.extra({"bucket": "date_trunc('day', period)"})
+                    min_date = end_date - timedelta(days=100)
                 else:
                     histogram = histogram.extra({"bucket": "date_trunc('week', period)"})
+                    min_date = end_date - timedelta(days=500)
 
                 histogram = histogram.values('bucket').annotate(count=Sum('count')).order_by('bucket')
                 context['histogram'] = histogram
-
                 # highcharts works in UTC, but we want to offset our chart according to the org timezone
                 context['utcoffset'] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds())
+                context['min_date'] = min_date
 
             counts = FlowRunCount.objects.filter(flow=flow).values('exit_type').annotate(Sum('count'))
 
@@ -1238,10 +1241,15 @@ class FlowCRUDL(SmartCRUDL):
             modified_on = self.request.GET.get('modified_on', None)
             if modified_on:
                 id = self.request.GET['id']
-                modified_on = datetime.fromtimestamp(int(modified_on), flow.org.timezone)
-                runs = runs.filter(modified_on__lt=modified_on).exclude(modified_on=modified_on, id__lt=id)
 
-            runs = list(runs.order_by('-modified_on')[:self.paginate_by])
+                from temba.utils import json_date_to_datetime
+                modified_on = json_date_to_datetime(modified_on)
+                runs = runs.filter(modified_on__lte=modified_on).exclude(id__gte=id)
+
+            # we grab one more than our page to denote whether there's more to get
+            runs = list(runs.order_by('-modified_on')[:self.paginate_by + 1])
+            context['more'] = len(runs) > self.paginate_by
+            runs = runs[:self.paginate_by]
 
             # populate ruleset values
             for run in runs:

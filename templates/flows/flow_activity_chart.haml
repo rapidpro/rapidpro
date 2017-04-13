@@ -87,7 +87,7 @@
 
     var pie_drill = {
       series: [{
-        name: 'Exited',
+        name: 'Didn\'t Complete',
         id: 'incomplete',
         innerSize: '50%',
         data:[
@@ -313,6 +313,7 @@
                 text: null
             },
             xAxis: {
+              min: {{min_date|date:"U"}},
               title: { text: null },
               labels: { enabled: false },
               lineWidth: 0,
