@@ -1,3 +1,7 @@
+v3.0.117
+----------
+ * Fix styling on campaign event modal
+
 v3.0.116
 ----------
  * Update to latest Raven
