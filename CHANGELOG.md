@@ -1,3 +1,10 @@
+v3.0.116
+----------
+ * Update to latest Raven
+ * Make default form vertical, remove horizontal to vertical css overrides
+ * Add flow run search and deletion
+ * Hangup calls on channels release
+
 v3.0.115
 ----------
  * Allow message exports by label, system label or all messages
