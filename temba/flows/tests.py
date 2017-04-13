@@ -5,7 +5,6 @@ import datetime
 import json
 import os
 import pytz
-import re
 import six
 import time
 
@@ -4339,14 +4338,6 @@ class FlowsTest(FlowFileTest):
         self.assertContains(response, 'Turbo King')
         self.assertNotContains(response, 'skol')
 
-        next_link = re.search('ic-append-from=\"(.*)\" ic-trigger-on', response.content).group(1)
-        response = self.client.get(next_link)
-        self.assertEqual(200, response.status_code)
-
-        # no more rows to add
-        result = response.content.strip()
-        self.assertEqual(0, len(result))
-
         FlowCRUDL.ActivityChart.HISTOGRAM_MIN = 0
         FlowCRUDL.ActivityChart.PERIOD_MIN = 0
 
@@ -4391,6 +4382,13 @@ class FlowsTest(FlowFileTest):
 
         self.assertEqual(24, len(response.context['hod']))
         self.assertEqual(7, len(response.context['dow']))
+
+        # delete a run
+        response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
+        self.assertEqual(len(response.context['runs']), 2)
+        self.client.post(reverse('flows.flowrun_delete', args=[response.context['runs'][0].id]))
+        response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
+        self.assertEqual(len(response.context['runs']), 1)
 
     def test_get_columns_order(self):
         flow = self.get_flow('columns_order')
