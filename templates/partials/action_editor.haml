@@ -176,6 +176,15 @@
         -trans "Ok"
     </ng-form>
 .modal-footer
+
+  .send-all{ng-show:'config.type == "reply"', style:'float:left'}
+
+    %label
+      %input{type:'checkbox', ng-model:'action.send_all'}
+
+      %span
+        -trans "Send to all contact addresses"
+
   %button{ng-click:"cancel()",class:"btn btn-secondary",tabindex:"2"}
     -trans "Cancel"
   %button{ng-disabled:"action_editor.$invalid",ng-click:"ok()",class:"btn btn-primary",ng-model:"message"}

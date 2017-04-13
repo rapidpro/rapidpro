@@ -35,7 +35,8 @@ ACTIVITY_ICONS = {
     'DTMF': 'icon-call-incoming',
     'Expired': 'icon-clock',
     'Interrupted': 'icon-warning',
-    'Completed': 'icon-checkmark'
+    'Completed': 'icon-checkmark',
+    'WebHookResult': 'icon-cloud-upload',
 }
 
 PLAYABLE_AUDIO_TYPES = {'audio/wav', 'audio/x-wav', 'audio/vnd.wav', 'application/octet-stream'}
@@ -198,6 +199,9 @@ def history_class(item):
             classes.append('warning')
     else:
         classes.append('non-msg')
+
+        if item['type'] == 'webhook-result' and not obj.is_success:
+            classes.append('warning')
 
         if item['type'] == 'call' and obj.status == IVRCall.FAILED:
             classes.append('warning')

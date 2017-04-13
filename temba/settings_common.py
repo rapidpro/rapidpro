@@ -144,7 +144,6 @@ TEMPLATES = [
                 'temba.orgs.context_processors.unread_count_processor',
                 'temba.channels.views.channel_status_processor',
                 'temba.msgs.views.send_message_auto_complete_processor',
-                'temba.api.views.webhook_status_processor',
                 'temba.orgs.context_processors.settings_includer',
             ],
             'loaders': [

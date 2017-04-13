@@ -859,6 +859,9 @@ class Channel(TembaModel):
     def get_caller(self):
         return self.get_delegate(Channel.ROLE_CALL)
 
+    def get_ussd_delegate(self):
+        return self.get_delegate(Channel.ROLE_USSD)
+
     def is_delegate_sender(self):
         return self.parent and Channel.ROLE_SEND in self.role
 
