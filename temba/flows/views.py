@@ -360,7 +360,7 @@ class FlowRunCRUDL(SmartCRUDL):
         success_message = None
 
         def post(self, request, *args, **kwargs):
-            self.get_object().delete()
+            self.get_object().release()
             return HttpResponse()
 
 
