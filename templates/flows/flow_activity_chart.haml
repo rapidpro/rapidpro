@@ -47,7 +47,7 @@
 -if hod and dow
   #dow_container
     %h4
-      Day of Week
+      {{total_responses|intcomma}} {% blocktrans count total_responses as total%}Response{% plural %}Responses{% endblocktrans %}
     #dow
 
   #hod_container
@@ -62,9 +62,6 @@
 
 -if histogram
   #histogram
-
-%h3.pull-left
-  {{total_responses|intcomma}} {% blocktrans count total_responses as total%}Response{% plural %}Responses{% endblocktrans %}
 
 :javascript
   $(document).ready(function(){

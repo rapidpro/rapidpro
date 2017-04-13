@@ -351,6 +351,19 @@ class PartialTemplate(SmartTemplateView):  # pragma: no cover
         return "partials/%s.html" % self.template
 
 
+class FlowRunCRUDL(SmartCRUDL):
+    actions = ('delete',)
+    model = FlowRun
+
+    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+        fields = ('pk',)
+        success_message = None
+
+        def post(self, request, *args, **kwargs):
+            self.get_object().delete()
+            return HttpResponse()
+
+
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'simulate', 'export_results',
                'upload_action_recording', 'read', 'editor', 'results', 'run_table', 'json', 'broadcast', 'activity',
@@ -1212,6 +1225,15 @@ class FlowCRUDL(SmartCRUDL):
             test_contacts = Contact.objects.filter(org=org, is_test=True).values_list('id', flat=True)
             runs = FlowRun.objects.filter(flow=flow, responded=True).exclude(contact__in=test_contacts)
 
+            query = self.request.GET.get('q', None)
+            contact_ids = []
+            if query:
+                query = query.strip()
+                contact_ids = list(Contact.objects.filter(org=flow.org, name__icontains=query).exclude(id__in=test_contacts).values_list('id', flat=True))
+                query = query.replace("-", "")
+                contact_ids += list(ContactURN.objects.filter(org=flow.org, path__icontains=query).exclude(contact__in=test_contacts).order_by('contact__id').distinct('contact__id').values_list('contact__id', flat=True))
+                runs = runs.filter(contact__in=contact_ids)
+
             # paginate
             modified_on = self.request.GET.get('modified_on', None)
             if modified_on:
@@ -1231,6 +1253,7 @@ class FlowCRUDL(SmartCRUDL):
                     run.value_list.append(value)
 
             context['runs'] = runs
+            context['paginate_by'] = self.paginate_by
 
             return context
 
