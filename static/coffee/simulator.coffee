@@ -67,13 +67,10 @@ window.updateSimulator = (data) ->
     if media_type
       ele += " media-msg"
     ele += "\">"
-
-    if media_type
-      ele += msg.text
-      if media_viewer_elt
-        ele += media_viewer_elt
-    else
-      ele += msg.text
+    ele += msg.text
+    
+    if media_type and media_viewer_elt
+      ele += media_viewer_elt
 
     ele += "</div>"
 
