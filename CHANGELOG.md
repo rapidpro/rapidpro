@@ -1,3 +1,7 @@
+v3.0.119
+----------
+ * More vertical form styling tweaks
+
 v3.0.118
 ----------
  * Add flow link on subflow rulesets in flows
