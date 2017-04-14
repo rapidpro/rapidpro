@@ -2,9 +2,10 @@
 from __future__ import unicode_literals
 
 import json
+import pytz
 import six
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
@@ -14,7 +15,7 @@ from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
-from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, UnreachableException
+from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, SystemLabelCount, UnreachableException
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.orgs.models import Language, Debit, Org
 from temba.schedules.models import Schedule
@@ -23,7 +24,7 @@ from temba.utils import dict_to_struct, datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.values.models import Value
 from .management.commands.msg_console import MessageConsole
-from .tasks import squash_systemlabels, clear_old_msg_external_ids, purge_broadcasts_task
+from .tasks import squash_labelcounts, clear_old_msg_external_ids, purge_broadcasts_task
 from .templatetags.sms import as_icon
 
 
@@ -106,18 +107,8 @@ class MsgTest(TembaTest):
         counts = SystemLabel.get_counts(self.org)
         self.assertEqual(counts[label], 1)
 
-        # recalculate, check the count again
-        SystemLabel.recalculate_counts(self.org, label)
-        counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(counts[label], 1)
-
         # release the msg, count should now be 0
         msg.release()
-        counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(counts[label], 0)
-
-        # more recalculations
-        SystemLabel.recalculate_counts(self.org, label)
         counts = SystemLabel.get_counts(self.org)
         self.assertEqual(counts[label], 0)
 
@@ -656,36 +647,33 @@ class MsgTest(TembaTest):
         self.joe.save()
 
         # create some messages...
-        joe_urn = self.joe.get_urn(TEL_SCHEME).urn
-        msg1 = Msg.create_incoming(self.channel, joe_urn, "hello 1")
-        msg2 = Msg.create_incoming(self.channel, joe_urn, "hello 2")
-        msg3 = Msg.create_incoming(self.channel, joe_urn, "hello 3")
-        msg4 = Msg.create_incoming(None, None, "hello 4", org=self.org, contact=self.joe)  # like a surveyor message
+        # joe_urn = self.joe.get_urn(TEL_SCHEME).urn
+
+        msg1 = self.create_msg(contact=self.joe, text="hello 1", direction='I', status=HANDLED,
+                               msg_type='I', created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
+        msg2 = self.create_msg(contact=self.joe, text="hello 2", direction='I', status=HANDLED,
+                               msg_type='I', created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC))
+        msg3 = self.create_msg(contact=self.joe, text="hello 3", direction='I', status=HANDLED,
+                               msg_type='I', created_on=datetime(2017, 1, 3, 10, tzinfo=pytz.UTC))
+
+        # inbound message that looks like a surveyor message
+        msg4 = self.create_msg(contact=self.joe, contact_urn=None, text="hello 4", direction='I', status=HANDLED,
+                               channel=None, msg_type='I', created_on=datetime(2017, 1, 4, 10, tzinfo=pytz.UTC))
 
         # inbound message with media attached, such as an ivr recording
-        msg5 = Msg.create_incoming(self.channel, joe_urn, "Media message", media='audio:http://rapidpro.io/audio/sound.mp3')
+        msg5 = self.create_msg(contact=self.joe, text="Media message", direction='I', status=HANDLED,
+                               msg_type='I', media='audio:http://rapidpro.io/audio/sound.mp3',
+                               created_on=datetime(2017, 1, 5, 10, tzinfo=pytz.UTC))
 
-        # outgoing message
-        msg6 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 6")
-        msg7 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 7")
-        msg8 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 8")
-        msg9 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 9")
-
-        # mark msg as sent
-        msg6.status = SENT
-        msg6.save()
-
-        # mark msg as delivered
-        msg7.status = DELIVERED
-        msg7.save()
-
-        # mark msg as errored
-        msg8.status = ERRORED
-        msg8.save()
-
-        # mark message as failed
-        msg9.status = FAILED
-        msg9.save()
+        # create some outbound messages with different statuses
+        msg6 = self.create_msg(contact=self.joe, text="Hey out 6", direction='O', status=SENT,
+                               created_on=datetime(2017, 1, 6, 10, tzinfo=pytz.UTC))
+        msg7 = self.create_msg(contact=self.joe, text="Hey out 7", direction='O', status=DELIVERED,
+                               created_on=datetime(2017, 1, 7, 10, tzinfo=pytz.UTC))
+        msg8 = self.create_msg(contact=self.joe, text="Hey out 8", direction='O', status=ERRORED,
+                               created_on=datetime(2017, 1, 8, 10, tzinfo=pytz.UTC))
+        msg9 = self.create_msg(contact=self.joe, text="Hey out 9", direction='O', status=FAILED,
+                               created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC))
 
         self.assertTrue(msg5.is_media_type_audio())
         self.assertEqual('http://rapidpro.io/audio/sound.mp3', msg5.get_media_path())
@@ -699,114 +687,90 @@ class MsgTest(TembaTest):
         msg3.save()
 
         # create a dummy export task so that we won't be able to export
-        blocking_export = ExportMessagesTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
-        response = self.client.post(reverse('msgs.msg_export'), follow=True)
+        blocking_export = ExportMessagesTask.create(self.org, self.admin, SystemLabel.TYPE_INBOX)
+        response = self.client.post(reverse('msgs.msg_export') + '?l=I', {'export_all': 1}, follow=True)
         self.assertContains(response, "already an export in progress")
 
         # perform the export manually, assert how many queries
         self.assertNumQueries(8, lambda: blocking_export.perform())
 
-        self.client.post(reverse('msgs.msg_export'))
-        task = ExportMessagesTask.objects.all().order_by('-id').first()
+        def request_export(query, data=None):
+            response = self.client.post(reverse('msgs.msg_export') + query, data)
+            self.assertEqual(response.status_code, 302)
+            task = ExportMessagesTask.objects.order_by('-id').first()
+            filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
+            workbook = load_workbook(filename=filename)
+            return workbook.worksheets[0]
 
-        filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-        workbook = load_workbook(filename=filename)
-        sheet = workbook.worksheets[0]
+        # export all visible messages (i.e. not msg3) using export_all param
+        with self.assertNumQueries(25):
+            self.assertExcelSheet(request_export('?l=I', {'export_all': 1}), [
+                ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+                [msg9.created_on, "123", "tel", "Joe Blow", msg9.contact.uuid, "Outgoing", "Hey out 9", "", "Failed Sending"],
+                [msg8.created_on, "123", "tel", "Joe Blow", msg8.contact.uuid, "Outgoing", "Hey out 8", "", "Error Sending"],
+                [msg7.created_on, "123", "tel", "Joe Blow", msg7.contact.uuid, "Outgoing", "Hey out 7", "", "Delivered"],
+                [msg6.created_on, "123", "tel", "Joe Blow", msg6.contact.uuid, "Outgoing", "Hey out 6", "", "Sent"],
+                [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming", "Media message", "", "Handled"],
+                [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "Incoming", "hello 4", "", "Handled"],
+                [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid, "Incoming", "hello 2", "", "Handled"],
+                [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"]
+            ], self.org.timezone)
 
-        self.assertEquals(len(list(sheet.rows)), 9)  # msg3 not included as it's archived
-
-        self.assertExcelRow(sheet, 0, ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction",
-                                       "Text", "Labels", "Status"])
-
-        self.assertExcelRow(sheet, 1,
-                            [msg9.created_on, "123", "tel", "Joe Blow", msg9.contact.uuid, "Outgoing",
-                             "Hey out 9", "", "Failed Sending"], self.org.timezone)
-
-        self.assertExcelRow(sheet, 2,
-                            [msg8.created_on, "123", "tel", "Joe Blow", msg8.contact.uuid, "Outgoing",
-                             "Hey out 8", "", "Error Sending"], self.org.timezone)
-
-        self.assertExcelRow(sheet, 3,
-                            [msg7.created_on, "123", "tel", "Joe Blow", msg7.contact.uuid, "Outgoing",
-                             "Hey out 7", "", "Delivered"], self.org.timezone)
-
-        self.assertExcelRow(sheet, 4,
-                            [msg6.created_on, "123", "tel", "Joe Blow", msg6.contact.uuid, "Outgoing",
-                             "Hey out 6", "", "Sent"], self.org.timezone)
-
-        self.assertExcelRow(sheet, 5, [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming",
-                                       "Media message", "", "Handled"], self.org.timezone)
-
-        self.assertExcelRow(sheet, 6, [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "Incoming",
-                                       "hello 4", "", "Handled"], self.org.timezone)
-
-        self.assertExcelRow(sheet, 7, [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid, "Incoming",
-                                       "hello 2", "", "Handled"], self.org.timezone)
-
-        self.assertExcelRow(sheet, 8, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming",
-                                       "hello 1", "label1", "Handled"], self.org.timezone)
-
+        # check email was sent correctly
         email_args = mock_send_temba_email.call_args[0]  # all positional args
-
+        export = ExportMessagesTask.objects.order_by('-id').first()
         self.assertEqual(email_args[0], "Your messages export is ready")
-        self.assertIn('https://app.rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[1])
+        self.assertIn('https://app.rapidpro.io/assets/download/message_export/%d/' % export.id, email_args[1])
         self.assertNotIn('{{', email_args[1])
-        self.assertIn('https://app.rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[2])
+        self.assertIn('https://app.rapidpro.io/assets/download/message_export/%d/' % export.id, email_args[2])
         self.assertNotIn('{{', email_args[2])
 
-        ExportMessagesTask.objects.all().delete()
+        # export just archived messages
+        self.assertExcelSheet(request_export('?l=A', {'export_all': 0}), [
+            ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+            [msg3.created_on, "123", "tel", "Joe Blow", msg3.contact.uuid, "Incoming", "hello 3", "", "Handled"],
+        ], self.org.timezone)
 
-        # visit the filter page
-        response = self.client.get(reverse('msgs.msg_filter', args=[label.pk]))
-        self.assertContains(response, "Export Data")
+        # filter page should have an export option
+        response = self.client.get(reverse('msgs.msg_filter', args=[label.id]))
+        self.assertContains(response, "Export")
 
-        self.client.post("%s?label=%s" % (reverse('msgs.msg_export'), label.pk))
-        task = ExportMessagesTask.objects.get()
+        # try export with user label
+        self.assertExcelSheet(request_export('?l=%s' % label.uuid, {'export_all': 0}), [
+            ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+            [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"]
+        ], self.org.timezone)
 
-        filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-        workbook = load_workbook(filename=filename)
-        sheet = workbook.worksheets[0]
+        # try export with groups and date range
+        export_data = {
+            'export_all': 1,
+            'groups': [self.just_joe.id],
+            'start_date': msg5.created_on.strftime('%B %d, %Y'),
+            'end_date': msg7.created_on.strftime('%B %d, %Y'),
+        }
 
-        self.assertEquals(len(list(sheet.rows)), 2)  # only header and msg1
-        self.assertExcelRow(sheet, 1, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming",
-                                       "hello 1", "label1", "Handled"], self.org.timezone)
-
-        ExportMessagesTask.objects.all().delete()
+        self.assertExcelSheet(request_export('?l=I', export_data), [
+            ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+            [msg7.created_on, "123", "tel", "Joe Blow", msg7.contact.uuid, "Outgoing", "Hey out 7", "", "Delivered"],
+            [msg6.created_on, "123", "tel", "Joe Blow", msg6.contact.uuid, "Outgoing", "Hey out 6", "", "Sent"],
+            [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming", "Media message", "", "Handled"],
+        ], self.org.timezone)
 
         # test as anon org to check that URNs don't end up in exports
         with AnonymousOrg(self.org):
-            self.client.post(reverse('msgs.msg_export'))
-            task = ExportMessagesTask.objects.get()
+            joe_anon_id = "%010d" % self.joe.id
 
-            filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-            workbook = load_workbook(filename=filename)
-            sheet = workbook.worksheets[0]
-
-            self.assertEquals(len(list(sheet.rows)), 9)
-
-            self.assertExcelRow(sheet, 1, [msg9.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg9.contact.uuid,
-                                           "Outgoing", "Hey out 9", "", "Failed Sending"], self.org.timezone)
-
-            self.assertExcelRow(sheet, 2, [msg8.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg8.contact.uuid,
-                                           "Outgoing", "Hey out 8", "", "Error Sending"], self.org.timezone)
-
-            self.assertExcelRow(sheet, 3, [msg7.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg7.contact.uuid,
-                                           "Outgoing", "Hey out 7", "", "Delivered"], self.org.timezone)
-
-            self.assertExcelRow(sheet, 4, [msg6.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg6.contact.uuid,
-                                           "Outgoing", "Hey out 6", "", "Sent"], self.org.timezone)
-
-            self.assertExcelRow(sheet, 5, [msg5.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg5.contact.uuid,
-                                           "Incoming", "Media message", "", "Handled"], self.org.timezone)
-
-            self.assertExcelRow(sheet, 6, [msg4.created_on, "%010d" % self.joe.pk, "", "Joe Blow", msg4.contact.uuid,
-                                           "Incoming", "hello 4", "", "Handled"], self.org.timezone)
-
-            self.assertExcelRow(sheet, 7, [msg2.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg2.contact.uuid,
-                                           "Incoming", "hello 2", "", "Handled"], self.org.timezone)
-
-            self.assertExcelRow(sheet, 8, [msg1.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg1.contact.uuid,
-                                           "Incoming", "hello 1", "label1", "Handled"], self.org.timezone)
+            self.assertExcelSheet(request_export('?l=I', {'export_all': 1}), [
+                ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+                [msg9.created_on, joe_anon_id, "tel", "Joe Blow", msg9.contact.uuid, "Outgoing", "Hey out 9", "", "Failed Sending"],
+                [msg8.created_on, joe_anon_id, "tel", "Joe Blow", msg8.contact.uuid, "Outgoing", "Hey out 8", "", "Error Sending"],
+                [msg7.created_on, joe_anon_id, "tel", "Joe Blow", msg7.contact.uuid, "Outgoing", "Hey out 7", "", "Delivered"],
+                [msg6.created_on, joe_anon_id, "tel", "Joe Blow", msg6.contact.uuid, "Outgoing", "Hey out 6", "", "Sent"],
+                [msg5.created_on, joe_anon_id, "tel", "Joe Blow", msg5.contact.uuid, "Incoming", "Media message", "", "Handled"],
+                [msg4.created_on, joe_anon_id, "", "Joe Blow", msg4.contact.uuid, "Incoming", "hello 4", "", "Handled"],
+                [msg2.created_on, joe_anon_id, "tel", "Joe Blow", msg2.contact.uuid, "Incoming", "hello 2", "", "Handled"],
+                [msg1.created_on, joe_anon_id, "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"]
+            ], self.org.timezone)
 
 
 class MsgCRUDLTest(TembaTest):
@@ -1560,6 +1524,10 @@ class LabelTest(TembaTest):
         self.assertEqual(label.get_visible_count(), 2)
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
+        # check still correct after squashing
+        squash_labelcounts()
+        self.assertEqual(label.get_visible_count(), 2)
+
         msg2.archive()  # won't remove label from msg, but msg no longer counts toward visible count
 
         label = Label.label_objects.get(pk=label.pk)
@@ -1626,8 +1594,14 @@ class LabelTest(TembaTest):
 
         with self.assertNumQueries(2):
             hierarchy = Label.get_hierarchy(self.org)
-            self.assertEqual(list(hierarchy), [label3, folder1, folder2])
-            self.assertEqual(list(hierarchy[1].children.all()), [label2, label1])
+            self.assertEqual(hierarchy, [
+                {'obj': label3, 'count': 1, 'children': []},
+                {'obj': folder1, 'count': None, 'children': [
+                    {'obj': label2, 'count': 2, 'children': []},
+                    {'obj': label1, 'count': 2, 'children': []},
+                ]},
+                {'obj': folder2, 'count': None, 'children': []}
+            ])
 
     def test_delete_folder(self):
         folder1 = Label.get_or_create_folder(self.org, self.user, "Folder")
@@ -1994,10 +1968,10 @@ class SystemLabelTest(TembaTest):
 
         msg5.resend()
 
-        self.assertTrue(SystemLabel.objects.all().count() > 8)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 25)
 
         # squash our counts
-        squash_systemlabels()
+        squash_labelcounts()
 
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 2, SystemLabel.TYPE_FLOWS: 0,
                                                             SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 1,
@@ -2005,7 +1979,7 @@ class SystemLabelTest(TembaTest):
                                                             SystemLabel.TYPE_SCHEDULED: 2, SystemLabel.TYPE_CALLS: 1})
 
         # we should only have one system label per type
-        self.assertEqual(SystemLabel.objects.all().count(), 8)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 7)
 
 
 class TagsTest(TembaTest):

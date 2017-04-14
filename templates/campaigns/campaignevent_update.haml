@@ -14,11 +14,11 @@
     $(document).ready(function() {
 
       select2div("#id_flow_to_start", "515px", "Flow to Start");
-      select2div("#id_relative_to", "245px", "Select a date");
+      select2div("#id_relative_to", "249px", "Select a date");
       select2div("#id_direction", "85px");
       select2div("#id_unit", "100px");
       select2div("#id_event_type", "515px");
-      select2div("#id_delivery_hour", "440px");
+      select2div("#id_delivery_hour", "442px");
 
       $('.show_language').live('click', function() {
         lang = $(this).data('iso');
@@ -103,6 +103,17 @@
     .modal-body {
       overflow-x: hidden;
       overflow-y: hidden;
+    }
+
+    .smartmin-form textarea {
+      margin-top:5px;
+      height: 180px;
+      width: 501px;
+    }
+
+    .counter {
+      padding-top:10px;
+      padding-bottom:5px;
     }
 
     #active-modal .fetched-content {

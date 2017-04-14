@@ -11,7 +11,7 @@
 
   {% block pre-form %}{% endblock %}
 
-  <form class="smartmin-form form-horizontal" method="post" enctype="multipart/form-data" {% if action_url  %}action="{{ action_url }}"{% endif %}>
+  <form class="smartmin-form" method="post" enctype="multipart/form-data" {% if action_url  %}action="{{ action_url }}"{% endif %}>
     {% block pre-form-errors %}
     {% endblock pre-form-errors %}
 

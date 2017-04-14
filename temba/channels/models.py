@@ -859,6 +859,9 @@ class Channel(TembaModel):
     def get_caller(self):
         return self.get_delegate(Channel.ROLE_CALL)
 
+    def get_ussd_delegate(self):
+        return self.get_delegate(Channel.ROLE_USSD)
+
     def is_delegate_sender(self):
         return self.parent and Channel.ROLE_SEND in self.role
 
@@ -1113,8 +1116,13 @@ class Channel(TembaModel):
         for delegate_channel in Channel.objects.filter(parent=self, org=self.org):
             delegate_channel.release()
 
-        if not settings.DEBUG:
-            # only call out to external aggregator services if not in debug mode
+        if settings.IS_PROD:
+            # only call out to external aggregator services if we are on prod servers
+
+            # hangup all its calls
+            from temba.ivr.models import IVRCall
+            for call in IVRCall.objects.filter(channel=self):
+                call.close()
 
             # delete Plivo application
             if self.channel_type == Channel.TYPE_PLIVO:

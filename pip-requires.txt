@@ -61,3 +61,4 @@ openpyxl
 django-excel
 pyexcel-xls
 pyexcel-xlsx
+responses

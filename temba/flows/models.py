@@ -33,7 +33,8 @@ from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, SENT, Label, PENDING, DELIVERED, USSD as MSG_TYPE_USSD
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
+from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD
 from temba.msgs.models import OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
@@ -514,7 +515,7 @@ class Flow(TembaModel):
     @classmethod
     def find_and_handle(cls, msg, started_flows=None, voice_response=None,
                         triggered_start=False, resume_parent_run=False,
-                        resume_after_timeout=False, user_input=True, trigger_send=True):
+                        resume_after_timeout=False, user_input=True, trigger_send=True, continue_parent=True):
 
         if started_flows is None:
             started_flows = []
@@ -533,7 +534,8 @@ class Flow(TembaModel):
             (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
                                                       user_input=user_input, triggered_start=triggered_start,
                                                       resume_parent_run=resume_parent_run,
-                                                      resume_after_timeout=resume_after_timeout, trigger_send=trigger_send)
+                                                      resume_after_timeout=resume_after_timeout, trigger_send=trigger_send,
+                                                      continue_parent=continue_parent)
 
             if handled:
                 # increment our unread count if this isn't the simulator
@@ -547,7 +549,7 @@ class Flow(TembaModel):
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
                            started_flows=None, is_test_contact=False, user_input=False,
-                           triggered_start=False, trigger_send=True, resume_parent_run=False, resume_after_timeout=False):
+                           triggered_start=False, trigger_send=True, resume_parent_run=False, resume_after_timeout=False, continue_parent=True):
 
         if started_flows is None:
             started_flows = []
@@ -622,8 +624,8 @@ class Flow(TembaModel):
             resume_after_timeout = False
 
         # if we have a parent to continue, do so
-        if getattr(run, 'continue_parent', False):
-            msgs += FlowRun.continue_parent_flow_run(run, trigger_send=False)
+        if getattr(run, 'continue_parent', False) and continue_parent:
+            msgs += FlowRun.continue_parent_flow_run(run, trigger_send=False, continue_parent=True)
 
         if handled:
             analytics.gauge('temba.flow_execution', time.time() - start_time)
@@ -662,6 +664,7 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_ruleset(cls, ruleset, step, run, msg, started_flows, resume_parent_run=False, resume_after_timeout=False):
+        msgs = []
 
         if ruleset.is_ussd() and run.session_interrupted:
             rule, value = ruleset.find_interrupt_rule(step, run, msg)
@@ -688,11 +691,13 @@ class Flow(TembaModel):
                                                 restart_participants=True, extra=extra,
                                                 parent_run=run, interrupt=False)
 
-                        msgs = []
-                        for run in child_runs:
-                            msgs += run.start_msgs
+                        continue_parent = False
+                        for child_run in child_runs:
+                            msgs += child_run.start_msgs
+                            continue_parent |= getattr(child_run, 'continue_parent', False)
 
-                        return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
+                        if not continue_parent:
+                            return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
 
             # find a matching rule
             rule, value = ruleset.find_matching_rule(step, run, msg, resume_after_timeout=resume_after_timeout)
@@ -726,14 +731,14 @@ class Flow(TembaModel):
             else:
                 run.set_completed(final_step=step)
 
-            return dict(handled=True, destination=None, destination_type=None)
+            return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
 
         # Create the step for our destination
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
         if destination:
             step = flow.add_step(run, destination, rule=rule.uuid, category=rule.category, previous_step=step)
 
-        return dict(handled=True, destination=destination, step=step)
+        return dict(handled=True, destination=destination, step=step, msgs=msgs)
 
     @classmethod
     def handle_ussd_ruleset_action(cls, ruleset, step, run, msg):
@@ -1029,6 +1034,9 @@ class Flow(TembaModel):
     def archive(self):
         self.is_archived = True
         self.save(update_fields=['is_archived'])
+
+        from .tasks import interrupt_flow_runs_task
+        interrupt_flow_runs_task.delay(self.id)
 
         # archive our triggers as well
         from temba.triggers.models import Trigger
@@ -1430,7 +1438,7 @@ class Flow(TembaModel):
 
                 step = self.add_step(run, entry_rule, is_start=True, arrived_on=timezone.now())
                 if entry_rule.is_ussd():
-                    handled, step_msgs = Flow.handle_destination(entry_rule, step, run, start_msg, trigger_send=False)
+                    handled, step_msgs = Flow.handle_destination(entry_rule, step, run, start_msg, trigger_send=False, continue_parent=False)
 
                     # add these messages as ones that are ready to send
                     for msg in step_msgs:
@@ -1530,7 +1538,8 @@ class Flow(TembaModel):
 
             if message_text or media_dict:
                 broadcast = Broadcast.create(self.org, self.created_by, message_text, [], media_dict=media_dict,
-                                             language_dict=language_dict, base_language=self.base_language)
+                                             language_dict=language_dict, base_language=self.base_language,
+                                             send_all=send_action.send_all)
                 broadcast.update_contacts(all_contact_ids)
 
                 # manually set our broadcast status to QUEUED, our sub processes will send things off for us
@@ -1672,7 +1681,7 @@ class Flow(TembaModel):
 
                         msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
                         handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
-                                                                     is_test_contact=simulation, trigger_send=False)
+                                                                     is_test_contact=simulation, trigger_send=False, continue_parent=False)
                         run_msgs += step_msgs
 
                     else:
@@ -1689,7 +1698,7 @@ class Flow(TembaModel):
                     elif not entry_rules.is_pause() or entry_rules.is_ussd():
                         # create an empty placeholder message
                         msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
-                        handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False)
+                        handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False, continue_parent=False)
                         run_msgs += step_msgs
 
                 if start_msg:
@@ -2526,7 +2535,7 @@ class FlowRun(models.Model):
             cls.continue_parent_flow_run(run)
 
     @classmethod
-    def continue_parent_flow_run(cls, run, trigger_send=True):
+    def continue_parent_flow_run(cls, run, trigger_send=True, continue_parent=True):
         msgs = []
 
         steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
@@ -2553,7 +2562,7 @@ class FlowRun(models.Model):
 
                 # finally, trigger our parent flow
                 (handled, msgs) = Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow],
-                                                       resume_parent_run=True, trigger_send=trigger_send)
+                                                       resume_parent_run=True, trigger_send=trigger_send, continue_parent=continue_parent)
 
         return msgs
 
@@ -2629,7 +2638,6 @@ class FlowRun(models.Model):
         """
         Mark a run as complete
         """
-
         if self.contact.is_test:
             ActionLog.create(self, _('%s has exited this flow') % self.contact.get_display(self.flow.org, short=True))
 
@@ -3229,8 +3237,7 @@ class RuleSet(models.Model):
 
                 (value, errors) = Msg.substitute_variables(url, context, org=run.flow.org, url_encode=True)
 
-                result = WebHookEvent.trigger_flow_event(value, self.flow, run, self,
-                                                         run.contact, msg, action, resthook=resthook)
+                result = WebHookEvent.trigger_flow_event(run, value, self, msg, action, resthook=resthook)
 
                 # we haven't recorded any status yet, do so
                 if not status_code:
@@ -4622,7 +4629,7 @@ class WebhookAction(Action):
         if errors:
             ActionLog.warn(run, _("URL appears to contain errors: %s") % ", ".join(errors))
 
-        WebHookEvent.trigger_flow_event(value, run.flow, run, actionset_uuid, run.contact, msg, self.action)
+        WebHookEvent.trigger_flow_event(run, value, actionset_uuid, msg, self.action)
         return []
 
 
@@ -4948,10 +4955,12 @@ class ReplyAction(Action):
     MESSAGE = 'msg'
     MSG_TYPE = None
     MEDIA = 'media'
+    SEND_ALL = 'send_all'
 
-    def __init__(self, msg=None, media=None):
+    def __init__(self, msg=None, media=None, send_all=False):
         self.msg = msg
         self.media = media if media else {}
+        self.send_all = send_all
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -4966,13 +4975,14 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
 
-        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE), media=json_obj.get(ReplyAction.MEDIA, None))
+        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE), media=json_obj.get(ReplyAction.MEDIA, None),
+                           send_all=json_obj.get(ReplyAction.SEND_ALL, False))
 
     def as_json(self):
-        return dict(type=ReplyAction.TYPE, msg=self.msg, media=self.media)
+        return dict(type=ReplyAction.TYPE, msg=self.msg, media=self.media, send_all=self.send_all)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
-        reply = None
+        replies = []
 
         if self.msg or self.media:
             user = get_flow_user(run.org)
@@ -4991,20 +5001,35 @@ class ReplyAction(Action):
                     media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
             if offline_on:
-                reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
-                                            created_on=offline_on, response_to=msg, media=media)
+                context = None
+                created_on = offline_on
             else:
-                try:
-                    if msg:
-                        reply = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session,
-                                          media=media, msg_type=self.MSG_TYPE)
-                    else:
-                        reply = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                                 session=run.session, msg_type=self.MSG_TYPE, media=media)
-                except UnreachableException:
-                    pass
+                created_on = None
 
-        return [reply] if reply else []
+            try:
+                if msg:
+                    reply_msg = msg.reply(text, user, trigger_send=False, message_context=context,
+                                          session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                          send_all=self.send_all, created_on=created_on)
+
+                    if reply_msg:
+                        replies.append(reply_msg)
+                else:
+                    if self.send_all:
+                        replies = run.contact.send_all(text, user, trigger_send=False, message_context=context,
+                                                       session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                                       created_on=created_on)
+                    else:
+                        reply_msg = run.contact.send(text, user, trigger_send=False, message_context=context,
+                                                     session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                                     created_on=created_on)
+                        if reply_msg:
+                            replies.append(reply_msg)
+
+            except UnreachableException:
+                pass
+
+        return replies
 
 
 class UssdAction(ReplyAction):
