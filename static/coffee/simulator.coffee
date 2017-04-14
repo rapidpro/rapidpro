@@ -69,7 +69,6 @@ window.updateSimulator = (data) ->
     ele += "\">"
 
     if media_type
-      ele += "<span class=\"media-icon " + media_type + "\"></span>"
       ele += msg.text
       if media_viewer_elt
         ele += media_viewer_elt
