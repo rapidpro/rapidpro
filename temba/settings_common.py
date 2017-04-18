@@ -144,7 +144,6 @@ TEMPLATES = [
                 'temba.orgs.context_processors.unread_count_processor',
                 'temba.channels.views.channel_status_processor',
                 'temba.msgs.views.send_message_auto_complete_processor',
-                'temba.api.views.webhook_status_processor',
                 'temba.orgs.context_processors.settings_includer',
             ],
             'loaders': [
@@ -570,6 +569,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_json',
         'flows.flow_read',
         'flows.flow_revisions',
+        'flows.flowrun_delete',
         'orgs.org_dashboard',
         'orgs.org_grant',
         'orgs.org_manage',
@@ -720,6 +720,7 @@ GROUP_PERMISSIONS = {
         'flows.flowstart_api',
         'flows.flowlabel.*',
         'flows.ruleset.*',
+        'flows.flowrun_delete',
 
         'schedules.schedule.*',
 

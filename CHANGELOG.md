@@ -1,3 +1,37 @@
+v3.0.119
+----------
+ * More vertical form styling tweaks
+
+v3.0.118
+----------
+ * Add flow link on subflow rulesets in flows
+
+v3.0.117
+----------
+ * Fix styling on campaign event modal
+
+v3.0.116
+----------
+ * Update to latest Raven
+ * Make default form vertical, remove horizontal to vertical css overrides
+ * Add flow run search and deletion
+ * Hangup calls on channels release
+
+v3.0.115
+----------
+ * Allow message exports by label, system label or all messages
+ * Fix for double stacked subflows with immediate exits
+
+v3.0.112
+----------
+ * Archiving a flow should interrupt all the current runs
+
+v3.0.111
+----------
+ * Display webhook results on contact history
+ * Clean up template tags used on contact history
+ * Allow broadcasts to be sent to all urns belonging to the specified contacts
+
 v3.0.109
 ----------
  * Data migration to populate broadcast send_all field
