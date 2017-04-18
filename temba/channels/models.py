@@ -80,6 +80,7 @@ class Channel(TembaModel):
     TYPE_JUNEBUG_USSD = 'JNU'
     TYPE_KANNEL = 'KN'
     TYPE_LINE = 'LN'
+    TYPE_MACROKIOSK = 'MK'
     TYPE_M3TECH = 'M3'
     TYPE_MBLOX = 'MB'
     TYPE_NEXMO = 'NX'
@@ -126,6 +127,7 @@ class Channel(TembaModel):
     CONFIG_FCM_TITLE = 'FCM_TITLE'
     CONFIG_FCM_NOTIFICATION = 'FCM_NOTIFICATION'
     CONFIG_MAX_LENGTH = 'max_length'
+    CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -194,6 +196,7 @@ class Channel(TembaModel):
         TYPE_JUNEBUG_USSD: dict(scheme='tel', max_length=1600),
         TYPE_KANNEL: dict(scheme='tel', max_length=1600),
         TYPE_LINE: dict(scheme='line', max_length=1600),
+        TYPE_MACROKIOSK: dict(scheme='tel', max_length=1600),
         TYPE_M3TECH: dict(scheme='tel', max_length=160),
         TYPE_NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
         TYPE_MBLOX: dict(scheme='tel', max_length=459),
@@ -2026,6 +2029,54 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
+    def send_macrokiosk_message(cls, channel, msg, text):
+        from temba.msgs.models import WIRED
+
+        # determine our encoding
+        encoding, text = Channel.determine_encoding(text, replace=True)
+
+        # if this looks like unicode, ask macrokiosk to send as unicode
+        if encoding == Encoding.UNICODE:
+            message_type = 5
+        else:
+            message_type = 0
+
+        # strip a leading +
+        recipient = msg.urn_path[1:] if msg.urn_path.startswith('+') else msg.urn_path
+
+        payload = {
+            'user': channel.config[Channel.CONFIG_USERNAME], 'pass': channel.config[Channel.CONFIG_PASSWORD],
+            'to': recipient, 'text': text, 'from': channel.address.lstrip('+'),
+            'servid': channel.config[Channel.CONFIG_MACROKIOSK_SERVICE_ID], 'type': message_type
+        }
+
+        url = 'https://www.etracker.cc/bulksms/send'
+        payload_json = json.dumps(payload)
+
+        headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+        headers.update(TEMBA_HEADERS)
+
+        event = HttpEvent('POST', url, payload_json)
+
+        start = time.time()
+
+        try:
+            response = requests.post(url, data=payload, headers=headers, timeout=30)
+            event.status_code = response.status_code
+            event.response_body = response.text
+
+            external_id = response.json().get('msgid', None)
+
+        except Exception as e:
+            raise SendException(six.text_type(e), event=event, start=start)
+
+        if response.status_code not in [200, 201, 202]:
+            raise SendException("Got non-200 response [%d] from API" % response.status_code,
+                                event=event, start=start)
+
+        Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
+
+    @classmethod
     def send_smscentral_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -3068,6 +3119,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,
                   Channel.TYPE_LINE: Channel.send_line_message,
                   Channel.TYPE_M3TECH: Channel.send_m3tech_message,
+                  Channel.TYPE_MACROKIOSK: Channel.send_macrokiosk_message,
                   Channel.TYPE_MBLOX: Channel.send_mblox_message,
                   Channel.TYPE_NEXMO: Channel.send_nexmo_message,
                   Channel.TYPE_PLIVO: Channel.send_plivo_message,
