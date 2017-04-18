@@ -1,3 +1,8 @@
+v3.0.120
+----------
+ * Fix send all bug where we append list of messages to another list of messages
+ * Flows endpooint should allow filtering by modified_on
+
 v3.0.119
 ----------
  * More vertical form styling tweaks
