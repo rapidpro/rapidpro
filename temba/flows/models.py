@@ -1052,7 +1052,7 @@ class Flow(TembaModel):
         self.save(update_fields=['is_archived'])
 
     def update_single_message_flow(self, translations, base_language):
-        if base_language not in translations:
+        if base_language not in translations:  # pragma: no cover
             raise ValueError("Must include translation for base language")
 
         self.flow_type = Flow.MESSAGE

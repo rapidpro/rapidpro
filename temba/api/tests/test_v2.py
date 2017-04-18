@@ -243,7 +243,7 @@ class APITest(TembaTest):
         self.assertRaises(serializers.ValidationError, field.to_internal_value, 123)  # not a string or dict
         self.assertRaises(serializers.ValidationError, field.to_internal_value, {'kin': 123})
         self.assertRaises(serializers.ValidationError, field.to_internal_value, {})
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {123: "Hello"})
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {123: "Hello", 'kin': "Muraho"})
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "HelloHello1")  # too long
         self.assertRaises(serializers.ValidationError, field.to_internal_value, {'kin': "HelloHello1"})  # also too long
         self.assertRaises(serializers.ValidationError, field.to_internal_value, {'eng': "HelloHello1"})  # base lang not provided
@@ -863,6 +863,21 @@ class APITest(TembaTest):
         event2.refresh_from_db()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
         self.assertEqual(json.loads(event2.message), {'base': "OK", 'fre': "D'accord"})
+
+        # and update update it's message again
+        response = self.postJSON(url, 'uuid=%s' % event2.uuid, {
+            'campaign': campaign1.uuid,
+            'relative_to': 'registration',
+            'offset': 15,
+            'unit': 'weeks',
+            'delivery_hour': -1,
+            'message': {'base': "OK", 'fre': "D'accord", 'kin': "Sawa"}
+        })
+        self.assertEqual(response.status_code, 200)
+
+        event2.refresh_from_db()
+        self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
+        self.assertEqual(json.loads(event2.message), {'base': "OK", 'fre': "D'accord", 'kin': "Sawa"})
 
         # try to change an existing event's campaign
         response = self.postJSON(url, 'uuid=%s' % event1.uuid, {
