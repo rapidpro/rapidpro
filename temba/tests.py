@@ -296,13 +296,13 @@ class TembaTest(SmartminTest):
 
         return dict(version=8,
                     action_sets=[dict(uuid=uuid(uuid_start + 1), x=1, y=1, destination=uuid(uuid_start + 5),
-                                      actions=[dict(type='reply', media=dict(), msg=dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))]),
+                                      actions=[dict(type='reply', media=dict(), send_all=False, msg=dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))]),
                                  dict(uuid=uuid(uuid_start + 2), x=2, y=2, destination=None,
-                                      actions=[dict(type='reply', media=dict(), msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow'))]),
+                                      actions=[dict(type='reply', media=dict(), send_all=False, msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow'))]),
                                  dict(uuid=uuid(uuid_start + 3), x=3, y=3, destination=None,
-                                      actions=[dict(type='reply', media=dict(), msg=dict(base='Blue is sad. :('))]),
+                                      actions=[dict(type='reply', media=dict(), send_all=False, msg=dict(base='Blue is sad. :('))]),
                                  dict(uuid=uuid(uuid_start + 4), x=4, y=4, destination=uuid(uuid_start + 5),
-                                      actions=[dict(type='reply', media=dict(), msg=dict(base='That is a funny color. Try again.'))])],
+                                      actions=[dict(type='reply', media=dict(), send_all=False, msg=dict(base='That is a funny color. Try again.'))])],
                     rule_sets=[dict(uuid=uuid(uuid_start + 5), x=5, y=5,
                                     label='color',
                                     finished_key=None,
@@ -449,7 +449,7 @@ class FlowFileTest(TembaTest):
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming)
             else:
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
-                handled = Flow.find_and_handle(incoming)
+                (handled, msgs) = Flow.find_and_handle(incoming)
 
                 Msg.mark_handled(incoming)
 

@@ -677,6 +677,9 @@ class IVRTests(FlowFileTest):
         flow.start([], [eric])
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
 
+        # our run should have an initial expiration
+        self.assertIsNotNone(FlowRun.objects.filter(session=call).first().expires_on)
+
         # after a call is picked up, twilio will call back to our server
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
@@ -973,7 +976,7 @@ class IVRTests(FlowFileTest):
         # make sure a message from the person on the call goes to the
         # inbox since our flow doesn't handle text messages
         msg = self.create_msg(direction='I', contact=eric, text="message during phone call")
-        self.assertFalse(Flow.find_and_handle(msg))
+        self.assertFalse(Flow.find_and_handle(msg)[0])
 
         # updated our status and duration accordingly
         call = IVRCall.objects.get(pk=call.pk)
@@ -1154,7 +1157,7 @@ class IVRTests(FlowFileTest):
         # make sure a message from the person on the call goes to the
         # inbox since our flow doesn't handle text messages
         msg = self.create_msg(direction='I', contact=test_contact, text="message during phone call")
-        self.assertFalse(Flow.find_and_handle(msg))
+        self.assertFalse(Flow.find_and_handle(msg)[0])
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)

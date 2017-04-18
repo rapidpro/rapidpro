@@ -1,3 +1,134 @@
+v3.0.112
+----------
+ * Archiving a flow should interrupt all the current runs
+
+v3.0.111
+----------
+ * Display webhook results on contact history
+ * Clean up template tags used on contact history
+ * Allow broadcasts to be sent to all urns belonging to the specified contacts
+
+v3.0.109
+----------
+ * Data migration to populate broadcast send_all field
+
+v3.0.108
+----------
+ * Add webhook events trim task with configurable retain times for success and error logs
+
+v3.0.107
+----------
+ * Add send_all broadcast field
+
+v3.0.106
+----------
+ * Remove non_atomic_gets and display message at /api/v1/ to explain API v1 has been replaced
+ * Add squashable model for label counts
+ * Split system label functionality into SystemLabel and SystemLabelCount
+
+v3.0.105
+----------
+ * Link subflow starts in actions
+ * Allow wait to wait in flows with warning
+
+v3.0.104
+----------
+ * Add new has email test, contains phrase test and contains only phrase test
+
+v3.0.103
+----------
+ * Migration to populate FlowNodeCount shouldn't include test contacts
+
+v3.0.102
+----------
+ * Add migration to populate FlowNodeCount
+
+v3.0.101
+----------
+ * Migration to clear no-longer-used flow stats redis keys
+ * Replace remaining cache-based flow stats code with trigger based FlowNodeCount
+
+v3.0.100
+----------
+ * Fix intermittently failing Twilio test
+ * make sure calls have expiration on initiation
+ * Update to latest smartmin
+ * Add redirection for v1 endpoints
+ * Fix webhook docs
+ * Fix MsgCreateSerializer not using specified channel
+ * Test coverage
+ * Fix test coverage issues caused by removing API v1 tests
+ * Ensure surveyor users still have access to the API v2 endpoint thats they need
+ * Remove djangorestframework-xml
+ * Restrict API v1 access to surveyor users
+ * Block all API v2 writes for suspended orgs
+ * Remove all parts of API v1 not used by Surveyor
+
+v3.0.99
+----------
+ * Prioritize msg handling over timeotus and event fires
+ * Remove hamlcompress command as deployments should use regular compress these days
+ * Fix not correctly refreshing dynamic groups when a URN is removed
+ * Allow searching for contacts *with any* value for a given field
+
+v3.0.98
+----------
+ * Fix sidebar nav LESS so that level2 lists don't have fixed height and separate scrolling
+ * Unstop a contact when we get an explicit user interaction such as follow
+
+v3.0.96
+----------
+ * Fix possible race condition between receiving and handling messages
+ * Do away with scheme for USSD, will always be TEL
+ * Make sure events are handled properly for USSD
+ * Do not specify to & from when using reply_to
+ * Update JunebugForm for editing Junebug Channel + config fields
+
+v3.0.95
+----------
+ * Log request time on channel log success
+
+v3.0.94
+----------
+ * Fix test, fix template tags
+
+v3.0.93
+----------
+ * Change request times to be in ms instead of seconds
+
+v3.0.92
+----------
+ * Block on handling incoming msgs so we dont process them forever away
+ * Include Viber channels in new conversation trigger form channel choices
+
+v3.0.90
+----------
+ * Don't use cache+calculations for flow segment counts - these are pre-calculated in FlowPathCount
+ * Do not include active contacts in flows unless user overrides it
+ * Clean up middleware imports and add tests
+ * Feedback to user when simulating a USSD channel without a USSD channel connected
+
+v3.0.89
+----------
+ * Expand base64 charset, fix decode validity heuristic
+
+v3.0.88
+----------
+ * Deal with Twilio arbitrarily sending messages as base64
+ * Allow configuration of max text size via settings
+
+v3.0.87
+----------
+ * Set higher priority when sending responses through Kannel
+
+v3.0.86
+----------
+ * Do not add stopped contacts to groups when importing
+ * Fix an entire flow start batch failing if one run throws an exception
+ * Limit images file size to be less than 500kB
+ * Send Facebook message attachments in a different request as the text message
+ * Include skuid for open range tranfertto accounts
+
 v3.0.85
 ----------
  * Fix exception when handling Viber msg with no text

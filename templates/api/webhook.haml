@@ -67,11 +67,16 @@
     through your <a href='{% url "api.log" %}'>API Log</a> when logged in.
 
     Optionally, your web service can choose to respond to any event by returning a JSON response
-    body using the same format as the <a href="{% url 'api.v1.messages' %}">Messages Endpoint</a>.  For example, your
-    service could respond with the following JSON content to send a message to two contacts
+    body using the following format:
+
+      * **urn** - JSON array of URNs to send the message to (array of strings, optional)
+      * **contact** - JSON array of contact UUIDs to send the message to (array of strings, optional)
+      * **text** - the text of the message to send (string, limit of 480 characters)
+
+    For example, your service could respond with the following JSON content to send a message to two contacts:
 
         {
-          "phone": ["+250788123123", "+250788123124"],
+          "urn": ["tel:+250788123123", "tel:+250788123124"],
           "text": "Walk into the club like, whattup, I have a big clock"
         }
 

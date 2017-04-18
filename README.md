@@ -17,3 +17,5 @@ In brief, the Affero license states you can use the RapidPro source for any proj
 
 RapidPro has dual copyright holders of UNICEF and Nyaruka.
 
+The software is provided under AGPL-3.0. Contributions to this project are accepted under the same license.
+

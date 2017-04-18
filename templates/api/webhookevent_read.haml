@@ -1,5 +1,7 @@
 {% extends "smartmin/read.html" %}
 
+-load humanize
+
 -block page-title
   {{ brand.name }} - WebHook Event
 
@@ -22,6 +24,10 @@
         .result-time
           {{ result.created_on }}
         .result-message= result.message
+        .result-request-time
+          Request time:
+          %span.result-request-time-value
+            {{ result.request_time|default:"0"|intcomma }}ms
         -if result.status_code
           %pre.result-request.prettyprint{ style:'margin-top:10px;' }<
             :plain
@@ -29,8 +35,8 @@
             -if object.action == 'POST'
               {{ result.data|default:"" }}
           .result-body
-            -if result.stripped_body
-              %pre.prettyprint= result.stripped_body
+            -if result.body
+              %pre.prettyprint= result.body
             -else
               %pre.prettyprint No Response Body
 
@@ -62,4 +68,8 @@
 
     .result .result-summary {
       margin-left: 70px;
+    }
+
+    .result-request-time-value {
+      font-weight: bold;
     }

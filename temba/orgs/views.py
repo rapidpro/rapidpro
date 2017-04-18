@@ -26,6 +26,7 @@ from django.utils.http import urlquote
 from django.utils.safestring import mark_safe
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from email.utils import parseaddr
 from functools import cmp_to_key
@@ -37,11 +38,9 @@ from temba.api.models import APIToken
 from temba.channels.models import Channel
 from temba.formax import FormaxMixin
 from temba.utils import analytics, languages
-from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.email import is_valid_address
 from twilio.rest import TwilioRestClient
-
 from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
 from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
@@ -1957,6 +1956,13 @@ class OrgCRUDL(SmartCRUDL):
 
             return obj
 
+        def get_context_data(self, **kwargs):
+            from temba.api.models import WebHookEvent
+
+            context = super(OrgCRUDL.Webhook, self).get_context_data(**kwargs)
+            context['failed_webhooks'] = WebHookEvent.get_recent_errored(self.request.user.get_org()).exists()
+            return context
+
     class Home(FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
 
@@ -2532,7 +2538,7 @@ class StripeHandler(View):  # pragma: no cover
     Handles WebHook events from Stripe.  We are interested as to when invoices are
     charged by Stripe so we can send the user an invoice email.
     """
-    @disable_middleware
+    @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super(StripeHandler, self).dispatch(*args, **kwargs)
 

@@ -1,7 +1,12 @@
 from __future__ import unicode_literals
 
+import os
 import json
+import responses
+import shutil
+import tempfile
 
+from django.core.management import call_command
 from django.core.urlresolvers import reverse
 from temba.tests import TembaTest
 from .models import AdminBoundary
@@ -148,3 +153,38 @@ class LocationTest(TembaTest):
         self.assertEquals(200, response.status_code)
         response_json = response.json()
         self.assertEquals(len(response_json.get('features')), 1)
+
+
+class DownloadGeoJsonTest(TembaTest):
+
+    def setUp(self):
+        responses.add(
+            responses.GET,
+            'https://api.github.com/repos/nyaruka/posm-extracts/git/trees/master',
+            body=json.dumps({'tree': [{"path": "geojson", "sha": "the-sha"}]}),
+            content_type='application/json')
+        responses.add(
+            responses.GET,
+            'https://api.github.com/repos/nyaruka/posm-extracts/git/trees/the-sha',
+            body=json.dumps({'tree': [{"path": "R12345_simplified.json"},
+                                      {"path": "R45678_simplified.json"}]}),
+            content_type='application/json')
+        responses.add(
+            responses.GET,
+            'https://raw.githubusercontent.com/nyaruka/posm-extracts/master/geojson/R12345_simplified.json',
+            body='the-relation-json', content_type='application/json')
+        self.testdir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.testdir)
+
+    @responses.activate
+    def test_download_geojson(self):
+        destination_dir = os.path.join(self.testdir, 'geojson')
+        good_path = os.path.join(destination_dir, 'R12345_simplified.json')
+        bad_path = os.path.join(destination_dir, 'R45678_simplified.json')
+        call_command('download_geojson', '12345', '--dir', destination_dir)
+        self.assertFalse(os.path.exists(bad_path))
+        self.assertTrue(os.path.exists(good_path))
+        with open(good_path, 'r') as fp:
+            self.assertEquals(fp.read(), 'the-relation-json')

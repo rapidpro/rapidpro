@@ -58,6 +58,7 @@ TEST_URLS = (
     '/contact/?search=' + urlquote_plus('name is Dave or tel has 2507001'),
     '/contact/?search=' + urlquote_plus('gender=F'),
     '/contact/?search=' + urlquote_plus('joined=""'),
+    '/contact/?search=' + urlquote_plus('joined!=""'),
     '/contact/?search=' + urlquote_plus('district=Wudil or district=Anka or district=Zuru or district=Kaura or '
                                         'district=Giwa or district=Kalgo or district=Shanga or district=Bunza'),
     '/contact/?search=' + urlquote_plus('gender=M and state=Katsina and age<40 and joined>') + '{1-year-ago}',
@@ -70,7 +71,13 @@ TEST_URLS = (
     '/contact/omnibox/?search=',
     '/contact/omnibox/?search=George',
     '/contact/omnibox/?search=07009',
-    '/org/home/'
+    '/msg/inbox/',
+    '/msg/flow/',
+    '/msg/flow/?search=' + urlquote_plus('poots seattle'),
+    '/msg/archived/',
+    '/msg/outbox/',
+    '/msg/sent/',
+    '/org/home/',
 )
 
 
