@@ -257,7 +257,7 @@ class EventForm(forms.ModelForm):
 
         # otherwise, it's an event that runs an existing flow
         else:
-            obj.flow = self.cleaned_data['flow_to_start']
+            obj.flow = Flow.objects.get(org=org, id=self.cleaned_data['flow_to_start'])
 
     def __init__(self, user, *args, **kwargs):
         self.user = user
