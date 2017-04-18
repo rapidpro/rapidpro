@@ -885,7 +885,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
                'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
-               'claim_red_rabbit')
+               'claim_red_rabbit', 'claim_macrokiosk')
     permissions = True
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -1667,6 +1667,10 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimInfobip(ClaimAuthenticatedExternal):
         title = _("Connect Infobip")
         channel_type = Channel.TYPE_INFOBIP
+
+    class ClaimMacrokiosk(ClaimAuthenticatedExternal):
+        title = _("Connect Macrokiosk")
+        channel_type = Channel.TYPE_MACROKIOSK
 
     class ClaimBlackmyna(ClaimAuthenticatedExternal):
         title = _("Connect Blackmyna")
