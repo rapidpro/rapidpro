@@ -620,7 +620,7 @@ class FlowReadSerializer(ReadSerializer):
 
     class Meta:
         model = Flow
-        fields = ('uuid', 'name', 'archived', 'labels', 'expires', 'runs', 'created_on')
+        fields = ('uuid', 'name', 'archived', 'labels', 'expires', 'runs', 'created_on', 'modified_on')
 
 
 class FlowRunReadSerializer(ReadSerializer):
