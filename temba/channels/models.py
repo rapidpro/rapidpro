@@ -3,7 +3,6 @@ from __future__ import absolute_import, print_function, unicode_literals
 import json
 import time
 import urlparse
-import nexmo as nx
 import phonenumbers
 import plivo
 import regex
@@ -503,12 +502,7 @@ class Channel(TembaModel):
         org_uuid = org_config.get(NEXMO_UUID)
         app_id = org_config.get(NEXMO_APP_ID)
 
-        try:
-            nexmo_phones = client.get_numbers(phone_number)
-        except nx.ClientError:
-            time.sleep(1)
-            nexmo_phones = client.get_numbers(phone_number)
-
+        nexmo_phones = client.get_numbers(phone_number)
         is_shortcode = False
 
         # try it with just the national code (for short codes)
@@ -516,12 +510,7 @@ class Channel(TembaModel):
             parsed = phonenumbers.parse(phone_number, None)
             shortcode = str(parsed.national_number)
 
-            try:
-                nexmo_phones = client.get_numbers(shortcode)
-            except nx.ClientError as e:
-                # to avoid getting 429 error, too many requests
-                time.sleep(1)
-                nexmo_phones = client.get_numbers(shortcode)
+            nexmo_phones = client.get_numbers(shortcode)
 
             if nexmo_phones:
                 is_shortcode = True
@@ -531,11 +520,6 @@ class Channel(TembaModel):
         if not nexmo_phones:
             try:
                 client.buy_nexmo_number(country, phone_number)
-            except nx.ClientError as e:
-                # to avoid getting 429 error, too many requests
-                time.sleep(1)
-                client.buy_nexmo_number(country, phone_number)
-
             except Exception as e:
                 raise Exception(_("There was a problem claiming that number, "
                                   "please check the balance on your account. " +
@@ -546,12 +530,7 @@ class Channel(TembaModel):
 
         channel_uuid = generate_uuid()
 
-        try:
-            nexmo_phones = client.get_numbers(phone_number)
-        except nx.ClientError as e:
-            # to avoid getting 429 error, too many requests
-            time.sleep(1)
-            nexmo_phones = client.get_numbers(phone_number)
+        nexmo_phones = client.get_numbers(phone_number)
 
         features = [elt.upper() for elt in nexmo_phones[0]['features']]
         role = ''
@@ -564,11 +543,6 @@ class Channel(TembaModel):
         # update the delivery URLs for it
         from temba.settings import TEMBA_HOST
         try:
-            client.update_nexmo_number(country, phone_number, 'https://%s%s' % (TEMBA_HOST, mo_path), app_id)
-
-        except nx.ClientError as e:
-            # to avoid getting 429 error, too many requests
-            time.sleep(1)
             client.update_nexmo_number(country, phone_number, 'https://%s%s' % (TEMBA_HOST, mo_path), app_id)
 
         except Exception as e:  # pragma: no cover

@@ -1613,7 +1613,7 @@ class ChannelTest(TembaTest):
 
             self.assertEquals(response.json(), ['+1 360-788-4540', '+1 360-788-4550'])
 
-    @patch('temba.channels.models.time.sleep')
+    @patch('temba.utils.nexmo.time.sleep')
     def test_claim_nexmo(self, mock_time_sleep):
         mock_time_sleep.return_value = None
         self.login(self.admin)
