@@ -1048,17 +1048,21 @@ class MacroKioskHandler(BaseChannelHandler):
             gmt_date = pytz.timezone('GMT').localize(message_date)
 
             text = self.get_param('text')
-            from_number = self.get_param('from') or self.get_param('msisdn')
-            to_number = self.get_param('shortcode') or self.get_param('longcode')
+            if self.get_param('shortcode'):
+                from_number = self.get_param('from')
+                to_number = self.get_param('shortcode')
+            else:
+                from_number = self.get_param('msisdn')
+                to_number = self.get_param('longcode')
 
-            if to_number is None or from_number is None or text is None:  # pragma: needs cover
-                return HttpResponse("Missing to, from or text parameters", status=400)
+            if to_number is None or from_number is None or text is None:
+                return HttpResponse("Missing shortcode, longcode, from, msisdn or text parameters", status=400)
 
             if channel.address != to_number:
                 return HttpResponse("Invalid to number [%s], expecting [%s]" % (to_number, channel.address), status=400)
 
             Msg.create_incoming(channel, URN.from_tel(from_number), text, date=gmt_date, external_id=external_id)
-            return HttpResponse("")
+            return HttpResponse("-1")
 
         return HttpResponse("Unrecognized action: %s" % action, status=400)  # pragma: needs cover
 

@@ -3285,16 +3285,18 @@ class ChannelClaimTest(TembaTest):
         post_data['number'] = '250788123123'
         post_data['username'] = 'user1'
         post_data['password'] = 'pass1'
+        post_data['service_id'] = 'SERVID'
 
         response = self.client.post(reverse('channels.channel_claim_macrokiosk'), post_data)
 
         channel = Channel.objects.get()
 
-        self.assertEquals('MY', channel.country)
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals('+250788123123', channel.address)
-        self.assertEquals(Channel.TYPE_MACROKIOSK, channel.channel_type)
+        self.assertEquals(channel.country, 'MY')
+        self.assertEquals(channel.config_json()['username'], post_data['username'])
+        self.assertEquals(channel.config_json()['password'], post_data['password'])
+        self.assertEquals(channel.config_json()[Channel.CONFIG_MACROKIOSK_SERVICE_ID], post_data['service_id'])
+        self.assertEquals(channel.address, '250788123123')
+        self.assertEquals(channel.channel_type, Channel.TYPE_MACROKIOSK)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
@@ -5582,9 +5584,11 @@ class MacrokioskTest(TembaTest):
         super(MacrokioskTest, self).setUp()
 
         self.channel.delete()
+        config = dict(username='mk-user', password='mk-password')
+        config[Channel.CONFIG_MACROKIOSK_SERVICE_ID] = 'SERVICE-ID'
+
         self.channel = Channel.create(self.org, self.user, 'NP', 'MK', None, '1212',
-                                      config=dict(username='mk-user', password='mk-password'),
-                                      uuid='00000000-0000-0000-0000-000000001234')
+                                      config=config, uuid='00000000-0000-0000-0000-000000001234')
 
     def test_receive(self):
 
@@ -5598,7 +5602,8 @@ class MacrokioskTest(TembaTest):
                                args=['receive', self.channel.uuid]) + "?" + encoded_message
         response = self.client.get(callback_url)
 
-        self.assertEquals(200, response.status_code)
+        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.content, "-1")
 
         # load our message
         msg = Msg.objects.get()
@@ -5608,6 +5613,64 @@ class MacrokioskTest(TembaTest):
         self.assertEqual(msg.channel, self.channel)
         self.assertEqual(msg.text, "Hello World")
         self.assertEqual(msg.external_id, 'abc1234')
+
+        Msg.objects.all().delete()
+
+        # try longcode and msisdn
+        data = {'longcode': '1212', 'msisdn': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
+                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
+
+        encoded_message = urlencode(data)
+
+        callback_url = reverse('handlers.macrokiosk_handler',
+                               args=['receive', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.content, "-1")
+
+        # load our message
+        msg = Msg.objects.get()
+        self.assertEqual(msg.contact.get_urn(TEL_SCHEME).path, '+9771488532')
+        self.assertEqual(msg.direction, INCOMING)
+        self.assertEqual(msg.org, self.org)
+        self.assertEqual(msg.channel, self.channel)
+        self.assertEqual(msg.text, "Hello World")
+        self.assertEqual(msg.external_id, 'abc1234')
+
+        # mixed param should not be accepted
+        data = {'shortcode': '1212', 'msisdn': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
+                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
+
+        encoded_message = urlencode(data)
+
+        callback_url = reverse('handlers.macrokiosk_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        # should get 400 as the channel wasn't found
+        self.assertEquals(400, response.status_code)
+
+        data = {'longcode': '1212', 'from': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
+                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
+
+        encoded_message = urlencode(data)
+
+        callback_url = reverse('handlers.macrokiosk_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        # should get 400 as the channel wasn't found
+        self.assertEquals(400, response.status_code)
+
+        # try missing param
+        data = {'from': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
+                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
+        encoded_message = urlencode(data)
+
+        callback_url = reverse('handlers.macrokiosk_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        # should get 400 as the channel wasn't found
+        self.assertEquals(400, response.status_code)
 
         # try it with an invalid receiver, should fail as UUID and receiver id are mismatched
         data['shortcode'] = '1515'
@@ -5679,9 +5742,32 @@ class MacrokioskTest(TembaTest):
 
                 self.clear_cache()
 
+            msg.text = "Unicode. ☺"
+            msg.save()
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, json.dumps({'msisdn': '+9771488532',
+                                                                  'msgid': 'asdf-asdf-asdf-asdf'}))
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                # assert verify was set to true
+                self.assertEquals(mock.call_args[1]['data']['text'], "Unicode. ☺")
+                self.assertEquals(mock.call_args[1]['data']['type'], 5)
+                self.assertEquals(mock.call_args[1]['data']['servid'], 'SERVICE-ID')
+
+                self.clear_cache()
+
             # return 400
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(400, "Error", method='POST')
+                mock.return_value = MockResponse(400, json.dumps({'msisdn': "",
+                                                                  'msgid': ""}), method='POST')
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))

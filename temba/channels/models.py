@@ -127,6 +127,7 @@ class Channel(TembaModel):
     CONFIG_FCM_TITLE = 'FCM_TITLE'
     CONFIG_FCM_NOTIFICATION = 'FCM_NOTIFICATION'
     CONFIG_MAX_LENGTH = 'max_length'
+    CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -195,7 +196,7 @@ class Channel(TembaModel):
         TYPE_JUNEBUG_USSD: dict(scheme='tel', max_length=1600),
         TYPE_KANNEL: dict(scheme='tel', max_length=1600),
         TYPE_LINE: dict(scheme='line', max_length=1600),
-        TYPE_MACROKIOSK: dict(scheme='tel', max_length=160),
+        TYPE_MACROKIOSK: dict(scheme='tel', max_length=1600),
         TYPE_M3TECH: dict(scheme='tel', max_length=160),
         TYPE_NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
         TYPE_MBLOX: dict(scheme='tel', max_length=459),
@@ -2036,17 +2037,17 @@ class Channel(TembaModel):
 
         # if this looks like unicode, ask macrokiosk to send as unicode
         if encoding == Encoding.UNICODE:
-            unicode_switch = 5
+            message_type = 5
         else:
-            unicode_switch = 0
+            message_type = 0
 
         # strip a leading +
         recipient = msg.urn_path[1:] if msg.urn_path.startswith('+') else msg.urn_path
 
         payload = {
             'user': channel.config[Channel.CONFIG_USERNAME], 'pass': channel.config[Channel.CONFIG_PASSWORD],
-            'to': recipient, 'text': text, 'from': channel.address.lstrip('+'), 'servid': 'MES01',
-            'type': unicode_switch
+            'to': recipient, 'text': text, 'from': channel.address.lstrip('+'),
+            'servid': channel.config[Channel.CONFIG_MACROKIOSK_SERVICE_ID], 'type': message_type
         }
 
         url = 'https://www.etracker.cc/bulksms/send'
@@ -2069,7 +2070,7 @@ class Channel(TembaModel):
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
 
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+        if response.status_code not in [200, 201, 202]:
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
                                 event=event, start=start)
 
