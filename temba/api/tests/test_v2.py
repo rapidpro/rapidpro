@@ -231,21 +231,22 @@ class APITest(TembaTest):
         field = fields.TranslatableField(source='test', max_length=10)
         field.context = {'org': self.org}
 
-        self.assertEqual(field.to_internal_value("Hello"), {'base': "Hello"})
-        self.assertEqual(field.to_internal_value({'eng': "Hello"}), {'eng': "Hello"})
+        self.assertEqual(field.to_internal_value("Hello"), ({'base': "Hello"}, 'base'))
+        self.assertEqual(field.to_internal_value({'base': "Hello"}), ({'base': "Hello"}, 'base'))
 
         self.org.primary_language = Language.create(self.org, self.user, "Kinyarwanda", 'kin')
         self.org.save()
 
-        self.assertEqual(field.to_internal_value("Hello"), {'kin': "Hello"})
-        self.assertEqual(field.to_internal_value({'eng': "Hello"}), {'eng': "Hello"})
+        self.assertEqual(field.to_internal_value("Hello"), ({'kin': "Hello"}, 'kin'))
+        self.assertEqual(field.to_internal_value({'eng': "Hello", 'kin': "Muraho"}), ({'eng': "Hello", 'kin': "Muraho"}, 'kin'))
 
         self.assertRaises(serializers.ValidationError, field.to_internal_value, 123)  # not a string or dict
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {'eng': 123})
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {'kin': 123})
         self.assertRaises(serializers.ValidationError, field.to_internal_value, {})
         self.assertRaises(serializers.ValidationError, field.to_internal_value, {123: "Hello"})
         self.assertRaises(serializers.ValidationError, field.to_internal_value, "HelloHello1")  # too long
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {'eng': "HelloHello1"})  # also too long
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {'kin': "HelloHello1"})  # also too long
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {'eng': "HelloHello1"})  # base lang not provided
 
     def test_authentication(self):
         def api_request(endpoint, token):
@@ -608,13 +609,13 @@ class APITest(TembaTest):
 
         # create new broadcast with translations
         response = self.postJSON(url, None, {
-            'text': {'eng': "Hello", 'fre': "Bonjour"},
+            'text': {'base': "Hello", 'fre': "Bonjour"},
             'contacts': [self.joe.uuid, self.frank.uuid],
         })
 
         broadcast = Broadcast.objects.get(pk=response.json()['id'])
-        self.assertIn(broadcast.text, ("Hello", "Bonjour"))
-        self.assertEqual(json.loads(broadcast.language_dict), {'eng': "Hello", 'fre': "Bonjour"})
+        self.assertIn(broadcast.text, "Hello")
+        self.assertEqual(json.loads(broadcast.language_dict), {'base': "Hello", 'fre': "Bonjour"})
         self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
 
         # try sending as a suspended org
@@ -855,13 +856,13 @@ class APITest(TembaTest):
             'offset': 15,
             'unit': 'weeks',
             'delivery_hour': -1,
-            'message': {'eng': "OK", 'fre': "D'accord"}
+            'message': {'base': "OK", 'fre': "D'accord"}
         })
         self.assertEqual(response.status_code, 200)
 
         event2.refresh_from_db()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
-        self.assertEqual(json.loads(event2.message), {'eng': "OK", 'fre': "D'accord"})
+        self.assertEqual(json.loads(event2.message), {'base': "OK", 'fre': "D'accord"})
 
         # try to change an existing event's campaign
         response = self.postJSON(url, 'uuid=%s' % event1.uuid, {

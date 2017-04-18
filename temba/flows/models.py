@@ -232,11 +232,12 @@ class Flow(TembaModel):
         """
         name = 'Single Message (%s)' % six.text_type(uuid4())
 
-        if not base_language:
-            base_language = 'base' if not org.primary_language else org.primary_language.iso_code
+        if isinstance(message, six.string_types):
+            base_language = org.primary_language.iso_code if org.primary_language else 'base'
+            message = {base_language: message}
 
-        flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE, base_language=base_language)
-        flow.update_single_message_flow(message)
+        flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE)
+        flow.update_single_message_flow(message, base_language)
         return flow
 
     @classmethod
@@ -1042,13 +1043,17 @@ class Flow(TembaModel):
         self.is_archived = False
         self.save(update_fields=['is_archived'])
 
-    def update_single_message_flow(self, message_dict):
+    def update_single_message_flow(self, translations, base_language):
+        if base_language not in translations:
+            raise ValueError("Must include translation for base language")
+
         self.flow_type = Flow.MESSAGE
-        self.save(update_fields=['name', 'flow_type'])
+        self.base_language = base_language
+        self.save(update_fields=('name', 'flow_type', 'base_language'))
 
         uuid = str(uuid4())
-        action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=message_dict)])]
-        self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language=self.base_language))
+        action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=translations)])]
+        self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language=base_language))
 
     def get_steps(self):
         return FlowStep.objects.filter(run__flow=self)

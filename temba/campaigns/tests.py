@@ -10,7 +10,7 @@ from django.utils import timezone
 from temba.campaigns.tasks import check_campaigns_task
 from temba.contacts.models import ContactField
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet, FlowRevision
-from temba.orgs.models import CURRENT_EXPORT_VERSION
+from temba.orgs.models import Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest
 from .models import Campaign, CampaignEvent, EventFire
 
@@ -106,7 +106,6 @@ class CampaignTest(TembaTest):
         self.assertNotContains(response, 'show_language')
 
         # set our primary language to Achinese
-        from temba.orgs.models import Language
         ace = Language.objects.create(org=self.org, name='Achinese', iso_code='ace',
                                       created_by=self.admin, modified_by=self.admin)
 

@@ -133,12 +133,13 @@ class BroadcastWriteSerializer(WriteSerializer):
             recipients.append(contact_urn)
 
         # TODO remove Broadcast.text
-        text = next(iter(self.validated_data['text'].values()))
-        translations = json.dumps(self.validated_data['text'])
+        translations, base_language = self.validated_data['text']
+        text = translations[base_language]
 
         # create the broadcast
         broadcast = Broadcast.create(self.context['org'], self.context['user'],
-                                     text=text, language_dict=translations,
+                                     text=text, language_dict=json.dumps(translations),
+                                     base_language=base_language,
                                      recipients=recipients, channel=self.validated_data.get('channel'))
 
         # send in task
@@ -269,17 +270,19 @@ class CampaignEventWriteSerializer(WriteSerializer):
 
             # we are being set to a message
             else:
-                self.instance.message = json.dumps(message)
+                translations, base_language = message
+                self.instance.message = json.dumps(translations)
 
                 # if we aren't currently a message event, we need to create our hidden message flow
                 if self.instance.event_type != CampaignEvent.TYPE_MESSAGE:
-                    self.instance.flow = Flow.create_single_message(self.context['org'], self.context['user'], message)
+                    self.instance.flow = Flow.create_single_message(self.context['org'], self.context['user'],
+                                                                    translations, base_language)
                     self.instance.event_type = CampaignEvent.TYPE_MESSAGE
 
                 # otherwise, we can just update that flow
-                else:  # pragma: needs cover
+                else:
                     # set our single message on our flow
-                    self.instance.flow.update_single_message_flow(message=message)
+                    self.instance.flow.update_single_message_flow(translations, base_language)
 
             # update our other attributes
             self.instance.offset = offset
@@ -294,8 +297,10 @@ class CampaignEventWriteSerializer(WriteSerializer):
                 self.instance = CampaignEvent.create_flow_event(self.context['org'], self.context['user'], campaign,
                                                                 relative_to, offset, unit, flow, delivery_hour)
             else:
+                translations, base_language = message
                 self.instance = CampaignEvent.create_message_event(self.context['org'], self.context['user'], campaign,
-                                                                   relative_to, offset, unit, message, delivery_hour)
+                                                                   relative_to, offset, unit, translations,
+                                                                   delivery_hour, base_language)
             self.instance.update_flow_name()
 
         return self.instance

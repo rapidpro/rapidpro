@@ -117,19 +117,22 @@ class Campaign(TembaModel):
                     if event_spec['event_type'] == CampaignEvent.TYPE_MESSAGE:
 
                         message = event_spec['message']
+                        base_language = event_spec.get('base_language')
+
                         if not isinstance(message, dict):
                             try:
                                 message = json.loads(message)
-                            except:
+                            except ValueError:
                                 # if it's not a language dict, turn it into one
                                 message = dict(base=message)
+                                base_language = 'base'
 
                         event = CampaignEvent.create_message_event(org, user, campaign, relative_to,
                                                                    event_spec['offset'],
                                                                    event_spec['unit'],
                                                                    message,
                                                                    event_spec['delivery_hour'],
-                                                                   base_language=event_spec.get('base_language'))
+                                                                   base_language=base_language)
                         event.update_flow_name()
                     else:
                         flow = Flow.objects.filter(org=org, is_active=True, uuid=event_spec['flow']['uuid']).first()

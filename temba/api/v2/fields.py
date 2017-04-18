@@ -21,12 +21,14 @@ def validate_size(value, max_size):
         raise serializers.ValidationError("This field can only contain up to %d items." % max_size)
 
 
-def validate_translations(data, max_length):
-    if len(data) == 0:
+def validate_translations(value, base_language, max_length):
+    if len(value) == 0:
         raise serializers.ValidationError("Must include at least one translation.")
+    if base_language not in value:
+        raise serializers.ValidationError("Must include translation for base language '%s'" % base_language)
 
-    for lang, trans in six.iteritems(data):
-        if not isinstance(lang, six.string_types) or len(lang) > 3:
+    for lang, trans in six.iteritems(value):
+        if not isinstance(lang, six.string_types) or (lang != 'base' and len(lang) > 3):
             raise serializers.ValidationError("Language code %s is not valid." % six.text_type(lang))
         if not isinstance(trans, six.string_types):
             raise serializers.ValidationError("Translations must be strings.")
@@ -57,19 +59,21 @@ class TranslatableField(serializers.Field):
         return obj
 
     def to_internal_value(self, data):
+        org = self.context['org']
+        base_language = org.primary_language.iso_code if org.primary_language else 'base'
+
         if isinstance(data, six.string_types):
             if len(data) > self.max_length:
                 raise serializers.ValidationError("Ensure this field has no more than %d characters." % self.max_length)
 
-            base_language = 'base' if not self.context['org'].primary_language else self.context['org'].primary_language.iso_code
             data = {base_language: data}
 
         elif isinstance(data, dict):
-            validate_translations(data, self.max_length)
+            validate_translations(data, base_language, self.max_length)
         else:
             raise serializers.ValidationError("Value must be a string or dict of strings.")
 
-        return data
+        return data, base_language
 
 
 class LimitedListField(serializers.ListField):

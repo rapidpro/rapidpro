@@ -225,6 +225,8 @@ class EventForm(forms.ModelForm):
         return self.data['flow_to_start']
 
     def pre_save(self, request, obj):
+        org = self.user.get_org()
+
         # if it's before, negate the offset
         if self.cleaned_data['direction'] == 'B':
             obj.offset = -obj.offset
@@ -235,23 +237,27 @@ class EventForm(forms.ModelForm):
         # if its a message flow, set that accordingly
         if self.cleaned_data['event_type'] == CampaignEvent.TYPE_MESSAGE:
 
-            message_dict = {}
+            if self.instance.id:
+                base_language = self.instance.flow.base_language
+            else:
+                base_language = org.primary_language.iso_code if org.primary_language else 'base'
+
+            translations = {}
             for language in self.languages:
                 iso_code = language.language['iso_code']
-                message_dict[iso_code] = self.cleaned_data.get(iso_code, '')
+                translations[iso_code] = self.cleaned_data.get(iso_code, '')
 
             if not obj.flow_id or not obj.flow.is_active or obj.flow.flow_type != Flow.MESSAGE:
-                obj.flow = Flow.create_single_message(request.user.get_org(),
-                                                      request.user,
-                                                      message_dict)
+                obj.flow = Flow.create_single_message(org, request.user, translations, base_language=base_language)
+            else:
+                # set our single message on our flow
+                obj.flow.update_single_message_flow(translations, base_language)
 
-            # set our single message on our flow
-            obj.flow.update_single_message_flow(message_dict)
-            obj.message = json.dumps(message_dict)
+            obj.message = json.dumps(translations)
 
         # otherwise, it's an event that runs an existing flow
         else:
-            obj.flow = Flow.objects.get(pk=self.cleaned_data['flow_to_start'])
+            obj.flow = self.cleaned_data['flow_to_start']
 
     def __init__(self, user, *args, **kwargs):
         self.user = user
