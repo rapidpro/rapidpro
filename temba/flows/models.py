@@ -5013,10 +5013,8 @@ class ReplyAction(Action):
                                           send_all=self.send_all, created_on=created_on)
 
                     if reply_msg:
-                        if self.send_all:
-                            replies += reply_msg
-                        else:
-                            replies.append(reply_msg)
+                        replies += reply_msg
+
                 else:
                     if self.send_all:
                         replies = run.contact.send_all(text, user, trigger_send=False, message_context=context,
