@@ -5008,12 +5008,12 @@ class ReplyAction(Action):
 
             try:
                 if msg:
-                    reply_msg = msg.reply(text, user, trigger_send=False, message_context=context,
-                                          session=run.session, msg_type=self.MSG_TYPE, media=media,
-                                          send_all=self.send_all, created_on=created_on)
+                    reply_msgs = msg.reply(text, user, trigger_send=False, message_context=context,
+                                           session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                           send_all=self.send_all, created_on=created_on)
 
-                    if reply_msg:
-                        replies += reply_msg
+                    if reply_msgs:
+                        replies += reply_msgs
 
                 else:
                     if self.send_all:
