@@ -1749,6 +1749,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
      * **labels** - the labels for this flow (array of objects)
      * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer)
      * **created_on** - when this flow was created (datetime)
+     * **modified_on** - when this flow was last modified (datetime), filterable as `before` and `after`.
      * **runs** - the counts of completed, interrupted and expired runs (object)
 
     Example:
@@ -1768,6 +1769,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
                     "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                     "expires": 600,
                     "created_on": "2016-01-06T15:33:00.813162Z",
+                    "modified_on": "2017-01-07T13:14:00.453567Z",
                     "runs": {
                         "active": 47,
                         "completed": 123,
@@ -1794,7 +1796,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
 
         queryset = queryset.prefetch_related('labels')
 
-        return queryset
+        return self.filter_before_after(queryset, 'modified_on')
 
     @classmethod
     def get_read_explorer(cls):
@@ -1804,7 +1806,9 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
             'url': reverse('api.v2.flows'),
             'slug': 'flow-list',
             'params': [
-                {'name': "uuid", 'required': False, 'help': "A flow UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
+                {'name': "uuid", 'required': False, 'help': "A flow UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"},
+                {'name': 'before', 'required': False, 'help': "Only return flows modified before this date, ex: 2017-01-28T18:00:00.000"},
+                {'name': 'after', 'required': False, 'help': "Only return flows modified after this date, ex: 2017-01-28T18:00:00.000"}
             ]
         }
 

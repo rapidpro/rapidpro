@@ -1086,9 +1086,9 @@ class Msg(models.Model):
             return self.contact.send_all(text, user, trigger_send=trigger_send, message_context=message_context,
                                          response_to=self if self.id else None, session=session, media=media,
                                          msg_type=msg_type or self.msg_type, created_on=created_on)
-        return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None, session=session, media=media,
-                                 msg_type=msg_type or self.msg_type, created_on=created_on)
+        return [self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
+                                  response_to=self if self.id else None, session=session, media=media,
+                                  msg_type=msg_type or self.msg_type, created_on=created_on)]
 
     def update(self, cmd):
         """
