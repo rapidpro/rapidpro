@@ -1,3 +1,8 @@
+v3.0.121
+----------
+ * Add MACROKIOSK channel type
+ * Show media for MMS in simulator
+
 v3.0.120
 ----------
  * Fix send all bug where we append list of messages to another list of messages
