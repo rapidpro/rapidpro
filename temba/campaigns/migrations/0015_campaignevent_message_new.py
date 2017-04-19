@@ -36,7 +36,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='campaignevent',
             name='message_new',
-            field=temba.utils.models.TranslatableField(max_length=None, null=True),
+            field=temba.utils.models.TranslatableField(max_length=640, null=True),
         ),
         migrations.RunPython(populate_message_new)
     ]

@@ -227,16 +227,11 @@ class Flow(TembaModel):
         return flow
 
     @classmethod
-    def create_single_message(cls, org, user, message, base_language=None):
+    def create_single_message(cls, org, user, message, base_language):
         """
         Creates a special 'single message' flow
         """
         name = 'Single Message (%s)' % six.text_type(uuid4())
-
-        if isinstance(message, six.string_types):
-            base_language = org.primary_language.iso_code if org.primary_language else 'base'
-            message = {base_language: message}
-
         flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE)
         flow.update_single_message_flow(message, base_language)
         return flow

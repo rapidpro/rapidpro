@@ -3387,7 +3387,8 @@ class ActionTest(TembaTest):
 
         run = FlowRun.objects.get()
 
-        new_flow = Flow.create_single_message(self.org, self.user, "You chose @parent.color.category")
+        new_flow = Flow.create_single_message(self.org, self.user,
+                                              {'base': "You chose @parent.color.category"}, base_language='base')
         action = StartFlowAction(new_flow)
 
         action_json = action.as_json()

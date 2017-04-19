@@ -253,6 +253,7 @@ class EventForm(forms.ModelForm):
                 obj.flow.update_single_message_flow(translations, base_language)
 
             obj.message = translations
+            obj.message.full_clean()
 
         # otherwise, it's an event that runs an existing flow
         else:

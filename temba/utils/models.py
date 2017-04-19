@@ -18,7 +18,9 @@ def generate_uuid():
 
 
 class TranslatableField(HStoreField):
-
+    """
+    Model field which is a set of language code and translation pairs stored as HSTORE
+    """
     class Validator(object):
         def __init__(self, max_length):
             self.max_length = max_length
@@ -31,8 +33,9 @@ class TranslatableField(HStoreField):
                     raise ValidationError("Translation for '%s' exceeds the %d character limit." % (lang, self.max_length))
 
     def __init__(self, max_length, **kwargs):
-        self.max_length = max_length
         super(TranslatableField, self).__init__(**kwargs)
+
+        self.max_length = max_length
 
     @cached_property
     def validators(self):

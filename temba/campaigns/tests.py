@@ -5,6 +5,7 @@ import six
 import pytz
 
 from datetime import timedelta
+from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from temba.campaigns.tasks import check_campaigns_task
@@ -709,3 +710,23 @@ class CampaignTest(TembaTest):
         # should have one flow run now
         run = FlowRun.objects.get()
         self.assertEquals(event.contact, run.contact)
+
+    def test_translations(self):
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+
+        event1 = CampaignEvent.create_message_event(self.org, self.admin, campaign,
+                                                    relative_to=self.planting_date,
+                                                    offset=0, unit='D', message={'eng': "hello"},
+                                                    base_language='eng')
+
+        with self.assertRaises(ValidationError):
+            event1.message = {'ddddd': "x"}
+            event1.full_clean()
+
+        with self.assertRaises(ValidationError):
+            event1.message = {'eng': "x" * 1000}
+            event1.full_clean()
+
+        with self.assertRaises(ValidationError):
+            event1.message = {}
+            event1.full_clean()
