@@ -5121,7 +5121,7 @@ class VumiTest(TembaTest):
         inbound = Msg.create_incoming(
             self.channel, "tel:+250788383383", "Send an inbound message",
             external_id='vumi-message-id')
-        msg = inbound.reply("Test message", self.admin, trigger_send=False)
+        msg = inbound.reply("Test message", self.admin, trigger_send=False)[0]
 
         r = get_redis_connection()
 
@@ -9157,7 +9157,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
         inbound = Msg.create_incoming(self.channel, "tel:+250788383383", "Send an inbound message",
                                       external_id='vumi-message-id', msg_type=USSD)
-        msg = inbound.reply("Test message", self.admin, trigger_send=False)
+        msg = inbound.reply("Test message", self.admin, trigger_send=False)[0]
 
         # our outgoing message
         msg.refresh_from_db()
@@ -9214,7 +9214,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                                       msg_type=USSD, external_id='vumi-message-id')
         session = USSDSession.objects.create(channel=self.channel, org=self.channel.org, contact=joe, contact_urn=joe.urn_objects[URN.from_tel('+250788383383')],
                                              external_id=inbound.external_id, status=USSDSession.COMPLETED)
-        msg = inbound.reply("Test message", self.admin, trigger_send=False, session=session)
+        msg = inbound.reply("Test message", self.admin, trigger_send=False, session=session)[0]
 
         # our outgoing message
         msg.refresh_from_db()

@@ -1571,7 +1571,8 @@ class APITest(TembaTest):
                 'labels': [{'uuid': reporting.uuid, 'name': "Reporting"}],
                 'expires': 720,
                 'runs': {'active': 0, 'completed': 1, 'interrupted': 0, 'expired': 0},
-                'created_on': format_datetime(survey.created_on)
+                'created_on': format_datetime(survey.created_on),
+                'modified_on': format_datetime(survey.modified_on)
             },
             {
                 'uuid': registration.uuid,
@@ -1580,12 +1581,21 @@ class APITest(TembaTest):
                 'labels': [],
                 'expires': 720,
                 'runs': {'active': 0, 'completed': 0, 'interrupted': 0, 'expired': 0},
-                'created_on': format_datetime(registration.created_on)
+                'created_on': format_datetime(registration.created_on),
+                'modified_on': format_datetime(registration.modified_on)
             }
         ])
 
         # filter by UUID
         response = self.fetchJSON(url, 'uuid=%s' % survey.uuid)
+        self.assertResultsByUUID(response, [survey])
+
+        # filter by before
+        response = self.fetchJSON(url, 'before=%s' % format_datetime(registration.modified_on))
+        self.assertResultsByUUID(response, [registration])
+
+        # filter by after
+        response = self.fetchJSON(url, 'after=%s' % format_datetime(survey.modified_on))
         self.assertResultsByUUID(response, [survey])
 
     def test_groups(self):
