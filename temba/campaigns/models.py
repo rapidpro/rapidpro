@@ -317,15 +317,14 @@ class CampaignEvent(TembaModel):
             hours.append((i, 'at %s:00 %s' % (hour, period)))
         return hours
 
-    def get_contact_message(self, contact):
+    def get_message(self, contact=None):
         if not self.message:
             return None
 
-        if contact.language and contact.language in self.message:
+        if contact and contact.language and contact.language in self.message:
             return self.message[contact.language]
-        if self.flow.base_language in self.message:
-            return self.message[self.flow.base_language]
-        return self.message['base']  # pragma: no cover
+
+        return self.message[self.flow.base_language]
 
     def update_flow_name(self):
         """

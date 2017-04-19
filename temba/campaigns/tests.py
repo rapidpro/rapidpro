@@ -160,8 +160,9 @@ class CampaignTest(TembaTest):
         self.assertEqual('W', event.unit)
         self.assertEqual('M', event.event_type)
 
-        self.assertEqual(event.get_contact_message(self.farmer1), "This is my message")
-        self.assertEqual(event.get_contact_message(self.farmer2), "hola")
+        self.assertEqual(event.get_message(contact=self.farmer1), "This is my message")
+        self.assertEqual(event.get_message(contact=self.farmer2), "hola")
+        self.assertEqual(event.get_message(), "This is my message")
 
         url = reverse('campaigns.campaignevent_update', args=[event.id])
         response = self.client.get(url)

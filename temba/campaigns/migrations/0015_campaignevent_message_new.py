@@ -11,14 +11,18 @@ from django.db import migrations
 
 def populate_message_new(apps, schema_editor):
     CampaignEvent = apps.get_model('campaigns', 'CampaignEvent')
+    events = list(CampaignEvent.objects.filter(event_type='M').select_related('flow'))
 
-    for event in CampaignEvent.objects.filter(event_type='M').select_related('flow'):
+    for event in events:
         try:
             event.message_new = json.loads(event.message)
         except Exception:
             event.message_new = {event.flow.base_language: event.message}
 
         event.save(update_fields=('message_new',))
+
+    if events:
+        print("Converted %d campaign events" % len(events))
 
 
 class Migration(migrations.Migration):
