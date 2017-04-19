@@ -10,9 +10,10 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import ContactGroup, ContactField, Contact
 from temba.flows.models import Flow
+from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import on_transaction_commit
-from temba.utils.models import TembaModel
+from temba.utils.models import TembaModel, TranslatableField
 from temba.values.models import Value
 
 
@@ -275,7 +276,7 @@ class CampaignEvent(TembaModel):
                                   help_text='The type of this event')
 
     # when sending single message events, we store the message here (as well as on the flow) for convenience
-    message = models.TextField(help_text="The message to send out", null=True, blank=True)
+    message = TranslatableField(null=True, max_length=Msg.MAX_SIZE)
 
     delivery_hour = models.IntegerField(default=-1, help_text="The hour to send the message or flow at.")
 
@@ -284,10 +285,11 @@ class CampaignEvent(TembaModel):
         if campaign.org != org:  # pragma: no cover
             raise ValueError("Org mismatch")
 
-        flow = Flow.create_single_message(org, user, message, base_language)
+        if isinstance(message, six.string_types):
+            base_language = org.primary_language.iso_code if org.primary_language else 'base'
+            message = {base_language: message}
 
-        if isinstance(message, dict):
-            message = json.dumps(message)
+        flow = Flow.create_single_message(org, user, message, base_language)
 
         return cls.objects.create(campaign=campaign, relative_to=relative_to, offset=offset, unit=unit,
                                   event_type=cls.TYPE_MESSAGE, message=message, flow=flow, delivery_hour=delivery_hour,
@@ -315,25 +317,15 @@ class CampaignEvent(TembaModel):
             hours.append((i, 'at %s:00 %s' % (hour, period)))
         return hours
 
-    def get_message(self):
-        if self.message is None:
-            return None
-        try:
-            return json.loads(self.message)
-        except ValueError:
-            # old campaign events will have untranslated non-dict messages
-            return {'base': self.message}
-
     def get_contact_message(self, contact):
-        message = self.get_message()
-        if not message:
+        if not self.message:
             return None
 
-        if contact.language and contact.language in message:
-            return message[contact.language]
-        if self.flow.base_language in message:
-            return message[self.flow.base_language]
-        return message['base']  # pragma: no cover
+        if contact.language and contact.language in self.message:
+            return self.message[contact.language]
+        if self.flow.base_language in self.message:
+            return self.message[self.flow.base_language]
+        return self.message['base']  # pragma: no cover
 
     def update_flow_name(self):
         """

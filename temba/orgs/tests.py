@@ -2552,10 +2552,8 @@ class BulkExportTest(TembaTest):
         actions = action_set.get_actions_dict()
         action_msg = actions[0]['msg']
 
-        event_msg = json.loads(event.message)
-
-        self.assertEqual(event_msg['swa'], 'hello')
-        self.assertEqual(event_msg['eng'], 'Hey')
+        self.assertEqual(event.message['swa'], 'hello')
+        self.assertEqual(event.message['eng'], 'Hey')
 
         # base language for this flow is 'swa' despite our org languages being unset
         self.assertEqual(event.flow.base_language, 'swa')

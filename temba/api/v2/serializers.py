@@ -201,7 +201,6 @@ class CampaignEventReadSerializer(ReadSerializer):
     flow = serializers.SerializerMethodField()
     relative_to = fields.ContactFieldField()
     unit = serializers.SerializerMethodField()
-    message = serializers.SerializerMethodField()
 
     def get_flow(self, obj):
         if obj.event_type == CampaignEvent.TYPE_FLOW:
@@ -211,9 +210,6 @@ class CampaignEventReadSerializer(ReadSerializer):
 
     def get_unit(self, obj):
         return self.UNITS.get(obj.unit)
-
-    def get_message(self, obj):
-        return obj.get_message()
 
     class Meta:
         model = CampaignEvent
@@ -271,7 +267,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
             # we are being set to a message
             else:
                 translations, base_language = message
-                self.instance.message = json.dumps(translations)
+                self.instance.message = translations
 
                 # if we aren't currently a message event, we need to create our hidden message flow
                 if self.instance.event_type != CampaignEvent.TYPE_MESSAGE:
