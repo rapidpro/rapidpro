@@ -1086,9 +1086,9 @@ class Msg(models.Model):
             return self.contact.send_all(text, user, trigger_send=trigger_send, message_context=message_context,
                                          response_to=self if self.id else None, session=session, media=media,
                                          msg_type=msg_type or self.msg_type, created_on=created_on)
-        return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None, session=session, media=media,
-                                 msg_type=msg_type or self.msg_type, created_on=created_on)
+        return [self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
+                                  response_to=self if self.id else None, session=session, media=media,
+                                  msg_type=msg_type or self.msg_type, created_on=created_on)]
 
     def update(self, cmd):
         """
@@ -1136,7 +1136,8 @@ class Msg(models.Model):
 
         # first push our msg on our contact's queue using our created date
         r = get_redis_connection('default')
-        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_ms(self.sent_on), dict_to_json(payload))
+        queue_time = self.sent_on if self.sent_on else timezone.now()
+        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_ms(queue_time), dict_to_json(payload))
 
         # queue up our celery task
         push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)
@@ -1662,8 +1663,8 @@ class SystemLabel(object):
                     (TYPE_CALLS, "Calls"))
 
     @classmethod
-    def get_counts(cls, org, label_types=None):
-        return SystemLabelCount.get_totals(org, label_types)
+    def get_counts(cls, org):
+        return SystemLabelCount.get_totals(org)
 
     @classmethod
     def get_queryset(cls, org, label_type, exclude_test_contacts=True):
@@ -1728,13 +1729,11 @@ class SystemLabelCount(SquashableModel):
         return sql, (distinct_set.org_id, distinct_set.label_type) * 2
 
     @classmethod
-    def get_totals(cls, org, label_types=None):
+    def get_totals(cls, org):
         """
         Gets all system label counts by type for the given org
         """
         counts = cls.objects.filter(org=org)
-        if label_types:
-            counts = counts.filter(label_type__in=label_types)
         counts = counts.values_list('label_type').annotate(count_sum=Sum('count'))
         counts_by_type = {c[0]: c[1] for c in counts}
 
@@ -2001,9 +2000,22 @@ class ExportMessagesTask(BaseExportTask):
 
     label = models.ForeignKey(Label, null=True)
 
+    system_label = models.CharField(null=True, max_length=1)
+
     start_date = models.DateField(null=True, blank=True, help_text=_("The date for the oldest message to export"))
 
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
+
+    @classmethod
+    def create(cls, org, user, system_label=None, label=None, groups=(), start_date=None, end_date=None):
+        if label and system_label:  # pragma: no cover
+            raise ValueError("Can't specify both label and system label")
+
+        export = cls.objects.create(org=org, system_label=system_label, label=label,
+                                    start_date=start_date, end_date=end_date,
+                                    created_by=user, modified_by=user)
+        export.groups.add(*groups)
+        return export
 
     def write_export(self):
         from openpyxl import Workbook
@@ -2021,25 +2033,27 @@ class ExportMessagesTask(BaseExportTask):
                             self.WIDTH_MEDIUM,  # Labels
                             self.WIDTH_SMALL]   # Status
 
-        all_messages = Msg.get_messages(self.org).order_by('-created_on')
+        if self.system_label:
+            messages = SystemLabel.get_queryset(self.org, self.system_label)
+        elif self.label:
+            messages = self.label.msgs.all()
+        else:
+            messages = Msg.get_messages(self.org)
 
         tz = self.org.timezone
 
-        if self.start_date:  # pragma: needs cover
+        if self.start_date:
             start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
-            all_messages = all_messages.filter(created_on__gte=start_date)
+            messages = messages.filter(created_on__gte=start_date)
 
-        if self.end_date:  # pragma: needs cover
+        if self.end_date:
             end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
-            all_messages = all_messages.filter(created_on__lte=end_date)
+            messages = messages.filter(created_on__lte=end_date)
 
-        if self.groups.all():  # pragma: needs cover
-            all_messages = all_messages.filter(contact__all_groups__in=self.groups.all())
+        if self.groups.all():
+            messages = messages.filter(contact__all_groups__in=self.groups.all())
 
-        if self.label:  # pragma: needs cover
-            all_messages = all_messages.filter(labels=self.label)
-
-        all_message_ids = [m['id'] for m in all_messages.values('id')]
+        all_message_ids = list(messages.order_by('-created_on').values_list('id', flat=True))
 
         messages_sheet_number = 1
 

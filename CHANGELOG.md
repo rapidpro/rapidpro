@@ -1,3 +1,37 @@
+v3.0.121
+----------
+ * Add MACROKIOSK channel type
+ * Show media for MMS in simulator
+
+v3.0.120
+----------
+ * Fix send all bug where we append list of messages to another list of messages
+ * Flows endpooint should allow filtering by modified_on
+
+v3.0.119
+----------
+ * More vertical form styling tweaks
+
+v3.0.118
+----------
+ * Add flow link on subflow rulesets in flows
+
+v3.0.117
+----------
+ * Fix styling on campaign event modal
+
+v3.0.116
+----------
+ * Update to latest Raven
+ * Make default form vertical, remove horizontal to vertical css overrides
+ * Add flow run search and deletion
+ * Hangup calls on channels release
+
+v3.0.115
+----------
+ * Allow message exports by label, system label or all messages
+ * Fix for double stacked subflows with immediate exits
+
 v3.0.112
 ----------
  * Archiving a flow should interrupt all the current runs
