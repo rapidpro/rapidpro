@@ -11,7 +11,6 @@ from temba.contacts.models import ContactGroup, ContactField
 from temba.flows.models import Flow
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.views import BaseActionForm
-import json
 
 from .models import Campaign, CampaignEvent, EventFire
 
