@@ -3275,7 +3275,12 @@ class ChannelClaimTest(TembaTest):
     def test_claim_macrokiosk(self):
         Channel.objects.all().delete()
 
+        self.org.timezone = 'Asia/Kuala_Lumpur'
+        self.org.save()
+
         self.login(self.admin)
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertContains(response, reverse('channels.channel_claim_macrokiosk'))
 
         # try to claim a channel
         response = self.client.get(reverse('channels.channel_claim_macrokiosk'))

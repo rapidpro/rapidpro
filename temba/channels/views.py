@@ -1523,11 +1523,11 @@ class ChannelCRUDL(SmartCRUDL):
                                      help_text=_("The phone number or short code you are connecting with country code. "
                                                  "ex: +250788123124"))
             username = forms.CharField(label=_("Username"),
-                                       help_text=_("The username provided by MACROKIOSK to use their API"))
+                                       help_text=_("The username provided by Macrokiosk to use their API"))
             password = forms.CharField(label=_("Password"),
-                                       help_text=_("The password provided by MACROKIOSK to use their API"))
+                                       help_text=_("The password provided by Macrokiosk to use their API"))
             service_id = forms.CharField(label=_("Service ID"),
-                                         help_text=_("The Service ID provided by MACROKIOSK to use their API"))
+                                         help_text=_("The Service ID provided by Macrokiosk to use their API"))
 
         title = _("Connect Macrokiosk")
         success_url = "id@channels.channel_configuration"
