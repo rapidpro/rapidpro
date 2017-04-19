@@ -12,6 +12,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
 from temba.msgs.models import QUEUED
+from temba.msgs.tasks import send_broadcast_task
 from temba.utils import datetime_to_json_date, on_transaction_commit
 from temba.values.models import Value
 
@@ -107,7 +108,7 @@ class BroadcastReadSerializer(ReadSerializer):
 
 
 class BroadcastWriteSerializer(WriteSerializer):
-    text = serializers.CharField(required=True, max_length=Msg.MAX_SIZE)
+    text = fields.TranslatableField(required=True, max_length=Msg.MAX_SIZE)
     urns = fields.URNListField(required=False)
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
@@ -123,8 +124,6 @@ class BroadcastWriteSerializer(WriteSerializer):
         """
         Create a new broadcast to send out
         """
-        from temba.msgs.tasks import send_broadcast_task
-
         recipients = self.validated_data.get('contacts', []) + self.validated_data.get('groups', [])
 
         for urn in self.validated_data.get('urns', []):
@@ -133,8 +132,14 @@ class BroadcastWriteSerializer(WriteSerializer):
             contact_urn = contact.urn_objects[urn]
             recipients.append(contact_urn)
 
+        # TODO remove Broadcast.text
+        translations, base_language = self.validated_data['text']
+        text = translations[base_language]
+
         # create the broadcast
-        broadcast = Broadcast.create(self.context['org'], self.context['user'], self.validated_data['text'],
+        broadcast = Broadcast.create(self.context['org'], self.context['user'],
+                                     text=text, language_dict=json.dumps(translations),
+                                     base_language=base_language,
                                      recipients=recipients, channel=self.validated_data.get('channel'))
 
         # send in task
@@ -196,6 +201,7 @@ class CampaignEventReadSerializer(ReadSerializer):
     flow = serializers.SerializerMethodField()
     relative_to = fields.ContactFieldField()
     unit = serializers.SerializerMethodField()
+    message = serializers.SerializerMethodField()
 
     def get_flow(self, obj):
         if obj.event_type == CampaignEvent.TYPE_FLOW:
@@ -205,6 +211,9 @@ class CampaignEventReadSerializer(ReadSerializer):
 
     def get_unit(self, obj):
         return self.UNITS.get(obj.unit)
+
+    def get_message(self, obj):
+        return obj.get_message()
 
     class Meta:
         model = CampaignEvent
@@ -219,7 +228,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
     unit = serializers.ChoiceField(required=True, choices=UNITS.keys())
     delivery_hour = serializers.IntegerField(required=True, min_value=-1, max_value=23)
     relative_to = fields.ContactFieldField(required=True)
-    message = serializers.CharField(required=False, max_length=320)
+    message = fields.TranslatableField(required=False, max_length=Msg.MAX_SIZE)
     flow = fields.FlowField(required=False)
 
     def validate_unit(self, value):
@@ -261,17 +270,19 @@ class CampaignEventWriteSerializer(WriteSerializer):
 
             # we are being set to a message
             else:
-                self.instance.message = message
+                translations, base_language = message
+                self.instance.message = json.dumps(translations)
 
                 # if we aren't currently a message event, we need to create our hidden message flow
                 if self.instance.event_type != CampaignEvent.TYPE_MESSAGE:
-                    self.instance.flow = Flow.create_single_message(self.context['org'], self.context['user'], message)
+                    self.instance.flow = Flow.create_single_message(self.context['org'], self.context['user'],
+                                                                    translations, base_language)
                     self.instance.event_type = CampaignEvent.TYPE_MESSAGE
 
                 # otherwise, we can just update that flow
-                else:  # pragma: needs cover
+                else:
                     # set our single message on our flow
-                    self.instance.flow.update_single_message_flow(message=message)
+                    self.instance.flow.update_single_message_flow(translations, base_language)
 
             # update our other attributes
             self.instance.offset = offset
@@ -286,8 +297,10 @@ class CampaignEventWriteSerializer(WriteSerializer):
                 self.instance = CampaignEvent.create_flow_event(self.context['org'], self.context['user'], campaign,
                                                                 relative_to, offset, unit, flow, delivery_hour)
             else:
+                translations, base_language = message
                 self.instance = CampaignEvent.create_message_event(self.context['org'], self.context['user'], campaign,
-                                                                   relative_to, offset, unit, message, delivery_hour)
+                                                                   relative_to, offset, unit, translations,
+                                                                   delivery_hour, base_language)
             self.instance.update_flow_name()
 
         return self.instance

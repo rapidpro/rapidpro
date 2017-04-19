@@ -117,6 +117,11 @@ class RootView(views.APIView):
 
     Phone numbers should always be given in full [E164 format](http://en.wikipedia.org/wiki/E.164).
 
+    ## Translatable Values
+
+    Some endpoints return or accept text fields that may be translated into different languages. These should be objects
+    with ISO-639-2 language codes as keys, e.g. `{"eng": "Hello", "fre": "Bonjour"}`
+
     ## Authentication
 
     You must authenticate all calls by including an `Authorization` header with your API token. If you are logged in,
@@ -575,7 +580,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **urns** - the URNs that received the broadcast (array of strings)
      * **contacts** - the contacts that received the broadcast (array of objects)
      * **groups** - the groups that received the broadcast (array of objects)
-     * **text** - the message text (string)
+     * **text** - the message text (string or translations object)
      * **created_on** - when this broadcast was either created (datetime) (filterable as `before` and `after`).
 
     Example:
@@ -820,7 +825,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
      * **offset** - the offset from our contact field (positive or negative integer).
      * **unit** - the unit for our offset (one of "minutes, "hours", "days", "weeks").
      * **delivery_hour** - the hour of the day to deliver the message (integer 0-24, -1 indicates send at the same hour as the contact field).
-     * **message** - the message to send to the contact if this is a message event (string)
+     * **message** - the message to send to the contact if this is a message event (string or translations object)
      * **flow** - the UUID and name of the flow if this is a flow event (object).
      * **created_on** - when the event was created (datetime).
 
@@ -882,7 +887,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
             "offset": 160,
             "unit": "W",
             "delivery_hour": -1,
-            "message": "Feeling sick and helpless, lost the compass where self is."
+            "message": {"eng": "Feeling sick and helpless, lost the compass where self is."},
             "flow": null,
             "created_on": "2013-08-19T19:11:21.088453Z"
         }

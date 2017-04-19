@@ -117,19 +117,22 @@ class Campaign(TembaModel):
                     if event_spec['event_type'] == CampaignEvent.TYPE_MESSAGE:
 
                         message = event_spec['message']
+                        base_language = event_spec.get('base_language')
+
                         if not isinstance(message, dict):
                             try:
                                 message = json.loads(message)
-                            except:
+                            except ValueError:
                                 # if it's not a language dict, turn it into one
                                 message = dict(base=message)
+                                base_language = 'base'
 
                         event = CampaignEvent.create_message_event(org, user, campaign, relative_to,
                                                                    event_spec['offset'],
                                                                    event_spec['unit'],
                                                                    message,
                                                                    event_spec['delivery_hour'],
-                                                                   base_language=event_spec.get('base_language'))
+                                                                   base_language=base_language)
                         event.update_flow_name()
                     else:
                         flow = Flow.objects.filter(org=org, is_active=True, uuid=event_spec['flow']['uuid']).first()
@@ -313,13 +316,24 @@ class CampaignEvent(TembaModel):
         return hours
 
     def get_message(self):
-        message = self.message
+        if self.message is None:
+            return None
         try:
-            message = json.loads(message).get(self.flow.base_language, '')
-        except:
-            pass
+            return json.loads(self.message)
+        except ValueError:
+            # old campaign events will have untranslated non-dict messages
+            return {'base': self.message}
 
-        return message
+    def get_contact_message(self, contact):
+        message = self.get_message()
+        if not message:
+            return None
+
+        if contact.language and contact.language in message:
+            return message[contact.language]
+        if self.flow.base_language in message:
+            return message[self.flow.base_language]
+        return message['base']  # pragma: no cover
 
     def update_flow_name(self):
         """

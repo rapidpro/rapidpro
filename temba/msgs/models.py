@@ -383,11 +383,13 @@ class Broadcast(models.Model):
         if contact.language and contact.language in org.get_language_codes():
             preferred_languages = [contact.language] + preferred_languages
 
+        preferred_languages.append('base')
+
         return preferred_languages
 
     def get_translations(self):
         if not self.language_dict:
-            return []
+            return {}
         return get_cacheable_attr(self, '_translations', lambda: json.loads(self.language_dict))
 
     def get_media_translations(self):
