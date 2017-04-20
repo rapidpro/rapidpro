@@ -115,7 +115,7 @@ class NexmoClient(nx.Client):
             if e.message.startswith('429'):
                 time.sleep(1)
                 nx.Client.buy_number(self, params=params)
-            else:
+            else:  # pragma: needs cover
                 raise e
 
     def update_nexmo_number(self, country, number, moURL, app_id):
@@ -128,7 +128,7 @@ class NexmoClient(nx.Client):
             if e.message.startswith('429'):
                 time.sleep(1)
                 nx.Client.update_number(self, params=params)
-            else:
+            else:  # pragma: needs cover
                 raise e
 
     def test_credentials(self):  # pragma: needs cover
