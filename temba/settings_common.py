@@ -154,7 +154,6 @@ TEMPLATES = [
                 'temba.orgs.context_processors.unread_count_processor',
                 'temba.channels.views.channel_status_processor',
                 'temba.msgs.views.send_message_auto_complete_processor',
-                'temba.api.views.webhook_status_processor',
                 'temba.orgs.context_processors.settings_includer',
             ],
             'loaders': [
@@ -182,7 +181,6 @@ MIDDLEWARE_CLASSES = (
     'temba.middleware.OrgTimezoneMiddleware',
     'temba.middleware.FlowSimulationMiddleware',
     'temba.middleware.ActivateLanguageMiddleware',
-    'temba.middleware.NonAtomicGetsMiddleware',
     'temba.middleware.OrgHeaderMiddleware',
 )
 
@@ -1047,6 +1045,10 @@ CELERYBEAT_SCHEDULE = {
         'task': 'trim_channel_log_task',
         'schedule': crontab(hour=3, minute=0),
     },
+    "trim-webhook-event": {
+        'task': 'trim_webhook_event_task',
+        'schedule': crontab(hour=3, minute=0),
+    },
     "calculate-credit-caches": {
         'task': 'calculate_credit_caches',
         'schedule': timedelta(days=3),
@@ -1150,8 +1152,7 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 100000000,
     'DEFAULT_RENDERER_CLASSES': (
         'temba.api.support.DocumentationRenderer',
-        'rest_framework.renderers.JSONRenderer',
-        'rest_framework_xml.renderers.XMLRenderer',
+        'rest_framework.renderers.JSONRenderer'
     ),
     'EXCEPTION_HANDLER': 'temba.api.support.temba_exception_handler',
     'UNICODE_JSON': False
@@ -1251,3 +1252,11 @@ IP_ADDRESSES = ('172.16.10.10', '162.16.10.20')
 # by default we use 640 chars or about 4 normal text messages
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640
+
+# -----------------------------------------------------------------------------------
+# Installs may choose how long to keep the channel logs in hours
+# by default we keep success logs for 48 hours and error_logs for 30 days(30 * 24 hours)
+# Falsy values to keep the logs forever
+# -----------------------------------------------------------------------------------
+SUCCESS_LOGS_TRIM_TIME = 48
+ALL_LOGS_TRIM_TIME = 24 * 30

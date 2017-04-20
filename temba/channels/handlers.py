@@ -22,7 +22,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from guardian.utils import get_anonymous_user
 from requests import Request
-from temba.api.models import WebHookEvent, SMS_RECEIVED
+from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow, FlowRun, FlowStep
@@ -1713,7 +1713,7 @@ class MageHandler(BaseChannelHandler):
                       dict(type=MSG_EVENT, id=msg.id, from_mage=True, new_contact=new_contact))
 
             # fire an event off for this message
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, msg, msg.created_on)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, msg.created_on)
         elif action == 'follow_notification':
             try:
                 channel_id = int(request.POST.get('channel_id', ''))

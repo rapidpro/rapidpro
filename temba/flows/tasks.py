@@ -6,13 +6,13 @@ from celery.task import task
 from django.utils import timezone
 from django_redis import get_redis_connection
 from datetime import timedelta
-from temba.flows.models import FlowStatsCache
 from temba.msgs.models import Broadcast, Msg, TIMEOUT_EVENT, HANDLER_QUEUE, HANDLE_EVENT_TASK
 from temba.orgs.models import Org
 from temba.utils import datetime_to_epoch
 from temba.utils.queues import start_task, complete_task
 from temba.utils.queues import push_task, nonoverlapping_task
-from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount, FlowPathCount, FlowPathRecentStep
+from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
+from .models import FlowRunCount, FlowNodeCount, FlowPathCount, FlowPathRecentStep
 
 FLOW_TIMEOUT_KEY = 'flow_timeouts_%y_%m_%d'
 
@@ -83,6 +83,12 @@ def continue_parent_flows(run_ids):
     FlowRun.continue_parent_flow_runs(runs)
 
 
+@task(track_started=True, name='interrupt_flow_runs_task')
+def interrupt_flow_runs_task(flow_id):
+    runs = FlowRun.objects.filter(is_active=True, exit_type=None, flow_id=flow_id)
+    FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_INTERRUPTED)
+
+
 @task(track_started=True, name='export_flow_results_task')
 def export_flow_results_task(id):
     """
@@ -134,38 +140,6 @@ def start_msg_flow_batch_task():
           % (len(contacts), flow.id, flow.org_id, time.time() - start))
 
 
-@task(track_started=True, name="check_flow_stats_accuracy_task")
-def check_flow_stats_accuracy_task(flow_id):
-    logger = check_flow_stats_accuracy_task.get_logger()
-
-    flow = Flow.objects.get(pk=flow_id)
-
-    r = get_redis_connection()
-    runs_started_cached = r.get(flow.get_stats_cache_key(FlowStatsCache.runs_started_count))
-    runs_started_cached = 0 if runs_started_cached is None else int(runs_started_cached)
-    runs_started = flow.runs.filter(contact__is_test=False).count()
-
-    if runs_started != runs_started_cached:
-        # log error that we had to rebuild, shouldn't be happening
-        logger.error('Rebuilt flow stats (Org: %d, Flow: %d). Cache was %d but should be %d.'
-                     % (flow.org.pk, flow.pk, runs_started_cached, runs_started))
-
-        calculate_flow_stats_task.delay(flow.pk)
-
-
-@task(track_started=True, name="calculate_flow_stats")
-def calculate_flow_stats_task(flow_id):
-    r = get_redis_connection()
-
-    flow = Flow.objects.get(pk=flow_id)
-    runs_started_cached = r.get(flow.get_stats_cache_key(FlowStatsCache.runs_started_count))
-    runs_started_cached = 0 if runs_started_cached is None else int(runs_started_cached)
-    runs_started = flow.runs.filter(contact__is_test=False).count()
-
-    if runs_started != runs_started_cached:
-        Flow.objects.get(pk=flow_id).do_calculate_flow_stats()
-
-
 @nonoverlapping_task(track_started=True, name="squash_flowpathcounts", lock_key='squash_flowpathcounts')
 def squash_flowpathcounts():
     FlowPathCount.squash()
@@ -178,6 +152,7 @@ def prune_flowpathrecentsteps():
 
 @nonoverlapping_task(track_started=True, name="squash_flowruncounts", lock_key='squash_flowruncounts')
 def squash_flowruncounts():
+    FlowNodeCount.squash()
     FlowRunCount.squash()
 
 

@@ -27,7 +27,7 @@ from django.template import loader, Context
 from django_redis import get_redis_connection
 from mock import patch
 from smartmin.tests import SmartminTest
-from temba.api.models import WebHookEvent, SMS_RECEIVED
+from temba.api.models import WebHookEvent
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, LINE_SCHEME
 from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING, USSD
 from temba.channels.views import channel_status_processor
@@ -66,6 +66,9 @@ class ChannelTest(TembaTest):
 
         self.released_channel = Channel.create(None, self.user, None, 'NX', name="Released Channel", address=None,
                                                secret=None, gcm_id="000")
+
+        self.ussd_channel = Channel.create(self.org, self.user, None, Channel.TYPE_JUNEBUG_USSD, name="Junebug USSD",
+                                           address="*123#", role=Channel.ROLE_USSD)
 
     def send_message(self, numbers, message, org=None, user=None):
         if not org:
@@ -128,6 +131,21 @@ class ChannelTest(TembaTest):
         self.tel_channel.save()
         response = self.client.get(reverse('channels.channel_read', args=[self.tel_channel.uuid]))
         self.assertEquals(404, response.status_code)
+
+    def test_channelog_links(self):
+        self.login(self.admin)
+
+        channel_types = (
+            (Channel.TYPE_JUNEBUG, Channel.DEFAULT_ROLE, 'Sending Log'),
+            (Channel.TYPE_JUNEBUG_USSD, Channel.ROLE_USSD, 'USSD Log'),
+            (Channel.TYPE_TWILIO, Channel.ROLE_CALL, 'Call Log'),
+            (Channel.TYPE_TWILIO, Channel.ROLE_SEND + Channel.ROLE_CALL, 'Channel Log')
+        )
+
+        for channel_type, channel_role, link_text in channel_types:
+            channel = Channel.create(self.org, self.user, None, channel_type, name="Test Channel", role=channel_role)
+            response = self.client.get(reverse('channels.channel_read', args=[channel.uuid]))
+            self.assertContains(response, link_text)
 
     def test_delegate_channels(self):
 
@@ -2109,6 +2127,20 @@ class ChannelTest(TembaTest):
         self.assertIsNone(nexmo.org)
         self.assertFalse(nexmo.is_active)
 
+    def test_release_twitter(self):
+        # check that removing Twitter channel notifies Mage
+        with patch('temba.utils.mage.MageClient._request') as mock_mage_request:
+            mock_mage_request.return_value = ""
+
+            self.twitter_channel.release()
+
+            mock_mage_request.assert_called_once_with('DELETE', 'twitter/%s' % self.twitter_channel.uuid)
+
+        # can't view a released channel
+        self.login(self.admin)
+        response = self.client.get(reverse('channels.channel_read', args=[self.twitter_channel.uuid]))
+        self.assertEqual(response.status_code, 404)
+
     def test_unclaimed(self):
         response = self.sync(self.released_channel)
         self.assertEquals(200, response.status_code)
@@ -2818,7 +2850,6 @@ class ChannelClaimTest(TembaTest):
         post_data['username'] = 'uname'
         post_data['password'] = 'pword'
         post_data['url'] = 'http://test.com/send.php'
-        post_data['key'] = 'secret_key'
         post_data['number'] = '301'
 
         response = self.client.post(reverse('channels.channel_claim_shaqodoon'), post_data)
@@ -2831,7 +2862,6 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(post_data['url'], channel.config_json()['send_url'])
         self.assertEquals(post_data['username'], channel.config_json()['username'])
         self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals(post_data['key'], channel.config_json()['key'])
         self.assertEquals(Channel.TYPE_SHAQODOON, channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
@@ -4208,8 +4238,7 @@ class ShaqodoonTest(TembaTest):
         self.channel = Channel.create(self.org, self.user, 'SO', 'SQ', None, '+250788123123',
                                       config={Channel.CONFIG_SEND_URL: 'http://foo.com/send',
                                               Channel.CONFIG_USERNAME: 'username',
-                                              Channel.CONFIG_PASSWORD: 'password',
-                                              Channel.CONFIG_KEY: 'key'},
+                                              Channel.CONFIG_PASSWORD: 'password'},
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_receive(self):
@@ -6550,7 +6579,7 @@ class TwilioTest(TembaTest):
             self.assertEquals(1, self.channel.get_success_log_count())
 
             # view the detailed information for one of them
-            response = self.client.get(reverse('channels.channellog_read', args=[ChannelLog.objects.all()[1].pk]))
+            response = self.client.get(reverse('channels.channellog_read', args=[ChannelLog.objects.order_by('id')[1].id]))
 
             # check that it contains the log of our exception
             self.assertContains(response, "Request Timeout")
@@ -7818,7 +7847,7 @@ class MageHandlerTest(TembaTest):
         self.assertEqual(self.welcome_topup, msg.topup)
 
         # check for a web hook event
-        event = json.loads(WebHookEvent.objects.get(org=self.org, event=SMS_RECEIVED).data)
+        event = json.loads(WebHookEvent.objects.get(org=self.org, event=WebHookEvent.TYPE_SMS_RECEIVED).data)
         self.assertEqual(msg.id, event['sms'])
 
         msg_counts = SystemLabel.get_counts(self.org)

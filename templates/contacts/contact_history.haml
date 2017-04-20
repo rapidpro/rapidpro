@@ -3,27 +3,27 @@
 -for item in activity
   %tr{class:"{{item|history_class}}"}
 
-    -with media_type=item.media|media_type media_content_type=item.media|media_content_type media_url=item.media|media_url
+    -with media_type=item.obj.media|media_type media_content_type=item.obj.media|media_content_type media_url=item.obj.media|media_url
       %td.icon
-        -if item.media
+        -if item.obj.media
           -if media_type == 'audio'
-            -if media_content_type|is_supported_audio
+            -if media_content_type|is_playable_audio
               .recording{onClick:'playMessage("{{item.pk}}");'}
-                %audio{id:'message-{{item.pk}}', type:"{{media_content_type}}", src:'{{media_url}}'}
+                %audio{id:'message-{{item.obj.id}}', type:"{{media_content_type}}", src:'{{media_url}}'}
                 .play
-                  -if item.direction == 'O'
-                    .icon-call-outgoing{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
+                  -if item.obj.direction == 'O'
+                    .icon-call-outgoing{title:'{{item.obj.channel.get_channel_type_name}} {{item.obj.channel.get_name}}'}
                   -else
-                    .icon-call-incoming{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
+                    .icon-call-incoming{title:'{{item.obj.channel.get_channel_type_name}} {{item.obj.channel.get_name}}'}
                 .stop.hide
                   .icon-nav-channels-inverted
             -else
-              -if item.direction == 'O'
+              -if item.obj.direction == 'O'
                 .icon-call-outgoing.greyed
               -else
                 .icon-call-incoming.greyed
           -else
-            %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
+            %span.det{title:'{{item.obj.channel.get_channel_type_name}} {{item.obj.channel.get_name}}'}
             -if media_type == 'geo'
               .glyph.icon-location.user.boost
             -elif media_type == 'image'
@@ -34,37 +34,38 @@
               .glyph.icon-docs.user.boost
 
         -else
-          %span.det{title:'{% if item.channel %}{{item.channel.get_channel_type_name}} {{item.channel.get_name}}{% endif %}'}
+          %span.det{title:'{% if item.obj.channel %}{{item.obj.channel.get_channel_type_name}} {{item.obj.channel.get_name}}{% endif %}'}
             {{item|activity_icon}}
 
       %td.details.wrapped
-        -if item.event_type
-          -with item as call
-            -if call.event_type == 'mt_miss'
+        -if item.type == 'channel-event'
+          -with item.obj as event
+            -if event.event_type == 'mt_miss'
               Missed call
             -else
-              Phone call ({{call.duration|format_seconds}})
+              Phone call ({{event.duration|format_seconds}})
 
-        -elif item.session_type
-          -with item as call
+        -elif item.type == 'call'
+          -with item.obj as call
             -if call.status == 'D'
               -trans "Call Started"
             -else
               {{call.get_status_display}}
 
-        -elif item.flow
-          -with item as run
+        -elif item.type == 'run-start' or item.type == 'run-exit'
+          -with item.obj as run
             .activity-run
               .activity-body
                 .summary
-                -if run.run_event_type == 'Exited'
+                -if item.type == 'run-exit'
                   {{ run.get_exit_type_display }}
                 -else
                   Started
                 %a{href:'{% url "flows.flow_editor" run.flow.uuid %}'}
                   {{run.flow.name}}
-        -elif item.fired
-          -with item as eventfire
+
+        -elif item.type == 'event-fire'
+          -with item.obj as eventfire
             %a{href:'{%url "campaigns.campaign_read" eventfire.event.campaign.pk %}'}><
               {{eventfire.event.campaign.name}}
 
@@ -73,11 +74,19 @@
             %a{href:'{%url "campaigns.campaignevent_read" eventfire.event.pk %}'}
               {{eventfire.event|event_time}}
 
+        -elif item.type == 'webhook-result'
+          -with item.obj as result
+            -if result.is_success
+              -trans "Successfully called"
+            -else
+              -trans "Failed to call"
+            {{result.url|truncatechars:100}}
+
         -elif media_type == 'geo'
           .activity-message
             .activity-body
               .text
-                <a href="{{item.media|osm_link}}" target="_loc">{{item.media|location}}</a>
+                <a href="{{item.obj.media|osm_link}}" target="_loc">{{item.obj.media|location}}</a>
 
         -elif media_type == 'image'
           .activity-message
@@ -103,7 +112,7 @@
                   active = []
                   for (idx in window.players) {
                     var player = window.players[idx];
-                    if (player.id_ == "video_{{item.id}}") {
+                    if (player.id_ == "video_{{item.obj.id}}") {
                       player.dispose();
                     } else {
                       active.push(player);
@@ -113,7 +122,7 @@
                 }
 
                 // initialize and push our current video
-                window.players.push(videojs("video_{{item.id}}", {plugins : {
+                window.players.push(videojs("video_{{item.obj.id}}", {plugins : {
                    vjsdownload:{
                      beforeElement: 'playbackRateMenuButton',
                      textControl: 'Download',
@@ -122,13 +131,13 @@
                 }}, function(){
                 }));
 
-        -elif item.media|is_document
+        -elif item.obj.media|is_document
           .activity-message
             .activity-body
               {{media_url|extension|upper}} document (<a href="{{media_url}}" download>download</a>)
 
-        -elif item.recipient_count
-          -with item as broadcast
+        -elif item.type == 'broadcast'
+          -with item.obj as broadcast
             .activity-broadcast
               .sent-to
                 .summary
@@ -138,7 +147,7 @@
                 {{broadcast.translated_text}}
 
         -else
-          -with item as message
+          -with item.obj as message
 
             .activity-message
               -if message.direction == 'O'
@@ -149,38 +158,44 @@
 
               .activity-body
                 .text
-                  -if item.media and media_type == 'audio'
+                  -if message.media and media_type == 'audio'
                     .recording-text
                       %span.text
                         -if message.direction == 'O'
-                          -if item.text not in item.media
-                            {{item.text}}
+                          -if message.text not in message.media
+                            {{message.text}}
                           -else
                             -trans "Listened to a recording"
                         -else
                           -trans "Audio recording"
                       %span.link
-                        (<a href="{{media_url}}" download>{%if item.text not in item.media%}recording{%else%}download{%endif%}</a>)
+                        (<a href="{{media_url}}" download>{%if message.text not in message.media%}recording{%else%}download{%endif%}</a>)
                   -else
                     {{message.text}}
 
     %td.created_on
       %span.time
         %span.short
-          {{item.created_on|gmail_time}}
+          {{item.time|gmail_time}}
         %span.long.hide
-          {{item.created_on}}
+          {{item.time}}
 
       .log-icon
         -if not user_org.is_anon or perms.contacts.contact_break_anon
-          -with item.get_last_log as log
-            -if log
-              -if log.session
-                %a{href:"{% url 'channels.channellog_session' log.session.id %}"}
-                  .icon-docs-2
-              -else
-                %a{href:"{% url 'channels.channellog_read' log.id %}"}
-                  .icon-docs-2
+          -if item.type == 'msg' or item.type == 'call'
+            -with item.obj.get_last_log as log
+              -if log
+                -if log.session
+                  %a{href:"{% url 'channels.channellog_session' log.session.id %}"}
+                    .icon-docs-2
+                -else
+                  %a{href:"{% url 'channels.channellog_read' log.id %}"}
+                    .icon-docs-2
+          -if item.type == 'webhook-result'
+            -with item.obj.event as event
+              %a{href:"{%url 'api.log_read' event.id %}"}
+                .icon-docs-2
+
 
 -if has_older and not recent
   %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{after}}&before={{before}}", 
