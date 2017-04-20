@@ -17,7 +17,8 @@ def populate_message_new(apps, schema_editor):
         try:
             event.message_new = json.loads(event.message)
         except Exception:
-            event.message_new = {event.flow.base_language: event.message}
+            base_lang = event.flow.base_language or 'base'
+            event.message_new = {base_lang: event.message}
 
         event.save(update_fields=('message_new',))
 
