@@ -44,9 +44,12 @@ class NexmoClient(nx.Client):
 
         try:
             response = nx.Client.get_account_numbers(self, params=params)
-        except nx.ClientError:
-            time.sleep(1)
-            response = nx.Client.get_account_numbers(self, params=params)
+        except nx.ClientError as e:
+            if e.message.startswith('429'):
+                time.sleep(1)
+                response = nx.Client.get_account_numbers(self, params=params)
+            else:
+                raise e
 
         if int(response.get('count', 0)):
             return response['numbers']
@@ -108,9 +111,12 @@ class NexmoClient(nx.Client):
         params = dict(msisdn=number, country=country)
         try:
             nx.Client.buy_number(self, params=params)
-        except nx.ClientError:
-            time.sleep(1)
-            nx.Client.buy_number(self, params=params)
+        except nx.ClientError as e:
+            if e.message.startswith('429'):
+                time.sleep(1)
+                nx.Client.buy_number(self, params=params)
+            else:
+                raise e
 
     def update_nexmo_number(self, country, number, moURL, app_id):
         number = number.lstrip('+')
@@ -118,9 +124,12 @@ class NexmoClient(nx.Client):
                       voiceCallbackValue=app_id)
         try:
             nx.Client.update_number(self, params=params)
-        except nx.ClientError:
-            time.sleep(1)
-            nx.Client.update_number(self, params=params)
+        except nx.ClientError as e:
+            if e.message.startswith('429'):
+                time.sleep(1)
+                nx.Client.update_number(self, params=params)
+            else:
+                raise e
 
     def test_credentials(self):  # pragma: needs cover
         try:
