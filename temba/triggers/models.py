@@ -9,7 +9,7 @@ from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup
-from temba.flows.models import Flow, FlowRun
+from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
@@ -409,11 +409,19 @@ class Trigger(SmartModel):
         groups = list(self.groups.all())
         contacts = list(self.contacts.all())
 
-        if groups or contacts:
-            self.last_triggered = timezone.now()
-            self.trigger_count += 1
-            self.save()
+        # nothing to do, move along
+        if not groups and not contacts:
+            return
 
-            return self.flow.start(groups, contacts, restart_participants=True)
+        # for single contacts, we just start directly
+        if not groups and contacts:
+            self.flow.start(groups, contacts, restart_participants=True)
 
-        return False  # pragma: needs cover
+        # we have groups of contacts to start, create a flow start
+        else:
+            start = FlowStart.create(self.flow, self.created_by, groups=groups, contacts=contacts)
+            start.async_start()
+
+        self.last_triggered = timezone.now()
+        self.trigger_count += 1
+        self.save()
