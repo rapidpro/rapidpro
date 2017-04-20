@@ -1,3 +1,9 @@
+v3.0.123
+----------
+ * Use flow starts for triggers that operate on groups
+ * Handle throttling errors from Nexmo when using API to add new numbers
+ * Convert campaign event messages to HSTORE fields
+
 v3.0.121
 ----------
  * Add MACROKIOSK channel type
