@@ -11,7 +11,6 @@ from temba.contacts.models import ContactGroup, ContactField
 from temba.flows.models import Flow
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.views import BaseActionForm
-import json
 
 from .models import Campaign, CampaignEvent, EventFire
 
@@ -253,7 +252,8 @@ class EventForm(forms.ModelForm):
                 # set our single message on our flow
                 obj.flow.update_single_message_flow(translations, base_language)
 
-            obj.message = json.dumps(translations)
+            obj.message = translations
+            obj.full_clean()
 
         # otherwise, it's an event that runs an existing flow
         else:
@@ -272,14 +272,7 @@ class EventForm(forms.ModelForm):
         flow.queryset = Flow.objects.filter(org=self.user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE],
                                             is_active=True, is_archived=False).order_by('name')
 
-        message = {}
-        if self.instance.message:
-            # temporary until data migration is complete
-            try:
-                message = json.loads(self.instance.message)
-            except:  # pragma: needs cover
-                message = dict(base=message)
-
+        message = self.instance.message or {}
         self.languages = []
 
         # add in all of our languages for message forms

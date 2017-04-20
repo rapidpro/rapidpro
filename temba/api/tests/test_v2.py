@@ -808,12 +808,14 @@ class APITest(TembaTest):
         })
         self.assertEqual(response.status_code, 201)
 
-        event1 = CampaignEvent.objects.get(campaign=campaign1, message='{"base": "Nice job"}')
+        event1 = CampaignEvent.objects.filter(campaign=campaign1).order_by('-id').first()
         self.assertEqual(event1.event_type, CampaignEvent.TYPE_MESSAGE)
         self.assertEqual(event1.relative_to, registration)
         self.assertEqual(event1.offset, 15)
         self.assertEqual(event1.unit, 'W')
         self.assertEqual(event1.delivery_hour, -1)
+        self.assertEqual(event1.message, {'base': "Nice job"})
+        self.assertIsNotNone(event1.flow)
 
         # create a flow event
         response = self.postJSON(url, None, {
@@ -826,12 +828,14 @@ class APITest(TembaTest):
         })
         self.assertEqual(response.status_code, 201)
 
-        event2 = CampaignEvent.objects.get(campaign=campaign1, flow=flow)
+        event2 = CampaignEvent.objects.filter(campaign=campaign1).order_by('-id').first()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_FLOW)
         self.assertEqual(event2.relative_to, registration)
         self.assertEqual(event2.offset, 15)
         self.assertEqual(event2.unit, 'W')
         self.assertEqual(event2.delivery_hour, -1)
+        self.assertEqual(event2.message, None)
+        self.assertEqual(event2.flow, flow)
 
         # update the message event to be a flow event
         response = self.postJSON(url, 'uuid=%s' % event1.uuid, {
@@ -862,7 +866,7 @@ class APITest(TembaTest):
 
         event2.refresh_from_db()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
-        self.assertEqual(json.loads(event2.message), {'base': "OK", 'fre': "D'accord"})
+        self.assertEqual(event2.message, {'base': "OK", 'fre': "D'accord"})
 
         # and update update it's message again
         response = self.postJSON(url, 'uuid=%s' % event2.uuid, {
@@ -877,7 +881,7 @@ class APITest(TembaTest):
 
         event2.refresh_from_db()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
-        self.assertEqual(json.loads(event2.message), {'base': "OK", 'fre': "D'accord", 'kin': "Sawa"})
+        self.assertEqual(event2.message, {'base': "OK", 'fre': "D'accord", 'kin': "Sawa"})
 
         # try to change an existing event's campaign
         response = self.postJSON(url, 'uuid=%s' % event1.uuid, {
