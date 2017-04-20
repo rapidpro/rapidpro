@@ -14,10 +14,14 @@ def populate_message_new(apps, schema_editor):
     events = list(CampaignEvent.objects.filter(event_type='M').select_related('flow'))
 
     for event in events:
+        base_lang = event.flow.base_language or 'base'
         try:
-            event.message_new = json.loads(event.message)
+            msg = json.loads(event.message)
+            if isinstance(msg, dict):
+                event.message_new = msg
+            else:
+                event.message_new = {base_lang: event.message}
         except Exception:
-            base_lang = event.flow.base_language or 'base'
             event.message_new = {base_lang: event.message}
 
         event.save(update_fields=('message_new',))
