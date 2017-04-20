@@ -227,17 +227,13 @@ class Flow(TembaModel):
         return flow
 
     @classmethod
-    def create_single_message(cls, org, user, message, base_language=None):
+    def create_single_message(cls, org, user, message, base_language):
         """
         Creates a special 'single message' flow
         """
         name = 'Single Message (%s)' % six.text_type(uuid4())
-
-        if not base_language:
-            base_language = 'base' if not org.primary_language else org.primary_language.iso_code
-
-        flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE, base_language=base_language)
-        flow.update_single_message_flow(message)
+        flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE)
+        flow.update_single_message_flow(message, base_language)
         return flow
 
     @classmethod
@@ -1050,13 +1046,17 @@ class Flow(TembaModel):
         self.is_archived = False
         self.save(update_fields=['is_archived'])
 
-    def update_single_message_flow(self, message_dict):
+    def update_single_message_flow(self, translations, base_language):
+        if base_language not in translations:  # pragma: no cover
+            raise ValueError("Must include translation for base language")
+
         self.flow_type = Flow.MESSAGE
-        self.save(update_fields=['name', 'flow_type'])
+        self.base_language = base_language
+        self.save(update_fields=('name', 'flow_type', 'base_language'))
 
         uuid = str(uuid4())
-        action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=message_dict)])]
-        self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language=self.base_language))
+        action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=translations)])]
+        self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language=base_language))
 
     def get_steps(self):
         return FlowStep.objects.filter(run__flow=self)
@@ -5008,12 +5008,13 @@ class ReplyAction(Action):
 
             try:
                 if msg:
-                    reply_msg = msg.reply(text, user, trigger_send=False, message_context=context,
-                                          session=run.session, msg_type=self.MSG_TYPE, media=media,
-                                          send_all=self.send_all, created_on=created_on)
+                    reply_msgs = msg.reply(text, user, trigger_send=False, message_context=context,
+                                           session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                           send_all=self.send_all, created_on=created_on)
 
-                    if reply_msg:
-                        replies.append(reply_msg)
+                    if reply_msgs:
+                        replies += reply_msgs
+
                 else:
                     if self.send_all:
                         replies = run.contact.send_all(text, user, trigger_send=False, message_context=context,

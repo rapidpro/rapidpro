@@ -383,11 +383,13 @@ class Broadcast(models.Model):
         if contact.language and contact.language in org.get_language_codes():
             preferred_languages = [contact.language] + preferred_languages
 
+        preferred_languages.append('base')
+
         return preferred_languages
 
     def get_translations(self):
         if not self.language_dict:
-            return []
+            return {}
         return get_cacheable_attr(self, '_translations', lambda: json.loads(self.language_dict))
 
     def get_media_translations(self):
@@ -1086,9 +1088,9 @@ class Msg(models.Model):
             return self.contact.send_all(text, user, trigger_send=trigger_send, message_context=message_context,
                                          response_to=self if self.id else None, session=session, media=media,
                                          msg_type=msg_type or self.msg_type, created_on=created_on)
-        return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None, session=session, media=media,
-                                 msg_type=msg_type or self.msg_type, created_on=created_on)
+        return [self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
+                                  response_to=self if self.id else None, session=session, media=media,
+                                  msg_type=msg_type or self.msg_type, created_on=created_on)]
 
     def update(self, cmd):
         """
@@ -1136,7 +1138,8 @@ class Msg(models.Model):
 
         # first push our msg on our contact's queue using our created date
         r = get_redis_connection('default')
-        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_ms(self.sent_on), dict_to_json(payload))
+        queue_time = self.sent_on if self.sent_on else timezone.now()
+        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_ms(queue_time), dict_to_json(payload))
 
         # queue up our celery task
         push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)

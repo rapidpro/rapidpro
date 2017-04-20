@@ -1003,6 +1003,70 @@ class SMSCentralHandler(BaseChannelHandler):
         return HttpResponse("Unrecognized action: %s" % action, status=400)  # pragma: needs cover
 
 
+class MacroKioskHandler(BaseChannelHandler):
+
+    url = r'^macrokiosk/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.macrokiosk_handler'
+
+    def get(self, request, *args, **kwargs):
+        return self.post(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+
+        channel_uuid = kwargs['uuid']
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_MACROKIOSK).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
+
+        action = kwargs['action'].lower()
+
+        # Update on the status of a sent message
+        if action == 'status':
+            msg_id = self.get_param('msgid')
+            status = self.get_param('status')
+
+            # look up the message
+            sms = Msg.objects.filter(channel=channel, external_id=msg_id).select_related('channel').first()
+            if not sms:
+                return HttpResponse("No SMS message with id: %s" % msg_id, status=400)
+
+            if status == 'ACCEPTED':
+                sms.status_sent()
+            elif status == 'DELIVERED':
+                sms.status_delivered()
+            elif status == 'UNDELIVERED':
+                sms.status_fail()
+
+            return HttpResponse("")
+
+        # An MO message
+        elif action == 'receive':
+
+            external_id = self.get_param('msgid')
+            message_date = datetime.strptime(self.get_param('time'), "%Y-%m-%d%H:%M:%S")
+            gmt_date = pytz.timezone('GMT').localize(message_date)
+
+            text = self.get_param('text')
+            if self.get_param('shortcode'):
+                from_number = self.get_param('from')
+                to_number = self.get_param('shortcode')
+            else:
+                from_number = self.get_param('msisdn')
+                to_number = self.get_param('longcode')
+
+            if to_number is None or from_number is None or text is None:
+                return HttpResponse("Missing shortcode, longcode, from, msisdn or text parameters", status=400)
+
+            if channel.address != to_number:
+                return HttpResponse("Invalid to number [%s], expecting [%s]" % (to_number, channel.address), status=400)
+
+            Msg.create_incoming(channel, URN.from_tel(from_number), text, date=gmt_date, external_id=external_id)
+            return HttpResponse("-1")
+
+        return HttpResponse("Unrecognized action: %s" % action, status=400)  # pragma: needs cover
+
+
 class M3TechHandler(ExternalHandler):
     """
     Exposes our API for handling and receiving messages, same as external handlers.
