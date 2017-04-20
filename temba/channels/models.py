@@ -512,7 +512,9 @@ class Channel(TembaModel):
         if not nexmo_phones:
             parsed = phonenumbers.parse(phone_number, None)
             shortcode = str(parsed.national_number)
+
             nexmo_phones = client.get_numbers(shortcode)
+
             if nexmo_phones:
                 is_shortcode = True
                 phone_number = shortcode
@@ -532,6 +534,7 @@ class Channel(TembaModel):
         channel_uuid = generate_uuid()
 
         nexmo_phones = client.get_numbers(phone_number)
+
         features = [elt.upper() for elt in nexmo_phones[0]['features']]
         role = ''
         if 'SMS' in features:
