@@ -26,10 +26,16 @@ class MageStreamAction(Enum):
     deactivate = 3
 
 
-@task(track_started=True, name='sync_channel_task')
-def sync_channel_task(gcm_id, channel_id=None):  # pragma: no cover
+@task(track_started=True, name='sync_channel_gcm_task')
+def sync_channel_gcm_task(cloud_registration_id, channel_id=None):  # pragma: no cover
     channel = Channel.objects.filter(pk=channel_id).first()
-    Channel.sync_channel(gcm_id, channel)
+    Channel.sync_channel_gcm(cloud_registration_id, channel)
+
+
+@task(track_started=True, name='sync_channel_fcm_task')
+def sync_channel_fcm_task(cloud_registration_id, channel_id=None):  # pragma: no cover
+    channel = Channel.objects.filter(pk=channel_id).first()
+    Channel.sync_channel_fcm(cloud_registration_id, channel)
 
 
 @task(track_started=True, name='send_msg_task')
