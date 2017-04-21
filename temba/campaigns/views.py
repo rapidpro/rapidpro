@@ -11,7 +11,6 @@ from temba.contacts.models import ContactGroup, ContactField
 from temba.flows.models import Flow
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.views import BaseActionForm
-import json
 
 from .models import Campaign, CampaignEvent, EventFire
 
@@ -225,6 +224,8 @@ class EventForm(forms.ModelForm):
         return self.data['flow_to_start']
 
     def pre_save(self, request, obj):
+        org = self.user.get_org()
+
         # if it's before, negate the offset
         if self.cleaned_data['direction'] == 'B':
             obj.offset = -obj.offset
@@ -235,23 +236,28 @@ class EventForm(forms.ModelForm):
         # if its a message flow, set that accordingly
         if self.cleaned_data['event_type'] == CampaignEvent.TYPE_MESSAGE:
 
-            message_dict = {}
+            if self.instance.id:
+                base_language = self.instance.flow.base_language
+            else:
+                base_language = org.primary_language.iso_code if org.primary_language else 'base'
+
+            translations = {}
             for language in self.languages:
                 iso_code = language.language['iso_code']
-                message_dict[iso_code] = self.cleaned_data.get(iso_code, '')
+                translations[iso_code] = self.cleaned_data.get(iso_code, '')
 
             if not obj.flow_id or not obj.flow.is_active or obj.flow.flow_type != Flow.MESSAGE:
-                obj.flow = Flow.create_single_message(request.user.get_org(),
-                                                      request.user,
-                                                      message_dict)
+                obj.flow = Flow.create_single_message(org, request.user, translations, base_language=base_language)
+            else:
+                # set our single message on our flow
+                obj.flow.update_single_message_flow(translations, base_language)
 
-            # set our single message on our flow
-            obj.flow.update_single_message_flow(message_dict)
-            obj.message = json.dumps(message_dict)
+            obj.message = translations
+            obj.full_clean()
 
         # otherwise, it's an event that runs an existing flow
         else:
-            obj.flow = Flow.objects.get(pk=self.cleaned_data['flow_to_start'])
+            obj.flow = Flow.objects.get(org=org, id=self.cleaned_data['flow_to_start'])
 
     def __init__(self, user, *args, **kwargs):
         self.user = user
@@ -266,14 +272,7 @@ class EventForm(forms.ModelForm):
         flow.queryset = Flow.objects.filter(org=self.user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE],
                                             is_active=True, is_archived=False).order_by('name')
 
-        message = {}
-        if self.instance.message:
-            # temporary until data migration is complete
-            try:
-                message = json.loads(self.instance.message)
-            except:  # pragma: needs cover
-                message = dict(base=message)
-
+        message = self.instance.message or {}
         self.languages = []
 
         # add in all of our languages for message forms

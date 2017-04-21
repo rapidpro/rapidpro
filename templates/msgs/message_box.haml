@@ -218,6 +218,7 @@
   - if org_perms.msgs.broadcast_send
     -include "msgs/msg_send_modal.haml"
 
+
 -block extra-script
   {{ block.super }}
   :javascript
@@ -302,11 +303,7 @@
     {% if org_perms.msgs.msg_export %}
     $('.page-content').on('click', ".msg-export-btn", function() {
       lastChecked = getCheckedIds();
-      {% if current_label %}
-      var modal = new Modax('{% trans "Export Label Messages" %}', '{% url "msgs.msg_export" %}?label={{current_label.pk}}');
-      {% else %}
-      var modal = new Modax('{% trans "Export Messages" %}', '{% url "msgs.msg_export" %}');
-      {% endif %}
+      var modal = new Modax('{% trans "Export Messages" %}', '{{ export_url }}');
       modal.setIcon('icon-excel');
       modal.setRedirectOnSuccess(true);
       modal.show();

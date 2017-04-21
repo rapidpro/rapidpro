@@ -5,12 +5,13 @@ import six
 import pytz
 
 from datetime import timedelta
+from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from temba.campaigns.tasks import check_campaigns_task
 from temba.contacts.models import ContactField
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet, FlowRevision
-from temba.orgs.models import CURRENT_EXPORT_VERSION
+from temba.orgs.models import Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest
 from .models import Campaign, CampaignEvent, EventFire
 
@@ -21,7 +22,7 @@ class CampaignTest(TembaTest):
         super(CampaignTest, self).setUp()
 
         self.farmer1 = self.create_contact("Rob Jasper", "+250788111111")
-        self.farmer2 = self.create_contact("Mike Gordon", "+250788222222")
+        self.farmer2 = self.create_contact("Mike Gordon", "+250788222222", language='spa')
 
         self.nonfarmer = self.create_contact("Trey Anastasio", "+250788333333")
         self.farmers = self.create_group("Farmers", [self.farmer1, self.farmer2])
@@ -106,7 +107,6 @@ class CampaignTest(TembaTest):
         self.assertNotContains(response, 'show_language')
 
         # set our primary language to Achinese
-        from temba.orgs.models import Language
         ace = Language.objects.create(org=self.org, name='Achinese', iso_code='ace',
                                       created_by=self.admin, modified_by=self.admin)
 
@@ -152,16 +152,18 @@ class CampaignTest(TembaTest):
 
         entry = ActionSet.objects.filter(uuid=flow.entry_uuid)[0]
         msg = entry.get_actions()[0].msg
-        self.assertEqual('base', flow.base_language)
-        self.assertEqual("This is my message", msg['base'])
-        self.assertEqual("hola", msg['spa'])
-        self.assertEqual("", msg['ace'])
+        self.assertEqual(flow.base_language, 'base')
+        self.assertEqual(msg, {'base': "This is my message", 'spa': "hola", 'ace': ""})
         self.assertFalse(RuleSet.objects.filter(flow=flow))
 
         self.assertEqual(-1, event.offset)
         self.assertEqual(13, event.delivery_hour)
         self.assertEqual('W', event.unit)
         self.assertEqual('M', event.event_type)
+
+        self.assertEqual(event.get_message(contact=self.farmer1), "This is my message")
+        self.assertEqual(event.get_message(contact=self.farmer2), "hola")
+        self.assertEqual(event.get_message(), "This is my message")
 
         url = reverse('campaigns.campaignevent_update', args=[event.id])
         response = self.client.get(url)
@@ -708,3 +710,23 @@ class CampaignTest(TembaTest):
         # should have one flow run now
         run = FlowRun.objects.get()
         self.assertEquals(event.contact, run.contact)
+
+    def test_translations(self):
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
+
+        event1 = CampaignEvent.create_message_event(self.org, self.admin, campaign,
+                                                    relative_to=self.planting_date,
+                                                    offset=0, unit='D', message={'eng': "hello"},
+                                                    base_language='eng')
+
+        with self.assertRaises(ValidationError):
+            event1.message = {'ddddd': "x"}
+            event1.full_clean()
+
+        with self.assertRaises(ValidationError):
+            event1.message = {'eng': "x" * 1000}
+            event1.full_clean()
+
+        with self.assertRaises(ValidationError):
+            event1.message = {}
+            event1.full_clean()
