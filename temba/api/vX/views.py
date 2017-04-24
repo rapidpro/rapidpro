@@ -1,8 +1,9 @@
 from __future__ import absolute_import, unicode_literals
 
 import six
+import json
 
-from django.http import HttpResponse, JsonResponse, Http404
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse, Http404
 from django.views import View
 from temba.flows.models import Flow
 
@@ -18,24 +19,45 @@ class FlowEndpoint(View):
             if 'pretty' in request.GET:
                 params['indent'] = 2
             assert(obj)
+            obj.ensure_current_version()
         except:
             raise Http404()  
 
-        obj.ensure_current_version()
-        languages = [lang.as_json() for lang in obj.org.languages.all().order_by('orgs')]
-        try:
-            channel_countries = obj.org.get_channel_countries()
-        except Exception:  
-            channel_countries = []
-        channels = [dict(uuid=chan.uuid, name=u"%s: %s" % (chan.get_channel_type_display(), chan.get_address_display())) for chan in obj.org.channels.filter(is_active=True)]
-        response = {
-            'flow': obj.as_json(expand_contacts=True),
-            'languages': languages,
-            'channel_countries': channel_countries,
-            'channels': channels,
-        }
+        response = { 'flow': obj.as_json(expand_contacts=True) }
         return JsonResponse(response, json_dumps_params=params)
             
-                
+    def post(self, request):               
+        org = request.user.get_org()
+        user = request.user
+
+        params = {}
+        if 'pretty' in request.GET:
+            params['indent'] = 2
+
+        try:
+            data = json.loads(request.body)
+            flow = data['flow']
+        except:
+            return HttpResponseBadRequest('Could not load flow from request')
+
+        flow_type = flow.get('flow_type')
+        flow_uuid = flow.get('metadata', {}).get('uuid')
+        flow_name = flow.get('metadata', {}).get('name')
+        expires_after_minutes = flow.get('metadata', {}).get('expires')
+        if flow_uuid:
+            obj = Flow.objects.get(uuid=flow_uuid)
+            obj.name = flow_name
+            obj.expires=expires_after_minutes
+            obj.save()
+        else:
+            obj = Flow.create(
+                org,
+                user,
+                flow_name,
+                flow_type=flow_type,    
+                expires_after_minutes=expires_after_minutes,
+            )
+        obj.update(flow)
             
-            
+        response = { 'flow': obj.as_json(expand_contacts=True) }
+        return JsonResponse(response, json_dumps_params=params)
