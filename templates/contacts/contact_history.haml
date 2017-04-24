@@ -92,6 +92,8 @@
           .activity-message
             .activity-body
               .text
+                {{item.text}}
+              .text
                 <a href="#" data-featherlight="<a class='download-link' href='{{media_url}}' download><span class='icon-file_download'></span></a><img class='image-full' src='{{media_url}}'>">
                   <img class="image-preview" src="{{media_url}}">
                 </a>
@@ -99,6 +101,8 @@
         -elif media_type == 'video'
           .activity-message
             .activity-body
+              .text
+                {{item.text}}
               <video id="video_{{item.id}}" height="240px" class="video-js vjs-default-skin" controls preload="auto">
                 <source src="{{media_url}}" type='video/mp4'/>
               </video>

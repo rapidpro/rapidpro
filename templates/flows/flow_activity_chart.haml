@@ -47,7 +47,7 @@
 -if hod and dow
   #dow_container
     %h4
-      Day of Week
+      {{total_responses|intcomma}} {% blocktrans count total_responses as total%}Response{% plural %}Responses{% endblocktrans %}
     #dow
 
   #hod_container
@@ -62,9 +62,6 @@
 
 -if histogram
   #histogram
-
-%h3.pull-left
-  {{total_responses|intcomma}} {% blocktrans count total_responses as total%}Response{% plural %}Responses{% endblocktrans %}
 
 :javascript
   $(document).ready(function(){
@@ -85,12 +82,12 @@
     var pie_points = [
       {% if active %}{ name: 'Active', y: {{active}} },{%endif%}
       { name: 'Completed', y: {{completed}}, drilldown: null },
-      { name: 'Exited', y: {{interrupted|add:expired}}, drilldown: 'incomplete' },
+      { name: 'Interrupted and Expired', y: {{interrupted|add:expired}}, drilldown: 'incomplete' },
     ];
 
     var pie_drill = {
       series: [{
-        name: 'Exited',
+        name: 'Interrupted and Expired',
         id: 'incomplete',
         innerSize: '50%',
         data:[
@@ -103,7 +100,7 @@
 
     new Highcharts.chart({
       credits: { enabled: false },
-      colors: ['#80b9fb', '#2980b9'],
+      colors: ['#80b9fb', '#2980b9', '#CCCCCC'],
       chart: {
           renderTo: 'completion',
           type: 'pie',
@@ -161,7 +158,7 @@
       chart: {
           renderTo: 'hod',
           type: 'column',
-          backgroundColor: 'transparent'
+          backgroundColor: 'transparent',
       },
       title: {
           text: null
@@ -172,12 +169,12 @@
         labels: {
           rotation: 0,
           style: {
-            fontSize:"75%"
+            textOverflow: 'none'
           }
         },
-        lineWidth: 0,
+        lineWidth: 1,
+        lineColor: '#2980b9',
         minorGridLineWidth: 0,
-        lineColor: 'transparent',
         minorTickLength: 0,
         tickLength: 0,
         categories: ['12a', '', '', '', '', '', '6a', '', '', '', '', '', '12p', '', '', '', '', '', '6p', '', '', '', '', '']
@@ -243,9 +240,9 @@
         xAxis: {
           title: { text: null },
           labels: { enabled: true },
-          lineWidth: 0,
+          lineWidth: 1,
           minorGridLineWidth: 0,
-          lineColor: 'transparent',
+          lineColor: '#2980b9',
           minorTickLength: 0,
           tickLength: 0,
 
@@ -316,6 +313,7 @@
                 text: null
             },
             xAxis: {
+              min: {{min_date|date:"U"}},
               title: { text: null },
               labels: { enabled: false },
               lineWidth: 0,

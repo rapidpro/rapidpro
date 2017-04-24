@@ -297,19 +297,6 @@ class Org(SmartModel):
         counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ALL, ContactGroup.TYPE_BLOCKED))
         return (counts[ContactGroup.TYPE_ALL] + counts[ContactGroup.TYPE_BLOCKED]) > 0
 
-    def has_messages(self):
-        """
-        Gets whether this org has any messages (or calls)
-        """
-        from temba.msgs.models import SystemLabel
-
-        msg_counts = SystemLabel.get_counts(self, (SystemLabel.TYPE_INBOX,
-                                                   SystemLabel.TYPE_OUTBOX,
-                                                   SystemLabel.TYPE_CALLS))
-        return (msg_counts[SystemLabel.TYPE_INBOX] +
-                msg_counts[SystemLabel.TYPE_OUTBOX] +
-                msg_counts[SystemLabel.TYPE_CALLS]) > 0
-
     def update_caches(self, event, entity):
         """
         Update org-level caches in response to an event
