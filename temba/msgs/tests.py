@@ -14,7 +14,8 @@ from mock import patch
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
-from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
+from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED, \
+    INITIALIZING
 from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, SystemLabelCount, UnreachableException
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.orgs.models import Language, Debit, Org
@@ -326,6 +327,24 @@ class MsgTest(TembaTest):
         # should have no messages but marked as sent
         self.assertEquals(0, broadcast.msgs.all().count())
         self.assertEquals(SENT, broadcast.status)
+
+    def test_send_all(self):
+        contact = self.create_contact('Stephen', '+12078778899')
+        other_urn = ContactURN.get_or_create(self.org, contact, 'tel:+12078778800')
+
+        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [other_urn, contact], send_all=True)
+        foo = BroadcastRecipient(broadcast_id=broadcast.id, contact_id=contact.id)
+        bar = BroadcastRecipient(broadcast_id=broadcast.id, contact_id=contact.id)
+
+        BroadcastRecipient.objects.bulk_create([foo, bar])
+
+        partial_recipients = list(), Contact.objects.filter(pk=contact.pk)
+
+        broadcast.send(True, partial_recipients=partial_recipients)
+
+        self.assertEquals(1, broadcast.contacts.all().count())
+        self.assertEquals(2, broadcast.msgs.all().count())
+        self.assertEquals(INITIALIZING, broadcast.status)
 
     def test_update_contacts(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
