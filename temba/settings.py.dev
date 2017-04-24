@@ -63,6 +63,7 @@ INSTALLED_APPS = INSTALLED_APPS + ('storages',)
 # In development, add in extra logging for exceptions and the debug toolbar
 # -----------------------------------------------------------------------------------
 MIDDLEWARE_CLASSES = ('temba.middleware.ExceptionMiddleware',) + MIDDLEWARE_CLASSES
+# MIDDLEWARE_CLASSES = ('debug_toolbar.middleware.DebugToolbarMiddleware',) + MIDDLEWARE_CLASSES
 
 # -----------------------------------------------------------------------------------
 # In development, perform background tasks in the web thread (synchronously)
