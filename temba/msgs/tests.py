@@ -340,6 +340,7 @@ class MsgTest(TembaTest):
 
         broadcast.send(True, partial_recipients=partial_recipients)
 
+        self.assertEqual(len(mock_bulk_create.call_args[0][0]), 1)
         broadcast_contacts_seen = set()
         for broadcast_recipient in mock_bulk_create.call_args[0][0]:
             if (broadcast_recipient.broadcast_id, broadcast_recipient.contact_id) in broadcast_contacts_seen:
@@ -350,6 +351,16 @@ class MsgTest(TembaTest):
         self.assertEquals(1, broadcast.contacts.all().count())
         self.assertEquals(2, broadcast.msgs.all().count())
         self.assertEquals(INITIALIZING, broadcast.status)
+
+        mock_bulk_create.reset_mock()
+        # shoudl not create a broadcast recipient if a similar one exists
+        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [other_urn, contact], send_all=True)
+        BroadcastRecipient.objects.create(broadcast_id=broadcast.id, contact_id=contact.id)
+
+        partial_recipients = list(), Contact.objects.filter(pk=contact.pk)
+
+        broadcast.send(True, partial_recipients=partial_recipients)
+        self.assertEqual(mock_bulk_create.call_args[0][0], [])
 
     def test_update_contacts(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])

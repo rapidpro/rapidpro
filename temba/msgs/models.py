@@ -454,6 +454,8 @@ class Broadcast(models.Model):
         # we batch up our SQL calls to speed up the creation of our SMS objects
         batch = []
         recipient_batch_set = set()
+        existing_recipient_contacts = list(
+            BroadcastRecipient.objects.filter(broadcast_id=self.id).values_list('contact_id', flat=True))
 
         # our priority is based on the number of recipients
         priority = Msg.PRIORITY_NORMAL
@@ -520,7 +522,8 @@ class Broadcast(models.Model):
             if msg:
                 batch.append(msg)
                 # keep track of this URN as a recipient
-                recipient_batch_set.add((msg.contact_id, self.id))
+                if msg.contact_id not in existing_recipient_contacts:
+                    recipient_batch_set.add((msg.contact_id, self.id))
 
             # we commit our messages in batches
             if len(batch) >= BATCH_SIZE:
@@ -542,6 +545,8 @@ class Broadcast(models.Model):
 
                 batch = []
                 recipient_batch_set = set()
+                existing_recipient_contacts = list(
+                    BroadcastRecipient.objects.filter(broadcast_id=self.id).values_list('contact_id', flat=True))
 
         # commit any remaining objects
         if batch:
