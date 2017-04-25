@@ -2483,6 +2483,15 @@ class BulkExportTest(TembaTest):
         actionset = ActionSet.objects.filter(flow=flow).order_by('y').first()
         self.assertTrue('@contact.name' in actionset.get_actions()[0].groups)
 
+    def test_import_voice_flows_expiration_time(self):
+        # all imported voice flows should have a max expiration time of 15 min
+        self.get_flow('ivr_child_flow')
+
+        self.assertEqual(Flow.objects.filter(flow_type=Flow.VOICE).count(), 1)
+        voice_flow = Flow.objects.get(flow_type=Flow.VOICE)
+        self.assertEqual(voice_flow.name, 'Voice Flow')
+        self.assertEqual(voice_flow.expires_after_minutes, 15)
+
     def test_missing_flows_on_import(self):
         # import a flow that starts a missing flow
         self.import_file('start_missing_flow')
@@ -2552,10 +2561,8 @@ class BulkExportTest(TembaTest):
         actions = action_set.get_actions_dict()
         action_msg = actions[0]['msg']
 
-        event_msg = json.loads(event.message)
-
-        self.assertEqual(event_msg['swa'], 'hello')
-        self.assertEqual(event_msg['eng'], 'Hey')
+        self.assertEqual(event.message['swa'], 'hello')
+        self.assertEqual(event.message['eng'], 'Hey')
 
         # base language for this flow is 'swa' despite our org languages being unset
         self.assertEqual(event.flow.base_language, 'swa')
