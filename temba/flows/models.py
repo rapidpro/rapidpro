@@ -386,7 +386,7 @@ class Flow(TembaModel):
         run = FlowRun.objects.filter(session=call, is_active=True).order_by('-created_on').first()
 
         # set our initial expiration date if we don't have one yet
-        if not run.expires_on:
+        if not run.expires_on and call.status is ChannelSession.IN_PROGRESS:
             run.update_expiration()
 
         # what we will send back
@@ -1482,9 +1482,6 @@ class Flow(TembaModel):
             run = FlowRun.create(self, contact_id, start=flow_start, parent=parent_run)
             if extra:  # pragma: needs cover
                 run.update_fields(extra)
-
-            # set our initial run expiration
-            run.update_expiration()
 
             # create our call objects
             if parent_run and parent_run.session:

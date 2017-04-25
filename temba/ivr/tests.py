@@ -734,9 +734,12 @@ class IVRTests(FlowFileTest):
 
         callback_url = reverse('ivr.ivrcall_handle', args=[call.pk])
 
-        # after a call is picked up, nexmo will send a get call back to our server
+        # after a call is picked up, nexmo will send a callback to our server
         response = self.client.post(callback_url, content_type='application/json',
-                                    data=json.dumps(dict(status='ringing', duration=0)))
+                                    data=json.dumps(dict(status='answered', duration=0)))
+
+        call.refresh_from_db()
+        self.assertEqual(ChannelSession.IN_PROGRESS, call.status)
 
         self.assertTrue(dict(action='talk', bargeIn=True, text="Enter your phone number followed by the pound sign.")
                         in json.loads(response.content))
@@ -762,7 +765,6 @@ class IVRTests(FlowFileTest):
         request.body = json.dumps(dict(call_id='12345'))
         request.url = "http://api.nexmo.com/../"
         request.method = "PUT"
-        mock_put.return_value = MagicMock(call_id='12345', request=request, status_code=200, content='response')
 
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
@@ -780,16 +782,32 @@ class IVRTests(FlowFileTest):
         eric = self.create_contact('Eric Newcomer', number='+13603621737')
         flow.start([], [eric])
 
-        # expire our flow
+        # since it hasn't started, our call should be pending and run should have no expiration
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
         run = FlowRun.objects.get()
+        self.assertEqual(ChannelSession.PENDING, call.status)
+        self.assertIsNone(run.expires_on)
+
+        # trigger a status update to show the call was answered
+        callback_url = reverse('ivr.ivrcall_handle', args=[call.pk])
+        self.client.post(callback_url, content_type='application/json',
+                         data=json.dumps(dict(status='answered', duration=0)))
+
+        call.refresh_from_db()
+        run.refresh_from_db()
+        self.assertEqual(ChannelSession.IN_PROGRESS, call.status)
+        self.assertIsNotNone(run.expires_on)
+
+        # now expire our run
+        mock_put.return_value = MagicMock(call_id='12345', request=request, status_code=200, content='response')
         run.expire()
 
         mock_put.assert_called()
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
         self.assertEqual(ChannelSession.INTERRUPTED, call.status)
 
-        # call initiation and timeout should both be logged
-        self.assertEqual(2, ChannelLog.objects.filter(session=call).count())
+        # call initiation, answer, and timeout should both be logged
+        self.assertEqual(3, ChannelLog.objects.filter(session=call).count())
         self.assertIsNotNone(call.ended_on)
 
     @patch('nexmo.Client.create_application')
