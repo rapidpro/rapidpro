@@ -1422,6 +1422,9 @@ class FlowTest(TembaTest):
         sms.text = "Nyarugenge"
         self.assertTest(True, AdminBoundary.objects.get(name="Nyarugenge"), district_test)
 
+        sms.text = "I am from Nyarugenge"
+        self.assertTest(True, AdminBoundary.objects.get(name="Nyarugenge"), district_test)
+
         sms.text = "Rwamagana"
         self.assertTest(False, None, district_test)
 
@@ -2828,7 +2831,10 @@ class ActionTest(TembaTest):
         run = FlowRun.create(self.flow, self.contact.pk)
 
         action = ReplyAction(dict(base="We love green too!"), None, send_all=True)
-        self.execute_action(action, run, msg)
+        action_replies = self.execute_action(action, run, msg)
+        self.assertEqual(len(action_replies), 1)
+        for action_reply in action_replies:
+            self.assertIsInstance(action_reply, Msg)
 
         replies = Msg.objects.filter(contact=contact, direction='O')
         self.assertEqual(replies.count(), 1)
@@ -2850,7 +2856,10 @@ class ActionTest(TembaTest):
         self.assertEquals(dict(base="We love green too!"), action.msg)
         self.assertTrue(action.send_all)
 
-        self.execute_action(action, run, msg)
+        action_replies = self.execute_action(action, run, msg)
+        self.assertEqual(len(action_replies), 2)
+        for action_reply in action_replies:
+            self.assertIsInstance(action_reply, Msg)
 
         replies = Msg.objects.filter(contact=contact, direction='O')
         self.assertEqual(replies.count(), 2)
@@ -3381,7 +3390,8 @@ class ActionTest(TembaTest):
 
         run = FlowRun.objects.get()
 
-        new_flow = Flow.create_single_message(self.org, self.user, "You chose @parent.color.category")
+        new_flow = Flow.create_single_message(self.org, self.user,
+                                              {'base': "You chose @parent.color.category"}, base_language='base')
         action = StartFlowAction(new_flow)
 
         action_json = action.as_json()
@@ -7501,3 +7511,51 @@ class FlowChannelSelectionTest(FlowFileTest):
         contact_urn = self.contact.get_urn(TEL_SCHEME)
         channel = self.contact.org.get_ussd_channel(contact_urn=contact_urn)
         self.assertEqual(channel, self.ussd_channel)
+
+
+class FlowTriggerTest(TembaTest):
+
+    def test_group_trigger(self):
+        flow = self.get_flow('favorites')
+
+        contact = self.create_contact("Joe", "+250788373373")
+        group = self.create_group("Contact Group", [contact])
+
+        # create a trigger, first just for the contact
+        contact_trigger = Trigger.objects.create(org=self.org, flow=flow, trigger_type=Trigger.TYPE_SCHEDULE,
+                                                 created_by=self.admin, modified_by=self.admin)
+        contact_trigger.contacts.add(contact)
+
+        # fire it manually
+        contact_trigger.fire()
+
+        # contact should be added to flow
+        self.assertEqual(1, FlowRun.objects.filter(flow=flow, contact=contact).count())
+
+        # but no flow starts were created
+        self.assertEqual(0, FlowStart.objects.all().count())
+
+        # now create a trigger for the group
+        group_trigger = Trigger.objects.create(org=self.org, flow=flow, trigger_type=Trigger.TYPE_SCHEDULE,
+                                               created_by=self.admin, modified_by=self.admin)
+        group_trigger.groups.add(group)
+
+        group_trigger.fire()
+
+        # contact should be added to flow again
+        self.assertEqual(2, FlowRun.objects.filter(flow=flow, contact=contact).count())
+
+        # and we should have a flow start
+        start = FlowStart.objects.get()
+        self.assertEqual(0, start.contacts.all().count())
+        self.assertEqual(1, start.groups.filter(id=group.id).count())
+
+        # clear our the group on our group trigger
+        group_trigger.groups.clear()
+
+        # refire
+        group_trigger.fire()
+
+        # nothing should have changed
+        self.assertEquals(2, FlowRun.objects.filter(flow=flow, contact=contact).count())
+        self.assertEquals(1, FlowStart.objects.all().count())

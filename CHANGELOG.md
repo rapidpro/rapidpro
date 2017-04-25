@@ -1,3 +1,23 @@
+v3.0.123
+----------
+ * Use flow starts for triggers that operate on groups
+ * Handle throttling errors from Nexmo when using API to add new numbers
+ * Convert campaign event messages to HSTORE fields
+
+v3.0.121
+----------
+ * Add MACROKIOSK channel type
+ * Show media for MMS in simulator
+
+v3.0.120
+----------
+ * Fix send all bug where we append list of messages to another list of messages
+ * Flows endpooint should allow filtering by modified_on
+
+v3.0.119
+----------
+ * More vertical form styling tweaks
+
 v3.0.118
 ----------
  * Add flow link on subflow rulesets in flows

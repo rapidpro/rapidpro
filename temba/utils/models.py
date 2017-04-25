@@ -4,7 +4,10 @@ import six
 import time
 
 from collections import defaultdict
+from django.contrib.postgres.fields import HStoreField
+from django.core.exceptions import ValidationError
 from django.db import models, connection
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
 from uuid import uuid4
@@ -12,6 +15,36 @@ from uuid import uuid4
 
 def generate_uuid():
     return six.text_type(uuid4())
+
+
+class TranslatableField(HStoreField):
+    """
+    Model field which is a set of language code and translation pairs stored as HSTORE
+    """
+    class Validator(object):
+        def __init__(self, max_length):
+            self.max_length = max_length
+
+        def __call__(self, value):
+            for lang, translation in six.iteritems(value):
+                if lang != 'base' and len(lang) != 3:
+                    raise ValidationError("'%s' is not a valid language code." % lang)
+                if len(translation) > self.max_length:
+                    raise ValidationError("Translation for '%s' exceeds the %d character limit." % (lang, self.max_length))
+
+    def __init__(self, max_length, **kwargs):
+        super(TranslatableField, self).__init__(**kwargs)
+
+        self.max_length = max_length
+
+    @cached_property
+    def validators(self):
+        return super(TranslatableField, self).validators + [TranslatableField.Validator(self.max_length)]
+
+    def deconstruct(self):
+        name, path, args, kwargs = super(TranslatableField, self).deconstruct()
+        kwargs['max_length'] = self.max_length
+        return name, path, args, kwargs
 
 
 class TembaModel(SmartModel):
