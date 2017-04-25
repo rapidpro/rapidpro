@@ -385,10 +385,6 @@ class Flow(TembaModel):
     def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
         run = FlowRun.objects.filter(session=call, is_active=True).order_by('-created_on').first()
 
-        # set our initial expiration date if we don't have one yet
-        if not run.expires_on and call.status is ChannelSession.IN_PROGRESS:
-            run.update_expiration()
-
         # what we will send back
         voice_response = call.channel.generate_ivr_response()
 
