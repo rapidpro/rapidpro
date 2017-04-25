@@ -27,6 +27,7 @@ class FlowEndpoint(View):
         return JsonResponse(response, json_dumps_params=params)
             
     def post(self, request):               
+        obj = None
         org = request.user.get_org()
         user = request.user
 
@@ -45,9 +46,13 @@ class FlowEndpoint(View):
         flow_name = flow.get('metadata', {}).get('name')
         expires_after_minutes = flow.get('metadata', {}).get('expires')
         if flow_uuid:
-            obj = Flow.objects.get(uuid=flow_uuid)
+            try:
+                obj = Flow.objects.get(uuid=flow_uuid)
+            except:
+                pass
+        if obj:
             obj.name = flow_name
-            obj.expires=expires_after_minutes
+            obj.expires_after_minutes = expires_after_minutes
             obj.save()
         else:
             obj = Flow.create(
@@ -55,7 +60,7 @@ class FlowEndpoint(View):
                 user,
                 flow_name,
                 flow_type=flow_type,    
-                expires_after_minutes=expires_after_minutes,
+                expires_after_minutes=expires_after_minutes
             )
         obj.update(flow)
             
