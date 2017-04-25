@@ -1422,6 +1422,9 @@ class FlowTest(TembaTest):
         sms.text = "Nyarugenge"
         self.assertTest(True, AdminBoundary.objects.get(name="Nyarugenge"), district_test)
 
+        sms.text = "I am from Nyarugenge"
+        self.assertTest(True, AdminBoundary.objects.get(name="Nyarugenge"), district_test)
+
         sms.text = "Rwamagana"
         self.assertTest(False, None, district_test)
 
