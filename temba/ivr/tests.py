@@ -677,12 +677,15 @@ class IVRTests(FlowFileTest):
         flow.start([], [eric])
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
 
-        # our run should have an initial expiration
-        self.assertIsNotNone(FlowRun.objects.filter(session=call).first().expires_on)
+        # our run shouldn't have an initial expiration yet
+        self.assertIsNone(FlowRun.objects.filter(session=call).first().expires_on)
 
         # after a call is picked up, twilio will call back to our server
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+
+        # once the call is handled, it should have one
+        self.assertIsNotNone(FlowRun.objects.filter(session=call).first().expires_on)
 
         # make sure we send the finishOnKey attribute to twilio
         self.assertContains(response, 'finishOnKey="#"')
