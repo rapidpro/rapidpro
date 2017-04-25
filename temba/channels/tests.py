@@ -2307,6 +2307,10 @@ class ChannelTest(TembaTest):
         # Check our sync point has all three messages queued for delivery
         response = self.sync(self.tel_channel)
         self.assertEquals(200, response.status_code)
+
+        # check last seen and gcm id were updated
+        self.channel.refresh_from_db()
+
         response = response.json()
         cmds = response['cmds']
         self.assertEqual(4, len(cmds))
@@ -2325,6 +2329,11 @@ class ChannelTest(TembaTest):
 
         # a pending outgoing message should be included
         Msg.create_outgoing(self.org, self.admin, msg6.contact, "Hello, we heard from you.")
+
+        six_mins_ago = timezone.now() - timedelta(minutes=6)
+        self.tel_channel.last_seen = six_mins_ago
+        self.tel_channel.gcm_id = 'old_gcm_id'
+        self.tel_channel.save(update_fields=['last_seen', 'gcm_id'])
 
         post_data = dict(cmds=[
 
@@ -2365,6 +2374,10 @@ class ChannelTest(TembaTest):
 
         # now send the channel's updates
         response = self.sync(self.tel_channel, post_data)
+
+        self.tel_channel.refresh_from_db()
+        self.assertEqual(self.tel_channel.gcm_id, '12345')
+        self.assertTrue(self.tel_channel.last_seen > six_mins_ago)
 
         # new batch, our ack and our claim command for new org
         self.assertEquals(4, len(response.json()['cmds']))
