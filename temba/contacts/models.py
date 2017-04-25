@@ -2288,6 +2288,9 @@ class ContactGroup(TembaModel):
         """
         return ContactGroupCount.get_totals([self])[self]
 
+    def get_export_dependencies(self):
+        return set(self.campaign_set.filter(is_archived=False, is_active=True))
+
     def release(self):
         """
         Releases (i.e. deletes) this group, removing all contacts and marking as inactive

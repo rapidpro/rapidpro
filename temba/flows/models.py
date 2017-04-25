@@ -1798,6 +1798,35 @@ class Flow(TembaModel):
 
         return send_actions
 
+    def get_export_dependencies(self, flow_map=None):
+        from temba.contacts.models import ContactGroup
+
+        # need to make sure we have the latest version to inspect dependencies
+        self.ensure_current_version()
+
+        dependencies = set()
+
+        # find all the flows we reference, note this won't include archived flows
+        for action_set in self.action_sets.all():
+            for action in action_set.get_actions():
+                if hasattr(action, 'flow'):
+                    dependencies.add(action.flow)
+                if hasattr(action, 'groups'):
+                    for group in action.groups:
+                        if isinstance(group, ContactGroup):
+                            dependencies.add(group)
+
+        for ruleset in self.rule_sets.all():
+            if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                flow_uuid = ruleset.config_json()['flow']['uuid']
+                flow = flow_map.get(flow_uuid) if flow_map else Flow.objects.filter(uuid=flow_uuid).first()
+                if flow:
+                    dependencies.add(flow)
+
+        dependencies.update(set(self.triggers.filter(is_archived=False, is_active=True)))
+
+        return dependencies
+
     def get_dependencies(self, dependencies=None, include_campaigns=True):
 
         # need to make sure we have the latest version to inspect dependencies

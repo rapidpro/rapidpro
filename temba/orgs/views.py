@@ -530,6 +530,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             from collections import defaultdict
+            from temba.campaigns.models import Campaign
 
             def connected_components(lists):
                 neighbors = defaultdict(set)
@@ -556,6 +557,7 @@ class OrgCRUDL(SmartCRUDL):
 
             # all of our user facing flows
             flows = self.get_object().get_export_flows(include_archived=include_archived)
+            flows = flows.prefetch_related('action_sets', 'rule_sets')
 
             # now add lists of flows with their dependencies
             all_depends = []
@@ -564,7 +566,6 @@ class OrgCRUDL(SmartCRUDL):
                 all_depends.append([flow] + list(depends['flows']) + list(depends['campaigns']))
 
             # add all campaigns
-            from temba.campaigns.models import Campaign
             campaigns = Campaign.objects.filter(org=self.get_object())
 
             if not include_archived:

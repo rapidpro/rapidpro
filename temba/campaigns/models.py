@@ -167,6 +167,9 @@ class Campaign(TembaModel):
 
         return [each_campaign.pk for each_campaign in campaigns]
 
+    def get_export_dependencies(self):
+        return set(self.get_flows())
+
     def get_events(self):
         return self.events.filter(is_active=True).order_by('relative_to', 'offset')
 
@@ -206,12 +209,6 @@ class Campaign(TembaModel):
 
         definition['events'] = events
         return definition
-
-    def get_all_flows(self):  # pragma: needs cover
-        """
-        Unique set of flows, including single message flows
-        """
-        return [event.flow for event in self.events.filter(is_active=True).order_by('flow__id').distinct('flow')]
 
     def get_flows(self):
         """

@@ -1677,6 +1677,85 @@ class Org(SmartModel):
 
         return subscription
 
+    def get_export_collections(self, include_archived=False):
+        from collections import defaultdict
+        from temba.campaigns.models import Campaign
+        from temba.flows.models import Flow
+
+        flows = self.flows.exclude(is_active=False).exclude(flow_type=Flow.MESSAGE).prefetch_related('action_sets', 'rule_sets', 'triggers')
+        campaigns = self.campaign_set.prefetch_related('events__flow')
+        groups = self.all_groups.prefetch_related('campaign_set')
+        triggers = self.trigger_set.select_related('flow')
+
+        if not include_archived:
+            flows = flows.filter(is_archived=False)
+            campaigns = campaigns.filter(is_archived=False)
+
+        flow_map = {f.uuid: f for f in flows}
+
+        # gather up immediate (i.e. non-transitive) dependencies for all exportable objects
+        dependencies = defaultdict(set)
+        for flow in flows:
+            dependencies[flow] = flow.get_export_dependencies(flow_map)
+        for campaign in campaigns:
+            dependencies[campaign] = campaign.get_export_dependencies()
+        for group in groups:
+            dependencies[group] = group.get_export_dependencies()
+        for trigger in triggers:
+            dependencies[trigger] = set()
+
+        # make dependencies symmetric, i.e. if A depends on B, B depends on A
+        for c, deps in six.iteritems(dependencies):
+            for d in deps:
+                dependencies[d].add(c)
+
+        uncollected = set(dependencies.keys())
+        collections = []
+
+        print("Gathered %d components" % len(uncollected))
+
+        def collect_component(c, collection):
+            if c in collection:
+                return
+
+            collection.add(c)
+            uncollected.remove(c)
+
+            for d in dependencies[c]:
+                if d in uncollected:
+                    collect_component(d, collection)
+
+        while uncollected:
+            component = next(iter(uncollected))
+
+            collection = None
+            for dep in dependencies[component]:
+                for coll in collections:
+                    if dep in coll:
+                        collection = coll
+
+            if not collection:
+                collection = set()
+                collections.append(collection)
+
+            collect_component(component, collection)
+
+        # collections with only one non-group component should be merged into a single "everything else" collection
+        final_collections = []
+        everything_else = set()
+
+        for coll in collections:
+            if len([i for i in coll if isinstance(i, (Campaign, Flow))]) > 1:
+                final_collections.append(coll)
+            else:
+                everything_else.update(coll)
+
+        final_collections.append(everything_else)
+
+        print("Into %d collections" % len(final_collections))
+
+        return final_collections
+
     def get_export_flows(self, include_archived=False):
         from temba.flows.models import Flow
         flows = self.flows.all().exclude(is_active=False).exclude(flow_type=Flow.MESSAGE).order_by('-modified_on')
