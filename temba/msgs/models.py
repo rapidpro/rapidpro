@@ -453,9 +453,8 @@ class Broadcast(models.Model):
 
         # we batch up our SQL calls to speed up the creation of our SMS objects
         batch = []
-        recipient_batch_set = set()
-        existing_recipient_contacts = list(
-            BroadcastRecipient.objects.filter(broadcast_id=self.id).values_list('contact_id', flat=True))
+        batch_recipients = []
+        existing_recipients = set(BroadcastRecipient.objects.filter(broadcast_id=self.id).values_list('contact_id', flat=True))
 
         # our priority is based on the number of recipients
         priority = Msg.PRIORITY_NORMAL
@@ -521,20 +520,16 @@ class Broadcast(models.Model):
             # only add it to our batch if it was legit
             if msg:
                 batch.append(msg)
-                # keep track of this URN as a recipient
-                if msg.contact_id not in existing_recipient_contacts:
-                    recipient_batch_set.add((msg.contact_id, self.id))
+
+                # if this isn't an existing recipient, add it as one
+                if msg.contact_id not in existing_recipients:
+                    existing_recipients.add(msg.contact_id)
+                    batch_recipients.append(RelatedRecipient(contact_id=msg.contact_id, broadcast_id=self.id))
 
             # we commit our messages in batches
             if len(batch) >= BATCH_SIZE:
-
-                recipient_batch = []
-                for recipient_tuple in list(recipient_batch_set):
-                    recipient_batch.append(
-                        RelatedRecipient(contact_id=recipient_tuple[0], broadcast_id=recipient_tuple[1]))
-
                 Msg.objects.bulk_create(batch)
-                RelatedRecipient.objects.bulk_create(recipient_batch)
+                RelatedRecipient.objects.bulk_create(batch_recipients)
 
                 # send any messages
                 if trigger_send:
@@ -544,19 +539,12 @@ class Broadcast(models.Model):
                     created_on = created_on + timedelta(seconds=1)
 
                 batch = []
-                recipient_batch_set = set()
-                existing_recipient_contacts = list(
-                    BroadcastRecipient.objects.filter(broadcast_id=self.id).values_list('contact_id', flat=True))
+                batch_recipients = []
 
         # commit any remaining objects
         if batch:
-            recipient_batch = []
-            for recipient_tuple in list(recipient_batch_set):
-                recipient_batch.append(
-                    RelatedRecipient(contact_id=recipient_tuple[0], broadcast_id=recipient_tuple[1]))
-
             Msg.objects.bulk_create(batch)
-            RelatedRecipient.objects.bulk_create(recipient_batch)
+            RelatedRecipient.objects.bulk_create(batch_recipients)
 
             if trigger_send:
                 self.org.trigger_send(Msg.objects.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
