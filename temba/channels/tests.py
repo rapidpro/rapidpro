@@ -2309,7 +2309,7 @@ class ChannelTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # check last seen and gcm id were updated
-        self.channel.refresh_from_db()
+        self.tel_channel.refresh_from_db()
 
         response = response.json()
         cmds = response['cmds']
