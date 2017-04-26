@@ -14,7 +14,7 @@ import time
 import urllib2
 import uuid
 
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
 from django.conf import settings
 from django.contrib.auth.models import User, Group
 from django.core import mail
@@ -5645,8 +5645,11 @@ class MacrokioskTest(TembaTest):
 
         two_hour_ago = timezone.now() - timedelta(hours=2)
 
+        msg_date = datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")
+
         data = {'shortcode': '1212', 'from': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
-                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
+                'time': msg_date}
+
         encoded_message = urlencode(data)
 
         callback_url = reverse('handlers.macrokiosk_handler',
@@ -5664,6 +5667,11 @@ class MacrokioskTest(TembaTest):
         self.assertEqual(msg.channel, self.channel)
         self.assertEqual(msg.text, "Hello World")
         self.assertEqual(msg.external_id, 'abc1234')
+
+        message_date = datetime.strptime(msg_date, "%Y-%m-%d%H:%M:%S")
+        local_date = pytz.timezone('Asia/Kuala_Lumpur').localize(message_date)
+        gmt_date = local_date.astimezone(pytz.utc)
+        self.assertEqual(msg.sent_on, gmt_date)
 
         Msg.objects.all().delete()
 
