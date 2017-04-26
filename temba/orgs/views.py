@@ -531,15 +531,82 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.Export, self).get_context_data(**kwargs)
 
+            org = self.get_object()
             include_archived = self.request.GET.get('archived', 0)
 
-            buckets, everything_else = self.get_object().get_export_buckets(include_archived)
+            dependencies = org.get_export_dependencies(include_archived)
+            buckets, singles = self.get_export_buckets(dependencies)
 
             context['archived'] = include_archived
             context['buckets'] = buckets
-            context['singles'] = everything_else
+            context['singles'] = singles
 
             return context
+
+        def get_export_buckets(self, dependencies):
+            """
+            Converts a dict of exportable components -> dependencies, into a list of buckets of related components
+            """
+            from temba.campaigns.models import Campaign
+            from temba.flows.models import Flow
+
+            unbucketed = set(dependencies.keys())
+            buckets = []
+
+            # helper method to add a component and its dependencies to a bucket
+            def collect_component(c, bucket):
+                if c in bucket:
+                    return
+
+                unbucketed.remove(c)
+
+                if not isinstance(c, (Campaign, Flow)):
+                    return
+
+                bucket.add(c)
+
+                for d in dependencies[c]:
+                    if d in unbucketed:
+                        collect_component(d, bucket)
+
+            while unbucketed:
+                component = next(iter(unbucketed))
+
+                bucket = None
+                for dep in dependencies[component]:
+                    for b in buckets:
+                        if dep in b:
+                            bucket = b
+
+                if not bucket:
+                    bucket = set()
+                    buckets.append(bucket)
+
+                collect_component(component, bucket)
+
+            # collections with only one non-group component should be merged into a single "everything else" collection
+            non_single_buckets = []
+            singles = set()
+
+            # items within buckets are sorted by type and name
+            def sort_key(c):
+                return c.__class__, c.name.lower()
+
+            # buckets with a single item are merged into a special singles bucket
+            for b in buckets:
+                if len(b) > 1:
+                    sorted_bucket = sorted(list(b), key=sort_key)
+                    non_single_buckets.append(sorted_bucket)
+                else:
+                    singles.update(b)
+
+            # put the buckets with the most items first
+            non_single_buckets = sorted(non_single_buckets, key=lambda b: len(b), reverse=True)
+
+            # sort singles
+            singles = sorted(list(singles), key=sort_key)
+
+            return non_single_buckets, singles
 
     class TwilioConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
 

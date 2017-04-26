@@ -167,9 +167,6 @@ class Campaign(TembaModel):
 
         return [each_campaign.pk for each_campaign in campaigns]
 
-    def get_export_dependencies(self):
-        return set(self.get_flows())
-
     def get_events(self):
         return self.events.filter(is_active=True).order_by('relative_to', 'offset')
 

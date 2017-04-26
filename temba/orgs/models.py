@@ -11,10 +11,10 @@ import six
 import stripe
 import traceback
 
+from collections import defaultdict
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
-
 from django.conf import settings
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
@@ -23,9 +23,8 @@ from django.core.urlresolvers import reverse
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import Sum, F, Q
+from django.db.models import Sum, F, Q, Prefetch
 from django.utils import timezone
-from temba.utils.email import send_simple_email, send_custom_smtp_email
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
 from django_redis import get_redis_connection
@@ -34,12 +33,10 @@ from requests import Session
 from smartmin.models import SmartModel
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-
-from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
-from temba.utils import languages
+from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string, languages
 from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from temba.utils.currencies import currency_for_country
-from temba.utils.email import send_template_email
+from temba.utils.email import send_template_email, send_simple_email, send_custom_smtp_email
 from temba.utils.models import SquashableModel
 from temba.utils.timezones import timezone_to_country_code
 from timezone_field import TimeZoneField
@@ -1677,15 +1674,16 @@ class Org(SmartModel):
 
         return subscription
 
-    def get_export_buckets(self, include_archived=False):
-        from collections import defaultdict
-        from operator import attrgetter
-        from temba.campaigns.models import Campaign
+    def get_export_dependencies(self, include_archived=False):
+        from temba.campaigns.models import CampaignEvent
         from temba.contacts.models import ContactGroup
         from temba.flows.models import Flow
 
         flows = self.flows.filter(is_active=True).exclude(flow_type=Flow.MESSAGE).prefetch_related('action_sets', 'rule_sets', 'triggers')
-        campaigns = self.campaign_set.filter(is_active=True).select_related('group').prefetch_related('events__flow')
+        campaigns = self.campaign_set.filter(is_active=True).select_related('group').prefetch_related(
+            Prefetch('events', queryset=CampaignEvent.objects.filter(is_active=True).exclude(flow__flow_type=Flow.MESSAGE)),
+            'events__flow'
+        )
 
         if not include_archived:
             flows = flows.filter(is_archived=False)
@@ -1698,7 +1696,7 @@ class Org(SmartModel):
         for flow in flows:
             dependencies[flow] = flow.get_export_dependencies(flow_map)
         for campaign in campaigns:
-            dependencies[campaign] = campaign.get_export_dependencies()
+            dependencies[campaign] = set([e.flow for e in campaign.events.all()])
 
         # replace any dependency on a group with that group's associated campaigns
         campaigns_by_group = defaultdict(list)
@@ -1717,66 +1715,7 @@ class Org(SmartModel):
             for d in deps:
                 dependencies[d].add(c)
 
-        uncollected = set(dependencies.keys())
-        buckets = []
-
-        def collect_component(c, bucket):
-            if c in bucket:
-                return
-
-            uncollected.remove(c)
-
-            if not isinstance(c, (Campaign, Flow)):
-                return
-
-            bucket.add(c)
-
-            for d in dependencies[c]:
-                if d in uncollected:
-                    collect_component(d, bucket)
-
-        while uncollected:
-            component = next(iter(uncollected))
-
-            bucket = None
-            for dep in dependencies[component]:
-                for b in buckets:
-                    if dep in b:
-                        bucket = b
-
-            if not bucket:
-                bucket = set()
-                buckets.append(bucket)
-
-            collect_component(component, bucket)
-
-        # collections with only one non-group component should be merged into a single "everything else" collection
-        non_single_buckets = []
-        everything_else = set()
-
-        for b in buckets:
-            if len([i for i in b if isinstance(i, (Campaign, Flow))]) > 1:
-                sorted_bucket = sorted(list(b), key=attrgetter('__class__', 'name'))
-                non_single_buckets.append(sorted_bucket)
-            else:
-                everything_else.update(b)
-
-        # put the buckets with the most items first
-        buckets = sorted(non_single_buckets, key=lambda b: len(b), reverse=True)
-
-        # sort 'everything else'
-        everything_else = sorted(list(everything_else), key=attrgetter('__class__', 'name'))
-
-        print("Generated %d export buckets from %d components" % (len(buckets), len(dependencies)))
-
-        return buckets, everything_else
-
-    def get_export_flows(self, include_archived=False):
-        from temba.flows.models import Flow
-        flows = self.flows.all().exclude(is_active=False).exclude(flow_type=Flow.MESSAGE).order_by('-modified_on')
-        if not include_archived:
-            flows = flows.filter(is_archived=False)
-        return flows
+        return dependencies
 
     def get_recommended_channel(self):
         from temba.channels.views import TWILIO_SEARCH_COUNTRIES
