@@ -529,71 +529,15 @@ class OrgCRUDL(SmartCRUDL):
             return response
 
         def get_context_data(self, **kwargs):
-            from collections import defaultdict
-            from temba.campaigns.models import Campaign
-
-            def connected_components(lists):
-                neighbors = defaultdict(set)
-                seen = set()
-                for each in lists:
-                    for item in each:
-                        neighbors[item].update(each)
-
-                def component(node, neighbors=neighbors, seen=seen, see=seen.add):
-                    nodes = {node}
-                    next_node = nodes.pop
-                    while nodes:
-                        node = next_node()
-                        see(node)
-                        nodes |= neighbors[node] - seen
-                        yield node
-                for node in neighbors:
-                    if node not in seen:
-                        yield sorted(component(node))
-
             context = super(OrgCRUDL.Export, self).get_context_data(**kwargs)
 
             include_archived = self.request.GET.get('archived', 0)
 
-            # all of our user facing flows
-            flows = self.get_object().get_export_flows(include_archived=include_archived)
-            flows = flows.prefetch_related('action_sets', 'rule_sets')
-
-            # now add lists of flows with their dependencies
-            all_depends = []
-            for flow in flows:
-                depends = flow.get_dependencies()
-                all_depends.append([flow] + list(depends['flows']) + list(depends['campaigns']))
-
-            # add all campaigns
-            campaigns = Campaign.objects.filter(org=self.get_object())
-
-            if not include_archived:
-                campaigns = campaigns.filter(is_archived=False)
-
-            for campaign in campaigns:
-                all_depends.append((campaign,))
-
-            buckets = connected_components(all_depends)
-
-            # sort our buckets, campaigns, flows, triggers
-            bucket_list = []
-            singles = []
-            for bucket in buckets:
-                if len(bucket) > 1:
-                    bucket_list.append(sorted(list(bucket), key=attrgetter('__class__', 'name')))
-                else:
-                    singles.append(bucket[0])
-
-            # put the buckets with the most items first
-            bucket_list = sorted(bucket_list, key=lambda s: len(s), reverse=True)
-
-            # sort our singles by type
-            singles = sorted(singles, key=attrgetter('__class__', 'name'))
+            buckets, everything_else = self.get_object().get_export_buckets(include_archived)
 
             context['archived'] = include_archived
-            context['buckets'] = bucket_list
-            context['singles'] = singles
+            context['buckets'] = buckets
+            context['singles'] = everything_else
 
             return context
 

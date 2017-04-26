@@ -1677,15 +1677,15 @@ class Org(SmartModel):
 
         return subscription
 
-    def get_export_collections(self, include_archived=False):
+    def get_export_buckets(self, include_archived=False):
         from collections import defaultdict
+        from operator import attrgetter
         from temba.campaigns.models import Campaign
+        from temba.contacts.models import ContactGroup
         from temba.flows.models import Flow
 
-        flows = self.flows.exclude(is_active=False).exclude(flow_type=Flow.MESSAGE).prefetch_related('action_sets', 'rule_sets', 'triggers')
-        campaigns = self.campaign_set.prefetch_related('events__flow')
-        groups = self.all_groups.prefetch_related('campaign_set')
-        triggers = self.trigger_set.select_related('flow')
+        flows = self.flows.filter(is_active=True).exclude(flow_type=Flow.MESSAGE).prefetch_related('action_sets', 'rule_sets', 'triggers')
+        campaigns = self.campaign_set.filter(is_active=True).select_related('group').prefetch_related('events__flow')
 
         if not include_archived:
             flows = flows.filter(is_archived=False)
@@ -1699,10 +1699,18 @@ class Org(SmartModel):
             dependencies[flow] = flow.get_export_dependencies(flow_map)
         for campaign in campaigns:
             dependencies[campaign] = campaign.get_export_dependencies()
-        for group in groups:
-            dependencies[group] = group.get_export_dependencies()
-        for trigger in triggers:
-            dependencies[trigger] = set()
+
+        # replace any dependency on a group with that group's associated campaigns
+        campaigns_by_group = defaultdict(list)
+        for campaign in campaigns:
+            campaigns_by_group[campaign.group].append(campaign)
+
+        for c, deps in six.iteritems(dependencies):
+            if isinstance(c, Flow):
+                for d in list(deps):
+                    if isinstance(d, ContactGroup):
+                        dependencies[c].remove(d)
+                        dependencies[c].update(campaigns_by_group[d])
 
         # make dependencies symmetric, i.e. if A depends on B, B depends on A
         for c, deps in six.iteritems(dependencies):
@@ -1710,51 +1718,58 @@ class Org(SmartModel):
                 dependencies[d].add(c)
 
         uncollected = set(dependencies.keys())
-        collections = []
+        buckets = []
 
-        print("Gathered %d components" % len(uncollected))
-
-        def collect_component(c, collection):
-            if c in collection:
+        def collect_component(c, bucket):
+            if c in bucket:
                 return
 
-            collection.add(c)
             uncollected.remove(c)
+
+            if not isinstance(c, (Campaign, Flow)):
+                return
+
+            bucket.add(c)
 
             for d in dependencies[c]:
                 if d in uncollected:
-                    collect_component(d, collection)
+                    collect_component(d, bucket)
 
         while uncollected:
             component = next(iter(uncollected))
 
-            collection = None
+            bucket = None
             for dep in dependencies[component]:
-                for coll in collections:
-                    if dep in coll:
-                        collection = coll
+                for b in buckets:
+                    if dep in b:
+                        bucket = b
 
-            if not collection:
-                collection = set()
-                collections.append(collection)
+            if not bucket:
+                bucket = set()
+                buckets.append(bucket)
 
-            collect_component(component, collection)
+            collect_component(component, bucket)
 
         # collections with only one non-group component should be merged into a single "everything else" collection
-        final_collections = []
+        non_single_buckets = []
         everything_else = set()
 
-        for coll in collections:
-            if len([i for i in coll if isinstance(i, (Campaign, Flow))]) > 1:
-                final_collections.append(coll)
+        for b in buckets:
+            if len([i for i in b if isinstance(i, (Campaign, Flow))]) > 1:
+                sorted_bucket = sorted(list(b), key=attrgetter('__class__', 'name'))
+                non_single_buckets.append(sorted_bucket)
             else:
-                everything_else.update(coll)
+                everything_else.update(b)
 
-        final_collections.append(everything_else)
+        # put the buckets with the most items first
+        buckets = sorted(non_single_buckets, key=lambda b: len(b), reverse=True)
 
-        print("Into %d collections" % len(final_collections))
+        # sort 'everything else'
+        everything_else = sorted(list(everything_else), key=attrgetter('__class__', 'name'))
 
-        return final_collections
+        print("Generated %d export buckets from %d components" % (len(buckets), len(dependencies)))
+
+        return buckets, everything_else
 
     def get_export_flows(self, include_archived=False):
         from temba.flows.models import Flow
