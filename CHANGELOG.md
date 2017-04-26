@@ -1,3 +1,12 @@
+v3.0.124
+----------
+ * Move initial IVR expiration check to status update on the call
+ * Hide request time in channel log if unset
+ * Check the existance of broadcast recipients before adding
+ * Voice flows import should never allow expirations longer than 15 mins
+ * Fix parse location to correctly use the tokenizized text if the location was matched for the entire text
+ * Use updates instead of full Channel saves() on realyer syncs, only update when there are changes
+
 v3.0.123
 ----------
  * Use flow starts for triggers that operate on groups

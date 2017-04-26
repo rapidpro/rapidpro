@@ -291,7 +291,11 @@ class Flow(TembaModel):
                 if same_site:
                     flow = Flow.objects.filter(org=org, is_active=True, uuid=flow_spec['metadata']['uuid']).first()
                     if flow:  # pragma: needs cover
-                        flow.expires_after_minutes = flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
+                        expires_minutes = flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
+                        if flow_type == Flow.VOICE:
+                            expires_minutes = min([expires_minutes, 15])
+
+                        flow.expires_after_minutes = expires_minutes
                         flow.name = Flow.get_unique_name(org, name, ignore=flow)
                         flow.save(update_fields=['name', 'expires_after_minutes'])
 
@@ -301,8 +305,12 @@ class Flow(TembaModel):
 
                 # if there isn't one already, create a new flow
                 if not flow:
+                    expires_minutes = flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
+                    if flow_type == Flow.VOICE:
+                        expires_minutes = min([expires_minutes, 15])
+
                     flow = Flow.create(org, user, Flow.get_unique_name(org, name), flow_type=flow_type,
-                                       expires_after_minutes=flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER))
+                                       expires_after_minutes=expires_minutes)
 
                 created_flows.append(dict(flow=flow, flow_spec=flow_spec))
 
@@ -380,10 +388,6 @@ class Flow(TembaModel):
     @classmethod
     def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
         run = FlowRun.objects.filter(session=call, is_active=True).order_by('-created_on').first()
-
-        # set our initial expiration date if we don't have one yet
-        if not run.expires_on:
-            run.update_expiration()
 
         # what we will send back
         voice_response = call.channel.generate_ivr_response()
@@ -1482,9 +1486,6 @@ class Flow(TembaModel):
             run = FlowRun.create(self, contact_id, start=flow_start, parent=parent_run)
             if extra:  # pragma: needs cover
                 run.update_fields(extra)
-
-            # set our initial run expiration
-            run.update_expiration()
 
             # create our call objects
             if parent_run and parent_run.session:
