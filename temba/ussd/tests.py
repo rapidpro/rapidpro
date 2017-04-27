@@ -906,6 +906,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                 self.assertEquals("vumi-message-id", msg.response_to.external_id)
 
                 self.assertEquals(msg.session.status, USSDSession.COMPLETED)
+                self.assertTrue(msg.session.get_duration())
 
                 self.assertEquals(2, mock.call_count)
 

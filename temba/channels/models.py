@@ -3761,7 +3761,7 @@ class ChannelSession(SmartModel):
     def get_logs(self):
         return self.channel_logs.all().order_by('created_on')
 
-    def get_duration(self):  # pragma: needs cover
+    def get_duration(self):
         return timedelta(seconds=self.duration)
 
     def is_done(self):
