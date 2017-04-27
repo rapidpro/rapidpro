@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 
+import os.path
 import geojson
 import regex
 
@@ -46,6 +47,7 @@ class Command(BaseCommand):  # pragma: no cover
                 is_simplified = True if match.group(2) else False
             elif not match:
                 print("Skipping '%s', doesn't match file pattern." % filename)
+                return
 
         # for each of our features
         for feature in admin_json['features']:
@@ -132,22 +134,23 @@ class Command(BaseCommand):  # pragma: no cover
         zipfile = None
         if files[0].endswith(".zip"):
             zipfile = ZipFile(files[0], 'r')
-            filenames = zipfile.namelist()
+            filepaths = zipfile.namelist()
 
         else:
-            filenames = list(files)
+            filepaths = list(files)
 
         # are we filtering by a prefix?
         prefix = ''
         if options['country']:
             prefix = '%sadmin' % options['country']
 
-        # sort our filenames, this will make sure we import 0 levels before 1
+        # sort our filepaths, this will make sure we import 0 levels before 1
         # before 2
-        filenames.sort()
+        filepaths.sort()
 
         # for each file they have given us
-        for filename in filenames:
+        for filepath in filepaths:
+            filename = os.path.basename(filepath)
             # if it ends in json, then it is geojson, try to parse it
             if filename.startswith(prefix) and filename.endswith('json'):
                 # read the file entirely
@@ -155,10 +158,10 @@ class Command(BaseCommand):  # pragma: no cover
 
                 # if we are reading from a zipfile, read it from there
                 if zipfile:
-                    with zipfile.open(filename) as json_file:
+                    with zipfile.open(filepath) as json_file:
                         self.import_file(filename, json_file)
 
                 # otherwise, straight off the filesystem
                 else:
-                    with open(filename) as json_file:
+                    with open(filepath) as json_file:
                         self.import_file(filename, json_file)

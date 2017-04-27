@@ -3,7 +3,7 @@ from __future__ import print_function, unicode_literals
 import logging
 import six
 import time
-
+import json
 
 from celery.task import task
 from collections import defaultdict
@@ -17,7 +17,7 @@ from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import start_task, complete_task, nonoverlapping_task
 from temba.utils import json_date_to_datetime, chunk_list
 from .models import Msg, Broadcast, BroadcastRecipient, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
-from .models import FIRE_EVENT, TIMEOUT_EVENT, SystemLabel
+from .models import FIRE_EVENT, TIMEOUT_EVENT, LabelCount, SystemLabelCount
 
 logger = logging.getLogger(__name__)
 
@@ -49,33 +49,59 @@ def process_run_timeout(run_id, timeout_on):
                 print("T[%09d] %08.3f s" % (run.id, time.time() - start))
 
 
-@task(track_started=True, name='process_message_task')  # pragma: no cover
-def process_message_task(msg_id, from_mage=False, new_contact=False):
+def process_message(msg, from_mage=False, new_contact=False):
     """
-    Processes a single incoming message through our queue.
+    Processes the passed in message dealing with new contacts or mage messages appropriately.
+    """
+    print("M[%09d] Processing - %s" % (msg.id, msg.text))
+    start = time.time()
+
+    # if message was created in Mage...
+    if from_mage:
+        mage_handle_new_message(msg.org, msg)
+        if new_contact:
+            mage_handle_new_contact(msg.org, msg.contact)
+
+    Msg.process_message(msg)
+    print("M[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text))
+
+
+@task(track_started=True, name='process_message_task')
+def process_message_task(msg_event):
+    """
+    Given the task JSON from our queue, processes the message, is two implementations to deal with
+    backwards compatibility of using contact queues (second branch can be removed later)
     """
     r = get_redis_connection()
-    msg = Msg.objects.filter(pk=msg_id, status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
 
-    # somebody already handled this message, move on
-    if not msg:  # pragma: needs cover
-        return
+    # we have a contact id, we want to get the msg from that queue after acquiring our lock
+    if msg_event.get('contact_id'):
+        key = 'pcm_%d' % msg_event['contact_id']
+        contact_queue = Msg.CONTACT_HANDLING_QUEUE % msg_event['contact_id']
 
-    # get a lock on this contact, we process messages one by one to prevent odd behavior in flow processing
-    key = 'pcm_%d' % msg.contact_id
-    if not r.get(key):
+        # wait for the lock as we want to make sure to process the next message as soon as we are free
         with r.lock(key, timeout=120):
-            print("M[%09d] Processing - %s" % (msg.id, msg.text))
-            start = time.time()
+            # pop the next message to process off our contact queue
+            with r.pipeline() as pipe:
+                pipe.zrange(contact_queue, 0, 0)
+                pipe.zremrangebyrank(contact_queue, 0, 0)
+                (contact_msg, deleted) = pipe.execute()
 
-            # if message was created in Mage...
-            if from_mage:
-                mage_handle_new_message(msg.org, msg)
-                if new_contact:
-                    mage_handle_new_contact(msg.org, msg.contact)
+            if contact_msg:
+                msg_event = json.loads(contact_msg[0])
+                msg = Msg.objects.filter(id=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
 
-            Msg.process_message(msg)
-            print("M[%09d] %08.3f s - %s" % (msg.id, time.time() - start, msg.text))
+                if msg:
+                    process_message(msg, msg_event.get('from_mage', False), msg_event.get('new_contact', False))
+
+    # backwards compatibility for events without contact ids, we handle the message directly
+    else:
+        msg = Msg.objects.filter(id=msg_event['id'], status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
+        if msg:
+            # grab our contact lock and handle this message
+            key = 'pcm_%d' % msg.contact_id
+            with r.lock(key, timeout=120):
+                process_message(msg, msg_event.get('from_mage', False), msg_event.get('new_contact', False))
 
 
 @task(track_started=True, name='send_broadcast')
@@ -196,13 +222,11 @@ def check_messages_task():  # pragma: needs cover
 
 
 @task(track_started=True, name='export_sms_task')
-def export_sms_task(id):  # pragma: needs cover
+def export_messages_task(export_id):
     """
     Export messages to a file and e-mail a link to the user
     """
-    export_task = ExportMessagesTask.objects.filter(pk=id).first()
-    if export_task:
-        export_task.perform()
+    ExportMessagesTask.objects.get(id=export_id).perform()
 
 
 @task(track_started=True, name="handle_event_task", time_limit=180, soft_time_limit=120)
@@ -228,7 +252,7 @@ def handle_event_task():
 
     try:
         if event_task['type'] == MSG_EVENT:
-            process_message_task(event_task['id'], event_task.get('from_mage', False), event_task.get('new_contact', False))
+            process_message_task(event_task)
 
         elif event_task['type'] == FIRE_EVENT:
             # use a lock to make sure we don't do two at once somehow
@@ -342,8 +366,9 @@ def purge_broadcasts_task():
 
 
 @nonoverlapping_task(track_started=True, name="squash_systemlabels")
-def squash_systemlabels():
-    SystemLabel.squash()
+def squash_labelcounts():
+    SystemLabelCount.squash()
+    LabelCount.squash()
 
 
 @nonoverlapping_task(track_started=True, name='clear_old_msg_external_ids', time_limit=60 * 60 * 36)

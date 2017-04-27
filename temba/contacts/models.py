@@ -11,6 +11,9 @@ import six
 import time
 
 from collections import defaultdict
+
+from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import models
@@ -510,6 +513,7 @@ class Contact(TembaModel):
         """
         Gets this contact's activity of messages, calls, runs etc in the given time window
         """
+        from temba.api.models import WebHookResult
         from temba.flows.models import Flow
         from temba.ivr.models import IVRCall
         from temba.msgs.models import Msg, BroadcastRecipient
@@ -530,14 +534,7 @@ class Contact(TembaModel):
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
         runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
-        exited_runs = runs.exclude(exit_type=None)
-
         runs = runs.select_related('flow')
-        exited_runs = exited_runs.select_related('flow')
-
-        for exit_run in exited_runs:
-            exit_run.created_on = exit_run.exited_on
-            exit_run.run_event_type = 'Exited'
 
         channel_events = self.channel_events.filter(created_on__gte=after, created_on__lt=before)
         channel_events = channel_events.select_related('channel')
@@ -545,9 +542,8 @@ class Contact(TembaModel):
         event_fires = self.fire_events.filter(fired__gte=after, fired__lt=before).exclude(fired=None)
         event_fires = event_fires.select_related('event__campaign')
 
-        # for easier comparison and display - give event fires same time attribute as other activity items
-        for event_fire in event_fires:
-            event_fire.created_on = event_fire.fired
+        webhook_result = WebHookResult.objects.filter(created_on__gte=after, created_on__lt=before, event__run__contact=self)
+        webhook_result = webhook_result.select_related('event')
 
         # and the contact's failed IVR calls
         calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
@@ -555,9 +551,19 @@ class Contact(TembaModel):
         ])
         calls = calls.select_related('channel')
 
-        # chain them all together in the same list and sort by time
-        activity = chain(msgs, broadcasts, runs, exited_runs, event_fires, channel_events, calls)
-        return sorted(activity, key=lambda i: i.created_on, reverse=True)
+        # wrap items, chain and sort by time
+        activity = chain(
+            [{'type': 'msg', 'time': m.created_on, 'obj': m} for m in msgs],
+            [{'type': 'broadcast', 'time': b.created_on, 'obj': b} for b in broadcasts],
+            [{'type': 'run-start', 'time': r.created_on, 'obj': r} for r in runs],
+            [{'type': 'run-exit', 'time': r.exited_on, 'obj': r} for r in runs.exclude(exit_type=None)],
+            [{'type': 'channel-event', 'time': e.created_on, 'obj': e} for e in channel_events],
+            [{'type': 'event-fire', 'time': f.fired, 'obj': f} for f in event_fires],
+            [{'type': 'webhook-result', 'time': r.created_on, 'obj': r} for r in webhook_result],
+            [{'type': 'call', 'time': c.created_on, 'obj': c} for c in calls],
+        )
+
+        return sorted(activity, key=lambda i: i['time'], reverse=True)
 
     def get_field(self, key):
         """
@@ -1320,7 +1326,9 @@ class Contact(TembaModel):
             if getattr(contact, 'is_new', False):
                 num_creates += 1
 
-            group.contacts.add(contact)
+            # do not add blocked or stopped contacts
+            if not contact.is_stopped and not contact.is_blocked:
+                group.contacts.add(contact)
 
         # if we aren't whitelisted, check for sequential phone numbers
         if not group_org.is_whitelisted():
@@ -1446,6 +1454,11 @@ class Contact(TembaModel):
         # re-add them to any dynamic groups they would belong to
         self.reevaluate_dynamic_groups()
 
+    def ensure_unstopped(self, user=None):
+        if user is None:
+            user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+        self.unstop(user)
+
     def release(self, user):
         """
         Releases (i.e. deletes) this contact, provided it is currently not deleted
@@ -1518,28 +1531,28 @@ class Contact(TembaModel):
             contact = contact_map[urn.contact_id]
             getattr(contact, '__urns').append(urn)
 
-    def build_message_context(self):
+    def build_expressions_context(self):
         """
         Builds a dictionary suitable for use in variable substitution in messages.
         """
         org = self.org
-        contact_dict = dict(__default__=self.get_display(org=org))
-        contact_dict[Contact.NAME] = self.name if self.name else ''
-        contact_dict[Contact.FIRST_NAME] = self.first_name(org)
-        contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False)
-        contact_dict['groups'] = ",".join([_.name for _ in self.user_groups.all()])
-        contact_dict['uuid'] = self.uuid
+        context = {
+            '__default__': self.get_display(),
+            Contact.NAME: self.name or '',
+            Contact.FIRST_NAME: self.first_name(org),
+            Contact.LANGUAGE: self.language,
+            'tel_e164': self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False),
+            'groups': ",".join([_.name for _ in self.user_groups.all()]),
+            'uuid': self.uuid
+        }
 
         # anonymous orgs also get @contact.id
         if org.is_anon:
-            contact_dict['id'] = self.id
-
-        contact_dict[Contact.LANGUAGE] = self.language
+            context['id'] = self.id
 
         # add all URNs
         for scheme, label in ContactURN.SCHEME_CHOICES:
-            urn_value = self.get_urn_display(scheme=scheme, org=org)
-            contact_dict[scheme] = urn_value if urn_value is not None else ''
+            context[scheme] = self.get_urn_display(scheme=scheme, org=org) or ''
 
         field_values = Value.objects.filter(contact=self).exclude(contact_field=None)\
                                                          .exclude(contact_field__is_active=False)\
@@ -1551,9 +1564,9 @@ class Contact(TembaModel):
         # add all active fields to our context
         for field in ContactField.objects.filter(org_id=self.org_id, is_active=True).select_related('org'):
             field_value = Contact.get_field_display_for_value(field, contact_values.get(field.key, None))
-            contact_dict[field.key] = field_value if field_value is not None else ''
+            context[field.key] = field_value if field_value is not None else ''
 
-        return contact_dict
+        return context
 
     def first_name(self, org):
         if not self.name:
@@ -1690,8 +1703,8 @@ class Contact(TembaModel):
         # detach any existing URNs that weren't included
         urn_ids = [u.pk for u in (urns_created + urns_attached + urns_retained)]
         urns_detached_qs = ContactURN.objects.filter(contact=self).exclude(pk__in=urn_ids)
-        urns_detached_qs.update(contact=None)
         urns_detached = list(urns_detached_qs)
+        urns_detached_qs.update(contact=None)
 
         self.modified_by = user
         self.save(update_fields=('modified_on', 'modified_by'))
@@ -1784,16 +1797,58 @@ class Contact(TembaModel):
         if tel:
             return tel.path
 
-    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None, msg_type=None):
-        from temba.msgs.models import Msg, INBOX
+    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
+             msg_type=None, created_on=None):
+        from temba.msgs.models import Msg, INBOX, PENDING, SENT
 
-        msg = Msg.create_outgoing(self.org, user, self, text, priority=Msg.PRIORITY_HIGH, response_to=response_to,
-                                  message_context=message_context, session=session, media=media, msg_type=msg_type or INBOX)
+        if created_on is None:
+            status = PENDING
+        else:
+            status = SENT
+
+        recipient = self
+        if status == SENT:
+            recipient = (self, None)
+
+        msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH, response_to=response_to,
+                                  message_context=message_context, session=session, media=media,
+                                  msg_type=msg_type or INBOX, status=status, created_on=created_on)
 
         if trigger_send:
             self.org.trigger_send([msg])
 
         return msg
+
+    def send_all(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
+                 msg_type=None, created_on=None):
+        from temba.msgs.models import Msg, UnreachableException, INBOX, PENDING, SENT
+
+        msgs = []
+
+        if created_on is None:
+            status = PENDING
+        else:
+            status = SENT
+
+        contact_urns = self.get_urns()
+        for c_urn in contact_urns:
+            try:
+
+                recipient = c_urn
+                if status == SENT:
+                    recipient = (c_urn.contact, c_urn)
+
+                msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH,
+                                          response_to=response_to, message_context=message_context, session=session,
+                                          media=media, msg_type=msg_type or INBOX, status=status, created_on=created_on)
+                msgs.append(msg)
+            except UnreachableException:
+                pass
+
+        if trigger_send:
+            self.org.trigger_send(msgs)
+
+        return msgs
 
     def __str__(self):
         return self.get_display()
@@ -1811,7 +1866,8 @@ class ContactURN(models.Model):
     IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
 
     SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME}  # schemes that support "follow" triggers
-    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME}  # schemes that support "new conversation" triggers
+    # schemes that support "new conversation" triggers
+    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME}
     SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
     EXPORT_FIELDS = {

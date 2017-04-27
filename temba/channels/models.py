@@ -80,6 +80,7 @@ class Channel(TembaModel):
     TYPE_JUNEBUG_USSD = 'JNU'
     TYPE_KANNEL = 'KN'
     TYPE_LINE = 'LN'
+    TYPE_MACROKIOSK = 'MK'
     TYPE_M3TECH = 'M3'
     TYPE_MBLOX = 'MB'
     TYPE_NEXMO = 'NX'
@@ -126,6 +127,7 @@ class Channel(TembaModel):
     CONFIG_FCM_TITLE = 'FCM_TITLE'
     CONFIG_FCM_NOTIFICATION = 'FCM_NOTIFICATION'
     CONFIG_MAX_LENGTH = 'max_length'
+    CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -194,6 +196,7 @@ class Channel(TembaModel):
         TYPE_JUNEBUG_USSD: dict(scheme='tel', max_length=1600),
         TYPE_KANNEL: dict(scheme='tel', max_length=1600),
         TYPE_LINE: dict(scheme='line', max_length=1600),
+        TYPE_MACROKIOSK: dict(scheme='tel', max_length=1600),
         TYPE_M3TECH: dict(scheme='tel', max_length=160),
         TYPE_NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
         TYPE_MBLOX: dict(scheme='tel', max_length=459),
@@ -266,6 +269,8 @@ class Channel(TembaModel):
 
     GET_STARTED = 'get_started'
     VIBER_NO_SERVICE_ID = 'no_service_id'
+
+    SIMULATOR_CONTEXT = dict(__default__='(800) 555-1212', name='Simulator', tel='(800) 555-1212', tel_e164='+18005551212')
 
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=TYPE_CHOICES,
                                     default=TYPE_ANDROID, help_text=_("Type of this channel, whether Android, Twilio or SMSC"))
@@ -507,7 +512,9 @@ class Channel(TembaModel):
         if not nexmo_phones:
             parsed = phonenumbers.parse(phone_number, None)
             shortcode = str(parsed.national_number)
+
             nexmo_phones = client.get_numbers(shortcode)
+
             if nexmo_phones:
                 is_shortcode = True
                 phone_number = shortcode
@@ -527,6 +534,7 @@ class Channel(TembaModel):
         channel_uuid = generate_uuid()
 
         nexmo_phones = client.get_numbers(phone_number)
+
         features = [elt.upper() for elt in nexmo_phones[0]['features']]
         role = ''
         if 'SMS' in features:
@@ -857,6 +865,9 @@ class Channel(TembaModel):
     def get_caller(self):
         return self.get_delegate(Channel.ROLE_CALL)
 
+    def get_ussd_delegate(self):
+        return self.get_delegate(Channel.ROLE_USSD)
+
     def is_delegate_sender(self):
         return self.parent and Channel.ROLE_SEND in self.role
 
@@ -945,7 +956,7 @@ class Channel(TembaModel):
 
         return self.address
 
-    def build_message_context(self):
+    def build_expressions_context(self):
         from temba.contacts.models import TEL_SCHEME
 
         address = self.get_address_display()
@@ -1111,8 +1122,13 @@ class Channel(TembaModel):
         for delegate_channel in Channel.objects.filter(parent=self, org=self.org):
             delegate_channel.release()
 
-        if not settings.DEBUG:
-            # only call out to external aggregator services if not in debug mode
+        if settings.IS_PROD:
+            # only call out to external aggregator services if we are on prod servers
+
+            # hangup all its calls
+            from temba.ivr.models import IVRCall
+            for call in IVRCall.objects.filter(channel=self):
+                call.close()
 
             # delete Plivo application
             if self.channel_type == Channel.TYPE_PLIVO:
@@ -1231,7 +1247,6 @@ class Channel(TembaModel):
 
     @classmethod
     def success(cls, channel, msg, msg_status, start, external_id=None, event=None, events=None):
-
         request_time = time.time() - start
 
         from temba.msgs.models import Msg
@@ -1244,6 +1259,9 @@ class Channel(TembaModel):
         # logs that a message was sent for this channel type if our latency is known
         if request_time > 0:
             analytics.gauge('temba.msg_sent_%s' % channel.channel_type.lower(), request_time)
+
+        # log our request time in ms
+        request_time_ms = request_time * 1000
 
         if events is None and event:
             events = [event]
@@ -1263,7 +1281,7 @@ class Channel(TembaModel):
                                       request=event.request_body,
                                       response=event.response_body,
                                       response_status=event.status_code,
-                                      request_time=request_time)
+                                      request_time=request_time_ms)
 
     @classmethod
     def send_fcm_message(cls, channel, msg, text):
@@ -1480,14 +1498,6 @@ class Channel(TembaModel):
             payload['recipient'] = dict(id=msg.urn_path)
 
         message = dict(text=text)
-
-        from temba.msgs.models import Msg
-        media_type, media_url = Msg.get_media(msg)
-
-        if media_type and media_url:
-            media_type = media_type.split('/')[0]
-            message['attachment'] = dict(type=media_type, payload=dict(url=media_url))
-
         payload['message'] = message
         payload = json.dumps(payload)
 
@@ -1504,6 +1514,25 @@ class Channel(TembaModel):
             event.response_body = response.text
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
+
+        from temba.msgs.models import Msg
+        media_type, media_url = Msg.get_media(msg)
+
+        if media_type and media_url:
+            media_type = media_type.split('/')[0]
+
+            payload = json.loads(payload)
+            payload['message'] = dict(attachment=dict(type=media_type, payload=dict(url=media_url)))
+            payload = json.dumps(payload)
+
+            event = HttpEvent('POST', url, payload)
+
+            try:
+                response = requests.post(url, payload, params=params, headers=headers, timeout=15)
+                event.status_code = response.status_code
+                event.response_body = response.text
+            except Exception as e:
+                raise SendException(six.text_type(e), event=event, start=start)
 
         if response.status_code != 200:
             raise SendException("Got non-200 response [%d] from Facebook" % response.status_code,
@@ -1645,6 +1674,10 @@ class Channel(TembaModel):
         payload['to'] = msg.urn_path
         payload['dlr-url'] = dlr_url
         payload['dlr-mask'] = dlr_mask
+
+        # if this a reply to a message, set a higher priority
+        if msg.response_to_id:
+            payload['priority'] = 1
 
         # should our to actually be in national format?
         use_national = channel.config.get(Channel.CONFIG_USE_NATIONAL, False)
@@ -1995,6 +2028,54 @@ class Channel(TembaModel):
         end_idx = response.text.find("</id>")
         if end_idx > start_idx > 0:
             external_id = response.text[start_idx + 4:end_idx]
+
+        Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
+
+    @classmethod
+    def send_macrokiosk_message(cls, channel, msg, text):
+        from temba.msgs.models import WIRED
+
+        # determine our encoding
+        encoding, text = Channel.determine_encoding(text, replace=True)
+
+        # if this looks like unicode, ask macrokiosk to send as unicode
+        if encoding == Encoding.UNICODE:
+            message_type = 5
+        else:
+            message_type = 0
+
+        # strip a leading +
+        recipient = msg.urn_path[1:] if msg.urn_path.startswith('+') else msg.urn_path
+
+        payload = {
+            'user': channel.config[Channel.CONFIG_USERNAME], 'pass': channel.config[Channel.CONFIG_PASSWORD],
+            'to': recipient, 'text': text, 'from': channel.address.lstrip('+'),
+            'servid': channel.config[Channel.CONFIG_MACROKIOSK_SERVICE_ID], 'type': message_type
+        }
+
+        url = 'https://www.etracker.cc/bulksms/send'
+        payload_json = json.dumps(payload)
+
+        headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+        headers.update(TEMBA_HEADERS)
+
+        event = HttpEvent('POST', url, payload_json)
+
+        start = time.time()
+
+        try:
+            response = requests.post(url, data=payload, headers=headers, timeout=30)
+            event.status_code = response.status_code
+            event.response_body = response.text
+
+            external_id = response.json().get('msgid', None)
+
+        except Exception as e:
+            raise SendException(six.text_type(e), event=event, start=start)
+
+        if response.status_code not in [200, 201, 202]:
+            raise SendException("Got non-200 response [%d] from API" % response.status_code,
+                                event=event, start=start)
 
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
@@ -3041,6 +3122,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,
                   Channel.TYPE_LINE: Channel.send_line_message,
                   Channel.TYPE_M3TECH: Channel.send_m3tech_message,
+                  Channel.TYPE_MACROKIOSK: Channel.send_macrokiosk_message,
                   Channel.TYPE_MBLOX: Channel.send_mblox_message,
                   Channel.TYPE_NEXMO: Channel.send_nexmo_message,
                   Channel.TYPE_PLIVO: Channel.send_plivo_message,
@@ -3255,6 +3337,9 @@ class ChannelLog(models.Model):
             print(u"[%d] %0.3fs ERROR - %s %s \"%s\" %s \"%s\"" %
                   (msg.id, request_time, event.method, event.url, event.request_body, event.status_code, event.response_body))
 
+            # log our request time in ms
+            request_time_ms = request_time * 1000
+
             ChannelLog.objects.create(channel_id=msg.channel,
                                       msg_id=msg.id,
                                       is_error=True,
@@ -3263,9 +3348,9 @@ class ChannelLog(models.Model):
                                       url=event.url,
                                       request=event.request_body,
                                       response=event.response_body,
-                                      response_status=event.status_code)
+                                      response_status=event.status_code,
+                                      request_time=request_time_ms)
 
-        # log our request type if possible
         if request_time > 0:
             analytics.gauge('temba.msg_sent_%s' % channel.channel_type.lower(), request_time)
 

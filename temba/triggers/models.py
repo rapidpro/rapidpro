@@ -9,7 +9,7 @@ from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup
-from temba.flows.models import Flow, FlowRun
+from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
@@ -256,6 +256,7 @@ class Trigger(SmartModel):
 
         # only fire the first matching trigger
         if triggers:
+            contact.ensure_unstopped()
             triggers[0].flow.start([], [contact], start_msg=start_msg, restart_participants=True, extra=extra)
 
         return bool(triggers)
@@ -304,6 +305,8 @@ class Trigger(SmartModel):
             trigger.last_triggered = msg.created_on
             trigger.trigger_count += 1
             trigger.save()
+
+        contact.ensure_unstopped()
 
         # if we have an associated flow, start this contact in it
         trigger.flow.start([], [contact], start_msg=msg, restart_participants=True)
@@ -367,7 +370,8 @@ class Trigger(SmartModel):
 
         # for any new convo triggers, clear out the call to action payload
         for trigger in triggers.filter(trigger_type=Trigger.TYPE_NEW_CONVERSATION):
-            trigger.channel.set_fb_call_to_action_payload(None)
+            if trigger.channel and trigger.channel.channel_type == Channel.TYPE_FACEBOOK:
+                trigger.channel.set_fb_call_to_action_payload(None)
 
         return [each_trigger.pk for each_trigger in triggers]
 
@@ -405,11 +409,19 @@ class Trigger(SmartModel):
         groups = list(self.groups.all())
         contacts = list(self.contacts.all())
 
-        if groups or contacts:
-            self.last_triggered = timezone.now()
-            self.trigger_count += 1
-            self.save()
+        # nothing to do, move along
+        if not groups and not contacts:
+            return
 
-            return self.flow.start(groups, contacts, restart_participants=True)
+        # for single contacts, we just start directly
+        if not groups and contacts:
+            self.flow.start(groups, contacts, restart_participants=True)
 
-        return False  # pragma: needs cover
+        # we have groups of contacts to start, create a flow start
+        else:
+            start = FlowStart.create(self.flow, self.created_by, groups=groups, contacts=contacts)
+            start.async_start()
+
+        self.last_triggered = timezone.now()
+        self.trigger_count += 1
+        self.save()

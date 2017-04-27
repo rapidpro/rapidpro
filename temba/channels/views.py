@@ -25,6 +25,7 @@ from django.db import transaction
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
+from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django_countries.data import COUNTRIES
@@ -38,7 +39,6 @@ from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin, AnonMixin
 from temba.channels.models import ChannelSession
 from temba.utils import analytics, on_transaction_commit
-from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import timezone_to_country_code
 from twilio import TwilioRestException
 from twython import Twython
@@ -616,7 +616,7 @@ def get_commands(channel, commands, sync_event=None):
     return commands
 
 
-@disable_middleware
+@csrf_exempt
 def sync(request, channel_id):
     start = time.time()
 
@@ -773,7 +773,7 @@ def sync(request, channel_id):
     return JsonResponse(result)
 
 
-@disable_middleware
+@csrf_exempt
 def register(request):
     """
     Endpoint for Android devices registering with this server
@@ -885,7 +885,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
                'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
-               'claim_red_rabbit')
+               'claim_red_rabbit', 'claim_macrokiosk')
     permissions = True
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -1495,7 +1495,8 @@ class ChannelCRUDL(SmartCRUDL):
             config = {Channel.CONFIG_SEND_URL: url,
                       Channel.CONFIG_VERIFY_SSL: data.get('verify_ssl', False),
                       Channel.CONFIG_USE_NATIONAL: data.get('use_national', False),
-                      Channel.CONFIG_USERNAME: data.get('username', None), Channel.CONFIG_PASSWORD: data.get('password', None),
+                      Channel.CONFIG_USERNAME: data.get('username', None),
+                      Channel.CONFIG_PASSWORD: data.get('password', None),
                       Channel.CONFIG_ENCODING: data.get('encoding', Channel.ENCODING_DEFAULT)}
             self.object = Channel.add_config_external_channel(org, self.request.user, country, number, Channel.TYPE_KANNEL,
                                                               config, role=role, parent=None)
@@ -1513,6 +1514,48 @@ class ChannelCRUDL(SmartCRUDL):
             self.object.save()
 
             return super(ChannelCRUDL.ClaimKannel, self).form_valid(form)
+
+    class ClaimMacrokiosk(OrgPermsMixin, SmartFormView):
+        class MacrokioskClaimForm(forms.Form):
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+                                        help_text=_("The country this phone number is used in"))
+            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
+                                     help_text=_("The phone number or short code you are connecting with country code. "
+                                                 "ex: +250788123124"))
+            username = forms.CharField(label=_("Username"),
+                                       help_text=_("The username provided by Macrokiosk to use their API"))
+            password = forms.CharField(label=_("Password"),
+                                       help_text=_("The password provided by Macrokiosk to use their API"))
+            service_id = forms.CharField(label=_("Service ID"),
+                                         help_text=_("The Service ID provided by Macrokiosk to use their API"))
+
+        title = _("Connect Macrokiosk")
+        success_url = "id@channels.channel_configuration"
+        form_class = MacrokioskClaimForm
+
+        def get_submitted_country(self, data):
+            return data['country']
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+
+            if not org:  # pragma: no cover
+                raise Exception(_("No org for this user, cannot claim"))
+
+            data = form.cleaned_data
+
+            config = {
+                Channel.CONFIG_USERNAME: data.get('username', None),
+                Channel.CONFIG_PASSWORD: data.get('password', None),
+                Channel.CONFIG_MACROKIOSK_SERVICE_ID: data.get('service_id', None)
+            }
+            self.object = Channel.add_config_external_channel(org, self.request.user,
+                                                              self.get_submitted_country(data),
+                                                              data['number'], Channel.TYPE_MACROKIOSK,
+                                                              config,
+                                                              role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
+
+            return super(ChannelCRUDL.ClaimMacrokiosk, self).form_valid(form)
 
     class ClaimExternal(OrgPermsMixin, SmartFormView):
         class EXClaimForm(forms.Form):
@@ -1616,7 +1659,8 @@ class ChannelCRUDL(SmartCRUDL):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
                                         help_text=_("The country this phone number is used in"))
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The phone number or short code you are connecting with country code. ex: +250788123124"))
+                                     help_text=_(
+                                         "The phone number or short code you are connecting with country code. ex: +250788123124"))
             username = forms.CharField(label=_("Username"),
                                        help_text=_("The username provided by the provider to use their API"))
             password = forms.CharField(label=_("Password"),
@@ -1954,14 +1998,12 @@ class ChannelCRUDL(SmartCRUDL):
                                        help_text=_("The username provided to use their API"))
             password = forms.CharField(label=_("Password"),
                                        help_text=_("The password provided to use their API"))
-            key = forms.CharField(label=_("Key"),
-                                  help_text=_("The key provided to sign requests"))
 
         title = _("Connect Shaqodoon")
         channel_type = Channel.TYPE_SHAQODOON
         readonly = ('country',)
         form_class = ShaqodoonForm
-        fields = ('country', 'number', 'url', 'username', 'password', 'key')
+        fields = ('country', 'number', 'url', 'username', 'password')
 
         def get_country(self, obj):
             return "Somalia"
@@ -1978,8 +2020,7 @@ class ChannelCRUDL(SmartCRUDL):
             data = form.cleaned_data
             self.object = Channel.add_config_external_channel(org, self.request.user,
                                                               'SO', data['number'], Channel.TYPE_SHAQODOON,
-                                                              dict(key=data['key'],
-                                                                   send_url=data['url'],
+                                                              dict(send_url=data['url'],
                                                                    username=data['username'],
                                                                    password=data['password']))
 

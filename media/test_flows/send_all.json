@@ -1,0 +1,40 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "https://app.rapidpro.io", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": null, 
+          "uuid": "14fb87aa-22cc-4e9a-a8d6-dd4640426bed", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Hey, how are you?"
+              }, 
+              "media": {}, 
+              "send_all": true, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "14fb87aa-22cc-4e9a-a8d6-dd4640426bed", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 1, 
+        "uuid": "4b8089fb-bb10-4cbc-800f-a0aa8bb21713", 
+        "name": "Send All", 
+        "saved_on": "2017-03-16T14:53:04.119831Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

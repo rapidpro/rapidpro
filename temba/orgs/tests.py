@@ -313,12 +313,12 @@ class OrgTest(TembaTest):
                 response.json = response.json()
             return response
 
-        url = reverse('api.v1.broadcasts')
-        response = postAPI(url, dict(contacts=[mark.uuid], text="You are adistant cousin to a wealthy person."))
+        url = reverse('api.v2.broadcasts')
+        response = postAPI(url, dict(contacts=[mark.uuid], text="You are a distant cousin to a wealthy person."))
         self.assertContains(response, "Sorry, your account is currently suspended. To enable sending messages, please contact support.", status_code=400)
 
-        url = reverse('api.v1.runs')
-        response = postAPI(url, dict(flow_uuid=flow.uuid, phone="+250788123123"))
+        url = reverse('api.v2.flow_starts')
+        response = postAPI(url, dict(flow=flow.uuid, urns=["tel:+250788123123"]))
         self.assertContains(response, "Sorry, your account is currently suspended. To enable sending messages, please contact support.", status_code=400)
 
         # still no messages or runs
@@ -2552,10 +2552,8 @@ class BulkExportTest(TembaTest):
         actions = action_set.get_actions_dict()
         action_msg = actions[0]['msg']
 
-        event_msg = json.loads(event.message)
-
-        self.assertEqual(event_msg['swa'], 'hello')
-        self.assertEqual(event_msg['eng'], 'Hey')
+        self.assertEqual(event.message['swa'], 'hello')
+        self.assertEqual(event.message['eng'], 'Hey')
 
         # base language for this flow is 'swa' despite our org languages being unset
         self.assertEqual(event.flow.base_language, 'swa')

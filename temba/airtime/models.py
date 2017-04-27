@@ -9,7 +9,6 @@ import time
 from django.conf import settings
 from django.db import models
 from smartmin.models import SmartModel
-from temba.api.models import get_api_user
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, TEL_SCHEME
 from temba.orgs.models import Org, TRANSFERTO_ACCOUNT_LOGIN, TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_CURRENCY
@@ -97,7 +96,7 @@ class AirtimeTransfer(SmartModel):
 
     @classmethod
     def trigger_airtime_event(cls, org, ruleset, contact, event):
-
+        from temba.api.models import get_api_user
         api_user = get_api_user()
 
         channel = None
@@ -129,7 +128,8 @@ class AirtimeTransfer(SmartModel):
                 account_currency = config.get(TRANSFERTO_ACCOUNT_CURRENCY, '')
 
             action = 'msisdn_info'
-            request_kwargs = dict(action=action, destination_msisdn=airtime.recipient, currency=account_currency)
+            request_kwargs = dict(action=action, destination_msisdn=airtime.recipient, currency=account_currency,
+                                  delivered_amount_info='1')
             response = airtime.get_transferto_response(**request_kwargs)
             content_json = AirtimeTransfer.parse_transferto_response(response.content)
 
@@ -150,16 +150,31 @@ class AirtimeTransfer(SmartModel):
             airtime.amount = amount
 
             product_list = content_json.get('product_list', [])
-
-            if not isinstance(product_list, list):  # pragma: needs cover
+            if not isinstance(product_list, list):
                 product_list = [product_list]
 
-            targeted_prices = [float(i) for i in product_list if float(i) <= float(amount)]
+            skuid_list = content_json.get('skuid_list', [])
+            if not isinstance(skuid_list, list):
+                skuid_list = [skuid_list]
+
+            local_info_value_list = content_json.get('local_info_value_list', [])
+            if not isinstance(local_info_value_list, list):
+                local_info_value_list = [local_info_value_list]
+
+            product_local_value_map = dict(zip([float(elt) for elt in local_info_value_list], product_list))
+
+            product_skuid_value_map = dict(zip(product_list, skuid_list))
+
+            targeted_prices = [float(i) for i in local_info_value_list if float(i) <= float(amount)]
 
             denomination = None
+            skuid = None
             if targeted_prices:
-                denomination = max(targeted_prices)
+                denomination_key = max(targeted_prices)
+                denomination = product_local_value_map.get(denomination_key, None)
                 airtime.denomination = denomination
+
+                skuid = product_skuid_value_map.get(denomination)
 
             if float(amount) <= 0:
                 message = "Failed by invalid amount configuration or missing amount configuration for %s" % country_name
@@ -191,7 +206,12 @@ class AirtimeTransfer(SmartModel):
                                   reserved_id=transaction_id,
                                   msisdn=channel.address if channel else '',
                                   destination_msisdn=airtime.recipient,
+                                  currency=account_currency,
                                   product=airtime.denomination)
+
+            if skuid:
+                request_kwargs['skuid'] = skuid
+
             response = airtime.get_transferto_response(**request_kwargs)
             content_json = AirtimeTransfer.parse_transferto_response(response.content)
 

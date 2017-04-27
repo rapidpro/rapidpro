@@ -1601,7 +1601,7 @@ input[type='text'].search-query {
 
 #sidebar-nav {
   border: 1px solid #e6e6e6;
-  .nav.nav-list {
+  .nav.nav-list:not(.level2) {
     .scroll-y();
     height: 450px;
     li {
@@ -1903,10 +1903,6 @@ form.smartmin-form ul.errorlist li {
         border: none;
       }
 
-    }
-
-    .form {
-      margin-top: 15px;
     }
 
     .control-group, .form-group {

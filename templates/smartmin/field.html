@@ -7,7 +7,7 @@
 {{ form_field }}
 {% else %}
 {% if form_field %}
-<div class="control-group {% if form_field.errors %}error{% endif %}">
+<div class="control-group {% get_class field %} {% if form_field.errors %}error{% endif %}">
   <label class="control-label" for="{{ field.name }}">{% get_label field %}</label>
   <div class="controls">{{ form_field }}
     {% with view|field_help:field as help %}
@@ -22,7 +22,7 @@
   </div>
 </div>
 {% else %}
-<div class="control-group">
+<div class="control-group {% get_class field %}">
   <label class="control-label" for="{{ field.name }}">{% get_label field %}</label>
   <div class="controls">
     <span class="uneditable-input">{% get_value_from_view field %}</span>

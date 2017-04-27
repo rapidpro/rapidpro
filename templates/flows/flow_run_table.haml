@@ -1,9 +1,17 @@
--load contacts
+-load contacts tz
 
 -for run in runs
-  <tr class="exit-{{run.exit_type}}" {%if forloop.last%}ic-append-from="/flow/run_table/{{object.id}}/?modified_on={{run.modified_on|date:'U'}}&id={{run.id}}" ic-trigger-on="scrolled-into-view" ic-target="#results_run_table" ic-template="results_run_table" ic-indicator="#indicator"{%endif%}>
+  <tr id="run_{{run.id}}" class="run exit-{{run.exit_type}}"
+    {% if forloop.last and more %}
+      ic-append-from="/flow/run_table/{{object.id}}/?modified_on={{run.modified_on|utc|date:'Y-m-d\TH:i:s.u'|urlencode}}&id={{run.id}}&q={{request.GET.q}}" ic-trigger-on="scrolled-into-view"
+      ic-target="#results_run_table"
+      ic-template="results_run_table"
+      ic-indicator="#indicator"
+    {% endif %}
+  >
     %td
-      .details
+      .details.nobreak
+        .remove.icon-close{ onclick: 'deleteRun({{run.id}});' }
         {{run.modified_on}}
 
     %td
