@@ -1,3 +1,8 @@
+v3.0.125
+----------
+ * Don't show deleted flows on list page
+ * Convert timestamps sent by MacroKiosk from local Kuala Lumpur time
+
 v3.0.124
 ----------
  * Move initial IVR expiration check to status update on the call
