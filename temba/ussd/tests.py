@@ -174,7 +174,7 @@ class VumiUssdTest(TembaTest):
         inbound = Msg.create_incoming(
             self.channel, "tel:+250788383383", "Send an inbound message",
             external_id='vumi-message-id', msg_type=USSD)
-        msg = inbound.reply("Test message", self.admin, trigger_send=False)
+        msg = inbound.reply("Test message", self.admin, trigger_send=False)[0]
         self.assertEqual(inbound.msg_type, USSD)
         self.assertEqual(msg.msg_type, USSD)
 
@@ -217,7 +217,7 @@ class VumiUssdTest(TembaTest):
         inbound = Msg.create_incoming(
             self.channel, "tel:+250788383383", "Send an inbound message",
             external_id='vumi-message-id', msg_type=USSD)
-        msg = inbound.reply("Test message", self.admin, trigger_send=False)
+        msg = inbound.reply("Test message", self.admin, trigger_send=False)[0]
 
         # our outgoing message
         msg.refresh_from_db()
@@ -245,7 +245,7 @@ class VumiUssdTest(TembaTest):
         inbound = Msg.create_incoming(
             self.channel, "tel:+250788383383", "Send an inbound message",
             external_id='vumi-message-id', msg_type=USSD)
-        msg = inbound.reply("Test message", self.admin, trigger_send=False)
+        msg = inbound.reply("Test message", self.admin, trigger_send=False)[0]
 
         # our outgoing message
         msg.refresh_from_db()
@@ -297,7 +297,7 @@ class VumiUssdTest(TembaTest):
         inbound = Msg.create_incoming(
             self.channel, "tel:+250788383383", "Send an inbound message",
             external_id='vumi-message-id', msg_type=USSD)
-        msg = inbound.reply("Test message", self.admin, trigger_send=False)
+        msg = inbound.reply("Test message", self.admin, trigger_send=False)[0]
 
         # our outgoing message
         msg.refresh_from_db()

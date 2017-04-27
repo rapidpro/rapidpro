@@ -2828,7 +2828,10 @@ class ActionTest(TembaTest):
         run = FlowRun.create(self.flow, self.contact.pk)
 
         action = ReplyAction(dict(base="We love green too!"), None, send_all=True)
-        self.execute_action(action, run, msg)
+        action_replies = self.execute_action(action, run, msg)
+        self.assertEqual(len(action_replies), 1)
+        for action_reply in action_replies:
+            self.assertIsInstance(action_reply, Msg)
 
         replies = Msg.objects.filter(contact=contact, direction='O')
         self.assertEqual(replies.count(), 1)
@@ -2850,7 +2853,10 @@ class ActionTest(TembaTest):
         self.assertEquals(dict(base="We love green too!"), action.msg)
         self.assertTrue(action.send_all)
 
-        self.execute_action(action, run, msg)
+        action_replies = self.execute_action(action, run, msg)
+        self.assertEqual(len(action_replies), 2)
+        for action_reply in action_replies:
+            self.assertIsInstance(action_reply, Msg)
 
         replies = Msg.objects.filter(contact=contact, direction='O')
         self.assertEqual(replies.count(), 2)
@@ -3381,7 +3387,8 @@ class ActionTest(TembaTest):
 
         run = FlowRun.objects.get()
 
-        new_flow = Flow.create_single_message(self.org, self.user, "You chose @parent.color.category")
+        new_flow = Flow.create_single_message(self.org, self.user,
+                                              {'base': "You chose @parent.color.category"}, base_language='base')
         action = StartFlowAction(new_flow)
 
         action_json = action.as_json()
@@ -4355,12 +4362,15 @@ class FlowsTest(FlowFileTest):
     def test_flow_results(self):
 
         favorites = self.get_flow('favorites')
-        jimmy = self.create_contact('Jimmy', '+12065553026')
-        self.send_message(favorites, 'red', contact=jimmy)
-        self.send_message(favorites, 'turbo', contact=jimmy)
+
+        FlowCRUDL.RunTable.paginate_by = 1
 
         pete = self.create_contact('Pete', '+12065553027')
         self.send_message(favorites, 'blue', contact=pete)
+
+        jimmy = self.create_contact('Jimmy', '+12065553026')
+        self.send_message(favorites, 'red', contact=jimmy)
+        self.send_message(favorites, 'turbo', contact=jimmy)
 
         kobe = Contact.get_test_contact(self.admin)
         self.send_message(favorites, 'green', contact=kobe)
@@ -4374,9 +4384,20 @@ class FlowsTest(FlowFileTest):
         self.assertContains(response, 'Color')
         self.assertContains(response, 'Name')
 
+        # test a search on our runs
+        response = self.client.get('%s?q=pete' % reverse('flows.flow_run_table', args=[favorites.pk]))
+        self.assertEqual(len(response.context['runs']), 1)
+        self.assertContains(response, 'Pete')
+        self.assertNotContains(response, 'Jimmy')
+
+        response = self.client.get('%s?q=555-3026' % reverse('flows.flow_run_table', args=[favorites.pk]))
+        self.assertEqual(len(response.context['runs']), 1)
+        self.assertContains(response, 'Jimmy')
+        self.assertNotContains(response, 'Pete')
+
         # fetch our intercooler rows for the run table
         response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
-        self.assertEqual(len(response.context['runs']), 2)
+        self.assertEqual(len(response.context['runs']), 1)
         self.assertEqual(200, response.status_code)
         self.assertContains(response, 'Jimmy')
         self.assertContains(response, 'red')
@@ -4389,9 +4410,9 @@ class FlowsTest(FlowFileTest):
         response = self.client.get(next_link)
         self.assertEqual(200, response.status_code)
 
-        # no more rows to add
-        result = response.content.strip()
-        self.assertEqual(0, len(result))
+        # one more row to add
+        self.assertEqual(1, len(response.context['runs']))
+        self.assertNotContains(response, "ic-append-from")
 
         FlowCRUDL.ActivityChart.HISTOGRAM_MIN = 0
         FlowCRUDL.ActivityChart.PERIOD_MIN = 0
@@ -4437,6 +4458,14 @@ class FlowsTest(FlowFileTest):
 
         self.assertEqual(24, len(response.context['hod']))
         self.assertEqual(7, len(response.context['dow']))
+
+        # delete a run
+        FlowCRUDL.RunTable.paginate_by = 100
+        response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
+        self.assertEqual(len(response.context['runs']), 2)
+        self.client.post(reverse('flows.flowrun_delete', args=[response.context['runs'][0].id]))
+        response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
+        self.assertEqual(len(response.context['runs']), 1)
 
     def test_send_all_replies(self):
         flow = self.get_flow('send_all')
@@ -7328,6 +7357,84 @@ class TriggerFlowTest(FlowFileTest):
         self.assertTrue(run.is_active)
 
 
+class StackedExitsTest(FlowFileTest):
+
+    def setUp(self):
+        super(StackedExitsTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', scheme='tel',
+                                      config=dict(send_url='https://google.com'),
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_stacked_exits(self):
+        self.get_flow('stacked_exits')
+        flow = Flow.objects.get(name="Stacked")
+
+        flow.start([], [self.contact])
+
+        msgs = Msg.objects.filter(contact=self.contact).order_by('sent_on')
+        self.assertEqual(3, msgs.count())
+        self.assertEqual("Start!", msgs[0].text)
+        self.assertEqual("Leaf!", msgs[1].text)
+        self.assertEqual("End!", msgs[2].text)
+
+        runs = FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).order_by('exited_on')
+        self.assertEqual(3, runs.count())
+        self.assertEqual("Stacker Leaf", runs[0].flow.name)
+        self.assertEqual("Stacker", runs[1].flow.name)
+        self.assertEqual("Stacked", runs[2].flow.name)
+
+    def test_stacked_webhook_exits(self):
+        self.get_flow('stacked_webhook_exits')
+        flow = Flow.objects.get(name="Stacked")
+
+        flow.start([], [self.contact])
+
+        msgs = Msg.objects.filter(contact=self.contact).order_by('sent_on')
+        self.assertEqual(4, msgs.count())
+        self.assertEqual("Start!", msgs[0].text)
+        self.assertEqual("Leaf!", msgs[1].text)
+        self.assertEqual("Middle!", msgs[2].text)
+        self.assertEqual("End!", msgs[3].text)
+
+        runs = FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).order_by('exited_on')
+        self.assertEqual(3, runs.count())
+        self.assertEqual("Stacker Leaf", runs[0].flow.name)
+        self.assertEqual("Stacker", runs[1].flow.name)
+        self.assertEqual("Stacked", runs[2].flow.name)
+
+    def test_response_exits(self):
+        self.get_flow('stacked_response_exits')
+        flow = Flow.objects.get(name="Stacked")
+
+        flow.start([], [self.contact])
+
+        msgs = Msg.objects.filter(contact=self.contact).order_by('sent_on')
+        self.assertEqual(2, msgs.count())
+        self.assertEqual("Start!", msgs[0].text)
+        self.assertEqual("Send something!", msgs[1].text)
+
+        # nobody completed yet
+        self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).count())
+
+        # ok, send a response, should unwind all our flows
+        msg = self.create_msg(contact=self.contact, direction='I', text="something")
+        Msg.process_message(msg)
+
+        msgs = Msg.objects.filter(contact=self.contact, direction='O').order_by('sent_on')
+        self.assertEqual(3, msgs.count())
+        self.assertEqual("Start!", msgs[0].text)
+        self.assertEqual("Send something!", msgs[1].text)
+        self.assertEqual("End!", msgs[2].text)
+
+        runs = FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).order_by('exited_on')
+        self.assertEqual(3, runs.count())
+        self.assertEqual("Stacker Leaf", runs[0].flow.name)
+        self.assertEqual("Stacker", runs[1].flow.name)
+        self.assertEqual("Stacked", runs[2].flow.name)
+
+
 class ParentChildOrderingTest(FlowFileTest):
 
     def setUp(self):
@@ -7401,3 +7508,51 @@ class FlowChannelSelectionTest(FlowFileTest):
         contact_urn = self.contact.get_urn(TEL_SCHEME)
         channel = self.contact.org.get_ussd_channel(contact_urn=contact_urn)
         self.assertEqual(channel, self.ussd_channel)
+
+
+class FlowTriggerTest(TembaTest):
+
+    def test_group_trigger(self):
+        flow = self.get_flow('favorites')
+
+        contact = self.create_contact("Joe", "+250788373373")
+        group = self.create_group("Contact Group", [contact])
+
+        # create a trigger, first just for the contact
+        contact_trigger = Trigger.objects.create(org=self.org, flow=flow, trigger_type=Trigger.TYPE_SCHEDULE,
+                                                 created_by=self.admin, modified_by=self.admin)
+        contact_trigger.contacts.add(contact)
+
+        # fire it manually
+        contact_trigger.fire()
+
+        # contact should be added to flow
+        self.assertEqual(1, FlowRun.objects.filter(flow=flow, contact=contact).count())
+
+        # but no flow starts were created
+        self.assertEqual(0, FlowStart.objects.all().count())
+
+        # now create a trigger for the group
+        group_trigger = Trigger.objects.create(org=self.org, flow=flow, trigger_type=Trigger.TYPE_SCHEDULE,
+                                               created_by=self.admin, modified_by=self.admin)
+        group_trigger.groups.add(group)
+
+        group_trigger.fire()
+
+        # contact should be added to flow again
+        self.assertEqual(2, FlowRun.objects.filter(flow=flow, contact=contact).count())
+
+        # and we should have a flow start
+        start = FlowStart.objects.get()
+        self.assertEqual(0, start.contacts.all().count())
+        self.assertEqual(1, start.groups.filter(id=group.id).count())
+
+        # clear our the group on our group trigger
+        group_trigger.groups.clear()
+
+        # refire
+        group_trigger.fire()
+
+        # nothing should have changed
+        self.assertEquals(2, FlowRun.objects.filter(flow=flow, contact=contact).count())
+        self.assertEquals(1, FlowStart.objects.all().count())

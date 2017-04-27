@@ -1,4 +1,4 @@
--extends "smartmin/form.html"
+-extends "channels/channel_claim_form.html"
 -load i18n
 
 -block extra-script
@@ -10,22 +10,16 @@
     });
 
 -block title
-  .medium-help.icon-channel-clickatell.float-left
+  .medium-help.icon-phone.float-left
 
   %h2.font_normalize.header-margin
-    -trans "Connect Clickatell"
+    -trans "Connect Macrokiosk"
 
 -block pre-form
   .info
     %p
       -blocktrans
-        You can connect your <a href="http://clickatell.com">Clickatell</a> number by entering your number, API ID, username and password
-        here.
-
-    %p
-      -blocktrans with brand.name as brand
-        After connecting your service we will provide URLs for the endpoints for Clickatell to call when they want
-        to push a message to {{ brand }}.
+        You can connect your number by entering your credentials here.
 
 -block extra-style
   {{ block.super }}
@@ -52,4 +46,3 @@
     .form-group {
       margin-bottom:15px;
     }
-

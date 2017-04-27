@@ -204,6 +204,7 @@ INSTALLED_APPS = (
     'django.contrib.humanize',
     'django.contrib.gis',
     'django.contrib.sitemaps',
+    'django.contrib.postgres',
 
     # Haml-like templates
     'hamlpy',
@@ -442,6 +443,7 @@ PERMISSIONS = {
                          'claim_junebug',
                          'claim_kannel',
                          'claim_line',
+                         'claim_macrokiosk',
                          'claim_m3tech',
                          'claim_mblox',
                          'claim_nexmo',
@@ -580,6 +582,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_json',
         'flows.flow_read',
         'flows.flow_revisions',
+        'flows.flowrun_delete',
         'orgs.org_dashboard',
         'orgs.org_grant',
         'orgs.org_manage',
@@ -688,6 +691,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_junebug',
         'channels.channel_claim_kannel',
         'channels.channel_claim_line',
+        'channels.channel_claim_macrokiosk',
         'channels.channel_claim_mblox',
         'channels.channel_claim_m3tech',
         'channels.channel_claim_plivo',
@@ -730,6 +734,7 @@ GROUP_PERMISSIONS = {
         'flows.flowstart_api',
         'flows.flowlabel.*',
         'flows.ruleset.*',
+        'flows.flowrun_delete',
 
         'schedules.schedule.*',
 
@@ -834,6 +839,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_kannel',
         'channels.channel_claim_line',
         'channels.channel_claim_mblox',
+        'channels.channel_claim_macrokiosk',
         'channels.channel_claim_m3tech',
         'channels.channel_claim_plivo',
         'channels.channel_claim_red_rabbit',
