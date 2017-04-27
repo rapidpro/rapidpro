@@ -4319,10 +4319,9 @@ class SimulationTest(FlowFileTest):
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         self.assertEquals(response.status_code, 400)
         self.assertEqual(response.json()['status'], 'error')
-        self.assertEqual(response.json()['description'], 'Error creating message: ChannelSession has no channel.')
 
         self.assertEqual(flow.runs.count(), 0)
-        
+
 
 class FlowsTest(FlowFileTest):
 
