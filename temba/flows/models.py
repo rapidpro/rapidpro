@@ -1464,7 +1464,7 @@ class Flow(TembaModel):
 
         channel = self.org.get_ussd_channel()
 
-        if not channel or Channel.ROLE_USSD not in channel.role:  # pragma: needs cover
+        if not channel or Channel.ROLE_USSD not in channel.role:
             return runs
 
         for contact_id in all_contact_ids:

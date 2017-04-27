@@ -4301,7 +4301,7 @@ class SimulationTest(FlowFileTest):
         session = USSDSession.objects.get()
         self.assertEquals(session.status, USSDSession.COMPLETED)
 
-    def test_ussd_simulation_without_channel(self):
+    def test_ussd_simulation_without_channel_doesnt_run(self):
         Channel.objects.all().delete()
 
         flow = self.get_flow('ussd_session_end')
@@ -4312,11 +4312,12 @@ class SimulationTest(FlowFileTest):
 
         self.login(self.admin)
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
-        self.assertEquals(response.status_code, 200)
+        self.assertEquals(response.status_code, 400)
+        self.assertEqual(response.json()['status'], 'error')
+        self.assertEqual(response.json()['description'], 'Error creating message: ChannelSession has no channel.')
 
-        session = USSDSession.objects.get()
-        self.assertEquals(session.status, USSDSession.COMPLETED)
-
+        self.assertEqual(flow.runs.count(), 0)
+        
 
 class FlowsTest(FlowFileTest):
 
