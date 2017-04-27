@@ -18,7 +18,7 @@ from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.core.validators import validate_email
 from django.db import IntegrityError
-from django.db.models import Sum, Q, F, ExpressionWrapper, IntegerField
+from django.db.models import Sum, Q, F, ExpressionWrapper, IntegerField, Prefetch
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
@@ -34,8 +34,11 @@ from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartRead
 from smartmin.views import SmartModelFormView, SmartModelActionView
 from datetime import timedelta
 from temba.api.models import APIToken
+from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
+from temba.flows.models import Flow
 from temba.formax import FormaxMixin
+from temba.triggers.models import Trigger
 from temba.utils import analytics, languages
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.email import is_valid_address
@@ -507,33 +510,27 @@ class OrgCRUDL(SmartCRUDL):
     class Export(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
 
         def post(self, request, *args, **kwargs):
+            org = self.get_object()
 
-            # get all of the selected flows and campaigns
-            from temba.flows.models import Flow
-            from temba.campaigns.models import Campaign
+            # fetch the selected flows and campaigns
+            flows = Flow.objects.filter(id__in=self.request.POST.getlist('flows'), org=org, is_active=True)
+            campaigns = Campaign.objects.filter(id__in=self.request.POST.getlist('campaigns'), org=org, is_active=True)
 
-            flows = set(Flow.objects.filter(id__in=self.request.POST.getlist('flows'), org=self.get_object(), is_active=True))
-            campaigns = Campaign.objects.filter(id__in=self.request.POST.getlist('campaigns'), org=self.get_object())
+            dependencies = org.get_export_dependencies(flows, campaigns, include_triggers=True)
+            components = set(dependencies.keys())
 
-            # by default we include the triggers for the requested flows
-            dependencies = dict(flows=set(), campaigns=set(), groups=set(), triggers=set())
-            for flow in flows:
-                dependencies = flow.get_dependencies(dependencies)
-
-            triggers = dependencies['triggers']
-
-            export = self.get_object().export_definitions(request.branding['link'], flows, campaigns, triggers)
+            export = org.export_definitions(request.branding['link'], components)
             response = JsonResponse(export, json_dumps_params=dict(indent=2))
-            response['Content-Disposition'] = 'attachment; filename=%s.json' % slugify(self.get_object().name)
+            response['Content-Disposition'] = 'attachment; filename=%s.json' % slugify(org.name)
             return response
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.Export, self).get_context_data(**kwargs)
 
             org = self.get_object()
-            include_archived = self.request.GET.get('archived', 0)
+            include_archived = bool(int(self.request.GET.get('archived', 0)))
 
-            dependencies = org.get_export_dependencies(include_archived)
+            dependencies = org.get_export_dependencies(include_archived=include_archived)
             buckets, singles = self.get_export_buckets(dependencies)
 
             context['archived'] = include_archived

@@ -1824,8 +1824,6 @@ class Flow(TembaModel):
                 if flow:
                     dependencies.add(flow)
 
-        # dependencies.update(set(self.triggers.filter(is_archived=False, is_active=True)))
-
         return dependencies
 
     def get_dependencies(self, dependencies=None, include_campaigns=True):

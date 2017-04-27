@@ -23,7 +23,7 @@ from django.core.urlresolvers import reverse
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import Sum, F, Q, Prefetch
+from django.db.models import Sum, F, Q, Prefetch, prefetch_related_objects
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
@@ -378,31 +378,29 @@ class Org(SmartModel):
         Trigger.import_triggers(data, self, user, same_site)
 
     @classmethod
-    def export_definitions(cls, site_link, flows=(), campaigns=(), triggers=()):
-        # remove any triggers that aren't included in our flows
-        flow_uuids = set([f.uuid for f in flows])
-        filtered_triggers = []
-        for trigger in triggers:
-            if trigger.flow.uuid in flow_uuids:
-                filtered_triggers.append(trigger)
-
-        triggers = filtered_triggers
+    def export_definitions(cls, site_link, components):
+        from temba.campaigns.models import Campaign
+        from temba.flows.models import Flow
+        from temba.triggers.models import Trigger
 
         exported_flows = []
-        for flow in flows:
-            # only export current versions
-            flow.ensure_current_version()
-            exported_flows.append(flow.as_json(expand_contacts=True))
-
         exported_campaigns = []
-        for campaign in campaigns:
-            for flow in campaign.get_flows():
-                flows.add(flow)
-            exported_campaigns.append(campaign.as_json())
-
         exported_triggers = []
-        for trigger in triggers:
-            exported_triggers.append(trigger.as_json())
+
+        # TODO why is this needed?
+        for component in components:
+            if isinstance(component, Campaign):
+                for flow in component.get_flows():
+                    components.add(flow)
+
+        for component in components:
+            if isinstance(component, Flow):
+                component.ensure_current_version()  # only export current versions
+                exported_flows.append(component.as_json(expand_contacts=True))
+            elif isinstance(component, Campaign):
+                exported_campaigns.append(component.as_json())
+            elif isinstance(component, Trigger):
+                exported_triggers.append(component.as_json())
 
         return dict(version=CURRENT_EXPORT_VERSION,
                     site=site_link,
@@ -1674,20 +1672,31 @@ class Org(SmartModel):
 
         return subscription
 
-    def get_export_dependencies(self, include_archived=False):
+    def get_export_dependencies(self, flows=(), campaigns=(), include_triggers=False, include_archived=False):
+        """
+        Generates a dict of exportable objects for this org with each objects dependencies
+        """
         from temba.campaigns.models import CampaignEvent
         from temba.contacts.models import ContactGroup
         from temba.flows.models import Flow
+        from temba.triggers.models import Trigger
 
-        flows = self.flows.filter(is_active=True).exclude(flow_type=Flow.MESSAGE).prefetch_related('action_sets', 'rule_sets', 'triggers')
-        campaigns = self.campaign_set.filter(is_active=True).select_related('group').prefetch_related(
-            Prefetch('events', queryset=CampaignEvent.objects.filter(is_active=True).exclude(flow__flow_type=Flow.MESSAGE)),
-            'events__flow'
+        flow_prefetches = ('action_sets', 'rule_sets')
+        campaign_prefetches = (
+            Prefetch('events', queryset=CampaignEvent.objects.filter(is_active=True).exclude(flow__flow_type=Flow.MESSAGE), to_attr='flow_events'),
+            'flow_events__flow'
         )
 
-        if not include_archived:
-            flows = flows.filter(is_archived=False)
-            campaigns = campaigns.filter(is_archived=False)
+        if flows or campaigns:
+            prefetch_related_objects(flows, *flow_prefetches)
+            prefetch_related_objects(campaigns, *campaign_prefetches)
+        else:
+            flows = self.flows.filter(is_active=True).exclude(flow_type=Flow.MESSAGE).prefetch_related(*flow_prefetches)
+            campaigns = self.campaign_set.filter(is_active=True).select_related('group').prefetch_related(*campaign_prefetches)
+
+            if not include_archived:
+                flows = flows.filter(is_archived=False)
+                campaigns = campaigns.filter(is_archived=False)
 
         flow_map = {f.uuid: f for f in flows}
 
@@ -1696,7 +1705,12 @@ class Org(SmartModel):
         for flow in flows:
             dependencies[flow] = flow.get_export_dependencies(flow_map)
         for campaign in campaigns:
-            dependencies[campaign] = set([e.flow for e in campaign.events.all()])
+            dependencies[campaign] = set([e.flow for e in campaign.flow_events])
+
+        if include_triggers:
+            triggers = Trigger.objects.filter(flow__in=flows, is_archived=False, is_active=True).select_related('flow')
+            for trigger in triggers:
+                dependencies[trigger] = {trigger.flow}
 
         # replace any dependency on a group with that group's associated campaigns
         campaigns_by_group = defaultdict(list)
@@ -1707,11 +1721,11 @@ class Org(SmartModel):
             if isinstance(c, Flow):
                 for d in list(deps):
                     if isinstance(d, ContactGroup):
-                        dependencies[c].remove(d)
-                        dependencies[c].update(campaigns_by_group[d])
+                        deps.remove(d)
+                        deps.update(campaigns_by_group[d])
 
         # make dependencies symmetric, i.e. if A depends on B, B depends on A
-        for c, deps in six.iteritems(dependencies):
+        for c, deps in six.iteritems(dependencies.copy()):
             for d in deps:
                 dependencies[d].add(c)
 

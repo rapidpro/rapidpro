@@ -1570,14 +1570,14 @@ class DefinitionsEndpoint(BaseAPIView):
         depends = dependency_type != 'none'
 
         if flow_uuids:
-            flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org))
+            flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org, is_active=True))
         else:
             flows = set()
 
         # any fetched campaigns
         campaigns = []
         if campaign_uuids:
-            campaigns = Campaign.objects.filter(uuid__in=campaign_uuids, org=org)
+            campaigns = Campaign.objects.filter(uuid__in=campaign_uuids, org=org, is_active=True)
 
             if depends:
                 for campaign in campaigns:
