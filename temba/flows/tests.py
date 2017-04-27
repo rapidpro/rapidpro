@@ -4287,6 +4287,11 @@ class SimulationTest(FlowFileTest):
         self.assertEqual(handle_incoming.call_args[1]['status'], USSDSession.INTERRUPTED)
 
     def test_ussd_simulation_session_end(self):
+        self.ussd_channel = Channel.create(
+            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
+            scheme='tel', uuid='00000000-0000-0000-0000-000000002222',
+            role=Channel.ROLE_USSD)
+
         flow = self.get_flow('ussd_session_end')
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
