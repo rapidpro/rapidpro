@@ -42,7 +42,6 @@
 
             .details {
               cursor: pointer;
-              margin-right: 5px;
               display: inline;
             }
 
@@ -74,7 +73,57 @@
          &.started {
            width: 200px;
          }
-       }
+        }
+
+        .scroll-x {
+          width: 100%;
+          overflow-x: auto;
+        }
+
+        .add-columns {
+          margin-left: 8px;
+          .text {
+            display: block;
+          }
+
+          .selection {
+            display: none;
+          }
+
+          &.select {
+            .text {
+              display: none;
+            }
+
+            .selection {
+              display: block;
+            }
+          }
+        }
+
+        input.contact-search {
+          width: 200px;
+          margin-top:5px;
+        }
+
+        tr.run {
+          &:hover {
+            background: #fbfbfb;
+            .icon-close {
+              visibility: visible;
+            }
+          }
+
+          .icon-close {
+            color: rgba(30,30,30,.2);
+            text-shadow: 0px -1px rgba(230,230,230,.2);
+            font-size:16px;
+            margin-left: -8px;
+            margin-top:1px;
+            visibility: hidden;
+            cursor: pointer;
+          }
+        }
 
     {% endlessblock %}
 
@@ -115,6 +164,25 @@
 
     }
 
+    function deleteRun(id) {
+
+      var modal = new ConfirmationModal("Delete Run", "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever.");
+      modal.addClass('alert');
+      modal.setListeners({
+        onPrimary: function(){
+          $("#run_" + id).fadeOut();
+
+          $.post('/flowrun/delete/' + id + '/').fail(function() {
+            // in the off chance we failed, bring it back
+            $("#run_" + id).fadeIn();
+          });
+
+          modal.dismiss();
+        }}, false);
+      modal.setPrimaryButton("Delete Run");
+      modal.show();
+    }
+
     function updateCols() {
       var hidden = false;
       for (var idx=0; idx < columns.length; idx++) {
@@ -142,9 +210,9 @@
       }
 
       if (hidden) {
-        $('.hidden-columns').show();
+        $('.add-columns').addClass('select')
       } else {
-        $('.hidden-columns').hide();
+        $('.add-columns').removeClass('select');
       }
     }
 
@@ -160,7 +228,7 @@
     ]
 
     $(document).ready(function() {
-      $("#columns").select2({ placeholder:'Add Column', data: columns, minimumResultsForSearch: -1, query: function(q){
+      $("#columns").select2({ placeholder:'More Columns', data: columns, minimumResultsForSearch: -1, query: function(q){
         var results = [];
         for (var i=0; i < this.data.length; i++) {
           if (this.data[i].hidden) {
@@ -175,7 +243,6 @@
         $(this).select2('val', '');
         updateCols();
       })
-
     });
 
 -block page-top
@@ -197,22 +264,28 @@
 
 -block content
 
-  %hr
   .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
     %i.fa.fa-spinner.fa-spin.fa-2x
 
-  .hidden-columns.pull-right
-    %input#columns{type:'hidden', style:'width:300px'}
-
-  %table
-    %tbody{id:"results_run_table"}
+  .scroll-x
+    %table
       %tr
         %td.header.started
           .details
-            Last Activity
+            .add-columns.select
+              .selection
+                %input#columns{type:'hidden', style:'width:150px'}
+              .text
+                Last Activity
         %td.header
           .details
-            Contact
+            %input.contact-search{type:"text", name:"q", placeholder:"Contact",
+                                  ic-get-from:"/flow/run_table/{{object.id}}/",
+                                  ic-on-beforeSend:'$("#results_run_table").empty()',
+                                  ic-trigger-on:"keyup changed",
+                                  ic-trigger-delay:"500ms",
+                                  ic-target:"#results_run_table",
+                                  ic-indicator:"#indicator"}
 
         -for ruleset in rulesets
           %td.header
@@ -223,18 +296,8 @@
               {{ruleset.label}}
             .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
 
-      %tr.hide
-        %td.subheader
-        %td.subheader
-        -for ruleset in rulesets
-          %td.subheader
-            %a{href:'javascript:toggleValue({{forloop.counter0}});'}
-              category
-
-      %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"scrolled-into-view", ic-target:"#results_run_table", ic-indicator:"#indicator"}
+      %tbody{id:"results_run_table"}
+        %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"scrolled-into-view", ic-target:"#results_run_table", ic-indicator:"#indicator"}
 
   #indicator{style:"display:none"}
     .loader
-
-
-

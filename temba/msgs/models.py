@@ -14,17 +14,19 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import Q, Count, Prefetch, Sum
+from django.db.models import Count, Prefetch, Sum
+from django.db.models.functions import Upper
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
+from django_redis import get_redis_connection
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit, datetime_to_ms, dict_to_json
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
@@ -224,10 +226,13 @@ class Broadcast(models.Model):
     media_dict = models.TextField(verbose_name=_("Media"),
                                   help_text=_("The localized versions of the media"), null=True)
 
+    send_all = models.BooleanField(default=False,
+                                   help_text="Whether this broadcast should send to all URNs for each contact")
+
     @classmethod
-    def create(cls, org, user, text, recipients, channel=None, media_dict=None, **kwargs):
-        create_args = dict(org=org, text=text, channel=channel, media_dict=media_dict, created_by=user,
-                           modified_by=user)
+    def create(cls, org, user, text, recipients, channel=None, media_dict=None, send_all=False, **kwargs):
+        create_args = dict(org=org, text=text, channel=channel, media_dict=media_dict, send_all=send_all,
+                           created_by=user, modified_by=user)
         create_args.update(kwargs)
         broadcast = Broadcast.objects.create(**create_args)
         broadcast.update_recipients(recipients)
@@ -378,11 +383,13 @@ class Broadcast(models.Model):
         if contact.language and contact.language in org.get_language_codes():
             preferred_languages = [contact.language] + preferred_languages
 
+        preferred_languages.append('base')
+
         return preferred_languages
 
     def get_translations(self):
         if not self.language_dict:
-            return []
+            return {}
         return get_cacheable_attr(self, '_translations', lambda: json.loads(self.language_dict))
 
     def get_media_translations(self):
@@ -431,6 +438,16 @@ class Broadcast(models.Model):
 
         Contact.bulk_cache_initialize(self.org, contacts)
         recipients = list(urns) + list(contacts)
+
+        if self.send_all:
+            recipients = list(urns)
+            contact_list = list(contacts)
+            for contact in contact_list:
+                contact_urns = contact.get_urns()
+                for c_urn in contact_urns:
+                    recipients.append(c_urn)
+
+            recipients = set(recipients)
 
         RelatedRecipient = Broadcast.recipients.through
 
@@ -623,6 +640,8 @@ class Msg(models.Model):
     PRIORITY_HIGH = 1000
     PRIORITY_NORMAL = 500
     PRIORITY_BULK = 100
+
+    CONTACT_HANDLING_QUEUE = 'ch:%d'
 
     MAX_SIZE = settings.MSG_FIELD_SIZE
 
@@ -1062,16 +1081,22 @@ class Msg(models.Model):
     def is_media_type_image(self):
         return Msg.MEDIA_IMAGE == self.get_media_type()
 
-    def reply(self, text, user, trigger_send=False, message_context=None, session=None, media=None, msg_type=None):
-        return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None, session=session, media=media,
-                                 msg_type=msg_type or self.msg_type)
+    def reply(self, text, user, trigger_send=False, message_context=None, session=None, media=None, msg_type=None,
+              send_all=False, created_on=None):
+
+        if send_all:
+            return self.contact.send_all(text, user, trigger_send=trigger_send, message_context=message_context,
+                                         response_to=self if self.id else None, session=session, media=media,
+                                         msg_type=msg_type or self.msg_type, created_on=created_on)
+        return [self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
+                                  response_to=self if self.id else None, session=session, media=media,
+                                  msg_type=msg_type or self.msg_type, created_on=created_on)]
 
     def update(self, cmd):
         """
         Updates our message according to the provided client command
         """
-        from temba.api.models import WebHookEvent, SMS_DELIVERED, SMS_SENT, SMS_FAIL
+        from temba.api.models import WebHookEvent
         date = datetime.fromtimestamp(int(cmd['ts']) / 1000).replace(tzinfo=pytz.utc)
 
         keyword = cmd['cmd']
@@ -1084,18 +1109,18 @@ class Msg(models.Model):
         elif keyword == 'mt_fail':
             self.status = FAILED
             handled = True
-            WebHookEvent.trigger_sms_event(SMS_FAIL, self, date)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_FAIL, self, date)
 
         elif keyword == 'mt_sent':
             self.status = SENT
             self.sent_on = date
             handled = True
-            WebHookEvent.trigger_sms_event(SMS_SENT, self, date)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_SENT, self, date)
 
         elif keyword == 'mt_dlvd':
             self.status = DELIVERED
             handled = True
-            WebHookEvent.trigger_sms_event(SMS_DELIVERED, self, date)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_DELIVERED, self, date)
 
         self.save()  # first save message status before updating the broadcast status
 
@@ -1104,6 +1129,20 @@ class Msg(models.Model):
             self.broadcast.update()
 
         return handled
+
+    def queue_handling(self):
+        """
+        Queues this message to be handled by one of our celery queues
+        """
+        payload = dict(type=MSG_EVENT, contact_id=self.contact.id, id=self.id, from_mage=False, new_contact=False)
+
+        # first push our msg on our contact's queue using our created date
+        r = get_redis_connection('default')
+        queue_time = self.sent_on if self.sent_on else timezone.now()
+        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_ms(queue_time), dict_to_json(payload))
+
+        # queue up our celery task
+        push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)
 
     def handle(self):
         if self.direction == OUTGOING:
@@ -1115,8 +1154,7 @@ class Msg(models.Model):
 
         # others do in celery
         else:
-            on_transaction_commit(lambda: push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
-                                                    dict(type=MSG_EVENT, id=self.id, from_mage=False, new_contact=False)))
+            on_transaction_commit(lambda: self.queue_handling())
 
     def build_expressions_context(self, contact_context=None):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
@@ -1199,7 +1237,7 @@ class Msg(models.Model):
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
                         status=PENDING, media=None, msg_type=None, topup=None, external_id=None, session=None):
 
-        from temba.api.models import WebHookEvent, SMS_RECEIVED
+        from temba.api.models import WebHookEvent
         if not org and channel:
             org = channel.org
 
@@ -1276,7 +1314,7 @@ class Msg(models.Model):
             msg.handle()
 
             # fire an event off for this message
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, msg, date)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, date)
 
         return msg
 
@@ -1607,12 +1645,7 @@ STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,
              'who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
-class SystemLabel(SquashableModel):
-    """
-    Counts of messages/broadcasts/calls maintained by database level triggers
-    """
-    SQUASH_OVER = ('org_id', 'label_type')
-
+class SystemLabel(object):
     TYPE_INBOX = 'I'
     TYPE_FLOWS = 'W'
     TYPE_ARCHIVED = 'A'
@@ -1631,33 +1664,9 @@ class SystemLabel(SquashableModel):
                     (TYPE_SCHEDULED, "Scheduled"),
                     (TYPE_CALLS, "Calls"))
 
-    org = models.ForeignKey(Org, related_name='system_labels')
-
-    label_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
-
-    count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
-
     @classmethod
-    def get_squash_query(cls, distinct_set):
-        sql = """
-        WITH deleted as (
-            DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s RETURNING "count"
-        )
-        INSERT INTO %(table)s("org_id", "label_type", "count", "is_squashed")
-        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
-        """ % {'table': cls._meta.db_table}
-
-        return sql, (distinct_set.org_id, distinct_set.label_type) * 2
-
-    @classmethod
-    def create_all(cls, org):
-        """
-        Creates all system labels for the given org
-        """
-        labels = []
-        for label_type, _name in cls.TYPE_CHOICES:
-            labels.append(cls.objects.create(org=org, label_type=label_type))
-        return labels
+    def get_counts(cls, org):
+        return SystemLabelCount.get_totals(org)
 
     @classmethod
     def get_queryset(cls, org, label_type, exclude_test_contacts=True):
@@ -1675,7 +1684,8 @@ class SystemLabel(SquashableModel):
         elif label_type == cls.TYPE_OUTBOX:
             qs = Msg.objects.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(PENDING, QUEUED))
         elif label_type == cls.TYPE_SENT:
-            qs = Msg.objects.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(WIRED, SENT, DELIVERED))
+            qs = Msg.objects.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE,
+                                    status__in=(WIRED, SENT, DELIVERED))
         elif label_type == cls.TYPE_FAILED:
             qs = Msg.objects.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status=FAILED)
         elif label_type == cls.TYPE_SCHEDULED:
@@ -1695,41 +1705,42 @@ class SystemLabel(SquashableModel):
 
         return qs
 
-    @classmethod
-    def recalculate_counts(cls, org, label_types=None):
-        """
-        Recalculates the system label counts for the passed in org, updating them in our database
-        """
-        if label_types is None:  # pragma: needs cover
-            label_types = [cls.TYPE_INBOX, cls.TYPE_FLOWS, cls.TYPE_ARCHIVED, cls.TYPE_OUTBOX, cls.TYPE_SENT,
-                           cls.TYPE_FAILED, cls.TYPE_SCHEDULED, cls.TYPE_CALLS]
 
-        counts_by_type = {}
+class SystemLabelCount(SquashableModel):
+    """
+    Counts of messages/broadcasts/calls maintained by database level triggers
+    """
+    SQUASH_OVER = ('org_id', 'label_type')
 
-        # for each type
-        for label_type in label_types:
-            count = cls.get_queryset(org, label_type).count()
-            counts_by_type[label_type] = count
+    org = models.ForeignKey(Org, related_name='system_labels')
 
-            # delete existing counts
-            cls.objects.filter(org=org, label_type=label_type).delete()
+    label_type = models.CharField(max_length=1, choices=SystemLabel.TYPE_CHOICES)
 
-            # and create our new count
-            cls.objects.create(org=org, label_type=label_type, count=count)
-
-        return counts_by_type
+    count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
 
     @classmethod
-    def get_counts(cls, org, label_types=None):
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH deleted as (
+            DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("org_id", "label_type", "count", "is_squashed")
+        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+        """ % {'table': cls._meta.db_table}
+
+        return sql, (distinct_set.org_id, distinct_set.label_type) * 2
+
+    @classmethod
+    def get_totals(cls, org):
         """
         Gets all system label counts by type for the given org
         """
-        labels = cls.objects.filter(org=org)
-        if label_types:
-            labels = labels.filter(label_type__in=label_types)
-        label_counts = labels.values('label_type').order_by('label_type').annotate(count_sum=Sum('count'))
+        counts = cls.objects.filter(org=org)
+        counts = counts.values_list('label_type').annotate(count_sum=Sum('count'))
+        counts_by_type = {c[0]: c[1] for c in counts}
 
-        return {l['label_type']: l['count_sum'] for l in label_counts}
+        # for convenience, include all label types
+        return {l: counts_by_type.get(l, 0) for l, n in SystemLabel.TYPE_CHOICES}
 
     class Meta:
         index_together = ('org', 'label_type')
@@ -1766,9 +1777,6 @@ class Label(TembaModel):
     folder = models.ForeignKey('Label', verbose_name=_("Folder"), null=True, related_name="children")
 
     label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_LABEL, help_text=_("Label type"))
-
-    visible_count = models.PositiveIntegerField(default=0,
-                                                help_text=_("Number of non-archived messages with this label"))
 
     # define some custom managers to do the filtering of label types for us
     all_objects = models.Manager()
@@ -1808,14 +1816,28 @@ class Label(TembaModel):
     @classmethod
     def get_hierarchy(cls, org):
         """
-        Gets top-level user labels and folders, with children pre-fetched and ordered by name
+        Gets labels and folders organized into their hierarchy and with their message counts
         """
-        qs = Label.all_objects.filter(org=org).order_by('name')
-        qs = qs.filter(Q(label_type=cls.TYPE_LABEL, folder=None) | Q(label_type=cls.TYPE_FOLDER))
+        labels_and_folders = list(Label.all_objects.filter(org=org).order_by(Upper('name')))
+        label_counts = LabelCount.get_totals([l for l in labels_and_folders if not l.is_folder()])
 
-        children_prefetch = Prefetch('children', queryset=Label.all_objects.order_by('name'))
+        folder_nodes = {}
+        all_nodes = []
+        for obj in labels_and_folders:
+            node = {'obj': obj, 'count': label_counts.get(obj), 'children': []}
+            all_nodes.append(node)
 
-        return qs.select_related('folder').prefetch_related(children_prefetch)
+            if obj.is_folder():
+                folder_nodes[obj.id] = node
+
+        top_nodes = []
+        for node in all_nodes:
+            if node['obj'].folder_id is None:
+                top_nodes.append(node)
+            else:
+                folder_nodes[node['obj'].folder_id]['children'].append(node)
+
+        return top_nodes
 
     @classmethod
     def is_valid_name(cls, name):
@@ -1846,7 +1868,7 @@ class Label(TembaModel):
         if self.is_folder():
             raise ValueError("Message counts are not tracked for user folders")
 
-        return self.visible_count
+        return LabelCount.get_totals([self])[self]
 
     def toggle_label(self, msgs, add):
         """
@@ -1894,6 +1916,38 @@ class Label(TembaModel):
 
     class Meta:
         unique_together = ('org', 'name')
+
+
+class LabelCount(SquashableModel):
+    """
+    Counts of user labels maintained by database level triggers
+    """
+    SQUASH_OVER = ('label_id',)
+
+    label = models.ForeignKey(Label, related_name='counts')
+
+    count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
+
+    @classmethod
+    def get_squash_query(cls, distinct_set):
+        sql = """
+            WITH deleted as (
+                DELETE FROM %(table)s WHERE "label_id" = %%s RETURNING "count"
+            )
+            INSERT INTO %(table)s("label_id", "count", "is_squashed")
+            VALUES (%%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+            """ % {'table': cls._meta.db_table}
+
+        return sql, (distinct_set.label_id, distinct_set.label_id)
+
+    @classmethod
+    def get_totals(cls, labels):
+        """
+        Gets total counts for all the given labels
+        """
+        counts = cls.objects.filter(label__in=labels).values_list('label_id').annotate(count_sum=Sum('count'))
+        counts_by_label_id = {c[0]: c[1] for c in counts}
+        return {l: counts_by_label_id.get(l.id, 0) for l in labels}
 
 
 class MsgIterator(object):
@@ -1948,9 +2002,22 @@ class ExportMessagesTask(BaseExportTask):
 
     label = models.ForeignKey(Label, null=True)
 
+    system_label = models.CharField(null=True, max_length=1)
+
     start_date = models.DateField(null=True, blank=True, help_text=_("The date for the oldest message to export"))
 
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
+
+    @classmethod
+    def create(cls, org, user, system_label=None, label=None, groups=(), start_date=None, end_date=None):
+        if label and system_label:  # pragma: no cover
+            raise ValueError("Can't specify both label and system label")
+
+        export = cls.objects.create(org=org, system_label=system_label, label=label,
+                                    start_date=start_date, end_date=end_date,
+                                    created_by=user, modified_by=user)
+        export.groups.add(*groups)
+        return export
 
     def write_export(self):
         from openpyxl import Workbook
@@ -1968,25 +2035,27 @@ class ExportMessagesTask(BaseExportTask):
                             self.WIDTH_MEDIUM,  # Labels
                             self.WIDTH_SMALL]   # Status
 
-        all_messages = Msg.get_messages(self.org).order_by('-created_on')
+        if self.system_label:
+            messages = SystemLabel.get_queryset(self.org, self.system_label)
+        elif self.label:
+            messages = self.label.msgs.all()
+        else:
+            messages = Msg.get_messages(self.org)
 
         tz = self.org.timezone
 
-        if self.start_date:  # pragma: needs cover
+        if self.start_date:
             start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
-            all_messages = all_messages.filter(created_on__gte=start_date)
+            messages = messages.filter(created_on__gte=start_date)
 
-        if self.end_date:  # pragma: needs cover
+        if self.end_date:
             end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
-            all_messages = all_messages.filter(created_on__lte=end_date)
+            messages = messages.filter(created_on__lte=end_date)
 
-        if self.groups.all():  # pragma: needs cover
-            all_messages = all_messages.filter(contact__all_groups__in=self.groups.all())
+        if self.groups.all():
+            messages = messages.filter(contact__all_groups__in=self.groups.all())
 
-        if self.label:  # pragma: needs cover
-            all_messages = all_messages.filter(labels=self.label)
-
-        all_message_ids = [m['id'] for m in all_messages.values('id')]
+        all_message_ids = list(messages.order_by('-created_on').values_list('id', flat=True))
 
         messages_sheet_number = 1
 

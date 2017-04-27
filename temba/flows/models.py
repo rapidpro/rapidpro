@@ -11,7 +11,7 @@ import urllib2
 import re
 import six
 
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
@@ -33,7 +33,8 @@ from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, SENT, Label, PENDING, DELIVERED, USSD as MSG_TYPE_USSD
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
+from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD
 from temba.msgs.models import OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
@@ -64,12 +65,8 @@ FLOW_LOCK_KEY = 'org:%d:lock:flow:%d:%s'
 
 FLOW_PROP_CACHE_KEY = 'org:%d:cache:flow:%d:%s'
 FLOW_PROP_CACHE_TTL = 24 * 60 * 60 * 7  # 1 week
-FLOW_STAT_CACHE_KEY = 'org:%d:cache:flow:%d:%s'
 
 UNREAD_FLOW_RESPONSES = 'unread_flow_responses'
-
-# the most frequently we will check if our cache needs rebuilding
-FLOW_STAT_CACHE_FREQUENCY = 24 * 60 * 60  # 1 day
 
 
 class FlowLock(Enum):
@@ -77,7 +74,6 @@ class FlowLock(Enum):
     Locks that are flow specific
     """
     participation = 1
-    activity = 2
     definition = 3
 
 
@@ -87,17 +83,6 @@ class FlowPropsCache(Enum):
     """
     terminal_nodes = 1
     category_nodes = 2
-
-
-class FlowStatsCache(Enum):
-    """
-    Stats we calculate and cache for flows
-    """
-    runs_started_count = 1    # deprecated, no longer used
-    runs_completed_count = 2  # deprecated, no longer used
-    contacts_started_set = 3  # deprecated, no longer used
-    step_active_set = 5
-    cache_check = 6
 
 
 def edit_distance(s1, s2):  # pragma: no cover
@@ -242,17 +227,13 @@ class Flow(TembaModel):
         return flow
 
     @classmethod
-    def create_single_message(cls, org, user, message, base_language=None):
+    def create_single_message(cls, org, user, message, base_language):
         """
         Creates a special 'single message' flow
         """
         name = 'Single Message (%s)' % six.text_type(uuid4())
-
-        if not base_language:
-            base_language = 'base' if not org.primary_language else org.primary_language.iso_code
-
-        flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE, base_language=base_language)
-        flow.update_single_message_flow(message)
+        flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE)
+        flow.update_single_message_flow(message, base_language)
         return flow
 
     @classmethod
@@ -399,6 +380,10 @@ class Flow(TembaModel):
     @classmethod
     def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
         run = FlowRun.objects.filter(session=call, is_active=True).order_by('-created_on').first()
+
+        # set our initial expiration date if we don't have one yet
+        if not run.expires_on:
+            run.update_expiration()
 
         # what we will send back
         voice_response = call.channel.generate_ivr_response()
@@ -569,7 +554,7 @@ class Flow(TembaModel):
     @classmethod
     def find_and_handle(cls, msg, started_flows=None, voice_response=None,
                         triggered_start=False, resume_parent_run=False,
-                        resume_after_timeout=False, user_input=True, trigger_send=True):
+                        resume_after_timeout=False, user_input=True, trigger_send=True, continue_parent=True):
 
         if started_flows is None:
             started_flows = []
@@ -588,7 +573,8 @@ class Flow(TembaModel):
             (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
                                                       user_input=user_input, triggered_start=triggered_start,
                                                       resume_parent_run=resume_parent_run,
-                                                      resume_after_timeout=resume_after_timeout, trigger_send=trigger_send)
+                                                      resume_after_timeout=resume_after_timeout, trigger_send=trigger_send,
+                                                      continue_parent=continue_parent)
 
             if handled:
                 # increment our unread count if this isn't the simulator
@@ -602,7 +588,7 @@ class Flow(TembaModel):
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
                            started_flows=None, is_test_contact=False, user_input=False,
-                           triggered_start=False, trigger_send=True, resume_parent_run=False, resume_after_timeout=False):
+                           triggered_start=False, trigger_send=True, resume_parent_run=False, resume_after_timeout=False, continue_parent=True):
 
         if started_flows is None:
             started_flows = []
@@ -694,8 +680,8 @@ class Flow(TembaModel):
             resume_after_timeout = False
 
         # if we have a parent to continue, do so
-        if getattr(run, 'continue_parent', False):
-            msgs += FlowRun.continue_parent_flow_run(run, trigger_send=False)
+        if getattr(run, 'continue_parent', False) and continue_parent:
+            msgs += FlowRun.continue_parent_flow_run(run, trigger_send=False, continue_parent=True)
 
         if handled:
             analytics.gauge('temba.flow_execution', time.time() - start_time)
@@ -734,6 +720,7 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_ruleset(cls, ruleset, step, run, msg, started_flows, resume_parent_run=False, resume_after_timeout=False):
+        msgs = []
 
         if ruleset.is_ussd() and run.session_interrupted:
             rule, value = ruleset.find_interrupt_rule(step, run, msg)
@@ -760,11 +747,13 @@ class Flow(TembaModel):
                                                 restart_participants=True, extra=extra,
                                                 parent_run=run, interrupt=False)
 
-                        msgs = []
-                        for run in child_runs:
-                            msgs += run.start_msgs
+                        continue_parent = False
+                        for child_run in child_runs:
+                            msgs += child_run.start_msgs
+                            continue_parent |= getattr(child_run, 'continue_parent', False)
 
-                        return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
+                        if not continue_parent:
+                            return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
 
             # find a matching rule
             rule, value = ruleset.find_matching_rule(step, run, msg, resume_after_timeout=resume_after_timeout)
@@ -795,17 +784,17 @@ class Flow(TembaModel):
             if run.session_interrupted:
                 # run was interrupted and interrupt state not handled (not connected)
                 run.set_interrupted(final_step=step)
-                return dict(handled=True, destination=None, destination_type=None, interrupted=True)
+                return dict(handled=True, destination=None, destination_type=None, interrupted=True, msgs=msgs)
             else:
                 run.set_completed(final_step=step)
-                return dict(handled=True, destination=None, destination_type=None)
+                return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
 
         # Create the step for our destination
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
         if destination:
             step = flow.add_step(run, destination, rule=rule.uuid, category=rule.category, previous_step=step)
 
-        return dict(handled=True, destination=destination, step=step)
+        return dict(handled=True, destination=destination, step=step, msgs=msgs)
 
     @classmethod
     def handle_ussd_ruleset_action(cls, ruleset, step, run, msg):
@@ -924,44 +913,14 @@ class Flow(TembaModel):
 
         # clear all our cached stats
         self.clear_props_cache()
-        self.clear_stats_cache()
 
     def clear_props_cache(self):
         r = get_redis_connection()
         keys = [self.get_props_cache_key(c) for c in FlowPropsCache.__members__.values()]
         r.delete(*keys)
 
-    def clear_stats_cache(self):
-        r = get_redis_connection()
-        keys = [self.get_stats_cache_key(c) for c in FlowStatsCache.__members__.values()]
-        r.delete(*keys)
-
     def get_props_cache_key(self, kind):
         return FLOW_PROP_CACHE_KEY % (self.org_id, self.pk, kind.name)
-
-    def get_stats_cache_key(self, kind, item=None):
-        name = kind
-        if hasattr(kind, 'name'):
-            name = kind.name
-
-        cache_key = FLOW_STAT_CACHE_KEY % (self.org_id, self.pk, name)
-        if item:
-            cache_key += (':%s' % item)
-        return cache_key
-
-    def calculate_active_step_keys(self):
-        """
-        Returns a list of UUIDs for all ActionSets and RuleSets on this flow.
-        :return:
-        """
-        # first look up any action set uuids
-        steps = list(self.action_sets.values('uuid'))
-
-        # then our ruleset uuids
-        steps += list(self.rule_sets.values('uuid'))
-
-        # extract just the uuids
-        return [self.get_stats_cache_key(FlowStatsCache.step_active_set, step['uuid']) for step in steps]
 
     def lock_on(self, lock, qualifier=None, lock_ttl=None):
         """
@@ -977,57 +936,23 @@ class Flow(TembaModel):
 
         return r.lock(lock_key, lock_ttl)
 
-    def do_calculate_flow_stats(self, lock_ttl=None):
-        r = get_redis_connection()
-
-        # activity
-        with self.lock_on(FlowLock.activity, lock_ttl=lock_ttl):
-            runs_at_node = self._calculate_node_counts(simulation=False)
-
-            # add current active cache
-            for node_uuid, runs in six.iteritems(runs_at_node):
-                for run in runs:
-                    r.sadd(self.get_stats_cache_key(FlowStatsCache.step_active_set, node_uuid), run)
-
-    def _calculate_node_counts(self, simulation):
-        """
-        Calculate how many contacts are at each node. This is expensive and should only be run for simulation or in an
-        async task to rebuild the cache.
-        """
-        # fetch steps in active runs where contact hasn't left
-        steps = FlowStep.objects.filter(run__is_active=True, run__flow=self, left_on=None, run__contact__is_test=simulation)
-        steps = steps.values('run__id', 'step_uuid').annotate(count=Count('run_id'))
-
-        runs_at_node = defaultdict(set)
-        for step in steps:
-            node_uuid = step['step_uuid']
-            runs_at_node[node_uuid].add(step['run__id'])
-
-        return runs_at_node
-
     def get_node_counts(self, simulation):
-        if simulation:
-            runs_at_node = self._calculate_node_counts(simulation=True)
-            return {node_uuid: len(runs) for node_uuid, runs in six.iteritems(runs_at_node)}
+        """
+        Gets the number of contacts at each node in the flow. For simulator mode this manual counts steps by test
+        contacts as these are not pre-calculated.
+        """
+        if not simulation:
+            return FlowNodeCount.get_totals(self)
 
-        r = get_redis_connection()
-
-        # get all possible active keys
-        keys = self.calculate_active_step_keys()
-
-        runs_at_node = {}
-        for key in keys:
-            count = r.scard(key)
-            # only include stats for steps that actually have people there
-            if count:
-                runs_at_node[key[key.rfind(':') + 1:]] = count
-
-        return runs_at_node
+        # count steps in active runs where contact hasn't left that node
+        steps = FlowStep.objects.filter(run__is_active=True, run__flow=self, left_on=None, run__contact__is_test=True)
+        totals = steps.values_list('step_uuid').annotate(count=Count('run_id'))
+        return {t[0]: t[1] for t in totals if t[1]}
 
     def get_segment_counts(self, simulation, include_incomplete=False):
         """
-        Returns how many contacts have taken each flow segment. For simulation mode this is calculated, but for real
-        contacts this is pre-calculated in FlowPathCount.
+        Gets the number of contacts to have taken each flow segment. For simulator mode this manual counts steps by test
+        contacts as these are not pre-calculated.
         """
         if not simulation:
             return FlowPathCount.get_totals(self, include_incomplete)
@@ -1051,36 +976,11 @@ class Flow(TembaModel):
 
         return visits
 
-    def _check_for_cache_update(self):
-        """
-        Checks if we have a redis cache for our flow stats, or whether they need to be updated.
-        If so, triggers an async rebuild of the cache for our flow.
-        """
-        from .tasks import check_flow_stats_accuracy_task
-
-        r = get_redis_connection()
-
-        # don't do the more expensive check if it was performed recently
-        cache_check = self.get_stats_cache_key(FlowStatsCache.cache_check)
-        if r.exists(cache_check):
-            return
-
-        # don't check again for a day or so, add up to an hour of randomness
-        # to spread things out a bit
-        import random
-        r.set(cache_check, 1, FLOW_STAT_CACHE_FREQUENCY + random.randint(0, 60 * 60))
-
-        # check flow stats for accuracy, rebuilding if necessary
-        check_flow_stats_accuracy_task.delay(self.pk)
-
-    def get_activity(self, simulation=False, check_cache=True):
+    def get_activity(self, simulation=False):
         """
         Get the activity summary for a flow as a tuple of the number of active runs
         at each step and a map of the previous visits
         """
-        if check_cache:
-            self._check_for_cache_update()
-
         return self.get_node_counts(simulation), self.get_segment_counts(simulation)
 
     def get_base_text(self, language_dict, default=''):
@@ -1191,6 +1091,9 @@ class Flow(TembaModel):
         self.is_archived = True
         self.save(update_fields=['is_archived'])
 
+        from .tasks import interrupt_flow_runs_task
+        interrupt_flow_runs_task.delay(self.id)
+
         # archive our triggers as well
         from temba.triggers.models import Trigger
         Trigger.objects.filter(flow=self).update(is_archived=True)
@@ -1203,13 +1106,17 @@ class Flow(TembaModel):
         self.is_archived = False
         self.save(update_fields=['is_archived'])
 
-    def update_single_message_flow(self, message_dict):
+    def update_single_message_flow(self, translations, base_language):
+        if base_language not in translations:  # pragma: no cover
+            raise ValueError("Must include translation for base language")
+
         self.flow_type = Flow.MESSAGE
-        self.save(update_fields=['name', 'flow_type'])
+        self.base_language = base_language
+        self.save(update_fields=('name', 'flow_type', 'base_language'))
 
         uuid = str(uuid4())
-        action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=message_dict)])]
-        self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language=self.base_language))
+        action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=translations)])]
+        self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language=base_language))
 
     def get_steps(self):
         return FlowStep.objects.filter(run__flow=self)
@@ -1591,7 +1498,7 @@ class Flow(TembaModel):
 
                 step = self.add_step(run, entry_rule, is_start=True, arrived_on=timezone.now())
                 if entry_rule.is_ussd():
-                    handled, step_msgs = Flow.handle_destination(entry_rule, step, run, start_msg, trigger_send=False)
+                    handled, step_msgs = Flow.handle_destination(entry_rule, step, run, start_msg, trigger_send=False, continue_parent=False)
 
                     # add these messages as ones that are ready to send
                     for msg in step_msgs:
@@ -1635,6 +1542,9 @@ class Flow(TembaModel):
             run = FlowRun.create(self, contact_id, start=flow_start, parent=parent_run)
             if extra:  # pragma: needs cover
                 run.update_fields(extra)
+
+            # set our initial run expiration
+            run.update_expiration()
 
             # create our call objects
             if parent_run and parent_run.session:
@@ -1688,7 +1598,8 @@ class Flow(TembaModel):
 
             if message_text or media_dict:
                 broadcast = Broadcast.create(self.org, self.created_by, message_text, [], media_dict=media_dict,
-                                             language_dict=language_dict, base_language=self.base_language)
+                                             language_dict=language_dict, base_language=self.base_language,
+                                             send_all=send_action.send_all)
                 broadcast.update_contacts(all_contact_ids)
 
                 # manually set our broadcast status to QUEUED, our sub processes will send things off for us
@@ -1830,7 +1741,7 @@ class Flow(TembaModel):
 
                         msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
                         handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
-                                                                     is_test_contact=simulation, trigger_send=False)
+                                                                     is_test_contact=simulation, trigger_send=False, continue_parent=False)
                         run_msgs += step_msgs
 
                     else:
@@ -1847,7 +1758,7 @@ class Flow(TembaModel):
                     elif not entry_rules.is_pause() or entry_rules.is_ussd():
                         # create an empty placeholder message
                         msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
-                        handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False)
+                        handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False, continue_parent=False)
                         run_msgs += step_msgs
 
                 if start_msg:
@@ -1928,52 +1839,7 @@ class Flow(TembaModel):
         for msg in msgs:
             step.add_message(msg)
 
-        # update the activity for our run
-        if not run.contact.is_test:
-            self.update_activity(step, previous_step, rule_uuid=rule)
-
         return step
-
-    def remove_active_for_run_ids(self, run_ids):
-        """
-        Bulk deletion of activity for a list of run ids. This removes the runs
-        from the active step, but does not remove the visited (path) data
-        for the runs.
-        """
-        r = get_redis_connection()
-        if run_ids:
-            for key in self.calculate_active_step_keys():
-                # remove keys 1,000 at a time
-                for batch in chunk_list(run_ids, 1000):
-                    r.srem(key, *batch)
-
-    def remove_active_for_step(self, step):
-        """
-        Removes the active stat for a run at the given step, but does not
-        remove the (path) data for the runs.
-        """
-        r = get_redis_connection()
-        r.srem(self.get_stats_cache_key(FlowStatsCache.step_active_set, step.step_uuid), step.run.pk)
-
-    def update_activity(self, step, previous_step=None, rule_uuid=None):
-        """
-        Updates our cache for the given step. This will mark the current active step and
-        record history path data for activity.
-
-        :param step: the step they just took
-        :param previous_step: the step they were just on
-        :param rule_uuid: the uuid for the rule they came from (if any)
-        """
-
-        with self.lock_on(FlowLock.activity):
-            r = get_redis_connection()
-
-            # remove our previous active spot
-            if previous_step:
-                self.remove_active_for_step(previous_step)
-
-            # make us active on our new step
-            r.sadd(self.get_stats_cache_key(FlowStatsCache.step_active_set, step.step_uuid), step.run.pk)
 
     def get_entry_send_actions(self):
         """
@@ -2693,7 +2559,6 @@ class FlowRun(models.Model):
         """
         Exits (expires, interrupts) runs in bulk
         """
-
         # when expiring phone calls, we want to issue hangups
         session_runs = runs.exclude(session=None)
         for run in session_runs:
@@ -2703,31 +2568,22 @@ class FlowRun(models.Model):
             if exit_type == FlowRun.EXIT_TYPE_EXPIRED:
                 session.close()
 
-        runs = list(runs.values('id', 'flow_id'))  # select only what we need...
-
-        # organize runs by flow
-        runs_by_flow = defaultdict(list)
-        for run in runs:
-            runs_by_flow[run['flow_id']].append(run['id'])
-
-        # for each flow, remove activity for all runs
-        for flow_id, run_ids in six.iteritems(runs_by_flow):
-            flow = Flow.objects.filter(id=flow_id).first()
-
-            if flow:
-                flow.remove_active_for_run_ids(run_ids)
+        run_ids = list(runs.values_list('id', flat=True))
 
         from .tasks import continue_parent_flows
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
-        for batch in chunk_list(runs, 1000):
-            ids = [r['id'] for r in batch]
-            run_objs = FlowRun.objects.filter(pk__in=ids)
+        for id_batch in chunk_list(run_ids, 1000):
             now = timezone.now()
-            run_objs.update(is_active=False, exited_on=now, exit_type=exit_type, modified_on=now)
+
+            # mark all steps in these runs as having been left
+            FlowStep.objects.filter(run__id__in=id_batch, left_on=None).update(left_on=now)
+
+            runs = FlowRun.objects.filter(id__in=id_batch)
+            runs.update(is_active=False, exited_on=now, exit_type=exit_type, modified_on=now)
 
             # continue the parent flows to continue async
-            on_transaction_commit(lambda: continue_parent_flows.delay(ids))
+            on_transaction_commit(lambda: continue_parent_flows.delay(id_batch))
 
     def get_last_msg(self, direction=INCOMING):
         """
@@ -2746,7 +2602,7 @@ class FlowRun(models.Model):
             cls.continue_parent_flow_run(run)
 
     @classmethod
-    def continue_parent_flow_run(cls, run, trigger_send=True):
+    def continue_parent_flow_run(cls, run, trigger_send=True, continue_parent=True):
         msgs = []
 
         steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
@@ -2773,7 +2629,7 @@ class FlowRun(models.Model):
 
                 # finally, trigger our parent flow
                 (handled, msgs) = Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow],
-                                                       resume_parent_run=True, trigger_send=trigger_send)
+                                                       resume_parent_run=True, trigger_send=trigger_send, continue_parent=continue_parent)
 
         return msgs
 
@@ -2842,10 +2698,6 @@ class FlowRun(models.Model):
         for step in self.steps.all():
             step.release()
 
-        # remove our run from the activity
-        with self.flow.lock_on(FlowLock.activity):
-            self.flow.remove_active_for_run_ids([self.pk])
-
         # lastly delete ourselves
         self.delete()
 
@@ -2853,7 +2705,6 @@ class FlowRun(models.Model):
         """
         Mark a run as complete
         """
-
         if self.contact.is_test:
             ActionLog.create(self, _('%s has exited this flow') % self.contact.get_display(self.flow.org, short=True))
 
@@ -2866,7 +2717,6 @@ class FlowRun(models.Model):
         if final_step:
             final_step.left_on = completed_on
             final_step.save(update_fields=['left_on'])
-            self.flow.remove_active_for_step(final_step)
 
         # mark this flow as inactive
         if not self.keep_active_on_exit():
@@ -2896,7 +2746,6 @@ class FlowRun(models.Model):
         if final_step:
             final_step.left_on = now
             final_step.save(update_fields=['left_on'])
-            self.flow.remove_active_for_step(final_step)
 
         # mark this flow as inactive
         self.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
@@ -2915,7 +2764,7 @@ class FlowRun(models.Model):
             self.timeout_on = now + timedelta(minutes=minutes)
             self.save(update_fields=['timeout_on', 'modified_on'])
 
-    def update_expiration(self, point_in_time):
+    def update_expiration(self, point_in_time=None):
         """
         Set our expiration according to the flow settings
         """
@@ -3459,8 +3308,7 @@ class RuleSet(models.Model):
 
                 (value, errors) = Msg.substitute_variables(url, context, org=run.flow.org, url_encode=True)
 
-                result = WebHookEvent.trigger_flow_event(value, self.flow, run, self,
-                                                         run.contact, msg, action, resthook=resthook)
+                result = WebHookEvent.trigger_flow_event(run, value, self, msg, action, resthook=resthook)
 
                 # we haven't recorded any status yet, do so
                 if not status_code:
@@ -3938,6 +3786,34 @@ class FlowPathRecentStep(models.Model):
         cache.set(cls.LAST_PRUNED_KEY, newest_id)
 
         return cursor.rowcount  # number of deleted entries
+
+
+class FlowNodeCount(SquashableModel):
+    """
+    Maintains counts of unique contacts at each flow node.
+    """
+    SQUASH_OVER = ('node_uuid',)
+
+    flow = models.ForeignKey(Flow)
+    node_uuid = models.UUIDField(db_index=True)
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH removed as (
+            DELETE FROM %(table)s WHERE "node_uuid" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("flow_id", "node_uuid", "count", "is_squashed")
+        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+        """ % {'table': cls._meta.db_table}
+
+        return sql, (distinct_set.node_uuid, distinct_set.flow_id, distinct_set.node_uuid)
+
+    @classmethod
+    def get_totals(cls, flow):
+        totals = list(cls.objects.filter(flow=flow).values_list('node_uuid').annotate(replies=Sum('count')))
+        return {six.text_type(t[0]): t[1] for t in totals if t[1]}
 
 
 @six.python_2_unicode_compatible
@@ -4833,7 +4709,7 @@ class WebhookAction(Action):
         if errors:
             ActionLog.warn(run, _("URL appears to contain errors: %s") % ", ".join(errors))
 
-        WebHookEvent.trigger_flow_event(value, run.flow, run, actionset_uuid, run.contact, msg, self.action)
+        WebHookEvent.trigger_flow_event(run, value, actionset_uuid, msg, self.action)
         return []
 
 
@@ -5159,10 +5035,12 @@ class ReplyAction(Action):
     MESSAGE = 'msg'
     MSG_TYPE = None
     MEDIA = 'media'
+    SEND_ALL = 'send_all'
 
-    def __init__(self, msg=None, media=None):
+    def __init__(self, msg=None, media=None, send_all=False):
         self.msg = msg
         self.media = media if media else {}
+        self.send_all = send_all
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5177,13 +5055,14 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
 
-        return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None))
+        return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None),
+                   send_all=json_obj.get(cls.SEND_ALL, False))
 
     def as_json(self):
-        return dict(type=self.TYPE, msg=self.msg, media=self.media)
+        return dict(type=self.TYPE, msg=self.msg, media=self.media, send_all=self.send_all)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
-        reply = None
+        replies = []
 
         if self.msg or self.media:
             user = get_flow_user(run.org)
@@ -5202,20 +5081,36 @@ class ReplyAction(Action):
                     media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
             if offline_on:
-                reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
-                                            created_on=offline_on, response_to=msg, media=media)
+                context = None
+                created_on = offline_on
             else:
-                try:
-                    if msg:
-                        reply = msg.reply(text, user, trigger_send=False, message_context=context, session=run.session,
-                                          media=media, msg_type=self.MSG_TYPE)
-                    else:
-                        reply = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                                 session=run.session, msg_type=self.MSG_TYPE, media=media)
-                except UnreachableException:
-                    pass
+                created_on = None
 
-        return [reply] if reply else []
+            try:
+                if msg:
+                    reply_msgs = msg.reply(text, user, trigger_send=False, message_context=context,
+                                           session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                           send_all=self.send_all, created_on=created_on)
+
+                    if reply_msgs:
+                        replies += reply_msgs
+
+                else:
+                    if self.send_all:
+                        replies = run.contact.send_all(text, user, trigger_send=False, message_context=context,
+                                                       session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                                       created_on=created_on)
+                    else:
+                        reply_msg = run.contact.send(text, user, trigger_send=False, message_context=context,
+                                                     session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                                     created_on=created_on)
+                        if reply_msg:
+                            replies.append(reply_msg)
+
+            except UnreachableException:
+                pass
+
+        return replies
 
 
 class EndUssdAction(ReplyAction):
@@ -5913,36 +5808,39 @@ class Test(object):
     def from_json(cls, org, json_dict):
         if not cls.__test_mapping:
             cls.__test_mapping = {
-                SubflowTest.TYPE: SubflowTest,
-                TrueTest.TYPE: TrueTest,
-                FalseTest.TYPE: FalseTest,
+                AirtimeStatusTest.TYPE: AirtimeStatusTest,
                 AndTest.TYPE: AndTest,
-                OrTest.TYPE: OrTest,
-                ContainsTest.TYPE: ContainsTest,
-                ContainsAnyTest.TYPE: ContainsAnyTest,
-                NumberTest.TYPE: NumberTest,
-                LtTest.TYPE: LtTest,
-                LteTest.TYPE: LteTest,
-                GtTest.TYPE: GtTest,
-                GteTest.TYPE: GteTest,
-                EqTest.TYPE: EqTest,
                 BetweenTest.TYPE: BetweenTest,
-                StartsWithTest.TYPE: StartsWithTest,
-                HasDateTest.TYPE: HasDateTest,
-                DateEqualTest.TYPE: DateEqualTest,
+                ContainsAnyTest.TYPE: ContainsAnyTest,
+                ContainsOnlyPhraseTest.TYPE: ContainsOnlyPhraseTest,
+                ContainsPhraseTest.TYPE: ContainsPhraseTest,
+                ContainsTest.TYPE: ContainsTest,
                 DateAfterTest.TYPE: DateAfterTest,
                 DateBeforeTest.TYPE: DateBeforeTest,
+                DateEqualTest.TYPE: DateEqualTest,
+                EqTest.TYPE: EqTest,
+                FalseTest.TYPE: FalseTest,
+                GtTest.TYPE: GtTest,
+                GteTest.TYPE: GteTest,
+                HasDateTest.TYPE: HasDateTest,
+                HasDistrictTest.TYPE: HasDistrictTest,
+                HasEmailTest.TYPE: HasEmailTest,
+                HasStateTest.TYPE: HasStateTest,
+                HasWardTest.TYPE: HasWardTest,
+                InGroupTest.TYPE: InGroupTest,
+                InterruptTest.TYPE: InterruptTest,
+                LtTest.TYPE: LtTest,
+                LteTest.TYPE: LteTest,
+                NotEmptyTest.TYPE: NotEmptyTest,
+                NumberTest.TYPE: NumberTest,
+                OrTest.TYPE: OrTest,
                 PhoneTest.TYPE: PhoneTest,
                 RegexTest.TYPE: RegexTest,
-                HasWardTest.TYPE: HasWardTest,
-                HasDistrictTest.TYPE: HasDistrictTest,
-                HasStateTest.TYPE: HasStateTest,
-                NotEmptyTest.TYPE: NotEmptyTest,
-                InterruptTest.TYPE: InterruptTest,
+                StartsWithTest.TYPE: StartsWithTest,
+                SubflowTest.TYPE: SubflowTest,
                 TimeoutTest.TYPE: TimeoutTest,
-                AirtimeStatusTest.TYPE: AirtimeStatusTest,
+                TrueTest.TYPE: TrueTest,
                 WebhookStatusTest.TYPE: WebhookStatusTest,
-                InGroupTest.TYPE: InGroupTest
             }
 
         type = json_dict.get(cls.TYPE, None)
@@ -6303,6 +6201,32 @@ class ContainsTest(Test):
             return 0, None
 
 
+class HasEmailTest(Test):
+    """
+    { op: "has_email" }
+    """
+    TYPE = 'has_email'
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls()
+
+    def as_json(self):
+        return dict(type=self.TYPE)
+
+    def evaluate(self, run, sms, context, text):
+        # split on whitespace
+        words = text.split()
+        for word in words:
+            if is_valid_address(word):
+                return 1, word
+
+        return 0, None
+
+
 class ContainsAnyTest(ContainsTest):
     """
     { op: "contains_any", "test": "red" }
@@ -6340,6 +6264,78 @@ class ContainsAnyTest(ContainsTest):
         if matches:
             matches = sorted(list(matches))
             matched_words = " ".join([raw_words[idx] for idx in matches])
+            return 1, matched_words
+        else:
+            return 0, None
+
+
+class ContainsOnlyPhraseTest(ContainsTest):
+    """
+    { op: "contains_only_phrase", "test": "red" }
+    """
+    TEST = 'test'
+    TYPE = 'contains_only_phrase'
+
+    def as_json(self):
+        return dict(type=ContainsOnlyPhraseTest.TYPE, test=self.test)
+
+    def evaluate(self, run, sms, context, text):
+        # substitute any variables
+        test = run.flow.get_localized_text(self.test, run.contact)
+        test, errors = Msg.substitute_variables(test, context, org=run.flow.org)
+
+        # tokenize our test
+        tests = tokenize(test.lower())
+
+        # tokenize our sms
+        words = tokenize(text.lower())
+        raw_words = tokenize(text)
+
+        # they are the same? then we matched
+        if tests == words:
+            return 1, " ".join(raw_words)
+        else:
+            return 0, None
+
+
+class ContainsPhraseTest(ContainsTest):
+    """
+    { op: "contains_phrase", "test": "red" }
+    """
+    TEST = 'test'
+    TYPE = 'contains_phrase'
+
+    def as_json(self):
+        return dict(type=ContainsPhraseTest.TYPE, test=self.test)
+
+    def evaluate(self, run, sms, context, text):
+        # substitute any variables
+        test = run.flow.get_localized_text(self.test, run.contact)
+        test, errors = Msg.substitute_variables(test, context, org=run.flow.org)
+
+        # tokenize our test
+        tests = tokenize(test.lower())
+
+        # tokenize our sms
+        words = tokenize(text.lower())
+        raw_words = tokenize(text)
+
+        # look for the phrase
+        test_idx = 0
+        matches = []
+        for i in range(len(words)):
+            if tests[test_idx] == words[i]:
+                matches.append(raw_words[i])
+                test_idx += 1
+                if test_idx == len(tests):
+                    break
+            else:
+                matches = []
+                test_idx = 0
+
+        # we found the phrase
+        if test_idx == len(tests):
+            matched_words = " ".join(matches)
             return 1, matched_words
         else:
             return 0, None

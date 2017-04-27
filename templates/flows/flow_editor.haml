@@ -435,8 +435,10 @@
 
                 // starting flows
                 %span{ng-show:'action.type == "flow" || action.type == "trigger-flow"'}
-                  .start-flow
-                    [[action.flow.name]]
+                  .start-flow{ng-click:'$event.stopPropagation();'}
+                    .action-link{ng-click:'$event.stopPropagation();'}
+                      %a{href:'../[[action.flow.uuid]]'}
+                        [[action.flow.name]]
 
                 // webhooks
                 %span{ng-show:'action.type == "api"'}
@@ -567,7 +569,9 @@
           .div
             .ruleset-body{ng-show:'ruleset.ruleset_type=="subflow"'}
               -trans "Run flow "
-              [[ruleset.config.flow.name]]
+              %span.flow-link{ng-click:'$event.stopPropagation();'}
+                %a{href:'../[[ruleset.config.flow.uuid]]'}
+                  [[ruleset.config.flow.name]]
 
           %table{style:'width:100%;', ruleset:"ruleset"}
             %tr.rules

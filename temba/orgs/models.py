@@ -297,19 +297,6 @@ class Org(SmartModel):
         counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ALL, ContactGroup.TYPE_BLOCKED))
         return (counts[ContactGroup.TYPE_ALL] + counts[ContactGroup.TYPE_BLOCKED]) > 0
 
-    def has_messages(self):
-        """
-        Gets whether this org has any messages (or calls)
-        """
-        from temba.msgs.models import SystemLabel
-
-        msg_counts = SystemLabel.get_counts(self, (SystemLabel.TYPE_INBOX,
-                                                   SystemLabel.TYPE_OUTBOX,
-                                                   SystemLabel.TYPE_CALLS))
-        return (msg_counts[SystemLabel.TYPE_INBOX] +
-                msg_counts[SystemLabel.TYPE_OUTBOX] +
-                msg_counts[SystemLabel.TYPE_CALLS]) > 0
-
     def update_caches(self, event, entity):
         """
         Update org-level caches in response to an event
@@ -1184,14 +1171,11 @@ class Org(SmartModel):
             return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
         return None
 
-    def create_system_labels_and_groups(self):
+    def create_system_groups(self):
         """
-        Creates our system labels and groups for this organization so that we can keep track of counts etc..
+        Creates our system groups for this organization so that we can keep track of counts etc..
         """
         from temba.contacts.models import ContactGroup
-        from temba.msgs.models import SystemLabel
-
-        SystemLabel.create_all(self)
 
         self.all_groups.create(name='All Contacts', group_type=ContactGroup.TYPE_ALL,
                                created_by=self.created_by, modified_by=self.modified_by)
@@ -1768,7 +1752,7 @@ class Org(SmartModel):
         if not branding:
             branding = BrandingMiddleware.get_branding_for_host('')
 
-        self.create_system_labels_and_groups()
+        self.create_system_groups()
         self.create_sample_flows(branding.get('api_link', ""))
         self.create_welcome_topup(topup_size)
 
