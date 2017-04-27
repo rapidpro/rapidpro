@@ -3724,7 +3724,7 @@ class ChannelSession(SmartModel):
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING,
                               help_text="The status of this session")
     channel = models.ForeignKey('Channel',
-                                help_text="The channel that created this session", null=True)
+                                help_text="The channel that created this session")
     contact = models.ForeignKey('contacts.Contact', related_name='sessions',
                                 help_text="Who this session is with")
     contact_urn = models.ForeignKey('contacts.ContactURN', verbose_name=_("Contact URN"),
