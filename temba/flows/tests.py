@@ -3877,7 +3877,7 @@ class FlowLabelTest(FlowFileTest):
         # and the edit gear link
         self.assertContains(response, "Edit")
 
-        favorites.is_active=False
+        favorites.is_active = False
         favorites.save()
 
         response = self.client.get(reverse('flows.flow_filter', args=[label.pk]))
