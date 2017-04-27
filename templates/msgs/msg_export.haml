@@ -5,7 +5,6 @@
 -block modal-script
   {{block.super}}
   %script
-    $('#id_groups').select2({
-      containerCssClass: "select2-temba-field"
-    });
+    $('#id_export_all').select2({containerCssClass: "select2-temba-field", minimumResultsForSearch: -1});
+    $('#id_groups').select2({containerCssClass: "select2-temba-field"});
     $('.datepicker').datepicker({dateFormat: "MM d, yy",});

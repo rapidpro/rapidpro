@@ -222,13 +222,11 @@ def check_messages_task():  # pragma: needs cover
 
 
 @task(track_started=True, name='export_sms_task')
-def export_sms_task(id):  # pragma: needs cover
+def export_messages_task(export_id):
     """
     Export messages to a file and e-mail a link to the user
     """
-    export_task = ExportMessagesTask.objects.filter(pk=id).first()
-    if export_task:
-        export_task.perform()
+    ExportMessagesTask.objects.get(id=export_id).perform()
 
 
 @task(track_started=True, name="handle_event_task", time_limit=180, soft_time_limit=120)
