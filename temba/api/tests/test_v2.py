@@ -1496,6 +1496,8 @@ class APITest(TembaTest):
         self.assertEqual(len(resp_json['campaigns']), 0)
         self.assertEqual(len(resp_json['triggers']), 0)
 
+        import pdb; pdb.set_trace()
+
         # touches a lot of stuff
         response = self.fetchJSON(url, 'flow=%s' % flow.uuid)
         resp_json = response.json()
@@ -1503,7 +1505,7 @@ class APITest(TembaTest):
         self.assertEqual(len(resp_json['campaigns']), 1)
         self.assertEqual(len(resp_json['triggers']), 2)
 
-        # ignore campaign dependendencies
+        # ignore campaign dependencies
         response = self.fetchJSON(url, 'flow=%s&dependencies=flows' % flow.uuid)
         resp_json = response.json()
         self.assertEqual(len(resp_json['flows']), 2)

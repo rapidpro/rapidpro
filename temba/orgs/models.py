@@ -387,12 +387,6 @@ class Org(SmartModel):
         exported_campaigns = []
         exported_triggers = []
 
-        # TODO why is this needed?
-        for component in components:
-            if isinstance(component, Campaign):
-                for flow in component.get_flows():
-                    components.add(flow)
-
         for component in components:
             if isinstance(component, Flow):
                 component.ensure_current_version()  # only export current versions
@@ -1676,7 +1670,7 @@ class Org(SmartModel):
         """
         Generates a dict of exportable objects for this org with each objects dependencies
         """
-        from temba.campaigns.models import CampaignEvent
+        from temba.campaigns.models import Campaign, CampaignEvent
         from temba.contacts.models import ContactGroup
         from temba.flows.models import Flow
         from temba.triggers.models import Trigger
@@ -1687,34 +1681,29 @@ class Org(SmartModel):
             'flow_events__flow'
         )
 
-        if flows or campaigns:
-            prefetch_related_objects(flows, *flow_prefetches)
-            prefetch_related_objects(campaigns, *campaign_prefetches)
-        else:
-            flows = self.flows.filter(is_active=True).exclude(flow_type=Flow.MESSAGE).prefetch_related(*flow_prefetches)
-            campaigns = self.campaign_set.filter(is_active=True).select_related('group').prefetch_related(*campaign_prefetches)
+        all_flows = self.flows.filter(is_active=True).exclude(flow_type=Flow.MESSAGE).prefetch_related(*flow_prefetches)
+        all_campaigns = self.campaign_set.filter(is_active=True).select_related('group').prefetch_related(*campaign_prefetches)
+        all_flow_map = {f.uuid: f for f in all_flows}
 
-            if not include_archived:
-                flows = flows.filter(is_archived=False)
-                campaigns = campaigns.filter(is_archived=False)
+        if not include_archived:
+            all_flows = all_flows.filter(is_archived=False)
+            all_campaigns = all_campaigns.filter(is_archived=False)
 
-        flow_map = {f.uuid: f for f in flows}
-
-        # gather up immediate (i.e. non-transitive) dependencies for all exportable objects
+        # build dependency graph for all flows and campaigns
         dependencies = defaultdict(set)
-        for flow in flows:
-            dependencies[flow] = flow.get_export_dependencies(flow_map)
-        for campaign in campaigns:
+        for flow in all_flows:
+            dependencies[flow] = flow.get_export_dependencies(all_flow_map)
+        for campaign in all_campaigns:
             dependencies[campaign] = set([e.flow for e in campaign.flow_events])
 
         if include_triggers:
-            triggers = Trigger.objects.filter(flow__in=flows, is_archived=False, is_active=True).select_related('flow')
-            for trigger in triggers:
+            all_triggers = Trigger.objects.filter(is_archived=False, is_active=True).select_related('flow')
+            for trigger in all_triggers:
                 dependencies[trigger] = {trigger.flow}
 
         # replace any dependency on a group with that group's associated campaigns
         campaigns_by_group = defaultdict(list)
-        for campaign in campaigns:
+        for campaign in self.campaign_set.filter(is_active=True).select_related('group'):
             campaigns_by_group[campaign.group].append(campaign)
 
         for c, deps in six.iteritems(dependencies):
@@ -1729,7 +1718,24 @@ class Org(SmartModel):
             for d in deps:
                 dependencies[d].add(c)
 
-        return dependencies
+        flat_dependencies = defaultdict(set)
+
+        def flatten_dependencies(curr_c, curr_deps):
+            curr_dependencies = flat_dependencies[curr_c]
+            for d in curr_deps:
+                if d != curr_c and d not in curr_dependencies:
+                    curr_dependencies.add(d)
+                    flatten_dependencies(curr_c, dependencies[d])
+
+        for c, deps in six.iteritems(dependencies):
+            if isinstance(c, Flow) and flows and c not in flows:
+                continue
+            if isinstance(c, Campaign) and campaigns and c not in campaigns:
+                continue
+
+            flatten_dependencies(c, deps)
+
+        return flat_dependencies
 
     def get_recommended_channel(self):
         from temba.channels.views import TWILIO_SEARCH_COUNTRIES

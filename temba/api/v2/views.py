@@ -9,6 +9,7 @@ from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
+from enum import Enum
 from rest_framework import generics, mixins, status, views
 from rest_framework.pagination import CursorPagination
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -23,6 +24,7 @@ from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactGrou
 from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart, RuleSet
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, LabelCount, SystemLabel
+from temba.triggers.models import Trigger
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
 from .serializers import AdminBoundaryReadSerializer, BroadcastReadSerializer, BroadcastWriteSerializer
 from .serializers import CampaignReadSerializer, CampaignWriteSerializer, CampaignEventReadSerializer
@@ -1555,6 +1557,11 @@ class DefinitionsEndpoint(BaseAPIView):
     """
     permission = 'orgs.org_api'
 
+    class Depends(Enum):
+        none = 0
+        flows = 1
+        all = 1
+
     def get(self, request, *args, **kwargs):
         org = request.user.get_org()
         params = request.query_params
@@ -1566,40 +1573,32 @@ class DefinitionsEndpoint(BaseAPIView):
             flow_uuids = params.getlist('flow')
             campaign_uuids = params.getlist('campaign')
 
-        dependency_type = params.get('dependencies', 'all')
-        depends = dependency_type != 'none'
+        include = DefinitionsEndpoint.Depends[params.get('dependencies', 'all')]
 
         if flow_uuids:
             flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org, is_active=True))
         else:
             flows = set()
 
-        # any fetched campaigns
-        campaigns = []
         if campaign_uuids:
-            campaigns = Campaign.objects.filter(uuid__in=campaign_uuids, org=org, is_active=True)
+            campaigns = set(Campaign.objects.filter(uuid__in=campaign_uuids, org=org, is_active=True))
+        else:
+            campaigns = set()
 
-            if depends:
-                for campaign in campaigns:
-                    for event in campaign.events.filter(event_type=CampaignEvent.TYPE_FLOW, is_active=True).exclude(flow=None):
-                        flows.add(event.flow)
+        components = set(flows + campaigns)
 
-        # get any dependencies on our flows and campaigns
-        dependencies = dict(flows=set(), campaigns=set(campaigns), triggers=set(), groups=set())
-        for flow in flows:
-            if depends:
-                include_campaigns = dependency_type == 'all'
-                dependencies = flow.get_dependencies(dependencies=dependencies, include_campaigns=include_campaigns)
+        if include != DefinitionsEndpoint.Depends.none:
+            # import pdb; pdb.set_trace()
 
-        # make sure our requested items are included flows we requested are included
-        to_export = dict(flows=dependencies['flows'],
-                         campaigns=dependencies['campaigns'],
-                         triggers=dependencies['triggers'])
+            dependencies = org.get_export_dependencies(flows, campaigns, include_triggers=True)
 
-        # add in our primary requested flows
-        to_export['flows'].update(flows)
+            for c, deps in six.iteritems(dependencies):
+                if isinstance(c, Flow):
+                    components.add(c)
+                if isinstance(c, (Campaign, Trigger)) and include == DefinitionsEndpoint.Depends.all:
+                    components.add(c)
 
-        export = org.export_definitions(self.request.branding['link'], **to_export)
+        export = org.export_definitions(self.request.branding['link'], components)
 
         return Response(export, status=status.HTTP_200_OK)
 
