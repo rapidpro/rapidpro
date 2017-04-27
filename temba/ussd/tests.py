@@ -5,7 +5,7 @@ import json
 import six
 import uuid
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from mock import patch
 
 from django.core.urlresolvers import reverse
@@ -906,7 +906,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                 self.assertEquals("vumi-message-id", msg.response_to.external_id)
 
                 self.assertEquals(msg.session.status, USSDSession.COMPLETED)
-                self.assertTrue(isinstance(msg.session.get_duration(), datetime))
+                self.assertTrue(isinstance(msg.session.get_duration(), timedelta))
 
                 self.assertEquals(2, mock.call_count)
 
