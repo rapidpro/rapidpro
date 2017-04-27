@@ -1755,7 +1755,7 @@ class Flow(TembaModel):
                         Flow.find_and_handle(start_msg, started_flows_by_contact, triggered_start=True)
 
                     # if we didn't get an incoming message, see if we need to evaluate it passively
-                    elif not entry_rules.is_pause() or entry_rules.is_ussd():
+                    elif not entry_rules.is_pause():
                         # create an empty placeholder message
                         msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
                         handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False, continue_parent=False)
@@ -1763,13 +1763,6 @@ class Flow(TembaModel):
 
                 if start_msg:
                     step.add_message(start_msg)
-
-                # if we didn't get an incoming message, see if we need to evaluate it passively
-                elif not entry_rules.is_pause():
-                    # create an empty placeholder message
-                    msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
-                    handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False)
-                    run_msgs += step_msgs
 
                 # set the msgs that were sent by this run so that any caller can deal with them
                 run.start_msgs = run_msgs
