@@ -48,6 +48,7 @@ SEQUENTIAL_CONTACTS_THRESHOLD = 250
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
 FACEBOOK_SCHEME = 'facebook'
+JIOCHAT_SCHEME = 'jiochat'
 LINE_SCHEME = 'line'
 TEL_SCHEME = 'tel'
 TELEGRAM_SCHEME = 'telegram'
@@ -67,6 +68,7 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
                      (EMAIL_SCHEME, _("Email address"), 'email', EMAIL_SCHEME),
                      (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME),
+                     (JIOCHAT_SCHEME, _("Jiochat identifier"), 'jiochat', JIOCHAT_SCHEME),
                      (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), 'fcm', FCM_SCHEME))
 
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
@@ -1878,6 +1880,7 @@ class ContactURN(models.Model):
         TELEGRAM_SCHEME: dict(label="Telegram", key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
         FACEBOOK_SCHEME: dict(label="Facebook", key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
         VIBER_SCHEME: dict(label="Viber", key=None, id=0, field=None, urn_scheme=VIBER_SCHEME),
+        JIOCHAT_SCHEME: dict(label="Jiochat", key=None, id=0, field=None, urn_scheme=JIOCHAT_SCHEME),
         FCM_SCHEME: dict(label="FCM", key=None, id=0, field=None, urn_scheme=FCM_SCHEME),
     }
 
