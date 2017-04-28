@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
+import base64
 import hmac
 import hashlib
 import json
@@ -2866,3 +2867,40 @@ class FCMHandler(BaseChannelHandler):
 
         except Exception as e:  # pragma: no cover
             return HttpResponse(e.args, status=400)
+
+
+class TwitterHandler(BaseChannelHandler):
+
+    url = r'^twitter/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.twitter_handler'
+
+    def get(self, request, *args, **kwargs):
+        crc_token = request.GET['crc_token']
+        consumer_secret = settings.TWITTER_API_SECRET
+
+        token = hmac.new(bytes(consumer_secret.encode('ascii')), msg=crc_token, digestmod=hashlib.sha256).digest()
+        token = 'sha256=' + base64.standard_b64encode(token)
+
+        return JsonResponse({'response_token': token}, status=200)
+
+    def post(self, request, *args, **kwargs):
+        # TODO validate request
+        # signature = request.META['HTTP_X_TWITTER_WEBHOOKS_SIGNATURE']
+        # request.body
+
+        body = json.loads(request.body)
+        dm_events = body.get('direct_message_events', [])
+
+        if 'users' not in body:
+            print("Twitter didn't send hydrated users")
+
+        for dm_event in dm_events:
+            if dm_event['type'] == 'message_create':
+                external_id = dm_event['id']
+                created_on = ms_to_datetime(int(dm_event['created_timestamp']))
+                sender_id = dm_event['message_create']['sender_id']
+                text = dm_event['message_create']['message_data']['text']
+
+                print("Received DM #%s from #%s: '%s'" % (external_id, sender_id, text))
+
+        return HttpResponse("Thanks for the update", status=200)

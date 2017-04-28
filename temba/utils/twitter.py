@@ -108,3 +108,7 @@ class TembaTwython(Twython):  # pragma: no cover
             raise TwythonError('Response was not valid JSON, unable to decode.')
 
         return content
+
+    def register_webook(self, url):
+        return self._request('https://api.twitter.com/1.1/account_activity/webhooks.json',
+                             method='POST', params={'url': url})
