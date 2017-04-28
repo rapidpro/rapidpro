@@ -13,6 +13,14 @@ defaultRuleSetType = ->
   else
     'wait_message'
 
+defaultActionSetType = ->
+  if window.ivr
+    'say'
+  else if window.ussd
+    'end_ussd'
+  else
+    'reply'
+
 app.controller 'RevisionController', [ '$scope', '$rootScope', '$log', '$timeout', 'Flow', 'Revisions', ($scope, $rootScope, $log, $timeout, Flow, Revisions) ->
 
   $scope.revisions = ->
@@ -384,7 +392,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             y: ghost[0].offsetTop
             uuid: targetId
             actions: [
-              type: if window.ivr then 'say' else 'reply'
+              type: defaultActionSetType()
               msg: msg
               uuid: uuid()
             ]
@@ -455,7 +463,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       uuid: uuid()
       actions: [
         uuid: uuid()
-        type: if window.ivr then 'say' else 'reply'
+        type: defaultActionSetType()
         msg: msg
       ]
 
@@ -471,8 +479,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       y: 0
       uuid: uuid()
       label: "Response " + (Flow.flow.rule_sets.length + 1)
-      webhook_action: null,
-      ruleset_type: defaultRuleSetType(),
+      webhook_action: null
+      ruleset_type: defaultRuleSetType()
       rules: [
         test:
           test: "true"
@@ -656,7 +664,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         nodeType: 'actions'
         actionset: actionset
         action:
-          type: if window.ivr then 'say' else 'reply'
+          type: defaultActionSetType()
           uuid: uuid()
       flowController: -> $scope
 
@@ -667,6 +675,10 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
   $scope.isMoveable = (action) ->
     return Flow.isMoveableAction(action)
+
+  $scope.hasEndUssd = (actionset) ->
+    actionset.actions?.some (action) ->
+      action.type == "end_ussd"
 
   $scope.confirmRemoveAction = (event, actionset, action) ->
 
@@ -710,7 +722,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     # if its the base language, don't show the from text
     if Flow.language and Flow.flow.base_language != Flow.language.iso_code
 
-      if action.type in ["send", "reply", "say"]
+      if action.type in ["send", "reply", "say", "end_ussd"]
 
         fromText = action.msg[Flow.flow.base_language]
 
@@ -941,7 +953,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     # our placeholder actions if they flip
     action =
-      type: if window.ivr then 'say' else 'reply'
+      type: defaultActionSetType()
       uuid: uuid()
 
     actionset =
