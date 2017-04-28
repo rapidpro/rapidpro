@@ -4295,6 +4295,42 @@ class SimulationTest(FlowFileTest):
 
         self.assertEqual(handle_incoming.call_args[1]['status'], USSDSession.INTERRUPTED)
 
+    def test_ussd_simulation_session_end(self):
+        self.ussd_channel = Channel.create(
+            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
+            scheme='tel', uuid='00000000-0000-0000-0000-000000002222',
+            role=Channel.ROLE_USSD)
+
+        flow = self.get_flow('ussd_session_end')
+
+        simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
+
+        post_data = dict(has_refresh=True, new_message="4")
+
+        self.login(self.admin)
+        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+
+        self.assertEquals(response.status_code, 200)
+
+        session = USSDSession.objects.get()
+        self.assertEquals(session.status, USSDSession.COMPLETED)
+
+    def test_ussd_simulation_without_channel_doesnt_run(self):
+        Channel.objects.all().delete()
+
+        flow = self.get_flow('ussd_session_end')
+
+        simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
+
+        post_data = dict(has_refresh=True, new_message="4")
+
+        self.login(self.admin)
+        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+        self.assertEquals(response.status_code, 400)
+        self.assertEqual(response.json()['status'], 'error')
+
+        self.assertEqual(flow.runs.count(), 0)
+
 
 class FlowsTest(FlowFileTest):
 
