@@ -1,3 +1,12 @@
+v3.0.126
+----------
+ * Fix exporting messages by a label folder
+ * Improve performance of org export page for large orgs
+ * Make it easier to enable/disable debug toolbar
+ * Increase channel logging for requests and responses
+ * Change contact api v1 to insert nonexistent fields
+ * Graceful termination of USSD sessions
+
 v3.0.125
 ----------
  * Don't show deleted flows on list page
