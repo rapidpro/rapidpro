@@ -326,6 +326,7 @@ class Broadcast(models.Model):
     def fire(self):
         recipients = list(self.urns.all()) + list(self.contacts.all()) + list(self.groups.all())
         broadcast = Broadcast.create(self.org, self.created_by, self.text, recipients,
+                                     media=self.media, base_language=self.base_language,
                                      parent=self, modified_by=self.modified_by)
 
         broadcast.send(trigger_send=True)
