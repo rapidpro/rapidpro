@@ -1887,9 +1887,8 @@ class BroadcastLanguageTest(TembaTest):
         fre_msg = "Ceci est mon message"
 
         # now create a broadcast with a couple contacts, one with an explicit language, the other not
-        bcast = Broadcast.create(self.org, self.admin, "This is my new message",
-                                 [self.francois, self.greg, self.wilbert],
-                                 language_dict=json.dumps(dict(eng=eng_msg, fre=fre_msg)))
+        bcast = Broadcast.create(self.org, self.admin, dict(eng=eng_msg, fre=fre_msg),
+                                 [self.francois, self.greg, self.wilbert], base_language='eng')
 
         bcast.send()
 
@@ -1905,10 +1904,9 @@ class BroadcastLanguageTest(TembaTest):
         fre_attachment = 'image/jpeg:attachments/fre_picture.jpg'
 
         # now create a broadcast with a couple contacts, one with an explicit language, the other not
-        bcast = Broadcast.create(self.org, self.admin, "This is my new message with attachment",
-                                 [self.francois, self.greg, self.wilbert],
-                                 language_dict=json.dumps(dict(eng=eng_msg, fre=fre_msg)),
-                                 media_dict=json.dumps(dict(eng=eng_attachment, fre=fre_attachment)))
+        bcast = Broadcast.create(self.org, self.admin, dict(eng=eng_msg, fre=fre_msg),
+                                 [self.francois, self.greg, self.wilbert], base_language='eng',
+                                 media=dict(eng=eng_attachment, fre=fre_attachment))
 
         bcast.send()
 

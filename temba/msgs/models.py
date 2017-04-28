@@ -30,7 +30,7 @@ from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_l
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
-from temba.utils.models import SquashableModel, TembaModel
+from temba.utils.models import SquashableModel, TembaModel, TranslatableField
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from .handler import MessageHandler
 
@@ -203,6 +203,9 @@ class Broadcast(models.Model):
     language_dict = models.TextField(verbose_name=_("Translations"),
                                      help_text=_("The localized versions of the broadcast"), null=True)
 
+    translations = TranslatableField(verbose_name=_("Translations"), max_length=settings.MSG_FIELD_SIZE,
+                                     help_text=_("The localized versions of the message text"), null=True)
+
     base_language = models.CharField(max_length=4, null=True, blank=True,
                                      help_text=_('The language used to send this to contacts without a language'))
 
@@ -226,15 +229,32 @@ class Broadcast(models.Model):
     media_dict = models.TextField(verbose_name=_("Media"),
                                   help_text=_("The localized versions of the media"), null=True)
 
+    media = TranslatableField(verbose_name=_("Media"), max_length=1024,
+                              help_text=_("The localized versions of the media"), null=True)
+
     send_all = models.BooleanField(default=False,
                                    help_text="Whether this broadcast should send to all URNs for each contact")
 
     @classmethod
-    def create(cls, org, user, text, recipients, channel=None, media_dict=None, send_all=False, **kwargs):
-        create_args = dict(org=org, text=text, channel=channel, media_dict=media_dict, send_all=send_all,
+    def create(cls, org, user, translations, recipients, base_language=None, channel=None, media=None, send_all=False, **kwargs):
+        if isinstance(translations, dict):
+            if not base_language:
+                raise ValueError("Base language must be provided when translations is a dict")
+            elif base_language not in translations:
+                raise ValueError("Base language %s doesn't exist in the provided translations dict" % base_language)
+        else:
+            base_language = org.primary_language.iso_code if org.primary_language else 'base'
+            translations = {base_language: translations}
+
+        if isinstance(media, six.string_types):
+            media = {base_language: media}
+
+        create_args = dict(org=org, channel=channel, send_all=send_all,
+                           text=translations[base_language], translations=translations, language_dict=json.dumps(translations),
+                           media=media, media_dict=json.dumps(media),
                            created_by=user, modified_by=user)
         create_args.update(kwargs)
-        broadcast = Broadcast.objects.create(**create_args)
+        broadcast = cls.objects.create(**create_args)
         broadcast.update_recipients(recipients)
         return broadcast
 
