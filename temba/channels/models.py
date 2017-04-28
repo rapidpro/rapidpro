@@ -1446,7 +1446,7 @@ class Channel(TembaModel):
             # NOTE: Only one of `to` or `reply_to` may be specified
             payload['reply_to'] = external_id
             payload['channel_data'] = {
-                'continue_session': session and not session.should_end,
+                'continue_session': session and not session.should_end or False,
             }
         else:
             payload['from'] = channel.address
