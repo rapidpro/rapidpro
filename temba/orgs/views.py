@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import itertools
 import json
 import logging
 import plivo
@@ -515,7 +516,11 @@ class OrgCRUDL(SmartCRUDL):
             flows = Flow.objects.filter(id__in=self.request.POST.getlist('flows'), org=org, is_active=True)
             campaigns = Campaign.objects.filter(id__in=self.request.POST.getlist('campaigns'), org=org, is_active=True)
 
-            components = org.resolve_dependencies(flows, campaigns, include_triggers=True)
+            components = set(itertools.chain(flows, campaigns))
+
+            # add triggers for the selected flows
+            for flow in flows:
+                components.update(flow.triggers.filter(is_active=True, is_archived=False))
 
             export = org.export_definitions(request.branding['link'], components)
             response = JsonResponse(export, json_dumps_params=dict(indent=2))

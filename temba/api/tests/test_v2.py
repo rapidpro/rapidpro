@@ -1529,7 +1529,7 @@ class APITest(TembaTest):
         resp_json = response.json()
         self.assertEqual(len(resp_json['flows']), 6)
         self.assertEqual(len(resp_json['campaigns']), 1)
-        self.assertEqual(len(resp_json['triggers']), 1)
+        self.assertEqual(len(resp_json['triggers']), 2)
 
         # test deprecated param names
         response = self.fetchJSON(url, 'flow_uuid=%s&campaign_uuid=%s&dependencies=none' % (flow.uuid, campaign.uuid))

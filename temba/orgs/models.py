@@ -1696,7 +1696,7 @@ class Org(SmartModel):
         # build dependency graph for all flows and campaigns
         dependencies = defaultdict(set)
         for flow in all_flows:
-            dependencies[flow] = flow.get_export_dependencies(all_flow_map)
+            dependencies[flow] = flow.get_dependencies(all_flow_map)
         for campaign in all_campaigns:
             dependencies[campaign] = set([e.flow for e in campaign.flow_events])
 

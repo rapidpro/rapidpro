@@ -1056,14 +1056,10 @@ class TriggerTest(TembaTest):
                                          created_by=self.admin, modified_by=self.admin)
         trigger.groups.add(group)
 
-        dependencies = flow.get_dependencies()
-        del dependencies['groups']
-
-        # make sure our root flow is included
-        dependencies['flows'].add(flow)
+        components = self.org.resolve_dependencies([flow], [], include_triggers=True)
 
         # export everything
-        export = self.org.export_definitions('http://rapidpro.io', **dependencies)
+        export = self.org.export_definitions('http://rapidpro.io', components)
 
         # remove our trigger
         Trigger.objects.all().delete()

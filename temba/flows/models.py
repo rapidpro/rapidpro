@@ -1799,7 +1799,7 @@ class Flow(TembaModel):
 
         return send_actions
 
-    def get_export_dependencies(self, flow_map=None):
+    def get_dependencies(self, flow_map=None):
         from temba.contacts.models import ContactGroup
 
         # need to make sure we have the latest version to inspect dependencies
@@ -1823,58 +1823,6 @@ class Flow(TembaModel):
                 flow = flow_map.get(flow_uuid) if flow_map else Flow.objects.filter(uuid=flow_uuid).first()
                 if flow:
                     dependencies.add(flow)
-
-        return dependencies
-
-    def get_dependencies(self, dependencies=None, include_campaigns=True):
-
-        # need to make sure we have the latest version to inspect dependencies
-        self.ensure_current_version()
-
-        if not dependencies:
-            dependencies = dict(flows=set(), groups=set(), campaigns=set(), triggers=set())
-
-        flows = set()
-        groups = set()
-
-        # find all the flows we reference, note this won't include archived flows
-        for action_set in self.action_sets.all():
-            for action in action_set.get_actions():
-                if hasattr(action, 'flow'):
-                    flows.add(action.flow)
-                if hasattr(action, 'groups'):
-                    for group in action.groups:
-                        if not isinstance(group, six.string_types):
-                            groups.add(group)
-
-        for ruleset in self.rule_sets.all():
-            if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-                flow = Flow.objects.filter(uuid=ruleset.config_json()['flow']['uuid']).first()
-                if flow:
-                    flows.add(flow)
-
-        # add any campaigns that use our groups
-        campaigns = ()
-        if include_campaigns:
-            from temba.campaigns.models import Campaign
-            campaigns = set(Campaign.objects.filter(org=self.org, group__in=groups, is_archived=False, is_active=True))
-            for campaign in campaigns:
-                flows.update(list(campaign.get_flows()))
-
-        # and any of our triggers that reference us
-        from temba.triggers.models import Trigger
-        triggers = set(Trigger.objects.filter(org=self.org, flow=self, is_archived=False, is_active=True))
-
-        dependencies['flows'].update(flows)
-        dependencies['groups'].update(groups)
-        dependencies['campaigns'].update(campaigns)
-        dependencies['triggers'].update(triggers)
-
-        if self in dependencies['flows']:
-            return dependencies
-
-        for flow in flows:
-            dependencies = flow.get_dependencies(dependencies, include_campaigns=include_campaigns)
 
         return dependencies
 
