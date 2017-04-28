@@ -1586,7 +1586,9 @@ class Flow(TembaModel):
         # for each send action, we need to create a broadcast, we'll group our created messages under these
         broadcasts = []
         for send_action in send_actions:
-            if send_action.msg or send_action.media:
+            # check that we either have text or media, available for the base language
+            if (send_action.msg and send_action.msg.get(self.base_language)) or (send_action.media and send_action.media.get(self.base_language)):
+
                 broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
                                              media=send_action.media,
                                              base_language=self.base_language,
@@ -5665,14 +5667,14 @@ class SendAction(VariableContactAction):
 
             # create our broadcast and send it
             if not run.contact.is_test:
-                # no message text and no media? then no-op
-                if not self.msg and not self.media:
+                # no-op if neither text nor media are defined in the flow base language
+                if not (self.msg.get(flow.base_language) or self.media.get(flow.base_language)):
                     return list()
 
                 recipients = groups + contacts
 
                 broadcast = Broadcast.create(flow.org, flow.modified_by, self.msg, recipients,
-                                             media=media, base_language=flow.base_language)
+                                             media=self.media, base_language=flow.base_language)
                 broadcast.send(trigger_send=False, message_context=context)
                 return list(broadcast.get_messages())
 

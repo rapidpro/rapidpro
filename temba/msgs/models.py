@@ -250,7 +250,8 @@ class Broadcast(models.Model):
             media = {base_language: media}
 
         create_args = dict(org=org, channel=channel, send_all=send_all,
-                           text=translations[base_language], translations=translations, language_dict=json.dumps(translations),
+                           translations=translations, base_language=base_language,
+                           text=translations[base_language], language_dict=json.dumps(translations),
                            media=media, media_dict=json.dumps(media),
                            created_by=user, modified_by=user)
         create_args.update(kwargs)
