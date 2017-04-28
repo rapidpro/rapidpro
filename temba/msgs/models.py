@@ -229,7 +229,7 @@ class Broadcast(models.Model):
     media_dict = models.TextField(verbose_name=_("Media"),
                                   help_text=_("The localized versions of the media"), null=True)
 
-    media = TranslatableField(verbose_name=_("Media"), max_length=1024,
+    media = TranslatableField(verbose_name=_("Media"), max_length=255,
                               help_text=_("The localized versions of the media"), null=True)
 
     send_all = models.BooleanField(default=False,
@@ -238,9 +238,9 @@ class Broadcast(models.Model):
     @classmethod
     def create(cls, org, user, translations, recipients, base_language=None, channel=None, media=None, send_all=False, **kwargs):
         if isinstance(translations, dict):
-            if not base_language:
+            if not base_language:  # pragma: no cover
                 raise ValueError("Base language must be provided when translations is a dict")
-            elif base_language not in translations:
+            elif base_language not in translations:  # pragma: no cover
                 raise ValueError("Base language %s doesn't exist in the provided translations dict" % base_language)
         else:
             base_language = org.primary_language.iso_code if org.primary_language else 'base'
