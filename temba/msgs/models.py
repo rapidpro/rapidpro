@@ -2042,7 +2042,7 @@ class ExportMessagesTask(BaseExportTask):
         if self.system_label:
             messages = SystemLabel.get_queryset(self.org, self.system_label)
         elif self.label:
-            messages = self.label.msgs.all()
+            messages = self.label.get_messages()
         else:
             messages = Msg.get_messages(self.org)
 
