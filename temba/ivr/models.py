@@ -115,6 +115,9 @@ class IVRCall(ChannelSession):
 
         """
         from temba.flows.models import FlowRun, ActionLog
+
+        previous_status = self.status
+
         if channel_type in Channel.TWIML_CHANNELS:
             if status == 'queued':
                 self.status = self.QUEUED
@@ -159,6 +162,12 @@ class IVRCall(ChannelSession):
 
         if duration is not None:
             self.duration = duration
+
+        # if we are moving into IN_PROGRESS, make sure our runs have proper expirations
+        if previous_status in [self.QUEUED, self.PENDING] and self.status in [self.IN_PROGRESS, self.RINGING]:
+            runs = FlowRun.objects.filter(session=self, is_active=True, expires_on=None)
+            for run in runs:
+                run.update_expiration()
 
     def get_duration(self):
         """
