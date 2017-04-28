@@ -544,9 +544,6 @@ class OrgCRUDL(SmartCRUDL):
             """
             Generates a set of buckets of related exportable flows and campaigns
             """
-            from temba.campaigns.models import Campaign
-            from temba.flows.models import Flow
-
             dependencies = org.generate_dependency_graph(include_archived=include_archived)
 
             unbucketed = set(dependencies.keys())
