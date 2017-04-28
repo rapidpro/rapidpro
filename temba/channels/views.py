@@ -655,9 +655,10 @@ def sync(request, channel_id):
         return JsonResponse({"error_id": 1, "error": "Invalid signature: \'%(request)s\'"
                                                      % {'request': request_signature}, "cmds": []}, status=401)
 
-    # update our last seen on our channel
-    channel.last_seen = timezone.now()
-    channel.save()
+    # update our last seen on our channel if we haven't seen this channel in a bit
+    if not channel.last_seen or timezone.now() - channel.last_seen > timedelta(minutes=5):
+        channel.last_seen = timezone.now()
+        channel.save(update_fields=['last_seen'])
 
     sync_event = None
 
@@ -722,10 +723,12 @@ def sync(request, channel_id):
                         handled = True
 
                     elif keyword == 'gcm':
-                        # update our gcm and uuid
-                        channel.gcm_id = cmd['gcm_id']
-                        channel.uuid = cmd.get('uuid', None)
-                        channel.save()
+                        gcm_id = cmd.get('gcm_id', None)
+                        uuid = cmd.get('uuid', None)
+                        if channel.gcm_id != gcm_id or channel.uuid != uuid:
+                            channel.gcm_id = gcm_id
+                            channel.uuid = uuid
+                            channel.save(update_fields=['gcm_id', 'uuid'])
 
                         # no acking the gcm
                         handled = False

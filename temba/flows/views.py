@@ -703,7 +703,8 @@ class FlowCRUDL(SmartCRUDL):
             return context
 
         def derive_queryset(self, *args, **kwargs):
-            return super(FlowCRUDL.BaseList, self).derive_queryset(*args, **kwargs).exclude(flow_type=Flow.MESSAGE)
+            qs = super(FlowCRUDL.BaseList, self).derive_queryset(*args, **kwargs)
+            return qs.exclude(flow_type=Flow.MESSAGE).exclude(is_active=False)
 
         def get_campaigns(self):
             from temba.campaigns.models import CampaignEvent

@@ -71,9 +71,10 @@
                   {{obj.get_status_display}}
 
             %td
-              Request time:
-              %span
-                {{ log.request_time|default:"0"|intcomma }}ms
+              -if obj.request_time
+                Request time:
+                %span
+                  {{ obj.request_time|default:"0"|intcomma }}ms
 
             %td{ style:'text-align: right', nowrap:'true' }
               {{obj.created_on|date:"M d, Y, H:m:s"}}

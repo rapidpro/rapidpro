@@ -3459,7 +3459,9 @@ class SyncEvent(SmartModel):
 
         # update our channel if anything is new
         if channel.device != device or channel.os != os:  # pragma: no cover
-            Channel.objects.filter(pk=channel.pk).update(device=device, os=os)
+            channel.device = device
+            channel.os = os
+            channel.save(update_fields=['device', 'os'])
 
         args = dict()
 
