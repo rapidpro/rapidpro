@@ -66,7 +66,7 @@ describe 'Directives:', ->
       expect(scope.action._missingTranslation).toBe(false)
       expect(ele.html()).toBe('What is your favorite color?')
 
-  describe 'SMS directive', ->
+  describe 'MSG directive', ->
 
     scope = null
     ele = null
@@ -76,9 +76,9 @@ describe 'Directives:', ->
       scope = $rootScope.$new()
 
       # create an element for our directive and compile it
-      ele = angular.element("<div ng-form><span sms='action.msg' data-message='message'/></div>")
+      ele = angular.element("<div ng-form><span msg='action.msg' type='sms' data-message='message'/></div>")
 
-    it 'should show sms widget', ->
+    it 'should show msg widget', ->
 
       scope.action = Flow.flow.action_sets[0].actions[0]
 
@@ -95,7 +95,7 @@ describe 'Directives:', ->
       expect(result.showCounter).toBe(true)
       expect(result.characters).toBe(132)
       expect(result.messages).toBe(1)
-      expect(result.sms).toEqual({base:'What is your favorite color?'})
+      expect(result.msg).toEqual({base:'What is your favorite color?'})
       expect(result.message).toEqual('What is your favorite color?')
 
     it 'should do fail gracefully with null messages', ->
@@ -113,6 +113,21 @@ describe 'Directives:', ->
       expect(result.messages).toBe(0)
       expect(result.message).not.toBe(undefined)
       expect(result.message).not.toBe(null)
+
+    it 'should initialize USSD action with ussd type', ->
+
+      ele = angular.element("<div ng-form><span msg='action.msg' type='ussd' data-message='message'/></div>")
+
+      scope.action = Flow.flow.action_sets[0].actions[0]
+
+      ele = $compile(ele)(scope)
+      scope.$digest()
+      $timeout.flush()
+
+      result = scope.$$childHead
+      expect(result.msg).toEqual({base:'What is your favorite color?'})
+      expect(result.message).toEqual('What is your favorite color?')
+      expect(result.characters).toBe(182 - 'What is your favorite color?'.length)
 
   describe 'Validate Type', ->
 
