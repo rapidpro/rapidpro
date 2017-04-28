@@ -207,12 +207,6 @@ class Campaign(TembaModel):
         definition['events'] = events
         return definition
 
-    def get_flows(self):
-        """
-        A unique set of user-facing flows this campaign uses
-        """
-        return [event.flow for event in self.events.filter(is_active=True).exclude(flow__flow_type=Flow.MESSAGE).order_by('flow__id').distinct('flow')]
-
     def get_sorted_events(self):
         """
         Returns campaign events sorted by their actual offset with event flow definitions on the current export version
