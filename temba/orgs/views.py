@@ -18,7 +18,7 @@ from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.core.validators import validate_email
 from django.db import IntegrityError
-from django.db.models import Sum, Q, F, ExpressionWrapper, IntegerField, Prefetch
+from django.db.models import Sum, Q, F, ExpressionWrapper, IntegerField
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
@@ -38,7 +38,6 @@ from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.triggers.models import Trigger
 from temba.utils import analytics, languages
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.email import is_valid_address
@@ -516,8 +515,7 @@ class OrgCRUDL(SmartCRUDL):
             flows = Flow.objects.filter(id__in=self.request.POST.getlist('flows'), org=org, is_active=True)
             campaigns = Campaign.objects.filter(id__in=self.request.POST.getlist('campaigns'), org=org, is_active=True)
 
-            dependencies = org.get_export_dependencies(flows, campaigns, include_triggers=True)
-            components = set(dependencies.keys())
+            components = org.resolve_dependencies(flows, campaigns, include_triggers=True)
 
             export = org.export_definitions(request.branding['link'], components)
             response = JsonResponse(export, json_dumps_params=dict(indent=2))
@@ -530,21 +528,21 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             include_archived = bool(int(self.request.GET.get('archived', 0)))
 
-            dependencies = org.get_export_dependencies(include_archived=include_archived)
-            buckets, singles = self.get_export_buckets(dependencies)
+            buckets, singles = self.generate_export_buckets(org, include_archived)
 
             context['archived'] = include_archived
             context['buckets'] = buckets
             context['singles'] = singles
-
             return context
 
-        def get_export_buckets(self, dependencies):
+        def generate_export_buckets(self, org, include_archived):
             """
-            Converts a dict of exportable components -> dependencies, into a list of buckets of related components
+            Generates a set of buckets of related exportable flows and campaigns
             """
             from temba.campaigns.models import Campaign
             from temba.flows.models import Flow
+
+            dependencies = org.generate_dependency_graph(include_archived=include_archived)
 
             unbucketed = set(dependencies.keys())
             buckets = []

@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import itertools
 import six
 
 from django import forms
@@ -24,7 +25,6 @@ from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactGrou
 from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart, RuleSet
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, LabelCount, SystemLabel
-from temba.triggers.models import Trigger
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
 from .serializers import AdminBoundaryReadSerializer, BroadcastReadSerializer, BroadcastWriteSerializer
 from .serializers import CampaignReadSerializer, CampaignWriteSerializer, CampaignEventReadSerializer
@@ -1560,7 +1560,7 @@ class DefinitionsEndpoint(BaseAPIView):
     class Depends(Enum):
         none = 0
         flows = 1
-        all = 1
+        all = 2
 
     def get(self, request, *args, **kwargs):
         org = request.user.get_org()
@@ -1585,18 +1585,12 @@ class DefinitionsEndpoint(BaseAPIView):
         else:
             campaigns = set()
 
-        components = set(flows + campaigns)
-
-        if include != DefinitionsEndpoint.Depends.none:
-            # import pdb; pdb.set_trace()
-
-            dependencies = org.get_export_dependencies(flows, campaigns, include_triggers=True)
-
-            for c, deps in six.iteritems(dependencies):
-                if isinstance(c, Flow):
-                    components.add(c)
-                if isinstance(c, (Campaign, Trigger)) and include == DefinitionsEndpoint.Depends.all:
-                    components.add(c)
+        if include == DefinitionsEndpoint.Depends.none:
+            components = set(itertools.chain(flows, campaigns))
+        elif include == DefinitionsEndpoint.Depends.flows:
+            components = org.resolve_dependencies(flows, campaigns, include_campaigns=False, include_triggers=True)
+        else:
+            components = org.resolve_dependencies(flows, campaigns, include_campaigns=True, include_triggers=True)
 
         export = org.export_definitions(self.request.branding['link'], components)
 
