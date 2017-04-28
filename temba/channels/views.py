@@ -888,7 +888,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
                'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
-               'claim_red_rabbit', 'claim_macrokiosk')
+               'claim_red_rabbit', 'claim_macrokiosk', 'claim_jiochat')
     permissions = True
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -2407,6 +2407,41 @@ class ChannelCRUDL(SmartCRUDL):
             self.object = Channel.add_fcm_channel(org=self.request.user.get_org(), user=self.request.user, data=data)
 
             return super(ChannelCRUDL.ClaimFcm, self).form_valid(form)
+
+    class ClaimJiochat(OrgPermsMixin, SmartFormView):
+        class JiochatForm(forms.Form):
+            app_id = forms.CharField(min_length=32, required=True,
+                                     help_text=_("The Jiochat App ID"))
+            app_secret = forms.CharField(min_length=32, required=True,
+                                         help_text=_("The Jiochat App secret"))
+
+            def clean(self):
+                app_id = self.cleaned_aata['app_id']
+                app_secret = self.cleaned_data['app_secret']
+
+                post_data = dict(grant_type='client_credentials', appid=app_id, secret=app_secret)
+                response = requests.post('http://server/auth/token.action', post_data)
+                response_json = response.json()
+
+                if response.status_code not in [200, 201, 202]:
+                    default_error = _("Invalid appId and appSecret, please check then and try again.")
+                    raise ValidationError(response_json.get('errmsg', default_error))
+
+                self.cleaned_data['jiochat_channel'] = response_json
+                return self.cleaned_data
+
+        form_class = JiochatForm
+
+        def form_valid(self, form):
+            super(ChannelCRUDL.ClaimJiochat, self).form_valid()
+            jiochat_channel = self.cleaned_data['jiochat_channel']
+
+            channel = Channel.add_jiochat_channel(self.request.user.get_org(), self.request.user,
+                                                  self.cleaned_data['app_id'], self.cleaned_data['app_secret'])
+
+            return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))
+
+
 
     class ClaimFacebook(OrgPermsMixin, SmartFormView):
         class FacebookForm(forms.Form):

@@ -76,6 +76,7 @@ class Channel(TembaModel):
     TYPE_HUB9 = 'H9'
     TYPE_INFOBIP = 'IB'
     TYPE_JASMIN = 'JS'
+    TYPE_JIOCHAT = 'JC'
     TYPE_JUNEBUG = 'JN'
     TYPE_JUNEBUG_USSD = 'JNU'
     TYPE_KANNEL = 'KN'
@@ -116,6 +117,9 @@ class Channel(TembaModel):
     CONFIG_USE_NATIONAL = 'use_national'
     CONFIG_ENCODING = 'encoding'
     CONFIG_PAGE_NAME = 'page_name'
+    CONFIG_JIOCHAT_APP_ID = 'jiochat_app_id'
+    CONFIG_JIOCHAT_APP_SECRET = 'jiochat_app_secret'
+    CONFIG_JIOCHAT_CHANNEL_NAME = 'jiochat_channel_name'
     CONFIG_PLIVO_AUTH_ID = 'PLIVO_AUTH_ID'
     CONFIG_PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
     CONFIG_PLIVO_APP_ID = 'PLIVO_APP_ID'
@@ -689,6 +693,15 @@ class Channel(TembaModel):
         return channel
 
     @classmethod
+    def add_jiochat_channel(cls, org, user, app_id, app_secret):
+        channel = Channel.create(org, user, None, Channel.TYPE_JIOCHAT, name='', address='',
+                                 config={Channel.CONFIG_JIOCHAT_APP_ID: app_id,
+                                         Channel.CONFIG_JIOCHAT_APP_SECRET: app_secret},
+                                 secret=Channel.generate_secret(32))
+
+        return channel
+
+    @classmethod
     def add_line_channel(cls, org, user, credentials, name):
         channel_id = credentials.get('channel_id')
         channel_secret = credentials.get('channel_secret')
@@ -770,11 +783,11 @@ class Channel(TembaModel):
         return code
 
     @classmethod
-    def generate_secret(cls):
+    def generate_secret(cls, length=64):
         """
         Generates a secret value used for command signing
         """
-        return random_string(64)
+        return random_string(length)
 
     @classmethod
     def determine_encoding(cls, text, replace=False):
