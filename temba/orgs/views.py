@@ -554,14 +554,10 @@ class OrgCRUDL(SmartCRUDL):
 
             # helper method to add a component and its dependencies to a bucket
             def collect_component(c, bucket):
-                if c in bucket:
+                if c in bucket:  # pragma: no cover
                     return
 
                 unbucketed.remove(c)
-
-                if not isinstance(c, (Campaign, Flow)):
-                    return
-
                 bucket.add(c)
 
                 for d in dependencies[c]:
@@ -571,15 +567,8 @@ class OrgCRUDL(SmartCRUDL):
             while unbucketed:
                 component = next(iter(unbucketed))
 
-                bucket = None
-                for dep in dependencies[component]:
-                    for b in buckets:
-                        if dep in b:
-                            bucket = b
-
-                if not bucket:
-                    bucket = set()
-                    buckets.append(bucket)
+                bucket = set()
+                buckets.append(bucket)
 
                 collect_component(component, bucket)
 
