@@ -10,7 +10,9 @@
   %select{ng-change:"updateActionForm(config)", ng-model:"config", ng-options:"action as action.verbose_name for action in actionConfigs | filter:validActionFilter",style:"height:34px",class:"action-type",select2:""}
   <ng-form name="action_editor">
     %span{ng-if:'config.type == "reply"'}
-      %span{auto-complete:"",sms:"action.msg",data-message:"message"}
+      %span{auto-complete:"",msg:"action.msg",type:"sms",data-message:"message"}
+      %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
+      %span{auto-complete:"",sms:"action.msg",type:"sms",data-message:"message"}
       .media{ng-hide:'action.uploading'}
 
         .icon-attachment.add-attachment{ng-show:'!action._media', ng-file-select:'onFileSelect($files, actionset, action);', ng-click:'$event.stopPropagation();' }
@@ -24,10 +26,12 @@
               .icon-close
 
       %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
-
+    %span{ng-if:'config.type == "end_ussd"'}
+      %span{auto-complete:"",msg:"action.msg",type:"ussd",data-message:"message"}
+      %button{ng-click:'saveMessage(message, "end_ussd")',class:"submit hide"}
 
     %span{ng-if:'config.type == "say"'}
-      %span{show-counter:"false",auto-complete:"",sms:"action.msg",data-message:"message"}
+      %span{show-counter:"false",auto-complete:"",msg:"action.msg",data-message:"message"}
       %button{ng-click:'saveMessage(message, "say")',class:"submit hide"}
 
     %span{ng-if:'config.type == "play"'}
@@ -42,8 +46,7 @@
 
     %span{ng-if:'config.type == "send"'}
       %input{ng-model:"omnibox", name:"omnibox", contacts:"action.contacts", variables:"action.variables", required:"", omnibox:'{"types":"gc", "completions":true}', groups:"action.groups", type:"hidden"}
-      %span{sms:"action.msg", data-message:"message"}
-
+      %span{msg:"action.msg", data-message:"message"}
       %button{ng-click:"saveSend(action_editor.omnibox.selected, message)",class:"submit hide"}
         -trans "Ok"
 
