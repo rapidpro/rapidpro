@@ -14,7 +14,7 @@ import time
 import urllib2
 import uuid
 
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
 from django.conf import settings
 from django.contrib.auth.models import User, Group
 from django.core import mail
@@ -2307,6 +2307,10 @@ class ChannelTest(TembaTest):
         # Check our sync point has all three messages queued for delivery
         response = self.sync(self.tel_channel)
         self.assertEquals(200, response.status_code)
+
+        # check last seen and gcm id were updated
+        self.tel_channel.refresh_from_db()
+
         response = response.json()
         cmds = response['cmds']
         self.assertEqual(4, len(cmds))
@@ -2325,6 +2329,11 @@ class ChannelTest(TembaTest):
 
         # a pending outgoing message should be included
         Msg.create_outgoing(self.org, self.admin, msg6.contact, "Hello, we heard from you.")
+
+        six_mins_ago = timezone.now() - timedelta(minutes=6)
+        self.tel_channel.last_seen = six_mins_ago
+        self.tel_channel.gcm_id = 'old_gcm_id'
+        self.tel_channel.save(update_fields=['last_seen', 'gcm_id'])
 
         post_data = dict(cmds=[
 
@@ -2365,6 +2374,10 @@ class ChannelTest(TembaTest):
 
         # now send the channel's updates
         response = self.sync(self.tel_channel, post_data)
+
+        self.tel_channel.refresh_from_db()
+        self.assertEqual(self.tel_channel.gcm_id, '12345')
+        self.assertTrue(self.tel_channel.last_seen > six_mins_ago)
 
         # new batch, our ack and our claim command for new org
         self.assertEquals(4, len(response.json()['cmds']))
@@ -5632,8 +5645,11 @@ class MacrokioskTest(TembaTest):
 
         two_hour_ago = timezone.now() - timedelta(hours=2)
 
+        msg_date = datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")
+
         data = {'shortcode': '1212', 'from': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
-                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
+                'time': msg_date}
+
         encoded_message = urlencode(data)
 
         callback_url = reverse('handlers.macrokiosk_handler',
@@ -5651,6 +5667,11 @@ class MacrokioskTest(TembaTest):
         self.assertEqual(msg.channel, self.channel)
         self.assertEqual(msg.text, "Hello World")
         self.assertEqual(msg.external_id, 'abc1234')
+
+        message_date = datetime.strptime(msg_date, "%Y-%m-%d%H:%M:%S")
+        local_date = pytz.timezone('Asia/Kuala_Lumpur').localize(message_date)
+        gmt_date = local_date.astimezone(pytz.utc)
+        self.assertEqual(msg.sent_on, gmt_date)
 
         Msg.objects.all().delete()
 
