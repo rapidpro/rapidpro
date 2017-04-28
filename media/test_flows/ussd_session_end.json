@@ -1,0 +1,1043 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "https://app.rapidpro.io", 
+  "flows": [
+    {
+      "base_language": "base", 
+      "action_sets": [
+        {
+          "y": 505, 
+          "x": 293, 
+          "destination": null, 
+          "uuid": "c505dce4-6498-46b1-8ebf-5731e59d0fa4", 
+          "actions": [
+            {
+              "msg": {
+                "base": "perfect, thanks"
+              }, 
+              "type": "end_ussd"
+            }
+          ]
+        }, 
+        {
+          "y": 582, 
+          "x": 718, 
+          "destination": null, 
+          "uuid": "0345a810-b2d3-4f61-971e-6dd9d665ca97", 
+          "actions": [
+            {
+              "type": "add_group", 
+              "groups": [
+                {
+                  "name": "NotWell", 
+                  "uuid": "939f9e1a-652a-4688-839e-cb0baec13c42"
+                }
+              ]
+            }, 
+            {
+              "msg": {
+                "base": "Im sorry, we will contact you"
+              }, 
+              "type": "end_ussd"
+            }
+          ]
+        }, 
+        {
+          "y": 652, 
+          "x": 1089, 
+          "destination": "5e782cc2-8159-4b78-a907-19e19659c9e6", 
+          "uuid": "0689cac6-4139-42cf-9e3d-2bf8c0744c45", 
+          "actions": [
+            {
+              "labels": [
+                {
+                  "name": "Interesting", 
+                  "uuid": "5dcdc458-3a15-430d-b8fe-220835235342"
+                }
+              ], 
+              "type": "add_label"
+            }
+          ]
+        }, 
+        {
+          "y": 967, 
+          "x": 743, 
+          "destination": null, 
+          "uuid": "2db568e3-69f3-419d-8ef2-3523d19a8d9a", 
+          "actions": [
+            {
+              "labels": [
+                {
+                  "name": "NotInteresting", 
+                  "uuid": "4a888060-917c-467e-88f6-60eafa02ac36"
+                }
+              ], 
+              "type": "add_label"
+            }, 
+            {
+              "msg": {
+                "base": "Ok, sorry to bother"
+              }, 
+              "type": "end_ussd"
+            }
+          ]
+        }, 
+        {
+          "y": 564, 
+          "x": 1350, 
+          "destination": "0c71f0d7-0248-49fe-b8b2-c7f7c6f0964b", 
+          "uuid": "4b0a18e6-7390-42ed-849d-47fda34a7fdd", 
+          "actions": [
+            {
+              "type": "add_group", 
+              "groups": [
+                {
+                  "name": "Group Chat", 
+                  "uuid": "4ee7d7fa-ef08-4b93-ba67-c6aeeaae57fa"
+                }
+              ]
+            }
+          ]
+        }, 
+        {
+          "y": 718, 
+          "x": 1338, 
+          "destination": null, 
+          "uuid": "0c71f0d7-0248-49fe-b8b2-c7f7c6f0964b", 
+          "actions": [
+            {
+              "lang": "eng", 
+              "type": "lang", 
+              "name": "English"
+            }
+          ]
+        }, 
+        {
+          "y": 986, 
+          "x": 485, 
+          "destination": null, 
+          "uuid": "6bf7b8b3-ab15-4a2d-a8c7-e638d2b87ed3", 
+          "actions": [
+            {
+              "msg": {
+                "base": "a"
+              }, 
+              "type": "end_ussd"
+            }
+          ]
+        }, 
+        {
+          "y": 1416, 
+          "x": 957, 
+          "destination": null, 
+          "uuid": "b923f2c5-4c9f-4b5f-aa23-b227985780d8", 
+          "actions": [
+            {
+              "msg": {
+                "base": "b"
+              }, 
+              "type": "end_ussd"
+            }
+          ]
+        }, 
+        {
+          "y": 1281, 
+          "x": 1303, 
+          "destination": null, 
+          "uuid": "a414e42d-da32-424e-8e86-52199ca2f7ba", 
+          "actions": [
+            {
+              "type": "add_group", 
+              "groups": [
+                {
+                  "name": "Group Chat", 
+                  "uuid": "4ee7d7fa-ef08-4b93-ba67-c6aeeaae57fa"
+                }
+              ]
+            }
+          ]
+        }, 
+        {
+          "y": 1424, 
+          "x": 170, 
+          "destination": null, 
+          "uuid": "5859a999-3a5f-4842-885a-c1a22a044446", 
+          "actions": [
+            {
+              "msg": {
+                "base": "c"
+              }, 
+              "type": "end_ussd"
+            }
+          ]
+        }, 
+        {
+          "y": 1279, 
+          "x": 199, 
+          "destination": "5859a999-3a5f-4842-885a-c1a22a044446", 
+          "uuid": "4796d8b3-85da-40ab-827f-729431b9c816", 
+          "actions": [
+            {
+              "type": "add_group", 
+              "groups": [
+                {
+                  "name": "Interrupted", 
+                  "uuid": "52a65efc-b89d-40e8-b09c-52855599ff28"
+                }
+              ]
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "U", 
+      "entry": "c85097a2-6ad4-48d4-b558-381e002af9e0", 
+      "rule_sets": [
+        {
+          "uuid": "c85097a2-6ad4-48d4-b558-381e002af9e0", 
+          "rules": [
+            {
+              "category": {
+                "base": "Good"
+              }, 
+              "uuid": "c9eea12a-2992-4270-be94-c3046a0126df", 
+              "destination": "78b85d66-bee8-4887-859b-545e92df2dd0", 
+              "label": {
+                "base": "Good"
+              }, 
+              "destination_type": "R", 
+              "test": {
+                "test": 1, 
+                "type": "eq"
+              }
+            }, 
+            {
+              "category": {
+                "base": "Nada"
+              }, 
+              "uuid": "29c7dbfc-6be0-43fc-8350-a137babc4b3d", 
+              "destination": "0345a810-b2d3-4f61-971e-6dd9d665ca97", 
+              "label": {
+                "base": "Nada"
+              }, 
+              "destination_type": "A", 
+              "test": {
+                "test": "2", 
+                "type": "eq"
+              }
+            }, 
+            {
+              "category": {
+                "base": "Maybe"
+              }, 
+              "uuid": "47de427d-9860-42de-8d97-2a929c7c9ad1", 
+              "destination": "b393c96a-d089-4546-a059-12c0ba343937", 
+              "label": {
+                "base": "Maybe"
+              }, 
+              "destination_type": "R", 
+              "test": {
+                "test": 3, 
+                "type": "eq"
+              }
+            }, 
+            {
+              "test": {
+                "test": 4, 
+                "type": "eq"
+              }, 
+              "category": {
+                "base": "Nothing"
+              }, 
+              "uuid": "7d7f43d8-d776-41e0-bde6-48a6f9c7341b", 
+              "label": {
+                "base": "Nothing"
+              }
+            }, 
+            {
+              "category": {
+                "base": "New"
+              }, 
+              "uuid": "91b4d3c3-46bd-4f2c-8e39-81147e3a4bb9", 
+              "destination": "2e388fa7-48c4-4d7e-919c-2f2593fe8651", 
+              "label": {
+                "base": "New"
+              }, 
+              "destination_type": "R", 
+              "test": {
+                "test": 5, 
+                "type": "eq"
+              }
+            }, 
+            {
+              "category": {
+                "base": "New2"
+              }, 
+              "uuid": "5ed08bb1-7014-445f-971f-da31bafb7ff0", 
+              "destination": "dff430e7-4f82-4a8d-9c70-66b24a1abe79", 
+              "label": {
+                "base": "New2"
+              }, 
+              "destination_type": "R", 
+              "test": {
+                "test": 6, 
+                "type": "eq"
+              }
+            }, 
+            {
+              "category": {
+                "base": "New3"
+              }, 
+              "uuid": "a309debe-bf1e-4dbe-b3f1-37deafab38e1", 
+              "destination": "f51f9f17-5b0d-4692-ab9b-53a368ebf318", 
+              "label": {
+                "base": "New3"
+              }, 
+              "destination_type": "R", 
+              "test": {
+                "test": 7, 
+                "type": "eq"
+              }
+            }, 
+            {
+              "category": {
+                "base": "New4"
+              }, 
+              "uuid": "0856161e-bfb0-4887-9051-b3e7b5bfd447", 
+              "destination": "36121167-342e-43fc-a063-89708779c8a4", 
+              "label": {
+                "base": "New4"
+              }, 
+              "destination_type": "R", 
+              "test": {
+                "test": 8, 
+                "type": "eq"
+              }
+            }, 
+            {
+              "category": {
+                "base": "New5"
+              }, 
+              "uuid": "ed5db096-7bb3-4b6b-920a-ac59466892ac", 
+              "destination": "b47b5268-2307-498d-9cf2-a70af20e9d05", 
+              "label": {
+                "base": "New5"
+              }, 
+              "destination_type": "R", 
+              "test": {
+                "test": 9, 
+                "type": "eq"
+              }
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "Other"
+              }, 
+              "destination": "4f6913d4-133f-4c1b-b093-abafb4caac84", 
+              "uuid": "e1409264-b27b-475a-8d61-1980b93f79eb", 
+              "destination_type": "R"
+            }, 
+            {
+              "test": {
+                "test": "interrupted", 
+                "type": "interrupted_status"
+              }, 
+              "category": {
+                "base": "Interrupted"
+              }, 
+              "destination": null, 
+              "uuid": "f91b4755-112a-4f5e-a675-cad5eccaf5e4"
+            }
+          ], 
+          "ruleset_type": "wait_menu", 
+          "label": "Response 1", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 0, 
+          "x": 564, 
+          "config": {
+            "ussd_message": {
+              "base": "What's up?"
+            }
+          }
+        }, 
+        {
+          "uuid": "78b85d66-bee8-4887-859b-545e92df2dd0", 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "base": "excellent"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "base": "Excellent"
+              }, 
+              "destination": "c505dce4-6498-46b1-8ebf-5731e59d0fa4", 
+              "uuid": "cea39ff0-6eaf-47c5-8971-e564de7c5268", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "Other"
+              }, 
+              "destination": "0345a810-b2d3-4f61-971e-6dd9d665ca97", 
+              "uuid": "df198faf-0ef9-46d4-930a-6e05c6ca85a8", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "interrupted", 
+                "type": "interrupted_status"
+              }, 
+              "category": {
+                "base": "Interrupted"
+              }, 
+              "destination": null, 
+              "uuid": "90173645-7a28-4780-a264-26366da595b3"
+            }
+          ], 
+          "ruleset_type": "wait_ussd", 
+          "label": "Response 2", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 338, 
+          "x": 477, 
+          "config": {
+            "ussd_message": {
+              "base": "alright"
+            }
+          }
+        }, 
+        {
+          "uuid": "4f6913d4-133f-4c1b-b093-abafb4caac84", 
+          "rules": [
+            {
+              "category": {
+                "base": "Good"
+              }, 
+              "uuid": "f8351302-52de-41fa-93ac-08e5b6a25d81", 
+              "destination": "c505dce4-6498-46b1-8ebf-5731e59d0fa4", 
+              "label": {
+                "base": "Good"
+              }, 
+              "destination_type": "A", 
+              "test": {
+                "test": 1, 
+                "type": "eq"
+              }
+            }, 
+            {
+              "category": {
+                "base": "Bad"
+              }, 
+              "uuid": "c2b3814c-bd48-4240-8eae-c92e3f935d9e", 
+              "destination": "4b0a18e6-7390-42ed-849d-47fda34a7fdd", 
+              "label": {
+                "base": "Bad"
+              }, 
+              "destination_type": "A", 
+              "test": {
+                "test": "2", 
+                "type": "eq"
+              }
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "Other"
+              }, 
+              "destination": "0689cac6-4139-42cf-9e3d-2bf8c0744c45", 
+              "uuid": "2da8a859-c28a-4be0-860b-6c96dea23368", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "interrupted", 
+                "type": "interrupted_status"
+              }, 
+              "category": {
+                "base": "Interrupted"
+              }, 
+              "destination": null, 
+              "uuid": "ddde51cb-03e5-421c-a9e8-cbf1d86c4ba6"
+            }
+          ], 
+          "ruleset_type": "wait_menu", 
+          "label": "Response 3", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 393, 
+          "x": 969, 
+          "config": {
+            "ussd_message": {
+              "base": "Say what?"
+            }
+          }
+        }, 
+        {
+          "uuid": "5e782cc2-8159-4b78-a907-19e19659c9e6", 
+          "rules": [
+            {
+              "category": {
+                "base": "Cool"
+              }, 
+              "uuid": "53451341-d8d0-4995-8577-e6319dcea9c1", 
+              "destination": "c505dce4-6498-46b1-8ebf-5731e59d0fa4", 
+              "label": {
+                "base": "Cool"
+              }, 
+              "destination_type": "A", 
+              "test": {
+                "test": 1, 
+                "type": "eq"
+              }
+            }, 
+            {
+              "category": {
+                "base": "Uncool"
+              }, 
+              "uuid": "d4c32c95-79f4-4245-af2c-85713974b3c4", 
+              "destination": "0345a810-b2d3-4f61-971e-6dd9d665ca97", 
+              "label": {
+                "base": "Uncool"
+              }, 
+              "destination_type": "A", 
+              "test": {
+                "test": 2, 
+                "type": "eq"
+              }
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "Other"
+              }, 
+              "destination": "2db568e3-69f3-419d-8ef2-3523d19a8d9a", 
+              "uuid": "82f03123-0106-434f-ac70-add29d1d074d", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "interrupted", 
+                "type": "interrupted_status"
+              }, 
+              "category": {
+                "base": "Interrupted"
+              }, 
+              "destination": null, 
+              "uuid": "ea531285-8fbf-4cad-8ec3-f054463da3be"
+            }
+          ], 
+          "ruleset_type": "wait_menu", 
+          "label": "Response 4", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 761, 
+          "x": 621, 
+          "config": {
+            "ussd_message": {
+              "base": "what then ?"
+            }
+          }
+        }, 
+        {
+          "uuid": "b393c96a-d089-4546-a059-12c0ba343937", 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "base": "maybe"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "base": "Maybe"
+              }, 
+              "destination": "c505dce4-6498-46b1-8ebf-5731e59d0fa4", 
+              "uuid": "27e99c5a-fec1-4f3c-9865-48b000e66bed", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "Other"
+              }, 
+              "uuid": "16d800fd-d69c-45d4-b225-67d64522210b"
+            }, 
+            {
+              "test": {
+                "test": "interrupted", 
+                "type": "interrupted_status"
+              }, 
+              "category": {
+                "base": "Interrupted"
+              }, 
+              "destination": null, 
+              "uuid": "d5218dfe-63b3-4ebf-ad8e-225433eef891"
+            }
+          ], 
+          "ruleset_type": "wait_ussd", 
+          "label": "Response 5", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 188, 
+          "x": 228, 
+          "config": {
+            "ussd_message": {
+              "base": "Maybe"
+            }
+          }
+        }, 
+        {
+          "uuid": "2e388fa7-48c4-4d7e-919c-2f2593fe8651", 
+          "rules": [
+            {
+              "test": {
+                "test": 1, 
+                "type": "eq"
+              }, 
+              "category": {
+                "base": "1"
+              }, 
+              "uuid": "fb0c5ef8-37cb-4bd2-9bc5-74e001b7812e", 
+              "label": {
+                "base": ""
+              }
+            }, 
+            {
+              "test": {
+                "test": {
+                  "base": "2"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "base": "2"
+              }, 
+              "destination": "59812a3e-1b86-486e-bffe-d6fbb3708548", 
+              "uuid": "5be768e9-2cdf-4b06-aeb1-6ca924c08f2a", 
+              "destination_type": "R"
+            }, 
+            {
+              "test": {
+                "test": {
+                  "base": "5"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "base": "5"
+              }, 
+              "destination": "6bf7b8b3-ab15-4a2d-a8c7-e638d2b87ed3", 
+              "uuid": "106f3c23-6dfd-4f71-a198-44059c6f608a", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "Other"
+              }, 
+              "uuid": "4d31f5f8-bc09-492a-a912-cde791438c62"
+            }
+          ], 
+          "ruleset_type": "expression", 
+          "label": "Response 6", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 643, 
+          "x": 104, 
+          "config": {
+            "ussd_message": {
+              "base": ""
+            }
+          }
+        }, 
+        {
+          "uuid": "dff430e7-4f82-4a8d-9c70-66b24a1abe79", 
+          "rules": [
+            {
+              "test": {
+                "test": 1, 
+                "type": "eq"
+              }, 
+              "category": {
+                "base": "1"
+              }, 
+              "uuid": "a6041509-660e-43da-a89a-7ac81a430c71", 
+              "label": {
+                "base": ""
+              }
+            }, 
+            {
+              "test": {
+                "test": {
+                  "base": "2"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "base": "2"
+              }, 
+              "uuid": "eebd4a00-8a05-4ba6-8a9a-c3bc546b0b34"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "Other"
+              }, 
+              "uuid": "c6b082ae-5d2f-4a97-94cf-3974f59c4bfe"
+            }
+          ], 
+          "ruleset_type": "expression", 
+          "label": "Response 7", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 976, 
+          "x": 1041, 
+          "config": {
+            "ussd_message": {
+              "base": ""
+            }
+          }
+        }, 
+        {
+          "uuid": "59812a3e-1b86-486e-bffe-d6fbb3708548", 
+          "rules": [
+            {
+              "test": {
+                "max": "0.5", 
+                "type": "between", 
+                "min": "0"
+              }, 
+              "category": {
+                "base": "Bucket 1"
+              }, 
+              "uuid": "ba2d830a-8ffe-4789-8f80-51c4a07cfb5a"
+            }, 
+            {
+              "test": {
+                "max": "1", 
+                "type": "between", 
+                "min": "0.5"
+              }, 
+              "category": {
+                "base": "Bucket 2"
+              }, 
+              "uuid": "49b880fa-f798-427b-8813-98bf64ea34c5"
+            }
+          ], 
+          "ruleset_type": "random", 
+          "label": "Response 8", 
+          "operand": "@(RAND())", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 935, 
+          "x": 87, 
+          "config": {
+            "ussd_message": {
+              "base": ""
+            }
+          }
+        }, 
+        {
+          "uuid": "f51f9f17-5b0d-4692-ab9b-53a368ebf318", 
+          "rules": [
+            {
+              "test": {
+                "test": 1, 
+                "type": "eq"
+              }, 
+              "category": {
+                "base": "1"
+              }, 
+              "uuid": "d959959c-f412-4cea-9e11-52472c3bb8eb", 
+              "label": {
+                "base": ""
+              }
+            }, 
+            {
+              "test": {
+                "test": {
+                  "base": "2"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "base": "2"
+              }, 
+              "uuid": "7e513a4c-a8a1-4a9a-bc38-a23f02bf54c4"
+            }, 
+            {
+              "test": {
+                "test": {
+                  "base": "5"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "base": "5"
+              }, 
+              "destination": "85a64a1f-0c10-4c51-96e7-84fd4d98be51", 
+              "uuid": "b144cd13-3e32-4208-b04c-7f96abd70bfb", 
+              "destination_type": "R"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "Other"
+              }, 
+              "uuid": "c11e0eac-17f2-4538-8abc-4f1df6242168"
+            }
+          ], 
+          "ruleset_type": "expression", 
+          "label": "Response 9", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 1124, 
+          "x": 598, 
+          "config": {
+            "ussd_message": {
+              "base": ""
+            }
+          }
+        }, 
+        {
+          "uuid": "85a64a1f-0c10-4c51-96e7-84fd4d98be51", 
+          "rules": [
+            {
+              "test": {
+                "max": "0.5", 
+                "type": "between", 
+                "min": "0"
+              }, 
+              "category": {
+                "base": "Bucket 1"
+              }, 
+              "uuid": "4964cf03-0dc6-4b43-9841-16611ae8d69a"
+            }, 
+            {
+              "test": {
+                "max": "1", 
+                "type": "between", 
+                "min": "0.5"
+              }, 
+              "category": {
+                "base": "Bucket 2"
+              }, 
+              "destination": "b923f2c5-4c9f-4b5f-aa23-b227985780d8", 
+              "uuid": "7e47fe6f-01df-4b08-909d-d28347210991", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "random", 
+          "label": "Response 10", 
+          "operand": "@(RAND())", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 1288, 
+          "x": 700, 
+          "config": {
+            "ussd_message": {
+              "base": ""
+            }
+          }
+        }, 
+        {
+          "uuid": "36121167-342e-43fc-a063-89708779c8a4", 
+          "rules": [
+            {
+              "test": {
+                "test": 1, 
+                "type": "eq"
+              }, 
+              "category": {
+                "base": "1"
+              }, 
+              "uuid": "28e1baf3-686a-4fbc-bc7c-100a4ef243d1", 
+              "label": {
+                "base": ""
+              }
+            }, 
+            {
+              "test": {
+                "test": {
+                  "base": "5"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "base": "5"
+              }, 
+              "destination": "e91beef3-428e-4b2d-a36b-22b124989c1a", 
+              "uuid": "de6e81bf-1f49-4fb2-8bf5-fe8db29ba071", 
+              "destination_type": "R"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "Other"
+              }, 
+              "uuid": "967fbb24-f268-41f9-b912-1c9096fd601b"
+            }
+          ], 
+          "ruleset_type": "expression", 
+          "label": "Response 11", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 881, 
+          "x": 1317, 
+          "config": {
+            "ussd_message": {
+              "base": ""
+            }
+          }
+        }, 
+        {
+          "uuid": "e91beef3-428e-4b2d-a36b-22b124989c1a", 
+          "rules": [
+            {
+              "test": {
+                "max": "0.5", 
+                "type": "between", 
+                "min": "0"
+              }, 
+              "category": {
+                "base": "Bucket 1"
+              }, 
+              "uuid": "90c053de-c77d-407f-a480-217963a20209"
+            }, 
+            {
+              "test": {
+                "max": "1", 
+                "type": "between", 
+                "min": "0.5"
+              }, 
+              "category": {
+                "base": "Bucket 2"
+              }, 
+              "destination": "a414e42d-da32-424e-8e86-52199ca2f7ba", 
+              "uuid": "e14af2d5-ec8c-4630-b9e6-04b2bd3f6e84", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "random", 
+          "label": "Response 12", 
+          "operand": "@(RAND())", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 1097, 
+          "x": 1354, 
+          "config": {
+            "ussd_message": {
+              "base": ""
+            }
+          }
+        }, 
+        {
+          "uuid": "b47b5268-2307-498d-9cf2-a70af20e9d05", 
+          "rules": [
+            {
+              "test": {
+                "test": 1, 
+                "type": "eq"
+              }, 
+              "category": {
+                "base": "1"
+              }, 
+              "uuid": "d3b3a2fe-1ed0-4538-9162-4d1a33629e64", 
+              "label": {
+                "base": ""
+              }
+            }, 
+            {
+              "test": {
+                "test": {
+                  "base": "9"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "base": "9"
+              }, 
+              "destination": "4796d8b3-85da-40ab-827f-729431b9c816", 
+              "uuid": "04bc31e2-556c-45c4-bed8-0874844bf740", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "Other"
+              }, 
+              "uuid": "bd661516-3106-4de9-b609-d92b8fe1fb94"
+            }
+          ], 
+          "ruleset_type": "expression", 
+          "label": "Response 13", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 1104, 
+          "x": 182, 
+          "config": {
+            "ussd_message": {
+              "base": ""
+            }
+          }
+        }
+      ], 
+      "metadata": {
+        "uuid": "81e44ace-685c-4e1d-97fc-b953e4d04cca", 
+        "notes": [], 
+        "expires": 10080, 
+        "name": "test ussd session end",
+        "saved_on": "2017-03-02T16:02:41.764957Z", 
+        "revision": 263
+      }
+    }
+  ], 
+  "triggers": []
+}

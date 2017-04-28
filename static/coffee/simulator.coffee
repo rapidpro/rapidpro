@@ -370,8 +370,6 @@ verifyNumberSimulator = ->
     showSimulator()
 
 $("#show-simulator").click ->
-  console.log(window.ussd)
-  console.log(window.has_ussd_channel)
   verifyNumberSimulator()
 
 # toggle simulator
