@@ -246,13 +246,13 @@ class Broadcast(models.Model):
             base_language = org.primary_language.iso_code if org.primary_language else 'base'
             translations = {base_language: translations}
 
-        if isinstance(media, six.string_types):
-            media = {base_language: media}
+        if media and base_language not in media:  # pragma: no cover
+            raise ValueError("Base language %s doesn't exist in the provided translations dict")
 
         create_args = dict(org=org, channel=channel, send_all=send_all,
                            translations=translations, base_language=base_language,
                            text=translations[base_language], language_dict=json.dumps(translations),
-                           media=media, media_dict=json.dumps(media),
+                           media=media, media_dict=json.dumps(media) if media else None,
                            created_by=user, modified_by=user)
         create_args.update(kwargs)
         broadcast = cls.objects.create(**create_args)
@@ -410,7 +410,7 @@ class Broadcast(models.Model):
         return preferred_languages
 
     def get_translations(self):
-        if not self.language_dict:
+        if not self.language_dict:  # pragma: no cover
             return {}
         return get_cacheable_attr(self, '_translations', lambda: json.loads(self.language_dict))
 
