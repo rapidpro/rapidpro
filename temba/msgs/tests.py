@@ -703,7 +703,8 @@ class MsgTest(TembaTest):
         self.assertEqual('http://rapidpro.io/audio/sound.mp3', msg5.get_media_path())
 
         # label first message
-        label = Label.get_or_create(self.org, self.user, "la\02bel1")
+        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
+        label = Label.get_or_create(self.org, self.user, "la\02bel1", folder=folder)
         label.toggle_label([msg1], add=True)
 
         # archive last message
@@ -761,6 +762,12 @@ class MsgTest(TembaTest):
 
         # try export with user label
         self.assertExcelSheet(request_export('?l=%s' % label.uuid, {'export_all': 0}), [
+            ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+            [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"]
+        ], self.org.timezone)
+
+        # try export with user label folder
+        self.assertExcelSheet(request_export('?l=%s' % folder.uuid, {'export_all': 0}), [
             ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
             [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"]
         ], self.org.timezone)

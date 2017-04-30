@@ -6,6 +6,7 @@ import nexmo
 import pytz
 import six
 
+from bs4 import BeautifulSoup
 from context_processors import GroupPermWrapper
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
@@ -2410,7 +2411,7 @@ class BulkExportTest(TembaTest):
 
         # now make sure a call to get dependencies succeeds and shows our flow
         triggeree = Flow.objects.filter(name='Triggeree').first()
-        self.assertIn(triggeree, flow.get_dependencies()['flows'])
+        self.assertIn(triggeree, flow.get_dependencies())
 
     def test_trigger_flow(self):
         self.import_file('triggered_flow')
@@ -2444,12 +2445,11 @@ class BulkExportTest(TembaTest):
 
         parent = Flow.objects.filter(name='Parent Flow').first()
         child = Flow.objects.filter(name='Child Flow').first()
-        self.assertIn(child, parent.get_dependencies()['flows'])
+        self.assertIn(child, parent.get_dependencies())
 
         self.login(self.admin)
         response = self.client.get(reverse('orgs.org_export'))
 
-        from bs4 import BeautifulSoup
         soup = BeautifulSoup(response.content, "html.parser")
         group = str(soup.findAll("div", {"class": "exportables bucket"})[0])
 

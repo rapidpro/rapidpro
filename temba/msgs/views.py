@@ -477,7 +477,7 @@ class MsgCRUDL(SmartCRUDL):
             if len(label_id) == 1:
                 return label_id, None
             else:
-                return None, Label.label_objects.get(org=self.request.user.get_org(), uuid=label_id)
+                return None, Label.all_objects.get(org=self.request.user.get_org(), uuid=label_id)
 
         def get_success_url(self):
             return self.request.GET.get('redirect') or reverse('msgs.msg_inbox')

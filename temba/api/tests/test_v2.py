@@ -1483,7 +1483,7 @@ class APITest(TembaTest):
         self.assertEqual(len(resp_json['campaigns']), 0)
         self.assertEqual(len(resp_json['triggers']), 0)
 
-        # with it's trigger dependency
+        # with its trigger dependency
         response = self.fetchJSON(url, 'flow_uuid=%s' % flow.uuid)
         resp_json = response.json()
         self.assertEqual(len(resp_json['flows']), 1)
@@ -1505,7 +1505,7 @@ class APITest(TembaTest):
         self.assertEqual(len(resp_json['campaigns']), 1)
         self.assertEqual(len(resp_json['triggers']), 2)
 
-        # ignore campaign dependendencies
+        # ignore campaign dependencies
         response = self.fetchJSON(url, 'flow=%s&dependencies=flows' % flow.uuid)
         resp_json = response.json()
         self.assertEqual(len(resp_json['flows']), 2)
@@ -1529,9 +1529,9 @@ class APITest(TembaTest):
 
         response = self.fetchJSON(url, 'campaign=%s' % campaign.uuid)
         resp_json = response.json()
-        self.assertEqual(len(resp_json['flows']), 4)
+        self.assertEqual(len(resp_json['flows']), 6)
         self.assertEqual(len(resp_json['campaigns']), 1)
-        self.assertEqual(len(resp_json['triggers']), 1)
+        self.assertEqual(len(resp_json['triggers']), 2)
 
         # test deprecated param names
         response = self.fetchJSON(url, 'flow_uuid=%s&campaign_uuid=%s&dependencies=none' % (flow.uuid, campaign.uuid))
