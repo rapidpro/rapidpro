@@ -1758,7 +1758,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.action.media = null
     $scope.action._media = null
 
-  # Saving a reply SMS in the flow
+  # Saving a reply message in the flow
   $scope.saveMessage = (message, type='reply') ->
 
     if typeof($scope.action.msg) != "object"
@@ -1769,7 +1769,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 
-  # Saving an SMS to somebody else
+  # Saving a message to somebody else
   $scope.saveSend = (omnibox, message) ->
 
     groups = []
@@ -1796,7 +1796,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 
-  # Saving labels to add to an SMS
+  # Saving labels to add to a message
   $scope.saveLabels = (msgLabels) ->
 
     labels = []
