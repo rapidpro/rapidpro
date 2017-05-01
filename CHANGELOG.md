@@ -1,3 +1,7 @@
+v3.0.128
+----------
+ * Add new translatable fields to Broadcast and ensure they're populated for new stuff
+
 v3.0.127
 ----------
  * Fix autocomplete for items containing digits or other items
