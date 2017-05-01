@@ -111,7 +111,7 @@ class window.AutoComplete
 
           hasMore = false
           for option in ac.variables
-            hasMore = valueForName and option.name.indexOf(valueForName) is 0 and option.name isnt valueForName
+            hasMore = valueForName and option.name.indexOf(valueForName + '.') is 0 and option.name isnt valueForName
             if hasMore
               break
 
