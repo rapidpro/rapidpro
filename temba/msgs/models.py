@@ -1,6 +1,5 @@
 from __future__ import print_function, unicode_literals
 
-import json
 import logging
 import pytz
 import regex
@@ -27,7 +26,6 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit, datetime_to_ms, dict_to_json
-from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField
