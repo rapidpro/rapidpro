@@ -239,9 +239,9 @@ class window.AutoComplete
       if subtext.match(/\(\)$/) isnt null
         inputor.caret('pos', subtext.length - 1)
 
-    # do react to clicking inside expressions
+    # hide autocomplete if user clicks in the input
     inputor.off('click.atwhoInner').on 'click.atwhoInner', (e) ->
-      $.noop()
+      inputor.atwho('hide')
 
     # check for possible inserts when a key is pressed
     inputor.off('keyup.atwhoInner').on 'keyup.atwhoInner', (e) ->
