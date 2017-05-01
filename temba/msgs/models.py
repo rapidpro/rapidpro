@@ -186,9 +186,6 @@ class Broadcast(models.Model):
     recipient_count = models.IntegerField(verbose_name=_("Number of recipients"), null=True,
                                           help_text=_("Number of urns which received this broadcast"))
 
-    text = models.TextField(max_length=settings.MSG_FIELD_SIZE, verbose_name=_("Text"),
-                            help_text=_("The message to send out"))
-
     channel = models.ForeignKey(Channel, null=True, verbose_name=_("Channel"),
                                 help_text=_("Channel to use for message sending"))
 
@@ -199,9 +196,6 @@ class Broadcast(models.Model):
                                     help_text=_("Our recurring schedule if we have one"), related_name="broadcast")
 
     parent = models.ForeignKey('Broadcast', verbose_name=_("Parent"), null=True, related_name='children')
-
-    language_dict = models.TextField(verbose_name=_("Translations"),
-                                     help_text=_("The localized versions of the broadcast"), null=True)
 
     translations = TranslatableField(verbose_name=_("Translations"), max_length=settings.MSG_FIELD_SIZE,
                                      help_text=_("The localized versions of the message text"), null=True)
@@ -226,9 +220,6 @@ class Broadcast(models.Model):
     purged = models.BooleanField(default=False,
                                  help_text="If the messages for this broadcast have been purged")
 
-    media_dict = models.TextField(verbose_name=_("Media"),
-                                  help_text=_("The localized versions of the media"), null=True)
-
     media = TranslatableField(verbose_name=_("Media"), max_length=255,
                               help_text=_("The localized versions of the media"), null=True)
 
@@ -250,9 +241,7 @@ class Broadcast(models.Model):
             raise ValueError("Base language %s doesn't exist in the provided translations dict")
 
         create_args = dict(org=org, channel=channel, send_all=send_all,
-                           translations=translations, base_language=base_language,
-                           text=translations[base_language], language_dict=json.dumps(translations),
-                           media=media, media_dict=json.dumps(media) if media else None,
+                           base_language=base_language, translations=translations, media=media,
                            created_by=user, modified_by=user)
         create_args.update(kwargs)
         broadcast = cls.objects.create(**create_args)
@@ -325,7 +314,7 @@ class Broadcast(models.Model):
 
     def fire(self):
         recipients = list(self.urns.all()) + list(self.contacts.all()) + list(self.groups.all())
-        broadcast = Broadcast.create(self.org, self.created_by, self.text, recipients,
+        broadcast = Broadcast.create(self.org, self.created_by, self.translations, recipients,
                                      media=self.media, base_language=self.base_language,
                                      parent=self, modified_by=self.modified_by)
 
@@ -388,52 +377,37 @@ class Broadcast(models.Model):
 
         return commands
 
-    def get_preferred_languages(self, contact, base_language=None, org=None):
+    def get_preferred_languages(self, contact, org=None):
         """
         Gets the ordered list of language preferences for the given contact
         """
         org = org or self.org  # org object can be provided to allow caching of org languages
         preferred_languages = []
 
+        # if contact has a language and it's a valid org language, it has priority
+        if contact.language and contact.language in org.get_language_codes():
+            preferred_languages.append(contact.language)
+
         if org.primary_language:
             preferred_languages.append(org.primary_language.iso_code)
 
-        if base_language:
-            preferred_languages.append(base_language)
-
-        # if contact has a language and it's a valid org language, it has priority
-        if contact.language and contact.language in org.get_language_codes():
-            preferred_languages = [contact.language] + preferred_languages
-
-        preferred_languages.append('base')
+        preferred_languages.append(self.base_language)
 
         return preferred_languages
 
-    def get_translations(self):
-        if not self.language_dict:  # pragma: no cover
-            return {}
-        return get_cacheable_attr(self, '_translations', lambda: json.loads(self.language_dict))
-
-    def get_media_translations(self):
-        if not self.media_dict:
-            return dict()
-        return get_cacheable_attr(self, '_media_translations', lambda: json.loads(self.media_dict))
-
     def get_translated_text(self, contact, org=None):
         """
-        Gets the appropriate translation for the given contact. base_language may be provided
+        Gets the appropriate translation for the given contact
         """
-        translations = self.get_translations()
-        preferred_languages = self.get_preferred_languages(contact, self.base_language, org)
-        return Language.get_localized_text(translations, preferred_languages, self.text)
+        preferred_languages = self.get_preferred_languages(contact, org)
+        return Language.get_localized_text(self.translations, preferred_languages)
 
     def get_translated_media(self, contact, org=None):
         """
-        Gets the appropriate media for the given contact. base_language may be provided
+        Gets the appropriate media for the given contact
         """
-        media_translations = self.get_media_translations()
-        preferred_languages = self.get_preferred_languages(contact, self.base_language, org)
-        return Language.get_localized_text(media_translations, preferred_languages, None)
+        preferred_languages = self.get_preferred_languages(contact, org)
+        return Language.get_localized_text(self.media, preferred_languages)
 
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
              created_on=None, partial_recipients=None, run_map=None):

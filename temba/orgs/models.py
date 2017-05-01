@@ -2012,7 +2012,7 @@ class Language(SmartModel):
         return dict(name=self.name, iso_code=self.iso_code)
 
     @classmethod
-    def get_localized_text(cls, text_translations, preferred_languages, default_text):
+    def get_localized_text(cls, text_translations, preferred_languages, default_text=None):
         """
         Returns the appropriate translation to use.
         :param text_translations: A dictionary (or plain text) which contains our message indexed by language iso code
@@ -2029,8 +2029,8 @@ class Language(SmartModel):
 
         # otherwise, find the first preferred language
         for lang in preferred_languages:
-            localized = text_translations.get(lang, None)
-            if localized:
+            localized = text_translations.get(lang)
+            if localized is not None:
                 return localized
 
         return default_text

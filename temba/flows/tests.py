@@ -436,7 +436,6 @@ class FlowTest(TembaTest):
 
         # should have created a single broadcast
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, "What is your favorite color?")
         self.assertEqual(broadcast.translations, {'base': "What is your favorite color?", 'fre': "Quelle est votre couleur préférée?"})
         self.assertEqual(set(broadcast.contacts.all()), {self.contact, self.contact2})
         self.assertEqual(broadcast.base_language, 'base')
@@ -3069,6 +3068,8 @@ class ActionTest(TembaTest):
         self.assertEqual(action.media, dict())
 
         broadcast = Broadcast.objects.get()
+        self.assertEqual(broadcast.translations, dict(base=msg_body))
+        self.assertEqual(broadcast.base_language, 'base')
         self.assertEqual(broadcast.get_messages().count(), 1)
         msg = broadcast.get_messages().first()
         self.assertEqual(msg.contact, self.contact2)
@@ -3123,8 +3124,8 @@ class ActionTest(TembaTest):
 
         self.assertEqual(Broadcast.objects.all().count(), 2)  # new broadcast with media
 
-        broadcast = Broadcast.objects.all().order_by('-created_on').first()
-        self.assertEqual(broadcast.media_dict, json.dumps(dict(base='image/jpeg:attachments/picture.jpg')))
+        broadcast = Broadcast.objects.order_by('-id').first()
+        self.assertEqual(broadcast.media, dict(base='image/jpeg:attachments/picture.jpg'))
         self.assertEqual(broadcast.get_messages().count(), 1)
         msg = broadcast.get_messages().first()
         self.assertEqual(msg.contact, self.contact2)
@@ -3134,7 +3135,11 @@ class ActionTest(TembaTest):
         # also send if we have empty message but have an attachment
         action = SendAction(dict(base=""), [], [self.contact], [], dict(base='image/jpeg:attachments/picture.jpg'))
         self.execute_action(action, run, None)
-        self.assertEqual(Broadcast.objects.all().count(), 3)
+
+        broadcast = Broadcast.objects.order_by('-id').first()
+        self.assertEqual(broadcast.translations, dict(base=""))
+        self.assertEqual(broadcast.media, dict(base='image/jpeg:attachments/picture.jpg'))
+        self.assertEqual(broadcast.base_language, 'base')
 
     def test_variable_contact_parsing(self):
         groups = dict(groups=[dict(id=-1)])

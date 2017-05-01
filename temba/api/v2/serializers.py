@@ -92,6 +92,7 @@ class AdminBoundaryReadSerializer(ReadSerializer):
 
 
 class BroadcastReadSerializer(ReadSerializer):
+    text = fields.TranslatableField(source='translations')
     urns = serializers.SerializerMethodField()
     contacts = fields.ContactField(many=True)
     groups = fields.ContactGroupField(many=True)
