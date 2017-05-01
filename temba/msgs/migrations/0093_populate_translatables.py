@@ -3,6 +3,7 @@
 from __future__ import unicode_literals
 
 import json
+import time
 
 from django.db import migrations
 from temba.utils import chunk_list
@@ -13,8 +14,10 @@ def populate_translatables(Broadcast):
     if not broadcast_ids:
         return
 
-    print("Fetched %d broadcast ids to be updated...")
+    print("Fetched %d broadcast ids to be updated..." % len(broadcast_ids))
     num_updated = 0
+
+    start = time.time()
 
     for id_batch in chunk_list(broadcast_ids, 5000):
         batch = Broadcast.objects.filter(id__in=id_batch).select_related('org__primary_language')
@@ -48,7 +51,13 @@ def populate_translatables(Broadcast):
             broadcast.save(update_fields=('translations', 'base_language'))
 
         num_updated += len(batch)
-        print("> Updated %d of %d broadcasts" % (num_updated, len(broadcast_ids)))
+        time_taken = time.time() - start
+        completion = float(num_updated) / len(broadcast_ids)
+        total_time = time_taken / completion
+        time_remaining = total_time - time_taken
+
+        print("> Updated %d of %d broadcasts (est. time remaining: %d minutes)"
+              % (num_updated, len(broadcast_ids), int(time_remaining / 60)))
 
 
 def apply_manual():
