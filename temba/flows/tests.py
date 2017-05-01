@@ -437,6 +437,7 @@ class FlowTest(TembaTest):
         # should have created a single broadcast
         broadcast = Broadcast.objects.get()
         self.assertEqual(broadcast.text, "What is your favorite color?")
+        self.assertEqual(broadcast.translations, {'base': "What is your favorite color?", 'fre': "Quelle est votre couleur préférée?"})
         self.assertEqual(set(broadcast.contacts.all()), {self.contact, self.contact2})
         self.assertEqual(broadcast.base_language, 'base')
 

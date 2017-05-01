@@ -132,14 +132,11 @@ class BroadcastWriteSerializer(WriteSerializer):
             contact_urn = contact.urn_objects[urn]
             recipients.append(contact_urn)
 
-        # TODO remove Broadcast.text
         translations, base_language = self.validated_data['text']
-        text = translations[base_language]
 
         # create the broadcast
         broadcast = Broadcast.create(self.context['org'], self.context['user'],
-                                     text=text, language_dict=json.dumps(translations),
-                                     base_language=base_language,
+                                     translations, base_language=base_language,
                                      recipients=recipients, channel=self.validated_data.get('channel'))
 
         # send in task

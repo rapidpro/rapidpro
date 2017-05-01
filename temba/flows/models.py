@@ -1589,20 +1589,12 @@ class Flow(TembaModel):
         # for each send action, we need to create a broadcast, we'll group our created messages under these
         broadcasts = []
         for send_action in send_actions:
-            message_text = self.get_localized_text(send_action.msg)
+            # check that we either have text or media, available for the base language
+            if (send_action.msg and send_action.msg.get(self.base_language)) or (send_action.media and send_action.media.get(self.base_language)):
 
-            # if we have localized versions, add those to our broadcast definition
-            language_dict = None
-            if isinstance(send_action.msg, dict):
-                language_dict = json.dumps(send_action.msg)
-
-            media_dict = None
-            if send_action.media:
-                media_dict = json.dumps(send_action.media)
-
-            if message_text or media_dict:
-                broadcast = Broadcast.create(self.org, self.created_by, message_text, [], media_dict=media_dict,
-                                             language_dict=language_dict, base_language=self.base_language,
+                broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
+                                             media=send_action.media,
+                                             base_language=self.base_language,
                                              send_all=send_action.send_all)
                 broadcast.update_contacts(all_contact_ids)
 
@@ -5653,27 +5645,14 @@ class SendAction(VariableContactAction):
 
             # create our broadcast and send it
             if not run.contact.is_test:
-
-                # if we have localized versions, add those to our broadcast definition
-                language_dict = None
-                if isinstance(self.msg, dict):
-                    language_dict = json.dumps(self.msg)
-
-                message_text = run.flow.get_localized_text(self.msg)
-
-                media_dict = None
-                if self.media:
-                    media_dict = json.dumps(self.media)
-
-                # no message text and no media_dict? then no-op
-                if not message_text and not media_dict:
+                # no-op if neither text nor media are defined in the flow base language
+                if not (self.msg.get(flow.base_language) or self.media.get(flow.base_language)):
                     return list()
 
                 recipients = groups + contacts
 
-                broadcast = Broadcast.create(flow.org, flow.modified_by, message_text, recipients,
-                                             media_dict=media_dict, language_dict=language_dict,
-                                             base_language=flow.base_language)
+                broadcast = Broadcast.create(flow.org, flow.modified_by, self.msg, recipients,
+                                             media=self.media, base_language=flow.base_language)
                 broadcast.send(trigger_send=False, message_context=context)
                 return list(broadcast.get_messages())
 
