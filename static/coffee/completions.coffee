@@ -103,7 +103,7 @@ class window.AutoComplete
 
         beforeInsert: (value, item) ->
 
-          completionChars = new RegExp("([A-Za-z_\d\.]*)$", 'gi')
+          completionChars = new RegExp("([A-Za-z_\\d\.]*)$", 'gi')
           valueForName = ""
           match = completionChars.exec(value)
           if match
