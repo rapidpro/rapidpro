@@ -754,7 +754,7 @@ class Flow(TembaModel):
                             child_run = child_runs[0]
                             msgs += child_run.start_msgs
                             continue_parent = getattr(child_run, 'continue_parent', False)
-                        else:
+                        else:  # pragma: no cover
                             continue_parent = False
 
                         if continue_parent:
