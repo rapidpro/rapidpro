@@ -1,3 +1,7 @@
+v3.0.130
+----------
+ * Fix to last migration
+
 v3.0.129
 ----------
  * Migration to populate new translatble fields on old broadcasts
