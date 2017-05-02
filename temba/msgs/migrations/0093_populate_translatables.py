@@ -20,7 +20,7 @@ def populate_translatables(Broadcast):
     start = time.time()
 
     for id_batch in chunk_list(broadcast_ids, 5000):
-        batch = Broadcast.objects.filter(id__in=id_batch).select_related('org__primary_language')
+        batch = Broadcast.objects.filter(id__in=id_batch).prefetch_related('org__primary_language')
         for broadcast in batch:
             # Figure out base language for this broadcast
             if broadcast.base_language:
@@ -48,7 +48,7 @@ def populate_translatables(Broadcast):
             broadcast.translations = translations
             broadcast.media = media
             broadcast.base_language = base_language
-            broadcast.save(update_fields=('translations', 'base_language'))
+            broadcast.save(update_fields=('translations', 'media', 'base_language'))
 
         num_updated += len(batch)
         time_taken = time.time() - start
