@@ -280,7 +280,7 @@ class Channel(TembaModel):
     name = models.CharField(verbose_name=_("Name"), max_length=64, blank=True, null=True,
                             help_text=_("Descriptive label for this channel"))
 
-    address = models.CharField(verbose_name=_("Address"), max_length=64, blank=True, null=True,
+    address = models.CharField(verbose_name=_("Address"), max_length=255, blank=True, null=True,
                                help_text=_("Address with which this channel communicates"))
 
     country = CountryField(verbose_name=_("Country"), null=True, blank=True,
@@ -1427,6 +1427,9 @@ class Channel(TembaModel):
     @classmethod
     def send_junebug_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED, Msg
+        from temba.ussd.models import USSDSession
+
+        session = None
 
         # the event url Junebug will relay events to
         event_url = 'https://%s%s' % (
@@ -1442,11 +1445,12 @@ class Channel(TembaModel):
         payload['content'] = text
 
         if is_ussd:
-            external_id, session_status = Msg.objects.values_list('response_to__external_id', 'session__status').get(pk=msg.id)
+            session = USSDSession.objects.get_session_with_status_only(msg.session_id)
+            external_id = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
             # NOTE: Only one of `to` or `reply_to` may be specified
             payload['reply_to'] = external_id
             payload['channel_data'] = {
-                'continue_session': session_status not in ChannelSession.DONE,
+                'continue_session': session and not session.should_end or False,
             }
         else:
             payload['from'] = channel.address
@@ -1477,6 +1481,10 @@ class Channel(TembaModel):
                                 event=event, start=start)
 
         data = response.json()
+
+        if is_ussd and session and session.should_end:
+            session.close()
+
         try:
             message_id = data['result']['message_id']
             Channel.success(channel, msg, WIRED, start, event=event, external_id=message_id)
@@ -2119,17 +2127,28 @@ class Channel(TembaModel):
     def send_vumi_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED, Msg
         from temba.contacts.models import Contact
+        from temba.ussd.models import USSDSession
 
         is_ussd = channel.channel_type in Channel.USSD_CHANNELS
         channel.config['transport_name'] = 'ussd_transport' if is_ussd else 'mtech_ng_smpp_transport'
 
+        session = None
+        session_event = None
         in_reply_to = None
+
+        if is_ussd:
+            session = USSDSession.objects.get_session_with_status_only(msg.session_id)
+            if session and session.should_end:
+                session_event = "close"
+            else:
+                session_event = "resume"
+
         if msg.response_to_id:
             in_reply_to = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
 
         payload = dict(message_id=msg.id,
                        in_reply_to=in_reply_to,
-                       session_event="resume" if is_ussd else None,
+                       session_event=session_event,
                        to_addr=msg.urn_path,
                        from_addr=channel.address,
                        content=text,
@@ -2183,6 +2202,9 @@ class Channel(TembaModel):
         # parse our response
         body = response.json()
         external_id = body.get('message_id', '')
+
+        if is_ussd and session and session.should_end:
+            session.close()
 
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
@@ -3441,7 +3463,9 @@ class SyncEvent(SmartModel):
 
         # update our channel if anything is new
         if channel.device != device or channel.os != os:  # pragma: no cover
-            Channel.objects.filter(pk=channel.pk).update(device=device, os=os)
+            channel.device = device
+            channel.os = os
+            channel.save(update_fields=['device', 'os'])
 
         args = dict()
 
@@ -3672,6 +3696,7 @@ class ChannelSession(SmartModel):
     TRIGGERED = 'T'
     INTERRUPTED = 'X'
     INITIATED = 'A'
+    ENDING = 'E'
 
     DONE = [COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED, INTERRUPTED]
 
@@ -3697,21 +3722,19 @@ class ChannelSession(SmartModel):
                       (CANCELED, "Canceled"),
                       (INTERRUPTED, "Interrupted"),
                       (TRIGGERED, "Triggered"),
-                      (INITIATED, "Initiated"))
+                      (INITIATED, "Initiated"),
+                      (ENDING, "Ending"))
 
     external_id = models.CharField(max_length=255,
                                    help_text="The external id for this session, our twilio id usually")
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING,
                               help_text="The status of this session")
-
     channel = models.ForeignKey('Channel',
                                 help_text="The channel that created this session")
     contact = models.ForeignKey('contacts.Contact', related_name='sessions',
                                 help_text="Who this session is with")
-
     contact_urn = models.ForeignKey('contacts.ContactURN', verbose_name=_("Contact URN"),
                                     help_text=_("The URN this session is communicating with"))
-
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES,
                                  help_text="The direction of this session, either incoming or outgoing")
     started_on = models.DateTimeField(null=True, blank=True,
@@ -3724,6 +3747,22 @@ class ChannelSession(SmartModel):
                                     help_text="What sort of session this is")
     duration = models.IntegerField(default=0, null=True,
                                    help_text="The length of this session in seconds")
+
+    def __init__(self, *args, **kwargs):
+        super(ChannelSession, self).__init__(*args, **kwargs)
+
+        """ This is needed when referencing `session` from `FlowRun`. Since
+        the FK is bound to ChannelSession, when it initializes an instance from
+        DB we need to specify the class based on `session_type` so we can access
+        all the methods the proxy model implements. """
+
+        if type(self) is ChannelSession:
+            if self.session_type == self.USSD:
+                from temba.ussd.models import USSDSession
+                self.__class__ = USSDSession
+            elif self.session_type == self.IVR:
+                from temba.ivr.models import IVRCall
+                self.__class__ = IVRCall
 
     def get_logs(self):
         return self.channel_logs.all().order_by('created_on')

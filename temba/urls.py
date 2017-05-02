@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import debug_toolbar
 import importlib
 import logging
 
@@ -39,9 +40,9 @@ urlpatterns = [
     url(r'^jsi18n/$', javascript_catalog, js_info_dict, name='django.views.i18n.javascript_catalog'),
 ]
 
-#if settings.DEBUG:
-#    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += [url(r'^__debug__/', include(debug_toolbar.urls))]
 
 
 # import any additional urls

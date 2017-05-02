@@ -703,7 +703,8 @@ class FlowCRUDL(SmartCRUDL):
             return context
 
         def derive_queryset(self, *args, **kwargs):
-            return super(FlowCRUDL.BaseList, self).derive_queryset(*args, **kwargs).exclude(flow_type=Flow.MESSAGE)
+            qs = super(FlowCRUDL.BaseList, self).derive_queryset(*args, **kwargs)
+            return qs.exclude(flow_type=Flow.MESSAGE).exclude(is_active=False)
 
         def get_campaigns(self):
             from temba.campaigns.models import CampaignEvent
@@ -898,12 +899,15 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
 
+            flow = self.get_object(self.get_queryset())
+
             # hangup any test calls if we have them
-            IVRCall.hangup_test_call(self.get_object())
+            if flow.flow_type == Flow.VOICE:
+                IVRCall.hangup_test_call(flow)
 
             org = self.request.user.get_org()
             context = super(FlowCRUDL.Read, self).get_context_data(*args, **kwargs)
-            flow = self.get_object(self.get_queryset())
+
             flow.ensure_current_version()
 
             initial = flow.as_json(expand_contacts=True)
@@ -1400,9 +1404,10 @@ class FlowCRUDL(SmartCRUDL):
                         USSDSession.handle_incoming(test_contact.org.get_ussd_channel(contact_urn=test_contact.get_urn(TEL_SCHEME)),
                                                     test_contact.get_urn(TEL_SCHEME).path,
                                                     content=new_message,
+                                                    contact=test_contact,
                                                     date=timezone.now(),
                                                     message_id=str(randint(0, 1000)),
-                                                    external_id=str(randint(0, 1000)),
+                                                    external_id='test',
                                                     org=user.get_org(),
                                                     status=status)
                     else:
@@ -1419,6 +1424,15 @@ class FlowCRUDL(SmartCRUDL):
                                         status=400)
 
             messages = Msg.objects.filter(contact=test_contact).order_by('pk', 'created_on')
+
+            if flow.flow_type == Flow.USSD:
+                for msg in messages:
+                    if msg.session.should_end:
+                        msg.session.close()
+
+                # don't show the empty closing message on the simulator
+                messages = messages.exclude(text='', direction='O')
+
             action_logs = ActionLog.objects.filter(run__contact=test_contact).order_by('pk', 'created_on')
 
             messages_and_logs = chain(messages, action_logs)

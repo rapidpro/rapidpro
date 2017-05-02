@@ -1088,7 +1088,7 @@ class Org(SmartModel):
             if len(words) > 1:
                 for word in words:
                     boundary = self.find_boundary_by_name(word, level, parent)
-                    if not boundary:
+                    if boundary:
                         break
 
                 if not boundary:

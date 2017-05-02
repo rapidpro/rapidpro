@@ -453,7 +453,8 @@ class Broadcast(models.Model):
 
         # we batch up our SQL calls to speed up the creation of our SMS objects
         batch = []
-        recipient_batch = []
+        batch_recipients = []
+        existing_recipients = set(BroadcastRecipient.objects.filter(broadcast_id=self.id).values_list('contact_id', flat=True))
 
         # our priority is based on the number of recipients
         priority = Msg.PRIORITY_NORMAL
@@ -519,13 +520,16 @@ class Broadcast(models.Model):
             # only add it to our batch if it was legit
             if msg:
                 batch.append(msg)
-                # keep track of this URN as a recipient
-                recipient_batch.append(RelatedRecipient(contact_id=msg.contact_id, broadcast_id=self.id))
+
+                # if this isn't an existing recipient, add it as one
+                if msg.contact_id not in existing_recipients:
+                    existing_recipients.add(msg.contact_id)
+                    batch_recipients.append(RelatedRecipient(contact_id=msg.contact_id, broadcast_id=self.id))
 
             # we commit our messages in batches
             if len(batch) >= BATCH_SIZE:
                 Msg.objects.bulk_create(batch)
-                RelatedRecipient.objects.bulk_create(recipient_batch)
+                RelatedRecipient.objects.bulk_create(batch_recipients)
 
                 # send any messages
                 if trigger_send:
@@ -535,12 +539,12 @@ class Broadcast(models.Model):
                     created_on = created_on + timedelta(seconds=1)
 
                 batch = []
-                recipient_batch = []
+                batch_recipients = []
 
         # commit any remaining objects
         if batch:
             Msg.objects.bulk_create(batch)
-            RelatedRecipient.objects.bulk_create(recipient_batch)
+            RelatedRecipient.objects.bulk_create(batch_recipients)
 
             if trigger_send:
                 self.org.trigger_send(Msg.objects.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
@@ -751,14 +755,14 @@ class Msg(models.Model):
                 # update them to queued
                 send_messages = Msg.objects.filter(id__in=msg_ids)\
                                            .exclude(channel__channel_type=Channel.TYPE_ANDROID)\
-                                           .exclude(msg_type__in=(IVR, USSD))\
+                                           .exclude(msg_type=IVR)\
                                            .exclude(topup=None)\
                                            .exclude(contact__is_test=True)
                 send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
 
                 # now push each onto our queue
                 for msg in msgs:
-                    if (msg.msg_type != IVR and msg.msg_type != USSD and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and \
+                    if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and \
                             msg.topup and not msg.contact.is_test:
 
                         # if this is a different contact than our last, and we have msgs for that last contact, queue the task
@@ -1223,7 +1227,7 @@ class Msg(models.Model):
                     status=self.status, direction=self.direction, media=self.media,
                     external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
-                    created_on=self.created_on, modified_on=self.modified_on)
+                    created_on=self.created_on, modified_on=self.modified_on, session_id=self.session_id)
 
         if self.contact_urn.auth:
             data.update(dict(auth=self.contact_urn.auth))

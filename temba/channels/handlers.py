@@ -1045,7 +1045,8 @@ class MacroKioskHandler(BaseChannelHandler):
 
             external_id = self.get_param('msgid')
             message_date = datetime.strptime(self.get_param('time'), "%Y-%m-%d%H:%M:%S")
-            gmt_date = pytz.timezone('GMT').localize(message_date)
+            local_date = pytz.timezone('Asia/Kuala_Lumpur').localize(message_date)
+            gmt_date = local_date.astimezone(pytz.utc)
 
             text = self.get_param('text')
             if self.get_param('shortcode'):

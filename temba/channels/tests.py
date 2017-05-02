@@ -14,7 +14,7 @@ import time
 import urllib2
 import uuid
 
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
 from django.conf import settings
 from django.contrib.auth.models import User, Group
 from django.core import mail
@@ -29,7 +29,7 @@ from mock import patch
 from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, LINE_SCHEME
-from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING, USSD
+from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME, FCM_SCHEME
 from temba.ivr.models import IVRCall
@@ -2307,6 +2307,10 @@ class ChannelTest(TembaTest):
         # Check our sync point has all three messages queued for delivery
         response = self.sync(self.tel_channel)
         self.assertEquals(200, response.status_code)
+
+        # check last seen and gcm id were updated
+        self.tel_channel.refresh_from_db()
+
         response = response.json()
         cmds = response['cmds']
         self.assertEqual(4, len(cmds))
@@ -2325,6 +2329,11 @@ class ChannelTest(TembaTest):
 
         # a pending outgoing message should be included
         Msg.create_outgoing(self.org, self.admin, msg6.contact, "Hello, we heard from you.")
+
+        six_mins_ago = timezone.now() - timedelta(minutes=6)
+        self.tel_channel.last_seen = six_mins_ago
+        self.tel_channel.gcm_id = 'old_gcm_id'
+        self.tel_channel.save(update_fields=['last_seen', 'gcm_id'])
 
         post_data = dict(cmds=[
 
@@ -2365,6 +2374,10 @@ class ChannelTest(TembaTest):
 
         # now send the channel's updates
         response = self.sync(self.tel_channel, post_data)
+
+        self.tel_channel.refresh_from_db()
+        self.assertEqual(self.tel_channel.gcm_id, '12345')
+        self.assertTrue(self.tel_channel.last_seen > six_mins_ago)
 
         # new batch, our ack and our claim command for new org
         self.assertEquals(4, len(response.json()['cmds']))
@@ -5632,8 +5645,11 @@ class MacrokioskTest(TembaTest):
 
         two_hour_ago = timezone.now() - timedelta(hours=2)
 
+        msg_date = datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")
+
         data = {'shortcode': '1212', 'from': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
-                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
+                'time': msg_date}
+
         encoded_message = urlencode(data)
 
         callback_url = reverse('handlers.macrokiosk_handler',
@@ -5651,6 +5667,11 @@ class MacrokioskTest(TembaTest):
         self.assertEqual(msg.channel, self.channel)
         self.assertEqual(msg.text, "Hello World")
         self.assertEqual(msg.external_id, 'abc1234')
+
+        message_date = datetime.strptime(msg_date, "%Y-%m-%d%H:%M:%S")
+        local_date = pytz.timezone('Asia/Kuala_Lumpur').localize(message_date)
+        gmt_date = local_date.astimezone(pytz.utc)
+        self.assertEqual(msg.sent_on, gmt_date)
 
         Msg.objects.all().delete()
 
@@ -9103,184 +9124,6 @@ class JunebugTest(JunebugTestMixin, TembaTest):
             # manually send it off
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
             self.assertTrue(ChannelLog.objects.filter(description__icontains="Unable to read external message_id"))
-
-
-class JunebugUSSDTest(JunebugTestMixin, TembaTest):
-
-    def setUp(self):
-        super(JunebugUSSDTest, self).setUp()
-
-        flow = self.get_flow('ussd_example')
-        self.starcode = "*113#"
-
-        self.channel.delete()
-        self.channel = Channel.create(
-            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '1234',
-            config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
-            uuid='00000000-0000-0000-0000-000000001234', role=Channel.ROLE_USSD)
-
-        self.trigger, _ = Trigger.objects.get_or_create(
-            channel=self.channel, keyword=self.starcode, flow=flow,
-            created_by=self.user, modified_by=self.user, org=self.org,
-            trigger_type=Trigger.TYPE_USSD_PULL)
-
-    def tearDown(self):
-        super(JunebugUSSDTest, self).tearDown()
-        settings.SEND_MESSAGES = False
-
-    def test_status(self):
-        joe = self.create_contact("Joe Biden", "+254788383383")
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin, msg_type=USSD)
-
-        data = self.mk_event()
-        msg.external_id = data['message_id']
-        msg.save(update_fields=('external_id',))
-
-        def assertStatus(sms, event_type, assert_status):
-            data['event_type'] = event_type
-            response = self.client.post(
-                reverse('handlers.junebug_handler',
-                        args=['event', self.channel.uuid]),
-                data=json.dumps(data),
-                content_type='application/json')
-            self.assertEquals(200, response.status_code)
-            sms = Msg.objects.get(pk=sms.id)
-            self.assertEquals(assert_status, sms.status)
-
-        assertStatus(msg, 'submitted', SENT)
-        assertStatus(msg, 'delivery_succeeded', DELIVERED)
-        assertStatus(msg, 'delivery_failed', FAILED)
-        assertStatus(msg, 'rejected', FAILED)
-
-    def test_receive_ussd(self):
-        from temba.ussd.models import USSDSession
-        from temba.channels.handlers import JunebugHandler
-
-        data = self.mk_ussd_msg(content="événement", to=self.starcode)
-        callback_url = reverse('handlers.junebug_handler',
-                               args=['inbound', self.channel.uuid])
-        response = self.client.post(callback_url, json.dumps(data),
-                                    content_type='application/json')
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['status'], JunebugHandler.ACK)
-
-        # load our message
-        inbound_msg, outbound_msg = Msg.objects.all().order_by('pk')
-        self.assertEquals(data["from"], outbound_msg.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(outbound_msg.response_to, inbound_msg)
-        self.assertEquals(outbound_msg.session.status, USSDSession.TRIGGERED)
-        self.assertEquals(inbound_msg.direction, INCOMING)
-
-    def test_receive_ussd_no_sesion(self):
-        from temba.channels.handlers import JunebugHandler
-
-        # Delete the trigger to prevent the sesion from being created
-        self.trigger.delete()
-
-        data = self.mk_ussd_msg(content="événement", to=self.starcode)
-        callback_url = reverse('handlers.junebug_handler',
-                               args=['inbound', self.channel.uuid])
-        response = self.client.post(callback_url, json.dumps(data),
-                                    content_type='application/json')
-
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()['status'], JunebugHandler.NACK)
-
-    def test_send_ussd_continue_session(self):
-        joe = self.create_contact("Joe", "+250788383383")
-        self.create_group("Reporters", [joe])
-
-        inbound = Msg.create_incoming(self.channel, "tel:+250788383383", "Send an inbound message",
-                                      external_id='vumi-message-id', msg_type=USSD)
-        msg = inbound.reply("Test message", self.admin, trigger_send=False)[0]
-
-        # our outgoing message
-        msg.refresh_from_db()
-        r = get_redis_connection()
-
-        try:
-            settings.SEND_MESSAGES = True
-
-            with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps({
-                    'result': {
-                        'message_id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
-                    }
-                }))
-
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                # check the status of the message is now sent
-                msg.refresh_from_db()
-                self.assertEquals(WIRED, msg.status)
-                self.assertTrue(msg.sent_on)
-                self.assertEquals("07033084-5cfd-4812-90a4-e4d24ffb6e3d", msg.external_id)
-                self.assertEquals(1, mock.call_count)
-
-                # should have a failsafe that it was sent
-                self.assertTrue(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
-
-                # try sending again, our failsafe should kick in
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                # we shouldn't have been called again
-                self.assertEquals(1, mock.call_count)
-                [call] = mock.call_args_list
-                (args, kwargs) = call
-                payload = kwargs['json']
-                self.assertFalse('from' in payload.keys())
-                self.assertFalse('to' in payload.keys())
-                self.assertEquals(payload['reply_to'], 'vumi-message-id')
-                self.assertEquals(payload['channel_data'], {
-                    'continue_session': True
-                })
-                self.clear_cache()
-        finally:
-            settings.SEND_MESSAGES = False
-
-    def test_send_ussd_end_session(self):
-        from temba.ussd.models import USSDSession
-
-        joe = self.create_contact("Joe", "+250788383383")
-        self.create_group("Reporters", [joe])
-
-        inbound = Msg.create_incoming(self.channel, "tel:+250788383383", "Send an inbound message",
-                                      msg_type=USSD, external_id='vumi-message-id')
-        session = USSDSession.objects.create(channel=self.channel, org=self.channel.org, contact=joe, contact_urn=joe.urn_objects[URN.from_tel('+250788383383')],
-                                             external_id=inbound.external_id, status=USSDSession.COMPLETED)
-        msg = inbound.reply("Test message", self.admin, trigger_send=False, session=session)[0]
-
-        # our outgoing message
-        msg.refresh_from_db()
-        self.clear_cache()
-
-        try:
-            settings.SEND_MESSAGES = True
-
-            with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps({
-                    'result': {
-                        'message_id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
-                    }
-                }))
-
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-                self.assertEquals(1, mock.call_count)
-                [call] = mock.call_args_list
-                (args, kwargs) = call
-                payload = kwargs['json']
-                self.assertFalse('from' in payload.keys())
-                self.assertFalse('to' in payload.keys())
-                self.assertEquals(payload['reply_to'], 'vumi-message-id')
-                self.assertEquals(payload['channel_data'], {
-                    'continue_session': False
-                })
-                self.clear_cache()
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class MbloxTest(TembaTest):
