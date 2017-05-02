@@ -30,13 +30,13 @@ def populate_translatables(Broadcast):
             else:
                 base_language = 'base'
 
-            # We have some broadcasts with language dicts with language keys other than anything calculated above. In
-            # this case best we can do is a pick a random key so at least base_language exists in language_dict
-            if broadcast.language_dict and base_language not in broadcast.language_dict:
-                base_language = next(iter(broadcast.language_dict.keys()))
-
             if broadcast.language_dict:
                 translations = json.loads(broadcast.language_dict)
+
+                # We have some broadcasts with language dicts with language keys other than anything calculated above.
+                # In this case best we can do is a pick a random key so at least base_language exists in language_dict
+                if base_language not in translations:
+                    base_language = next(iter(translations.keys()))
             else:
                 translations = {base_language: broadcast.text}
 
