@@ -1,18 +1,7 @@
 v3.0.132
 ----------
- * Really fix migration
-
-v3.0.131
-----------
- * Actually fix migration
-
-v3.0.130
-----------
- * Fix to last migration
-
-v3.0.129
-----------
- * Migration to populate new translatble fields on old broadcasts
+ * Migration to populate new translatable fields on old broadcasts. This migration is slow on a large database so it's
+   recommended that large deployments fake it and run it manually.
 
 v3.0.128
 ----------
