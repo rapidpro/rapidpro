@@ -1,3 +1,7 @@
+v3.0.132
+----------
+ * Really fix migration
+
 v3.0.131
 ----------
  * Actually fix migration
