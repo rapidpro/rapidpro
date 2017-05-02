@@ -1,3 +1,7 @@
+v3.0.129
+----------
+ * Migration to populate new translatble fields on old broadcasts
+
 v3.0.128
 ----------
  * Add new translatable fields to Broadcast and ensure they're populated for new stuff
