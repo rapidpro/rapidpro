@@ -511,10 +511,9 @@ class Org(SmartModel):
 
                 if channel:
                     if role == Channel.ROLE_SEND:
-                        channel = self.get_channel_delegate(channel, Channel.ROLE_SEND)
-
-                    ContactURN.objects.filter(pk=contact_urn.pk).update(channel=channel)
-                    return channel
+                        return self.get_channel_delegate(channel, Channel.ROLE_SEND)
+                    else:
+                        return channel
 
         # get any send channel without any country or URN hints
         return self.get_channel(scheme, country_code, role)
