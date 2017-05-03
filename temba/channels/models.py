@@ -722,20 +722,20 @@ class Channel(TembaModel):
         return channel
 
     @classmethod
-    def get_or_create_android(cls, fcm, status):
+    def get_or_create_android(cls, registration_data, status):
         """
         Creates a new Android channel from the gcm and status commands sent during device registration
         """
-        gcm_id = fcm.get('gcm_id')
-        fcm_id = fcm.get('fcm_id')
-        uuid = fcm.get('uuid')
+        gcm_id = registration_data.get('gcm_id')
+        fcm_id = registration_data.get('fcm_id')
+        uuid = registration_data.get('uuid')
         country = status.get('cc')
         device = status.get('dev')
 
         if (not gcm_id and not fcm_id) or not uuid:  # pragma: no cover
             raise ValueError("Can't create Android channel without UUID, FCM ID and GCM ID")
 
-        # Clear and Ignore the GCM DI if we have the FCM ID
+        # Clear and Ignore the GCM ID if we have the FCM ID
         if fcm_id:
             gcm_id = None
 
