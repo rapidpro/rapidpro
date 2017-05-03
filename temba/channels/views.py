@@ -598,7 +598,8 @@ def get_commands(channel, commands, sync_event=None):
         #    "to":[{number:"250788382384", "id":26],
         #    "msg":"Is water point A19 still functioning?"
         # }
-        msgs += list(broadcast.get_messages().filter(status__in=[PENDING, QUEUED]).exclude(topup=None))
+        msgs += list(broadcast.get_messages().filter(status__in=[PENDING, QUEUED],
+                                                     channel=channel).exclude(topup=None))
 
         outgoing_messages += len(msgs)
 
