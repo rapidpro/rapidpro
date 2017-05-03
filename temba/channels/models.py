@@ -1190,7 +1190,7 @@ class Channel(TembaModel):
         # remove all identifying bits from the client
         self.org = None
         self.gcm_id = None
-        self.config = json.dumps({})
+        self.config = json.dumps(config)
         self.secret = None
         self.claim_code = None
         self.is_active = False
