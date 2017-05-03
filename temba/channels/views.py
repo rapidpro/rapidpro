@@ -741,7 +741,7 @@ def sync(request, channel_id):
                         config.update({Channel.CONFIG_FCM_ID: cmd['fcm_id']})
                         channel.config = json.dumps(config)
                         channel.uuid = cmd.get('uuid', None)
-                        channel.save()
+                        channel.save(update_fields=['uuid', 'config', 'gcm_id'])
 
                         # no acking the gcm
                         handled = False
