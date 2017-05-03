@@ -7550,7 +7550,9 @@ class FlowChannelSelectionTest(FlowFileTest):
     def test_sms_channel_selection(self):
         contact_urn = self.contact.get_urn(TEL_SCHEME)
         channel = self.contact.org.get_send_channel(contact_urn=contact_urn)
-        self.assertEqual(channel, self.sms_channel)
+        contact_urn.refresh_from_db()
+        self.assertEqual(contact_urn.channel, channel)
+        self.assertEqual(self.sms_channel, channel)
 
     def test_ussd_channel_selection(self):
         contact_urn = self.contact.get_urn(TEL_SCHEME)
