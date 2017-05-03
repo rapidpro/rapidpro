@@ -753,7 +753,7 @@ class Channel(TembaModel):
             existing.secret = cls.generate_secret()
             existing.country = country
             existing.device = device
-            existing.save(update_fields=('fcm_id', 'gcm_id', 'secret', 'claim_code', 'country', 'device'))
+            existing.save(update_fields=('gcm_id', 'secret', 'claim_code', 'country', 'device'))
 
             return existing
 
