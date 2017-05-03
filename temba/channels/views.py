@@ -737,7 +737,9 @@ def sync(request, channel_id):
                         # update our fcm and uuid
 
                         channel.gcm_id = None
-                        channel.fcm_id = cmd['fcm_id']
+                        config = channel.config_json()
+                        config.update({Channel.CONFIG_FCM_ID: cmd['fcm_id']})
+                        channel.config = json.dumps(config)
                         channel.uuid = cmd.get('uuid', None)
                         channel.save()
 
@@ -904,7 +906,7 @@ class ChannelCRUDL(SmartCRUDL):
 
     class Read(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = 'uuid'
-        exclude = ('id', 'is_active', 'created_by', 'modified_by', 'modified_on', 'gcm_id', 'fcm_id')
+        exclude = ('id', 'is_active', 'created_by', 'modified_by', 'modified_on', 'gcm_id')
 
         def get_queryset(self):
             return Channel.objects.filter(is_active=True)

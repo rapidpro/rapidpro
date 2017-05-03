@@ -124,6 +124,7 @@ class Channel(TembaModel):
     CONFIG_CHANNEL_ID = 'channel_id'
     CONFIG_CHANNEL_SECRET = 'channel_secret'
     CONFIG_CHANNEL_MID = 'channel_mid'
+    CONFIG_FCM_ID = 'FCM_ID'
     CONFIG_FCM_KEY = 'FCM_KEY'
     CONFIG_FCM_TITLE = 'FCM_TITLE'
     CONFIG_FCM_NOTIFICATION = 'FCM_NOTIFICATION'
@@ -290,9 +291,6 @@ class Channel(TembaModel):
 
     gcm_id = models.CharField(verbose_name=_("GCM ID"), max_length=255, blank=True, null=True,
                               help_text=_("The registration id for using Google Cloud Messaging"))
-
-    fcm_id = models.CharField(verbose_name=_("FCM ID"), max_length=255, blank=True, null=True,
-                              help_text=_("The registration id for using Firebase Cloud Messaging"))
 
     claim_code = models.CharField(verbose_name=_("Claim Code"), max_length=16, blank=True, null=True, unique=True,
                                   help_text=_("The token the user will us to claim this channel"))
@@ -746,7 +744,10 @@ class Channel(TembaModel):
 
         # if device exists reset some of the settings (ok because device clearly isn't in use if it's registering)
         if existing:
-            existing.fcm_id = fcm_id
+            config = existing.config_json()
+            config.update({Channel.CONFIG_FCM_ID: fcm_id})
+
+            existing.config = json.dumps(config)
             existing.gcm_id = gcm_id
             existing.claim_code = cls.generate_claim_code()
             existing.secret = cls.generate_secret()
@@ -765,8 +766,9 @@ class Channel(TembaModel):
         claim_code = cls.generate_claim_code()
         secret = cls.generate_secret()
         anon = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+        config = {Channel.CONFIG_FCM_ID: fcm_id}
 
-        return Channel.create(None, anon, country, Channel.TYPE_ANDROID, None, None, fcm_id=fcm_id, gcm_id=gcm_id,
+        return Channel.create(None, anon, country, Channel.TYPE_ANDROID, None, None, gcm_id=gcm_id, config=config,
                               uuid=uuid, device=device, claim_code=claim_code, secret=secret)
 
     @classmethod
@@ -1177,16 +1179,18 @@ class Channel(TembaModel):
 
         # save off our org and gcm id before nullifying
         org = self.org
+        config = self.config_json()
+        fcm_id = config.pop(Channel.CONFIG_FCM_ID, None)
 
-        if self.fcm_id:
-            registration_id = self.fcm_id
+        if fcm_id is not None:
+            registration_id = fcm_id
         else:
             registration_id = self.gcm_id
 
         # remove all identifying bits from the client
         self.org = None
         self.gcm_id = None
-        self.fcm_id = None
+        self.config = json.dumps({})
         self.secret = None
         self.claim_code = None
         self.is_active = False
@@ -1217,11 +1221,14 @@ class Channel(TembaModel):
         """
         # androids sync via FCM or GCM(for old apps installs)
         if self.channel_type == Channel.TYPE_ANDROID:
-            if self.fcm_id:
+            config = self.config_json()
+            fcm_id = config.get(Channel.CONFIG_FCM_ID)
+
+            if fcm_id is not None:
                 if getattr(settings, 'FCM_API_KEY', None):
                     from .tasks import sync_channel_fcm_task
                     if not registration_id:
-                        registration_id = self.gcm_id
+                        registration_id = fcm_id
                     if registration_id:
                         on_transaction_commit(lambda: sync_channel_fcm_task.delay(registration_id, channel_id=self.pk))
 
@@ -1246,7 +1253,9 @@ class Channel(TembaModel):
             valid_registration_ids = push_service.clean_registration_ids([registration_id])
             if registration_id not in valid_registration_ids:
                 # this fcm id is invalid now, clear it out
-                channel.fcm_id = None
+                config = channel.config_json()
+                config.pop(Channel.CONFIG_FCM_ID, None)
+                channel.config = json.dumps(config)
                 channel.save()
 
     @classmethod
