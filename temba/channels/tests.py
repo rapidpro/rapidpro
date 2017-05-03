@@ -2289,7 +2289,7 @@ class ChannelTest(TembaTest):
         self.user.set_org(self.org)
 
         channel2 = Channel.create(self.org, self.user, 'RW', 'A', name="Test Channel 2", address="+250785551313",
-                                          role="SR", secret="12367", gcm_id="456")
+                                  role="SR", secret="12367", gcm_id="456")
 
         contact1 = self.create_contact("John Doe", '250788382382')
         contact2 = self.create_contact("John Doe", '250788383383')
@@ -2303,7 +2303,7 @@ class ChannelTest(TembaTest):
         contact2_urn.save()
 
         # send a broadcast to urn that have different preferred channels
-        bcast = self.send_message(['250788382382', '250788383383'], "How is it going?")
+        self.send_message(['250788382382', '250788383383'], "How is it going?")
 
         # Should contain messages for the the channel only
         response = self.sync(self.tel_channel)
