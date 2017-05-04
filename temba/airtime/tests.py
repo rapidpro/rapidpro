@@ -264,7 +264,6 @@ class AirtimeEventTest(TembaTest):
         self.assertEqual(airtime.status, AirtimeTransfer.SUCCESS)
         self.assertEqual(airtime.contact, self.contact)
         self.assertEqual(airtime.message, "Airtime Transferred Successfully")
-        import pdb; pdb.set_trace()
         self.assertEqual(mock_response.call_count, 3)
         self.assertTrue(({'action': 'msisdn_info', 'currency': 'USD', 'destination_msisdn': '+12065552020',
                           'delivered_amount_info': '1'},) in mock_response.call_args_list)
