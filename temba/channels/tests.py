@@ -2543,6 +2543,25 @@ class ChannelTest(TembaTest):
         # bad signature, should result in 401 Unauthorized
         self.assertEquals(401, self.sync(self.tel_channel, signature="badsig").status_code)
 
+    def test_ignore_android_incoming_msg_invalid_phone(self):
+        date = timezone.now()
+        date = int(time.mktime(date.timetuple())) * 1000
+
+        post_data = dict(cmds=[
+            dict(cmd="mo_sms", phone="_@", msg="First message", p_id="1", ts=date)])
+
+        response = self.sync(self.tel_channel, post_data)
+        self.assertEquals(200, response.status_code)
+
+        responses = response.json()
+        cmds = responses['cmds']
+
+        # check the server gave us responses for our message
+        r0 = self.get_response(cmds, '1')
+
+        self.assertIsNotNone(r0)
+        self.assertEqual(r0['cmd'], 'ack')
+
     def test_inbox_duplication(self):
 
         # if the connection gets interrupted but some messages succeed, we want to make sure subsequent
