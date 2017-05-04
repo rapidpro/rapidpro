@@ -273,7 +273,6 @@ class AirtimeEventTest(TembaTest):
                           'product': '0.5'},) in mock_response.call_args_list)
         mock_response.reset_mock()
 
-
     def test_list(self):
         list_url = reverse('airtime.airtimetransfer_list')
 
