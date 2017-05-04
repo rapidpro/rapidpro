@@ -1,3 +1,28 @@
+v3.0.132
+----------
+ * Migration to populate new translatable fields on old broadcasts. This migration is slow on a large database so it's
+   recommended that large deployments fake it and run it manually.
+
+v3.0.128
+----------
+ * Add new translatable fields to Broadcast and ensure they're populated for new stuff
+
+v3.0.127
+----------
+ * Fix autocomplete for items containing digits or other items
+ * Make autocomplete dropdown disappear when user clicks in input box
+ * Replace usages of "SMS" with "message" in editor
+ * Allow same subflow to be called without pause in between
+
+v3.0.126
+----------
+ * Fix exporting messages by a label folder
+ * Improve performance of org export page for large orgs
+ * Make it easier to enable/disable debug toolbar
+ * Increase channel logging for requests and responses
+ * Change contact api v1 to insert nonexistent fields
+ * Graceful termination of USSD sessions
+
 v3.0.125
 ----------
  * Don't show deleted flows on list page

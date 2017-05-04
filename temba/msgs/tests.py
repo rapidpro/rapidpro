@@ -45,27 +45,36 @@ class MsgTest(TembaTest):
         msg2 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
         msg3 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, we heard from you.")
 
-        commands = Msg.get_sync_commands(self.channel, [msg1, msg2, msg3])
+        commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg2.id, msg3.id)))
 
-        self.assertEquals(1, len(commands))
-        self.assertEquals(3, len(commands[0]['to']))
+        self.assertEqual(commands, [
+            {'cmd': 'mt_bcast', 'to': [
+                {'phone': "123", 'id': msg1.id},
+                {'phone': "321", 'id': msg2.id},
+                {'phone': "987", 'id': msg3.id}
+            ], 'msg': "Hello, we heard from you."}
+        ])
 
         msg4 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, there")
 
-        commands = Msg.get_sync_commands(self.channel, [msg1, msg2, msg4])
+        commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg2.id, msg4.id)))
 
-        self.assertEquals(2, len(commands))
-        self.assertEquals(2, len(commands[0]['to']))
-        self.assertEquals(1, len(commands[1]['to']))
+        self.assertEqual(commands, [
+            {'cmd': 'mt_bcast', 'to': [
+                {'phone': "123", 'id': msg1.id}, {'phone': "321", 'id': msg2.id}
+            ], 'msg': "Hello, we heard from you."},
+            {'cmd': 'mt_bcast', 'to': [{'phone': "987", 'id': msg4.id}], 'msg': "Hello, there"}
+        ])
 
         msg5 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
 
-        commands = Msg.get_sync_commands(self.channel, [msg1, msg4, msg5])
+        commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg4.id, msg5.id)))
 
-        self.assertEquals(3, len(commands))
-        self.assertEquals(1, len(commands[0]['to']))
-        self.assertEquals(1, len(commands[1]['to']))
-        self.assertEquals(1, len(commands[2]['to']))
+        self.assertEqual(commands, [
+            {'cmd': 'mt_bcast', 'to': [{'phone': "123", 'id': msg1.id}], 'msg': "Hello, we heard from you."},
+            {'cmd': 'mt_bcast', 'to': [{'phone': "987", 'id': msg4.id}], 'msg': "Hello, there"},
+            {'cmd': 'mt_bcast', 'to': [{'phone': "321", 'id': msg5.id}], 'msg': "Hello, we heard from you."}
+        ])
 
     def test_archive_and_release(self):
         msg1 = Msg.create_incoming(self.channel, 'tel:123', "Incoming")
@@ -703,7 +712,8 @@ class MsgTest(TembaTest):
         self.assertEqual('http://rapidpro.io/audio/sound.mp3', msg5.get_media_path())
 
         # label first message
-        label = Label.get_or_create(self.org, self.user, "la\02bel1")
+        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
+        label = Label.get_or_create(self.org, self.user, "la\02bel1", folder=folder)
         label.toggle_label([msg1], add=True)
 
         # archive last message
@@ -761,6 +771,12 @@ class MsgTest(TembaTest):
 
         # try export with user label
         self.assertExcelSheet(request_export('?l=%s' % label.uuid, {'export_all': 0}), [
+            ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+            [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"]
+        ], self.org.timezone)
+
+        # try export with user label folder
+        self.assertExcelSheet(request_export('?l=%s' % folder.uuid, {'export_all': 0}), [
             ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
             [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"]
         ], self.org.timezone)
@@ -924,17 +940,6 @@ class BroadcastTest(TembaTest):
         self.assertEqual('Q', broadcast.status)
         self.assertEqual(broadcast.get_message_count(), 4)
         self.assertEqual(set(broadcast.recipients.all()), {self.joe, self.frank, self.kevin, self.lucy})
-
-        bcast_commands = broadcast.get_sync_commands(self.channel)
-        self.assertEquals(1, len(bcast_commands))
-        self.assertEquals(3, len(bcast_commands[0]['to']))
-
-        # set our single message as sent
-        broadcast.get_messages().update(status='S')
-        self.assertEquals(0, len(broadcast.get_sync_commands(self.channel)))
-
-        # back to Q
-        broadcast.get_messages().update(status='Q')
 
         # after calling send, all messages are queued
         self.assertEquals(broadcast.status, 'Q')
@@ -1247,10 +1252,6 @@ class BroadcastTest(TembaTest):
                                           "Hi @contact.name, You live in @contact.sector and your team is @contact.team.",
                                           [self.joe_and_frank, self.kevin])
         self.broadcast.send(trigger_send=False)
-
-        # there should be three broadcast objects
-        broadcast_groups = self.broadcast.get_sync_commands(self.channel)
-        self.assertEquals(3, len(broadcast_groups))
 
         # no message created for Frank because he misses some fields for variables substitution
         self.assertEquals(Msg.objects.all().count(), 3)
@@ -1887,9 +1888,8 @@ class BroadcastLanguageTest(TembaTest):
         fre_msg = "Ceci est mon message"
 
         # now create a broadcast with a couple contacts, one with an explicit language, the other not
-        bcast = Broadcast.create(self.org, self.admin, "This is my new message",
-                                 [self.francois, self.greg, self.wilbert],
-                                 language_dict=json.dumps(dict(eng=eng_msg, fre=fre_msg)))
+        bcast = Broadcast.create(self.org, self.admin, dict(eng=eng_msg, fre=fre_msg),
+                                 [self.francois, self.greg, self.wilbert], base_language='eng')
 
         bcast.send()
 
@@ -1905,10 +1905,9 @@ class BroadcastLanguageTest(TembaTest):
         fre_attachment = 'image/jpeg:attachments/fre_picture.jpg'
 
         # now create a broadcast with a couple contacts, one with an explicit language, the other not
-        bcast = Broadcast.create(self.org, self.admin, "This is my new message with attachment",
-                                 [self.francois, self.greg, self.wilbert],
-                                 language_dict=json.dumps(dict(eng=eng_msg, fre=fre_msg)),
-                                 media_dict=json.dumps(dict(eng=eng_attachment, fre=fre_attachment)))
+        bcast = Broadcast.create(self.org, self.admin, dict(eng=eng_msg, fre=fre_msg),
+                                 [self.francois, self.greg, self.wilbert], base_language='eng',
+                                 media=dict(eng=eng_attachment, fre=fre_attachment))
 
         bcast.send()
 

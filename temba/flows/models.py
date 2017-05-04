@@ -750,13 +750,16 @@ class Flow(TembaModel):
                         child_runs = flow.start([], [run.contact], started_flows=started_flows,
                                                 restart_participants=True, extra=extra,
                                                 parent_run=run, interrupt=False)
-
-                        continue_parent = False
-                        for child_run in child_runs:
+                        if child_runs:
+                            child_run = child_runs[0]
                             msgs += child_run.start_msgs
-                            continue_parent |= getattr(child_run, 'continue_parent', False)
+                            continue_parent = getattr(child_run, 'continue_parent', False)
+                        else:  # pragma: no cover
+                            continue_parent = False
 
-                        if not continue_parent:
+                        if continue_parent:
+                            started_flows.remove(flow.id)
+                        else:
                             return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
 
             # find a matching rule
@@ -1586,20 +1589,12 @@ class Flow(TembaModel):
         # for each send action, we need to create a broadcast, we'll group our created messages under these
         broadcasts = []
         for send_action in send_actions:
-            message_text = self.get_localized_text(send_action.msg)
+            # check that we either have text or media, available for the base language
+            if (send_action.msg and send_action.msg.get(self.base_language)) or (send_action.media and send_action.media.get(self.base_language)):
 
-            # if we have localized versions, add those to our broadcast definition
-            language_dict = None
-            if isinstance(send_action.msg, dict):
-                language_dict = json.dumps(send_action.msg)
-
-            media_dict = None
-            if send_action.media:
-                media_dict = json.dumps(send_action.media)
-
-            if message_text or media_dict:
-                broadcast = Broadcast.create(self.org, self.created_by, message_text, [], media_dict=media_dict,
-                                             language_dict=language_dict, base_language=self.base_language,
+                broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
+                                             media=send_action.media,
+                                             base_language=self.base_language,
                                              send_all=send_action.send_all)
                 broadcast.update_contacts(all_contact_ids)
 
@@ -1859,55 +1854,30 @@ class Flow(TembaModel):
 
         return send_actions
 
-    def get_dependencies(self, dependencies=None, include_campaigns=True):
+    def get_dependencies(self, flow_map=None):
+        from temba.contacts.models import ContactGroup
 
         # need to make sure we have the latest version to inspect dependencies
         self.ensure_current_version()
 
-        if not dependencies:
-            dependencies = dict(flows=set(), groups=set(), campaigns=set(), triggers=set())
-
-        flows = set()
-        groups = set()
+        dependencies = set()
 
         # find all the flows we reference, note this won't include archived flows
         for action_set in self.action_sets.all():
             for action in action_set.get_actions():
                 if hasattr(action, 'flow'):
-                    flows.add(action.flow)
+                    dependencies.add(action.flow)
                 if hasattr(action, 'groups'):
                     for group in action.groups:
-                        if not isinstance(group, six.string_types):
-                            groups.add(group)
+                        if isinstance(group, ContactGroup):
+                            dependencies.add(group)
 
         for ruleset in self.rule_sets.all():
             if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-                flow = Flow.objects.filter(uuid=ruleset.config_json()['flow']['uuid']).first()
+                flow_uuid = ruleset.config_json()['flow']['uuid']
+                flow = flow_map.get(flow_uuid) if flow_map else Flow.objects.filter(uuid=flow_uuid).first()
                 if flow:
-                    flows.add(flow)
-
-        # add any campaigns that use our groups
-        campaigns = ()
-        if include_campaigns:
-            from temba.campaigns.models import Campaign
-            campaigns = set(Campaign.objects.filter(org=self.org, group__in=groups, is_archived=False, is_active=True))
-            for campaign in campaigns:
-                flows.update(list(campaign.get_flows()))
-
-        # and any of our triggers that reference us
-        from temba.triggers.models import Trigger
-        triggers = set(Trigger.objects.filter(org=self.org, flow=self, is_archived=False, is_active=True))
-
-        dependencies['flows'].update(flows)
-        dependencies['groups'].update(groups)
-        dependencies['campaigns'].update(campaigns)
-        dependencies['triggers'].update(triggers)
-
-        if self in dependencies['flows']:
-            return dependencies
-
-        for flow in flows:
-            dependencies = flow.get_dependencies(dependencies, include_campaigns=include_campaigns)
+                    dependencies.add(flow)
 
         return dependencies
 
@@ -5675,27 +5645,14 @@ class SendAction(VariableContactAction):
 
             # create our broadcast and send it
             if not run.contact.is_test:
-
-                # if we have localized versions, add those to our broadcast definition
-                language_dict = None
-                if isinstance(self.msg, dict):
-                    language_dict = json.dumps(self.msg)
-
-                message_text = run.flow.get_localized_text(self.msg)
-
-                media_dict = None
-                if self.media:
-                    media_dict = json.dumps(self.media)
-
-                # no message text and no media_dict? then no-op
-                if not message_text and not media_dict:
+                # no-op if neither text nor media are defined in the flow base language
+                if not (self.msg.get(flow.base_language) or self.media.get(flow.base_language)):
                     return list()
 
                 recipients = groups + contacts
 
-                broadcast = Broadcast.create(flow.org, flow.modified_by, message_text, recipients,
-                                             media_dict=media_dict, language_dict=language_dict,
-                                             base_language=flow.base_language)
+                broadcast = Broadcast.create(flow.org, flow.modified_by, self.msg, recipients,
+                                             media=self.media, base_language=flow.base_language)
                 broadcast.send(trigger_send=False, message_context=context)
                 return list(broadcast.get_messages())
 

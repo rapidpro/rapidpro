@@ -437,6 +437,7 @@ class FlowTest(TembaTest):
         # should have created a single broadcast
         broadcast = Broadcast.objects.get()
         self.assertEqual(broadcast.text, "What is your favorite color?")
+        self.assertEqual(broadcast.translations, {'base': "What is your favorite color?", 'fre': "Quelle est votre couleur préférée?"})
         self.assertEqual(set(broadcast.contacts.all()), {self.contact, self.contact2})
         self.assertEqual(broadcast.base_language, 'base')
 
@@ -5768,10 +5769,12 @@ class FlowsTest(FlowFileTest):
 
         # check we got our three messages, the third populated by the child, but sent form the parent
         msgs = Msg.objects.order_by('created_on')
-        self.assertEqual(3, msgs.count())
-        self.assertEqual("Message 1", msgs[0].text)
-        self.assertEqual("Message 2", msgs[1].text)
-        self.assertEqual("Message 3 (FLOW B)", msgs[2].text)
+        self.assertEqual(5, msgs.count())
+        self.assertEqual(msgs[0].text, "Message 1")
+        self.assertEqual(msgs[1].text, "Message 2/4")
+        self.assertEqual(msgs[2].text, "Message 3 (FLOW B)")
+        self.assertEqual(msgs[3].text, "Message 2/4")
+        self.assertEqual(msgs[4].text, "Message 5 (FLOW B)")
 
     def test_subflow_resumes(self):
         self.get_flow('subflow_resumes')
