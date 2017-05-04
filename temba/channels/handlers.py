@@ -20,6 +20,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
+from django_redis import get_redis_connection
 from guardian.utils import get_anonymous_user
 from requests import Request
 from temba.api.models import WebHookEvent
@@ -1044,7 +1045,7 @@ class MacroKioskHandler(BaseChannelHandler):
         elif action == 'receive':
 
             external_id = self.get_param('msgid')
-            message_date = datetime.strptime(self.get_param('time'), "%Y-%m-%d%H:%M:%S")
+            message_date = datetime.strptime(self.get_param('time'), "%Y-%m-%d %H:%M:%S")
             local_date = pytz.timezone('Asia/Kuala_Lumpur').localize(message_date)
             gmt_date = local_date.astimezone(pytz.utc)
 
@@ -1457,6 +1458,8 @@ class KannelHandler(BaseChannelHandler):
             sms_id = self.get_param('id')
             status_code = self.get_param('status')
 
+            r = get_redis_connection()
+
             if not sms_id and not status_code:  # pragma: needs cover
                 return HttpResponse("Missing one of 'id' or 'status' in request parameters.", status=400)
 
@@ -1488,7 +1491,7 @@ class KannelHandler(BaseChannelHandler):
                     sms_obj.status_delivered()
             elif status == FAILED:
                 for sms_obj in sms:
-                    sms_obj.status_fail()
+                    Msg.mark_error(r, channel, sms_obj)
 
             return HttpResponse("SMS Status Updated")
 
