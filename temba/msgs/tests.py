@@ -941,17 +941,6 @@ class BroadcastTest(TembaTest):
         self.assertEqual(broadcast.get_message_count(), 4)
         self.assertEqual(set(broadcast.recipients.all()), {self.joe, self.frank, self.kevin, self.lucy})
 
-        bcast_commands = broadcast.get_sync_commands(self.channel)
-        self.assertEquals(1, len(bcast_commands))
-        self.assertEquals(3, len(bcast_commands[0]['to']))
-
-        # set our single message as sent
-        broadcast.get_messages().update(status='S')
-        self.assertEquals(0, len(broadcast.get_sync_commands(self.channel)))
-
-        # back to Q
-        broadcast.get_messages().update(status='Q')
-
         # after calling send, all messages are queued
         self.assertEquals(broadcast.status, 'Q')
 
@@ -1263,10 +1252,6 @@ class BroadcastTest(TembaTest):
                                           "Hi @contact.name, You live in @contact.sector and your team is @contact.team.",
                                           [self.joe_and_frank, self.kevin])
         self.broadcast.send(trigger_send=False)
-
-        # there should be three broadcast objects
-        broadcast_groups = self.broadcast.get_sync_commands(self.channel)
-        self.assertEquals(3, len(broadcast_groups))
 
         # no message created for Frank because he misses some fields for variables substitution
         self.assertEquals(Msg.objects.all().count(), 3)
