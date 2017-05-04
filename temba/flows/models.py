@@ -2665,6 +2665,10 @@ class FlowRun(models.Model):
         # lastly delete ourselves
         self.delete()
 
+        # clear analytics results cache
+        for ruleset in self.flow.rule_sets.all():
+            Value.invalidate_cache(ruleset=ruleset)
+
     def set_completed(self, final_step=None, completed_on=None):
         """
         Mark a run as complete

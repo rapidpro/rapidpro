@@ -4509,9 +4509,12 @@ class FlowsTest(FlowFileTest):
         FlowCRUDL.RunTable.paginate_by = 100
         response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
         self.assertEqual(len(response.context['runs']), 2)
-        self.client.post(reverse('flows.flowrun_delete', args=[response.context['runs'][0].id]))
-        response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
-        self.assertEqual(len(response.context['runs']), 1)
+
+        with patch('temba.flows.models.Value.invalidate_cache') as mock_invalidate_cache:
+            self.client.post(reverse('flows.flowrun_delete', args=[response.context['runs'][0].id]))
+            response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
+            self.assertEqual(len(response.context['runs']), 1)
+            self.assertTrue(mock_invalidate_cache.called)
 
     def test_send_all_replies(self):
         flow = self.get_flow('send_all')
