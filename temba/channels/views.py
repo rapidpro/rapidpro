@@ -709,6 +709,19 @@ def sync(request, channel_id):
                         # no acking the gcm
                         handled = False
 
+                    elif keyword == 'fcm':
+                        # update our fcm and uuid
+
+                        channel.gcm_id = None
+                        config = channel.config_json()
+                        config.update({Channel.CONFIG_FCM_ID: cmd['fcm_id']})
+                        channel.config = json.dumps(config)
+                        channel.uuid = cmd.get('uuid', None)
+                        channel.save(update_fields=['uuid', 'config', 'gcm_id'])
+
+                        # no acking the gcm
+                        handled = False
+
                     elif keyword == 'reset':
                         # release this channel
                         channel.release(False)
