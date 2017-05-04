@@ -750,13 +750,16 @@ class Flow(TembaModel):
                         child_runs = flow.start([], [run.contact], started_flows=started_flows,
                                                 restart_participants=True, extra=extra,
                                                 parent_run=run, interrupt=False)
-
-                        continue_parent = False
-                        for child_run in child_runs:
+                        if child_runs:
+                            child_run = child_runs[0]
                             msgs += child_run.start_msgs
-                            continue_parent |= getattr(child_run, 'continue_parent', False)
+                            continue_parent = getattr(child_run, 'continue_parent', False)
+                        else:  # pragma: no cover
+                            continue_parent = False
 
-                        if not continue_parent:
+                        if continue_parent:
+                            started_flows.remove(flow.id)
+                        else:
                             return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
 
             # find a matching rule
