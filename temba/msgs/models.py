@@ -1041,28 +1041,26 @@ class Msg(models.Model):
             return parts
 
     @classmethod
-    def get_sync_commands(self, channel, msgs):
+    def get_sync_commands(cls, msgs):
         """
         Returns the minimal # of broadcast commands for the given Android channel to uniquely represent all the
         messages which are being sent to tel URNs. This will return an array of dicts that look like:
              dict(cmd="mt_bcast", to=[dict(phone=msg.contact.tel, id=msg.pk) for msg in msgs], msg=broadcast.text))
         """
         commands = []
-        current_msg = None
+        current_text = None
         contact_id_pairs = []
 
-        ordered_msgs = Msg.objects.filter(id__in=[m.id for m in msgs]).order_by('created_on')
-
-        for msg in ordered_msgs:
-            if msg.text != current_msg and contact_id_pairs:
-                commands.append(dict(cmd='mt_bcast', to=contact_id_pairs, msg=current_msg))
+        for m in msgs.values('id', 'text', 'contact_urn__path').order_by('created_on'):
+            if m['text'] != current_text and contact_id_pairs:
+                commands.append(dict(cmd='mt_bcast', to=contact_id_pairs, msg=current_text))
                 contact_id_pairs = []
 
-            current_msg = msg.text
-            contact_id_pairs.append(dict(phone=msg.contact_urn.path, id=msg.pk))
+            current_text = m['text']
+            contact_id_pairs.append(dict(phone=m['contact_urn__path'], id=m['id']))
 
         if contact_id_pairs:
-            commands.append(dict(cmd='mt_bcast', to=contact_id_pairs, msg=current_msg))
+            commands.append(dict(cmd='mt_bcast', to=contact_id_pairs, msg=current_text))
 
         return commands
 

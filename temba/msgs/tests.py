@@ -45,27 +45,36 @@ class MsgTest(TembaTest):
         msg2 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
         msg3 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, we heard from you.")
 
-        commands = Msg.get_sync_commands(self.channel, [msg1, msg2, msg3])
+        commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg2.id, msg3.id)))
 
-        self.assertEquals(1, len(commands))
-        self.assertEquals(3, len(commands[0]['to']))
+        self.assertEqual(commands, [
+            {'cmd': 'mt_bcast', 'to': [
+                {'phone': "123", 'id': msg1.id},
+                {'phone': "321", 'id': msg2.id},
+                {'phone': "987", 'id': msg3.id}
+            ], 'msg': "Hello, we heard from you."}
+        ])
 
         msg4 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, there")
 
-        commands = Msg.get_sync_commands(self.channel, [msg1, msg2, msg4])
+        commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg2.id, msg4.id)))
 
-        self.assertEquals(2, len(commands))
-        self.assertEquals(2, len(commands[0]['to']))
-        self.assertEquals(1, len(commands[1]['to']))
+        self.assertEqual(commands, [
+            {'cmd': 'mt_bcast', 'to': [
+                {'phone': "123", 'id': msg1.id}, {'phone': "321", 'id': msg2.id}
+            ], 'msg': "Hello, we heard from you."},
+            {'cmd': 'mt_bcast', 'to': [{'phone': "987", 'id': msg4.id}], 'msg': "Hello, there"}
+        ])
 
         msg5 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
 
-        commands = Msg.get_sync_commands(self.channel, [msg1, msg4, msg5])
+        commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg4.id, msg5.id)))
 
-        self.assertEquals(3, len(commands))
-        self.assertEquals(1, len(commands[0]['to']))
-        self.assertEquals(1, len(commands[1]['to']))
-        self.assertEquals(1, len(commands[2]['to']))
+        self.assertEqual(commands, [
+            {'cmd': 'mt_bcast', 'to': [{'phone': "123", 'id': msg1.id}], 'msg': "Hello, we heard from you."},
+            {'cmd': 'mt_bcast', 'to': [{'phone': "987", 'id': msg4.id}], 'msg': "Hello, there"},
+            {'cmd': 'mt_bcast', 'to': [{'phone': "321", 'id': msg5.id}], 'msg': "Hello, we heard from you."}
+        ])
 
     def test_archive_and_release(self):
         msg1 = Msg.create_incoming(self.channel, 'tel:123', "Incoming")
