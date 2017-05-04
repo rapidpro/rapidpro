@@ -4631,6 +4631,11 @@ class KannelTest(TembaTest):
 
         assertStatus(msg, '4', SENT)
         assertStatus(msg, '1', DELIVERED)
+        assertStatus(msg, '16', ERRORED)
+
+        # fail after 3 retries
+        msg.error_count = 3
+        msg.save()
         assertStatus(msg, '16', FAILED)
 
     def test_receive(self):
