@@ -41,7 +41,7 @@ def check_campaigns_task():
                 push_task(org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, fires=batch_ids))
 
             except Exception:  # pragma: no cover
-                fire_ids_str = ','.join(six.text_type(f.id) for f in fires)
+                fire_ids_str = ','.join(six.text_type(f.id) for f in fire_batch)
                 logger.error("Error queuing campaign event fires: %s" % fire_ids_str, exc_info=True)
 
 
