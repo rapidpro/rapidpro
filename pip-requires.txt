@@ -23,7 +23,6 @@ xlutils
 phonenumbers
 django-countries
 djangorestframework
-djangorestframework-xml
 iptools
 requests
 mock
@@ -62,3 +61,4 @@ openpyxl
 django-excel
 pyexcel-xls
 pyexcel-xlsx
+responses

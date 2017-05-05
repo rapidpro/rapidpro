@@ -40,28 +40,37 @@ window.updateSimulator = (data) ->
     direction = (if (msg.direction is "O") then "from" else "to")
 
     media_type = null
+    media_viewer_elt = null
     if msg.media
-      media_type = msg.media.split(':')[0]
+      parts = msg.media.split(':')
+
+      media_type = parts[0]
+      media_url = 'http:' + parts.slice(2).join(":")
+
       if media_type == 'geo'
         media_type = 'icon-pin_drop'
       else
         media_type = media_type.split('/')[0]
         if media_type == 'image'
           media_type = 'icon-photo_camera'
+          media_viewer_elt = "<span class=\"media-file\"><img src=\"" + media_url + "\"></span>"
         else if media_type == 'video'
           media_type = 'icon-videocam'
+          media_viewer_elt = "<span class=\"media-file\"><video controls src=\"" + media_url + "\"></span>"
         else if media_type == 'audio'
           media_type = 'icon-mic'
+          media_viewer_elt = "<span class=\"media-file\"><audio controls src=\"" + media_url + "\"></span>"
+
+
 
     ele = "<div class=\"" + model + " " + level + " " + direction + " " + ussd
     if media_type
       ele += " media-msg"
     ele += "\">"
-
-    if media_type
-      ele += "<span class=\"media-icon " + media_type + "\"></span>"
-    else
-      ele += msg.text
+    ele += msg.text
+    
+    if media_type and media_viewer_elt
+      ele += media_viewer_elt
 
     ele += "</div>"
 
@@ -315,7 +324,7 @@ $("#simulator .send-message").on "click", ->
   # add the progress gif
   if window.ussd and newMessage.length <= 182
     appendMessage newMessage, true
-  else if newMessage.length <= 160
+  else if newMessage.length <= 160 and newMessage.length > 0
     appendMessage newMessage
 
 # send new message on key press (enter)
@@ -350,11 +359,20 @@ verifyNumberSimulator = ->
         showSimulator(true)
     modal.show()
 
+  else if window.ussd and not window.has_ussd_channel
+    modal = new Modal(gettext("Missing USSD Channel"), gettext("There is no channel that supports USSD connected. Please connect a USSD channel first."))
+    modal.setIcon("icon-phone")
+    modal.setListeners
+      onPrimary: ->
+        modal.dismiss()
+    modal.show()
   else
     showSimulator()
 
 $("#show-simulator").click ->
-    verifyNumberSimulator()
+  console.log(window.ussd)
+  console.log(window.has_ussd_channel)
+  verifyNumberSimulator()
 
 # toggle simulator
 $("#toggle-simulator").on "click", ->

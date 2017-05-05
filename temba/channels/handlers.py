@@ -12,17 +12,17 @@ import xml.etree.ElementTree as ET
 
 from datetime import datetime
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from guardian.utils import get_anonymous_user
 from requests import Request
-from temba.api.models import WebHookEvent, SMS_RECEIVED
+from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow, FlowRun, FlowStep
@@ -31,9 +31,9 @@ from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, 
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
 from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit
-from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
+from temba.utils import decode_base64
 from twilio import twiml
 from .tasks import fb_channel_subscribe
 
@@ -45,7 +45,7 @@ class BaseChannelHandler(View):
     url = None
     url_name = None
 
-    @disable_middleware
+    @csrf_exempt
     def dispatch(self, request, *args, **kwargs):
         return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
 
@@ -204,8 +204,7 @@ class TwimlAPIHandler(BaseChannelHandler):
             validator = RequestValidator(client.auth[1])
 
             if not validator.validate(url, request.POST, signature):  # pragma: needs cover
-                # raise an exception that things weren't properly signed
-                raise ValidationError("Invalid request signature")
+                return HttpResponse("Invalid request signature.", status=400)
 
             # queued, sending, sent, failed, or received.
             if status == 'sent':
@@ -234,8 +233,7 @@ class TwimlAPIHandler(BaseChannelHandler):
             validator = RequestValidator(client.auth[1])
 
             if not validator.validate(url, request.POST, signature):
-                # raise an exception that things weren't properly signed
-                raise ValidationError("Invalid request signature")
+                return HttpResponse("Invalid request signature.", status=400)
 
             body = request.POST['Body']
             urn = URN.from_tel(request.POST['From'])
@@ -247,6 +245,8 @@ class TwimlAPIHandler(BaseChannelHandler):
                 Msg.create_incoming(channel, urn, path, media=media_url)
 
             if body:
+                # Twilio sometimes sends concat sms as base64 encoded MMS
+                body = decode_base64(body)
                 Msg.create_incoming(channel, urn, body)
 
             return HttpResponse("", status=201)
@@ -314,8 +314,7 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
             validator = RequestValidator(client.auth[1])
 
             if not validator.validate(url, request.POST, signature):
-                # raise an exception that things weren't properly signed
-                raise ValidationError("Invalid request signature")
+                return HttpResponse("Invalid request signature.", status=400)
 
             Msg.create_incoming(channel, URN.from_tel(request.POST['From']), request.POST['Body'])
 
@@ -1000,6 +999,70 @@ class SMSCentralHandler(BaseChannelHandler):
 
             Msg.create_incoming(channel, URN.from_tel(from_number), message)
             return HttpResponse("")
+
+        return HttpResponse("Unrecognized action: %s" % action, status=400)  # pragma: needs cover
+
+
+class MacroKioskHandler(BaseChannelHandler):
+
+    url = r'^macrokiosk/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.macrokiosk_handler'
+
+    def get(self, request, *args, **kwargs):
+        return self.post(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+
+        channel_uuid = kwargs['uuid']
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_MACROKIOSK).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
+
+        action = kwargs['action'].lower()
+
+        # Update on the status of a sent message
+        if action == 'status':
+            msg_id = self.get_param('msgid')
+            status = self.get_param('status')
+
+            # look up the message
+            sms = Msg.objects.filter(channel=channel, external_id=msg_id).select_related('channel').first()
+            if not sms:
+                return HttpResponse("No SMS message with id: %s" % msg_id, status=400)
+
+            if status == 'ACCEPTED':
+                sms.status_sent()
+            elif status == 'DELIVERED':
+                sms.status_delivered()
+            elif status == 'UNDELIVERED':
+                sms.status_fail()
+
+            return HttpResponse("")
+
+        # An MO message
+        elif action == 'receive':
+
+            external_id = self.get_param('msgid')
+            message_date = datetime.strptime(self.get_param('time'), "%Y-%m-%d%H:%M:%S")
+            gmt_date = pytz.timezone('GMT').localize(message_date)
+
+            text = self.get_param('text')
+            if self.get_param('shortcode'):
+                from_number = self.get_param('from')
+                to_number = self.get_param('shortcode')
+            else:
+                from_number = self.get_param('msisdn')
+                to_number = self.get_param('longcode')
+
+            if to_number is None or from_number is None or text is None:
+                return HttpResponse("Missing shortcode, longcode, from, msisdn or text parameters", status=400)
+
+            if channel.address != to_number:
+                return HttpResponse("Invalid to number [%s], expecting [%s]" % (to_number, channel.address), status=400)
+
+            Msg.create_incoming(channel, URN.from_tel(from_number), text, date=gmt_date, external_id=external_id)
+            return HttpResponse("-1")
 
         return HttpResponse("Unrecognized action: %s" % action, status=400)  # pragma: needs cover
 
@@ -1714,7 +1777,7 @@ class MageHandler(BaseChannelHandler):
                       dict(type=MSG_EVENT, id=msg.id, from_mage=True, new_contact=new_contact))
 
             # fire an event off for this message
-            WebHookEvent.trigger_sms_event(SMS_RECEIVED, msg, msg.created_on)
+            WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, msg.created_on)
         elif action == 'follow_notification':
             try:
                 channel_id = int(request.POST.get('channel_id', ''))
@@ -1937,15 +2000,13 @@ class JunebugHandler(BaseChannelHandler):
         data = json.load(request)
         is_ussd = self.is_ussd_message(data)
         channel_data = data.get('channel_data', {})
-        channel_type = (Channel.TYPE_JUNEBUG_USSD
-                        if is_ussd
-                        else Channel.TYPE_JUNEBUG)
+        channel_types = (Channel.TYPE_JUNEBUG_USSD, Channel.TYPE_JUNEBUG)
 
         # look up the channel
         channel = Channel.objects.filter(
             uuid=request_uuid,
             is_active=True,
-            channel_type=channel_type).exclude(org=None).first()
+            channel_type__in=channel_types).exclude(org=None).first()
 
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)

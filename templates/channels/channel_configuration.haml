@@ -226,6 +226,35 @@
     %code
       https://{{ domain }}{% url 'handlers.infobip_handler' 'delivered' object.uuid %}
 
+  -elif object.channel_type == 'MK'
+    %h4
+      -blocktrans
+        To finish configuring your MACROKIOSK connection you'll need to notify MACROKIOSK of the following URLs.
+
+    %hr
+
+    %h4
+      -trans "Inbound URL"
+
+    %p
+      -blocktrans
+        This endpoint should be called by MACROKIOSK when new messages are received to your number.
+
+    %code
+      https://{{ domain }}{% url 'handlers.macrokiosk_handler' 'receive' object.uuid %}
+
+    %hr
+
+    %h4
+      -trans "DLR URL"
+
+    %p
+      -blocktrans
+        This endpoint should be called by MACROKIOSK when the message status changes. (delivery reports)
+
+    %code
+      https://{{ domain }}{% url 'handlers.macrokiosk_handler' 'status' object.uuid %}
+
   -elif object.channel_type == 'BM'
     %h4
       -blocktrans
@@ -648,7 +677,7 @@
     %code
       https://{{ domain }}{% url 'handlers.jasmin_handler' 'receive' object.uuid %}
 
-  -elif object.channel_type == 'JN'
+  -elif object.channel_type == 'JN' or object.channel_type == 'JNU'
     %h4
       -blocktrans
         As a last step you'll need to configure Junebug to call the following URL for MO (incoming) messages.

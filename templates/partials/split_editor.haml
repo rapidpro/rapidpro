@@ -156,7 +156,8 @@
     %form{name:'ruleForm'}
       %span{ng-if:'hasRules() && formData.rulesetConfig.type != "wait_menu"'}
         %div{ui-sortable:"sortableOptions",ng-model:"ruleset.rules"}
-          .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid",ng-show:'rule._config.show'}
+          .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid", ng-show:"isRuleVisible(rule)"}
+
             <ng-form name="inner">
               .icon.icon-menu
               %select{ng-model:"rule._config",ng-options:'operator as operator.verbose_name for operator in operatorConfigs|filter:isVisibleOperator', class:"operator-select",ng-change:"updateCategory(rule)"}
