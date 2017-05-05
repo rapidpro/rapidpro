@@ -72,6 +72,14 @@ class TriggerTest(TembaTest):
         response = self.client.get(reverse('triggers.trigger_list'))
         self.assertContains(response, 'startkeyword')
 
+        response = self.client.get(reverse('triggers.trigger_list') + '?search=Key')
+        self.assertContains(response, 'startkeyword')
+        self.assertTrue(response.context['object_list'])
+
+        response = self.client.get(reverse('triggers.trigger_list') + '?search=Tottenham')
+        self.assertNotContains(response, 'startkeyword')
+        self.assertFalse(response.context['object_list'])
+
         # archive it
         post_data = dict(action='archive', objects=trigger.pk)
         self.client.post(reverse('triggers.trigger_list'), post_data)
