@@ -196,9 +196,9 @@ class Broadcast(models.Model):
     parent = models.ForeignKey('Broadcast', verbose_name=_("Parent"), null=True, related_name='children')
 
     translations = TranslatableField(verbose_name=_("Translations"), max_length=settings.MSG_FIELD_SIZE,
-                                     help_text=_("The localized versions of the message text"), null=True)
+                                     help_text=_("The localized versions of the message text"))
 
-    base_language = models.CharField(max_length=4, null=True, blank=True,
+    base_language = models.CharField(max_length=4,
                                      help_text=_('The language used to send this to contacts without a language'))
 
     is_active = models.BooleanField(default=True, help_text="Whether this broadcast is active")
