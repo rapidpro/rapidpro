@@ -92,7 +92,7 @@ class AdminBoundaryReadSerializer(ReadSerializer):
 
 
 class BroadcastReadSerializer(ReadSerializer):
-    text = fields.TranslatableField(source='translations')
+    text = fields.TranslatableField()
     urns = serializers.SerializerMethodField()
     contacts = fields.ContactField(many=True)
     groups = fields.ContactGroupField(many=True)
@@ -133,11 +133,11 @@ class BroadcastWriteSerializer(WriteSerializer):
             contact_urn = contact.urn_objects[urn]
             recipients.append(contact_urn)
 
-        translations, base_language = self.validated_data['text']
+        text, base_language = self.validated_data['text']
 
         # create the broadcast
         broadcast = Broadcast.create(self.context['org'], self.context['user'],
-                                     translations, base_language=base_language,
+                                     text=text, base_language=base_language,
                                      recipients=recipients, channel=self.validated_data.get('channel'))
 
         # send in task

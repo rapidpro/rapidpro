@@ -195,8 +195,8 @@ class Broadcast(models.Model):
 
     parent = models.ForeignKey('Broadcast', verbose_name=_("Parent"), null=True, related_name='children')
 
-    translations = TranslatableField(verbose_name=_("Translations"), max_length=settings.MSG_FIELD_SIZE,
-                                     help_text=_("The localized versions of the message text"))
+    text = TranslatableField(verbose_name=_("Translations"), max_length=settings.MSG_FIELD_SIZE,
+                             help_text=_("The localized versions of the message text"))
 
     base_language = models.CharField(max_length=4,
                                      help_text=_('The language used to send this to contacts without a language'))
@@ -225,24 +225,20 @@ class Broadcast(models.Model):
                                    help_text="Whether this broadcast should send to all URNs for each contact")
 
     @classmethod
-    def create(cls, org, user, translations, recipients, base_language=None, channel=None, media=None, send_all=False, **kwargs):
-        if isinstance(translations, dict):
-            if not base_language:  # pragma: no cover
-                raise ValueError("Base language must be provided when translations is a dict")
-            elif base_language not in translations:  # pragma: no cover
-                raise ValueError("Base language %s doesn't exist in the provided translations dict" % base_language)
-        else:
+    def create(cls, org, user, text, recipients, base_language=None, channel=None, media=None, send_all=False, **kwargs):
+        # for convenience broadcasts can still be created with single translation and no base_language
+        if isinstance(text, six.string_types):
             base_language = org.primary_language.iso_code if org.primary_language else 'base'
-            translations = {base_language: translations}
+            text = {base_language: text}
 
+        if base_language not in text:  # pragma: no cover
+            raise ValueError("Base language %s doesn't exist in the provided translations dict" % base_language)
         if media and base_language not in media:  # pragma: no cover
             raise ValueError("Base language %s doesn't exist in the provided translations dict")
 
-        create_args = dict(org=org, channel=channel, send_all=send_all,
-                           base_language=base_language, translations=translations, media=media,
-                           created_by=user, modified_by=user)
-        create_args.update(kwargs)
-        broadcast = cls.objects.create(**create_args)
+        broadcast = cls.objects.create(org=org, channel=channel, send_all=send_all,
+                                       base_language=base_language, text=text, media=media,
+                                       created_by=user, modified_by=user, **kwargs)
         broadcast.update_recipients(recipients)
         return broadcast
 
@@ -312,9 +308,9 @@ class Broadcast(models.Model):
 
     def fire(self):
         recipients = list(self.urns.all()) + list(self.contacts.all()) + list(self.groups.all())
-        broadcast = Broadcast.create(self.org, self.created_by, self.translations, recipients,
+        broadcast = Broadcast.create(self.org, self.created_by, self.text, recipients,
                                      media=self.media, base_language=self.base_language,
-                                     parent=self, modified_by=self.modified_by)
+                                     parent=self)
 
         broadcast.send(trigger_send=True)
 
@@ -372,7 +368,7 @@ class Broadcast(models.Model):
         Gets the appropriate translation for the given contact
         """
         preferred_languages = self.get_preferred_languages(contact, org)
-        return Language.get_localized_text(self.translations, preferred_languages)
+        return Language.get_localized_text(self.text, preferred_languages)
 
     def get_translated_media(self, contact, org=None):
         """

@@ -37,4 +37,9 @@ class Migration(migrations.Migration):
             field=temba.utils.models.TranslatableField(help_text='The localized versions of the message text',
                                                        max_length=640, verbose_name='Translations'),
         ),
+        migrations.RenameField(
+            model_name='broadcast',
+            old_name='translations',
+            new_name='text',
+        ),
     ]

@@ -436,7 +436,7 @@ class FlowTest(TembaTest):
 
         # should have created a single broadcast
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.translations, {'base': "What is your favorite color?", 'fre': "Quelle est votre couleur préférée?"})
+        self.assertEqual(broadcast.text, {'base': "What is your favorite color?", 'fre': "Quelle est votre couleur préférée?"})
         self.assertEqual(set(broadcast.contacts.all()), {self.contact, self.contact2})
         self.assertEqual(broadcast.base_language, 'base')
 
@@ -3068,7 +3068,7 @@ class ActionTest(TembaTest):
         self.assertEqual(action.media, dict())
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.translations, dict(base=msg_body))
+        self.assertEqual(broadcast.text, dict(base=msg_body))
         self.assertEqual(broadcast.base_language, 'base')
         self.assertEqual(broadcast.get_messages().count(), 1)
         msg = broadcast.get_messages().first()
@@ -3137,7 +3137,7 @@ class ActionTest(TembaTest):
         self.execute_action(action, run, None)
 
         broadcast = Broadcast.objects.order_by('-id').first()
-        self.assertEqual(broadcast.translations, dict(base=""))
+        self.assertEqual(broadcast.text, dict(base=""))
         self.assertEqual(broadcast.media, dict(base='image/jpeg:attachments/picture.jpg'))
         self.assertEqual(broadcast.base_language, 'base')
 
