@@ -1413,7 +1413,7 @@ class APITest(TembaTest):
         broadcast = serializer.save()
         contact = Contact.objects.get(urns__path='+250964150000')
         self.assertEqual(set(broadcast.contacts.all()), {contact, self.joe})
-        self.assertEqual(broadcast.translations, {'base': 'Hello1'})
+        self.assertEqual(broadcast.text, {'base': 'Hello1'})
 
         # try again with explicit channel
         serializer = MsgCreateSerializer(org=self.org, user=self.admin, data={
@@ -1425,7 +1425,7 @@ class APITest(TembaTest):
 
         broadcast = serializer.save()
         self.assertEqual(broadcast.channel, self.channel)
-        self.assertEqual(broadcast.translations, {'base': 'Hello2'})
+        self.assertEqual(broadcast.text, {'base': 'Hello2'})
 
         # try with channel that isn't ours
         serializer = MsgCreateSerializer(org=self.org, user=self.admin, data={

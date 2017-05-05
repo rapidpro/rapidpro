@@ -600,7 +600,7 @@ class APITest(TembaTest):
         })
 
         broadcast = Broadcast.objects.get(pk=response.json()['id'])
-        self.assertEqual(broadcast.translations, {'base': "Hello"})
+        self.assertEqual(broadcast.text, {'base': "Hello"})
         self.assertEqual(set(broadcast.urns.values_list('urn', flat=True)), {"twitter:franky"})
         self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
         self.assertEqual(set(broadcast.groups.all()), {reporters})
@@ -613,7 +613,7 @@ class APITest(TembaTest):
         })
 
         broadcast = Broadcast.objects.get(pk=response.json()['id'])
-        self.assertEqual(broadcast.translations, {'base': "Hello", 'fre': "Bonjour"})
+        self.assertEqual(broadcast.text, {'base': "Hello", 'fre': "Bonjour"})
         self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
 
         # try sending as a suspended org
