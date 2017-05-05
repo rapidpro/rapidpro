@@ -554,6 +554,7 @@ class TriggerCRUDL(SmartCRUDL):
         fields = ('name', 'modified_on')
         default_template = 'triggers/trigger_list.html'
         default_order = ('-last_triggered', '-modified_on')
+        search_fields = ('keyword__icontains', 'flow__name__icontains', 'channel__name__icontains')
 
         def get_context_data(self, **kwargs):
             context = super(TriggerCRUDL.BaseList, self).get_context_data(**kwargs)
