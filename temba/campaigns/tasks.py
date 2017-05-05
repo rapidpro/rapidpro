@@ -11,6 +11,7 @@ from django_redis import get_redis_connection
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.msgs.models import HANDLER_QUEUE, HANDLE_EVENT_TASK, FIRE_EVENT
 from temba.utils import chunk_list
+from temba.utils.cache import filter_by_lock
 from temba.utils.queues import push_task, nonoverlapping_task
 
 
@@ -22,26 +23,33 @@ def check_campaigns_task():
     """
     See if any event fires need to be triggered
     """
+    from temba.flows.models import Flow
+
     unfired = EventFire.objects.filter(fired=None, scheduled__lte=timezone.now())
-    unfired = unfired.select_related('event')
+    unfired = unfired.values('id', 'event__flow_id')
+
+    # ignore any fires which have been queued by previous calls to this task but haven't yet been marked as fired
+    unfired = filter_by_lock(unfired, 'locked_event_fires', lambda f: f['id'])
 
     # group fire events by flow so they can be batched
-    fires_by_flow_id = defaultdict(list)
+    fire_ids_by_flow_id = defaultdict(list)
     for fire in unfired:
-        fires_by_flow_id[fire.event.flow_id].append(fire)
+        fire_ids_by_flow_id[fire['event__flow_id']].append(fire['id'])
+
+    # fetch the flows used by all these event fires
+    flows_by_id = {flow.id: flow for flow in Flow.objects.filter(id__in=fire_ids_by_flow_id.keys())}
 
     # create queued tasks
-    for flow_id, fires in six.iteritems(fires_by_flow_id):
-        org_id = fires[0].contact.org_id
+    for flow_id, fire_ids in six.iteritems(fire_ids_by_flow_id):
+        flow = flows_by_id[flow_id]
 
         # create sub-batches no no single task is too big
-        for fire_batch in chunk_list(fires, 500):
+        for fire_id_batch in chunk_list(fire_ids, 500):
             try:
-                batch_ids = [f.id for f in fire_batch]
-                push_task(org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, fires=batch_ids))
+                push_task(flow.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, fires=fire_id_batch))
 
             except Exception:  # pragma: no cover
-                fire_ids_str = ','.join(six.text_type(f.id) for f in fire_batch)
+                fire_ids_str = ','.join(six.text_type(f.id) for f in fire_id_batch)
                 logger.error("Error queuing campaign event fires: %s" % fire_ids_str, exc_info=True)
 
 
