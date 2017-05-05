@@ -452,7 +452,16 @@ class EventFire(Model):
         """
         self.fired = timezone.now()
         self.event.flow.start([], [self.contact], restart_participants=True)
-        self.save()
+        self.save(update_fields=('fired',))
+
+    @classmethod
+    def batch_fire(cls, fires, flow):
+        """
+        Starts a batch of event fires that are for events which use the same flow
+        """
+        fired = timezone.now()
+        flow.start([], [f.contact for f in fires], restart_participants=True)
+        fires.update(fired=fired)
 
     @classmethod
     def update_campaign_events(cls, campaign):

@@ -241,7 +241,6 @@ def handle_event_task():
        timeout - Which contains a run that timed out and needs to be resumed
     """
     from temba.campaigns.models import EventFire
-    r = get_redis_connection()
 
     # pop off the next task
     org_id, event_task = start_task(HANDLE_EVENT_TASK)
@@ -255,17 +254,20 @@ def handle_event_task():
             process_message_task(event_task)
 
         elif event_task['type'] == FIRE_EVENT:
-            # use a lock to make sure we don't do two at once somehow
-            key = 'fire_campaign_%s' % event_task['id']
-            if not r.get(key):
-                with r.lock(key, timeout=120):
-                    event = EventFire.objects.filter(pk=event_task['id'], fired=None)\
-                                             .select_related('event', 'event__campaign', 'event__campaign__org').first()
-                    if event:
-                        print("E[%09d] Firing for org: %s" % (event.id, event.event.campaign.org.name))
-                        start = time.time()
-                        event.fire()
-                        print("E[%09d] %08.3f s" % (event.id, time.time() - start))
+            fire_ids = event_task.get('fires') if 'fires' in event_task else [event_task.get('id')]
+            fires = EventFire.objects.filter(id__in=fire_ids, fired=None)
+            fires = fires.prefetch_related('contact')
+
+            if fires.exists():
+                # event fires are batched by flow so we can assume this is the same flow for all events
+                flow = fires[0].event.flow
+
+                print("[%s] Batch firing %d events..." % (flow.org.name, len(fires)))
+                start = time.time()
+
+                EventFire.batch_fire(fires, flow)
+
+                print("[%s] Finished batch firing %d events in %.3f s" % (flow.org.name, len(fires), time.time() - start))
 
         elif event_task['type'] == TIMEOUT_EVENT:
             timeout_on = json_date_to_datetime(event_task['timeout_on'])
