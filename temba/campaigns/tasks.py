@@ -10,6 +10,7 @@ from django.utils import timezone
 from django_redis import get_redis_connection
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.msgs.models import HANDLER_QUEUE, HANDLE_EVENT_TASK, FIRE_EVENT
+from temba.utils import chunk_list
 from temba.utils.queues import push_task, nonoverlapping_task
 
 
@@ -22,7 +23,7 @@ def check_campaigns_task():
     See if any event fires need to be triggered
     """
     unfired = EventFire.objects.filter(fired=None, scheduled__lte=timezone.now())
-    unfired = unfired.select_related('contact', 'event')
+    unfired = unfired.select_related('event')
 
     # group fire events by flow so they can be batched
     fires_by_flow_id = defaultdict(list)
@@ -31,12 +32,17 @@ def check_campaigns_task():
 
     # create queued tasks
     for flow_id, fires in six.iteritems(fires_by_flow_id):
-        try:
-            push_task(fire.contact.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, fires=[f.id for f in fires]))
+        org_id = fires[0].contact.org_id
 
-        except Exception:  # pragma: no cover
-            fire_ids_str = ','.join(six.text_type(f.id) for f in fires)
-            logger.error("Error queuing campaign event fires: %s" % fire_ids_str, exc_info=True)
+        # create sub-batches no no single task is too big
+        for fire_batch in chunk_list(fires, 500):
+            try:
+                batch_ids = [f.id for f in fire_batch]
+                push_task(org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, fires=batch_ids))
+
+            except Exception:  # pragma: no cover
+                fire_ids_str = ','.join(six.text_type(f.id) for f in fires)
+                logger.error("Error queuing campaign event fires: %s" % fire_ids_str, exc_info=True)
 
 
 @task(track_started=True, name='update_event_fires_task')  # pragma: no cover

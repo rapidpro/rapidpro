@@ -262,12 +262,12 @@ def handle_event_task():
                 # event fires are batched by flow so we can assume this is the same flow for all events
                 flow = fires[0].event.flow
 
-                print("[%s] Batch firing %d events..." % (flow.org.name, len(fires)))
-                start = time.time()
+                print("E[%s][%s] Batch firing %d events..." % (flow.org.name, flow.name, len(fires)))
 
+                start = time.time()
                 EventFire.batch_fire(fires, flow)
 
-                print("[%s] Finished batch firing %d events in %.3f s" % (flow.org.name, len(fires), time.time() - start))
+                print("E[%s][%s] Finished batch firing events in %.3f s" % (flow.org.name, flow.name, time.time() - start))
 
         elif event_task['type'] == TIMEOUT_EVENT:
             timeout_on = json_date_to_datetime(event_task['timeout_on'])
