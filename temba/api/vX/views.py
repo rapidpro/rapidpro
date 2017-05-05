@@ -23,9 +23,11 @@ class FlowEndpoint(View):
         except:
             raise Http404()  
 
-        response = { 'flow': obj.as_json(expand_contacts=True) }
+        flow = obj.as_json(expand_contacts=True)
+        flow['id'] = obj.id
+        response = { 'flow': flow }
         return JsonResponse(response, json_dumps_params=params)
-            
+    
     def post(self, request):               
         obj = None
         org = request.user.get_org()
@@ -64,5 +66,7 @@ class FlowEndpoint(View):
             )
         obj.update(flow)
             
-        response = { 'flow': obj.as_json(expand_contacts=True) }
+        flow = obj.as_json(expand_contacts=True)
+        flow['id'] = obj.id
+        response = { 'flow': flow }
         return JsonResponse(response, json_dumps_params=params)
