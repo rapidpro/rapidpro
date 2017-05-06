@@ -66,20 +66,20 @@ def incrby_existing(key, delta, r=None):
     r.eval(lua, 1, key, delta)
 
 
-def filter_by_lock(items, lock_prefix, lock_on):
+def filter_with_lock(items, lock_prefix, lock_on=None):
     """
-    Takes a set of objects and returns only those we have exclusive access to
+    Takes a set of objects and returns only those we are able to get a lock for
     """
     r = get_redis_connection()
 
-    key_format = lock_prefix + ':%y_%m_%d'
+    key_format = lock_prefix + '_%y_%m_%d'
     today_set_key = timezone.now().strftime(key_format)
     yesterday_set_key = (timezone.now() - timedelta(days=1)).strftime(key_format)
 
     locked_items = []
 
     for item in items:
-        item_value = str(lock_on(item))
+        item_value = str(lock_on(item)) if lock_on else str(item)
 
         # check whether we locked this item today or yesterday
         pipe = r.pipeline()

@@ -4,13 +4,11 @@ import time
 
 from celery.task import task
 from django.utils import timezone
-from django_redis import get_redis_connection
-from datetime import timedelta
 from temba.msgs.models import Broadcast, Msg, TIMEOUT_EVENT, HANDLER_QUEUE, HANDLE_EVENT_TASK
 from temba.orgs.models import Org
 from temba.utils import datetime_to_epoch
-from temba.utils.queues import start_task, complete_task
-from temba.utils.queues import push_task, nonoverlapping_task
+from temba.utils.cache import filter_with_lock
+from temba.utils.queues import start_task, complete_task, push_task, nonoverlapping_task
 from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
 from .models import FlowRunCount, FlowNodeCount, FlowPathCount, FlowPathRecentStep
 
@@ -50,31 +48,17 @@ def check_flow_timeouts_task():
     """
     See if any flow runs have timed out
     """
-    r = get_redis_connection()
-
     # find any runs that should have timed out
     runs = FlowRun.objects.filter(is_active=True, timeout_on__lte=timezone.now())
     runs = runs.only('id', 'org', 'timeout_on')
     for run in runs:
-        run_key = '%d:%d' % (run.id, datetime_to_epoch(run.timeout_on))
+        # ignore any run which was locked by previous calls to this task
+        locked_runs = filter_with_lock([run], 'flow_timeouts', lambda r: '%d:%d' % (r.id, datetime_to_epoch(r.timeout_on)))
 
-        # check whether we have already queued this timeout
-        pipe = r.pipeline()
-        pipe.sismember(timezone.now().strftime(FLOW_TIMEOUT_KEY), run_key)
-        pipe.sismember((timezone.now() - timedelta(days=1)).strftime(FLOW_TIMEOUT_KEY), run_key)
-        (queued_today, queued_yesterday) = pipe.execute()
-
-        # if not, add a task to handle the timeout
-        if not queued_today and not queued_yesterday:
-            push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK,
-                      dict(type=TIMEOUT_EVENT, run=run.id, timeout_on=run.timeout_on))
-
-            # tag this run as being worked on so we don't double queue
-            pipe = r.pipeline()
-            sent_key = timezone.now().strftime(FLOW_TIMEOUT_KEY)
-            pipe.sadd(sent_key, run_key)
-            pipe.expire(sent_key, 86400)
-            pipe.execute()
+        if locked_runs:
+            run = locked_runs[0]
+            task_payload = dict(type=TIMEOUT_EVENT, run=run.id, timeout_on=run.timeout_on)
+            push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, task_payload)
 
 
 @task(track_started=True, name='continue_parent_flows')  # pragma: no cover

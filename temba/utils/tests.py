@@ -31,7 +31,7 @@ from . import format_decimal, slugify_with, str_to_datetime, str_to_time, date_t
 from . import json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, clean_string
 from . import datetime_to_str, chunk_list, get_country_code_by_name, datetime_to_epoch, voicexml
-from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing, filter_by_lock
+from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing, filter_with_lock
 from .currencies import currency_for_country
 from .email import send_simple_email, is_valid_address
 from .export import TableExporter
@@ -337,15 +337,15 @@ class CacheTest(TembaTest):
         incrby_existing('xxx', -2, r)  # non-existent key
         self.assertIsNone(r.get('xxx'))
 
-    def test_filter_by_lock(self):
+    def test_filter_with_lock(self):
         items1 = [dict(id=1), dict(id=2), dict(id=3)]
-        locked_items1 = filter_by_lock(items1, 'test_items', lambda i: i['id'])
+        locked_items1 = filter_with_lock(items1, 'test_items', lambda i: i['id'])
 
         self.assertEqual(locked_items1, [dict(id=1), dict(id=2), dict(id=3)])
 
         # try getting access to locked item #3 and a new item #4
         items2 = [dict(id=3), dict(id=4)]
-        locked_items2 = filter_by_lock(items2, 'test_items', lambda i: i['id'])
+        locked_items2 = filter_with_lock(items2, 'test_items', lambda i: i['id'])
 
         self.assertEqual(locked_items2, [dict(id=4)])
 
@@ -353,7 +353,7 @@ class CacheTest(TembaTest):
         with patch('temba.utils.cache.timezone') as mock_timezone:
             mock_timezone.now.return_value = timezone.now() + datetime.timedelta(days=1)
 
-            self.assertEqual(filter_by_lock([dict(id=3)], 'test_items', lambda i: i['id']), [])
+            self.assertEqual(filter_with_lock([dict(id=3)], 'test_items', lambda i: i['id']), [])
 
 
 class EmailTest(TembaTest):
