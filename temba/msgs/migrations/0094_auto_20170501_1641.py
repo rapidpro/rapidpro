@@ -13,18 +13,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='broadcast',
-            name='language_dict',
-        ),
-        migrations.RemoveField(
-            model_name='broadcast',
-            name='media_dict',
-        ),
-        migrations.RemoveField(
-            model_name='broadcast',
-            name='text',
-        ),
         migrations.AlterField(
             model_name='broadcast',
             name='base_language',
@@ -36,6 +24,18 @@ class Migration(migrations.Migration):
             name='translations',
             field=temba.utils.models.TranslatableField(help_text='The localized versions of the message text',
                                                        max_length=640, verbose_name='Translations'),
+        ),
+        migrations.RemoveField(
+            model_name='broadcast',
+            name='language_dict',
+        ),
+        migrations.RemoveField(
+            model_name='broadcast',
+            name='media_dict',
+        ),
+        migrations.RemoveField(
+            model_name='broadcast',
+            name='text',
         ),
         migrations.RenameField(
             model_name='broadcast',
