@@ -1013,9 +1013,10 @@ class BroadcastTest(TembaTest):
 
         post_data = dict(text="message #1", omnibox="g-%s,c-%s,c-%s" % (self.joe_and_frank.uuid, self.joe.uuid, self.lucy.uuid))
         self.client.post(send_url, post_data, follow=True)
-        broadcast = Broadcast.objects.get(text="message #1")
-        self.assertEquals(1, broadcast.groups.count())
-        self.assertEquals(2, broadcast.contacts.count())
+        broadcast = Broadcast.objects.get()
+        self.assertEqual(broadcast.text, {'base': "message #1"})
+        self.assertEqual(broadcast.groups.count(), 1)
+        self.assertEqual(broadcast.contacts.count(), 2)
         self.assertIsNotNone(Msg.objects.filter(contact=self.joe, text="message #1"))
         self.assertIsNotNone(Msg.objects.filter(contact=self.frank, text="message #1"))
         self.assertIsNotNone(Msg.objects.filter(contact=self.lucy, text="message #1"))
@@ -1031,7 +1032,8 @@ class BroadcastTest(TembaTest):
 
         post_data = dict(text="message #2", omnibox='g-%s,c-%s' % (self.joe_and_frank.uuid, self.kevin.uuid))
         self.client.post(send_url, post_data, follow=True)
-        broadcast = Broadcast.objects.get(text="message #2")
+        broadcast = Broadcast.objects.order_by('-id').first()
+        self.assertEqual(broadcast.text, {'base': "message #2"})
         self.assertEquals(broadcast.groups.count(), 1)
         self.assertEquals(broadcast.contacts.count(), 1)
 
@@ -1435,7 +1437,7 @@ class BroadcastCRUDLTest(TembaTest):
         Contact.objects.get(urns=new_urn)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, "Hey Joe, where you goin' with that gun in your hand?")
+        self.assertEqual(broadcast.text, {'base': "Hey Joe, where you goin' with that gun in your hand?"})
         self.assertEqual(set(broadcast.groups.all()), {just_joe})
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
         self.assertEqual(set(broadcast.urns.all()), {new_urn})
@@ -1454,7 +1456,8 @@ class BroadcastCRUDLTest(TembaTest):
         self.assertEqual(response.status_code, 302)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, "Dinner reminder")
+        self.assertEqual(broadcast.text, {'base': "Dinner reminder"})
+        self.assertEqual(broadcast.base_language, 'base')
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
 
     def test_schedule_list(self):

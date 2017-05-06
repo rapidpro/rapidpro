@@ -237,7 +237,7 @@ class BroadcastCRUDL(SmartCRUDL):
             selected = ['g-%s' % _.uuid for _ in self.object.groups.all()]
             selected += ['c-%s' % _.uuid for _ in self.object.contacts.all()]
             selected = ','.join(selected)
-            message = self.object.text
+            message = self.object.text[self.object.base_language]
             return dict(message=message, omnibox=selected)
 
         def save(self, *args, **kwargs):
@@ -248,7 +248,7 @@ class BroadcastCRUDL(SmartCRUDL):
             omnibox = form.cleaned_data['omnibox']
 
             # set our new message
-            broadcast.text = form.cleaned_data['message']
+            broadcast.text = {broadcast.base_language: form.cleaned_data['message']}
             broadcast.update_recipients(list(omnibox['groups']) + list(omnibox['contacts']) + list(omnibox['urns']))
 
             broadcast.save()

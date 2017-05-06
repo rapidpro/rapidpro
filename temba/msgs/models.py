@@ -1,6 +1,5 @@
 from __future__ import print_function, unicode_literals
 
-import json
 import logging
 import pytz
 import regex
@@ -27,7 +26,6 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit, datetime_to_ms, dict_to_json
-from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField
@@ -186,9 +184,6 @@ class Broadcast(models.Model):
     recipient_count = models.IntegerField(verbose_name=_("Number of recipients"), null=True,
                                           help_text=_("Number of urns which received this broadcast"))
 
-    text = models.TextField(max_length=settings.MSG_FIELD_SIZE, verbose_name=_("Text"),
-                            help_text=_("The message to send out"))
-
     channel = models.ForeignKey(Channel, null=True, verbose_name=_("Channel"),
                                 help_text=_("Channel to use for message sending"))
 
@@ -200,13 +195,10 @@ class Broadcast(models.Model):
 
     parent = models.ForeignKey('Broadcast', verbose_name=_("Parent"), null=True, related_name='children')
 
-    language_dict = models.TextField(verbose_name=_("Translations"),
-                                     help_text=_("The localized versions of the broadcast"), null=True)
+    text = TranslatableField(verbose_name=_("Translations"), max_length=settings.MSG_FIELD_SIZE,
+                             help_text=_("The localized versions of the message text"))
 
-    translations = TranslatableField(verbose_name=_("Translations"), max_length=settings.MSG_FIELD_SIZE,
-                                     help_text=_("The localized versions of the message text"), null=True)
-
-    base_language = models.CharField(max_length=4, null=True, blank=True,
+    base_language = models.CharField(max_length=4,
                                      help_text=_('The language used to send this to contacts without a language'))
 
     is_active = models.BooleanField(default=True, help_text="Whether this broadcast is active")
@@ -226,9 +218,6 @@ class Broadcast(models.Model):
     purged = models.BooleanField(default=False,
                                  help_text="If the messages for this broadcast have been purged")
 
-    media_dict = models.TextField(verbose_name=_("Media"),
-                                  help_text=_("The localized versions of the media"), null=True)
-
     media = TranslatableField(verbose_name=_("Media"), max_length=255,
                               help_text=_("The localized versions of the media"), null=True)
 
@@ -236,26 +225,20 @@ class Broadcast(models.Model):
                                    help_text="Whether this broadcast should send to all URNs for each contact")
 
     @classmethod
-    def create(cls, org, user, translations, recipients, base_language=None, channel=None, media=None, send_all=False, **kwargs):
-        if isinstance(translations, dict):
-            if not base_language:  # pragma: no cover
-                raise ValueError("Base language must be provided when translations is a dict")
-            elif base_language not in translations:  # pragma: no cover
-                raise ValueError("Base language %s doesn't exist in the provided translations dict" % base_language)
-        else:
+    def create(cls, org, user, text, recipients, base_language=None, channel=None, media=None, send_all=False, **kwargs):
+        # for convenience broadcasts can still be created with single translation and no base_language
+        if isinstance(text, six.string_types):
             base_language = org.primary_language.iso_code if org.primary_language else 'base'
-            translations = {base_language: translations}
+            text = {base_language: text}
 
+        if base_language not in text:  # pragma: no cover
+            raise ValueError("Base language %s doesn't exist in the provided translations dict" % base_language)
         if media and base_language not in media:  # pragma: no cover
             raise ValueError("Base language %s doesn't exist in the provided translations dict")
 
-        create_args = dict(org=org, channel=channel, send_all=send_all,
-                           translations=translations, base_language=base_language,
-                           text=translations[base_language], language_dict=json.dumps(translations),
-                           media=media, media_dict=json.dumps(media) if media else None,
-                           created_by=user, modified_by=user)
-        create_args.update(kwargs)
-        broadcast = cls.objects.create(**create_args)
+        broadcast = cls.objects.create(org=org, channel=channel, send_all=send_all,
+                                       base_language=base_language, text=text, media=media,
+                                       created_by=user, modified_by=user, **kwargs)
         broadcast.update_recipients(recipients)
         return broadcast
 
@@ -327,7 +310,7 @@ class Broadcast(models.Model):
         recipients = list(self.urns.all()) + list(self.contacts.all()) + list(self.groups.all())
         broadcast = Broadcast.create(self.org, self.created_by, self.text, recipients,
                                      media=self.media, base_language=self.base_language,
-                                     parent=self, modified_by=self.modified_by)
+                                     parent=self)
 
         broadcast.send(trigger_send=True)
 
@@ -362,52 +345,37 @@ class Broadcast(models.Model):
     def get_message_failed_count(self):  # pragma: needs cover
         return self.get_messages().filter(status__in=[FAILED, RESENT]).count()
 
-    def get_preferred_languages(self, contact, base_language=None, org=None):
+    def get_preferred_languages(self, contact, org=None):
         """
         Gets the ordered list of language preferences for the given contact
         """
         org = org or self.org  # org object can be provided to allow caching of org languages
         preferred_languages = []
 
+        # if contact has a language and it's a valid org language, it has priority
+        if contact.language and contact.language in org.get_language_codes():
+            preferred_languages.append(contact.language)
+
         if org.primary_language:
             preferred_languages.append(org.primary_language.iso_code)
 
-        if base_language:
-            preferred_languages.append(base_language)
-
-        # if contact has a language and it's a valid org language, it has priority
-        if contact.language and contact.language in org.get_language_codes():
-            preferred_languages = [contact.language] + preferred_languages
-
-        preferred_languages.append('base')
+        preferred_languages.append(self.base_language)
 
         return preferred_languages
 
-    def get_translations(self):
-        if not self.language_dict:  # pragma: no cover
-            return {}
-        return get_cacheable_attr(self, '_translations', lambda: json.loads(self.language_dict))
-
-    def get_media_translations(self):
-        if not self.media_dict:
-            return dict()
-        return get_cacheable_attr(self, '_media_translations', lambda: json.loads(self.media_dict))
-
     def get_translated_text(self, contact, org=None):
         """
-        Gets the appropriate translation for the given contact. base_language may be provided
+        Gets the appropriate translation for the given contact
         """
-        translations = self.get_translations()
-        preferred_languages = self.get_preferred_languages(contact, self.base_language, org)
-        return Language.get_localized_text(translations, preferred_languages, self.text)
+        preferred_languages = self.get_preferred_languages(contact, org)
+        return Language.get_localized_text(self.text, preferred_languages)
 
     def get_translated_media(self, contact, org=None):
         """
-        Gets the appropriate media for the given contact. base_language may be provided
+        Gets the appropriate media for the given contact
         """
-        media_translations = self.get_media_translations()
-        preferred_languages = self.get_preferred_languages(contact, self.base_language, org)
-        return Language.get_localized_text(media_translations, preferred_languages, None)
+        preferred_languages = self.get_preferred_languages(contact, org)
+        return Language.get_localized_text(self.media, preferred_languages)
 
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
              created_on=None, partial_recipients=None, run_map=None):

@@ -1,3 +1,13 @@
+v3.0.133
+----------
+ * Make Msg.get_sync_commands more efficent
+ * Fix open range airtime transfers
+ * Fix multiple Android channels sync
+ * Fix parsing of macrokiosk channel time format
+ * Ensure that our select2 boxes show "Add new" option even if there is a partial match with an existing item
+ * Switch to new translatable fields and remove old Broadcast fields
+ * Add Firebase Cloud messaging support for Android channels
+
 v3.0.132
 ----------
  * Migration to populate new translatable fields on old broadcasts. This migration is slow on a large database so it's
