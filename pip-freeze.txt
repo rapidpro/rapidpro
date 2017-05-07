@@ -20,7 +20,7 @@ Django==1.10.5
 django-appconf==1.0.2
 django-compressor==2.1
 django-countries==3.4.1
-django-debug-toolbar==1.2.2
+django-debug-toolbar==1.7
 django-digest==1.13
 django-extensions==1.7.5
 django-guardian==1.4.6
@@ -124,3 +124,5 @@ pyexcel-xlsx==0.2.2
 texttable==0.8.4
 xlrd==1.0.0
 xlwt==1.1.2
+pyfcm==1.2.9
+requests-toolbelt==0.7.1

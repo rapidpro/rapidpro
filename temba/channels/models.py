@@ -29,6 +29,7 @@ from django.core.cache import cache
 from django_redis import get_redis_connection
 from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
+from pyfcm import FCMNotification
 from smartmin.models import SmartModel
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID, NEXMO_APP_ID
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit
@@ -123,6 +124,7 @@ class Channel(TembaModel):
     CONFIG_CHANNEL_ID = 'channel_id'
     CONFIG_CHANNEL_SECRET = 'channel_secret'
     CONFIG_CHANNEL_MID = 'channel_mid'
+    CONFIG_FCM_ID = 'FCM_ID'
     CONFIG_FCM_KEY = 'FCM_KEY'
     CONFIG_FCM_TITLE = 'FCM_TITLE'
     CONFIG_FCM_NOTIFICATION = 'FCM_NOTIFICATION'
@@ -720,23 +722,32 @@ class Channel(TembaModel):
         return channel
 
     @classmethod
-    def get_or_create_android(cls, gcm, status):
+    def get_or_create_android(cls, registration_data, status):
         """
         Creates a new Android channel from the gcm and status commands sent during device registration
         """
-        gcm_id = gcm.get('gcm_id')
-        uuid = gcm.get('uuid')
+        gcm_id = registration_data.get('gcm_id')
+        fcm_id = registration_data.get('fcm_id')
+        uuid = registration_data.get('uuid')
         country = status.get('cc')
         device = status.get('dev')
 
-        if not gcm_id or not uuid:  # pragma: no cover
-            raise ValueError("Can't create Android channel without UUID and GCM ID")
+        if (not gcm_id and not fcm_id) or not uuid:  # pragma: no cover
+            raise ValueError("Can't create Android channel without UUID, FCM ID and GCM ID")
+
+        # Clear and Ignore the GCM ID if we have the FCM ID
+        if fcm_id:
+            gcm_id = None
 
         # look for existing active channel with this UUID
         existing = Channel.objects.filter(uuid=uuid, is_active=True).first()
 
         # if device exists reset some of the settings (ok because device clearly isn't in use if it's registering)
         if existing:
+            config = existing.config_json()
+            config.update({Channel.CONFIG_FCM_ID: fcm_id})
+
+            existing.config = json.dumps(config)
             existing.gcm_id = gcm_id
             existing.claim_code = cls.generate_claim_code()
             existing.secret = cls.generate_secret()
@@ -755,9 +766,10 @@ class Channel(TembaModel):
         claim_code = cls.generate_claim_code()
         secret = cls.generate_secret()
         anon = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+        config = {Channel.CONFIG_FCM_ID: fcm_id}
 
-        return Channel.create(None, anon, country, Channel.TYPE_ANDROID, None, None, gcm_id=gcm_id, uuid=uuid,
-                              device=device, claim_code=claim_code, secret=secret)
+        return Channel.create(None, anon, country, Channel.TYPE_ANDROID, None, None, gcm_id=gcm_id, config=config,
+                              uuid=uuid, device=device, claim_code=claim_code, secret=secret)
 
     @classmethod
     def generate_claim_code(cls):
@@ -1167,11 +1179,18 @@ class Channel(TembaModel):
 
         # save off our org and gcm id before nullifying
         org = self.org
-        gcm_id = self.gcm_id
+        config = self.config_json()
+        fcm_id = config.pop(Channel.CONFIG_FCM_ID, None)
+
+        if fcm_id is not None:
+            registration_id = fcm_id
+        else:
+            registration_id = self.gcm_id
 
         # remove all identifying bits from the client
         self.org = None
         self.gcm_id = None
+        self.config = json.dumps(config)
         self.secret = None
         self.claim_code = None
         self.is_active = False
@@ -1183,7 +1202,7 @@ class Channel(TembaModel):
 
         # trigger the orphaned channel
         if trigger_sync and self.channel_type == Channel.TYPE_ANDROID:  # pragma: no cover
-            self.trigger_sync(gcm_id)
+            self.trigger_sync(registration_id)
 
         # clear our cache for this channel
         Channel.clear_cached_channel(self.id)
@@ -1196,28 +1215,54 @@ class Channel(TembaModel):
         from temba.triggers.models import Trigger
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)
 
-    def trigger_sync(self, gcm_id=None):  # pragma: no cover
+    def trigger_sync(self, registration_id=None):  # pragma: no cover
         """
         Sends a GCM command to trigger a sync on the client
         """
-        # androids sync via GCM
+        # androids sync via FCM or GCM(for old apps installs)
         if self.channel_type == Channel.TYPE_ANDROID:
-            if getattr(settings, 'GCM_API_KEY', None):
-                from .tasks import sync_channel_task
-                if not gcm_id:
-                    gcm_id = self.gcm_id
-                if gcm_id:
-                    on_transaction_commit(lambda: sync_channel_task.delay(gcm_id, channel_id=self.pk))
+            config = self.config_json()
+            fcm_id = config.get(Channel.CONFIG_FCM_ID)
+
+            if fcm_id is not None:
+                if getattr(settings, 'FCM_API_KEY', None):
+                    from .tasks import sync_channel_fcm_task
+                    if not registration_id:
+                        registration_id = fcm_id
+                    if registration_id:
+                        on_transaction_commit(lambda: sync_channel_fcm_task.delay(registration_id, channel_id=self.pk))
+
+            elif self.gcm_id:
+                if getattr(settings, 'GCM_API_KEY', None):
+                    from .tasks import sync_channel_gcm_task
+                    if not registration_id:
+                        registration_id = self.gcm_id
+                    if registration_id:
+                        on_transaction_commit(lambda: sync_channel_gcm_task.delay(registration_id, channel_id=self.pk))
 
         # otherwise this is an aggregator, no-op
         else:
             raise Exception("Trigger sync called on non Android channel. [%d]" % self.pk)
 
     @classmethod
-    def sync_channel(cls, gcm_id, channel=None):  # pragma: no cover
+    def sync_channel_fcm(cls, registration_id, channel=None):  # pragma: no cover
+        push_service = FCMNotification(api_key=settings.FCM_API_KEY)
+        result = push_service.notify_single_device(registration_id=registration_id, data_message=dict(msg='sync'))
+
+        if not result.get('success', 0):
+            valid_registration_ids = push_service.clean_registration_ids([registration_id])
+            if registration_id not in valid_registration_ids:
+                # this fcm id is invalid now, clear it out
+                config = channel.config_json()
+                config.pop(Channel.CONFIG_FCM_ID, None)
+                channel.config = json.dumps(config)
+                channel.save()
+
+    @classmethod
+    def sync_channel_gcm(cls, registration_id, channel=None):  # pragma: no cover
         try:
             gcm = GCM(settings.GCM_API_KEY)
-            gcm.plaintext_request(registration_id=gcm_id, data=dict(msg='sync'))
+            gcm.plaintext_request(registration_id=registration_id, data=dict(msg='sync'))
         except GCMNotRegisteredException:
             if channel:
                 # this gcm id is invalid now, clear it out
@@ -1423,6 +1468,9 @@ class Channel(TembaModel):
     @classmethod
     def send_junebug_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED, Msg
+        from temba.ussd.models import USSDSession
+
+        session = None
 
         # the event url Junebug will relay events to
         event_url = 'https://%s%s' % (
@@ -1438,11 +1486,12 @@ class Channel(TembaModel):
         payload['content'] = text
 
         if is_ussd:
-            external_id, session_status = Msg.objects.values_list('response_to__external_id', 'session__status').get(pk=msg.id)
+            session = USSDSession.objects.get_session_with_status_only(msg.session_id)
+            external_id = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
             # NOTE: Only one of `to` or `reply_to` may be specified
             payload['reply_to'] = external_id
             payload['channel_data'] = {
-                'continue_session': session_status not in ChannelSession.DONE,
+                'continue_session': session and not session.should_end or False,
             }
         else:
             payload['from'] = channel.address
@@ -1473,6 +1522,10 @@ class Channel(TembaModel):
                                 event=event, start=start)
 
         data = response.json()
+
+        if is_ussd and session and session.should_end:
+            session.close()
+
         try:
             message_id = data['result']['message_id']
             Channel.success(channel, msg, WIRED, start, event=event, external_id=message_id)
@@ -2115,17 +2168,28 @@ class Channel(TembaModel):
     def send_vumi_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED, Msg
         from temba.contacts.models import Contact
+        from temba.ussd.models import USSDSession
 
         is_ussd = channel.channel_type in Channel.USSD_CHANNELS
         channel.config['transport_name'] = 'ussd_transport' if is_ussd else 'mtech_ng_smpp_transport'
 
+        session = None
+        session_event = None
         in_reply_to = None
+
+        if is_ussd:
+            session = USSDSession.objects.get_session_with_status_only(msg.session_id)
+            if session and session.should_end:
+                session_event = "close"
+            else:
+                session_event = "resume"
+
         if msg.response_to_id:
             in_reply_to = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
 
         payload = dict(message_id=msg.id,
                        in_reply_to=in_reply_to,
-                       session_event="resume" if is_ussd else None,
+                       session_event=session_event,
                        to_addr=msg.urn_path,
                        from_addr=channel.address,
                        content=text,
@@ -2179,6 +2243,9 @@ class Channel(TembaModel):
         # parse our response
         body = response.json()
         external_id = body.get('message_id', '')
+
+        if is_ussd and session and session.should_end:
+            session.close()
 
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
@@ -3437,7 +3504,9 @@ class SyncEvent(SmartModel):
 
         # update our channel if anything is new
         if channel.device != device or channel.os != os:  # pragma: no cover
-            Channel.objects.filter(pk=channel.pk).update(device=device, os=os)
+            channel.device = device
+            channel.os = os
+            channel.save(update_fields=['device', 'os'])
 
         args = dict()
 
@@ -3668,6 +3737,7 @@ class ChannelSession(SmartModel):
     TRIGGERED = 'T'
     INTERRUPTED = 'X'
     INITIATED = 'A'
+    ENDING = 'E'
 
     DONE = [COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED, INTERRUPTED]
 
@@ -3693,21 +3763,19 @@ class ChannelSession(SmartModel):
                       (CANCELED, "Canceled"),
                       (INTERRUPTED, "Interrupted"),
                       (TRIGGERED, "Triggered"),
-                      (INITIATED, "Initiated"))
+                      (INITIATED, "Initiated"),
+                      (ENDING, "Ending"))
 
     external_id = models.CharField(max_length=255,
                                    help_text="The external id for this session, our twilio id usually")
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING,
                               help_text="The status of this session")
-
     channel = models.ForeignKey('Channel',
                                 help_text="The channel that created this session")
     contact = models.ForeignKey('contacts.Contact', related_name='sessions',
                                 help_text="Who this session is with")
-
     contact_urn = models.ForeignKey('contacts.ContactURN', verbose_name=_("Contact URN"),
                                     help_text=_("The URN this session is communicating with"))
-
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES,
                                  help_text="The direction of this session, either incoming or outgoing")
     started_on = models.DateTimeField(null=True, blank=True,
@@ -3720,6 +3788,22 @@ class ChannelSession(SmartModel):
                                     help_text="What sort of session this is")
     duration = models.IntegerField(default=0, null=True,
                                    help_text="The length of this session in seconds")
+
+    def __init__(self, *args, **kwargs):
+        super(ChannelSession, self).__init__(*args, **kwargs)
+
+        """ This is needed when referencing `session` from `FlowRun`. Since
+        the FK is bound to ChannelSession, when it initializes an instance from
+        DB we need to specify the class based on `session_type` so we can access
+        all the methods the proxy model implements. """
+
+        if type(self) is ChannelSession:
+            if self.session_type == self.USSD:
+                from temba.ussd.models import USSDSession
+                self.__class__ = USSDSession
+            elif self.session_type == self.IVR:
+                from temba.ivr.models import IVRCall
+                self.__class__ = IVRCall
 
     def get_logs(self):
         return self.channel_logs.all().order_by('created_on')

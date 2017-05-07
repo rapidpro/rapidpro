@@ -291,7 +291,11 @@ class Flow(TembaModel):
                 if same_site:
                     flow = Flow.objects.filter(org=org, is_active=True, uuid=flow_spec['metadata']['uuid']).first()
                     if flow:  # pragma: needs cover
-                        flow.expires_after_minutes = flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
+                        expires_minutes = flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
+                        if flow_type == Flow.VOICE:
+                            expires_minutes = min([expires_minutes, 15])
+
+                        flow.expires_after_minutes = expires_minutes
                         flow.name = Flow.get_unique_name(org, name, ignore=flow)
                         flow.save(update_fields=['name', 'expires_after_minutes'])
 
@@ -301,8 +305,12 @@ class Flow(TembaModel):
 
                 # if there isn't one already, create a new flow
                 if not flow:
+                    expires_minutes = flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
+                    if flow_type == Flow.VOICE:
+                        expires_minutes = min([expires_minutes, 15])
+
                     flow = Flow.create(org, user, Flow.get_unique_name(org, name), flow_type=flow_type,
-                                       expires_after_minutes=flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER))
+                                       expires_after_minutes=expires_minutes)
 
                 created_flows.append(dict(flow=flow, flow_spec=flow_spec))
 
@@ -380,10 +388,6 @@ class Flow(TembaModel):
     @classmethod
     def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
         run = FlowRun.objects.filter(session=call, is_active=True).order_by('-created_on').first()
-
-        # set our initial expiration date if we don't have one yet
-        if not run.expires_on:
-            run.update_expiration()
 
         # what we will send back
         voice_response = call.channel.generate_ivr_response()
@@ -509,6 +513,49 @@ class Flow(TembaModel):
         return name
 
     @classmethod
+    def should_close_session(cls, run, current_destination, next_destination):
+        if run.flow.flow_type == Flow.USSD:
+            # this might be our last node that sends msg
+            if not next_destination:
+                return True
+            else:
+                if next_destination.is_messaging:
+                    return False
+                else:
+                    return Flow.should_close_session_graph(next_destination)
+        else:
+            return False
+
+    @classmethod
+    def should_close_session_graph(cls, start_node):
+        # modified DFS that is looking for nodes with messaging capabilities
+        if start_node.get_step_type() == FlowStep.TYPE_RULE_SET:
+            # keep rules only that have destination
+            rules = [rule for rule in start_node.get_rules() if rule.destination]
+            if not rules:
+                return True
+            else:
+                for rule in rules:
+                    next_node = Flow.get_node(start_node.flow, rule.destination, rule.destination_type)
+                    if next_node.is_messaging:
+                        return False
+                    else:
+                        if Flow.should_close_session_graph(next_node):
+                            continue
+                        else:
+                            return False
+                return True
+        elif start_node.get_step_type() == FlowStep.TYPE_ACTION_SET:
+            if start_node.destination:
+                next_node = Flow.get_node(start_node.flow, start_node.destination, start_node.destination_type)
+                if next_node.is_messaging:
+                    return False
+                else:
+                    return Flow.should_close_session_graph(next_node)
+            else:
+                return True
+
+    @classmethod
     def find_and_handle(cls, msg, started_flows=None, voice_response=None,
                         triggered_start=False, resume_parent_run=False,
                         resume_after_timeout=False, user_input=True, trigger_send=True, continue_parent=True):
@@ -562,6 +609,7 @@ class Flow(TembaModel):
 
         # lookup our next destination
         handled = False
+
         while destination:
             result = {"handled": False}
 
@@ -572,18 +620,31 @@ class Flow(TembaModel):
                 if destination.is_pause():
                     should_pause = True
 
-                if triggered_start and destination.is_ussd():  # pragma: needs cover
-                    result = Flow.handle_ussd_ruleset_action(destination, step, run, msg)
-
                 if (user_input or resume_after_timeout) or not should_pause:
                     result = Flow.handle_ruleset(destination, step, run, msg, started_flows, resume_parent_run,
                                                  resume_after_timeout)
                     add_to_path(path, destination.uuid)
 
+                    # add any messages generated by this ruleset (ussd and subflow)
+                    msgs += result.get('msgs', [])
+
+                    # USSD check for session end
+                    if not result.get('interrupted') and \
+                            Flow.should_close_session(run, destination, result.get('destination')):
+
+                        end_message = Msg.create_outgoing(msg.org, get_flow_user(msg.org), msg.contact, '',
+                                                          channel=msg.channel, priority=Msg.PRIORITY_HIGH,
+                                                          session=msg.session, response_to=msg if msg.id else None)
+
+                        end_message.session.mark_ending()
+                        msgs.append(end_message)
+                        ActionLog.create(run, _("USSD Session was marked to end"))
+
                 # USSD ruleset has extra functionality to send out messages.
-                # This is handled as a shadow step for the ruleset.
                 elif destination.is_ussd():
                     result = Flow.handle_ussd_ruleset_action(destination, step, run, msg)
+
+                    msgs += result.get('msgs', [])
 
                 # if we used this input, then mark our user input as used
                 if should_pause:
@@ -592,12 +653,15 @@ class Flow(TembaModel):
                     # once we handle user input, reset our path
                     path = []
 
-                # add any messages generated by this ruleset (ussd and subflow)
-                msgs += result.get('msgs', [])
-
             elif destination.get_step_type() == FlowStep.TYPE_ACTION_SET:
                 result = Flow.handle_actionset(destination, step, run, msg, started_flows, is_test_contact)
                 add_to_path(path, destination.uuid)
+
+                # USSD check for session end
+                if Flow.should_close_session(run, destination, result.get('destination')):
+                    for msg in result['msgs']:
+                        msg.session.mark_ending()
+                        ActionLog.create(run, _("USSD Session was marked to end"))
 
                 # add any generated messages to be sent at once
                 msgs += result['msgs']
@@ -666,7 +730,7 @@ class Flow(TembaModel):
             rule, value = ruleset.find_interrupt_rule(step, run, msg)
             if not rule:
                 run.set_interrupted(final_step=step)
-                return dict(handled=True, destination=None, destination_type=None)
+                return dict(handled=True, destination=None, destination_type=None, interrupted=True)
         else:
             if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
                 if not resume_parent_run:
@@ -686,13 +750,16 @@ class Flow(TembaModel):
                         child_runs = flow.start([], [run.contact], started_flows=started_flows,
                                                 restart_participants=True, extra=extra,
                                                 parent_run=run, interrupt=False)
-
-                        continue_parent = False
-                        for child_run in child_runs:
+                        if child_runs:
+                            child_run = child_runs[0]
                             msgs += child_run.start_msgs
-                            continue_parent |= getattr(child_run, 'continue_parent', False)
+                            continue_parent = getattr(child_run, 'continue_parent', False)
+                        else:  # pragma: no cover
+                            continue_parent = False
 
-                        if not continue_parent:
+                        if continue_parent:
+                            started_flows.remove(flow.id)
+                        else:
                             return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
 
             # find a matching rule
@@ -724,10 +791,10 @@ class Flow(TembaModel):
             if run.session_interrupted:
                 # run was interrupted and interrupt state not handled (not connected)
                 run.set_interrupted(final_step=step)
+                return dict(handled=True, destination=None, destination_type=None, interrupted=True, msgs=msgs)
             else:
                 run.set_completed(final_step=step)
-
-            return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
+                return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
 
         # Create the step for our destination
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
@@ -1404,7 +1471,7 @@ class Flow(TembaModel):
 
         channel = self.org.get_ussd_channel()
 
-        if not channel or Channel.ROLE_USSD not in channel.role:  # pragma: needs cover
+        if not channel or Channel.ROLE_USSD not in channel.role:
             return runs
 
         for contact_id in all_contact_ids:
@@ -1483,9 +1550,6 @@ class Flow(TembaModel):
             if extra:  # pragma: needs cover
                 run.update_fields(extra)
 
-            # set our initial run expiration
-            run.update_expiration()
-
             # create our call objects
             if parent_run and parent_run.session:
                 call = parent_run.session
@@ -1525,20 +1589,12 @@ class Flow(TembaModel):
         # for each send action, we need to create a broadcast, we'll group our created messages under these
         broadcasts = []
         for send_action in send_actions:
-            message_text = self.get_localized_text(send_action.msg)
+            # check that we either have text or media, available for the base language
+            if (send_action.msg and send_action.msg.get(self.base_language)) or (send_action.media and send_action.media.get(self.base_language)):
 
-            # if we have localized versions, add those to our broadcast definition
-            language_dict = None
-            if isinstance(send_action.msg, dict):
-                language_dict = json.dumps(send_action.msg)
-
-            media_dict = None
-            if send_action.media:
-                media_dict = json.dumps(send_action.media)
-
-            if message_text or media_dict:
-                broadcast = Broadcast.create(self.org, self.created_by, message_text, [], media_dict=media_dict,
-                                             language_dict=language_dict, base_language=self.base_language,
+                broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
+                                             media=send_action.media,
+                                             base_language=self.base_language,
                                              send_all=send_action.send_all)
                 broadcast.update_contacts(all_contact_ids)
 
@@ -1695,7 +1751,7 @@ class Flow(TembaModel):
                         Flow.find_and_handle(start_msg, started_flows_by_contact, triggered_start=True)
 
                     # if we didn't get an incoming message, see if we need to evaluate it passively
-                    elif not entry_rules.is_pause() or entry_rules.is_ussd():
+                    elif not entry_rules.is_pause():
                         # create an empty placeholder message
                         msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
                         handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False, continue_parent=False)
@@ -1798,55 +1854,30 @@ class Flow(TembaModel):
 
         return send_actions
 
-    def get_dependencies(self, dependencies=None, include_campaigns=True):
+    def get_dependencies(self, flow_map=None):
+        from temba.contacts.models import ContactGroup
 
         # need to make sure we have the latest version to inspect dependencies
         self.ensure_current_version()
 
-        if not dependencies:
-            dependencies = dict(flows=set(), groups=set(), campaigns=set(), triggers=set())
-
-        flows = set()
-        groups = set()
+        dependencies = set()
 
         # find all the flows we reference, note this won't include archived flows
         for action_set in self.action_sets.all():
             for action in action_set.get_actions():
                 if hasattr(action, 'flow'):
-                    flows.add(action.flow)
+                    dependencies.add(action.flow)
                 if hasattr(action, 'groups'):
                     for group in action.groups:
-                        if not isinstance(group, six.string_types):
-                            groups.add(group)
+                        if isinstance(group, ContactGroup):
+                            dependencies.add(group)
 
         for ruleset in self.rule_sets.all():
             if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-                flow = Flow.objects.filter(uuid=ruleset.config_json()['flow']['uuid']).first()
+                flow_uuid = ruleset.config_json()['flow']['uuid']
+                flow = flow_map.get(flow_uuid) if flow_map else Flow.objects.filter(uuid=flow_uuid).first()
                 if flow:
-                    flows.add(flow)
-
-        # add any campaigns that use our groups
-        campaigns = ()
-        if include_campaigns:
-            from temba.campaigns.models import Campaign
-            campaigns = set(Campaign.objects.filter(org=self.org, group__in=groups, is_archived=False, is_active=True))
-            for campaign in campaigns:
-                flows.update(list(campaign.get_flows()))
-
-        # and any of our triggers that reference us
-        from temba.triggers.models import Trigger
-        triggers = set(Trigger.objects.filter(org=self.org, flow=self, is_archived=False, is_active=True))
-
-        dependencies['flows'].update(flows)
-        dependencies['groups'].update(groups)
-        dependencies['campaigns'].update(campaigns)
-        dependencies['triggers'].update(triggers)
-
-        if self in dependencies['flows']:
-            return dependencies
-
-        for flow in flows:
-            dependencies = flow.get_dependencies(dependencies, include_campaigns=include_campaigns)
+                    dependencies.add(flow)
 
         return dependencies
 
@@ -2916,7 +2947,7 @@ class FlowStep(models.Model):
         steps = steps.order_by('-pk')
 
         # optimize lookups
-        return steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org')
+        return steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org', 'run__session')
 
     def release(self):
         self.delete()
@@ -3089,6 +3120,10 @@ class RuleSet(models.Model):
     @property
     def context_key(self):
         return Flow.label_to_slug(self.label)
+
+    @property
+    def is_messaging(self):
+        return self.ruleset_type in (self.TYPE_USSD + (self.TYPE_WAIT_MESSAGE, ))
 
     @classmethod
     def contains_step(cls, text):  # pragma: needs cover
@@ -3414,6 +3449,14 @@ class ActionSet(models.Model):
     @classmethod
     def get(cls, flow, uuid):
         return ActionSet.objects.filter(flow=flow, uuid=uuid).select_related('flow', 'flow__org').first()
+
+    @property
+    def is_messaging(self):
+        actions = self.get_actions()
+        for action in actions:
+            if isinstance(action, (EndUssdAction, ReplyAction, SendAction)):
+                return True
+        return False
 
     def get_step_type(self):
         return FlowStep.TYPE_ACTION_SET
@@ -4516,6 +4559,7 @@ class Action(object):
                 SayAction.TYPE: SayAction,
                 PlayAction.TYPE: PlayAction,
                 TriggerFlowAction.TYPE: TriggerFlowAction,
+                EndUssdAction.TYPE: EndUssdAction,
             }
 
         action_type = json_obj.get(cls.TYPE)
@@ -4965,7 +5009,7 @@ class ReplyAction(Action):
     @classmethod
     def from_json(cls, org, json_obj):
         # assert we have some kind of message in this reply
-        msg = json_obj.get(ReplyAction.MESSAGE)
+        msg = json_obj.get(cls.MESSAGE)
         if isinstance(msg, dict):
             if not msg:
                 raise FlowException("Invalid reply action, empty message dict")
@@ -4975,11 +5019,11 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
 
-        return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE), media=json_obj.get(ReplyAction.MEDIA, None),
-                           send_all=json_obj.get(ReplyAction.SEND_ALL, False))
+        return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None),
+                   send_all=json_obj.get(cls.SEND_ALL, False))
 
     def as_json(self):
-        return dict(type=ReplyAction.TYPE, msg=self.msg, media=self.media, send_all=self.send_all)
+        return dict(type=self.TYPE, msg=self.msg, media=self.media, send_all=self.send_all)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []
@@ -5031,6 +5075,14 @@ class ReplyAction(Action):
                 pass
 
         return replies
+
+
+class EndUssdAction(ReplyAction):
+    """
+    Reply action that ends a USSD session gracefully with a message
+    """
+    TYPE = 'end_ussd'
+    MSG_TYPE = MSG_TYPE_USSD
 
 
 class UssdAction(ReplyAction):
@@ -5593,27 +5645,14 @@ class SendAction(VariableContactAction):
 
             # create our broadcast and send it
             if not run.contact.is_test:
-
-                # if we have localized versions, add those to our broadcast definition
-                language_dict = None
-                if isinstance(self.msg, dict):
-                    language_dict = json.dumps(self.msg)
-
-                message_text = run.flow.get_localized_text(self.msg)
-
-                media_dict = None
-                if self.media:
-                    media_dict = json.dumps(self.media)
-
-                # no message text and no media_dict? then no-op
-                if not message_text and not media_dict:
+                # no-op if neither text nor media are defined in the flow base language
+                if not (self.msg.get(flow.base_language) or self.media.get(flow.base_language)):
                     return list()
 
                 recipients = groups + contacts
 
-                broadcast = Broadcast.create(flow.org, flow.modified_by, message_text, recipients,
-                                             media_dict=media_dict, language_dict=language_dict,
-                                             base_language=flow.base_language)
+                broadcast = Broadcast.create(flow.org, flow.modified_by, self.msg, recipients,
+                                             media=self.media, base_language=flow.base_language)
                 broadcast.send(trigger_send=False, message_context=context)
                 return list(broadcast.get_messages())
 
