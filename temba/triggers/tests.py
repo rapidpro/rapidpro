@@ -945,8 +945,8 @@ class TriggerTest(TembaTest):
 
         # setup a flow and keyword trigger
         flow = self.create_flow()
-        Trigger.objects.create(org=self.org, keyword='when', flow=flow,
-                               created_by=self.admin, modified_by=self.admin)
+        trigger = Trigger.objects.create(org=self.org, keyword='when', flow=flow,
+                                         created_by=self.admin, modified_by=self.admin)
 
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="when is it?")
 
@@ -957,7 +957,22 @@ class TriggerTest(TembaTest):
         run = FlowRun.objects.get()
         self.assertTrue(run.responded)
 
-        # unstop contact if needed
+        # change match type to 'only'
+        trigger.match_type = Trigger.MATCH_ONLY_WORD
+        trigger.save()
+
+        # check message is not handled
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="when and where?")
+        self.assertFalse(Trigger.find_and_handle(incoming))
+
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="  WHEN  ")
+        self.assertTrue(Trigger.find_and_handle(incoming))
+
+        # change match type back to 'first'
+        trigger.match_type = Trigger.MATCH_FIRST_WORD
+        trigger.save()
+
+        # test that trigger unstops contact if needed
         self.contact.stop(self.admin)
 
         self.contact.refresh_from_db()
@@ -968,7 +983,7 @@ class TriggerTest(TembaTest):
 
         self.contact.refresh_from_db()
         self.assertFalse(self.contact.is_stopped)
-        self.assertEqual(FlowRun.objects.all().count(), 2)
+        self.assertEqual(FlowRun.objects.all().count(), 3)
 
         # create trigger for specific contact group
         group = self.create_group("first", [self.contact2])
