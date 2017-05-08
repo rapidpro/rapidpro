@@ -2170,6 +2170,27 @@ class ChannelTest(TembaTest):
         self.assertIsNone(nexmo.org)
         self.assertFalse(nexmo.is_active)
 
+        Channel.objects.all().delete()
+
+        # register and claim an Android channel
+        reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid='uuid'),
+                              dict(cmd='status', cc='RW', dev='Nexus')])
+        self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
+        android = Channel.objects.get()
+        self.client.post(reverse('channels.channel_claim_android'),
+                         dict(claim_code=android.claim_code, phone_number="0788123123"))
+        android.refresh_from_db()
+
+        android.release()
+
+        # check that some details are cleared and channel is now in active
+        self.assertIsNone(android.org)
+        self.assertIsNone(android.gcm_id)
+        self.assertIsNone(android.secret)
+        self.assertFalse(android.is_active)
+
+        self.assertIsNone(android.config_json().get(Channel.CONFIG_FCM_ID, None))
+
     def test_release_twitter(self):
         # check that removing Twitter channel notifies Mage
         with patch('temba.utils.mage.MageClient._request') as mock_mage_request:
@@ -2283,6 +2304,51 @@ class ChannelTest(TembaTest):
         self.assertEquals(200, response.status_code)
         response = response.json()
         self.assertEqual(10, len(response['cmds']))
+
+    def test_sync_broadcast_multiple_channels(self):
+        self.org.administrators.add(self.user)
+        self.user.set_org(self.org)
+
+        channel2 = Channel.create(self.org, self.user, 'RW', 'A', name="Test Channel 2", address="+250785551313",
+                                  role="SR", secret="12367", gcm_id="456")
+
+        contact1 = self.create_contact("John Doe", '250788382382')
+        contact2 = self.create_contact("John Doe", '250788383383')
+
+        contact1_urn = contact1.get_urn()
+        contact1_urn.channel = self.tel_channel
+        contact1_urn.save()
+
+        contact2_urn = contact2.get_urn()
+        contact2_urn.channel = channel2
+        contact2_urn.save()
+
+        # send a broadcast to urn that have different preferred channels
+        self.send_message(['250788382382', '250788383383'], "How is it going?")
+
+        # Should contain messages for the the channel only
+        response = self.sync(self.tel_channel)
+        self.assertEquals(200, response.status_code)
+
+        self.tel_channel.refresh_from_db()
+
+        response = response.json()
+        cmds = response['cmds']
+        self.assertEqual(1, len(cmds))
+        self.assertEqual(len(cmds[0]['to']), 1)
+        self.assertEqual(cmds[0]['to'][0]['phone'], '+250788382382')
+
+        # Should contain messages for the the channel only
+        response = self.sync(channel2)
+        self.assertEquals(200, response.status_code)
+
+        channel2.refresh_from_db()
+
+        response = response.json()
+        cmds = response['cmds']
+        self.assertEqual(1, len(cmds))
+        self.assertEqual(len(cmds[0]['to']), 1)
+        self.assertEqual(cmds[0]['to'][0]['phone'], '+250788383383')
 
     def test_sync(self):
         date = timezone.now()
@@ -2535,6 +2601,17 @@ class ChannelTest(TembaTest):
 
         # and we end all alert related to this issue
         self.assertEquals(0, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type='P').count())
+
+        post_data = dict(cmds=[
+            # device fcm data
+            dict(cmd='fcm', fcm_id='12345', uuid='abcde')])
+
+        response = self.sync(self.tel_channel, post_data)
+
+        self.tel_channel.refresh_from_db()
+        self.assertIsNone(self.tel_channel.gcm_id)
+        self.assertTrue(self.tel_channel.last_seen > six_mins_ago)
+        self.assertEqual(self.tel_channel.config_json()[Channel.CONFIG_FCM_ID], '12345')
 
     def test_signing(self):
         # good signature
@@ -4650,6 +4727,11 @@ class KannelTest(TembaTest):
 
         assertStatus(msg, '4', SENT)
         assertStatus(msg, '1', DELIVERED)
+        assertStatus(msg, '16', ERRORED)
+
+        # fail after 3 retries
+        msg.error_count = 3
+        msg.save()
         assertStatus(msg, '16', FAILED)
 
     def test_receive(self):

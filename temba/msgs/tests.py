@@ -45,27 +45,36 @@ class MsgTest(TembaTest):
         msg2 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
         msg3 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, we heard from you.")
 
-        commands = Msg.get_sync_commands(self.channel, [msg1, msg2, msg3])
+        commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg2.id, msg3.id)))
 
-        self.assertEquals(1, len(commands))
-        self.assertEquals(3, len(commands[0]['to']))
+        self.assertEqual(commands, [
+            {'cmd': 'mt_bcast', 'to': [
+                {'phone': "123", 'id': msg1.id},
+                {'phone': "321", 'id': msg2.id},
+                {'phone': "987", 'id': msg3.id}
+            ], 'msg': "Hello, we heard from you."}
+        ])
 
         msg4 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, there")
 
-        commands = Msg.get_sync_commands(self.channel, [msg1, msg2, msg4])
+        commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg2.id, msg4.id)))
 
-        self.assertEquals(2, len(commands))
-        self.assertEquals(2, len(commands[0]['to']))
-        self.assertEquals(1, len(commands[1]['to']))
+        self.assertEqual(commands, [
+            {'cmd': 'mt_bcast', 'to': [
+                {'phone': "123", 'id': msg1.id}, {'phone': "321", 'id': msg2.id}
+            ], 'msg': "Hello, we heard from you."},
+            {'cmd': 'mt_bcast', 'to': [{'phone': "987", 'id': msg4.id}], 'msg': "Hello, there"}
+        ])
 
         msg5 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
 
-        commands = Msg.get_sync_commands(self.channel, [msg1, msg4, msg5])
+        commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg4.id, msg5.id)))
 
-        self.assertEquals(3, len(commands))
-        self.assertEquals(1, len(commands[0]['to']))
-        self.assertEquals(1, len(commands[1]['to']))
-        self.assertEquals(1, len(commands[2]['to']))
+        self.assertEqual(commands, [
+            {'cmd': 'mt_bcast', 'to': [{'phone': "123", 'id': msg1.id}], 'msg': "Hello, we heard from you."},
+            {'cmd': 'mt_bcast', 'to': [{'phone': "987", 'id': msg4.id}], 'msg': "Hello, there"},
+            {'cmd': 'mt_bcast', 'to': [{'phone': "321", 'id': msg5.id}], 'msg': "Hello, we heard from you."}
+        ])
 
     def test_archive_and_release(self):
         msg1 = Msg.create_incoming(self.channel, 'tel:123', "Incoming")
@@ -932,17 +941,6 @@ class BroadcastTest(TembaTest):
         self.assertEqual(broadcast.get_message_count(), 4)
         self.assertEqual(set(broadcast.recipients.all()), {self.joe, self.frank, self.kevin, self.lucy})
 
-        bcast_commands = broadcast.get_sync_commands(self.channel)
-        self.assertEquals(1, len(bcast_commands))
-        self.assertEquals(3, len(bcast_commands[0]['to']))
-
-        # set our single message as sent
-        broadcast.get_messages().update(status='S')
-        self.assertEquals(0, len(broadcast.get_sync_commands(self.channel)))
-
-        # back to Q
-        broadcast.get_messages().update(status='Q')
-
         # after calling send, all messages are queued
         self.assertEquals(broadcast.status, 'Q')
 
@@ -1015,9 +1013,10 @@ class BroadcastTest(TembaTest):
 
         post_data = dict(text="message #1", omnibox="g-%s,c-%s,c-%s" % (self.joe_and_frank.uuid, self.joe.uuid, self.lucy.uuid))
         self.client.post(send_url, post_data, follow=True)
-        broadcast = Broadcast.objects.get(text="message #1")
-        self.assertEquals(1, broadcast.groups.count())
-        self.assertEquals(2, broadcast.contacts.count())
+        broadcast = Broadcast.objects.get()
+        self.assertEqual(broadcast.text, {'base': "message #1"})
+        self.assertEqual(broadcast.groups.count(), 1)
+        self.assertEqual(broadcast.contacts.count(), 2)
         self.assertIsNotNone(Msg.objects.filter(contact=self.joe, text="message #1"))
         self.assertIsNotNone(Msg.objects.filter(contact=self.frank, text="message #1"))
         self.assertIsNotNone(Msg.objects.filter(contact=self.lucy, text="message #1"))
@@ -1033,7 +1032,8 @@ class BroadcastTest(TembaTest):
 
         post_data = dict(text="message #2", omnibox='g-%s,c-%s' % (self.joe_and_frank.uuid, self.kevin.uuid))
         self.client.post(send_url, post_data, follow=True)
-        broadcast = Broadcast.objects.get(text="message #2")
+        broadcast = Broadcast.objects.order_by('-id').first()
+        self.assertEqual(broadcast.text, {'base': "message #2"})
         self.assertEquals(broadcast.groups.count(), 1)
         self.assertEquals(broadcast.contacts.count(), 1)
 
@@ -1255,10 +1255,6 @@ class BroadcastTest(TembaTest):
                                           [self.joe_and_frank, self.kevin])
         self.broadcast.send(trigger_send=False)
 
-        # there should be three broadcast objects
-        broadcast_groups = self.broadcast.get_sync_commands(self.channel)
-        self.assertEquals(3, len(broadcast_groups))
-
         # no message created for Frank because he misses some fields for variables substitution
         self.assertEquals(Msg.objects.all().count(), 3)
 
@@ -1441,7 +1437,7 @@ class BroadcastCRUDLTest(TembaTest):
         Contact.objects.get(urns=new_urn)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, "Hey Joe, where you goin' with that gun in your hand?")
+        self.assertEqual(broadcast.text, {'base': "Hey Joe, where you goin' with that gun in your hand?"})
         self.assertEqual(set(broadcast.groups.all()), {just_joe})
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
         self.assertEqual(set(broadcast.urns.all()), {new_urn})
@@ -1460,7 +1456,8 @@ class BroadcastCRUDLTest(TembaTest):
         self.assertEqual(response.status_code, 302)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, "Dinner reminder")
+        self.assertEqual(broadcast.text, {'base': "Dinner reminder"})
+        self.assertEqual(broadcast.base_language, 'base')
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
 
     def test_schedule_list(self):

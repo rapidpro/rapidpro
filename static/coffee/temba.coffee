@@ -147,11 +147,20 @@ findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
       placeholder: placeholder
       query: (query) ->
         data = { results: [] }
+        cleaned_query = query.term.toLowerCase().strip()
+        exact_match = false
+
         for d in this['data']
-          if d.text.toLowerCase().indexOf(query.term.toLowerCase().strip()) != -1
+          if d.text.toLowerCase().indexOf(cleaned_query) != -1
             data.results.push({ id:d.id, text: d.text });
-        if data.results.length == 0 and query.term.strip().length > 0
+
+            if d.text.toLowerCase() == cleaned_query
+              exact_match = true
+
+        # if term is non-empty and hasn't matched an returned item exactly, show option for creating a new item
+        if not exact_match and cleaned_query.length > 0
           data.results.push({id:'[_NEW_]' + query.term, text: add_prefix + query.term});
+
         query.callback(data)
       createSearchChoice: (term, data) -> return data
   else
