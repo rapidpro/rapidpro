@@ -133,9 +133,6 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
     """
     Form for keyword triggers
     """
-    keyword = forms.CharField(max_length=16, required=True, label=_("Keyword"),
-                              help_text=_("The first word of the message text"))
-
     def __init__(self, user, *args, **kwargs):
         flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE])
         super(KeywordTriggerForm, self).__init__(user, flows, *args, **kwargs)
@@ -160,7 +157,7 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
         return data
 
     class Meta(BaseTriggerForm.Meta):
-        fields = ('keyword', 'flow', 'groups')
+        fields = ('keyword', 'match_type', 'flow', 'groups')
 
 
 class RegisterTriggerForm(BaseTriggerForm):
