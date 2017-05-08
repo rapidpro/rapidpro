@@ -22,6 +22,18 @@ from .views import DefaultTriggerForm, RegisterTriggerForm
 
 class TriggerTest(TembaTest):
 
+    def test_no_trigger_redirects_to_create_page(self):
+        self.login(self.admin)
+
+        # no trigger existing
+        Trigger.objects.all().delete()
+
+        response = self.client.get(reverse('triggers.trigger_list'))
+        self.assertEqual(response.status_code, 302)
+
+        response = self.client.get(reverse('triggers.trigger_list'), follow=True)
+        self.assertEqual(response.request['PATH_INFO'], reverse('triggers.trigger_create'))
+
     def test_keyword_trigger(self):
         self.login(self.admin)
         flow = self.create_flow()

@@ -578,8 +578,9 @@ class TriggerCRUDL(SmartCRUDL):
         title = _("Triggers")
 
         def pre_process(self, request, *args, **kwargs):
-            # if they have no triggers, send them to create page
-            if super(TriggerCRUDL.List, self).get_queryset(*args, **kwargs).count() == 0 and not request.GET.get('search', ''):  # pragma: needs cover
+            # if they have no triggers and no search performed, send them to create page
+            obj_count = super(TriggerCRUDL.List, self).get_queryset(*args, **kwargs).count()
+            if obj_count == 0 and not request.GET.get('search', ''):
                 return HttpResponseRedirect(reverse("triggers.trigger_create"))
             return super(TriggerCRUDL.List, self).pre_process(request, *args, **kwargs)
 
