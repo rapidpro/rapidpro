@@ -258,7 +258,7 @@ class CampaignEvent(TembaModel):
     relative_to = models.ForeignKey(ContactField, related_name='campaigns',
                                     help_text="The field our offset is relative to")
 
-    flow = models.ForeignKey(Flow, help_text="The flow that will be triggered")
+    flow = models.ForeignKey(Flow, related_name='events', help_text="The flow that will be triggered")
 
     event_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_FLOW,
                                   help_text='The type of this event')
@@ -461,7 +461,7 @@ class EventFire(Model):
         """
         fired = timezone.now()
         flow.start([], [f.contact for f in fires], restart_participants=True)
-        fires.update(fired=fired)
+        EventFire.objects.filter(id__in=[f.id for f in fires]).update(fired=fired)
 
     @classmethod
     def update_campaign_events(cls, campaign):

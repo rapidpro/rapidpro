@@ -7,7 +7,7 @@ from django.utils import timezone
 from temba.msgs.models import Broadcast, Msg, TIMEOUT_EVENT, HANDLER_QUEUE, HANDLE_EVENT_TASK
 from temba.orgs.models import Org
 from temba.utils import datetime_to_epoch
-from temba.utils.cache import filter_with_lock
+from temba.utils.cache import BatchLock
 from temba.utils.queues import start_task, complete_task, push_task, nonoverlapping_task
 from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
 from .models import FlowRunCount, FlowNodeCount, FlowPathCount, FlowPathRecentStep
@@ -51,12 +51,10 @@ def check_flow_timeouts_task():
     # find any runs that should have timed out
     runs = FlowRun.objects.filter(is_active=True, timeout_on__lte=timezone.now())
     runs = runs.only('id', 'org', 'timeout_on')
-    for run in runs:
-        # ignore any run which was locked by previous calls to this task
-        locked_runs = filter_with_lock([run], 'flow_timeouts', lambda r: '%d:%d' % (r.id, datetime_to_epoch(r.timeout_on)))
 
-        if locked_runs:
-            run = locked_runs[0]
+    # ignore any run which was locked by previous calls to this task
+    with BatchLock(runs, 'flow_timeouts', lambda r: '%d:%d' % (r.id, datetime_to_epoch(r.timeout_on))) as locked_runs:
+        for run in locked_runs:
             task_payload = dict(type=TIMEOUT_EVENT, run=run.id, timeout_on=run.timeout_on)
             push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, task_payload)
 

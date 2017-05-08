@@ -11,7 +11,7 @@ from django_redis import get_redis_connection
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.msgs.models import HANDLER_QUEUE, HANDLE_EVENT_TASK, FIRE_EVENT
 from temba.utils import chunk_list
-from temba.utils.cache import filter_with_lock
+from temba.utils.cache import BatchLock
 from temba.utils.queues import push_task, nonoverlapping_task
 
 
@@ -43,15 +43,15 @@ def check_campaigns_task():
         # create sub-batches no no single task is too big
         for fire_id_batch in chunk_list(fire_ids, 500):
 
-            # ignore any fires which were locked by previous calls to this task but haven't yet been marked as fired
-            locked_fire_ids = filter_with_lock(fire_id_batch, 'locked_event_fires')
+            # ignore any fires which were queued by previous calls to this task but haven't yet been marked as fired
+            with BatchLock(fire_id_batch, 'queued_event_fires') as queued_fire_ids:
+                if queued_fire_ids:
+                    try:
+                        push_task(flow.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, fires=queued_fire_ids))
 
-            try:
-                push_task(flow.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, fires=locked_fire_ids))
-
-            except Exception:  # pragma: no cover
-                fire_ids_str = ','.join(six.text_type(f) for f in fire_id_batch)
-                logger.error("Error queuing campaign event fires: %s" % fire_ids_str, exc_info=True)
+                    except Exception:  # pragma: no cover
+                        fire_ids_str = ','.join(six.text_type(f) for f in fire_id_batch)
+                        logger.error("Error queuing campaign event fires: %s" % fire_ids_str, exc_info=True)
 
 
 @task(track_started=True, name='update_event_fires_task')  # pragma: no cover

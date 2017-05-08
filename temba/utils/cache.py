@@ -66,35 +66,48 @@ def incrby_existing(key, delta, r=None):
     r.eval(lua, 1, key, delta)
 
 
-def filter_with_lock(items, lock_prefix, lock_on=None):
+class BatchLock(object):
     """
-    Takes a set of objects and returns only those we are able to get a lock for
+    A lock which uses a Redis set for more efficient locking of large numbers of similar objects. Uses two sets for
+    items locked today and items locked yesterday. By having these expire after 24 hours we ensure that our Redis sets
+    can't grow indefinitely even if things fail.
     """
-    r = get_redis_connection()
+    def __init__(self, items, lock_prefix, lock_on=None):
+        self.items = items
+        self.lock_on = lock_on or str
 
-    key_format = lock_prefix + '_%y_%m_%d'
-    today_set_key = timezone.now().strftime(key_format)
-    yesterday_set_key = (timezone.now() - timedelta(days=1)).strftime(key_format)
+        key_format = lock_prefix + '_%y_%m_%d'
 
-    locked_items = []
+        self.today_set_key = timezone.now().strftime(key_format)
+        self.yesterday_set_key = (timezone.now() - timedelta(days=1)).strftime(key_format)
 
-    for item in items:
-        item_value = str(lock_on(item)) if lock_on else str(item)
+    def __enter__(self):
+        r = get_redis_connection()
+        locked_items = []
 
-        # check whether we locked this item today or yesterday
-        pipe = r.pipeline()
-        pipe.sismember(today_set_key, item_value)
-        pipe.sismember(yesterday_set_key, item_value)
-        (queued_today, queued_yesterday) = pipe.execute()
+        for item in self.items:
+            item_value = self.lock_on(item)
 
-        # if not then we have access to this item
-        if not queued_today and not queued_yesterday:
-            locked_items.append(item)
+            # check whether we locked this item today or yesterday
+            pipe = r.pipeline()
+            pipe.sismember(self.today_set_key, item_value)
+            pipe.sismember(self.yesterday_set_key, item_value)
+            (queued_today, queued_yesterday) = pipe.execute()
+
+            # if not then we have access to this item
+            if not queued_today and not queued_yesterday:
+                locked_items.append(item)
+
+        return locked_items
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        r = get_redis_connection()
+
+        for item in self.items:
+            item_value = self.lock_on(item)
 
             # add this item to today's set to show it's locked
             pipe = r.pipeline()
-            pipe.sadd(today_set_key, item_value)
-            pipe.expire(today_set_key, 86400)  # 24 hours
+            pipe.sadd(self.today_set_key, item_value)
+            pipe.expire(self.today_set_key, 86400)  # 24 hours
             pipe.execute()
-
-    return locked_items
