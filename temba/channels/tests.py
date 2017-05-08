@@ -3738,6 +3738,12 @@ class AfricasTalkingTest(TembaTest):
         assertStatus(msg, 'Success', DELIVERED)
         assertStatus(msg, 'Sent', SENT)
         assertStatus(msg, 'Buffered', SENT)
+        assertStatus(msg, 'Failed', ERRORED)
+        assertStatus(msg, 'Rejected', ERRORED)
+
+        msg.error_count = 3
+        msg.save()
+
         assertStatus(msg, 'Failed', FAILED)
         assertStatus(msg, 'Rejected', FAILED)
 
