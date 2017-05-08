@@ -138,7 +138,7 @@ class ScheduleTest(TembaTest):
         # update our message
         post_data = dict(message="An updated scheduled message", omnibox="c-%s" % joe.uuid)
         self.client.post(reverse('msgs.broadcast_update', args=[broadcast.pk]), post_data)
-        self.assertEquals("An updated scheduled message", Broadcast.objects.get(pk=broadcast.pk).text)
+        self.assertEqual(Broadcast.objects.get(id=broadcast.id).text, {'base': "An updated scheduled message"})
 
         # update the schedule
         post_data = dict(repeat_period='W', repeat_days=6, start='later', start_datetime_value=1)
