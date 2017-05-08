@@ -347,6 +347,16 @@ class CacheTest(TembaTest):
         with BatchLock(items2, 'test_items', lambda i: i['id']) as locked_items2:
             self.assertEqual(locked_items2, [dict(id=4)])
 
+        # check that an item isn't marked as handled if exception occurs
+        try:
+            with BatchLock([dict(id=5)], 'test_items', lambda i: i['id']):
+                raise ValueError("DOH")
+        except ValueError:
+            pass
+
+        with BatchLock([dict(id=5)], 'test_items', lambda i: i['id']) as locked_items3:
+            self.assertEqual(locked_items3, [dict(id=5)])
+
         # check locked items are still locked tomorrow
         with patch('temba.utils.cache.timezone') as mock_timezone:
             mock_timezone.now.return_value = timezone.now() + datetime.timedelta(days=1)

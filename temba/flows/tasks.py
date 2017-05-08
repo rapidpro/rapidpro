@@ -53,10 +53,12 @@ def check_flow_timeouts_task():
     runs = runs.only('id', 'org', 'timeout_on')
 
     # ignore any run which was locked by previous calls to this task
-    with BatchLock(runs, 'flow_timeouts', lambda r: '%d:%d' % (r.id, datetime_to_epoch(r.timeout_on))) as locked_runs:
-        for run in locked_runs:
-            task_payload = dict(type=TIMEOUT_EVENT, run=run.id, timeout_on=run.timeout_on)
-            push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, task_payload)
+    for run in runs:
+        with BatchLock([run], 'flow_timeouts', lambda r: '%d:%d' % (r.id, datetime_to_epoch(r.timeout_on))) as locked_runs:
+            if locked_runs:
+                run = locked_runs[0]
+                task_payload = dict(type=TIMEOUT_EVENT, run=run.id, timeout_on=run.timeout_on)
+                push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, task_payload)
 
 
 @task(track_started=True, name='continue_parent_flows')  # pragma: no cover

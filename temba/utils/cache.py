@@ -101,13 +101,14 @@ class BatchLock(object):
         return locked_items
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        r = get_redis_connection()
+        if not exc_type:
+            r = get_redis_connection()
 
-        for item in self.items:
-            item_value = self.lock_on(item)
+            for item in self.items:
+                item_value = self.lock_on(item)
 
-            # add this item to today's set to show it's locked
-            pipe = r.pipeline()
-            pipe.sadd(self.today_set_key, item_value)
-            pipe.expire(self.today_set_key, 86400)  # 24 hours
-            pipe.execute()
+                # add this item to today's set to show it's locked
+                pipe = r.pipeline()
+                pipe.sadd(self.today_set_key, item_value)
+                pipe.expire(self.today_set_key, 86400)  # 24 hours
+                pipe.execute()
