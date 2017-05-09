@@ -51,11 +51,11 @@ def check_campaigns_task():
             if queued_fire_ids:
                 try:
                     push_task(flow.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, fires=queued_fire_ids))
-                except Exception:  # pragma: no cover
-                    fire_ids_str = ','.join(six.text_type(f) for f in fire_id_batch)
-                    logger.error("Error queuing campaign event fires: %s" % fire_ids_str, exc_info=True)
-                else:
+
                     queued_fires.set_queued(queued_fire_ids)
+                except Exception:  # pragma: no cover
+                    fire_ids_str = ','.join(six.text_type(f) for f in queued_fire_ids)
+                    logger.error("Error queuing campaign event fires: %s" % fire_ids_str, exc_info=True)
 
 
 @task(track_started=True, name='update_event_fires_task')  # pragma: no cover

@@ -62,10 +62,10 @@ def check_flow_timeouts_task():
             try:
                 task_payload = dict(type=TIMEOUT_EVENT, run=run.id, timeout_on=run.timeout_on)
                 push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, task_payload)
+
+                queued_timeouts.set_queued([run])
             except Exception:
                 logger.error("Error queuing timeout task for run #%d" % run.id, exc_info=True)
-            else:
-                queued_timeouts.set_queued([run])
 
 
 @task(track_started=True, name='continue_parent_flows')  # pragma: no cover
