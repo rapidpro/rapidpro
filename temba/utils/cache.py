@@ -66,49 +66,43 @@ def incrby_existing(key, delta, r=None):
     r.eval(lua, 1, key, delta)
 
 
-class BatchLock(object):
+class QueueRecord(object):
     """
-    A lock which uses a Redis set for more efficient locking of large numbers of similar objects. Uses two sets for
-    items locked today and items locked yesterday. By having these expire after 24 hours we ensure that our Redis sets
-    can't grow indefinitely even if things fail.
+    In several places we need to mark large numbers of items as queued. This utility class uses Redis sets to mark
+    objects as queued, which is more efficient than having separate keys for each item. By having these expire after
+    24 hours we ensure that our Redis sets can't grow indefinitely even if things fail.
     """
-    def __init__(self, items, lock_prefix, lock_on=None):
-        self.items = items
-        self.lock_on = lock_on or str
+    def __init__(self, key_prefix, item_val=None):
+        self.item_val = item_val or str
 
-        key_format = lock_prefix + '_%y_%m_%d'
+        key_format = key_prefix + '_%y_%m_%d'
 
         self.today_set_key = timezone.now().strftime(key_format)
         self.yesterday_set_key = (timezone.now() - timedelta(days=1)).strftime(key_format)
 
-    def __enter__(self):
+    def is_queued(self, item):
+        item_value = self.item_val(item)
+
+        # check whether we locked this item today or yesterday
         r = get_redis_connection()
-        locked_items = []
+        pipe = r.pipeline()
+        pipe.sismember(self.today_set_key, item_value)
+        pipe.sismember(self.yesterday_set_key, item_value)
+        (queued_today, queued_yesterday) = pipe.execute()
 
-        for item in self.items:
-            item_value = self.lock_on(item)
+        return queued_today or queued_yesterday
 
-            # check whether we locked this item today or yesterday
+    def filter_unqueued(self, items):
+        return [i for i in items if not self.is_queued(i)]
+
+    def set_queued(self, items):
+        r = get_redis_connection()
+
+        for item in items:
+            item_value = self.item_val(item)
+
+            # add this item to today's set to show it's locked
             pipe = r.pipeline()
-            pipe.sismember(self.today_set_key, item_value)
-            pipe.sismember(self.yesterday_set_key, item_value)
-            (queued_today, queued_yesterday) = pipe.execute()
-
-            # if not then we have access to this item
-            if not queued_today and not queued_yesterday:
-                locked_items.append(item)
-
-        return locked_items
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if not exc_type:
-            r = get_redis_connection()
-
-            for item in self.items:
-                item_value = self.lock_on(item)
-
-                # add this item to today's set to show it's locked
-                pipe = r.pipeline()
-                pipe.sadd(self.today_set_key, item_value)
-                pipe.expire(self.today_set_key, 86400)  # 24 hours
-                pipe.execute()
+            pipe.sadd(self.today_set_key, item_value)
+            pipe.expire(self.today_set_key, 86400)  # 24 hours
+            pipe.execute()

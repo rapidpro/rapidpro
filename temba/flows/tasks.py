@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 
+import logging
 import time
 
 from celery.task import task
@@ -7,12 +8,13 @@ from django.utils import timezone
 from temba.msgs.models import Broadcast, Msg, TIMEOUT_EVENT, HANDLER_QUEUE, HANDLE_EVENT_TASK
 from temba.orgs.models import Org
 from temba.utils import datetime_to_epoch
-from temba.utils.cache import BatchLock
+from temba.utils.cache import QueueRecord
 from temba.utils.queues import start_task, complete_task, push_task, nonoverlapping_task
 from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
 from .models import FlowRunCount, FlowNodeCount, FlowPathCount, FlowPathRecentStep
 
 FLOW_TIMEOUT_KEY = 'flow_timeouts_%y_%m_%d'
+logger = logging.getLogger(__name__)
 
 
 @task(track_started=True, name='send_email_action_task')
@@ -52,13 +54,18 @@ def check_flow_timeouts_task():
     runs = FlowRun.objects.filter(is_active=True, timeout_on__lte=timezone.now())
     runs = runs.only('id', 'org', 'timeout_on')
 
-    # ignore any run which was locked by previous calls to this task
+    queued_timeouts = QueueRecord('flow_timeouts', lambda r: '%d:%d' % (r.id, datetime_to_epoch(r.timeout_on)))
+
     for run in runs:
-        with BatchLock([run], 'flow_timeouts', lambda r: '%d:%d' % (r.id, datetime_to_epoch(r.timeout_on))) as locked_runs:
-            if locked_runs:
-                run = locked_runs[0]
+        # ignore any run which was locked by previous calls to this task
+        if not queued_timeouts.is_queued(run):
+            try:
                 task_payload = dict(type=TIMEOUT_EVENT, run=run.id, timeout_on=run.timeout_on)
                 push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, task_payload)
+            except Exception:
+                logger.error("Error queuing timeout task for run #%d" % run.id, exc_info=True)
+            else:
+                queued_timeouts.set_queued([run])
 
 
 @task(track_started=True, name='continue_parent_flows')  # pragma: no cover

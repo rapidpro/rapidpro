@@ -14,7 +14,6 @@ from django.db.models import Count
 from django.utils import timezone
 from django_redis import get_redis_connection
 from temba.utils import json_date_to_datetime, chunk_list
-from temba.utils.cache import BatchLock
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import start_task, complete_task, nonoverlapping_task
 from .models import Msg, Broadcast, BroadcastRecipient, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
@@ -53,13 +52,16 @@ def process_run_timeout(run_id, timeout_on):
 def process_fire_events(fire_ids):
     from temba.campaigns.models import EventFire
 
-    with BatchLock(fire_ids, 'handled_event_fires') as unhandled_fire_ids:
+    # every event fire in the batch will be for the same flow
+    flow = EventFire.objects.filter(id__in=fire_ids).first().event.flow
+
+    # lock on the flow so we know non-one else is updating these event fires
+    r = get_redis_connection()
+    with r.lock('process_fire_events:%d' % flow.id, timeout=300):
 
         # only fetch fires that haven't been somehow already handled
-        fires = list(EventFire.objects.filter(id__in=unhandled_fire_ids, fired=None).prefetch_related('contact'))
+        fires = list(EventFire.objects.filter(id__in=fire_ids, fired=None).prefetch_related('contact'))
         if fires:
-            flow = fires[0].event.flow
-
             print("E[%s][%s] Batch firing %d events..." % (flow.org.name, flow.name, len(fires)))
 
             start = time.time()
