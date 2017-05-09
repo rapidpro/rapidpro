@@ -13,9 +13,9 @@ from django.db import transaction, connection
 from django.db.models import Count
 from django.utils import timezone
 from django_redis import get_redis_connection
+from temba.utils import json_date_to_datetime, chunk_list
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import start_task, complete_task, nonoverlapping_task
-from temba.utils import json_date_to_datetime, chunk_list
 from .models import Msg, Broadcast, BroadcastRecipient, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
 from .models import FIRE_EVENT, TIMEOUT_EVENT, LabelCount, SystemLabelCount
 
@@ -47,6 +47,27 @@ def process_run_timeout(run_id, timeout_on):
                     print("T[%09d] .. skipping timeout, already handled" % run.id)
 
                 print("T[%09d] %08.3f s" % (run.id, time.time() - start))
+
+
+def process_fire_events(fire_ids):
+    from temba.campaigns.models import EventFire
+
+    # every event fire in the batch will be for the same flow
+    flow = EventFire.objects.filter(id__in=fire_ids).first().event.flow
+
+    # lock on the flow so we know non-one else is updating these event fires
+    r = get_redis_connection()
+    with r.lock('process_fire_events:%d' % flow.id, timeout=300):
+
+        # only fetch fires that haven't been somehow already handled
+        fires = list(EventFire.objects.filter(id__in=fire_ids, fired=None).prefetch_related('contact'))
+        if fires:
+            print("E[%s][%s] Batch firing %d events..." % (flow.org.name, flow.name, len(fires)))
+
+            start = time.time()
+            EventFire.batch_fire(fires, flow)
+
+            print("E[%s][%s] Finished batch firing events in %.3f s" % (flow.org.name, flow.name, time.time() - start))
 
 
 def process_message(msg, from_mage=False, new_contact=False):
@@ -186,7 +207,6 @@ def check_messages_task():  # pragma: needs cover
     Checks to see if any of our aggregators have errored messages that need to be retried.
     Also takes care of flipping Contacts from Failed to Normal and back based on their status.
     """
-    from django.utils import timezone
     from .models import INCOMING, PENDING
     from temba.orgs.models import Org
     from temba.channels.tasks import send_msg_task
@@ -240,9 +260,6 @@ def handle_event_task():
           fire - Which contains the id of the EventFire that needs to be fired
        timeout - Which contains a run that timed out and needs to be resumed
     """
-    from temba.campaigns.models import EventFire
-    r = get_redis_connection()
-
     # pop off the next task
     org_id, event_task = start_task(HANDLE_EVENT_TASK)
 
@@ -255,17 +272,8 @@ def handle_event_task():
             process_message_task(event_task)
 
         elif event_task['type'] == FIRE_EVENT:
-            # use a lock to make sure we don't do two at once somehow
-            key = 'fire_campaign_%s' % event_task['id']
-            if not r.get(key):
-                with r.lock(key, timeout=120):
-                    event = EventFire.objects.filter(pk=event_task['id'], fired=None)\
-                                             .select_related('event', 'event__campaign', 'event__campaign__org').first()
-                    if event:
-                        print("E[%09d] Firing for org: %s" % (event.id, event.event.campaign.org.name))
-                        start = time.time()
-                        event.fire()
-                        print("E[%09d] %08.3f s" % (event.id, time.time() - start))
+            fire_ids = event_task.get('fires') if 'fires' in event_task else [event_task.get('id')]
+            process_fire_events(fire_ids)
 
         elif event_task['type'] == TIMEOUT_EVENT:
             timeout_on = json_date_to_datetime(event_task['timeout_on'])
