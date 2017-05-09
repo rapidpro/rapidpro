@@ -4514,9 +4514,53 @@ class FlowsTest(FlowFileTest):
         FlowCRUDL.RunTable.paginate_by = 100
         response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
         self.assertEqual(len(response.context['runs']), 2)
+
+        rulesets = favorites.rule_sets.all()
+        results0 = Value.get_value_summary(ruleset=rulesets[0])[0]
+        results1 = Value.get_value_summary(ruleset=rulesets[1])[0]
+        results2 = Value.get_value_summary(ruleset=rulesets[2])[0]
+
+        self.assertEqual(results0['set'], 1)
+        self.assertEqual(results0['unset'], 1)
+        self.assertEqual(len(results0['categories']), 1)
+        self.assertEqual(results0['categories'], [{'count': 1, 'label': u'pete'}])
+
+        self.assertEqual(results1['set'], 2)
+        self.assertEqual(results1['unset'], 0)
+        self.assertEqual(len(results1['categories']), 4)
+        self.assertEqual(results1['categories'], [{'count': 0, 'label': u'Mutzig'}, {'count': 1, 'label': u'Primus'},
+                                                  {'count': 1, 'label': u'Turbo King'}, {'count': 0, 'label': u'Skol'}])
+
+        self.assertEqual(results2['set'], 2)
+        self.assertEqual(results2['unset'], 0)
+        self.assertEqual(len(results2['categories']), 4)
+        self.assertEqual(results2['categories'], [{'count': 1, 'label': u'Red'}, {'count': 0, 'label': u'Green'},
+                                                  {'count': 1, 'label': u'Blue'}, {'count': 0, 'label': u'Cyan'}])
+
         self.client.post(reverse('flows.flowrun_delete', args=[response.context['runs'][0].id]))
         response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
         self.assertEqual(len(response.context['runs']), 1)
+
+        results0 = Value.get_value_summary(ruleset=rulesets[0])[0]
+        results1 = Value.get_value_summary(ruleset=rulesets[1])[0]
+        results2 = Value.get_value_summary(ruleset=rulesets[2])[0]
+
+        self.assertEqual(results0['set'], 0)
+        self.assertEqual(results0['unset'], 1)
+        self.assertEqual(len(results0['categories']), 0)
+        self.assertEqual(results0['categories'], [])
+
+        self.assertEqual(results1['set'], 1)
+        self.assertEqual(results1['unset'], 0)
+        self.assertEqual(len(results1['categories']), 4)
+        self.assertEqual(results1['categories'], [{'count': 0, 'label': u'Mutzig'}, {'count': 0, 'label': u'Primus'},
+                                                  {'count': 1, 'label': u'Turbo King'}, {'count': 0, 'label': u'Skol'}])
+
+        self.assertEqual(results2['set'], 1)
+        self.assertEqual(results2['unset'], 0)
+        self.assertEqual(len(results2['categories']), 4)
+        self.assertEqual(results2['categories'], [{'count': 1, 'label': u'Red'}, {'count': 0, 'label': u'Green'},
+                                                  {'count': 0, 'label': u'Blue'}, {'count': 0, 'label': u'Cyan'}])
 
     def test_send_all_replies(self):
         flow = self.get_flow('send_all')

@@ -133,9 +133,6 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
     """
     Form for keyword triggers
     """
-    keyword = forms.CharField(max_length=16, required=True, label=_("Keyword"),
-                              help_text=_("The first word of the message text"))
-
     def __init__(self, user, *args, **kwargs):
         flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE])
         super(KeywordTriggerForm, self).__init__(user, flows, *args, **kwargs)
@@ -160,7 +157,7 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
         return data
 
     class Meta(BaseTriggerForm.Meta):
-        fields = ('keyword', 'flow', 'groups')
+        fields = ('keyword', 'match_type', 'flow', 'groups')
 
 
 class RegisterTriggerForm(BaseTriggerForm):
@@ -554,6 +551,7 @@ class TriggerCRUDL(SmartCRUDL):
         fields = ('name', 'modified_on')
         default_template = 'triggers/trigger_list.html'
         default_order = ('-last_triggered', '-modified_on')
+        search_fields = ('keyword__icontains', 'flow__name__icontains', 'channel__name__icontains')
 
         def get_context_data(self, **kwargs):
             context = super(TriggerCRUDL.BaseList, self).get_context_data(**kwargs)
@@ -577,8 +575,9 @@ class TriggerCRUDL(SmartCRUDL):
         title = _("Triggers")
 
         def pre_process(self, request, *args, **kwargs):
-            # if they have no triggers, send them to create page
-            if super(TriggerCRUDL.List, self).get_queryset(*args, **kwargs).count() == 0:  # pragma: needs cover
+            # if they have no triggers and no search performed, send them to create page
+            obj_count = super(TriggerCRUDL.List, self).get_queryset(*args, **kwargs).count()
+            if obj_count == 0 and not request.GET.get('search', ''):
                 return HttpResponseRedirect(reverse("triggers.trigger_create"))
             return super(TriggerCRUDL.List, self).pre_process(request, *args, **kwargs)
 

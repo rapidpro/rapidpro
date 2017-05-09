@@ -1,3 +1,10 @@
+v3.0.134
+----------
+ * Add match_type option to triggers so users can create triggers which only match when message only contains keyword
+ * Allow Africa's talking to retry sending message
+ * Allow search on the triggers pages
+ * Clear results for analytics when user removes a flow run
+
 v3.0.133
 ----------
  * Make Msg.get_sync_commands more efficent
