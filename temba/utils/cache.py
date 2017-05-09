@@ -5,6 +5,7 @@ import json
 from datetime import timedelta
 from django.utils import timezone
 from django_redis import get_redis_connection
+from . import chunk_list
 
 
 def get_cacheable(cache_key, cache_ttl, callable, r=None, force_dirty=False):
@@ -96,13 +97,17 @@ class QueueRecord(object):
         return [i for i in items if not self.is_queued(i)]
 
     def set_queued(self, items):
+        """
+        Marks the given items as queued
+        """
         r = get_redis_connection()
 
-        for item in items:
-            item_value = self.item_val(item)
+        values = [self.item_val(i) for i in items]
 
-            # add this item to today's set to show it's locked
+        for value_batch in chunk_list(values, 50):
             pipe = r.pipeline()
-            pipe.sadd(self.today_set_key, item_value)
-            pipe.expire(self.today_set_key, 86400)  # 24 hours
+            for v in value_batch:
+                pipe.sadd(self.today_set_key, v)
             pipe.execute()
+
+        r.expire(self.today_set_key, 86400)  # 24 hours
