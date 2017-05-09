@@ -14,6 +14,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
+from temba_expressions.utils import tokenize
 
 
 @six.python_2_unicode_compatible
@@ -45,8 +46,8 @@ class Trigger(SmartModel):
     MATCH_FIRST_WORD = 'F'
     MATCH_ONLY_WORD = 'O'
 
-    MATCH_TYPES = ((MATCH_FIRST_WORD, _("Message starts with keyword")),
-                   (MATCH_ONLY_WORD, _("Message only contains keyword")))
+    MATCH_TYPES = ((MATCH_FIRST_WORD, _("Message starts with the keyword")),
+                   (MATCH_ONLY_WORD, _("Message contains only the keyword")))
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The organization this trigger belongs to"))
 
@@ -270,8 +271,7 @@ class Trigger(SmartModel):
 
     @classmethod
     def find_and_handle(cls, msg):
-        # tokenize message into words
-        words = [w for w in regex.split(r"[\W]+", msg.text, flags=regex.UNICODE | regex.V0) if w]
+        words = tokenize(msg.text)
 
         # skip if message doesn't have any words
         if not words:
@@ -289,7 +289,9 @@ class Trigger(SmartModel):
         trigger = Trigger.objects.filter(org=msg.org, is_archived=False, is_active=True, trigger_type=cls.TYPE_KEYWORD,
                                          flow__is_archived=False, flow__is_active=True)
 
-        trigger = trigger.filter(Q(match_type=cls.MATCH_FIRST_WORD, keyword__iexact=words[0]) | Q(match_type=cls.MATCH_ONLY_WORD, keyword__iexact=msg.text.strip()))
+        # if message text is only one word, then we can match 'only-word' triggers too
+        match_types = (cls.MATCH_FIRST_WORD, cls.MATCH_ONLY_WORD) if len(words) == 1 else (cls.MATCH_FIRST_WORD,)
+        trigger = trigger.filter(keyword__iexact=words[0], match_type__in=match_types)
 
         # trigger needs to match the contact's groups or be non-group specific
         trigger = trigger.filter(Q(groups__in=msg.contact.user_groups.all()) | Q(groups=None))
