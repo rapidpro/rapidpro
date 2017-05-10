@@ -1,3 +1,10 @@
+v3.0.135
+----------
+ * Make 'only' keyword triggers ignore punctuation
+ * Make check_campaigns_task lock on the event fires that it will queue
+ * Break up flow event fires into sub-batches of 500
+ * Ignore and ack incoming messages from Android relayer that have no number
+
 v3.0.134
 ----------
  * Add match_type option to triggers so users can create triggers which only match when message only contains keyword
