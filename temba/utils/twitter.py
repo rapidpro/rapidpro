@@ -69,16 +69,17 @@ class TembaTwython(Twython):  # pragma: no cover
         #  Wrap the json loads in a try, and defer an error
         #  Twitter will return invalid json with an error code in the headers
         json_error = False
-        try:
+        if content:
             try:
-                # try to get json
-                content = content.json()
-            except AttributeError:
-                # if unicode detected
-                content = json.loads(content)
-        except ValueError:
-            json_error = True
-            content = {}
+                try:
+                    # try to get json
+                    content = content.json()
+                except AttributeError:
+                    # if unicode detected
+                    content = json.loads(content)
+            except ValueError:
+                json_error = True
+                content = {}
 
         if response.status_code > 304:
             # If there is no error message, use a default.
@@ -110,5 +111,7 @@ class TembaTwython(Twython):  # pragma: no cover
         return content
 
     def register_webook(self, url):
-        return self._request('https://api.twitter.com/1.1/account_activity/webhooks.json',
-                             method='POST', params={'url': url})
+        return self.post('https://api.twitter.com/1.1/account_activity/webhooks.json', params={'url': url})
+
+    def subscribe_to_webhook(self, webhook_id):
+        return self.post('https://api.twitter.com/1.1/account_activity/webhooks/%s/subscriptions.json' % webhook_id)

@@ -2901,11 +2901,11 @@ class TwitterHandler(BaseChannelHandler):
 
         for dm_event in dm_events:
             if dm_event['type'] == 'message_create':
-                external_id = dm_event['id']
-                created_on = ms_to_datetime(int(dm_event['created_timestamp']))
-                sender_id = dm_event['message_create']['sender_id']
-                text = dm_event['message_create']['message_data']['text']
+                # external_id = dm_event['id']
+                # created_on = ms_to_datetime(int(dm_event['created_timestamp']))
+                # sender_id = dm_event['message_create']['sender_id']
+                # text = dm_event['message_create']['message_data']['text']
 
-                print("Received DM #%s from #%s: '%s'" % (external_id, sender_id, text))
+                print("Received DM event: %s" % json.dumps(dm_event))
 
         return HttpResponse("Thanks for the update", status=200)

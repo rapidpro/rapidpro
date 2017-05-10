@@ -7,7 +7,7 @@
   %h2.font_normalize.header-margin
     -trans "Connect Twitter"
 
--block content
+-block pre-form
   .info
     %p
       -blocktrans with name=brand.name
@@ -32,8 +32,9 @@
       %p
         <img src="{{STATIC_URL}}images/twitter_settings.png"/>
 
-    %a.btn.btn-primary{href:"{{ twitter_auth_url }}", style:"margin-right: 5px"}
-      -trans "Authorize"
+    - if legacy_twitter
+      %a.btn.btn-primary{href:"{{ twitter_auth_url }}", style:"margin-right: 5px"}
+        -trans "Authorize"
 
     %a.btn{href:"{% url 'channels.channel_claim' %}"}
       -trans "Cancel"
