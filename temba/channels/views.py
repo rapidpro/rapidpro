@@ -671,11 +671,16 @@ def sync(request, channel_id):
 
                         # it is possible to receive spam SMS messages from no number on some carriers
                         tel = cmd['phone'] if cmd['phone'] else 'empty'
+                        try:
+                            URN.normalize(URN.from_tel(tel), channel.country.code)
 
-                        if 'msg' in cmd:
-                            msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd['msg'], date=date)
-                            if msg:
-                                extra = dict(msg_id=msg.id)
+                            if 'msg' in cmd:
+                                msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd['msg'], date=date)
+                                if msg:
+                                    extra = dict(msg_id=msg.id)
+                        except ValueError:
+                            pass
+
                         handled = True
 
                     # phone event
@@ -705,6 +710,19 @@ def sync(request, channel_id):
                             channel.gcm_id = gcm_id
                             channel.uuid = uuid
                             channel.save(update_fields=['gcm_id', 'uuid'])
+
+                        # no acking the gcm
+                        handled = False
+
+                    elif keyword == 'fcm':
+                        # update our fcm and uuid
+
+                        channel.gcm_id = None
+                        config = channel.config_json()
+                        config.update({Channel.CONFIG_FCM_ID: cmd['fcm_id']})
+                        channel.config = json.dumps(config)
+                        channel.uuid = cmd.get('uuid', None)
+                        channel.save(update_fields=['uuid', 'config', 'gcm_id'])
 
                         # no acking the gcm
                         handled = False

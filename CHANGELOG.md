@@ -1,3 +1,27 @@
+v3.0.135
+----------
+ * Make 'only' keyword triggers ignore punctuation
+ * Make check_campaigns_task lock on the event fires that it will queue
+ * Break up flow event fires into sub-batches of 500
+ * Ignore and ack incoming messages from Android relayer that have no number
+
+v3.0.134
+----------
+ * Add match_type option to triggers so users can create triggers which only match when message only contains keyword
+ * Allow Africa's talking to retry sending message
+ * Allow search on the triggers pages
+ * Clear results for analytics when user removes a flow run
+
+v3.0.133
+----------
+ * Make Msg.get_sync_commands more efficent
+ * Fix open range airtime transfers
+ * Fix multiple Android channels sync
+ * Fix parsing of macrokiosk channel time format
+ * Ensure that our select2 boxes show "Add new" option even if there is a partial match with an existing item
+ * Switch to new translatable fields and remove old Broadcast fields
+ * Add Firebase Cloud messaging support for Android channels
+
 v3.0.132
 ----------
  * Migration to populate new translatable fields on old broadcasts. This migration is slow on a large database so it's

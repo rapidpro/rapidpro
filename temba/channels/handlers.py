@@ -348,6 +348,8 @@ class AfricasTalkingHandler(BaseChannelHandler):
             if 'status' not in request.POST or 'id' not in request.POST:
                 return HttpResponse("Missing status or id parameters", status=400)
 
+            r = get_redis_connection()
+
             status = request.POST['status']
             external_id = request.POST['id']
 
@@ -361,7 +363,7 @@ class AfricasTalkingHandler(BaseChannelHandler):
             elif status == 'Sent' or status == 'Buffered':
                 sms.status_sent()
             elif status == 'Rejected' or status == 'Failed':
-                sms.status_fail()
+                Msg.mark_error(r, channel, sms)
 
             return HttpResponse("SMS Status Updated")
 
