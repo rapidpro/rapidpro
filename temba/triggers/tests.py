@@ -985,7 +985,10 @@ class TriggerTest(TembaTest):
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="when and where?")
         self.assertFalse(Trigger.find_and_handle(incoming))
 
-        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="  WHEN  ")
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="  WHEN! ")
+        self.assertTrue(Trigger.find_and_handle(incoming))
+
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="\WHEN")
         self.assertTrue(Trigger.find_and_handle(incoming))
 
         # change match type back to 'first'
@@ -1003,7 +1006,7 @@ class TriggerTest(TembaTest):
 
         self.contact.refresh_from_db()
         self.assertFalse(self.contact.is_stopped)
-        self.assertEqual(FlowRun.objects.all().count(), 3)
+        self.assertEqual(FlowRun.objects.all().count(), 4)
 
         # create trigger for specific contact group
         group = self.create_group("first", [self.contact2])

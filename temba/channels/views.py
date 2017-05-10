@@ -671,11 +671,16 @@ def sync(request, channel_id):
 
                         # it is possible to receive spam SMS messages from no number on some carriers
                         tel = cmd['phone'] if cmd['phone'] else 'empty'
+                        try:
+                            URN.normalize(URN.from_tel(tel), channel.country.code)
 
-                        if 'msg' in cmd:
-                            msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd['msg'], date=date)
-                            if msg:
-                                extra = dict(msg_id=msg.id)
+                            if 'msg' in cmd:
+                                msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd['msg'], date=date)
+                                if msg:
+                                    extra = dict(msg_id=msg.id)
+                        except ValueError:
+                            pass
+
                         handled = True
 
                     # phone event
