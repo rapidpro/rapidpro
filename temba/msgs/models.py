@@ -345,7 +345,7 @@ class Broadcast(models.Model):
     def get_message_failed_count(self):  # pragma: needs cover
         return self.get_messages().filter(status__in=[FAILED, RESENT]).count()
 
-    def get_preferred_languages(self, contact, org=None):
+    def get_preferred_languages(self, contact=None, org=None):
         """
         Gets the ordered list of language preferences for the given contact
         """
@@ -353,7 +353,7 @@ class Broadcast(models.Model):
         preferred_languages = []
 
         # if contact has a language and it's a valid org language, it has priority
-        if contact.language and contact.language in org.get_language_codes():
+        if contact is not None and contact.language and contact.language in org.get_language_codes():
             preferred_languages.append(contact.language)
 
         if org.primary_language:
@@ -362,6 +362,13 @@ class Broadcast(models.Model):
         preferred_languages.append(self.base_language)
 
         return preferred_languages
+
+    def get_default_text(self):
+        """
+        Gets the appropriate display text for the broadcast without a contact
+        """
+        preferred_languages = self.get_preferred_languages(None, self.org)
+        return Language.get_localized_text(self.text, preferred_languages)
 
     def get_translated_text(self, contact, org=None):
         """
