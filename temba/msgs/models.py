@@ -367,7 +367,7 @@ class Broadcast(models.Model):
         """
         Gets the appropriate display text for the broadcast without a contact
         """
-        return self.text.get[self.base_language]
+        return self.text[self.base_language]
 
     def get_translated_text(self, contact, org=None):
         """
