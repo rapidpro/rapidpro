@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import itertools
 import json
 import logging
 import plivo
@@ -30,12 +31,13 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from email.utils import parseaddr
 from functools import cmp_to_key
-from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
 from smartmin.views import SmartModelFormView, SmartModelActionView
 from datetime import timedelta
 from temba.api.models import APIToken
+from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
+from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, languages
 from temba.utils.timezones import TimeZoneFormField
@@ -508,93 +510,88 @@ class OrgCRUDL(SmartCRUDL):
     class Export(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
 
         def post(self, request, *args, **kwargs):
+            org = self.get_object()
 
-            # get all of the selected flows and campaigns
-            from temba.flows.models import Flow
-            from temba.campaigns.models import Campaign
+            # fetch the selected flows and campaigns
+            flows = Flow.objects.filter(id__in=self.request.POST.getlist('flows'), org=org, is_active=True)
+            campaigns = Campaign.objects.filter(id__in=self.request.POST.getlist('campaigns'), org=org, is_active=True)
 
-            flows = set(Flow.objects.filter(id__in=self.request.POST.getlist('flows'), org=self.get_object(), is_active=True))
-            campaigns = Campaign.objects.filter(id__in=self.request.POST.getlist('campaigns'), org=self.get_object())
+            components = set(itertools.chain(flows, campaigns))
 
-            # by default we include the triggers for the requested flows
-            dependencies = dict(flows=set(), campaigns=set(), groups=set(), triggers=set())
+            # add triggers for the selected flows
             for flow in flows:
-                dependencies = flow.get_dependencies(dependencies)
+                components.update(flow.triggers.filter(is_active=True, is_archived=False))
 
-            triggers = dependencies['triggers']
-
-            export = self.get_object().export_definitions(request.branding['link'], flows, campaigns, triggers)
+            export = org.export_definitions(request.branding['link'], components)
             response = JsonResponse(export, json_dumps_params=dict(indent=2))
-            response['Content-Disposition'] = 'attachment; filename=%s.json' % slugify(self.get_object().name)
+            response['Content-Disposition'] = 'attachment; filename=%s.json' % slugify(org.name)
             return response
 
         def get_context_data(self, **kwargs):
-            from collections import defaultdict
-
-            def connected_components(lists):
-                neighbors = defaultdict(set)
-                seen = set()
-                for each in lists:
-                    for item in each:
-                        neighbors[item].update(each)
-
-                def component(node, neighbors=neighbors, seen=seen, see=seen.add):
-                    nodes = {node}
-                    next_node = nodes.pop
-                    while nodes:
-                        node = next_node()
-                        see(node)
-                        nodes |= neighbors[node] - seen
-                        yield node
-                for node in neighbors:
-                    if node not in seen:
-                        yield sorted(component(node))
-
             context = super(OrgCRUDL.Export, self).get_context_data(**kwargs)
 
-            include_archived = self.request.GET.get('archived', 0)
+            org = self.get_object()
+            include_archived = bool(int(self.request.GET.get('archived', 0)))
 
-            # all of our user facing flows
-            flows = self.get_object().get_export_flows(include_archived=include_archived)
-
-            # now add lists of flows with their dependencies
-            all_depends = []
-            for flow in flows:
-                depends = flow.get_dependencies()
-                all_depends.append([flow] + list(depends['flows']) + list(depends['campaigns']))
-
-            # add all campaigns
-            from temba.campaigns.models import Campaign
-            campaigns = Campaign.objects.filter(org=self.get_object())
-
-            if not include_archived:
-                campaigns = campaigns.filter(is_archived=False)
-
-            for campaign in campaigns:
-                all_depends.append((campaign,))
-
-            buckets = connected_components(all_depends)
-
-            # sort our buckets, campaigns, flows, triggers
-            bucket_list = []
-            singles = []
-            for bucket in buckets:
-                if len(bucket) > 1:
-                    bucket_list.append(sorted(list(bucket), key=attrgetter('__class__', 'name')))
-                else:
-                    singles.append(bucket[0])
-
-            # put the buckets with the most items first
-            bucket_list = sorted(bucket_list, key=lambda s: len(s), reverse=True)
-
-            # sort our singles by type
-            singles = sorted(singles, key=attrgetter('__class__', 'name'))
+            buckets, singles = self.generate_export_buckets(org, include_archived)
 
             context['archived'] = include_archived
-            context['buckets'] = bucket_list
+            context['buckets'] = buckets
             context['singles'] = singles
-
             return context
+
+        def generate_export_buckets(self, org, include_archived):
+            """
+            Generates a set of buckets of related exportable flows and campaigns
+            """
+            dependencies = org.generate_dependency_graph(include_archived=include_archived)
+
+            unbucketed = set(dependencies.keys())
+            buckets = []
+
+            # helper method to add a component and its dependencies to a bucket
+            def collect_component(c, bucket):
+                if c in bucket:  # pragma: no cover
+                    return
+
+                unbucketed.remove(c)
+                bucket.add(c)
+
+                for d in dependencies[c]:
+                    if d in unbucketed:
+                        collect_component(d, bucket)
+
+            while unbucketed:
+                component = next(iter(unbucketed))
+
+                bucket = set()
+                buckets.append(bucket)
+
+                collect_component(component, bucket)
+
+            # collections with only one non-group component should be merged into a single "everything else" collection
+            non_single_buckets = []
+            singles = set()
+
+            # items within buckets are sorted by type and name
+            def sort_key(c):
+                return c.__class__, c.name.lower()
+
+            # buckets with a single item are merged into a special singles bucket
+            for b in buckets:
+                if len(b) > 1:
+                    sorted_bucket = sorted(list(b), key=sort_key)
+                    non_single_buckets.append(sorted_bucket)
+                else:
+                    singles.update(b)
+
+            # put the buckets with the most items first
+            non_single_buckets = sorted(non_single_buckets, key=lambda b: len(b), reverse=True)
+
+            # sort singles
+            singles = sorted(list(singles), key=sort_key)
+
+            return non_single_buckets, singles
 
     class TwilioConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
 

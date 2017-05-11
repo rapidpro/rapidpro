@@ -436,7 +436,7 @@ class FlowTest(TembaTest):
 
         # should have created a single broadcast
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, "What is your favorite color?")
+        self.assertEqual(broadcast.text, {'base': "What is your favorite color?", 'fre': "Quelle est votre couleur préférée?"})
         self.assertEqual(set(broadcast.contacts.all()), {self.contact, self.contact2})
         self.assertEqual(broadcast.base_language, 'base')
 
@@ -3068,6 +3068,8 @@ class ActionTest(TembaTest):
         self.assertEqual(action.media, dict())
 
         broadcast = Broadcast.objects.get()
+        self.assertEqual(broadcast.text, dict(base=msg_body))
+        self.assertEqual(broadcast.base_language, 'base')
         self.assertEqual(broadcast.get_messages().count(), 1)
         msg = broadcast.get_messages().first()
         self.assertEqual(msg.contact, self.contact2)
@@ -3122,8 +3124,8 @@ class ActionTest(TembaTest):
 
         self.assertEqual(Broadcast.objects.all().count(), 2)  # new broadcast with media
 
-        broadcast = Broadcast.objects.all().order_by('-created_on').first()
-        self.assertEqual(broadcast.media_dict, json.dumps(dict(base='image/jpeg:attachments/picture.jpg')))
+        broadcast = Broadcast.objects.order_by('-id').first()
+        self.assertEqual(broadcast.media, dict(base='image/jpeg:attachments/picture.jpg'))
         self.assertEqual(broadcast.get_messages().count(), 1)
         msg = broadcast.get_messages().first()
         self.assertEqual(msg.contact, self.contact2)
@@ -3133,7 +3135,11 @@ class ActionTest(TembaTest):
         # also send if we have empty message but have an attachment
         action = SendAction(dict(base=""), [], [self.contact], [], dict(base='image/jpeg:attachments/picture.jpg'))
         self.execute_action(action, run, None)
-        self.assertEqual(Broadcast.objects.all().count(), 3)
+
+        broadcast = Broadcast.objects.order_by('-id').first()
+        self.assertEqual(broadcast.text, dict(base=""))
+        self.assertEqual(broadcast.media, dict(base='image/jpeg:attachments/picture.jpg'))
+        self.assertEqual(broadcast.base_language, 'base')
 
     def test_variable_contact_parsing(self):
         groups = dict(groups=[dict(id=-1)])
@@ -3870,12 +3876,18 @@ class FlowLabelTest(FlowFileTest):
         favorites = self.get_flow('favorites')
         label.toggle_label([favorites], True)
         response = self.client.get(reverse('flows.flow_filter', args=[label.pk]))
-
+        self.assertTrue(response.context['object_list'])
         # our child label
         self.assertContains(response, "child")
 
         # and the edit gear link
         self.assertContains(response, "Edit")
+
+        favorites.is_active = False
+        favorites.save()
+
+        response = self.client.get(reverse('flows.flow_filter', args=[label.pk]))
+        self.assertFalse(response.context['object_list'])
 
     def test_toggle_label(self):
         label = FlowLabel.create_unique('toggle me', self.org)
@@ -4289,6 +4301,42 @@ class SimulationTest(FlowFileTest):
 
         self.assertEqual(handle_incoming.call_args[1]['status'], USSDSession.INTERRUPTED)
 
+    def test_ussd_simulation_session_end(self):
+        self.ussd_channel = Channel.create(
+            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
+            scheme='tel', uuid='00000000-0000-0000-0000-000000002222',
+            role=Channel.ROLE_USSD)
+
+        flow = self.get_flow('ussd_session_end')
+
+        simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
+
+        post_data = dict(has_refresh=True, new_message="4")
+
+        self.login(self.admin)
+        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+
+        self.assertEquals(response.status_code, 200)
+
+        session = USSDSession.objects.get()
+        self.assertEquals(session.status, USSDSession.COMPLETED)
+
+    def test_ussd_simulation_without_channel_doesnt_run(self):
+        Channel.objects.all().delete()
+
+        flow = self.get_flow('ussd_session_end')
+
+        simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
+
+        post_data = dict(has_refresh=True, new_message="4")
+
+        self.login(self.admin)
+        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+        self.assertEquals(response.status_code, 400)
+        self.assertEqual(response.json()['status'], 'error')
+
+        self.assertEqual(flow.runs.count(), 0)
+
 
 class FlowsTest(FlowFileTest):
 
@@ -4466,9 +4514,53 @@ class FlowsTest(FlowFileTest):
         FlowCRUDL.RunTable.paginate_by = 100
         response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
         self.assertEqual(len(response.context['runs']), 2)
+
+        rulesets = favorites.rule_sets.all()
+        results0 = Value.get_value_summary(ruleset=rulesets[0])[0]
+        results1 = Value.get_value_summary(ruleset=rulesets[1])[0]
+        results2 = Value.get_value_summary(ruleset=rulesets[2])[0]
+
+        self.assertEqual(results0['set'], 1)
+        self.assertEqual(results0['unset'], 1)
+        self.assertEqual(len(results0['categories']), 1)
+        self.assertEqual(results0['categories'], [{'count': 1, 'label': u'pete'}])
+
+        self.assertEqual(results1['set'], 2)
+        self.assertEqual(results1['unset'], 0)
+        self.assertEqual(len(results1['categories']), 4)
+        self.assertEqual(results1['categories'], [{'count': 0, 'label': u'Mutzig'}, {'count': 1, 'label': u'Primus'},
+                                                  {'count': 1, 'label': u'Turbo King'}, {'count': 0, 'label': u'Skol'}])
+
+        self.assertEqual(results2['set'], 2)
+        self.assertEqual(results2['unset'], 0)
+        self.assertEqual(len(results2['categories']), 4)
+        self.assertEqual(results2['categories'], [{'count': 1, 'label': u'Red'}, {'count': 0, 'label': u'Green'},
+                                                  {'count': 1, 'label': u'Blue'}, {'count': 0, 'label': u'Cyan'}])
+
         self.client.post(reverse('flows.flowrun_delete', args=[response.context['runs'][0].id]))
         response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
         self.assertEqual(len(response.context['runs']), 1)
+
+        results0 = Value.get_value_summary(ruleset=rulesets[0])[0]
+        results1 = Value.get_value_summary(ruleset=rulesets[1])[0]
+        results2 = Value.get_value_summary(ruleset=rulesets[2])[0]
+
+        self.assertEqual(results0['set'], 0)
+        self.assertEqual(results0['unset'], 1)
+        self.assertEqual(len(results0['categories']), 0)
+        self.assertEqual(results0['categories'], [])
+
+        self.assertEqual(results1['set'], 1)
+        self.assertEqual(results1['unset'], 0)
+        self.assertEqual(len(results1['categories']), 4)
+        self.assertEqual(results1['categories'], [{'count': 0, 'label': u'Mutzig'}, {'count': 0, 'label': u'Primus'},
+                                                  {'count': 1, 'label': u'Turbo King'}, {'count': 0, 'label': u'Skol'}])
+
+        self.assertEqual(results2['set'], 1)
+        self.assertEqual(results2['unset'], 0)
+        self.assertEqual(len(results2['categories']), 4)
+        self.assertEqual(results2['categories'], [{'count': 1, 'label': u'Red'}, {'count': 0, 'label': u'Green'},
+                                                  {'count': 0, 'label': u'Blue'}, {'count': 0, 'label': u'Cyan'}])
 
     def test_send_all_replies(self):
         flow = self.get_flow('send_all')
@@ -5726,10 +5818,12 @@ class FlowsTest(FlowFileTest):
 
         # check we got our three messages, the third populated by the child, but sent form the parent
         msgs = Msg.objects.order_by('created_on')
-        self.assertEqual(3, msgs.count())
-        self.assertEqual("Message 1", msgs[0].text)
-        self.assertEqual("Message 2", msgs[1].text)
-        self.assertEqual("Message 3 (FLOW B)", msgs[2].text)
+        self.assertEqual(5, msgs.count())
+        self.assertEqual(msgs[0].text, "Message 1")
+        self.assertEqual(msgs[1].text, "Message 2/4")
+        self.assertEqual(msgs[2].text, "Message 3 (FLOW B)")
+        self.assertEqual(msgs[3].text, "Message 2/4")
+        self.assertEqual(msgs[4].text, "Message 5 (FLOW B)")
 
     def test_subflow_resumes(self):
         self.get_flow('subflow_resumes')

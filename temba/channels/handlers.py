@@ -20,6 +20,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
+from django_redis import get_redis_connection
 from guardian.utils import get_anonymous_user
 from requests import Request
 from temba.api.models import WebHookEvent
@@ -346,6 +347,8 @@ class AfricasTalkingHandler(BaseChannelHandler):
             if 'status' not in request.POST or 'id' not in request.POST:
                 return HttpResponse("Missing status or id parameters", status=400)
 
+            r = get_redis_connection()
+
             status = request.POST['status']
             external_id = request.POST['id']
 
@@ -359,7 +362,7 @@ class AfricasTalkingHandler(BaseChannelHandler):
             elif status == 'Sent' or status == 'Buffered':
                 sms.status_sent()
             elif status == 'Rejected' or status == 'Failed':
-                sms.status_fail()
+                Msg.mark_error(r, channel, sms)
 
             return HttpResponse("SMS Status Updated")
 
@@ -1044,7 +1047,7 @@ class MacroKioskHandler(BaseChannelHandler):
         elif action == 'receive':
 
             external_id = self.get_param('msgid')
-            message_date = datetime.strptime(self.get_param('time'), "%Y-%m-%d%H:%M:%S")
+            message_date = datetime.strptime(self.get_param('time'), "%Y-%m-%d %H:%M:%S")
             local_date = pytz.timezone('Asia/Kuala_Lumpur').localize(message_date)
             gmt_date = local_date.astimezone(pytz.utc)
 
@@ -1457,6 +1460,8 @@ class KannelHandler(BaseChannelHandler):
             sms_id = self.get_param('id')
             status_code = self.get_param('status')
 
+            r = get_redis_connection()
+
             if not sms_id and not status_code:  # pragma: needs cover
                 return HttpResponse("Missing one of 'id' or 'status' in request parameters.", status=400)
 
@@ -1488,7 +1493,7 @@ class KannelHandler(BaseChannelHandler):
                     sms_obj.status_delivered()
             elif status == FAILED:
                 for sms_obj in sms:
-                    sms_obj.status_fail()
+                    Msg.mark_error(r, channel, sms_obj)
 
             return HttpResponse("SMS Status Updated")
 
@@ -1995,6 +2000,15 @@ class JunebugHandler(BaseChannelHandler):
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
 
+        request_body = request.body
+        request_method = request.method
+        request_path = request.get_full_path()
+
+        def log_channel(channel, description, event, is_error=False):
+            return ChannelLog.objects.create(channel_id=channel.pk, is_error=is_error, request=event.request_body,
+                                             response=event.response_body, url=event.url, method=event.method,
+                                             response_status=event.status_code, description=description)
+
         action = kwargs['action'].lower()
         request_uuid = kwargs['uuid']
 
@@ -2016,8 +2030,11 @@ class JunebugHandler(BaseChannelHandler):
         if action == 'event':
             expected_keys = ["event_type", "message_id", "timestamp"]
             if not set(expected_keys).issubset(data.keys()):
-                return HttpResponse("Missing one of %s in request parameters." % (', '.join(expected_keys)),
-                                    status=400)
+                status = 400
+                response_body = "Missing one of %s in request parameters." % (', '.join(expected_keys))
+                event = HttpEvent(request_method, request_path, request_body, status, response_body)
+                log_channel(channel, 'Failed to handle event.', event, is_error=True)
+                return HttpResponse(response_body, status=status)
 
             message_id = data['message_id']
             event_type = data["event_type"]
@@ -2025,8 +2042,11 @@ class JunebugHandler(BaseChannelHandler):
             # look up the message
             message = Msg.objects.filter(channel=channel, external_id=message_id).select_related('channel')
             if not message:
-                return HttpResponse("Message with external id of '%s' not found" % message_id,
-                                    status=400)
+                status = 400
+                response_body = "Message with external id of '%s' not found" % (message_id,)
+                event = HttpEvent(request_method, request_path, request_body, status, response_body)
+                log_channel(channel, 'Failed to handle %s event_type.' % (event_type), event)
+                return HttpResponse(response_body, status=status)
 
             if event_type == 'submitted':
                 for message_obj in message:
@@ -2038,11 +2058,14 @@ class JunebugHandler(BaseChannelHandler):
                 for message_obj in message:
                     message_obj.status_fail()
 
-            # Let Junebug know we're happy
-            return JsonResponse({
+            response_body = {
                 'status': self.ACK,
                 'message_ids': [message_obj.pk for message_obj in message]
-            })
+            }
+            event = HttpEvent(request_method, request_path, request_body, 200, json.dumps(response_body))
+            log_channel(channel, 'Handled %s event_type.' % (event_type), event)
+            # Let Junebug know we're happy
+            return JsonResponse(response_body)
 
         # Handle an inbound message
         elif action == 'inbound':
@@ -2057,9 +2080,11 @@ class JunebugHandler(BaseChannelHandler):
                 'message_id',
             ]
             if not set(expected_keys).issubset(data.keys()):
-                return HttpResponse(
-                    "Missing one of %s in request parameters." % (', '.join(expected_keys)),
-                    status=400)
+                status = 400
+                response_body = "Missing one of %s in request parameters." % (', '.join(expected_keys))
+                event = HttpEvent(request_method, request_path, request_body, status, response_body)
+                log_channel(channel, 'Failed to handle message.', event, is_error=True)
+                return HttpResponse(response_body, status=status)
 
             if is_ussd:
                 status = {
@@ -2076,23 +2101,37 @@ class JunebugHandler(BaseChannelHandler):
                                                       message_id=data['message_id'], starcode=data['to'])
 
                 if session:
-                    return JsonResponse({
+                    status = 200
+                    response_body = {
                         'status': self.ACK,
                         'session_id': session.pk,
-                    })
+                    }
+                    event = HttpEvent(request_method, request_path, request_body, status, json.dumps(response_body))
+                    log_channel(channel, 'Handled USSD message of %s session_event' % (
+                        channel_data['session_event'],), event)
+                    return JsonResponse(response_body, status=status)
                 else:
-                    return JsonResponse({
+                    status = 400
+                    response_body = {
                         'status': self.NACK,
                         'reason': 'No suitable session found for this message.'
-                    }, status=400)
+                    }
+                    event = HttpEvent(request_method, request_path, request_body, status, json.dumps(response_body))
+                    log_channel(channel, 'Failed to handle USSD message of %s session_event' % (
+                        channel_data['session_event'],), event)
+                    return JsonResponse(response_body, status=status)
             else:
                 content = data['content']
                 message = Msg.create_incoming(channel, URN.from_tel(data['from']), content)
-                Msg.objects.filter(pk=message.id).update(external_id=data['message_id'])
-                return JsonResponse({
+                status = 200
+                response_body = {
                     'status': self.ACK,
                     'message_id': message.pk,
-                })
+                }
+                Msg.objects.filter(pk=message.id).update(external_id=data['message_id'])
+                event = HttpEvent(request_method, request_path, request_body, status, json.dumps(response_body))
+                ChannelLog.log_message(message, 'Handled inbound message.', event)
+                return JsonResponse(response_body, status=status)
 
 
 class MbloxHandler(BaseChannelHandler):
