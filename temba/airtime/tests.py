@@ -249,6 +249,30 @@ class AirtimeEventTest(TembaTest):
                           'product': '0.5'},) in mock_response.call_args_list)
         mock_response.reset_mock()
 
+        # for open range only, no product_list, no skuid_list,
+        # just a skuid we just have to pass the amount as denomination
+        mock_response.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
+                                                       "open_range_minimum_amount_local_currency=5\r\n"
+                                                       "open_range_maximum_amount_local_currency=100\r\n"
+                                                       "open_range_minimum_amount_requested_currency=0.25\r\n"
+                                                       "open_range_maximum_amount_requested_currency=5\r\n"
+                                                       "skuid=9940\r\n"),
+                                     MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
+                                     MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
+
+        airtime = AirtimeTransfer.trigger_airtime_event(org, ruleset, self.contact, None)
+        self.assertEqual(airtime.status, AirtimeTransfer.SUCCESS)
+        self.assertEqual(airtime.contact, self.contact)
+        self.assertEqual(airtime.message, "Airtime Transferred Successfully")
+        self.assertEqual(mock_response.call_count, 3)
+        self.assertTrue(({'action': 'msisdn_info', 'currency': 'USD', 'destination_msisdn': '+12065552020',
+                          'delivered_amount_info': '1'},) in mock_response.call_args_list)
+        self.assertTrue(({'action': 'reserve_id'},) in mock_response.call_args_list)
+        self.assertTrue(({'action': 'topup', 'reserved_id': '234', 'msisdn': '', 'skuid': '9940',
+                          'destination_msisdn': '+12065552020', 'currency': 'USD',
+                          'product': '0.5'},) in mock_response.call_args_list)
+        mock_response.reset_mock()
+
     def test_list(self):
         list_url = reverse('airtime.airtimetransfer_list')
 

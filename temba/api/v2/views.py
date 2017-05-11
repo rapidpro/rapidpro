@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import itertools
 import six
 
 from django import forms
@@ -9,6 +10,7 @@ from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
+from enum import Enum
 from rest_framework import generics, mixins, status, views
 from rest_framework.pagination import CursorPagination
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -1555,6 +1557,11 @@ class DefinitionsEndpoint(BaseAPIView):
     """
     permission = 'orgs.org_api'
 
+    class Depends(Enum):
+        none = 0
+        flows = 1
+        all = 2
+
     def get(self, request, *args, **kwargs):
         org = request.user.get_org()
         params = request.query_params
@@ -1566,40 +1573,26 @@ class DefinitionsEndpoint(BaseAPIView):
             flow_uuids = params.getlist('flow')
             campaign_uuids = params.getlist('campaign')
 
-        dependency_type = params.get('dependencies', 'all')
-        depends = dependency_type != 'none'
+        include = DefinitionsEndpoint.Depends[params.get('dependencies', 'all')]
 
         if flow_uuids:
-            flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org))
+            flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org, is_active=True))
         else:
             flows = set()
 
-        # any fetched campaigns
-        campaigns = []
         if campaign_uuids:
-            campaigns = Campaign.objects.filter(uuid__in=campaign_uuids, org=org)
+            campaigns = set(Campaign.objects.filter(uuid__in=campaign_uuids, org=org, is_active=True))
+        else:
+            campaigns = set()
 
-            if depends:
-                for campaign in campaigns:
-                    for event in campaign.events.filter(event_type=CampaignEvent.TYPE_FLOW, is_active=True).exclude(flow=None):
-                        flows.add(event.flow)
+        if include == DefinitionsEndpoint.Depends.none:
+            components = set(itertools.chain(flows, campaigns))
+        elif include == DefinitionsEndpoint.Depends.flows:
+            components = org.resolve_dependencies(flows, campaigns, include_campaigns=False, include_triggers=True)
+        else:
+            components = org.resolve_dependencies(flows, campaigns, include_campaigns=True, include_triggers=True)
 
-        # get any dependencies on our flows and campaigns
-        dependencies = dict(flows=set(), campaigns=set(campaigns), triggers=set(), groups=set())
-        for flow in flows:
-            if depends:
-                include_campaigns = dependency_type == 'all'
-                dependencies = flow.get_dependencies(dependencies=dependencies, include_campaigns=include_campaigns)
-
-        # make sure our requested items are included flows we requested are included
-        to_export = dict(flows=dependencies['flows'],
-                         campaigns=dependencies['campaigns'],
-                         triggers=dependencies['triggers'])
-
-        # add in our primary requested flows
-        to_export['flows'].update(flows)
-
-        export = org.export_definitions(self.request.branding['link'], **to_export)
+        export = org.export_definitions(self.request.branding['link'], components)
 
         return Response(export, status=status.HTTP_200_OK)
 

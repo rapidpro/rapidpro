@@ -361,14 +361,22 @@ app.directive "selectStatic", ['$timeout', ($timeout) ->
       minimumInputLength: 0
       query: (query) ->
         data = { results: [] }
+        cleaned_query = if query.term then query.term.toLowerCase().strip() else ""
+        exact_match = false
+
         for d in this['data']
           if d.text
-            if not query.term or  d.text.toLowerCase().indexOf(query.term.toLowerCase().strip()) != -1
+            if not query.term or d.text.toLowerCase().indexOf(cleaned_query) != -1
               data.results.push({ id:d.id, text: d.text });
 
+              if d.text.toLowerCase() == cleaned_query
+                exact_match = true
+
         # TODO: This should be configurable via the directive, for now only variable selection using this
-        if query.term and data.results.length == 0 and query.term.strip().length > 0 and query.term.strip().length <= 36 and /^[a-zA-Z0-9-][a-zA-Z0-9- ]*$/.test(query.term.strip())
+        # if term is non-empty and hasn't matched an returned item exactly, show option for creating a new item
+        if not exact_match and cleaned_query.length > 0 and cleaned_query.length <= 36 and /^[a-z0-9-][a-z0-9- ]*$/.test(cleaned_query)
           data.results.push({id:'[_NEW_]' + query.term, text: gettext('Add new variable') + ': ' + query.term});
+
         query.callback(data)
 
       formatNoMatches: (term) ->
