@@ -19,9 +19,9 @@ DEBUG_TOOLBAR = False
 # -----------------------------------------------------------------------------------
 # Used when creating callbacks for Twilio, Nexmo etc..
 # -----------------------------------------------------------------------------------
-HOSTNAME = 'rapidpro.ngrok.com'
-TEMBA_HOST = 'rapidpro.ngrok.com'
-ALLOWED_HOSTS = ['7ac8b4dc.ngrok.io']
+HOSTNAME = 'temba.ngrok.io'
+TEMBA_HOST = 'temba.ngrok.io'
+ALLOWED_HOSTS = ['localhost', 'temba.ngrok.io']
 
 # -----------------------------------------------------------------------------------
 # Redis & Cache Configuration (we expect a Redis instance on localhost)
