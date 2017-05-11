@@ -367,8 +367,7 @@ class Broadcast(models.Model):
         """
         Gets the appropriate display text for the broadcast without a contact
         """
-        preferred_languages = self.get_preferred_languages(None, self.org)
-        return Language.get_localized_text(self.text, preferred_languages)
+        return self.text.get[self.base_language]
 
     def get_translated_text(self, contact, org=None):
         """
