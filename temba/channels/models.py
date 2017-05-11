@@ -135,6 +135,8 @@ class Channel(TembaModel):
     CONFIG_MAX_LENGTH = 'max_length'
     CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
 
+    JIOCHAT_ACCESS_TOKEN_KEY = 'jiochat_channel_access_token:%s'
+
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
     ENCODING_UNICODE = 'U'  # we send everything as unicode
@@ -695,13 +697,37 @@ class Channel(TembaModel):
         return channel
 
     @classmethod
-    def add_jiochat_channel(cls, org, user, app_id, app_secret):
-        channel = Channel.create(org, user, None, Channel.TYPE_JIOCHAT, name='', address='',
+    def add_jiochat_channel(cls, org, user, uuid, app_id, app_secret):
+        channel = Channel.create(org, user, None, Channel.TYPE_JIOCHAT, name='', address='', uuid=uuid,
                                  config={Channel.CONFIG_JIOCHAT_APP_ID: app_id,
                                          Channel.CONFIG_JIOCHAT_APP_SECRET: app_secret},
                                  secret=Channel.generate_secret(32))
 
         return channel
+
+    @classmethod
+    def get_jiochat_access_token(cls, channel_uuid, force=False):
+        key = Channel.JIOCHAT_ACCESS_TOKEN_KEY % channel_uuid
+        access_token = cache.get(key, None)
+
+        if access_token is None or force:
+            channel = Channel.objects.filter(uuid=channel_uuid, is_active=True).first()
+            if channel is None or channel.channel_type != Channel.TYPE_JIOCHAT:
+                return
+
+            channel_config = channel.config_json()
+            app_id = channel_config.get(Channel.CONFIG_JIOCHAT_APP_ID)
+            app_secret = channel_config.get(Channel.CONFIG_JIOCHAT_APP_SECRET)
+
+            post_data = dict(grant_type='client_credentials', appid=app_id, secret=app_secret)
+            response = requests.post('https://channels.jiochat.com/auth/token.action', post_data)
+            response_json = response.json()
+
+            access_token = response_json['access_token']
+
+            cache.set(key, access_token, timeout=6000)
+
+        return access_token
 
     @classmethod
     def add_line_channel(cls, org, user, credentials, name):
@@ -1422,6 +1448,47 @@ class Channel(TembaModel):
 
         except Exception as e:  # pragma: no cover
             raise SendException(six.text_type(e), event=event, start=start)
+
+        Channel.success(channel, msg, WIRED, start, event=event)
+
+    @classmethod
+    def send_jiochat_message(cls, channel, msg, text):
+        from temba.msgs.models import WIRED
+
+        payload = dict(msgtype='text')
+        payload['touser'] = msg.urn_path
+        payload['text'] = dict(content=text)
+
+        access_token = Channel.get_jiochat_access_token(channel_uuid=channel.uuid)
+
+        url = 'https://channels.jiochat.com/custom/custom_send.action'
+
+        event = HttpEvent('POST', url, json.dumps(payload))
+        start = time.time()
+
+        headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + access_token}
+        headers.update(TEMBA_HEADERS)
+
+        try:
+            response = requests.post(url, payload, headers=headers, timeout=15)
+            event.status_code = response.status_code
+            event.response_body = response.text
+
+            if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+                access_token = Channel.get_jiochat_access_token(channel_uuid=channel.uuid, force=True)
+                headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + access_token}
+                headers.update(TEMBA_HEADERS)
+
+                response = requests.post(url, payload, headers=headers, timeout=15)
+                event.status_code = response.status_code
+                event.response_body = response.text
+
+        except Exception as e:
+            raise SendException(six.text_type(e), event=event, start=start)
+
+        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+            raise SendException("Got non-200 response [%d] from JioChat" % response.status_code,
+                                event=event, start=start)
 
         Channel.success(channel, msg, WIRED, start, event=event)
 
@@ -3197,6 +3264,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_HUB9: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_INFOBIP: Channel.send_infobip_message,
                   Channel.TYPE_JASMIN: Channel.send_jasmin_message,
+                  Channel.TYPE_JIOCHAT: Channel.send_jiochat_message,
                   Channel.TYPE_JUNEBUG: Channel.send_junebug_message,
                   Channel.TYPE_JUNEBUG_USSD: Channel.send_junebug_message,
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,

@@ -282,6 +282,10 @@ class URN(object):
     def from_fcm(cls, path):
         return cls.from_parts(FCM_SCHEME, path)
 
+    @classmethod
+    def from_jiochat(cls, path):
+        return cls.from_parts(JIOCHAT_SCHEME, path)
+
 
 @six.python_2_unicode_compatible
 class ContactField(SmartModel):

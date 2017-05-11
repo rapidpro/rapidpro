@@ -2203,6 +2203,73 @@ class MbloxHandler(BaseChannelHandler):
             return HttpResponse("Not handled, unknown type: %s" % body['type'], status=400)
 
 
+class JioChatHandler(BaseChannelHandler):
+
+    url = r'^jiochat/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.jiochat_handler'
+
+    def lookup_channel(self, kwargs):
+        # look up the channel
+        channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
+                                         channel_type=Channel.TYPE_JIOCHAT).exclude(org=None).first()
+        return channel
+
+    def get(self, request, *args, **kwargs):
+        channel = self.lookup_channel(kwargs)
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
+
+        signature = request.GET.get('signature')
+        timestamp = request.GET.get('timestamp')
+        nonce = request.GET.get('nonce')
+        echostr = request.GET.get('echostr')
+
+        hash_object = hashlib.sha1("".join(sorted([signature, timestamp, nonce])))
+        signature_check = hash_object.hexdigest()
+
+        if signature_check == signature:
+            return HttpResponse(echostr)
+
+        return JsonResponse(dict(error="Unknown request"), status=400)
+
+    def post(self, request, *args, **kwargs):
+        channel = self.lookup_channel(kwargs)
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
+
+        sender_id = request.POST.get('FromUserName')
+        msg_date = request.POST.get('CreateTime')
+        msg_type = request.POST.get('MsgType')
+        external_id = request.POST.get('MsgId')
+
+        urn = URN.from_jiochat(sender_id)
+        contact = Contact.from_urn(channel.org, urn)
+
+        if not contact:
+            contact = Contact.get_or_create(channel.org, channel.created_by,
+                                            urns=[urn], channel=channel)
+
+        if msg_type == 'text':
+            text = request.POST.get('Content')
+
+            msg = Msg.create_incoming(channel, urn, text, date=msg_date, contact=contact)
+            Msg.objects.filter(pk=msg.id).update(external_id=external_id)
+
+        elif msg_type == 'image':
+            pass
+
+        elif msg_type == 'video':
+            pass
+
+        elif msg_type == 'voice':
+            pass
+
+        if msg:
+            return HttpResponse("Msgs Accepted: %s" % msg.id)
+
+        return HttpResponse("Not handled", status=400)
+
+
 class FacebookHandler(BaseChannelHandler):
 
     url = r'^facebook/(?P<uuid>[a-z0-9\-]+)/?$'
