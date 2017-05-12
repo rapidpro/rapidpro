@@ -3743,7 +3743,7 @@ class AfricasTalkingTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
         msg.external_id = "external1"
         msg.save(update_fields=('external_id',))
 
@@ -3787,7 +3787,7 @@ class AfricasTalkingTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -3871,7 +3871,7 @@ class AfricasTalkingTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -3910,7 +3910,7 @@ class RedRabbitTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         with self.settings(SEND_MESSAGES=True):
             with patch('requests.get') as mock:
@@ -3986,7 +3986,7 @@ class ExternalTest(TembaTest):
         self.assertEqual(response.status_code, 400)
 
         # ok, lets create an outgoing message to update
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
         payload = {'id': msg.id}
 
         def assertStatus(sms, status, assert_status):
@@ -4059,7 +4059,7 @@ class ExternalTest(TembaTest):
 
     def test_send_replacement(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         self.channel.config = json.dumps({Channel.CONFIG_SEND_URL: 'http://foo.com/send&text={{text}}&to={{to_no_plus}}',
                                           Channel.CONFIG_SEND_METHOD: 'GET'})
@@ -4139,7 +4139,7 @@ class ExternalTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -4209,7 +4209,7 @@ class ExternalTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -4301,7 +4301,7 @@ class YoTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+252788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -4416,7 +4416,7 @@ class YoTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+252788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -4469,7 +4469,7 @@ class ShaqodoonTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message ☺", self.admin, trigger_send=False)
+        msg = joe.send("Test message ☺", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -4519,7 +4519,7 @@ class ShaqodoonTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -4567,7 +4567,7 @@ class M3TechTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message ☺", self.admin, trigger_send=False)
+        msg = joe.send("Test message ☺", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -4670,7 +4670,7 @@ class M3TechTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -4720,7 +4720,7 @@ class KannelTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
 
         data['id'] = msg.pk
 
@@ -4762,7 +4762,7 @@ class KannelTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -4790,7 +4790,7 @@ class KannelTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -4979,7 +4979,7 @@ class NexmoTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
         msg.external_id = 'external1'
         msg.save(update_fields=('external_id',))
 
@@ -5028,7 +5028,7 @@ class NexmoTest(TembaTest):
         self.channel.save()
 
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -5163,7 +5163,7 @@ class NexmoTest(TembaTest):
         self.channel.save()
 
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -5333,7 +5333,7 @@ class VumiTest(TembaTest):
                 # a message initiated on RapidPro
                 mock.reset_mock()
                 mock.return_value = MockResponse(200, '{ "message_id": "1516" }')
-                msg = joe.send("Test message", self.admin, trigger_send=False)
+                msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -5434,7 +5434,7 @@ class VumiTest(TembaTest):
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
         self.create_group("Reporters", [joe])
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -5484,7 +5484,7 @@ class ZenviaTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
 
         data['id'] = msg.pk
 
@@ -5520,7 +5520,7 @@ class ZenviaTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -5584,7 +5584,7 @@ class ZenviaTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -5676,7 +5676,7 @@ class InfobipTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -5711,7 +5711,7 @@ class InfobipTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -5864,7 +5864,7 @@ class MacrokioskTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
         msg.external_id = 'msg-uuid'
         msg.save(update_fields=('external_id',))
 
@@ -5886,7 +5886,7 @@ class MacrokioskTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+9771488532")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -5968,7 +5968,7 @@ class MacrokioskTest(TembaTest):
     def test_send_media(self):
         joe = self.create_contact("Joe", "+9771488532")
         msg = joe.send("Test message", self.admin, trigger_send=False,
-                       media='image/jpeg:https://example.com/attachments/pic.jpg')
+                       media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6034,7 +6034,7 @@ class BlackmynaTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+9771488532")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6092,7 +6092,7 @@ class BlackmynaTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+9771488532")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6134,7 +6134,7 @@ class BlackmynaTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
         msg.external_id = 'msg-uuid'
         msg.save(update_fields=('external_id',))
 
@@ -6194,7 +6194,7 @@ class SMSCentralTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+9771488532")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6252,7 +6252,7 @@ class SMSCentralTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+9771488532")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6351,7 +6351,7 @@ class Hub9Test(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6388,7 +6388,7 @@ class Hub9Test(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6526,7 +6526,7 @@ class DartMediaTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6564,7 +6564,7 @@ class DartMediaTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6644,7 +6644,7 @@ class HighConnectionTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6666,7 +6666,7 @@ class HighConnectionTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6984,7 +6984,7 @@ class TwilioTest(TembaTest):
                     ChannelLog.objects.all().delete()
                     Msg.objects.all().delete()
 
-                    msg = joe.send("Test message", self.admin, trigger_send=False)
+                    msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
                     self.channel.channel_type = channel_type
                     if channel_type == 'TMS':
@@ -7077,7 +7077,7 @@ class TwilioTest(TembaTest):
         self.org.save()
 
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         settings.SEND_MESSAGES = True
 
@@ -7115,7 +7115,7 @@ class TwilioTest(TembaTest):
             self.channel.save()
             self.clear_cache()
 
-            msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+            msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
             # manually send it off
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -7390,7 +7390,7 @@ class ClickatellTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -7480,7 +7480,7 @@ class ClickatellTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -7825,7 +7825,7 @@ class TelegramTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Ernie", urn='telegram:1234')
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -7863,7 +7863,7 @@ class TelegramTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Ernie", urn='telegram:1234')
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         settings.SEND_MESSAGES = True
 
@@ -7885,7 +7885,7 @@ class TelegramTest(TembaTest):
             self.assertEqual(mock.call_args[0][1]['chat_id'], "1234")
 
             msg = joe.send("Test message", self.admin, trigger_send=False,
-                           media='audio/mp3:https://example.com/attachments/sound.mp3')
+                           media='audio/mp3:https://example.com/attachments/sound.mp3')[0]
 
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
@@ -7974,7 +7974,7 @@ class PlivoTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
         msg.external_id = 'msg-uuid'
         msg.save(update_fields=('external_id',))
 
@@ -7996,7 +7996,7 @@ class PlivoTest(TembaTest):
         assertStatus(msg, 'rejected', FAILED)
 
     def test_send(self):
-        msg = self.joe.send("Test message", self.admin, trigger_send=False)
+        msg = self.joe.send("Test message", self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -8049,7 +8049,7 @@ class PlivoTest(TembaTest):
             settings.SEND_MESSAGES = False
 
     def test_send_media(self):
-        msg = self.joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = self.joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -8092,7 +8092,7 @@ class TwitterTest(TembaTest):
     def test_send_media(self):
         joe = self.create_contact("Joe", number="+250788383383", twitter="joe1981")
 
-        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
         try:
             settings.SEND_MESSAGES = True
 
@@ -8123,7 +8123,7 @@ class TwitterTest(TembaTest):
         msg = joe.send("This is a long message, longer than just 160 characters, it spans what was before "
                        "more than one message but which is now but one, solitary message, going off into the "
                        "Twitterverse to tweet away.",
-                       self.admin, trigger_send=False)
+                       self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -8505,7 +8505,7 @@ class StartMobileTest(TembaTest):
     def test_send(self):
         joe = self.create_contact("Joe", "+977788123123")
         msg = joe.send("Вітаємо в U-Report, системі опитувань про майбутнє країни.Зараз невеличка реєстрація.?",
-                       self.admin, trigger_send=False)
+                       self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -8582,7 +8582,7 @@ class StartMobileTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+977788123123")
-        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -8637,7 +8637,7 @@ class ChikkaTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+63911231234")
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
         data['message_id'] = msg.id
 
         # valid id, invalid status, 400
@@ -8684,7 +8684,7 @@ class ChikkaTest(TembaTest):
         incoming.external_id = '4004'
         incoming.save()
 
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)[0]
 
         with self.settings(SEND_MESSAGES=True):
 
@@ -8817,7 +8817,7 @@ class ChikkaTest(TembaTest):
         incoming.external_id = '4004'
         incoming.save()
 
-        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         with self.settings(SEND_MESSAGES=True):
 
@@ -8865,7 +8865,7 @@ class JasminTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
         msg.external_id = "jasmin-external-id"
         msg.save(update_fields=('external_id',))
 
@@ -8911,7 +8911,7 @@ class JasminTest(TembaTest):
         from temba.utils import gsm7
 
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("événement", self.admin, trigger_send=False)
+        msg = joe.send("événement", self.admin, trigger_send=False)[0]
 
         settings.SEND_MESSAGES = True
 
@@ -8960,7 +8960,7 @@ class JasminTest(TembaTest):
         from temba.utils import gsm7
 
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         settings.SEND_MESSAGES = True
 
@@ -9063,7 +9063,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
         msg.external_id = data['message_id']
         msg.save(update_fields=('external_id',))
 
@@ -9127,7 +9127,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 
     def test_send_wired(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("événement", self.admin, trigger_send=False)
+        msg = joe.send("événement", self.admin, trigger_send=False)[0]
 
         settings.SEND_MESSAGES = True
 
@@ -9154,7 +9154,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         settings.SEND_MESSAGES = True
 
@@ -9181,7 +9181,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 
     def test_send_errored_remote(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("événement", self.admin, trigger_send=False)
+        msg = joe.send("événement", self.admin, trigger_send=False)[0]
 
         settings.SEND_MESSAGES = True
 
@@ -9197,7 +9197,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 
     def test_send_errored_exception(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("événement", self.admin, trigger_send=False)
+        msg = joe.send("événement", self.admin, trigger_send=False)[0]
 
         settings.SEND_MESSAGES = True
 
@@ -9217,7 +9217,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 
     def test_send_deal_with_unexpected_response(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("événement", self.admin, trigger_send=False)
+        msg = joe.send("événement", self.admin, trigger_send=False)[0]
 
         settings.SEND_MESSAGES = True
 
@@ -9273,7 +9273,7 @@ class MbloxTest(TembaTest):
 
         # create test message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
         msg.external_id = "mblox-id"
         msg.save(update_fields=('external_id',))
 
@@ -9322,7 +9322,7 @@ class MbloxTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("MT", self.admin, trigger_send=False)
+        msg = joe.send("MT", self.admin, trigger_send=False)[0]
 
         settings.SEND_MESSAGES = True
 
@@ -9366,7 +9366,7 @@ class MbloxTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         settings.SEND_MESSAGES = True
 
@@ -9479,7 +9479,7 @@ class FacebookTest(TembaTest):
 
         # create test message to update
         joe = self.create_contact("Joe Biden", urn='facebook:1234')
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
         msg.external_id = "fb-message-id-out"
         msg.save(update_fields=('external_id',))
 
@@ -9879,7 +9879,7 @@ class FacebookTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", urn="facebook:1234")
-        msg = joe.send("Facebook Msg", self.admin, trigger_send=False)
+        msg = joe.send("Facebook Msg", self.admin, trigger_send=False)[0]
 
         settings.SEND_MESSAGES = True
 
@@ -9926,7 +9926,7 @@ class FacebookTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", urn="facebook:1234")
-        msg = joe.send("Facebook Msg", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Facebook Msg", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         settings.SEND_MESSAGES = True
 
@@ -10075,7 +10075,7 @@ class GlobeTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+639171234567")
-        msg = joe.send("MT", self.admin, trigger_send=False)
+        msg = joe.send("MT", self.admin, trigger_send=False)[0]
 
         settings.SEND_MESSAGES = True
 
@@ -10135,7 +10135,7 @@ class GlobeTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+639171234567")
-        msg = joe.send("MT", self.admin, trigger_send=False, media="image/jpeg:https://example.com/attachments/pic.jpg")
+        msg = joe.send("MT", self.admin, trigger_send=False, media="image/jpeg:https://example.com/attachments/pic.jpg")[0]
 
         settings.SEND_MESSAGES = True
 
@@ -10186,7 +10186,7 @@ class ViberTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
         msg.external_id = "99999"
         msg.save(update_fields=('external_id',))
 
@@ -10252,7 +10252,7 @@ class ViberTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+639171234567")
-        msg = joe.send("MT", self.admin, trigger_send=False)
+        msg = joe.send("MT", self.admin, trigger_send=False)[0]
 
         settings.SEND_MESSAGES = True
         with patch('requests.post') as mock:
@@ -10305,7 +10305,7 @@ class ViberTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+639171234567")
-        msg = joe.send("Hello, world!", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         settings.SEND_MESSAGES = True
         with patch('requests.post') as mock:
@@ -10402,7 +10402,7 @@ class LineTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", urn="line:uabcdefghijkl")
-        msg = joe.send("Hello, world!", self.admin, trigger_send=False)
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False)[0]
 
         with self.settings(SEND_MESSAGES=True):
 
@@ -10447,7 +10447,7 @@ class LineTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", urn="line:uabcdefghijkl")
-        msg = joe.send("Hello, world!", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         with self.settings(SEND_MESSAGES=True):
 
@@ -10726,7 +10726,7 @@ class ViberPublicTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", urn="viber:xy5/5y6O81+/kbWHpLhBoA==")
-        msg = joe.send("MT", self.admin, trigger_send=False)
+        msg = joe.send("MT", self.admin, trigger_send=False)[0]
 
         settings.SEND_MESSAGES = True
         with patch('requests.post') as mock:
@@ -10773,7 +10773,7 @@ class ViberPublicTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", urn="viber:xy5/5y6O81+/kbWHpLhBoA==")
-        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         settings.SEND_MESSAGES = True
         with patch('requests.post') as mock:
@@ -10862,7 +10862,7 @@ class FcmTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", urn="fcm:12345abcde", auth="123456abcdef")
-        msg = joe.send("Hello, world!", self.admin, trigger_send=False)
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False)[0]
 
         with self.settings(SEND_MESSAGES=True):
 
@@ -10918,7 +10918,7 @@ class FcmTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", urn="fcm:12345abcde", auth="123456abcdef")
-        msg = joe.send("Hello, world!", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
 
         with self.settings(SEND_MESSAGES=True):
 
