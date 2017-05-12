@@ -2244,27 +2244,23 @@ class JioChatHandler(BaseChannelHandler):
 
         urn = URN.from_jiochat(sender_id)
         contact = Contact.from_urn(channel.org, urn)
+        msg = None
 
         if not contact:
             contact = Contact.get_or_create(channel.org, channel.created_by,
                                             urns=[urn], channel=channel)
 
         if msg_type == 'text':
-            text = request.POST.get('Content')
+            msg = Msg.create_incoming(channel, urn, request.POST.get('Content'), date=msg_date, contact=contact)
 
-            msg = Msg.create_incoming(channel, urn, text, date=msg_date, contact=contact)
-            Msg.objects.filter(pk=msg.id).update(external_id=external_id)
+        elif msg_type in ['image', 'video', 'voice']:
+            media_url = channel.download_jiochat_media(request.POST.get('MediaId'))
+            path = media_url.partition(':')[2]
 
-        elif msg_type == 'image':
-            pass
-
-        elif msg_type == 'video':
-            pass
-
-        elif msg_type == 'voice':
-            pass
+            msg = Msg.create_incoming(channel, urn, path, media=media_url, date=msg_date, contact=contact)
 
         if msg:
+            Msg.objects.filter(pk=msg.id).update(external_id=external_id)
             return HttpResponse("Msgs Accepted: %s" % msg.id)
 
         return HttpResponse("Not handled", status=400)

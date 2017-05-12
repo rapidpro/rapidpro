@@ -1,6 +1,7 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import json
+import mimetypes
 import time
 import urlparse
 import phonenumbers
@@ -10,6 +11,8 @@ import requests
 import telegram
 import re
 import six
+from django.core.files import File
+from django.core.files.temp import NamedTemporaryFile
 
 from enum import Enum
 from datetime import timedelta
@@ -1450,6 +1453,53 @@ class Channel(TembaModel):
             raise SendException(six.text_type(e), event=event, start=start)
 
         Channel.success(channel, msg, WIRED, start, event=event)
+
+    def download_jiochat_media(self, media_id):
+        if self.channel_type != Channel.TYPE_JIOCHAT or not self.is_active:
+            return
+
+        access_token = Channel.get_jiochat_access_token(channel_uuid=self.uuid)
+
+        url = 'https://channels.jiochat.com/media/download.action'
+
+        payload = dict(media_id=media_id)
+
+        headers = {'Authorization': 'Bearer ' + access_token}
+        headers.update(TEMBA_HEADERS)
+
+        attempts = 0
+        while attempts < 4:
+            response = requests.get(url, params=payload, headers=headers, timeout=15)
+
+            # If we fail sleep for a bit then try again up to 4 times
+            if response.status_code == 200:
+                break
+            else:
+                attempts += 1
+                time.sleep(.250)
+
+        disposition = response.headers.get('Content-Disposition', None)
+        content_type = response.headers.get('Content-Type', None)
+
+        if content_type:
+            extension = None
+            if disposition == 'inline':
+                extension = mimetypes.guess_extension(content_type)
+                extension = extension.strip('.')
+            elif disposition:
+                filename = re.findall("filename=\"(.+)\"", disposition)[0]
+                extension = filename.rpartition('.')[2]
+
+            temp = NamedTemporaryFile(delete=True)
+            temp.write(response.content)
+            temp.flush()
+
+            # save our file off
+            downloaded = self.org.save_media(File(temp), extension)
+
+            return '%s:%s' % (content_type, downloaded)
+
+        return None
 
     @classmethod
     def send_jiochat_message(cls, channel, msg, text):
