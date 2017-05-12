@@ -1,3 +1,7 @@
+v3.0.138
+----------
+ * Migration to populate attachments field on old messages
+
 v3.0.137
 ----------
  * Don't assume event fires still exist in process_fire_events
