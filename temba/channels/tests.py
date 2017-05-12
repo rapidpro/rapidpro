@@ -7900,7 +7900,7 @@ class TelegramTest(TembaTest):
             self.assertEqual(mock.call_args[0][1]['chat_id'], "1234")
 
             msg = joe.send("Test message", self.admin, trigger_send=False,
-                           media='video/mpeg4:https://example.com/attachments/video.mp4')
+                           media='video/mpeg4:https://example.com/attachments/video.mp4')[0]
 
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
