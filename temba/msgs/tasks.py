@@ -52,8 +52,12 @@ def process_run_timeout(run_id, timeout_on):
 def process_fire_events(fire_ids):
     from temba.campaigns.models import EventFire
 
-    # every event fire in the batch will be for the same flow
-    flow = EventFire.objects.filter(id__in=fire_ids).first().event.flow
+    # every event fire in the batch will be for the same flow... but if the flow has been deleted then fires won't exist
+    single_fire = EventFire.objects.filter(id__in=fire_ids).first()
+    if not single_fire:  # pragma: no cover
+        return
+
+    flow = single_fire.event.flow
 
     # lock on the flow so we know non-one else is updating these event fires
     r = get_redis_connection()
