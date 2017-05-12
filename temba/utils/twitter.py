@@ -3,6 +3,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import json
 import requests
 
+from django.conf import settings
 from django.utils.http import urlencode
 from twython import Twython
 from twython import TwythonAuthError
@@ -18,6 +19,20 @@ class TembaTwython(Twython):  # pragma: no cover
     def __init__(self, *args, **kwargs):
         super(TembaTwython, self).__init__(*args, **kwargs)
         self.events = []
+
+    @classmethod
+    def from_channel(cls, channel):
+        config = channel.config_json()
+
+        # Twitter channels come in new (i.e. user app, webhook API) and classic (shared app, streaming API) flavors
+        if 'api_token' in config:
+            api_key, api_secret = config['api_key'], config['api_secret']
+            access_token, access_token_secret = config['access_token'], config['access_token_secret']
+        else:
+            api_key, api_secret = settings.TWITTER_API_KEY, settings.TWITTER_API_SECRET
+            access_token, access_token_secret = config['oauth_token'], config['oauth_token_secret']
+
+        return TembaTwython(api_key, api_secret, access_token, access_token_secret)
 
     def _request(self, url, method='GET', params=None, api_call=None):
         """Internal request method"""

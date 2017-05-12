@@ -741,10 +741,12 @@ class Channel(TembaModel):
                 channel = Channel.create(org, user, None, Channel.TYPE_TWITTER, name="@%s" % screen_name,
                                          address=screen_name, config=config)
 
-                callback_url = 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.twitter_handler', args={'uuid': channel.uuid}))
+                def register_webook(ch):
+                    callback_url = 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.twitter_handler', args=[ch.uuid]))
+                    webhook = twitter.register_webook(callback_url)
+                    twitter.subscribe_to_webhook(webhook['id'])
 
-                webhook = twitter.register_webook(callback_url)
-                twitter.subscribe_to_webhook(webhook['id'])
+                on_transaction_commit(lambda: register_webook(channel))
 
         return channel
 
@@ -2727,13 +2729,7 @@ class Channel(TembaModel):
         from temba.msgs.models import WIRED
         from temba.contacts.models import Contact
 
-        consumer_key = settings.TWITTER_API_KEY
-        consumer_secret = settings.TWITTER_API_SECRET
-        oauth_token = channel.config['oauth_token']
-        oauth_token_secret = channel.config['oauth_token_secret']
-
-        twitter = TembaTwython(consumer_key, consumer_secret, oauth_token, oauth_token_secret)
-
+        twitter = TembaTwython.from_channel(channel)
         start = time.time()
 
         try:
