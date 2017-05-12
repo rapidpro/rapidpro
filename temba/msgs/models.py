@@ -10,6 +10,7 @@ import traceback
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
@@ -697,6 +698,9 @@ class Msg(models.Model):
     media = models.URLField(null=True, blank=True, max_length=255,
                             help_text=_("The media associated with this message if any"))
 
+    attachments = ArrayField(models.URLField(max_length=255), null=True,
+                             help_text=_("The media attachments on this message if any"))
+
     session = models.ForeignKey('channels.ChannelSession', null=True,
                                 help_text=_("The session this message was a part of if any"))
 
@@ -1265,6 +1269,7 @@ class Msg(models.Model):
                         direction=INCOMING,
                         msg_type=msg_type,
                         media=media,
+                        attachments=[media] if media else [],
                         status=status,
                         external_id=external_id,
                         session=session)
@@ -1447,6 +1452,7 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         priority=priority,
                         media=media,
+                        attachments=[media] if media else [],
                         session=session,
                         has_template_error=len(errors) > 0)
 
