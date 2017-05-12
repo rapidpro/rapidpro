@@ -1,3 +1,8 @@
+v3.0.137
+----------
+ * Don't assume event fires still exist in process_fire_events
+ * Add new Msg.attachments field to hold multiple attachments on an incoming message
+
 v3.0.136
 ----------
  * Fix scheduled broadcast text display
