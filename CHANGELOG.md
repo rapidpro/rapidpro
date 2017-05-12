@@ -1,3 +1,7 @@
+v3.0.136
+----------
+ * Fix scheduled broadcast text display
+
 v3.0.135
 ----------
  * Make 'only' keyword triggers ignore punctuation

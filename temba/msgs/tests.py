@@ -1015,6 +1015,7 @@ class BroadcastTest(TembaTest):
         self.client.post(send_url, post_data, follow=True)
         broadcast = Broadcast.objects.get()
         self.assertEqual(broadcast.text, {'base': "message #1"})
+        self.assertEqual(broadcast.get_default_text(), "message #1")
         self.assertEqual(broadcast.groups.count(), 1)
         self.assertEqual(broadcast.contacts.count(), 2)
         self.assertIsNotNone(Msg.objects.filter(contact=self.joe, text="message #1"))
