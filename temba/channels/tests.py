@@ -10092,7 +10092,7 @@ class JiochatTest(TembaTest):
         mock_access_token.return_value = 'ABC1234'
 
         joe = self.create_contact("Joe", urn="jiochat:1234")
-        msg = joe.send("Test Msg", self.admin, trigger_send=False)
+        msg = joe.send("Test Msg", self.admin, trigger_send=False)[0]
 
         settings.SEND_MESSAGES = True
 
