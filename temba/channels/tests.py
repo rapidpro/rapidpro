@@ -5904,7 +5904,7 @@ class MacrokioskTest(TembaTest):
                 self.assertTrue(msg.sent_on)
                 self.assertEquals('asdf-asdf-asdf-asdf', msg.external_id)
 
-                self.assertEqual(mock.call_args[1]['data']['text'], 'Test message')
+                self.assertEqual(mock.call_args[1]['json']['text'], 'Test message')
 
                 self.clear_cache()
 
@@ -5924,9 +5924,9 @@ class MacrokioskTest(TembaTest):
                 self.assertTrue(msg.sent_on)
 
                 # assert verify was set to true
-                self.assertEquals(mock.call_args[1]['data']['text'], "Unicode. ☺")
-                self.assertEquals(mock.call_args[1]['data']['type'], 5)
-                self.assertEquals(mock.call_args[1]['data']['servid'], 'SERVICE-ID')
+                self.assertEquals(mock.call_args[1]['json']['text'], "Unicode. ☺")
+                self.assertEquals(mock.call_args[1]['json']['type'], 5)
+                self.assertEquals(mock.call_args[1]['json']['servid'], 'SERVICE-ID')
 
                 self.clear_cache()
 
@@ -5986,7 +5986,7 @@ class MacrokioskTest(TembaTest):
                 self.assertTrue(msg.sent_on)
                 self.assertEquals('asdf-asdf-asdf-asdf', msg.external_id)
 
-                self.assertEqual(mock.call_args[1]['data']['text'],
+                self.assertEqual(mock.call_args[1]['json']['text'],
                                  'Test message\nhttps://example.com/attachments/pic.jpg')
 
                 self.clear_cache()
