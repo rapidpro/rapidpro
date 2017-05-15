@@ -2219,12 +2219,14 @@ class JioChatHandler(BaseChannelHandler):
         if not channel:
             return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
 
+        access_token = Channel.get_jiochat_access_token(channel.uuid)
+
         signature = request.GET.get('signature')
         timestamp = request.GET.get('timestamp')
         nonce = request.GET.get('nonce')
         echostr = request.GET.get('echostr')
 
-        hash_object = hashlib.sha1("".join(sorted([signature, timestamp, nonce])))
+        hash_object = hashlib.sha1("".join(sorted([access_token, timestamp, nonce])))
         signature_check = hash_object.hexdigest()
 
         if signature_check == signature:
@@ -2237,10 +2239,21 @@ class JioChatHandler(BaseChannelHandler):
         if not channel:
             return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
 
-        sender_id = request.POST.get('FromUserName')
-        msg_date = request.POST.get('CreateTime')
-        msg_type = request.POST.get('MsgType')
-        external_id = request.POST.get('MsgId')
+        try:
+            body = json.loads(request.body)
+        except Exception as e:  # pragma: needs cover
+            return HttpResponse("Invalid JSON in POST body: %s" % str(e), status=400)
+
+        if 'FromUserName' not in body or 'MsgType' not in body or 'MsgId' not in body:
+            return HttpResponse("Missing parameters", status=400)
+
+        sender_id = body.get('FromUserName')
+        create_time = body.get('CreateTime', None)
+        msg_date = None
+        if create_time:
+            msg_date = datetime.fromordinal(int(create_time)).replace(tzinfo=pytz.utc)
+        msg_type = body.get('MsgType')
+        external_id = body.get('MsgId')
 
         urn = URN.from_jiochat(sender_id)
         contact = Contact.from_urn(channel.org, urn)
@@ -2251,10 +2264,10 @@ class JioChatHandler(BaseChannelHandler):
                                             urns=[urn], channel=channel)
 
         if msg_type == 'text':
-            msg = Msg.create_incoming(channel, urn, request.POST.get('Content'), date=msg_date, contact=contact)
+            msg = Msg.create_incoming(channel, urn, body.get('Content'), date=msg_date, contact=contact)
 
         elif msg_type in ['image', 'video', 'voice']:
-            media_url = channel.download_jiochat_media(request.POST.get('MediaId'))
+            media_url = channel.download_jiochat_media(body.get('MediaId'))
             path = media_url.partition(':')[2]
 
             msg = Msg.create_incoming(channel, urn, path, media=media_url, date=msg_date, contact=contact)

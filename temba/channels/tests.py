@@ -28,7 +28,8 @@ from django_redis import get_redis_connection
 from mock import patch
 from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent
-from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, LINE_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, \
+    LINE_SCHEME, JIOCHAT_SCHEME
 from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME, FCM_SCHEME
@@ -9986,6 +9987,161 @@ class FacebookTest(TembaTest):
 
             self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
                                                                               "referenced before assignment"))
+
+
+class JiochatTest(TembaTest):
+
+    def setUp(self):
+        super(JiochatTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_JIOCHAT, None, '1212',
+                                      config={Channel.CONFIG_JIOCHAT_APP_ID: 'app-id',
+                                              Channel.CONFIG_JIOCHAT_APP_SECRET: 'app-secret'},
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_get_access_token(self):
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
+
+            self.assertEqual(Channel.get_jiochat_access_token(self.channel.uuid), 'ABC1234')
+
+            with patch('django.core.cache.cache.get') as mock_cache_get:
+                mock_cache_get.return_value = 'OLD1234'
+
+                self.assertEqual(Channel.get_jiochat_access_token(self.channel.uuid), 'OLD1234')
+                self.assertEqual(Channel.get_jiochat_access_token(self.channel.uuid, True), 'ABC1234')
+
+                self.channel.is_active = False
+                self.channel.save()
+
+                self.assertIsNone(Channel.get_jiochat_access_token(self.channel.uuid, True))
+
+    @patch('temba.channels.models.Channel.get_jiochat_access_token')
+    def test_url_verification(self, mock_access_token):
+        mock_access_token.return_value = 'ABC1234'
+
+        access_token = Channel.get_jiochat_access_token(self.channel.uuid)
+        timestamp = str(time.time())
+        nonce = 'nonce'
+
+        hash_object = hashlib.sha1("".join(sorted([access_token, timestamp, nonce])))
+        signature = hash_object.hexdigest()
+
+        callback_url = reverse('handlers.jiochat_handler', args=[self.channel.uuid])
+
+        response = self.client.get(callback_url +
+                                   "?signature=%s&timestamp=%s&nonce=%s&echostr=SUCCESS" % (signature, timestamp,
+                                                                                            nonce))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, 'SUCCESS')
+
+        # fail verification
+        response = self.client.get(callback_url +
+                                   "?signature=%s&timestamp=%s&nonce=%s&echostr=SUCCESS" % (signature, timestamp,
+                                                                                            'other'))
+
+        self.assertEqual(response.status_code, 400)
+
+    @patch('temba.channels.models.Channel.get_jiochat_access_token')
+    def test_send(self, mock_access_token):
+        mock_access_token.return_value = 'ABC1234'
+
+        joe = self.create_contact("Joe", urn="jiochat:1234")
+        msg = joe.send("Test Msg", self.admin, trigger_send=False)
+
+        settings.SEND_MESSAGES = True
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{"errcode":0,"errmsg":"Request succeeded"}')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message is now sent
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.clear_cache()
+
+            self.assertEqual(mock.call_args[0][0], 'https://channels.jiochat.com/custom/custom_send.action')
+            self.assertEqual(json.loads(mock.call_args[0][1]),
+                             dict(touser="1234", text=dict(content="Test Msg"), msgtype='text'))
+
+        # retry success with access token refreshed
+        with patch('requests.post') as mock:
+            mock_access_token.side_effect = ['', 'ABC1234']
+            mock.side_effect = [MockResponse(412, 'Error'),
+                                MockResponse(200, '{"errcode":0,"errmsg":"Request succeeded"}')]
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message now errored
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, WIRED)
+            self.clear_cache()
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(412, 'Error')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message now errored
+            msg.refresh_from_db()
+            self.assertEquals(msg.status, ERRORED)
+
+        with patch('requests.post') as mock:
+            mock.side_effect = Exception('Kaboom!')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message now errored
+            msg.refresh_from_db()
+            self.assertEquals(msg.status, ERRORED)
+
+    def test_receive(self):
+        # invalid UUID
+        response = self.client.post(reverse('handlers.jiochat_handler', args=['00000000-0000-0000-0000-000000000000']))
+        self.assertEqual(response.status_code, 400)
+
+        an_hour_ago = timezone.now() - timedelta(hours=1)
+
+        data = {
+            'ToUsername': '12121212121212',
+            'FromUserName': '1234',
+            'CreateTime': an_hour_ago.toordinal(),
+            'MsgType': 'text',
+            'MsgId': '123456',
+            "Content": "Test",
+        }
+
+        callback_url = reverse('handlers.jiochat_handler', args=[self.channel.uuid])
+
+        # POST invalid JSON data
+        response = self.client.post(callback_url, "not json", content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        # POST missing data
+        response = self.client.post(callback_url, json.dumps({}), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+        msg = Msg.objects.get()
+        self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
+
+        # load our message
+        self.assertEqual(msg.contact.get_urn(JIOCHAT_SCHEME).path, "1234")
+        self.assertEqual(msg.direction, INCOMING)
+        self.assertEqual(msg.org, self.org)
+        self.assertEqual(msg.channel, self.channel)
+        self.assertEqual(msg.text, "Test")
+        self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
 
 
 class GlobeTest(TembaTest):

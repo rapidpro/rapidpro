@@ -203,6 +203,7 @@ class Channel(TembaModel):
         TYPE_HUB9: dict(scheme='tel', max_length=1600),
         TYPE_INFOBIP: dict(scheme='tel', max_length=1600),
         TYPE_JASMIN: dict(scheme='tel', max_length=1600),
+        TYPE_JIOCHAT: dict(scheme='jiochat', max_length=1600),
         TYPE_JUNEBUG: dict(scheme='tel', max_length=1600),
         TYPE_JUNEBUG_USSD: dict(scheme='tel', max_length=1600),
         TYPE_KANNEL: dict(scheme='tel', max_length=1600),
@@ -1505,15 +1506,17 @@ class Channel(TembaModel):
     def send_jiochat_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
-        payload = dict(msgtype='text')
-        payload['touser'] = msg.urn_path
-        payload['text'] = dict(content=text)
+        data = dict(msgtype='text')
+        data['touser'] = msg.urn_path
+        data['text'] = dict(content=text)
 
         access_token = Channel.get_jiochat_access_token(channel_uuid=channel.uuid)
 
         url = 'https://channels.jiochat.com/custom/custom_send.action'
 
-        event = HttpEvent('POST', url, json.dumps(payload))
+        payload = json.dumps(data)
+
+        event = HttpEvent('POST', url, payload)
         start = time.time()
 
         headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + access_token}
