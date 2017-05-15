@@ -2412,7 +2412,7 @@ class ChannelCRUDL(SmartCRUDL):
                                          help_text=_("The Jiochat App secret"))
 
             def clean(self):
-                app_id = self.cleaned_aata['app_id']
+                app_id = self.cleaned_data['app_id']
                 app_secret = self.cleaned_data['app_secret']
 
                 post_data = dict(grant_type='client_credentials', appid=app_id, secret=app_secret)
@@ -2431,13 +2431,15 @@ class ChannelCRUDL(SmartCRUDL):
                 return self.cleaned_data
 
         form_class = JiochatForm
+        fields = ('app_id', 'app_secret')
 
         def form_valid(self, form):
-            super(ChannelCRUDL.ClaimJiochat, self).form_valid()
+            super(ChannelCRUDL.ClaimJiochat, self).form_valid(form)
+            cleaned_data = form.cleaned_data
 
             channel = Channel.add_jiochat_channel(self.request.user.get_org(), self.request.user,
-                                                  self.cleaned_data['uuid'], self.cleaned_data['app_id'],
-                                                  self.cleaned_data['app_secret'])
+                                                  cleaned_data.get('uuid'), cleaned_data.get('app_id'),
+                                                  cleaned_data.get('app_secret'))
 
             return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))
 

@@ -3415,6 +3415,40 @@ class ChannelClaimTest(TembaTest):
 
         self.assertEquals(mail.outbox[1].body, text)
 
+    @patch('requests.post')
+    def test_claim_jiochat(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
+
+        Channel.objects.all().delete()
+
+        self.login(self.admin)
+        response = self.client.get(reverse('channels.channel_claim'))
+        # self.assertContains(response, reverse('channels.channel_claim_jiochat'))
+
+        # try to claim a channel
+        response = self.client.get(reverse('channels.channel_claim_jiochat'))
+        post_data = response.context['form'].initial
+
+        post_data['app_id'] = 'foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo'
+        post_data['app_secret'] = 'barbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbar'
+
+        response = self.client.post(reverse('channels.channel_claim_jiochat'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertEquals(channel.config_json()[Channel.CONFIG_JIOCHAT_APP_ID], post_data['app_id'])
+        self.assertEquals(channel.config_json()[Channel.CONFIG_JIOCHAT_APP_SECRET], post_data['app_secret'])
+        self.assertEquals(channel.channel_type, Channel.TYPE_JIOCHAT)
+
+        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        self.assertRedirect(response, config_url)
+
+        response = self.client.get(config_url)
+        self.assertEquals(200, response.status_code)
+
+        self.assertContains(response, reverse('handlers.jiochat_handler', args=[channel.uuid]))
+        self.assertContains(response, channel.secret)
+
     def test_claim_macrokiosk(self):
         Channel.objects.all().delete()
 
@@ -10075,7 +10109,6 @@ class JiochatTest(TembaTest):
 
         # retry success with access token refreshed
         with patch('requests.post') as mock:
-            mock_access_token.side_effect = ['', 'ABC1234']
             mock.side_effect = [MockResponse(412, 'Error'),
                                 MockResponse(200, '{"errcode":0,"errmsg":"Request succeeded"}')]
 
