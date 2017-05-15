@@ -1426,7 +1426,8 @@ class ContactTest(TembaTest):
         self.create_campaign()
 
         # add one that is a video
-        self.create_msg(direction='I', contact=self.joe, media="video:http://blah/file.mp4", text="Video caption", created_on=timezone.now())
+        self.create_msg(direction='I', contact=self.joe, attachments=["video:http://blah/file.mp4"],
+                        text="Video caption", created_on=timezone.now())
 
         # create some messages
         for i in range(99):
@@ -1471,7 +1472,7 @@ class ContactTest(TembaTest):
         self.assertEqual(activity[3]['obj'].direction, 'O')
         self.assertIsInstance(activity[4]['obj'], FlowRun)
         self.assertIsInstance(activity[5]['obj'], Msg)
-        self.assertEqual(activity[5]['obj'].media, "video:http://blah/file.mp4")
+        self.assertEqual(activity[5]['obj'].attachments[0], "video:http://blah/file.mp4")
         self.assertIsInstance(activity[6]['obj'], Msg)
         self.assertEqual(activity[6]['obj'].text, "Inbound message 98")
         self.assertIsInstance(activity[9]['obj'], EventFire)

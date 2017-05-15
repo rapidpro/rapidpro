@@ -2789,12 +2789,12 @@ class FlowRun(models.Model):
         # create a Msg object to track what happened
         from temba.msgs.models import DELIVERED, IVR
 
-        media = None
+        attachments = None
         if recording_url:
-            media = '%s/x-wav:%s' % (Msg.MEDIA_AUDIO, recording_url)
+            attachments = ['%s/x-wav:%s' % (Msg.MEDIA_AUDIO, recording_url)]
 
         msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.session.channel,
-                                  response_to=response_to, media=media,
+                                  response_to=response_to, attachments=attachments,
                                   status=DELIVERED, msg_type=IVR, session=session)
 
         # play a recording or read some text
