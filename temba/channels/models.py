@@ -2117,7 +2117,7 @@ class Channel(TembaModel):
         start = time.time()
 
         try:
-            response = requests.post(url, data=payload, headers=headers, timeout=30)
+            response = requests.post(url, json=data, headers=headers, timeout=30)
             event.status_code = response.status_code
             event.response_body = response.text
 
