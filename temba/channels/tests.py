@@ -39,6 +39,7 @@ from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLI
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, AnonymousOrg
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, datetime_to_str
+from temba.utils.twitter import generate_twitter_signature
 from telegram import User as TelegramUser
 from twilio import TwilioRestException
 from twilio.util import RequestValidator
@@ -8082,17 +8083,88 @@ class TwitterTest(TembaTest):
         super(TwitterTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, None, 'TT', None, 'billy_bob',
-                                      config={'oauth_token': 'abcdefghijklmnopqrstuvwxyz',
-                                              'oauth_token_secret': '0123456789'},
+
+        # a new style Twitter channel configured for the Webhooks API
+        self.twitter = Channel.create(self.org, self.user, None, 'TT', None, 'cuenca_facts',
+                                      config={'handle_id': 10001,
+                                              'api_key': 'APIKEY',
+                                              'api_secret': 'APISECRET',
+                                              'access_token': 'abcdefghijklmnopqrstuvwxyz',
+                                              'access_token_secret': '0123456789'},
                                       uuid='00000000-0000-0000-0000-000000001234')
 
-        self.joe = self.create_contact("Joe", "+250788383383")
+        # an old style Twitter channel which would use Mage for receiving messages
+        self.twitter_legacy = Channel.create(self.org, self.user, None, 'TT', None, 'billy_bob',
+                                             config={'oauth_token': 'abcdefghijklmnopqrstuvwxyz',
+                                                     'oauth_token_secret': '0123456789'},
+                                             uuid='00000000-0000-0000-0000-000000002345')
+
+        self.joe = self.create_contact("Joe", twitter='joe81')
+
+    def signed_request(self, url, data, api_secret='APISECRET'):
+        """
+        Makes a post to the Twitter handler with a computed signature
+        """
+        body = json.dumps(data)
+        signature = generate_twitter_signature(body, api_secret)
+
+        return self.client.post(url, body, content_type="application/json", HTTP_X_TWITTER_WEBHOOKS_SIGNATURE=signature)
+
+    def webhook_payload(self, external_id, text, sender, target):
+        return {
+            "direct_message_events": [
+                {
+                    "created_timestamp": "1494877823220",
+                    "message_create": {
+                        "message_data": {
+                            "text": text,
+                        },
+                        "sender_id": sender['id'],
+                        "target": {"recipient_id": target['id']}
+                    },
+                    "type": "message_create",
+                    "id": external_id
+                }
+            ],
+            "users": {
+                sender['id']: {"name": sender['name'], "screen_name": sender['screen_name']},
+                target['id']: {"name": target['name'], "screen_name": target['screen_name']}
+            }
+        }
+
+    def test_receive(self):
+        data = self.webhook_payload('ext1', "Thanks for the info!",
+                                    dict(id='10002', name="Joe", screen_name="joe81"),
+                                    dict(id='10001', name="Cuenca Facts", screen_name="cuenca_facts"))
+
+        # try sending to a non-existent channel
+        response = self.signed_request(reverse('handlers.twitter_handler', args=['xyz']), data)
+        self.assertEqual(response.status_code, 400)
+
+        # try sending with an invalid request signature
+        response = self.signed_request(reverse('handlers.twitter_handler', args=[self.twitter.uuid]), data, api_secret='XYZ')
+        self.assertEqual(response.status_code, 400)
+
+        response = self.signed_request(reverse('handlers.twitter_handler', args=[self.twitter.uuid]), data)
+        self.assertEqual(response.status_code, 200)
+
+        msg = Msg.objects.get()
+        self.assertEqual(msg.text, "Thanks for the info!")
+        self.assertEqual(msg.contact, self.joe)
+        self.assertEqual(msg.contact_urn, self.joe.get_urns()[0])
+        self.assertEqual(msg.external_id, 'ext1')
+
+        # check that a message from us isn't saved
+        data = self.webhook_payload('ext2', "It rains a lot in Cuenca",
+                                    dict(id='10001', name="Cuenca Facts", screen_name="cuenca_facts"),
+                                    dict(id='10002', name="Joe", screen_name="joe81"))
+        response = self.signed_request(reverse('handlers.twitter_handler', args=[self.twitter.uuid]), data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Msg.objects.count(), 1)
 
     def test_send_media(self):
-        joe = self.create_contact("Joe", number="+250788383383", twitter="joe1981")
-
-        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = self.joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
         try:
             settings.SEND_MESSAGES = True
 
@@ -8117,13 +8189,12 @@ class TwitterTest(TembaTest):
             settings.SEND_MESSAGES = False
 
     def test_send(self):
-        joe = self.create_contact("Joe", number="+250788383383", twitter="joe1981")
-        testers = self.create_group("Testers", [joe])
+        testers = self.create_group("Testers", [self.joe])
 
-        msg = joe.send("This is a long message, longer than just 160 characters, it spans what was before "
-                       "more than one message but which is now but one, solitary message, going off into the "
-                       "Twitterverse to tweet away.",
-                       self.admin, trigger_send=False)[0]
+        msg = self.joe.send("This is a long message, longer than just 160 characters, it spans what was before "
+                            "more than one message but which is now but one, solitary message, going off into the "
+                            "Twitterverse to tweet away.",
+                            self.admin, trigger_send=False)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -8178,7 +8249,7 @@ class TwitterTest(TembaTest):
                 self.assertTrue(msg.next_attempt)
 
                 # should not fail the contact
-                contact = Contact.objects.get(pk=joe.pk)
+                contact = Contact.objects.get(id=self.joe.id)
                 self.assertFalse(contact.is_stopped)
                 self.assertEqual(contact.user_groups.count(), 1)
 
@@ -8198,15 +8269,15 @@ class TwitterTest(TembaTest):
                 self.assertEquals(2, msg.error_count)
 
                 # should be stopped
-                contact = Contact.objects.get(pk=joe.pk)
+                contact = Contact.objects.get(id=self.joe.id)
                 self.assertTrue(contact.is_stopped)
                 self.assertEqual(contact.user_groups.count(), 0)
 
                 self.clear_cache()
 
-            joe.is_stopped = False
-            joe.save()
-            testers.update_contacts(self.user, [joe], add=True)
+            self.joe.is_stopped = False
+            self.joe.save()
+            testers.update_contacts(self.user, [self.joe], add=True)
 
             with patch('requests.sessions.Session.post') as mock:
                 mock.side_effect = TwythonError("There was an error sending your message: You can't send direct messages to this user right now.",
@@ -8221,15 +8292,15 @@ class TwitterTest(TembaTest):
                 self.assertEquals(2, msg.error_count)
 
                 # should fail the contact permanently (i.e. removed from groups)
-                contact = Contact.objects.get(pk=joe.pk)
+                contact = Contact.objects.get(id=self.joe.id)
                 self.assertTrue(contact.is_stopped)
                 self.assertEqual(contact.user_groups.count(), 0)
 
                 self.clear_cache()
 
-            joe.is_stopped = False
-            joe.save()
-            testers.update_contacts(self.user, [joe], add=True)
+            self.joe.is_stopped = False
+            self.joe.save()
+            testers.update_contacts(self.user, [self.joe], add=True)
 
             with patch('requests.sessions.Session.post') as mock:
                 mock.side_effect = TwythonError("Sorry, that page does not exist.", error_code=404)
@@ -8243,7 +8314,7 @@ class TwitterTest(TembaTest):
                 self.assertEqual(msg.error_count, 2)
 
                 # should fail the contact permanently (i.e. removed from groups)
-                contact = Contact.objects.get(pk=joe.pk)
+                contact = Contact.objects.get(id=self.joe.id)
                 self.assertTrue(contact.is_stopped)
                 self.assertEqual(contact.user_groups.count(), 0)
 

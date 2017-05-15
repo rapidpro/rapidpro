@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
-import base64
 import hmac
 import hashlib
 import json
@@ -33,10 +32,10 @@ from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, OUTGOING
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
-from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit
+from temba.utils import decode_base64, json_date_to_datetime, ms_to_datetime, on_transaction_commit
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
-from temba.utils import decode_base64
+from temba.utils.twitter import generate_twitter_signature
 from twilio import twiml
 from .tasks import fb_channel_subscribe
 
@@ -2889,7 +2888,7 @@ class TwitterHandler(BaseChannelHandler):
             return HttpResponse("No such Twitter channel", status=400)
 
         consumer_secret = channel.config_json()['api_secret']
-        resp_token = self.generate_signature(crc_token, consumer_secret)
+        resp_token = generate_twitter_signature(crc_token, consumer_secret)
 
         return JsonResponse({'response_token': resp_token}, status=200)
 
@@ -2903,7 +2902,7 @@ class TwitterHandler(BaseChannelHandler):
 
         # validate that request has come from Twitter
         expected_signature = request.META['HTTP_X_TWITTER_WEBHOOKS_SIGNATURE']
-        calculated_signature = self.generate_signature(request.body, channel_config['api_secret'])
+        calculated_signature = generate_twitter_signature(request.body, channel_config['api_secret'])
 
         if not constant_time_compare(expected_signature, calculated_signature):
             return HttpResponse("Invalid request signature", status=400)
@@ -2922,7 +2921,7 @@ class TwitterHandler(BaseChannelHandler):
                     continue
 
                 urn = URN.from_twitter(users[sender_id]['screen_name'])
-                name = users[sender_id]['name']
+                name = None if channel.org.is_anon else users[sender_id]['name']
                 contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
 
                 external_id = dm_event['id']
@@ -2932,8 +2931,3 @@ class TwitterHandler(BaseChannelHandler):
                 msgs.append(Msg.create_incoming(channel, urn, text, date=created_on, contact=contact, external_id=external_id))
 
         return HttpResponse("Accepted %d messages" % len(msgs), status=200)
-
-    @staticmethod
-    def generate_signature(content, consumer_secret):
-        token = hmac.new(bytes(consumer_secret.encode('ascii')), msg=content, digestmod=hashlib.sha256).digest()
-        return 'sha256=' + base64.standard_b64encode(token)

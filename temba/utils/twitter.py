@@ -1,9 +1,13 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
+import base64
+import hashlib
+import hmac
 import json
 import requests
 
 from django.conf import settings
+from django.db.models import Model
 from django.utils.http import urlencode
 from twython import Twython
 from twython import TwythonAuthError
@@ -22,7 +26,8 @@ class TembaTwython(Twython):  # pragma: no cover
 
     @classmethod
     def from_channel(cls, channel):
-        config = channel.config_json()
+        # could be passed a ChannelStruct or a Channel model instance
+        config = channel.config_json() if isinstance(channel, Model) else channel.config
 
         # Twitter channels come in new (i.e. user app, webhook API) and classic (shared app, streaming API) flavors
         if 'api_key' in config:
@@ -125,7 +130,7 @@ class TembaTwython(Twython):  # pragma: no cover
 
         return content
 
-    def get_webhooks(self):
+    def get_webhooks(self):  # pragma: no cover
         """
         Returns all URLs and their statuses for the given app.
 
@@ -133,7 +138,7 @@ class TembaTwython(Twython):  # pragma: no cover
         """
         return self.get('account_activity/webhooks')
 
-    def recheck_webhook(self, webhook_id):
+    def recheck_webhook(self, webhook_id):  # pragma: no cover
         """
         Triggers the challenge response check (CRC) for the given webhook's URL.
 
@@ -149,7 +154,7 @@ class TembaTwython(Twython):  # pragma: no cover
         """
         return self.post('account_activity/webhooks', params={'url': url})
 
-    def delete_webhook(self, webhook_id):
+    def delete_webhook(self, webhook_id):  # pragma: no cover
         """
         Removes the webhook from the provided application's configuration.
 
@@ -165,3 +170,8 @@ class TembaTwython(Twython):  # pragma: no cover
         Docs: https://dev.twitter.com/webhooks/reference/post/account_activity/webhooks/subscriptions
         """
         return self.post('account_activity/webhooks/%s/subscriptions.json' % webhook_id)
+
+
+def generate_twitter_signature(content, consumer_secret):
+    token = hmac.new(bytes(consumer_secret.encode('ascii')), msg=content, digestmod=hashlib.sha256).digest()
+    return 'sha256=' + base64.standard_b64encode(token)
