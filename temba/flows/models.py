@@ -34,8 +34,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
-from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD
-from temba.msgs.models import OUTGOING, UnreachableException
+from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils import chunk_list, on_transaction_commit
@@ -5054,30 +5053,14 @@ class ReplyAction(Action):
             else:
                 created_on = None
 
-            try:
-                if msg:
-                    reply_msgs = msg.reply(text, user, trigger_send=False, message_context=context,
+            if msg:
+                replies = msg.reply(text, user, trigger_send=False, message_context=context,
+                                    session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                    send_all=self.send_all, created_on=created_on)
+            else:
+                replies = run.contact.send(text, user, trigger_send=False, message_context=context,
                                            session=run.session, msg_type=self.MSG_TYPE, media=media,
-                                           send_all=self.send_all, created_on=created_on)
-
-                    if reply_msgs:
-                        replies += reply_msgs
-
-                else:
-                    if self.send_all:
-                        replies = run.contact.send_all(text, user, trigger_send=False, message_context=context,
-                                                       session=run.session, msg_type=self.MSG_TYPE, media=media,
-                                                       created_on=created_on)
-                    else:
-                        reply_msg = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                                     session=run.session, msg_type=self.MSG_TYPE, media=media,
-                                                     created_on=created_on)
-                        if reply_msg:
-                            replies.append(reply_msg)
-
-            except UnreachableException:
-                pass
-
+                                           created_on=created_on, all_urns=self.send_all)
         return replies
 
 
