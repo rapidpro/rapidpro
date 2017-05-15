@@ -663,7 +663,7 @@ class ContactTest(TembaTest):
         contact = self.create_contact('Stephen', '+12078778899', twitter='stephen')
         Channel.create(self.org, self.user, None, 'TT')
 
-        msgs = contact.send_all('Allo', self.admin)
+        msgs = contact.send('Allo', self.admin, all_urns=True)
         self.assertEqual(len(msgs), 2)
         out_msgs = Msg.objects.filter(contact=contact, direction='O')
         self.assertEqual(out_msgs.count(), 2)
