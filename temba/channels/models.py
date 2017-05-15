@@ -1,7 +1,6 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import json
-import mimetypes
 import time
 import urlparse
 import phonenumbers
@@ -1456,8 +1455,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     def download_jiochat_media(self, media_id):
-        if self.channel_type != Channel.TYPE_JIOCHAT or not self.is_active:
-            return
 
         access_token = Channel.get_jiochat_access_token(channel_uuid=self.uuid)
 
@@ -1482,14 +1479,9 @@ class Channel(TembaModel):
         disposition = response.headers.get('Content-Disposition', None)
         content_type = response.headers.get('Content-Type', None)
 
-        if content_type:
-            extension = None
-            if disposition == 'inline':
-                extension = mimetypes.guess_extension(content_type)
-                extension = extension.strip('.')
-            elif disposition:
-                filename = re.findall("filename=\"(.+)\"", disposition)[0]
-                extension = filename.rpartition('.')[2]
+        if content_type and disposition:
+            filename = re.findall("filename=\"(.+)\"", disposition)[0]
+            extension = filename.rpartition('.')[2]
 
             temp = NamedTemporaryFile(delete=True)
             temp.write(response.content)
@@ -1499,8 +1491,6 @@ class Channel(TembaModel):
             downloaded = self.org.save_media(File(temp), extension)
 
             return '%s:%s' % (content_type, downloaded)
-
-        return None
 
     @classmethod
     def send_jiochat_message(cls, channel, msg, text):

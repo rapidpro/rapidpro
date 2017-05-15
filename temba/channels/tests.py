@@ -10174,10 +10174,11 @@ class JiochatTest(TembaTest):
             mock_access_token.return_value = 'ABC1234'
 
             with patch('requests.get') as mock_get:
-                mock_get.return_value = MockResponse(200, "IMG_BITS",
+                mock_get.side_effect = [MockResponse(400, 'Error'),
+                                        MockResponse(200, "IMG_BITS",
                                                      headers={"Content-Type": "image/jpeg",
-                                                              "Content-disposition":
-                                                                  'attachment; filename="image_name.jpg"'})
+                                                              "Content-Disposition":
+                                                                  'attachment; filename="image_name.jpg"'})]
 
                 with patch('temba.orgs.models.Org.save_media') as mock_save_media:
                     mock_save_media.return_value = '<MEDIA_SAVED_URL>'
