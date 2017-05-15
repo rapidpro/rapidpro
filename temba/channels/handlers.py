@@ -18,6 +18,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
+from django.utils.crypto import constant_time_compare
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
@@ -2888,35 +2889,51 @@ class TwitterHandler(BaseChannelHandler):
             return HttpResponse("No such Twitter channel", status=400)
 
         consumer_secret = channel.config_json()['api_secret']
+        resp_token = self.generate_signature(crc_token, consumer_secret)
 
-        token = hmac.new(bytes(consumer_secret.encode('ascii')), msg=crc_token, digestmod=hashlib.sha256).digest()
-        token = 'sha256=' + base64.standard_b64encode(token)
-
-        return JsonResponse({'response_token': token}, status=200)
+        return JsonResponse({'response_token': resp_token}, status=200)
 
     def post(self, request, *args, **kwargs):
-        # TODO validate request
-        # signature = request.META['HTTP_X_TWITTER_WEBHOOKS_SIGNATURE']
-        # request.body
-
         channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
                                          channel_type=Channel.TYPE_TWITTER).exclude(org=None).first()
         if not channel:
             return HttpResponse("No such Twitter channel", status=400)
 
+        channel_config = channel.config_json()
+
+        # validate that request has come from Twitter
+        expected_signature = request.META['HTTP_X_TWITTER_WEBHOOKS_SIGNATURE']
+        calculated_signature = self.generate_signature(request.body, channel_config['api_secret'])
+
+        if not constant_time_compare(expected_signature, calculated_signature):
+            return HttpResponse("Invalid request signature", status=400)
+
         body = json.loads(request.body)
         dm_events = body.get('direct_message_events', [])
+        users = body.get('users', {})
 
-        if 'users' not in body:
-            print("Twitter didn't send hydrated users")
-
+        msgs = []
         for dm_event in dm_events:
             if dm_event['type'] == 'message_create':
-                # external_id = dm_event['id']
-                # created_on = ms_to_datetime(int(dm_event['created_timestamp']))
-                # sender_id = dm_event['message_create']['sender_id']
-                # text = dm_event['message_create']['message_data']['text']
+                sender_id = dm_event['message_create']['sender_id']
 
-                print("Received DM event: %s" % json.dumps(dm_event))
+                # check that this isn't a message that we sent
+                if int(sender_id) == channel_config['handle_id']:
+                    continue
 
-        return HttpResponse("Thanks for the update", status=200)
+                urn = URN.from_twitter(users[sender_id]['screen_name'])
+                name = users[sender_id]['name']
+                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
+
+                external_id = dm_event['id']
+                created_on = ms_to_datetime(int(dm_event['created_timestamp']))
+                text = dm_event['message_create']['message_data']['text']
+
+                msgs.append(Msg.create_incoming(channel, urn, text, date=created_on, contact=contact, external_id=external_id))
+
+        return HttpResponse("Accepted %d messages" % len(msgs), status=200)
+
+    @staticmethod
+    def generate_signature(content, consumer_secret):
+        token = hmac.new(bytes(consumer_secret.encode('ascii')), msg=content, digestmod=hashlib.sha256).digest()
+        return 'sha256=' + base64.standard_b64encode(token)

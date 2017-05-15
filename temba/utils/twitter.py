@@ -25,7 +25,7 @@ class TembaTwython(Twython):  # pragma: no cover
         config = channel.config_json()
 
         # Twitter channels come in new (i.e. user app, webhook API) and classic (shared app, streaming API) flavors
-        if 'api_token' in config:
+        if 'api_key' in config:
             api_key, api_secret = config['api_key'], config['api_secret']
             access_token, access_token_secret = config['access_token'], config['access_token_secret']
         else:
@@ -125,8 +125,43 @@ class TembaTwython(Twython):  # pragma: no cover
 
         return content
 
-    def register_webook(self, url):
-        return self.post('https://api.twitter.com/1.1/account_activity/webhooks.json', params={'url': url})
+    def get_webhooks(self):
+        """
+        Returns all URLs and their statuses for the given app.
+
+        Docs: https://dev.twitter.com/webhooks/reference/get/account_activity/webhooks
+        """
+        return self.get('account_activity/webhooks')
+
+    def recheck_webhook(self, webhook_id):
+        """
+        Triggers the challenge response check (CRC) for the given webhook's URL.
+
+        Docs: https://dev.twitter.com/webhooks/reference/put/account_activity/webhooks
+        """
+        return self.request('account_activity/webhooks/%s' % webhook_id, method='PUT')
+
+    def register_webhook(self, url):
+        """
+        Registers a new webhook URL for the given application context.
+
+        Docs: https://dev.twitter.com/webhooks/reference/post/account_activity/webhooks
+        """
+        return self.post('account_activity/webhooks', params={'url': url})
+
+    def delete_webhook(self, webhook_id):
+        """
+        Removes the webhook from the provided application's configuration.
+
+        Docs: https://dev.twitter.com/webhooks/reference/del/account_activity/webhooks
+
+        """
+        return self.request('account_activity/webhooks/%s' % webhook_id, method='DELETE')
 
     def subscribe_to_webhook(self, webhook_id):
-        return self.post('https://api.twitter.com/1.1/account_activity/webhooks/%s/subscriptions.json' % webhook_id)
+        """
+        Subscribes the provided app to events for the provided user context.
+
+        Docs: https://dev.twitter.com/webhooks/reference/post/account_activity/webhooks/subscriptions
+        """
+        return self.post('account_activity/webhooks/%s/subscriptions.json' % webhook_id)
