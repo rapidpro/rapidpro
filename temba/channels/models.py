@@ -2129,24 +2129,24 @@ class Channel(TembaModel):
         # strip a leading +
         recipient = msg.urn_path[1:] if msg.urn_path.startswith('+') else msg.urn_path
 
-        payload = {
+        data = {
             'user': channel.config[Channel.CONFIG_USERNAME], 'pass': channel.config[Channel.CONFIG_PASSWORD],
             'to': recipient, 'text': text, 'from': channel.address.lstrip('+'),
             'servid': channel.config[Channel.CONFIG_MACROKIOSK_SERVICE_ID], 'type': message_type
         }
 
         url = 'https://www.etracker.cc/bulksms/send'
-        payload_json = json.dumps(payload)
+        payload = json.dumps(data)
 
         headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
         headers.update(TEMBA_HEADERS)
 
-        event = HttpEvent('POST', url, payload_json)
+        event = HttpEvent('POST', url, payload)
 
         start = time.time()
 
         try:
-            response = requests.post(url, data=payload, headers=headers, timeout=30)
+            response = requests.post(url, json=data, headers=headers, timeout=30)
             event.status_code = response.status_code
             event.response_body = response.text
 
