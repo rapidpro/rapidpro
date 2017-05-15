@@ -3449,6 +3449,11 @@ class ChannelClaimTest(TembaTest):
         self.assertContains(response, reverse('handlers.jiochat_handler', args=[channel.uuid]))
         self.assertContains(response, channel.secret)
 
+        mock_post.return_value = MockResponse(400, '{"errmsg":"Invalid appID."}')
+
+        response = self.client.post(reverse('channels.channel_claim_jiochat'), post_data)
+        self.assertContains(response, "Invalid appID")
+
     def test_claim_macrokiosk(self):
         Channel.objects.all().delete()
 
