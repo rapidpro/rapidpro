@@ -424,9 +424,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       @actions = [
         { type:'say', name:'Play Message', verbose_name:'Play a message', icon: 'icon-bubble-3', message: true, filter:[VOICE] }
         { type:'play', name:'Play Recording', verbose_name:'Play a contact recording', icon: 'icon-mic', filter:[VOICE]}
-        { type:'reply', name:'Send Message', verbose_name:'Send an SMS response', icon: 'icon-bubble-3', message:true, filter:ALL }
-        { type:'end_ussd', name:'End USSD Session', verbose_name:'End USSD Session with message', icon: 'icon-bubble-3', message:true, filter:USSD }
-        { type:'send', name:'Send Message', verbose_name: 'Send an SMS to somebody else', icon: 'icon-bubble-3', message:true, filter:[TEXT,VOICE] }
+        { type:'reply', name:'Send Message', verbose_name:'Send a response message', icon: 'icon-bubble-3', message:true, filter:ALL }
+        { type:'end_ussd', name:'End USSD Session', verbose_name:'End USSD session with message', icon: 'icon-bubble-3', message:true, filter:USSD }
+        { type:'send', name:'Send Message', verbose_name: 'Send a message to somebody else', icon: 'icon-bubble-3', message:true, filter:[TEXT,VOICE] }
         { type:'add_label', name:'Add Label', verbose_name: 'Add a label to a Message', icon: 'icon-tag', filter:ALL }
         { type:'save', name:'Update Contact', verbose_name:'Update the contact', icon: 'icon-user', filter:ALL }
         { type:'add_group', name:'Add to Groups', verbose_name:'Add contact to a group', icon: 'icon-users-2', groups:true, filter:ALL }

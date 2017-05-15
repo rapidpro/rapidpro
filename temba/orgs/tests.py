@@ -6,6 +6,7 @@ import nexmo
 import pytz
 import six
 
+from bs4 import BeautifulSoup
 from context_processors import GroupPermWrapper
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
@@ -2410,7 +2411,7 @@ class BulkExportTest(TembaTest):
 
         # now make sure a call to get dependencies succeeds and shows our flow
         triggeree = Flow.objects.filter(name='Triggeree').first()
-        self.assertIn(triggeree, flow.get_dependencies()['flows'])
+        self.assertIn(triggeree, flow.get_dependencies())
 
     def test_trigger_flow(self):
         self.import_file('triggered_flow')
@@ -2444,12 +2445,11 @@ class BulkExportTest(TembaTest):
 
         parent = Flow.objects.filter(name='Parent Flow').first()
         child = Flow.objects.filter(name='Child Flow').first()
-        self.assertIn(child, parent.get_dependencies()['flows'])
+        self.assertIn(child, parent.get_dependencies())
 
         self.login(self.admin)
         response = self.client.get(reverse('orgs.org_export'))
 
-        from bs4 import BeautifulSoup
         soup = BeautifulSoup(response.content, "html.parser")
         group = str(soup.findAll("div", {"class": "exportables bucket"})[0])
 
@@ -2605,7 +2605,7 @@ class BulkExportTest(TembaTest):
         trigger.flow = confirm_appointment
         trigger.save()
 
-        message_flow = Flow.objects.filter(flow_type='M', campaignevent__offset=-1).order_by('pk').first()
+        message_flow = Flow.objects.filter(flow_type='M', events__offset=-1).order_by('pk').first()
         action_set = message_flow.action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
         self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
@@ -2630,7 +2630,7 @@ class BulkExportTest(TembaTest):
         self.assertTrue(Flow.objects.filter(pk=message_flow.pk, is_active=False))
 
         # find our new message flow, and see that the original message is there
-        message_flow = Flow.objects.filter(flow_type='M', campaignevent__offset=-1, is_active=True).order_by('pk').first()
+        message_flow = Flow.objects.filter(flow_type='M', events__offset=-1, is_active=True).order_by('pk').first()
         action_set = Flow.objects.get(pk=message_flow.pk).action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
         self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
@@ -2672,7 +2672,7 @@ class BulkExportTest(TembaTest):
         self.org.import_app(exported, self.admin, site='http://app.rapidpro.io')
         assert_object_counts()
 
-        message_flow = Flow.objects.filter(flow_type='M', campaignevent__offset=-1, is_active=True).order_by('pk').first()
+        message_flow = Flow.objects.filter(flow_type='M', events__offset=-1, is_active=True).order_by('pk').first()
 
         # make sure the base language is set to 'base', not 'eng'
         self.assertEqual(message_flow.base_language, 'base')

@@ -2170,6 +2170,27 @@ class ChannelTest(TembaTest):
         self.assertIsNone(nexmo.org)
         self.assertFalse(nexmo.is_active)
 
+        Channel.objects.all().delete()
+
+        # register and claim an Android channel
+        reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid='uuid'),
+                              dict(cmd='status', cc='RW', dev='Nexus')])
+        self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
+        android = Channel.objects.get()
+        self.client.post(reverse('channels.channel_claim_android'),
+                         dict(claim_code=android.claim_code, phone_number="0788123123"))
+        android.refresh_from_db()
+
+        android.release()
+
+        # check that some details are cleared and channel is now in active
+        self.assertIsNone(android.org)
+        self.assertIsNone(android.gcm_id)
+        self.assertIsNone(android.secret)
+        self.assertFalse(android.is_active)
+
+        self.assertIsNone(android.config_json().get(Channel.CONFIG_FCM_ID, None))
+
     def test_release_twitter(self):
         # check that removing Twitter channel notifies Mage
         with patch('temba.utils.mage.MageClient._request') as mock_mage_request:
@@ -2283,6 +2304,51 @@ class ChannelTest(TembaTest):
         self.assertEquals(200, response.status_code)
         response = response.json()
         self.assertEqual(10, len(response['cmds']))
+
+    def test_sync_broadcast_multiple_channels(self):
+        self.org.administrators.add(self.user)
+        self.user.set_org(self.org)
+
+        channel2 = Channel.create(self.org, self.user, 'RW', 'A', name="Test Channel 2", address="+250785551313",
+                                  role="SR", secret="12367", gcm_id="456")
+
+        contact1 = self.create_contact("John Doe", '250788382382')
+        contact2 = self.create_contact("John Doe", '250788383383')
+
+        contact1_urn = contact1.get_urn()
+        contact1_urn.channel = self.tel_channel
+        contact1_urn.save()
+
+        contact2_urn = contact2.get_urn()
+        contact2_urn.channel = channel2
+        contact2_urn.save()
+
+        # send a broadcast to urn that have different preferred channels
+        self.send_message(['250788382382', '250788383383'], "How is it going?")
+
+        # Should contain messages for the the channel only
+        response = self.sync(self.tel_channel)
+        self.assertEquals(200, response.status_code)
+
+        self.tel_channel.refresh_from_db()
+
+        response = response.json()
+        cmds = response['cmds']
+        self.assertEqual(1, len(cmds))
+        self.assertEqual(len(cmds[0]['to']), 1)
+        self.assertEqual(cmds[0]['to'][0]['phone'], '+250788382382')
+
+        # Should contain messages for the the channel only
+        response = self.sync(channel2)
+        self.assertEquals(200, response.status_code)
+
+        channel2.refresh_from_db()
+
+        response = response.json()
+        cmds = response['cmds']
+        self.assertEqual(1, len(cmds))
+        self.assertEqual(len(cmds[0]['to']), 1)
+        self.assertEqual(cmds[0]['to'][0]['phone'], '+250788383383')
 
     def test_sync(self):
         date = timezone.now()
@@ -2536,12 +2602,42 @@ class ChannelTest(TembaTest):
         # and we end all alert related to this issue
         self.assertEquals(0, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type='P').count())
 
+        post_data = dict(cmds=[
+            # device fcm data
+            dict(cmd='fcm', fcm_id='12345', uuid='abcde')])
+
+        response = self.sync(self.tel_channel, post_data)
+
+        self.tel_channel.refresh_from_db()
+        self.assertIsNone(self.tel_channel.gcm_id)
+        self.assertTrue(self.tel_channel.last_seen > six_mins_ago)
+        self.assertEqual(self.tel_channel.config_json()[Channel.CONFIG_FCM_ID], '12345')
+
     def test_signing(self):
         # good signature
         self.assertEquals(200, self.sync(self.tel_channel).status_code)
 
         # bad signature, should result in 401 Unauthorized
         self.assertEquals(401, self.sync(self.tel_channel, signature="badsig").status_code)
+
+    def test_ignore_android_incoming_msg_invalid_phone(self):
+        date = timezone.now()
+        date = int(time.mktime(date.timetuple())) * 1000
+
+        post_data = dict(cmds=[
+            dict(cmd="mo_sms", phone="_@", msg="First message", p_id="1", ts=date)])
+
+        response = self.sync(self.tel_channel, post_data)
+        self.assertEquals(200, response.status_code)
+
+        responses = response.json()
+        cmds = responses['cmds']
+
+        # check the server gave us responses for our message
+        r0 = self.get_response(cmds, '1')
+
+        self.assertIsNotNone(r0)
+        self.assertEqual(r0['cmd'], 'ack')
 
     def test_inbox_duplication(self):
 
@@ -3661,6 +3757,12 @@ class AfricasTalkingTest(TembaTest):
         assertStatus(msg, 'Success', DELIVERED)
         assertStatus(msg, 'Sent', SENT)
         assertStatus(msg, 'Buffered', SENT)
+        assertStatus(msg, 'Failed', ERRORED)
+        assertStatus(msg, 'Rejected', ERRORED)
+
+        msg.error_count = 3
+        msg.save()
+
         assertStatus(msg, 'Failed', FAILED)
         assertStatus(msg, 'Rejected', FAILED)
 
@@ -4631,6 +4733,11 @@ class KannelTest(TembaTest):
 
         assertStatus(msg, '4', SENT)
         assertStatus(msg, '1', DELIVERED)
+        assertStatus(msg, '16', ERRORED)
+
+        # fail after 3 retries
+        msg.error_count = 3
+        msg.save()
         assertStatus(msg, '16', FAILED)
 
     def test_receive(self):
@@ -5645,7 +5752,7 @@ class MacrokioskTest(TembaTest):
 
         two_hour_ago = timezone.now() - timedelta(hours=2)
 
-        msg_date = datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")
+        msg_date = datetime_to_str(two_hour_ago, format="%Y-%m-%d %H:%M:%S")
 
         data = {'shortcode': '1212', 'from': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
                 'time': msg_date}
@@ -5668,7 +5775,7 @@ class MacrokioskTest(TembaTest):
         self.assertEqual(msg.text, "Hello World")
         self.assertEqual(msg.external_id, 'abc1234')
 
-        message_date = datetime.strptime(msg_date, "%Y-%m-%d%H:%M:%S")
+        message_date = datetime.strptime(msg_date, "%Y-%m-%d %H:%M:%S")
         local_date = pytz.timezone('Asia/Kuala_Lumpur').localize(message_date)
         gmt_date = local_date.astimezone(pytz.utc)
         self.assertEqual(msg.sent_on, gmt_date)
@@ -5677,7 +5784,7 @@ class MacrokioskTest(TembaTest):
 
         # try longcode and msisdn
         data = {'longcode': '1212', 'msisdn': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
-                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
+                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d %H:%M:%S")}
 
         encoded_message = urlencode(data)
 
@@ -5699,7 +5806,7 @@ class MacrokioskTest(TembaTest):
 
         # mixed param should not be accepted
         data = {'shortcode': '1212', 'msisdn': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
-                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
+                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d %H:%M:%S")}
 
         encoded_message = urlencode(data)
 
@@ -5710,7 +5817,7 @@ class MacrokioskTest(TembaTest):
         self.assertEquals(400, response.status_code)
 
         data = {'longcode': '1212', 'from': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
-                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
+                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d %H:%M:%S")}
 
         encoded_message = urlencode(data)
 
@@ -5722,7 +5829,7 @@ class MacrokioskTest(TembaTest):
 
         # try missing param
         data = {'from': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
-                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
+                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d %H:%M:%S")}
         encoded_message = urlencode(data)
 
         callback_url = reverse('handlers.macrokiosk_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message

@@ -207,18 +207,6 @@ class Campaign(TembaModel):
         definition['events'] = events
         return definition
 
-    def get_all_flows(self):  # pragma: needs cover
-        """
-        Unique set of flows, including single message flows
-        """
-        return [event.flow for event in self.events.filter(is_active=True).order_by('flow__id').distinct('flow')]
-
-    def get_flows(self):
-        """
-        A unique set of user-facing flows this campaign uses
-        """
-        return [event.flow for event in self.events.filter(is_active=True).exclude(flow__flow_type=Flow.MESSAGE).order_by('flow__id').distinct('flow')]
-
     def get_sorted_events(self):
         """
         Returns campaign events sorted by their actual offset with event flow definitions on the current export version
@@ -270,7 +258,7 @@ class CampaignEvent(TembaModel):
     relative_to = models.ForeignKey(ContactField, related_name='campaigns',
                                     help_text="The field our offset is relative to")
 
-    flow = models.ForeignKey(Flow, help_text="The flow that will be triggered")
+    flow = models.ForeignKey(Flow, related_name='events', help_text="The flow that will be triggered")
 
     event_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_FLOW,
                                   help_text='The type of this event')
@@ -464,7 +452,16 @@ class EventFire(Model):
         """
         self.fired = timezone.now()
         self.event.flow.start([], [self.contact], restart_participants=True)
-        self.save()
+        self.save(update_fields=('fired',))
+
+    @classmethod
+    def batch_fire(cls, fires, flow):
+        """
+        Starts a batch of event fires that are for events which use the same flow
+        """
+        fired = timezone.now()
+        flow.start([], [f.contact for f in fires], restart_participants=True)
+        EventFire.objects.filter(id__in=[f.id for f in fires]).update(fired=fired)
 
     @classmethod
     def update_campaign_events(cls, campaign):
