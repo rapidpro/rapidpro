@@ -415,7 +415,9 @@ class Flow(TembaModel):
                 text = saved_media_url.partition(':')[2]
 
             msg = Msg.create_incoming(call.channel, call.contact_urn.urn,
-                                      text, status=PENDING, msg_type=IVR, media=saved_media_url, session=run.session)
+                                      text, status=PENDING, msg_type=IVR,
+                                      attachments=[saved_media_url] if saved_media_url else None,
+                                      session=run.session)
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
@@ -2879,7 +2881,8 @@ class FlowStep(models.Model):
 
                     # if we received a message
                     incoming = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
-                                                   media=media, msg_type=FLOW, status=HANDLED, date=arrived_on,
+                                                   attachments=[media] if media else None,
+                                                   msg_type=FLOW, status=HANDLED, date=arrived_on,
                                                    channel=None, urn=None)
             else:  # pragma: needs cover
                 incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
@@ -5038,14 +5041,14 @@ class ReplyAction(Action):
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
 
-            media = None
+            attachments = None
             if self.media:
                 # localize our media attachment
                 media_type, media_url = run.flow.get_localized_text(self.media, run.contact).split(':', 1)
 
                 # if we have a localized media, create the url
                 if media_url:
-                    media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
+                    attachments = ["%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)]
 
             if offline_on:
                 context = None
@@ -5055,11 +5058,11 @@ class ReplyAction(Action):
 
             if msg:
                 replies = msg.reply(text, user, trigger_send=False, message_context=context,
-                                    session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                    session=run.session, msg_type=self.MSG_TYPE, attachments=attachments,
                                     send_all=self.send_all, created_on=created_on)
             else:
                 replies = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                           session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                           session=run.session, msg_type=self.MSG_TYPE, attachments=attachments,
                                            created_on=created_on, all_urns=self.send_all)
         return replies
 
