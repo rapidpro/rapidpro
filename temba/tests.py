@@ -273,9 +273,6 @@ class TembaTest(SmartminTest):
         if not kwargs['contact'].is_test:
             (kwargs['topup_id'], amount) = kwargs['org'].decrement_credit()
 
-        if 'media' in kwargs:
-            raise ValueError("Use attachments instead of media")
-
         return Msg.objects.create(**kwargs)
 
     def create_flow(self, uuid_start=None, **kwargs):
