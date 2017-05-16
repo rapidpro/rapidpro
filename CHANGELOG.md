@@ -1,3 +1,7 @@
+v3.0.139
+----------
+* Fix Macrokiosk JSON responses
+
 v3.0.138
 ----------
  * Migration to populate attachments field on old messages
