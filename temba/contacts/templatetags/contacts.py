@@ -115,20 +115,18 @@ def location(geo_url):
 
 @register.filter
 def media_url(media):
-    if media:
-        return media.partition(':')[2]
+    return media.partition(':')[2]
 
 
 @register.filter
 def media_content_type(media):
-    if media:
-        return media.partition(':')[0]
+    return media.partition(':')[0]
 
 
 @register.filter
 def media_type(media):
     content_type = media_content_type(media)
-    if content_type == 'application/octet-stream' and media.endswith('.oga'):  # pragma: needs cover
+    if content_type == 'application/octet-stream' and (media.endswith('.ogg') or media.endswith('.oga')):  # pragma: needs cover
         return 'audio'
     if content_type and '/' in content_type:  # pragma: needs cover
         content_type = content_type.split('/')[0]

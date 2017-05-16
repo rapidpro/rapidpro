@@ -405,6 +405,49 @@
               padding-left:5px;
               font-weight:normal;
             }
+
+            .activity-attachment {
+              display: inline-block;
+              margin: 10px 10px 0 0;
+              font-size: 0;
+
+              .attachment-preview {
+                background-color: #EAEAEA;
+                border: 0px;
+                color: #777;
+                display: inline-block;
+                font-size: 14px;
+                height: 20px;
+                margin: 0px;
+                padding: 5px 10px;
+                text-decoration: none;
+
+                .attachment-icon {
+                  margin-right: 3px;
+                }
+              }
+
+              a.attachment-preview:hover {
+                background-color: #D0D0D0;
+                color: #555;
+              }
+
+              .attachment-download {
+                background-color: #E0E0E0;
+                border: 0px;
+                color: #666;
+                display: inline-block;
+                font-size: 14px;
+                height: 20px;
+                margin: 0px;
+                padding: 5px;
+
+                &:hover {
+                  background-color: #D0D0D0;
+                  color: #555;
+                }
+              }
+            }
           }
         }
 
@@ -583,9 +626,9 @@
       Intercooler.triggerRequest($('tr.poll'));
     }
 
-    // plays the audio recording for a message
-    function playMessage (messageId) {
-      var audio = $('audio#message-' + messageId)
+    // plays an audio attachment on a message
+    function playAudioAttachment(audioId) {
+      var audio = $('audio#audio-' + audioId);
       var parent = audio.parent();
       var player = audio[0];
 

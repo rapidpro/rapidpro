@@ -20,19 +20,47 @@
                 .text
                   {{message.text}}
 
-        -if item.type == 'broadcast'
+        -elif item.type == 'broadcast'
           -with item.obj as broadcast
             .activity-broadcast
-              .sent-to
-                .summary
-                  Broadcast to {{broadcast.recipient_count|intcomma}} recipients
+              -if broadcast.recipient_count > 1
+                .sent-to
+                  .summary
+                    Broadcast to {{broadcast.recipient_count|intcomma}} recipients
               .activity-body
                 {{broadcast.translated_text}}
-                {{broadcast.media}}
 
         -for attachment in item.obj.attachments
-          .activity-attachment
-            ATTACHMENT: {{ attachment }}
+          -with media_type=attachment|media_type media_content_type=attachment|media_content_type media_url=attachment|media_url extension=attachment|media_url|extension|upper
+            .activity-attachment{ id:"attachment-{{ item.obj.id }}-{{ forloop.counter }}" }
+              -if media_type == 'image'
+                %a.attachment-preview{ href:"#", data-featherlight:'<img class="image-full" src="{{media_url}}"/>' }
+                  .attachment-icon.icon-photo
+                  {{extension}}
+
+              -elif media_type == 'audio'
+                %a.attachment-preview
+                  .attachment-icon.icon-volume-medium
+                  {{extension}}
+
+              -elif media_type == 'video'
+                %a.attachment-preview
+                  .attachment-icon.icon-videocam
+                  {{extension}}
+
+              -elif media_type == 'geo'
+                %a.attachment-preview{ href:"{{item.obj.media|osm_link}}", target:"_loc" }
+                  .attachment-icon.icon-pin_drop
+                  {{attachment|location}}
+
+              -else
+                .attachment-preview
+                  .attachment-icon.icon-docs
+                  {{extension}}
+
+              -if media_type != 'geo'
+                %a.attachment-download{ href:"{{media_url}}" }
+                  .icon-file_download
 
       -elif item.type == 'channel-event'
         -with item.obj as event
@@ -77,64 +105,6 @@
           -else
             -trans "Failed to call"
           {{result.url|truncatechars:100}}
-
-      -elif media_type == 'geo'
-        .activity-message
-          .activity-body
-            .text
-              <a href="{{item.obj.media|osm_link}}" target="_loc">{{item.obj.media|location}}</a>
-
-      -elif media_type == 'image'
-        .activity-message
-          .activity-body
-            .text
-              {{item.text}}
-            .text
-              <a href="#" data-featherlight="<a class='download-link' href='{{media_url}}' download><span class='icon-file_download'></span></a><img class='image-full' src='{{media_url}}'>">
-                <img class="image-preview" src="{{media_url}}">
-              </a>
-
-      -elif media_type == 'video'
-        .activity-message
-          .activity-body
-            .text
-              {{item.text}}
-            <video id="video_{{item.id}}" height="240px" class="video-js vjs-default-skin" controls preload="auto">
-              <source src="{{media_url}}" type='video/mp4'/>
-            </video>
-
-            :javascript
-
-              // keep track of previously initiated players and dispose on reload if necessary
-              if (!window.players) {
-                window.players = []
-              } else {
-                active = []
-                for (idx in window.players) {
-                  var player = window.players[idx];
-                  if (player.id_ == "video_{{item.obj.id}}") {
-                    player.dispose();
-                  } else {
-                    active.push(player);
-                  }
-                }
-                window.players = active;
-              }
-
-              // initialize and push our current video
-              window.players.push(videojs("video_{{item.obj.id}}", {plugins : {
-                 vjsdownload:{
-                   beforeElement: 'playbackRateMenuButton',
-                   textControl: 'Download',
-                   name: 'downloadButton'
-                 }
-              }}, function(){
-              }));
-
-      -elif item.obj.media|is_document
-        .activity-message
-          .activity-body
-            {{media_url|extension|upper}} document (<a href="{{media_url}}" download>download</a>)
 
     %td.created_on
       %span.time
