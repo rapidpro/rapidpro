@@ -193,7 +193,7 @@ def history_class(item):
 
     if item['type'] == 'msg':
         classes.append('msg')
-        if obj.media and obj.media[:6] == 'video:':
+        if obj.attachments and obj.attachments[0][:6] == 'video:':
             classes.append('video')
         if obj.status in (ERRORED, FAILED):
             classes.append('warning')
