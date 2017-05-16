@@ -2226,7 +2226,9 @@ class JioChatHandler(BaseChannelHandler):
         nonce = request.GET.get('nonce')
         echostr = request.GET.get('echostr')
 
-        hash_object = hashlib.sha1("".join(sorted([access_token, timestamp, nonce])))
+        value = "".join(sorted([access_token, timestamp, nonce]))
+
+        hash_object = hashlib.sha1(value.encode('utf-8'))
         signature_check = hash_object.hexdigest()
 
         if signature_check == signature:

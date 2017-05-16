@@ -10077,7 +10077,9 @@ class JiochatTest(TembaTest):
         timestamp = str(time.time())
         nonce = 'nonce'
 
-        hash_object = hashlib.sha1("".join(sorted([access_token, timestamp, nonce])))
+        value = "".join(sorted([access_token, timestamp, nonce]))
+
+        hash_object = hashlib.sha1(value.encode('utf-8'))
         signature = hash_object.hexdigest()
 
         callback_url = reverse('handlers.jiochat_handler', args=[self.channel.uuid])
