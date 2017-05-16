@@ -138,6 +138,7 @@ class Channel(TembaModel):
     CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
 
     JIOCHAT_ACCESS_TOKEN_KEY = 'jiochat_channel_access_token:%s'
+    JIOCHAT_ACCESS_TOKEN_REFRESH_LOCK = 'jiochat_channel_access_token:refresh-lock:%s'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -710,10 +711,26 @@ class Channel(TembaModel):
 
     @classmethod
     def get_jiochat_access_token(cls, channel_uuid, force=False):
-        key = Channel.JIOCHAT_ACCESS_TOKEN_KEY % channel_uuid
-        access_token = cache.get(key, None)
+        r = get_redis_connection()
+        lock_name = Channel.JIOCHAT_ACCESS_TOKEN_REFRESH_LOCK % channel_uuid
 
-        if access_token is None or force:
+        while True:
+            with r.lock(lock_name, timeout=5):
+                key = Channel.JIOCHAT_ACCESS_TOKEN_KEY % channel_uuid
+                access_token = cache.get(key, None)
+                break
+
+        return access_token
+
+    @classmethod
+    def refresh_jiochat_access_token(cls, channel_uuid):
+        r = get_redis_connection()
+        lock_name = Channel.JIOCHAT_ACCESS_TOKEN_REFRESH_LOCK % channel_uuid
+
+        with r.lock(lock_name, timeout=30):
+
+            key = Channel.JIOCHAT_ACCESS_TOKEN_KEY % channel_uuid
+
             channel = Channel.objects.filter(uuid=channel_uuid, is_active=True).first()
             if channel is None or channel.channel_type != Channel.TYPE_JIOCHAT:
                 return
@@ -728,9 +745,14 @@ class Channel(TembaModel):
 
             access_token = response_json['access_token']
 
-            cache.set(key, access_token, timeout=6000)
+            cache.set(key, access_token, timeout=7200)
+            return access_token
 
-        return access_token
+    @classmethod
+    def refresh_all_jiochat_access_token(cls):
+        jiochat_channels = Channel.objects.filter(channel_type=Channel.TYPE_JIOCHAT, is_active=True)
+        for channel in jiochat_channels:
+            Channel.refresh_jiochat_access_token(channel.uuid)
 
     @classmethod
     def add_line_channel(cls, org, user, credentials, name):
@@ -1516,15 +1538,6 @@ class Channel(TembaModel):
             response = requests.post(url, payload, headers=headers, timeout=15)
             event.status_code = response.status_code
             event.response_body = response.text
-
-            if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
-                access_token = Channel.get_jiochat_access_token(channel_uuid=channel.uuid, force=True)
-                headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + access_token}
-                headers.update(TEMBA_HEADERS)
-
-                response = requests.post(url, payload, headers=headers, timeout=15)
-                event.status_code = response.status_code
-                event.response_body = response.text
 
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
