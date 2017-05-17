@@ -270,17 +270,17 @@ class IVRTests(FlowFileTest):
 
         # we should have played a recording from the contact back to them
         outbound_msg = messages[1]
-        self.assertTrue(outbound_msg.media.startswith('audio/x-wav:https://'))
-        self.assertTrue(outbound_msg.media.endswith('.wav'))
+        self.assertTrue(outbound_msg.attachments[0].startswith('audio/x-wav:https://'))
+        self.assertTrue(outbound_msg.attachments[0].endswith('.wav'))
         self.assertTrue(outbound_msg.text.startswith('https://'))
         self.assertTrue(outbound_msg.text.endswith('.wav'))
 
         media_msg = messages[2]
-        self.assertTrue(media_msg.media.startswith('audio/x-wav:https://'))
-        self.assertTrue(media_msg.media.endswith('.wav'))
+        self.assertTrue(media_msg.attachments[0].startswith('audio/x-wav:https://'))
+        self.assertTrue(media_msg.attachments[0].endswith('.wav'))
         self.assertEqual('Played contact recording', media_msg.text)
 
-        (host, directory, filename) = media_msg.media.rsplit('/', 2)
+        (host, directory, filename) = media_msg.attachments[0].rsplit('/', 2)
         recording = '%s/%s/%s/media/%s/%s' % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR,
                                               self.org.pk, directory, filename)
         self.assertTrue(os.path.isfile(recording))
@@ -404,17 +404,17 @@ class IVRTests(FlowFileTest):
 
         # we should have played a recording from the contact back to them
         outbound_msg = messages[1]
-        self.assertTrue(outbound_msg.media.startswith('audio/x-wav:https://'))
-        self.assertTrue(outbound_msg.media.endswith('.wav'))
+        self.assertTrue(outbound_msg.attachments[0].startswith('audio/x-wav:https://'))
+        self.assertTrue(outbound_msg.attachments[0].endswith('.wav'))
         self.assertTrue(outbound_msg.text.startswith('https://'))
         self.assertTrue(outbound_msg.text.endswith('.wav'))
 
         media_msg = messages[2]
-        self.assertTrue(media_msg.media.startswith('audio/x-wav:https://'))
-        self.assertTrue(media_msg.media.endswith('.wav'))
+        self.assertTrue(media_msg.attachments[0].startswith('audio/x-wav:https://'))
+        self.assertTrue(media_msg.attachments[0].endswith('.wav'))
         self.assertEqual('Played contact recording', media_msg.text)
 
-        (host, directory, filename) = media_msg.media.rsplit('/', 2)
+        (host, directory, filename) = media_msg.attachments[0].rsplit('/', 2)
         recording = '%s/%s/%s/media/%s/%s' % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR,
                                               self.org.pk, directory, filename)
         self.assertTrue(os.path.isfile(recording))

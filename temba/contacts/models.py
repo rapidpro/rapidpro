@@ -527,6 +527,11 @@ class Contact(TembaModel):
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
         msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).select_related('channel').prefetch_related('channel_logs')
 
+        # TODO for now we assume a message can only have one attachment but this will change and read page needs updated
+        # accordingly
+        for msg in msgs:
+            msg.media = msg.attachments[0] if msg.attachments else None
+
         # we also include in the timeline purged broadcasts with a best guess at the translation used
         recipients = BroadcastRecipient.objects.filter(contact=self)
         recipients = recipients.filter(broadcast__purged=True, broadcast__created_on__gte=after, broadcast__created_on__lt=before)
@@ -1804,7 +1809,7 @@ class Contact(TembaModel):
             return tel.path
 
     def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None,
-             media=None, msg_type=None, created_on=None, all_urns=False):
+             attachments=None, msg_type=None, created_on=None, all_urns=False):
         from temba.msgs.models import Msg, INBOX, PENDING, SENT, UnreachableException
 
         status = SENT if created_on else PENDING
@@ -1819,7 +1824,7 @@ class Contact(TembaModel):
             try:
                 msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH,
                                           response_to=response_to, message_context=message_context, session=session,
-                                          media=media, msg_type=msg_type or INBOX, status=status,
+                                          attachments=attachments, msg_type=msg_type or INBOX, status=status,
                                           created_on=created_on)
                 msgs.append(msg)
             except UnreachableException:

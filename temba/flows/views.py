@@ -1414,7 +1414,7 @@ class FlowCRUDL(SmartCRUDL):
                         Msg.create_incoming(None,
                                             test_contact.get_urn(TEL_SCHEME).urn,
                                             new_message,
-                                            media=media,
+                                            attachments=[media] if media else None,
                                             org=user.get_org(),
                                             status=PENDING)
                 except Exception as e:  # pragma: needs cover

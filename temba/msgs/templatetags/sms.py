@@ -13,10 +13,14 @@ def as_icon(contact_event):
     icon = 'icon-bubble-dots-2 green'
     direction = getattr(contact_event, 'direction', 'O')
     msg_type = getattr(contact_event, 'msg_type', 'I')
-    media_type = getattr(contact_event, 'media', None)
+    attachments = getattr(contact_event, 'attachments', None)
 
-    if media_type and ':' in media_type:
-        media_type = media_type.split(':', 1)[0].split('/', 1)[0]
+    if attachments:
+        media_type = attachments[0]
+        if media_type and ':' in media_type:
+            media_type = media_type.split(':', 1)[0].split('/', 1)[0]
+    else:
+        media_type = None
 
     if hasattr(contact_event, 'status'):
         status = contact_event.status
