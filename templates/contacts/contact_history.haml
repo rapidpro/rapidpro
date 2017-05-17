@@ -28,7 +28,8 @@
                   .summary
                     Broadcast to {{broadcast.recipient_count|intcomma}} recipients
               .activity-body
-                {{broadcast.translated_text}}
+                .text
+                  {{broadcast.translated_text}}
 
         -for attachment in item.obj.attachments
           -with media_type=attachment|media_type media_content_type=attachment|media_content_type media_url=attachment|media_url extension=attachment|media_url|extension|upper
@@ -38,7 +39,7 @@
                   .attachment-icon.icon-photo
                   {{extension}}
 
-              -elif media_type == 'audio'
+              -elif media_type == 'audio' and media_content_type|is_playable_audio
                 %a.attachment-preview{ href:"#", data-featherlight:'<audio style="width: 360px" controls><source type="{{media_content_type}}" src="{{media_url}}" /></audio>' }
                   .attachment-icon.icon-volume-medium
                   {{extension}}

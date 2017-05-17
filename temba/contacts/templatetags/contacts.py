@@ -39,7 +39,7 @@ ACTIVITY_ICONS = {
     'WebHookResult': 'icon-cloud-upload',
 }
 
-PLAYABLE_AUDIO_TYPES = {'audio/wav', 'audio/x-wav', 'audio/vnd.wav', 'audio/ogg'}
+PLAYABLE_AUDIO_TYPES = {'audio/wav', 'audio/x-wav', 'audio/vnd.wav', 'audio/ogg', 'audio/mp3', 'audio/m4a'}
 
 MISSING_VALUE = '--'
 
@@ -139,12 +139,6 @@ def media_type(media):
 @register.filter
 def is_playable_audio(content_type):
     return content_type in PLAYABLE_AUDIO_TYPES
-
-
-@register.filter
-def is_document(url):
-    content_type = media_type(url)
-    return content_type in ['application', 'text']
 
 
 @register.filter

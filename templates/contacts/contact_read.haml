@@ -408,18 +408,19 @@
 
             .activity-attachment {
               display: inline-block;
-              margin: 10px 10px 0 0;
+              margin-right: 5px;
               font-size: 0;
+              white-space: nowrap;
 
               .attachment-preview {
                 background-color: #EAEAEA;
                 border: 0px;
                 color: #777;
                 display: inline-block;
-                font-size: 14px;
-                height: 20px;
+                font-size: 12px;
+                height: 18px;
                 margin: 0px;
-                padding: 5px 10px;
+                padding: 3px 8px;
                 text-decoration: none;
 
                 .attachment-icon {
@@ -437,10 +438,10 @@
                 border: 0px;
                 color: #666;
                 display: inline-block;
-                font-size: 14px;
-                height: 20px;
+                font-size: 12px;
+                height: 18px;
                 margin: 0px;
-                padding: 5px;
+                padding: 3px;
 
                 &:hover {
                   background-color: #D0D0D0;
@@ -450,7 +451,6 @@
             }
           }
         }
-
 
         .message-history {
           .broadcast {
@@ -487,52 +487,6 @@
             margin-right: 3px;
           }
         }
-
-        .recording-text {
-          .text {
-            font-style: italic;
-          }
-        }
-
-        .recording {
-          width:16px;
-          padding:4px;
-          text-align:center;
-          .stop {
-
-            font-size:22px;
-            margin-left:-7px;
-            margin-top:-3px;
-          }
-
-
-          color:@color-links + #222;
-          display:inline-block;
-          margin-left:0px;
-          font-size:14px;
-          line-height:0px;
-
-          &:hover {
-            color: @color-links;
-            cursor:pointer;
-          }
-
-          &.playing {
-            color: @color-links + #222;
-            &:hover {
-              color: @color-links;
-            }
-
-            .stop {
-              display:block;
-            }
-
-            .play {
-              display:none;
-            }
-          }
-        }
-
 
         .contact-fields {
           background: #f9f9f9;
