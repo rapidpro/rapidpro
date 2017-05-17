@@ -48,6 +48,7 @@ from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS
 from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
 from .models import TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_LOGIN, SMTP_FROM_EMAIL
 from .models import SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_PORT, SMTP_ENCRYPTION
+from .models import CHATBASE_API_KEY, CHATBASE_TYPE
 
 
 def check_login(request):
@@ -448,11 +449,11 @@ class UserSettingsCRUDL(SmartCRUDL):
 
 
 class OrgCRUDL(SmartCRUDL):
-    actions = ('signup', 'home', 'webhook', 'edit', 'edit_sub_org', 'join', 'grant', 'accounts', 'create_login', 'choose',
-               'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country', 'languages', 'clear_cache',
-               'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect',
-               'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'resthooks', 'service', 'surveyor',
-               'transfer_credits', 'transfer_to_account', 'smtp_server')
+    actions = ('signup', 'home', 'webhook', 'edit', 'edit_sub_org', 'join', 'grant', 'accounts', 'create_login',
+               'chatbase', 'choose', 'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country',
+               'languages', 'clear_cache', 'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account',
+               'nexmo_connect', 'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'resthooks',
+               'service', 'surveyor', 'transfer_credits', 'transfer_to_account', 'smtp_server')
 
     model = Org
 
@@ -1960,6 +1961,59 @@ class OrgCRUDL(SmartCRUDL):
             context['failed_webhooks'] = WebHookEvent.get_recent_errored(self.request.user.get_org()).exists()
             return context
 
+    class Chatbase(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+
+        class ChatbaseForm(forms.ModelForm):
+            TYPES = (
+                ('user', _('User')),
+                ('agent', _('Agent')),
+            )
+            api_key = forms.CharField(max_length=255, label=_("API Key"), required=True,
+                                      help_text="The API key of your application on Chatbase")
+            type = forms.ChoiceField(choices=TYPES, required=True, label=_("Type"))
+            platform = forms.CharField(max_length=255, label=_("Platform"), required=True,
+                                       help_text="Your application name (e.g. RapidPRO)")
+            version = forms.CharField(max_length=10, label=_("Version"), required=False,
+                                      help_text="Your application version (e.g. 1.0.1)")
+            not_handled = forms.BooleanField(required=False, label=_("Not handled"),
+                                             help_text="Set to true for user messages not understood (e.g. 'blah blah')"
+                                                       " or not supported (e.g. 'book flight to mars')")
+
+            class Meta:
+                model = Org
+                fields = ('api_key', 'type', 'platform', 'not_handled', 'version')
+
+        success_message = ''
+        success_url = '@orgs.org_home'
+        form_class = ChatbaseForm
+        fields = ('api_key', 'type', 'platform', 'not_handled', 'version')
+
+        def derive_initial(self):
+            initial = super(OrgCRUDL.Chatbase, self).derive_initial()
+            org = self.get_object()
+            config = org.config_json()
+            initial['api_key'] = config.get(CHATBASE_API_KEY, '')
+            initial['type'] = config.get(CHATBASE_TYPE, '')
+            return initial
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+
+            api_key = form.cleaned_data.get('api_key')
+            type = form.cleaned_data.get('type')
+            not_handled = form.cleaned_data.get('not_handled')
+            platform = form.cleaned_data.get('platform')
+            feedback = form.cleaned_data.get('feedback')
+            version = form.cleaned_data.get('version')
+
+            if api_key and type and platform:
+                org.add_chatbase_config(api_key, type, not_handled, platform, feedback, version, user)
+            else:
+                org.remove_chatbase_config(user)
+
+            return super(OrgCRUDL.Chatbase, self).form_valid(form)
+
     class Home(FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
 
@@ -2036,6 +2090,9 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm('orgs.org_webhook'):
                 formax.add_section('webhook', reverse('orgs.org_webhook'), icon='icon-cloud-upload')
+
+            if self.has_org_perm('orgs.org_chatbase'):
+                formax.add_section('chatbase', reverse('orgs.org_chatbase'), icon='icon-chatbase')
 
             if self.has_org_perm('orgs.org_resthooks'):
                 formax.add_section('resthooks', reverse('orgs.org_resthooks'), icon='icon-cloud-lightning', dependents="resthooks")
