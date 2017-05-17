@@ -665,7 +665,7 @@ class Flow(TembaModel):
                         ActionLog.create(run, _("USSD Session was marked to end"))
 
                 # add any generated messages to be sent at once
-                msgs += result['msgs']
+                msgs += result.get('msgs', [])
 
             # if this is a triggered start, we only consider user input on the first step, so clear it now
             if triggered_start:
