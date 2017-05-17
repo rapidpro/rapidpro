@@ -10231,7 +10231,7 @@ class JiochatTest(TembaTest):
                     self.assertEqual(msg.channel, self.channel)
                     self.assertEqual(msg.text, '<MEDIA_SAVED_URL>')
                     self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
-                    self.assertEqual(msg.media, 'image/jpeg:<MEDIA_SAVED_URL>')
+                    self.assertEqual(msg.attachments[0], 'image/jpeg:<MEDIA_SAVED_URL>')
 
 
 class GlobeTest(TembaTest):
