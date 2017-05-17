@@ -39,7 +39,7 @@ ACTIVITY_ICONS = {
     'WebHookResult': 'icon-cloud-upload',
 }
 
-PLAYABLE_AUDIO_TYPES = {'audio/wav', 'audio/x-wav', 'audio/vnd.wav', 'application/octet-stream'}
+PLAYABLE_AUDIO_TYPES = {'audio/wav', 'audio/x-wav', 'audio/vnd.wav', 'audio/ogg'}
 
 MISSING_VALUE = '--'
 
@@ -120,14 +120,17 @@ def media_url(media):
 
 @register.filter
 def media_content_type(media):
-    return media.partition(':')[0]
+    content_type, delim, url = media.partition(':')
+
+    if content_type == 'application/octet-stream' and (url.endswith('.ogg') or media.endswith('.oga')):
+        content_type = 'audio/ogg'
+
+    return content_type
 
 
 @register.filter
 def media_type(media):
     content_type = media_content_type(media)
-    if content_type == 'application/octet-stream' and (media.endswith('.ogg') or media.endswith('.oga')):  # pragma: needs cover
-        return 'audio'
     if content_type and '/' in content_type:  # pragma: needs cover
         content_type = content_type.split('/')[0]
     return content_type
