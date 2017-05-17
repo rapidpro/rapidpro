@@ -2272,7 +2272,7 @@ class JioChatHandler(BaseChannelHandler):
             media_url = channel.download_jiochat_media(body.get('MediaId'))
             path = media_url.partition(':')[2]
 
-            msg = Msg.create_incoming(channel, urn, path, attachments=media_url, date=msg_date, contact=contact)
+            msg = Msg.create_incoming(channel, urn, path, attachments=[media_url], date=msg_date, contact=contact)
 
         if msg:
             Msg.objects.filter(pk=msg.id).update(external_id=external_id)
