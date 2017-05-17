@@ -187,10 +187,11 @@
                                 %a{href:"{% url 'msgs.msg_filter' label.pk%}"}
                                   {{label.name}}
 
-                          - if object.get_flow_id
-                            %span.label.label-success
-                              %a{href:"{% url 'flows.flow_editor' object.get_flow.uuid %}"}
-                                {{object.get_flow.name}}
+                            - with flow=object.get_flow
+                              - if flow
+                                %span.label.label-success
+                                  %a{href:"{% url 'flows.flow_editor' flow.uuid %}"}
+                                    {{object.flow.name}}
 
                         .value-attachments{ style:"margin-top: 5px" }
                           - for attachment in object.attachments

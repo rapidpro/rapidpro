@@ -298,10 +298,29 @@
             border-bottom: 1px solid #f3f3f3;
             width: 100%;
 
-          }
+            &.msg {
+              td.icon {
+                .icon-bubble-right, .icon-bubble-check, .icon-bullhorn, .icon-call-outgoing {
+                  color: @color-status-green;
+                }
 
-          tr.non-msg {
-            background: #fafafa;
+                .icon-bubble-user, .icon-call-incoming {
+                  color: @color-primary;
+                }
+
+                .icon-bubble-notification {
+                  color: @color-status-failed;
+                }
+              }
+            }
+
+            &.non-msg {
+              background: #fafafa;
+
+              .icon {
+                color: rgba(0, 0, 0, 0.20);
+              }
+            }
           }
 
           td {
@@ -309,14 +328,19 @@
             padding: 2px 20px;
 
             &.icon {
+              border: 0px solid;
               width: 30px;
               padding: 2px 0px;
-              padding-left:10px;
-              text-align:center;
-            }
+              padding-left: 10px;
+              text-align: center;
 
-            &.details {
-
+              .glyph {
+                margin-top:16px;
+                font-size:14px;
+                line-height:0;
+                color: rgba(0,0,0,.20);
+                padding: 5px;
+              }
             }
           }
 
@@ -332,44 +356,6 @@
             }
           }
 
-          .icon {
-            border: 0px solid;
-            text-align:center;
-
-            .glyph {
-              margin-top:16px;
-              font-size:14px;
-              line-height:0;
-              color: rgba(0,0,0,.20);
-              padding: 5px;
-
-              &.boost {
-                font-size:18px;
-                margin-left:-3px;
-              }
-
-              &.icon-bubble-right, &.icon-bubble-check {
-                color: @color-status-green;
-              }
-
-              &.icon-bubble-user {
-                color: @color-primary;
-              }
-
-              &.icon-bubble-user, &.user {
-                color: @color-primary;
-              }
-
-              &.icon-bullhorn {
-                color: @color-status-green;
-              }
-
-              &.icon-bubble-notification {
-                color: @color-status-failed;
-              }
-            }
-          }
-
           .details {
             border: 0px solid;
             padding: 14px;
@@ -379,13 +365,6 @@
               font-weight:500;
               line-height:10px;
               color: @flat-grey;
-            }
-
-            .activity-message {
-              .activity-body {
-                .text {
-                }
-              }
             }
           }
         }
