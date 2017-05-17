@@ -284,11 +284,16 @@
       bindRefreshBlock();
     });
 
+    // since message table rows are refreshed dynamically, we can't bind all our events at document load time
     $('.select-row').live('mouseover', function(){
-      url = '/contact/read/' + $(this).data('sender-uuid');
+      var contactPageUrl = '/contact/read/' + $(this).data('sender-uuid');
 
       $(this).find('td').not(':first-child').each(function(){
-        $(this).attr('onClick', "document.location.href=url;");
+        $(this).on('click', function(event) {
+          if (!$(event.target).is('.attachment a')) {
+            document.location.href = contactPageUrl;
+          }
+        });
       });
     });
 
