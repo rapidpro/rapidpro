@@ -376,6 +376,7 @@ PERMISSIONS = {
                  'smtp_server',
                  'api',
                  'country',
+                 'chatbase',
                  'clear_cache',
                  'create_login',
                  'create_sub_org',
@@ -632,6 +633,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_smtp_server',
         'orgs.org_api',
         'orgs.org_country',
+        'orgs.org_chatbase',
         'orgs.org_create_sub_org',
         'orgs.org_download',
         'orgs.org_edit',
@@ -795,6 +797,7 @@ GROUP_PERMISSIONS = {
         'locations.adminboundary_geometry',
 
         'orgs.org_api',
+        'orgs.org_chatbase',
         'orgs.org_download',
         'orgs.org_export',
         'orgs.org_home',
@@ -1257,3 +1260,5 @@ MSG_FIELD_SIZE = 640
 # -----------------------------------------------------------------------------------
 SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
+
+CHATBASE_URL = 'https://chatbase-area120.appspot.com/api/message'
