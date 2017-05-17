@@ -714,39 +714,37 @@ class Channel(TembaModel):
         r = get_redis_connection()
         lock_name = Channel.JIOCHAT_ACCESS_TOKEN_REFRESH_LOCK % channel_uuid
 
-        while True:
-            with r.lock(lock_name, timeout=5):
-                key = Channel.JIOCHAT_ACCESS_TOKEN_KEY % channel_uuid
-                access_token = cache.get(key, None)
-                break
-
-        return access_token
+        with r.lock(lock_name, timeout=5):
+            key = Channel.JIOCHAT_ACCESS_TOKEN_KEY % channel_uuid
+            access_token = cache.get(key, None)
+            return access_token
 
     @classmethod
     def refresh_jiochat_access_token(cls, channel_uuid):
         r = get_redis_connection()
         lock_name = Channel.JIOCHAT_ACCESS_TOKEN_REFRESH_LOCK % channel_uuid
 
-        with r.lock(lock_name, timeout=30):
+        if not r.get(lock_name):
+            with r.lock(lock_name, timeout=30):
 
-            key = Channel.JIOCHAT_ACCESS_TOKEN_KEY % channel_uuid
+                key = Channel.JIOCHAT_ACCESS_TOKEN_KEY % channel_uuid
 
-            channel = Channel.objects.filter(uuid=channel_uuid, is_active=True).first()
-            if channel is None or channel.channel_type != Channel.TYPE_JIOCHAT:
-                return
+                channel = Channel.objects.filter(uuid=channel_uuid, is_active=True).first()
+                if channel is None or channel.channel_type != Channel.TYPE_JIOCHAT:
+                    return
 
-            channel_config = channel.config_json()
-            app_id = channel_config.get(Channel.CONFIG_JIOCHAT_APP_ID)
-            app_secret = channel_config.get(Channel.CONFIG_JIOCHAT_APP_SECRET)
+                channel_config = channel.config_json()
+                app_id = channel_config.get(Channel.CONFIG_JIOCHAT_APP_ID)
+                app_secret = channel_config.get(Channel.CONFIG_JIOCHAT_APP_SECRET)
 
-            post_data = dict(grant_type='client_credentials', appid=app_id, secret=app_secret)
-            response = requests.post('https://channels.jiochat.com/auth/token.action', post_data)
-            response_json = response.json()
+                post_data = dict(grant_type='client_credentials', appid=app_id, secret=app_secret)
+                response = requests.post('https://channels.jiochat.com/auth/token.action', post_data)
+                response_json = response.json()
 
-            access_token = response_json['access_token']
+                access_token = response_json['access_token']
 
-            cache.set(key, access_token, timeout=7200)
-            return access_token
+                cache.set(key, access_token, timeout=7200)
+                return access_token
 
     @classmethod
     def refresh_all_jiochat_access_token(cls):
