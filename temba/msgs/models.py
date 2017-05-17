@@ -480,7 +480,7 @@ class Broadcast(models.Model):
                                           status=status,
                                           msg_type=msg_type,
                                           insert_object=False,
-                                          media=media,
+                                          attachments=[media] if media else None,
                                           priority=priority,
                                           created_on=created_on)
 
@@ -938,8 +938,15 @@ class Msg(models.Model):
 
     @classmethod
     def get_media(cls, msg):
-        if msg.media:
-            parts = msg.media.split(':', 1)
+        if hasattr(msg, 'media') and msg.media:  # pragma: no cover
+            media = msg.media
+        elif hasattr(msg, 'attachments') and msg.attachments:
+            media = msg.attachments[0]  # for now we only support a single attachment
+        else:
+            media = None
+
+        if media:
+            parts = media.split(':', 1)
             if len(parts) == 2:
                 return parts
         return None, None
@@ -948,7 +955,7 @@ class Msg(models.Model):
         return dict(direction=self.direction,
                     text=self.text,
                     id=self.id,
-                    media=self.media,
+                    attachments=self.attachments,
                     created_on=self.created_on.strftime('%x %X'),
                     model="msg")
 
@@ -1026,24 +1033,12 @@ class Msg(models.Model):
         return sorted_logs[0] if sorted_logs else None
 
     def get_media_path(self):
-
-        if self.media:
-            # TODO: remove after migration msgs.0053
-            if self.media.startswith('http'):  # pragma: needs cover
-                return self.media
-
-            if ':' in self.media:
-                return self.media.split(':', 1)[1]
+        if self.attachments and ':' in self.attachments[0]:
+            return self.attachments[0].split(':', 1)[1]
 
     def get_media_type(self):
-
-        if self.media:
-            # TODO: remove after migration msgs.0053
-            if self.media.startswith('http'):  # pragma: needs cover
-                return 'audio'
-
-        if self.media and ':' in self.media:
-            type = self.media.split(':', 1)[0]
+        if self.attachments and ':' in self.attachments[0]:
+            type = self.attachments[0].split(':', 1)[0]
             if type == 'application/octet-stream':  # pragma: needs cover
                 return 'audio'
             return type.split('/', 1)[0]
@@ -1057,11 +1052,11 @@ class Msg(models.Model):
     def is_media_type_image(self):
         return Msg.MEDIA_IMAGE == self.get_media_type()
 
-    def reply(self, text, user, trigger_send=False, message_context=None, session=None, media=None, msg_type=None,
+    def reply(self, text, user, trigger_send=False, message_context=None, session=None, attachments=None, msg_type=None,
               send_all=False, created_on=None):
 
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None, session=session, media=media,
+                                 response_to=self if self.id else None, session=session, attachments=attachments,
                                  msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all)
 
     def update(self, cmd):
@@ -1192,7 +1187,7 @@ class Msg(models.Model):
                     text=self.text, urn_path=self.contact_urn.path,
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
-                    status=self.status, direction=self.direction, media=self.media,
+                    status=self.status, direction=self.direction, attachments=self.attachments,
                     external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
                     created_on=self.created_on, modified_on=self.modified_on, session_id=self.session_id)
@@ -1207,7 +1202,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
-                        status=PENDING, media=None, msg_type=None, topup=None, external_id=None, session=None):
+                        status=PENDING, attachments=None, msg_type=None, topup=None, external_id=None, session=None):
 
         from temba.api.models import WebHookEvent
         if not org and channel:
@@ -1264,8 +1259,7 @@ class Msg(models.Model):
                         queued_on=now,
                         direction=INCOMING,
                         msg_type=msg_type,
-                        media=media,
-                        attachments=[media] if media else [],
+                        attachments=attachments,
                         status=status,
                         external_id=external_id,
                         session=session)
@@ -1340,7 +1334,7 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
-                        media=None, topup_id=None, msg_type=INBOX, session=None, role=None):
+                        attachments=None, topup_id=None, msg_type=INBOX, session=None):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
@@ -1395,7 +1389,7 @@ class Msg(models.Model):
             same_msgs = Msg.objects.filter(contact_urn=contact_urn,
                                            contact__is_test=False,
                                            channel=channel,
-                                           media=media,
+                                           attachments=attachments,
                                            text=text,
                                            direction=OUTGOING,
                                            created_on__gte=created_on - timedelta(minutes=10))
@@ -1447,8 +1441,7 @@ class Msg(models.Model):
                         response_to=response_to,
                         msg_type=msg_type,
                         priority=priority,
-                        media=media,
-                        attachments=[media] if media else [],
+                        attachments=attachments,
                         session=session,
                         has_template_error=len(errors) > 0)
 

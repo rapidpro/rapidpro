@@ -695,7 +695,7 @@ class MsgTest(TembaTest):
 
         # inbound message with media attached, such as an ivr recording
         msg5 = self.create_msg(contact=self.joe, text="Media message", direction='I', status=HANDLED,
-                               msg_type='I', media='audio:http://rapidpro.io/audio/sound.mp3',
+                               msg_type='I', attachments=['audio:http://rapidpro.io/audio/sound.mp3'],
                                created_on=datetime(2017, 1, 5, 10, tzinfo=pytz.UTC))
 
         # create some outbound messages with different statuses
@@ -1925,15 +1925,12 @@ class BroadcastLanguageTest(TembaTest):
 
         # assert the right language was used for each contact on both text and media
         self.assertEqual(francois_media.text, fre_msg)
-        self.assertEqual(francois_media.media, francois_media_url)
         self.assertEqual(francois_media.attachments, [francois_media_url])
 
         self.assertEqual(greg_media.text, eng_msg)
-        self.assertEqual(greg_media.media, greg_media_url)
         self.assertEqual(greg_media.attachments, [greg_media_url])
 
         self.assertEqual(wilbert_media.text, fre_msg)
-        self.assertEqual(wilbert_media.media, wilbert_media_url)
         self.assertEqual(wilbert_media.attachments, [wilbert_media_url])
 
 

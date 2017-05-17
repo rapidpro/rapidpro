@@ -2607,7 +2607,7 @@ class Channel(TembaModel):
         start = time.time()
         media_url = []
 
-        if msg.media:
+        if msg.attachments:
             (media_type, media_url) = Msg.get_media(msg)
             media_url = [media_url]
 
@@ -3051,13 +3051,13 @@ class Channel(TembaModel):
         # append media url if our channel doesn't support it
         text = msg.text
 
-        if msg.media and not Channel.supports_media(channel):
+        if msg.attachments and not Channel.supports_media(channel):
             media_type, media_url = Msg.get_media(msg)
             if media_type and media_url:
                 text = '%s\n%s' % (text, media_url)
 
             # don't send as media
-            msg.media = None
+            msg.attachments = None
 
         parts = Msg.get_text_parts(text, channel.config.get(Channel.CONFIG_MAX_LENGTH, type_settings[Channel.CONFIG_MAX_LENGTH]))
 
