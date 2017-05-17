@@ -1,0 +1,52 @@
+-extends 'smartmin/form.html'
+-load smartmin
+-load i18n
+
+-block form-span
+  span8
+
+-block fields
+  .field.formax-vertical
+    {% render_field 'api_key' %}
+
+  .field.formax-vertical
+    {% render_field 'type' %}
+
+  .field.formax-vertical
+    {% render_field 'platform' %}
+
+  .field.formax-vertical
+    {% render_field 'version' %}
+
+  .field.formax-vertical
+    {% render_field 'not_handled' %}
+
+  %br
+
+-block summary
+  -if object.is_connected_to_chatbase
+    -trans "Connected to Chatbase Account"
+    -#{{transferto_account_login}}.
+  -else
+    -trans "No Chatbase account connected."
+
+-block extra-script
+  :javascript
+    $(document).ready(function() {
+      select2div('#id_type');
+    });
+
+-block extra-style
+  :css
+    .field_not_handled .controls input{
+      float: left;
+      margin: 5px 5px 0 0;
+    }
+    .field_not_handled .controls p{
+      float: left;
+      clear: right;
+    }
+    #id-chatbase input[type='submit']{
+      float: left;
+      clear: both;
+    }
