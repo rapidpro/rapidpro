@@ -807,7 +807,7 @@ class MsgReadSerializer(ReadSerializer):
         return self.STATUSES.get(QUEUED if obj.status == PENDING else obj.status)
 
     def get_media(self, obj):
-        return obj.media
+        return obj.attachments[0] if obj.attachments else None
 
     def get_archived(self, obj):
         return obj.visibility == Msg.VISIBILITY_ARCHIVED

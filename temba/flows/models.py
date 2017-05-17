@@ -34,8 +34,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
-from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD
-from temba.msgs.models import OUTGOING, UnreachableException
+from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils import chunk_list, on_transaction_commit
@@ -416,7 +415,9 @@ class Flow(TembaModel):
                 text = saved_media_url.partition(':')[2]
 
             msg = Msg.create_incoming(call.channel, call.contact_urn.urn,
-                                      text, status=PENDING, msg_type=IVR, media=saved_media_url, session=run.session)
+                                      text, status=PENDING, msg_type=IVR,
+                                      attachments=[saved_media_url] if saved_media_url else None,
+                                      session=run.session)
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
@@ -772,9 +773,9 @@ class Flow(TembaModel):
             step.add_message(msg)
             run.update_expiration(timezone.now())
 
-        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg.media is not None:
+        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg.attachments:
             # store the media path as the value
-            value = msg.media.split(':', 1)[1]
+            value = msg.attachments[0].split(':', 1)[1]
 
         step.save_rule_match(rule, value)
         ruleset.save_run_value(run, rule, value)
@@ -2788,12 +2789,12 @@ class FlowRun(models.Model):
         # create a Msg object to track what happened
         from temba.msgs.models import DELIVERED, IVR
 
-        media = None
+        attachments = None
         if recording_url:
-            media = '%s/x-wav:%s' % (Msg.MEDIA_AUDIO, recording_url)
+            attachments = ['%s/x-wav:%s' % (Msg.MEDIA_AUDIO, recording_url)]
 
         msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.session.channel,
-                                  response_to=response_to, media=media,
+                                  response_to=response_to, attachments=attachments,
                                   status=DELIVERED, msg_type=IVR, session=session)
 
         # play a recording or read some text
@@ -2880,7 +2881,8 @@ class FlowStep(models.Model):
 
                     # if we received a message
                     incoming = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
-                                                   media=media, msg_type=FLOW, status=HANDLED, date=arrived_on,
+                                                   attachments=[media] if media else None,
+                                                   msg_type=FLOW, status=HANDLED, date=arrived_on,
                                                    channel=None, urn=None)
             else:  # pragma: needs cover
                 incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
@@ -5039,14 +5041,14 @@ class ReplyAction(Action):
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
 
-            media = None
+            attachments = None
             if self.media:
                 # localize our media attachment
                 media_type, media_url = run.flow.get_localized_text(self.media, run.contact).split(':', 1)
 
                 # if we have a localized media, create the url
                 if media_url:
-                    media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
+                    attachments = ["%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)]
 
             if offline_on:
                 context = None
@@ -5054,30 +5056,14 @@ class ReplyAction(Action):
             else:
                 created_on = None
 
-            try:
-                if msg:
-                    reply_msgs = msg.reply(text, user, trigger_send=False, message_context=context,
-                                           session=run.session, msg_type=self.MSG_TYPE, media=media,
-                                           send_all=self.send_all, created_on=created_on)
-
-                    if reply_msgs:
-                        replies += reply_msgs
-
-                else:
-                    if self.send_all:
-                        replies = run.contact.send_all(text, user, trigger_send=False, message_context=context,
-                                                       session=run.session, msg_type=self.MSG_TYPE, media=media,
-                                                       created_on=created_on)
-                    else:
-                        reply_msg = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                                     session=run.session, msg_type=self.MSG_TYPE, media=media,
-                                                     created_on=created_on)
-                        if reply_msg:
-                            replies.append(reply_msg)
-
-            except UnreachableException:
-                pass
-
+            if msg:
+                replies = msg.reply(text, user, trigger_send=False, message_context=context,
+                                    session=run.session, msg_type=self.MSG_TYPE, attachments=attachments,
+                                    send_all=self.send_all, created_on=created_on)
+            else:
+                replies = run.contact.send(text, user, trigger_send=False, message_context=context,
+                                           session=run.session, msg_type=self.MSG_TYPE, attachments=attachments,
+                                           created_on=created_on, all_urns=self.send_all)
         return replies
 
 

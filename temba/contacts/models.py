@@ -521,6 +521,11 @@ class Contact(TembaModel):
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
         msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).select_related('channel').prefetch_related('channel_logs')
 
+        # TODO for now we assume a message can only have one attachment but this will change and read page needs updated
+        # accordingly
+        for msg in msgs:
+            msg.media = msg.attachments[0] if msg.attachments else None
+
         # we also include in the timeline purged broadcasts with a best guess at the translation used
         recipients = BroadcastRecipient.objects.filter(contact=self)
         recipients = recipients.filter(broadcast__purged=True, broadcast__created_on__gte=after, broadcast__created_on__lt=before)
@@ -1797,50 +1802,24 @@ class Contact(TembaModel):
         if tel:
             return tel.path
 
-    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
-             msg_type=None, created_on=None):
-        from temba.msgs.models import Msg, INBOX, PENDING, SENT
+    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None,
+             attachments=None, msg_type=None, created_on=None, all_urns=False):
+        from temba.msgs.models import Msg, INBOX, PENDING, SENT, UnreachableException
 
-        if created_on is None:
-            status = PENDING
+        status = SENT if created_on else PENDING
+
+        if all_urns:
+            recipients = [((u.contact, u) if status == SENT else u) for u in self.get_urns()]
         else:
-            status = SENT
-
-        recipient = self
-        if status == SENT:
-            recipient = (self, None)
-
-        msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH, response_to=response_to,
-                                  message_context=message_context, session=session, media=media,
-                                  msg_type=msg_type or INBOX, status=status, created_on=created_on)
-
-        if trigger_send:
-            self.org.trigger_send([msg])
-
-        return msg
-
-    def send_all(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None, media=None,
-                 msg_type=None, created_on=None):
-        from temba.msgs.models import Msg, UnreachableException, INBOX, PENDING, SENT
+            recipients = [(self, None)] if status == SENT else [self]
 
         msgs = []
-
-        if created_on is None:
-            status = PENDING
-        else:
-            status = SENT
-
-        contact_urns = self.get_urns()
-        for c_urn in contact_urns:
+        for recipient in recipients:
             try:
-
-                recipient = c_urn
-                if status == SENT:
-                    recipient = (c_urn.contact, c_urn)
-
                 msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH,
                                           response_to=response_to, message_context=message_context, session=session,
-                                          media=media, msg_type=msg_type or INBOX, status=status, created_on=created_on)
+                                          attachments=attachments, msg_type=msg_type or INBOX, status=status,
+                                          created_on=created_on)
                 msgs.append(msg)
             except UnreachableException:
                 pass

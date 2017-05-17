@@ -695,7 +695,7 @@ class MsgTest(TembaTest):
 
         # inbound message with media attached, such as an ivr recording
         msg5 = self.create_msg(contact=self.joe, text="Media message", direction='I', status=HANDLED,
-                               msg_type='I', media='audio:http://rapidpro.io/audio/sound.mp3',
+                               msg_type='I', attachments=['audio:http://rapidpro.io/audio/sound.mp3'],
                                created_on=datetime(2017, 1, 5, 10, tzinfo=pytz.UTC))
 
         # create some outbound messages with different statuses
@@ -1015,6 +1015,7 @@ class BroadcastTest(TembaTest):
         self.client.post(send_url, post_data, follow=True)
         broadcast = Broadcast.objects.get()
         self.assertEqual(broadcast.text, {'base': "message #1"})
+        self.assertEqual(broadcast.get_default_text(), "message #1")
         self.assertEqual(broadcast.groups.count(), 1)
         self.assertEqual(broadcast.contacts.count(), 2)
         self.assertIsNotNone(Msg.objects.filter(contact=self.joe, text="message #1"))
@@ -1918,15 +1919,19 @@ class BroadcastLanguageTest(TembaTest):
         greg_media = Msg.objects.filter(contact=self.greg).order_by('-created_on').first()
         wilbert_media = Msg.objects.filter(contact=self.wilbert).order_by('-created_on').first()
 
+        francois_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1])
+        greg_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, eng_attachment.split(':', 1)[1])
+        wilbert_media_url = "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1])
+
         # assert the right language was used for each contact on both text and media
-        self.assertEquals(fre_msg, francois_media.text)
-        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1]), francois_media.media)
+        self.assertEqual(francois_media.text, fre_msg)
+        self.assertEqual(francois_media.attachments, [francois_media_url])
 
-        self.assertEquals(eng_msg, greg_media.text)
-        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, eng_attachment.split(':', 1)[1]), greg_media.media)
+        self.assertEqual(greg_media.text, eng_msg)
+        self.assertEqual(greg_media.attachments, [greg_media_url])
 
-        self.assertEquals(fre_msg, wilbert_media.text)
-        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, fre_attachment.split(':', 1)[1]), wilbert_media.media)
+        self.assertEqual(wilbert_media.text, fre_msg)
+        self.assertEqual(wilbert_media.attachments, [wilbert_media_url])
 
 
 class SystemLabelTest(TembaTest):

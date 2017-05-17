@@ -280,7 +280,7 @@ class Channel(TembaModel):
     name = models.CharField(verbose_name=_("Name"), max_length=64, blank=True, null=True,
                             help_text=_("Descriptive label for this channel"))
 
-    address = models.CharField(verbose_name=_("Address"), max_length=64, blank=True, null=True,
+    address = models.CharField(verbose_name=_("Address"), max_length=255, blank=True, null=True,
                                help_text=_("Address with which this channel communicates"))
 
     country = CountryField(verbose_name=_("Country"), null=True, blank=True,
@@ -2100,24 +2100,24 @@ class Channel(TembaModel):
         # strip a leading +
         recipient = msg.urn_path[1:] if msg.urn_path.startswith('+') else msg.urn_path
 
-        payload = {
+        data = {
             'user': channel.config[Channel.CONFIG_USERNAME], 'pass': channel.config[Channel.CONFIG_PASSWORD],
             'to': recipient, 'text': text, 'from': channel.address.lstrip('+'),
             'servid': channel.config[Channel.CONFIG_MACROKIOSK_SERVICE_ID], 'type': message_type
         }
 
         url = 'https://www.etracker.cc/bulksms/send'
-        payload_json = json.dumps(payload)
+        payload = json.dumps(data)
 
         headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
         headers.update(TEMBA_HEADERS)
 
-        event = HttpEvent('POST', url, payload_json)
+        event = HttpEvent('POST', url, payload)
 
         start = time.time()
 
         try:
-            response = requests.post(url, data=payload, headers=headers, timeout=30)
+            response = requests.post(url, json=data, headers=headers, timeout=30)
             event.status_code = response.status_code
             event.response_body = response.text
 
@@ -2607,7 +2607,7 @@ class Channel(TembaModel):
         start = time.time()
         media_url = []
 
-        if msg.media:
+        if msg.attachments:
             (media_type, media_url) = Msg.get_media(msg)
             media_url = [media_url]
 
@@ -3051,13 +3051,13 @@ class Channel(TembaModel):
         # append media url if our channel doesn't support it
         text = msg.text
 
-        if msg.media and not Channel.supports_media(channel):
+        if msg.attachments and not Channel.supports_media(channel):
             media_type, media_url = Msg.get_media(msg)
             if media_type and media_url:
                 text = '%s\n%s' % (text, media_url)
 
             # don't send as media
-            msg.media = None
+            msg.attachments = None
 
         parts = Msg.get_text_parts(text, channel.config.get(Channel.CONFIG_MAX_LENGTH, type_settings[Channel.CONFIG_MAX_LENGTH]))
 
