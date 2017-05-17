@@ -180,9 +180,6 @@
                       %td.value-text.field_text.wrapped
                         {% get_value object 'text' %}
 
-                        - for attachment in object.attachments
-                          {% attachment_button attachment %}
-
                         - if 'label' in actions
                           .value-labels
                             - for label in object.labels.all
@@ -194,6 +191,10 @@
                             %span.label.label-success
                               %a{href:"{% url 'flows.flow_editor' object.get_flow.uuid %}"}
                                 {{object.get_flow.name}}
+
+                        .value-attachments{ style:"margin-top: 5px" }
+                          - for attachment in object.attachments
+                            {% attachment_button attachment %}
 
                       %td.value-received.field_received
                         %nobr
