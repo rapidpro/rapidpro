@@ -938,7 +938,7 @@ class Msg(models.Model):
 
     @classmethod
     def get_media(cls, msg):
-        if hasattr(msg, 'media') and msg.media:
+        if hasattr(msg, 'media') and msg.media:  # pragma: no cover
             media = msg.media
         elif hasattr(msg, 'attachments') and msg.attachments:
             media = msg.attachments[0]  # for now we only support a single attachment

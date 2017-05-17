@@ -773,9 +773,9 @@ class Flow(TembaModel):
             step.add_message(msg)
             run.update_expiration(timezone.now())
 
-        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg.media is not None:
+        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg.attachments:
             # store the media path as the value
-            value = msg.media.split(':', 1)[1]
+            value = msg.attachments[0].split(':', 1)[1]
 
         step.save_rule_match(rule, value)
         ruleset.save_run_value(run, rule, value)
