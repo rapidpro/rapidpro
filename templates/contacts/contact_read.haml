@@ -374,26 +374,6 @@
             border: 0px solid;
             padding: 14px;
 
-            .activity-message {
-
-              .activity-body {
-
-                .channel {
-                  display:inline-block;
-                  font-size:11px;
-                  line-height:11px;
-                  color: @flat-white;
-                  a {
-                    color: #ccc;
-
-                    &:hover {
-                      text-decoration:none;
-                    }
-                  }
-                }
-              }
-            }
-
             .summary {
               font-size:11px;
               font-weight:500;
@@ -401,80 +381,11 @@
               color: @flat-grey;
             }
 
-            .contact-count {
-              padding-left:5px;
-              font-weight:normal;
-            }
-
-            .activity-attachment {
-              display: inline-block;
-              margin-right: 5px;
-              font-size: 0;
-              white-space: nowrap;
-
-              .attachment-preview {
-                background-color: #EAEAEA;
-                border: 0px;
-                color: #777;
-                display: inline-block;
-                font-size: 12px;
-                height: 18px;
-                margin: 0px;
-                padding: 3px 8px;
-                text-decoration: none;
-
-                .attachment-icon {
-                  margin-right: 3px;
+            .activity-message {
+              .activity-body {
+                .text {
                 }
               }
-
-              a.attachment-preview:hover {
-                background-color: #D0D0D0;
-                color: #555;
-              }
-
-              .attachment-download {
-                background-color: #E0E0E0;
-                border: 0px;
-                color: #666;
-                display: inline-block;
-                font-size: 12px;
-                height: 18px;
-                margin: 0px;
-                padding: 3px;
-
-                &:hover {
-                  background-color: #D0D0D0;
-                  color: #555;
-                }
-              }
-            }
-          }
-        }
-
-        .message-history {
-          .broadcast {
-            .rounded-corners();
-            border: solid 1px #f3f3f3;
-
-            padding:15px;
-            margin-bottom:5px;
-
-            .icon-megaphone {
-              float:left;
-              font-size:30px;
-              color: @color-status-green;
-            }
-
-            .sent-to {
-              margin-left:50px;
-              font-size: 12px;
-              font-weight: 400;
-              color: #c1c1c1;
-              line-height:9px;
-            }
-            .message-body {
-              margin-left:50px;
             }
           }
         }

@@ -1,4 +1,4 @@
--load contacts humanize smartmin temba i18n
+-load contacts humanize smartmin temba i18n sms
 
 -for item in activity
   %tr{class:"{{item|history_class}}"}
@@ -7,61 +7,37 @@
         {{item|activity_icon}}
 
     %td.details.wrapped
-      -if item.type == 'msg' or item.type == 'broadcast'
-        -if item.type == 'msg'
-          -with item.obj as message
-            .activity-message
-              -if message.direction == 'O'
-                -if message.broadcast.recipient_count > 1
-                  .sent-to
-                    .summary
-                      Broadcast to {{message.broadcast.recipient_count|intcomma}} recipients
-              .activity-body
-                .text
-                  {{message.text}}
+      -if item.type == 'msg'
+        -with item.obj as msg
+          .activity-message
+            -if msg.direction == 'O' and msg.broadcast.recipient_count > 1
+              .sent-to
+                .summary
+                  Broadcast to {{msg.broadcast.recipient_count|intcomma}} recipients
 
-        -elif item.type == 'broadcast'
-          -with item.obj as broadcast
-            .activity-broadcast
-              -if broadcast.recipient_count > 1
-                .sent-to
-                  .summary
-                    Broadcast to {{broadcast.recipient_count|intcomma}} recipients
-              .activity-body
-                .text
+            .activity-body
+              -if item.obj.text
+                .text{ style:"{% if msg.attachments %}margin-bottom:10px{% endif %}" }
+                  {{item.obj.text}}
+
+              -for attachment in msg.attachments
+                {% attachment_button attachment %}
+
+      -if item.type == 'broadcast'
+        -with item.obj as broadcast
+          .activity-broadcast
+            -if broadcast.recipient_count > 1
+              .sent-to
+                .summary
+                  Broadcast to {{broadcast.recipient_count|intcomma}} recipients
+
+            .activity-body
+              -if broadcast.translated_text
+                .text{ style:"{% if broadcast.attachments %}margin-bottom:10px{% endif %}" }
                   {{broadcast.translated_text}}
 
-        -for attachment in item.obj.attachments
-          -with media_type=attachment|media_type media_content_type=attachment|media_content_type media_url=attachment|media_url extension=attachment|media_url|extension|upper
-            .activity-attachment{ id:"attachment-{{ item.obj.id }}-{{ forloop.counter }}" }
-              -if media_type == 'image'
-                %a.attachment-preview{ href:"#", data-featherlight:'<img class="image-full" src="{{media_url}}"/>' }
-                  .attachment-icon.icon-photo
-                  {{extension}}
-
-              -elif media_type == 'audio' and media_content_type|is_playable_audio
-                %a.attachment-preview{ href:"#", data-featherlight:'<audio style="width: 360px" controls><source type="{{media_content_type}}" src="{{media_url}}" /></audio>' }
-                  .attachment-icon.icon-volume-medium
-                  {{extension}}
-
-              -elif media_type == 'video'
-                %a.attachment-preview{ href:"#", data-featherlight:'<video controls><source type="{{media_content_type}}" src="{{media_url}}" /></video>' }
-                  .attachment-icon.icon-videocam
-                  {{extension}}
-
-              -elif media_type == 'geo'
-                %a.attachment-preview{ href:"{{item.obj.media|osm_link}}", target:"_loc" }
-                  .attachment-icon.icon-pin_drop
-                  {{attachment|location}}
-
-              -else
-                .attachment-preview
-                  .attachment-icon.icon-docs
-                  {{extension}}
-
-              -if media_type != 'geo'
-                %a.attachment-download{ href:"{{media_url}}" }
-                  .icon-file_download
+              -for attachment in broadcast.attachments
+                {% attachment_button attachment %}
 
       -elif item.type == 'channel-event'
         -with item.obj as event

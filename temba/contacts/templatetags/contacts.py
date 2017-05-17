@@ -39,8 +39,6 @@ ACTIVITY_ICONS = {
     'WebHookResult': 'icon-cloud-upload',
 }
 
-PLAYABLE_AUDIO_TYPES = {'audio/wav', 'audio/x-wav', 'audio/vnd.wav', 'audio/ogg', 'audio/mp3', 'audio/m4a'}
-
 MISSING_VALUE = '--'
 
 
@@ -95,55 +93,6 @@ def format_contact(contact, org):
 @register.filter
 def urn_icon(urn):
     return URN_SCHEME_ICONS.get(urn.scheme, '')
-
-
-@register.filter
-def osm_link(geo_url):
-    (content_type, delim, loc) = geo_url.partition(':')
-    coords = loc.split(',')
-    if len(coords) == 2:
-        (lat, lng) = coords
-        return 'http://www.openstreetmap.org/?mlat=%(lat)s&mlon=%(lng)s#map=18/%(lat)s/%(lng)s' % {"lat": lat, "lng": lng}
-
-
-@register.filter
-def location(geo_url):
-    (content_type, delim, loc) = geo_url.partition(':')
-    if len(loc.split(',')) == 2:
-        return loc
-
-
-@register.filter
-def media_url(media):
-    return media.partition(':')[2]
-
-
-@register.filter
-def media_content_type(media):
-    content_type, delim, url = media.partition(':')
-
-    if content_type == 'application/octet-stream' and (url.endswith('.ogg') or media.endswith('.oga')):
-        content_type = 'audio/ogg'
-
-    return content_type
-
-
-@register.filter
-def media_type(media):
-    content_type = media_content_type(media)
-    if content_type and '/' in content_type:  # pragma: needs cover
-        content_type = content_type.split('/')[0]
-    return content_type
-
-
-@register.filter
-def is_playable_audio(content_type):
-    return content_type in PLAYABLE_AUDIO_TYPES
-
-
-@register.filter
-def extension(url):  # pragma: needs cover
-    return url.rpartition('.')[2]
 
 
 @register.filter

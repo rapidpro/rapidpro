@@ -179,6 +179,10 @@
                           {{ object.contact|short_name:user_org }}
                       %td.value-text.field_text.wrapped
                         {% get_value object 'text' %}
+
+                        - for attachment in object.attachments
+                          {% attachment_button attachment %}
+
                         - if 'label' in actions
                           .value-labels
                             - for label in object.labels.all
@@ -190,14 +194,6 @@
                             %span.label.label-success
                               %a{href:"{% url 'flows.flow_editor' object.get_flow.uuid %}"}
                                 {{object.get_flow.name}}
-
-                      %td.value-icon.field_icon
-                        -with object.get_last_log as log
-                          -if log and not user_org.is_anon
-                            %a{href:"{% url 'channels.channellog_read' log.pk%}"}
-                              {{ object|as_icon }}
-                          -else
-                            {{ object|as_icon }}
 
                       %td.value-received.field_received
                         %nobr
