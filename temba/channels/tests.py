@@ -10142,7 +10142,12 @@ class JiochatTest(TembaTest):
             msg.refresh_from_db()
             self.assertEquals(msg.status, ERRORED)
 
-    def test_receive(self):
+    @patch('requests.get')
+    @patch('temba.channels.models.Channel.get_jiochat_access_token')
+    def test_receive(self, mock_access_token, mock_get):
+        mock_access_token.return_value = 'ABC1234'
+        mock_get.return_value = MockResponse(400, '{"error":"Not found"}')
+
         # invalid UUID
         response = self.client.post(reverse('handlers.jiochat_handler', args=['00000000-0000-0000-0000-000000000000']))
         self.assertEqual(response.status_code, 400)
@@ -10180,6 +10185,8 @@ class JiochatTest(TembaTest):
             "Content": "Test",
         }
 
+        Contact.objects.all().delete()
+
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
         self.assertEqual(response.status_code, 200)
 
@@ -10187,12 +10194,51 @@ class JiochatTest(TembaTest):
         self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
 
         # load our message
+        self.assertIsNone(msg.contact.name)
         self.assertEqual(msg.contact.get_urn(JIOCHAT_SCHEME).path, "1234")
         self.assertEqual(msg.direction, INCOMING)
         self.assertEqual(msg.org, self.org)
         self.assertEqual(msg.channel, self.channel)
         self.assertEqual(msg.text, "Test")
         self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
+
+        Msg.objects.all().delete()
+        Contact.objects.all().delete()
+
+        mock_get.return_value = MockResponse(200, '{"nickname":"Shinonda"}')
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+        msg = Msg.objects.get()
+        self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
+
+        # load our message
+        self.assertEqual(msg.contact.name, "Shinonda")
+        self.assertEqual(msg.contact.get_urn(JIOCHAT_SCHEME).path, "1234")
+        self.assertEqual(msg.direction, INCOMING)
+        self.assertEqual(msg.org, self.org)
+        self.assertEqual(msg.channel, self.channel)
+        self.assertEqual(msg.text, "Test")
+        self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
+
+        Msg.objects.all().delete()
+        Contact.objects.all().delete()
+
+        with AnonymousOrg(self.org):
+            response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+            self.assertEqual(response.status_code, 200)
+
+            msg = Msg.objects.get()
+            self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
+
+            # load our message
+            self.assertIsNone(msg.contact.name)
+            self.assertEqual(msg.contact.get_urn(JIOCHAT_SCHEME).path, "1234")
+            self.assertEqual(msg.direction, INCOMING)
+            self.assertEqual(msg.org, self.org)
+            self.assertEqual(msg.channel, self.channel)
+            self.assertEqual(msg.text, "Test")
+            self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
 
         Msg.objects.all().delete()
 
@@ -10205,33 +10251,30 @@ class JiochatTest(TembaTest):
             "MediaId": "12",
         }
 
-        with patch('temba.channels.models.Channel.get_jiochat_access_token') as mock_access_token:
-            mock_access_token.return_value = 'ABC1234'
+        with patch('requests.get') as mock_get:
+            mock_get.side_effect = [MockResponse(400, 'Error'),
+                                    MockResponse(200, "IMG_BITS",
+                                                 headers={"Content-Type": "image/jpeg",
+                                                          "Content-Disposition":
+                                                          'attachment; filename="image_name.jpg"'})]
 
-            with patch('requests.get') as mock_get:
-                mock_get.side_effect = [MockResponse(400, 'Error'),
-                                        MockResponse(200, "IMG_BITS",
-                                                     headers={"Content-Type": "image/jpeg",
-                                                              "Content-Disposition":
-                                                                  'attachment; filename="image_name.jpg"'})]
+            with patch('temba.orgs.models.Org.save_media') as mock_save_media:
+                mock_save_media.return_value = '<MEDIA_SAVED_URL>'
 
-                with patch('temba.orgs.models.Org.save_media') as mock_save_media:
-                    mock_save_media.return_value = '<MEDIA_SAVED_URL>'
+                response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+                self.assertEqual(response.status_code, 200)
 
-                    response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-                    self.assertEqual(response.status_code, 200)
+                msg = Msg.objects.get()
+                self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
 
-                    msg = Msg.objects.get()
-                    self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
-
-                    # load our message
-                    self.assertEqual(msg.contact.get_urn(JIOCHAT_SCHEME).path, "1234")
-                    self.assertEqual(msg.direction, INCOMING)
-                    self.assertEqual(msg.org, self.org)
-                    self.assertEqual(msg.channel, self.channel)
-                    self.assertEqual(msg.text, '<MEDIA_SAVED_URL>')
-                    self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
-                    self.assertEqual(msg.attachments[0], 'image/jpeg:<MEDIA_SAVED_URL>')
+                # load our message
+                self.assertEqual(msg.contact.get_urn(JIOCHAT_SCHEME).path, "1234")
+                self.assertEqual(msg.direction, INCOMING)
+                self.assertEqual(msg.org, self.org)
+                self.assertEqual(msg.channel, self.channel)
+                self.assertEqual(msg.text, '<MEDIA_SAVED_URL>')
+                self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
+                self.assertEqual(msg.attachments[0], 'image/jpeg:<MEDIA_SAVED_URL>')
 
 
 class GlobeTest(TembaTest):

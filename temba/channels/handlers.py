@@ -2258,12 +2258,14 @@ class JioChatHandler(BaseChannelHandler):
         external_id = body.get('MsgId')
 
         urn = URN.from_jiochat(sender_id)
-        contact = Contact.from_urn(channel.org, urn)
         msg = None
+        contact_name = None
+        if not channel.org.is_anon:
+            contact_detail = channel.get_jiochat_contact_detail(sender_id)
+            contact_name = contact_detail.get('nickname')
 
-        if not contact:
-            contact = Contact.get_or_create(channel.org, channel.created_by,
-                                            urns=[urn], channel=channel)
+        contact = Contact.get_or_create(channel.org, channel.created_by, name=contact_name,
+                                        urns=[urn], channel=channel)
 
         if msg_type == 'text':
             msg = Msg.create_incoming(channel, urn, body.get('Content'), date=msg_date, contact=contact)

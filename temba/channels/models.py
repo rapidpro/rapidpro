@@ -1474,6 +1474,25 @@ class Channel(TembaModel):
 
         Channel.success(channel, msg, WIRED, start, event=event)
 
+    def get_jiochat_contact_detail(self, open_id):
+
+        access_token = Channel.get_jiochat_access_token(channel_uuid=self.uuid)
+
+        url = 'https://channels.jiochat.com/user/info.action?'
+
+        payload = dict(openid=open_id)
+
+        headers = {'Authorization': 'Bearer ' + access_token}
+        headers.update(TEMBA_HEADERS)
+
+        response = requests.get(url, params=payload, headers=headers, timeout=15)
+
+        if response.status_code != 200:
+            return dict()
+
+        data = response.json()
+        return data
+
     def download_jiochat_media(self, media_id):
 
         access_token = Channel.get_jiochat_access_token(channel_uuid=self.uuid)
