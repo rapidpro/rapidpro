@@ -1,3 +1,7 @@
+v3.0.142
+----------
+ * Fix handling of old msg structs with no attachments attribute
+
 v3.0.141
 ----------
  * Tweak in create_outgoing to prevent possible NPEs in flow execution
