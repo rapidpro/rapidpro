@@ -1436,12 +1436,6 @@ class ContactTest(TembaTest):
             self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i,
                             created_on=timezone.now() - timedelta(days=(100 - i)))
 
-        # mark a message as failed
-        failed = Msg.objects.get(text="Inbound message 13")
-        failed.status = 'F'
-        failed.save()
-        log = ChannelLog.objects.create(channel=failed.channel, msg=failed, is_error=True, description="It didn't send!!")
-
         # because messages are stored with timestamps from external systems, possible to have initial message
         # which is little bit older than the contact itself
         self.create_msg(direction='I', contact=self.joe, text="Very old inbound message",
@@ -1449,6 +1443,13 @@ class ContactTest(TembaTest):
 
         # start a joe flow
         self.reminder_flow.start([], [self.joe])
+
+        # mark an outgoing message as failed
+        failed = Msg.objects.get(direction='O')
+        failed.status = 'F'
+        failed.save()
+        log = ChannelLog.objects.create(channel=failed.channel, msg=failed, is_error=True,
+                                        description="It didn't send!!")
 
         # pretend that flow run made a webhook request
         WebHookEvent.trigger_flow_event(FlowRun.objects.get(), 'https://example.com', '1234', msg=None)
