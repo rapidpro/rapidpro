@@ -1244,7 +1244,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
             "name": "Ben Haggerty",
             "language": "eng",
             "urns": ["tel:+250788123123", "twitter:ben"],
-            "groups": [{"name": "Devs", "uuid": "6685e933-26e1-4363-a468-8f7268ab63a9"}],
+            "groups": ["6685e933-26e1-4363-a468-8f7268ab63a9"],
             "fields": {
               "nickname": "Macklemore",
               "side_kick": "Ryan Lewis"
