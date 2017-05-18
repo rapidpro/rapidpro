@@ -106,12 +106,13 @@ SMTP_PASSWORD = 'SMTP_PASSWORD'
 SMTP_PORT = 'SMTP_PORT'
 SMTP_ENCRYPTION = 'SMTP_ENCRYPTION'
 
-CHATBASE_API_KEY = 'chatbase_api_key'
-CHATBASE_TYPE = 'chatbase_type'
-CHATBASE_NOT_HANDLED = 'chatbase_not_handled'
-CHATBASE_PLATFORM = 'chatbase_platform'
-CHATBASE_FEEDBACK = 'chatbase_feedback'
-CHATBASE_VERSION = 'chatbase_version'
+CHATBASE_AGENT_NAME = 'CHATBASE_AGENT_NAME'
+CHATBASE_API_KEY = 'CHATBASE_API_KEY'
+CHATBASE_TYPE = 'CHATBASE_TYPE'
+CHATBASE_NOT_HANDLED = 'CHATBASE_NOT_HANDLED'
+CHATBASE_PLATFORM = 'CHATBASE_PLATFORM'
+CHATBASE_FEEDBACK = 'CHATBASE_FEEDBACK'
+CHATBASE_VERSION = 'CHATBASE_VERSION'
 
 ORG_STATUS = 'STATUS'
 SUSPENDED = 'suspended'
@@ -898,8 +899,9 @@ class Org(SmartModel):
             # clear all our channel configurations
             self.clear_channel_caches()
 
-    def add_chatbase_config(self, api_key, type, not_handled, platform, feedback, version, user):
+    def add_chatbase_config(self, agent_name, api_key, type, not_handled, platform, feedback, version, user):
         chatbase_config = {
+            CHATBASE_AGENT_NAME: agent_name,
             CHATBASE_API_KEY: api_key,
             CHATBASE_TYPE: type,
             CHATBASE_NOT_HANDLED: not_handled,
@@ -916,6 +918,7 @@ class Org(SmartModel):
 
     def remove_chatbase_config(self, user):
         config = self.config_json()
+        config[CHATBASE_AGENT_NAME] = ''
         config[CHATBASE_API_KEY] = ''
         config[CHATBASE_TYPE] = ''
         config[CHATBASE_NOT_HANDLED] = ''
@@ -931,8 +934,9 @@ class Org(SmartModel):
             config = self.config_json()
             chatbase_api_key = config.get(CHATBASE_API_KEY, None)
             chatbase_type = config.get(CHATBASE_TYPE, None)
+            chatbase_platform = config.get(CHATBASE_PLATFORM, None)
 
-            return chatbase_api_key and chatbase_type
+            return chatbase_api_key and chatbase_type and chatbase_platform
         else:
             return False
 
