@@ -1573,7 +1573,11 @@ class DefinitionsEndpoint(BaseAPIView):
             flow_uuids = params.getlist('flow')
             campaign_uuids = params.getlist('campaign')
 
-        include = DefinitionsEndpoint.Depends[params.get('dependencies', 'all')]
+        include = params.get('dependencies', 'all')
+        if include not in DefinitionsEndpoint.Depends.__members__:
+            raise InvalidQueryError("dependencies must be one of %s" % ', '.join(DefinitionsEndpoint.Depends.__members__))
+
+        include = DefinitionsEndpoint.Depends[include]
 
         if flow_uuids:
             flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org, is_active=True))

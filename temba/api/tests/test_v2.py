@@ -1536,6 +1536,10 @@ class APITest(TembaTest):
         self.assertEqual(len(resp_json['campaigns']), 1)
         self.assertEqual(len(resp_json['triggers']), 0)
 
+        # test an invalid value for dependencies
+        response = self.fetchJSON(url, 'flow_uuid=%s&campaign_uuid=%s&dependencies=xx' % (flow.uuid, campaign.uuid))
+        self.assertResponseError(response, None, 'dependencies must be one of none, flows, all')
+
     def test_fields(self):
         url = reverse('api.v2.fields')
 
