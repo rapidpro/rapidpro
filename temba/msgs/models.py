@@ -1210,6 +1210,7 @@ class Msg(models.Model):
                         status=PENDING, media=None, msg_type=None, topup=None, external_id=None, session=None):
 
         from temba.api.models import WebHookEvent
+        from temba.chatbase.models import Chatbase
         if not org and channel:
             org = channel.org
 
@@ -1273,6 +1274,9 @@ class Msg(models.Model):
             msg_args['topup_id'] = topup_id
 
         msg = Msg.objects.create(**msg_args)
+
+        # Fire to Chatbase API
+        Chatbase.create_and_fire(org.id, channel.id, msg.id, contact.id)
 
         # if this contact is currently stopped, unstop them
         if contact.is_stopped:
