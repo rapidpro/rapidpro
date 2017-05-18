@@ -64,6 +64,10 @@ def send_msg_task():
                 msg = dict_to_struct('MockMsg', msg_task,
                                      datetime_fields=['modified_on', 'sent_on', 'created_on', 'queued_on',
                                                       'next_attempt'])
+
+                if not hasattr(msg, 'attachments') and hasattr(msg, 'media') and msg.media:  # pragma: no cover
+                    msg.attachments = [msg.media]
+
                 Channel.send_message(msg)
 
                 # if there are more messages to send for this contact, sleep a second before moving on
