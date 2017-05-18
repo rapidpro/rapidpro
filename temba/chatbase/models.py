@@ -12,6 +12,7 @@ from temba.contacts.models import Contact
 from temba.msgs.models import Msg
 from temba.orgs.models import Org, CHATBASE_TYPE, CHATBASE_API_KEY, CHATBASE_FEEDBACK, CHATBASE_NOT_HANDLED, \
     CHATBASE_VERSION
+from temba.utils import on_transaction_commit
 
 
 class Chatbase(SmartModel):
@@ -78,22 +79,13 @@ class Chatbase(SmartModel):
             self.message = "Message ID: %s" % response.get('message_id')
         else:
             self.status = self.FAILED
-            self.message = "%s" % response.content.get('reason')
+            self.message = "%s" % response.get('reason')
 
         self.save()
 
         return response
 
     @classmethod
-    def create_and_fire(cls, org, channel, msg, contact):
-        org_obj = None
-        if type(org).__name__ == 'int':
-            org_obj = Org.objects.filter(id=org).first()
-
-        if org_obj and org_obj.is_connected_to_chatbase():
-            chatbase_args = dict(org=org,
-                                 channel=channel,
-                                 msg=msg,
-                                 contact=contact)
-            chatbase = Chatbase.create(**chatbase_args)
-            chatbase.trigger_chatbase_event()
+    def fire(cls, org, channel, msg, contact):
+        from temba.chatbase.tasks import send_chatbase_event
+        on_transaction_commit(lambda: send_chatbase_event.delay(org, channel, msg, contact))
