@@ -1,3 +1,12 @@
+v3.0.141
+----------
+ * Tweak in create_outgoing to prevent possible NPEs in flow execution
+
+v3.0.140
+----------
+ * Replace index on Value.string_value with one that is limited to first 32 chars
+ * Switch to using Msg.attachments instead of Msg.media
+
 v3.0.139
 ----------
 * Fix Macrokiosk JSON responses

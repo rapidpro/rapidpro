@@ -1826,7 +1826,8 @@ class Contact(TembaModel):
                                           response_to=response_to, message_context=message_context, session=session,
                                           attachments=attachments, msg_type=msg_type or INBOX, status=status,
                                           created_on=created_on)
-                msgs.append(msg)
+                if msg is not None:
+                    msgs.append(msg)
             except UnreachableException:
                 pass
 
