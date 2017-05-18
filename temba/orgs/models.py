@@ -110,7 +110,6 @@ CHATBASE_AGENT_NAME = 'CHATBASE_AGENT_NAME'
 CHATBASE_API_KEY = 'CHATBASE_API_KEY'
 CHATBASE_TYPE = 'CHATBASE_TYPE'
 CHATBASE_NOT_HANDLED = 'CHATBASE_NOT_HANDLED'
-CHATBASE_PLATFORM = 'CHATBASE_PLATFORM'
 CHATBASE_FEEDBACK = 'CHATBASE_FEEDBACK'
 CHATBASE_VERSION = 'CHATBASE_VERSION'
 
@@ -899,13 +898,12 @@ class Org(SmartModel):
             # clear all our channel configurations
             self.clear_channel_caches()
 
-    def add_chatbase_config(self, agent_name, api_key, type, not_handled, platform, feedback, version, user):
+    def add_chatbase_config(self, agent_name, api_key, type, not_handled, feedback, version, user):
         chatbase_config = {
             CHATBASE_AGENT_NAME: agent_name,
             CHATBASE_API_KEY: api_key,
             CHATBASE_TYPE: type,
             CHATBASE_NOT_HANDLED: not_handled,
-            CHATBASE_PLATFORM: platform,
             CHATBASE_FEEDBACK: feedback,
             CHATBASE_VERSION: version
         }
@@ -922,7 +920,6 @@ class Org(SmartModel):
         config[CHATBASE_API_KEY] = ''
         config[CHATBASE_TYPE] = ''
         config[CHATBASE_NOT_HANDLED] = ''
-        config[CHATBASE_PLATFORM] = ''
         config[CHATBASE_FEEDBACK] = ''
         config[CHATBASE_VERSION] = ''
         self.config = json.dumps(config)
@@ -934,9 +931,8 @@ class Org(SmartModel):
             config = self.config_json()
             chatbase_api_key = config.get(CHATBASE_API_KEY, None)
             chatbase_type = config.get(CHATBASE_TYPE, None)
-            chatbase_platform = config.get(CHATBASE_PLATFORM, None)
 
-            return chatbase_api_key and chatbase_type and chatbase_platform
+            return chatbase_api_key and chatbase_type
         else:
             return False
 

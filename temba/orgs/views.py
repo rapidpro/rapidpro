@@ -48,8 +48,8 @@ from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS
 from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
 from .models import TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_LOGIN, SMTP_FROM_EMAIL
 from .models import SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_PORT, SMTP_ENCRYPTION
-from .models import CHATBASE_API_KEY, CHATBASE_TYPE, CHATBASE_PLATFORM, CHATBASE_NOT_HANDLED, CHATBASE_VERSION, \
-    CHATBASE_FEEDBACK, CHATBASE_AGENT_NAME
+from .models import CHATBASE_API_KEY, CHATBASE_TYPE, CHATBASE_NOT_HANDLED, CHATBASE_VERSION, CHATBASE_FEEDBACK, \
+    CHATBASE_AGENT_NAME
 
 
 def check_login(request):
@@ -1974,10 +1974,7 @@ class OrgCRUDL(SmartCRUDL):
             api_key = forms.CharField(max_length=255, label=_("API Key"), required=False,
                                       help_text="Set the your Chatbase API Key")
             type = forms.ChoiceField(choices=TYPES, required=False, label=_("Type"))
-            platform = forms.CharField(max_length=255, label=_("Platform"), required=False,
-                                       help_text="E.g. RapidPro, My app")
-            version = forms.CharField(max_length=10, label=_("Version"), required=False,
-                                      help_text="E.g. 1.0, 1.2.1")
+            version = forms.CharField(max_length=10, label=_("Version"), required=False, help_text="E.g. 1.0, 1.2.1")
             not_handled = forms.BooleanField(required=False, label=_("Not Handled"),
                                              help_text="Set to true for user messages not understood (e.g. 'blah blah')"
                                                        " or not supported (e.g. 'book flight to mars')")
@@ -1992,18 +1989,16 @@ class OrgCRUDL(SmartCRUDL):
                     agent_name = self.cleaned_data.get('agent_name')
                     api_key = self.cleaned_data.get('api_key')
                     type = self.cleaned_data.get('type')
-                    platform = self.cleaned_data.get('platform')
 
-                    if not agent_name or not api_key or not type or not platform:
-                        raise ValidationError(_("Missing data: Agent Name, API Key, Type and Platform. "
+                    if not agent_name or not api_key or not type:
+                        raise ValidationError(_("Missing data: Agent Name, API Key and Type. "
                                                 "Please check them again and retry."))
 
                 return self.cleaned_data
 
             class Meta:
                 model = Org
-                fields = ('agent_name', 'api_key', 'type', 'platform', 'version', 'not_handled', 'feedback',
-                          'disconnect')
+                fields = ('agent_name', 'api_key', 'type', 'version', 'not_handled', 'feedback', 'disconnect')
 
         success_message = ''
         success_url = '@orgs.org_home'
@@ -2016,7 +2011,6 @@ class OrgCRUDL(SmartCRUDL):
             initial['agent_name'] = config.get(CHATBASE_AGENT_NAME, '')
             initial['api_key'] = config.get(CHATBASE_API_KEY, '')
             initial['type'] = config.get(CHATBASE_TYPE, '')
-            initial['platform'] = config.get(CHATBASE_PLATFORM, '')
             initial['version'] = config.get(CHATBASE_VERSION, '')
             initial['not_handled'] = config.get(CHATBASE_NOT_HANDLED, '')
             initial['feedback'] = config.get(CHATBASE_FEEDBACK, '')
@@ -2040,7 +2034,6 @@ class OrgCRUDL(SmartCRUDL):
             api_key = form.cleaned_data.get('api_key')
             type = form.cleaned_data.get('type')
             not_handled = form.cleaned_data.get('not_handled')
-            platform = form.cleaned_data.get('platform')
             feedback = form.cleaned_data.get('feedback')
             version = form.cleaned_data.get('version')
             disconnect = form.cleaned_data.get('disconnect', 'false') == 'true'
@@ -2048,8 +2041,8 @@ class OrgCRUDL(SmartCRUDL):
             if disconnect:
                 org.remove_chatbase_config(user)
                 return HttpResponseRedirect(reverse('orgs.org_home'))
-            elif api_key and type and platform:
-                org.add_chatbase_config(agent_name, api_key, type, not_handled, platform, feedback, version, user)
+            elif api_key and type:
+                org.add_chatbase_config(agent_name, api_key, type, not_handled, feedback, version, user)
 
             return super(OrgCRUDL.Chatbase, self).form_valid(form)
 
