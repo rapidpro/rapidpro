@@ -1,52 +1,68 @@
 -extends 'smartmin/form.html'
--load smartmin
--load i18n
+
+-load compress temba smartmin i18n
 
 -block form-span
-  span8
 
--block fields
-  .field.formax-vertical
-    {% render_field 'api_key' %}
-
-  .field.formax-vertical
-    {% render_field 'type' %}
-
-  .field.formax-vertical
-    {% render_field 'platform' %}
-
-  .field.formax-vertical
-    {% render_field 'version' %}
-
-  .field.formax-vertical
-    {% render_field 'not_handled' %}
-
-  %br
+-block title-text
+  .title-text
+    %h1
+      -trans "Chatbase Account"
 
 -block summary
   -if object.is_connected_to_chatbase
     -trans "Connected to Chatbase Account"
-    -#{{transferto_account_login}}.
+    {{chatbase_agent_name}}.
   -else
     -trans "No Chatbase account connected."
+
+-block pre-form
+  -if not object.is_connected_to_chatbase
+    -blocktrans
+      Adding a Chatbase account will allow you to analyse and receive suggestions for how to “fix” bot experiences
+      to make them better for users. To signup for an account, visit
+    <a target='_new' href='https://chatbase-area120.appspot.com'>Chatbase</a>.
+    %hr
+
+-block fields
+  -if not object.is_connected_to_chatbase
+    {{ block.super }}
+
+-block form-buttons
+
+-block post-form
+  -if object.is_connected_to_chatbase and request.META.HTTP_X_FORMAX
+    %p
+      %a.btn.pull-right{style: 'margin-left: 30px', href:'{% url "airtime.airtimetransfer_list" %}'}
+        -trans "Chatbase Log"
+
+    %p
+      -trans "Your account is connected to the Chatbase account"
+      {{chatbase_agent_name}}.
+
+    %p
+      -trans "If you no longer want it connected, you can"
+      %a{href:'javascript:confirmChatbaseDisconnect();'}
+        -trans "disconnect"
+      -trans "your Chatbase account. Doing so will interrupt the data send to Chatbase service."
+
+    .disconnect-chatbase.hide
+      .title
+        -trans "Disconnect Chatbase"
+      .body
+        -blocktrans
+          This will disconnect your Chatbase account. Are you sure you want to proceed?
+    %a#disconnect-chatbase-form.posterize{href:'{% url "orgs.org_chatbase" %}?disconnect=true'}
+  -else
+    -trans "You can find your API Key by clicking "
+    %a{href:'https://chatbase-area120.appspot.com/agents', target:'_new'}><
+      -trans " here."
 
 -block extra-script
   :javascript
     $(document).ready(function() {
       select2div('#id_type');
     });
-
--block extra-style
-  :css
-    .field_not_handled .controls input{
-      float: left;
-      margin: 5px 5px 0 0;
-    }
-    .field_not_handled .controls p{
-      float: left;
-      clear: right;
-    }
-    #id-chatbase input[type='submit']{
-      float: left;
-      clear: both;
+    function confirmChatbaseDisconnect() {
+      removalConfirmation("disconnect-chatbase", "Disconnect");
     }
