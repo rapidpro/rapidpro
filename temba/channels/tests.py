@@ -10237,7 +10237,8 @@ class JiochatTest(TembaTest):
         }
 
         with patch('requests.get') as mock_get:
-            mock_get.side_effect = [MockResponse(400, 'Error'),
+            mock_get.side_effect = [MockResponse(200, '{"nickname":"Shinonda"}'),
+                                    MockResponse(400, 'Error'),
                                     MockResponse(200, "IMG_BITS",
                                                  headers={"Content-Type": "image/jpeg",
                                                           "Content-Disposition":
@@ -10260,6 +10261,8 @@ class JiochatTest(TembaTest):
                 self.assertEqual(msg.text, '<MEDIA_SAVED_URL>')
                 self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
                 self.assertEqual(msg.attachments[0], 'image/jpeg:<MEDIA_SAVED_URL>')
+
+                self.assertEqual(mock_get.call_count, 3)
 
 
 class GlobeTest(TembaTest):
