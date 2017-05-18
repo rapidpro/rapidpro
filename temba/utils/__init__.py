@@ -4,6 +4,8 @@ import calendar
 import json
 import datetime
 import locale
+import mimetypes
+
 import pytz
 import random
 import regex
@@ -16,6 +18,8 @@ from collections import Counter
 from dateutil.parser import parse
 from decimal import Decimal
 from django.conf import settings
+from django.core.files import File
+from django.core.files.temp import NamedTemporaryFile
 from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
@@ -411,6 +415,36 @@ def chunk_list(iterable, size):
     while item:
         yield item
         item = list(islice(it, size))
+
+
+def save_response_media(response, org):
+    if response is None or org is None:
+        return None, None
+
+    disposition = response.headers.get('Content-Disposition', None)
+    content_type = response.headers.get('Content-Type', None)
+
+    downloaded = None
+
+    if content_type:
+        extension = None
+        if disposition == 'inline':
+            extension = mimetypes.guess_extension(content_type)
+            extension = extension.strip('.')
+        elif disposition:
+            filename = re.findall("filename=\"(.+)\"", disposition)[0]
+            extension = filename.rpartition('.')[2]
+        elif content_type == 'audio/x-wav':
+            extension = 'wav'
+
+        temp = NamedTemporaryFile(delete=True)
+        temp.write(response.content)
+        temp.flush()
+
+        # save our file off
+        downloaded = org.save_media(File(temp), extension)
+
+    return content_type, downloaded
 
 
 def print_max_mem_usage(msg=None):
