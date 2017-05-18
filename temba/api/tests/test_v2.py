@@ -1983,6 +1983,10 @@ class APITest(TembaTest):
         results = {m['id'] for m in response.json()['results']}
         self.assertEqual(expected, results)
 
+        # can't filter with invalid id
+        response = self.fetchJSON(url, 'id=xyz')
+        self.assertResponseError(response, None, "Value for id must be an integer")
+
         # can't filter by more than one of contact, folder, label or broadcast together
         for query in ('contact=%s&label=Spam' % self.joe.uuid, 'label=Spam&folder=inbox',
                       'broadcast=12345&folder=inbox', 'broadcast=12345&label=Spam'):
