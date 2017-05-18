@@ -10,8 +10,6 @@ import requests
 import telegram
 import re
 import six
-from django.core.files import File
-from django.core.files.temp import NamedTemporaryFile
 
 from enum import Enum
 from datetime import timedelta
@@ -38,6 +36,7 @@ from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, 
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
 from temba.utils.http import HttpEvent
+from temba.utils.jiochat import JiochatClient
 from temba.utils.nexmo import NexmoClient, NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from temba.utils.twitter import TembaTwython
@@ -710,47 +709,12 @@ class Channel(TembaModel):
         return channel
 
     @classmethod
-    def get_jiochat_access_token(cls, channel_uuid, force=False):
-        r = get_redis_connection()
-        lock_name = Channel.JIOCHAT_ACCESS_TOKEN_REFRESH_LOCK % channel_uuid
-
-        with r.lock(lock_name, timeout=5):
-            key = Channel.JIOCHAT_ACCESS_TOKEN_KEY % channel_uuid
-            access_token = cache.get(key, None)
-            return access_token
-
-    @classmethod
-    def refresh_jiochat_access_token(cls, channel_uuid):
-        r = get_redis_connection()
-        lock_name = Channel.JIOCHAT_ACCESS_TOKEN_REFRESH_LOCK % channel_uuid
-
-        if not r.get(lock_name):
-            with r.lock(lock_name, timeout=30):
-
-                key = Channel.JIOCHAT_ACCESS_TOKEN_KEY % channel_uuid
-
-                channel = Channel.objects.filter(uuid=channel_uuid, is_active=True).first()
-                if channel is None or channel.channel_type != Channel.TYPE_JIOCHAT:
-                    return
-
-                channel_config = channel.config_json()
-                app_id = channel_config.get(Channel.CONFIG_JIOCHAT_APP_ID)
-                app_secret = channel_config.get(Channel.CONFIG_JIOCHAT_APP_SECRET)
-
-                post_data = dict(grant_type='client_credentials', appid=app_id, secret=app_secret)
-                response = requests.post('https://channels.jiochat.com/auth/token.action', post_data)
-                response_json = response.json()
-
-                access_token = response_json['access_token']
-
-                cache.set(key, access_token, timeout=7200)
-                return access_token
-
-    @classmethod
     def refresh_all_jiochat_access_token(cls):
         jiochat_channels = Channel.objects.filter(channel_type=Channel.TYPE_JIOCHAT, is_active=True)
         for channel in jiochat_channels:
-            Channel.refresh_jiochat_access_token(channel.uuid)
+            client = channel.get_jiochat_client()
+            if client is not None:
+                client.refresh_access_token()
 
     @classmethod
     def add_line_channel(cls, org, user, credentials, name):
@@ -968,6 +932,16 @@ class Channel(TembaModel):
             return self.org.get_verboice_client()
         elif self.channel_type == Channel.TYPE_NEXMO:
             return self.org.get_nexmo_client()
+
+    def get_jiochat_client(self):
+        config = self.config_json()
+        if config:
+            app_id = config.get(Channel.CONFIG_JIOCHAT_APP_ID, None)
+            app_secret = config.get(Channel.CONFIG_JIOCHAT_APP_SECRET, None)
+
+            if app_id and app_secret:
+                return JiochatClient(self.uuid, app_id, app_secret)
+        return None
 
     def get_twiml_client(self):
         from temba.ivr.clients import TwilioClient
@@ -1474,63 +1448,6 @@ class Channel(TembaModel):
 
         Channel.success(channel, msg, WIRED, start, event=event)
 
-    def get_jiochat_contact_detail(self, open_id):
-
-        access_token = Channel.get_jiochat_access_token(channel_uuid=self.uuid)
-
-        url = 'https://channels.jiochat.com/user/info.action?'
-
-        payload = dict(openid=open_id)
-
-        headers = {'Authorization': 'Bearer ' + access_token}
-        headers.update(TEMBA_HEADERS)
-
-        response = requests.get(url, params=payload, headers=headers, timeout=15)
-
-        if response.status_code != 200:
-            return dict()
-
-        data = response.json()
-        return data
-
-    def download_jiochat_media(self, media_id):
-
-        access_token = Channel.get_jiochat_access_token(channel_uuid=self.uuid)
-
-        url = 'https://channels.jiochat.com/media/download.action'
-
-        payload = dict(media_id=media_id)
-
-        headers = {'Authorization': 'Bearer ' + access_token}
-        headers.update(TEMBA_HEADERS)
-
-        attempts = 0
-        while attempts < 4:
-            response = requests.get(url, params=payload, headers=headers, timeout=15)
-
-            # If we fail sleep for a bit then try again up to 4 times
-            if response.status_code == 200:
-                break
-            else:
-                attempts += 1
-                time.sleep(.250)
-
-        disposition = response.headers.get('Content-Disposition', None)
-        content_type = response.headers.get('Content-Type', None)
-
-        if content_type and disposition:
-            filename = re.findall("filename=\"(.+)\"", disposition)[0]
-            extension = filename.rpartition('.')[2]
-
-            temp = NamedTemporaryFile(delete=True)
-            temp.write(response.content)
-            temp.flush()
-
-            # save our file off
-            downloaded = self.org.save_media(File(temp), extension)
-
-            return '%s:%s' % (content_type, downloaded)
-
     @classmethod
     def send_jiochat_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
@@ -1539,29 +1456,12 @@ class Channel(TembaModel):
         data['touser'] = msg.urn_path
         data['text'] = dict(content=text)
 
-        access_token = Channel.get_jiochat_access_token(channel_uuid=channel.uuid)
+        client = JiochatClient(channel.uuid, channel.config.get(Channel.CONFIG_JIOCHAT_APP_ID),
+                               channel.config.get(Channel.CONFIG_JIOCHAT_APP_SECRET))
 
-        url = 'https://channels.jiochat.com/custom/custom_send.action'
-
-        payload = json.dumps(data)
-
-        event = HttpEvent('POST', url, payload)
         start = time.time()
 
-        headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + access_token}
-        headers.update(TEMBA_HEADERS)
-
-        try:
-            response = requests.post(url, payload, headers=headers, timeout=15)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
-            raise SendException("Got non-200 response [%d] from JioChat" % response.status_code,
-                                event=event, start=start)
+        response, event = client.send_message(data, start)
 
         Channel.success(channel, msg, WIRED, start, event=event)
 

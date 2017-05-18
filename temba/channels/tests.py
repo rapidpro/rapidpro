@@ -10039,33 +10039,17 @@ class JiochatTest(TembaTest):
                                               Channel.CONFIG_JIOCHAT_APP_SECRET: 'app-secret'},
                                       uuid='00000000-0000-0000-0000-000000001234')
 
-    def test_get_access_token(self):
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
-
-            self.assertIsNone(Channel.get_jiochat_access_token(self.channel.uuid))
-
-            with patch('django.core.cache.cache.get') as mock_cache_get:
-                mock_cache_get.return_value = 'OLD1234'
-
-                self.assertEqual(Channel.get_jiochat_access_token(self.channel.uuid), 'OLD1234')
-                self.assertEqual(Channel.refresh_jiochat_access_token(self.channel.uuid), 'ABC1234')
-
-                self.channel.is_active = False
-                self.channel.save()
-
-                self.assertIsNone(Channel.refresh_jiochat_access_token(self.channel.uuid))
-
     def test_refresh_jiochat_access_tokens_task(self):
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
 
             refresh_jiochat_access_tokens()
             self.assertEqual(mock.call_count, 1)
+            channel_client = self.channel.get_jiochat_client()
 
-            self.assertEqual(Channel.get_jiochat_access_token(self.channel.uuid), 'ABC1234')
+            self.assertEqual(channel_client.get_access_token(), 'ABC1234')
 
-    @patch('temba.channels.models.Channel.get_jiochat_access_token')
+    @patch('temba.utils.jiochat.JiochatClient.get_access_token')
     def test_url_verification(self, mock_access_token):
         mock_access_token.return_value = 'ABC1234'
 
@@ -10073,7 +10057,8 @@ class JiochatTest(TembaTest):
         response = self.client.get(reverse('handlers.jiochat_handler', args=['00000000-0000-0000-0000-000000000000']))
         self.assertEqual(response.status_code, 400)
 
-        access_token = Channel.get_jiochat_access_token(self.channel.uuid)
+        channel_client = self.channel.get_jiochat_client()
+        access_token = channel_client.get_access_token()
         timestamp = str(time.time())
         nonce = 'nonce'
 
@@ -10097,7 +10082,7 @@ class JiochatTest(TembaTest):
 
         self.assertEqual(response.status_code, 400)
 
-    @patch('temba.channels.models.Channel.get_jiochat_access_token')
+    @patch('temba.utils.jiochat.JiochatClient.get_access_token')
     def test_send(self, mock_access_token):
         mock_access_token.return_value = 'ABC1234'
 
@@ -10119,7 +10104,7 @@ class JiochatTest(TembaTest):
             self.clear_cache()
 
             self.assertEqual(mock.call_args[0][0], 'https://channels.jiochat.com/custom/custom_send.action')
-            self.assertEqual(json.loads(mock.call_args[0][1]),
+            self.assertEqual(mock.call_args[1]['json'],
                              dict(touser="1234", text=dict(content="Test Msg"), msgtype='text'))
 
         with patch('requests.post') as mock:
@@ -10143,7 +10128,7 @@ class JiochatTest(TembaTest):
             self.assertEquals(msg.status, ERRORED)
 
     @patch('requests.get')
-    @patch('temba.channels.models.Channel.get_jiochat_access_token')
+    @patch('temba.utils.jiochat.JiochatClient.get_access_token')
     def test_receive(self, mock_access_token, mock_get):
         mock_access_token.return_value = 'ABC1234'
         mock_get.return_value = MockResponse(400, '{"error":"Not found"}')

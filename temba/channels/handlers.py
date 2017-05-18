@@ -31,7 +31,7 @@ from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, OUTGOING
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
-from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit
+from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit, save_response_media
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
 from temba.utils import decode_base64
@@ -2219,20 +2219,12 @@ class JioChatHandler(BaseChannelHandler):
         if not channel:
             return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
 
-        access_token = Channel.get_jiochat_access_token(channel.uuid)
+        client = channel.get_jiochat_client()
+        if client:
+            verified, echostr = client.verify_request(request)
 
-        signature = request.GET.get('signature')
-        timestamp = request.GET.get('timestamp')
-        nonce = request.GET.get('nonce')
-        echostr = request.GET.get('echostr')
-
-        value = "".join(sorted([access_token, timestamp, nonce]))
-
-        hash_object = hashlib.sha1(value.encode('utf-8'))
-        signature_check = hash_object.hexdigest()
-
-        if signature_check == signature:
-            return HttpResponse(echostr)
+            if verified:
+                return HttpResponse(echostr)
 
         return JsonResponse(dict(error="Unknown request"), status=400)
 
@@ -2249,6 +2241,8 @@ class JioChatHandler(BaseChannelHandler):
         if 'FromUserName' not in body or 'MsgType' not in body or 'MsgId' not in body:
             return HttpResponse("Missing parameters", status=400)
 
+        client = channel.get_jiochat_client()
+
         sender_id = body.get('FromUserName')
         create_time = body.get('CreateTime', None)
         msg_date = None
@@ -2261,7 +2255,7 @@ class JioChatHandler(BaseChannelHandler):
         msg = None
         contact_name = None
         if not channel.org.is_anon:
-            contact_detail = channel.get_jiochat_contact_detail(sender_id)
+            contact_detail = client.get_user_detail(sender_id)
             contact_name = contact_detail.get('nickname')
 
         contact = Contact.get_or_create(channel.org, channel.created_by, name=contact_name,
@@ -2271,7 +2265,9 @@ class JioChatHandler(BaseChannelHandler):
             msg = Msg.create_incoming(channel, urn, body.get('Content'), date=msg_date, contact=contact)
 
         elif msg_type in ['image', 'video', 'voice']:
-            media_url = channel.download_jiochat_media(body.get('MediaId'))
+            media_response = client.request_media(body.get('MediaId'))
+            content_type, downloaded = save_response_media(media_response, channel.org)
+            media_url = '%s:%s' % (content_type, downloaded)
             path = media_url.partition(':')[2]
 
             msg = Msg.create_incoming(channel, urn, path, attachments=[media_url], date=msg_date, contact=contact)
