@@ -720,6 +720,9 @@ GROUP_PERMISSIONS = {
         'channels.channellog_read',
         'channels.channellog_session',
 
+        'chatbase.chatbase_list',
+        'chatbase.chatbase_read',
+
         'reports.report.*',
 
         'flows.flow.*',
@@ -862,6 +865,9 @@ GROUP_PERMISSIONS = {
         'channels.channel_search_numbers',
         'channels.channel_update',
         'channels.channelevent.*',
+
+        'chatbase.chatbase_list',
+        'chatbase.chatbase_read',
 
         'reports.report.*',
 
