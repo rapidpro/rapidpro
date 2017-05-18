@@ -941,7 +941,6 @@ class Channel(TembaModel):
 
             if app_id and app_secret:
                 return JiochatClient(self.uuid, app_id, app_secret)
-        return None
 
     def get_twiml_client(self):
         from temba.ivr.clients import TwilioClient
