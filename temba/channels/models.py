@@ -1330,7 +1330,7 @@ class Channel(TembaModel):
                                       request_time=request_time_ms)
 
             # Fire to Chatbase API
-            Chatbase.create_and_fire(msg.org, msg.channel, msg.id, msg.contact)
+            Chatbase.fire(msg.org, msg.channel, msg.id, msg.contact)
 
     @classmethod
     def send_fcm_message(cls, channel, msg, text):

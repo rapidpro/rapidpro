@@ -1276,7 +1276,7 @@ class Msg(models.Model):
         msg = Msg.objects.create(**msg_args)
 
         # Fire to Chatbase API
-        Chatbase.create_and_fire(org.id, channel.id, msg.id, contact.id)
+        Chatbase.fire(org.id, channel.id, msg.id, contact.id)
 
         # if this contact is currently stopped, unstop them
         if contact.is_stopped:
