@@ -101,7 +101,7 @@ def render(parser, token):
     return RenderNode(nodes, as_var)
 
 
-@register.inclusion_tag('msgs/tags/attachment.html')
+@register.inclusion_tag('msgs/tags/attachment.haml')
 def attachment_button(attachment):
     content_type, delim, url = attachment.partition(":")
 
@@ -128,6 +128,6 @@ def attachment_button(attachment):
     }
 
 
-@register.inclusion_tag('msgs/tags/channel_log_link.html')
+@register.inclusion_tag('msgs/tags/channel_log_link.haml')
 def channel_log_link(msg_or_call):
     return {'log': msg_or_call.get_last_log()}
