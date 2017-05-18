@@ -175,6 +175,7 @@ class APITest(TembaTest):
         field.context = {'org': self.org}
 
         self.assertEqual(field.to_internal_value(campaign.uuid), campaign)
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {'id': 3})  # not a string or int
 
         field = fields.CampaignEventField(source='test')
         field.context = {'org': self.org}
