@@ -197,6 +197,10 @@
                           - for attachment in object.attachments
                             {% attachment_button attachment %}
 
+                      %td.value-icon.field_icon
+                        -if not user_org.is_anon
+                          {% channel_log_link object %}
+
                       %td.value-received.field_received
                         %nobr
                           {{ object.created_on|gmail_time }}

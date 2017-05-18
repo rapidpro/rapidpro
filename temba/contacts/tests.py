@@ -19,8 +19,7 @@ from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
 from temba.api.models import WebHookEvent, WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.templatetags.contacts import contact_field, osm_link, location, media_url, media_type
+from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
@@ -35,7 +34,7 @@ from .models import Contact, ContactGroup, ContactField, ContactURN, ExportConta
 from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
 from .search import parse_query, ContactQuery, Condition, IsSetCondition, BoolCombination, SinglePropCombination, SearchException
 from .tasks import squash_contactgroupcounts
-from .templatetags.contacts import activity_icon, history_class, is_playable_audio
+from .templatetags.contacts import contact_field, activity_icon, history_class
 
 
 class ContactCRUDLTest(_CRUDLTest):
@@ -1425,14 +1424,23 @@ class ContactTest(TembaTest):
 
         self.create_campaign()
 
-        # add one that is a video
-        self.create_msg(direction='I', contact=self.joe, attachments=["video:http://blah/file.mp4"],
-                        text="Video caption", created_on=timezone.now())
+        # add a message with some attachments
+        self.create_msg(direction='I', contact=self.joe, text="Message caption", created_on=timezone.now(),
+                        attachments=[
+                            "audio/mp3:http://blah/file.mp3",
+                            "video/mp4:http://blah/file.mp4",
+                            "geo:47.5414799,-122.6359908"])
 
         # create some messages
         for i in range(99):
             self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i,
                             created_on=timezone.now() - timedelta(days=(100 - i)))
+
+        # mark a message as failed
+        failed = Msg.objects.get(text="Inbound message 13")
+        failed.status = 'F'
+        failed.save()
+        log = ChannelLog.objects.create(channel=failed.channel, msg=failed, is_error=True, description="It didn't send!!")
 
         # because messages are stored with timestamps from external systems, possible to have initial message
         # which is little bit older than the contact itself
@@ -1472,11 +1480,17 @@ class ContactTest(TembaTest):
         self.assertEqual(activity[3]['obj'].direction, 'O')
         self.assertIsInstance(activity[4]['obj'], FlowRun)
         self.assertIsInstance(activity[5]['obj'], Msg)
-        self.assertEqual(activity[5]['obj'].attachments[0], "video:http://blah/file.mp4")
         self.assertIsInstance(activity[6]['obj'], Msg)
         self.assertEqual(activity[6]['obj'].text, "Inbound message 98")
         self.assertIsInstance(activity[9]['obj'], EventFire)
         self.assertEqual(activity[-1]['obj'].text, "Inbound message 11")
+
+        self.assertContains(response, '<audio ')
+        self.assertContains(response, '<source type="audio/mp3" src="http://blah/file.mp3" />')
+        self.assertContains(response, '<video ')
+        self.assertContains(response, '<source type="video/mp4" src="http://blah/file.mp4" />')
+        self.assertContains(response, 'http://www.openstreetmap.org/?mlat=47.5414799&amp;mlon=-122.6359908#map=18/47.5414799/-122.6359908')
+        self.assertContains(response, '/channels/channellog/read/%d/' % log.id)
 
         # fetch next page
         before = datetime_to_ms(timezone.now() - timedelta(days=90))
@@ -1685,26 +1699,6 @@ class ContactTest(TembaTest):
 
         run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
         self.assertEqual(activity_icon(item), '<span class="glyph icon-clock"></span>')
-
-    def test_media_tags(self):
-
-        # malformed
-        self.assertIsNone(location('malformed'))
-        self.assertIsNone(location('geo:latlngs'))
-        self.assertIsNone(osm_link('malformed'))
-        self.assertIsNone(osm_link('geo:latlngs'))
-
-        # valid
-        media = 'geo:47.5414799,-122.6359908'
-        self.assertEqual(osm_link(media), 'http://www.openstreetmap.org/?mlat=47.5414799&mlon=-122.6359908#map=18/47.5414799/-122.6359908')
-        self.assertEqual(location(media), '47.5414799,-122.6359908')
-
-        # splitting the type and path
-        self.assertEqual(media_type(media), 'geo')
-        self.assertEqual(media_url(media), '47.5414799,-122.6359908')
-
-        self.assertTrue(is_playable_audio('audio/wav'))
-        self.assertFalse(is_playable_audio('audio/midi'))
 
     def test_get_scheduled_messages(self):
         self.just_joe = self.create_group("Just Joe", [self.joe])

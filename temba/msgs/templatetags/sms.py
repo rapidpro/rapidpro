@@ -126,3 +126,8 @@ def attachment_button(attachment):
         'url': url,
         'is_playable': content_type in PLAYABLE_CONTENT_TYPES
     }
+
+
+@register.inclusion_tag('msgs/tags/channel_log_link.html')
+def channel_log_link(msg_or_call):
+    return {'log': msg_or_call.get_last_log()}
