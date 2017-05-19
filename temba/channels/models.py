@@ -3101,7 +3101,7 @@ class Channel(TembaModel):
                     sent_count -= 1
 
                     # make sure media isn't sent more than once
-                    msg.media = None
+                    msg.attachments = None
 
         # update the number of sms it took to send this if it was more than 1
         if len(parts) > 1:
