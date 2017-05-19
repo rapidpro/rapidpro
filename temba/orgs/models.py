@@ -898,7 +898,7 @@ class Org(SmartModel):
             # clear all our channel configurations
             self.clear_channel_caches()
 
-    def add_chatbase_config(self, agent_name, api_key, type, not_handled, feedback, version, user):
+    def connect_chatbase(self, agent_name, api_key, type, not_handled, feedback, version, user):
         chatbase_config = {
             CHATBASE_AGENT_NAME: agent_name,
             CHATBASE_API_KEY: api_key,
@@ -914,7 +914,7 @@ class Org(SmartModel):
         self.modified_by = user
         self.save()
 
-    def remove_chatbase_config(self, user):
+    def remove_chatbase_account(self, user):
         config = self.config_json()
         config[CHATBASE_AGENT_NAME] = ''
         config[CHATBASE_API_KEY] = ''

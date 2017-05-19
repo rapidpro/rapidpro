@@ -2039,10 +2039,10 @@ class OrgCRUDL(SmartCRUDL):
             disconnect = form.cleaned_data.get('disconnect', 'false') == 'true'
 
             if disconnect:
-                org.remove_chatbase_config(user)
+                org.remove_chatbase_account(user)
                 return HttpResponseRedirect(reverse('orgs.org_home'))
             elif api_key and type:
-                org.add_chatbase_config(agent_name, api_key, type, not_handled, feedback, version, user)
+                org.connect_chatbase(agent_name, api_key, type, not_handled, feedback, version, user)
 
             return super(OrgCRUDL.Chatbase, self).form_valid(form)
 
