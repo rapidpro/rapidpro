@@ -1,15 +1,9 @@
 v3.0.142
 ----------
  * Fix handling of old msg structs with no attachments attribute
-
-v3.0.141
-----------
  * Tweak in create_outgoing to prevent possible NPEs in flow execution
-
-v3.0.140
-----------
- * Replace index on Value.string_value with one that is limited to first 32 chars
  * Switch to using Msg.attachments instead of Msg.media
+ * Replace index on Value.string_value with one that is limited to first 32 chars
 
 v3.0.139
 ----------
