@@ -533,8 +533,11 @@ class Contact(TembaModel):
         broadcasts = []
         for recipient in recipients:
             broadcast = recipient.broadcast
+            media = broadcast.get_translated_media(contact=self, org=self.org) if broadcast.media else None
+
             broadcast.translated_text = broadcast.get_translated_text(contact=self, org=self.org)
             broadcast.purged_status = recipient.purged_status
+            broadcast.attachments = [media] if media else []
             broadcasts.append(broadcast)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events

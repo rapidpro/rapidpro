@@ -1168,17 +1168,6 @@ class Msg(models.Model):
         # send our message
         self.org.trigger_send([cloned])
 
-    def get_flow_step(self):  # pragma: needs cover
-        if self.msg_type not in (FLOW, IVR):
-            return None
-
-        steps = list(self.steps.all())  # steps may have been pre-fetched
-        return steps[0] if steps else None
-
-    def get_flow(self):  # pragma: needs cover
-        step = self.get_flow_step()
-        return step.run.flow if step else None
-
     def as_task_json(self):
         """
         Used internally to serialize to JSON when queueing messages in Redis
