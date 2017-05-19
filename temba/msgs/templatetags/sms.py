@@ -13,7 +13,8 @@ PLAYABLE_CONTENT_TYPES = {
     'audio/ogg',
     'audio/mp3',
     'audio/m4a',
-    'video/mp4'
+    'video/mp4',
+    'video/webm'
 }
 
 
