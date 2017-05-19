@@ -10,7 +10,12 @@
       {{preview}}
 
   -elif category == 'video' and is_playable
-    %a.attachment-preview{ href:"#", data-featherlight:'<video controls><source type="{{content_type}}" src="{{url}}" /></video>' }
+    %a.attachment-preview{
+      href:"#",
+      data-featherlight:'<video class="video-js vjs-default-skin" controls preload="auto"><source type="{{content_type}}" src="{{url}}" /></video>',
+      data-featherlight-after-content:'initializeVideoPlayer(this.$content[0])',
+      data-featherlight-after-close:'disposeVideoPlayer(this.$content[0])'
+    }
       .attachment-icon.icon-videocam
       {{preview}}
 

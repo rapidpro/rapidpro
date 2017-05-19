@@ -106,7 +106,7 @@ def attachment_button(attachment):
     content_type, delim, url = attachment.partition(":")
 
     # some OGG/OGA attachments may have wrong content type
-    if content_type == 'application/octet-stream' and (url.endswith('.ogg') or url.endswith('.oga')):
+    if content_type == 'application/octet-stream' and (url.endswith('.ogg') or url.endswith('.oga')):  # pragma: no cover
         content_type = 'audio/ogg'
 
     category = content_type.split('/')[0] if '/' in content_type else content_type
