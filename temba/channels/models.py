@@ -1294,7 +1294,7 @@ class Channel(TembaModel):
     def success(cls, channel, msg, msg_status, start, external_id=None, event=None, events=None):
         request_time = time.time() - start
 
-        from temba.chatbase.models import Chatbase
+        from temba.chatbase.tasks import send_chatbase_event
         from temba.msgs.models import Msg
         Msg.mark_sent(channel.config['r'], msg, msg_status, external_id)
 
@@ -1329,8 +1329,8 @@ class Channel(TembaModel):
                                       response_status=event.status_code,
                                       request_time=request_time_ms)
 
-            # Fire to Chatbase API
-            Chatbase.fire(msg.org, msg.channel, msg.id, msg.contact)
+            # Task to send data to Chatbase API
+            on_transaction_commit(lambda: send_chatbase_event.delay(msg.org, msg.channel, msg.id, msg.contact))
 
     @classmethod
     def send_fcm_message(cls, channel, msg, text):

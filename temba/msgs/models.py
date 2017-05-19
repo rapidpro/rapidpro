@@ -1209,8 +1209,8 @@ class Msg(models.Model):
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
                         status=PENDING, media=None, msg_type=None, topup=None, external_id=None, session=None):
 
+        from temba.chatbase.tasks import send_chatbase_event
         from temba.api.models import WebHookEvent
-        from temba.chatbase.models import Chatbase
         if not org and channel:
             org = channel.org
 
@@ -1275,9 +1275,6 @@ class Msg(models.Model):
 
         msg = Msg.objects.create(**msg_args)
 
-        # Fire to Chatbase API
-        Chatbase.fire(org.id, channel.id, msg.id, contact.id)
-
         # if this contact is currently stopped, unstop them
         if contact.is_stopped:
             contact.unstop(user)
@@ -1291,6 +1288,9 @@ class Msg(models.Model):
 
             # fire an event off for this message
             WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, date)
+
+        # Task to send data to Chatbase API
+        on_transaction_commit(lambda: send_chatbase_event.delay(org.id, channel.id, msg.id, contact.id))
 
         return msg
 

@@ -12,7 +12,6 @@ from temba.contacts.models import Contact
 from temba.msgs.models import Msg
 from temba.orgs.models import Org, CHATBASE_TYPE, CHATBASE_API_KEY, CHATBASE_FEEDBACK, CHATBASE_NOT_HANDLED, \
     CHATBASE_VERSION
-from temba.utils import on_transaction_commit
 
 
 class Chatbase(SmartModel):
@@ -84,8 +83,3 @@ class Chatbase(SmartModel):
         self.save()
 
         return response
-
-    @classmethod
-    def fire(cls, org, channel, msg, contact):
-        from temba.chatbase.tasks import send_chatbase_event
-        on_transaction_commit(lambda: send_chatbase_event.delay(org, channel, msg, contact))
