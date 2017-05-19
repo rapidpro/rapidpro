@@ -187,12 +187,6 @@
                                 %a{href:"{% url 'msgs.msg_filter' label.pk%}"}
                                   {{label.name}}
 
-                            - with flow=object.get_flow
-                              - if flow
-                                %span.label.label-success
-                                  %a{href:"{% url 'flows.flow_editor' flow.uuid %}"}
-                                    {{object.flow.name}}
-
                         .value-attachments{ style:"margin-top: 5px" }
                           - for attachment in object.attachments
                             {% attachment_button attachment %}
