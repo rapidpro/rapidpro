@@ -1,3 +1,9 @@
+v3.0.143
+----------
+ * Update contact read page and inbox views to show multiple message attachments 
+ * Fix use of videojs to provide consistent video playback across browsers
+ * API should return error message if user provides something unparseable for a non-serializer param
+
 v3.0.142
 ----------
  * Fix handling of old msg structs with no attachments attribute
