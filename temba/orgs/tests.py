@@ -1364,6 +1364,24 @@ class OrgTest(TembaTest):
         self.assertContains(response, reverse('airtime.airtimetransfer_list'))
         self.assertContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
 
+    def test_chatbase_model_methods(self):
+        org = self.org
+
+        org.refresh_from_db()
+        self.assertFalse(org.is_connected_to_chatbase())
+
+        org.connect_chatbase('agent_name', 'api_token', 'type', True, False, '1.0', self.user)
+
+        org.refresh_from_db()
+        self.assertTrue(org.is_connected_to_chatbase())
+        self.assertEqual(org.modified_by, self.user)
+
+        org.remove_chatbase_account(self.user)
+
+        org.refresh_from_db()
+        self.assertFalse(org.is_connected_to_chatbase())
+        self.assertEqual(org.modified_by, self.user)
+
     def test_resthooks(self):
         # no hitting this page without auth
         resthook_url = reverse('orgs.org_resthooks')
