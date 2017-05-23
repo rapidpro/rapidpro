@@ -836,7 +836,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, ruleset, translation) ->
 
   $scope.translation = translation
-  
+
   # clone our ruleset
   ruleset = utils.clone(ruleset)
 
@@ -1089,6 +1089,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   formData.flowField = Flow.getFieldSelection($scope.flowFields, $scope.ruleset.operand, true)
   formData.contactField = Flow.getFieldSelection($scope.contactFields, $scope.ruleset.operand, false)
+
+  formData.isAdditionalOptionsVisible = false
+
+  $scope.showAdditionalOptions = () ->
+    if formData.isAdditionalOptionsVisible
+      formData.isAdditionalOptionsVisible = false
+    else
+      formData.isAdditionalOptionsVisible = true
 
   config = $scope.ruleset.config
   if not config
@@ -1918,7 +1926,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.action.type = 'flow'
 
     flow = flow[0]
-    $scope.action.flow = 
+    $scope.action.flow =
       uuid: flow.id
       name: flow.text
 
