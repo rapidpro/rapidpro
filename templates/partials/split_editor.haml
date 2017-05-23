@@ -113,6 +113,22 @@
 
         %select{ng-model:"formData.webhook_action",ng-options:"method for method in methods",style:"height:34px;width:95px",class:"method",select2:""}
         %input{ng-model:"formData.webhook",placeholder:"http://yourwebsite.com/endpoint",auto-complete:"",ng-required:"true",type:"url",class:"url"}
+        .webhook-headers
+
+          %a.expand{href:"javascript:;",ng-click:'showAdditionalOptions()'}
+            -trans "Additional options"
+
+          .templates
+            .webhook-header-pair{ng-if:'formData.isAdditionalOptionsVisible'}
+              .webhook-header-key
+                .message
+                  -trans "Header key"
+                %input{type:"text",ng-model:"formData.webhook_header_key[]"}
+              .webhook-header-value
+                .message
+                  -trans "Header value"
+                %input{type:"text",ng-model:"formData.webhook_header_value[]"}
+
         .help-text
           -blocktrans
             We'll include the message text along with data specified in
