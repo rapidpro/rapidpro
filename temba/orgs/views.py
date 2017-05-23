@@ -1991,7 +1991,7 @@ class OrgCRUDL(SmartCRUDL):
                     type = self.cleaned_data.get('type')
 
                     if not agent_name or not api_key or not type:
-                        raise ValidationError(_("Missing data: Agent Name, API Key and Type. "
+                        raise ValidationError(_("Missing data: Agent Name, API Key or Type. "
                                                 "Please check them again and retry."))
 
                 return self.cleaned_data
