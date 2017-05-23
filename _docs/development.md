@@ -22,6 +22,7 @@ You'll need the following to get started:
  * [lessc](http://lesscss.org), the Less compiler.
  * [coffee](http://coffeescript.org), the Coffee script compiler.
  * [bower](http://bower.io), package manager for javascript libraries.
+ * [libmagic](http://brewformulas.org/Libmagic) or [libmagic-dev](https://packages.ubuntu.com/search?keywords=libmagic-dev) depending on your development platform. Required by https://github.com/dveselov/python-libmagic.
 
 ## Create temba user for PostgreSQL
 
