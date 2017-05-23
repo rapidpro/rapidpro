@@ -1382,6 +1382,69 @@ class OrgTest(TembaTest):
         self.assertFalse(org.is_connected_to_chatbase())
         self.assertEqual(org.modified_by, self.user)
 
+    def test_chatbase_account(self):
+
+        self.login(self.admin)
+
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_connected_to_chatbase())
+
+        chatbase_account_url = reverse('orgs.org_chatbase')
+        response = self.client.get(chatbase_account_url)
+        self.assertContains(response, 'Chatbase')
+
+        payload = dict(version='1.0', not_handled=True, feedback=False, disconnect='false')
+
+        response = self.client.post(chatbase_account_url, payload, follow=True)
+        self.assertContains(response, "Missing data: Agent Name, API Key or Type.")
+        self.assertFalse(self.org.is_connected_to_chatbase())
+
+        payload.update(dict(api_key='api_key', agent_name='chatbase_agent', type='user'))
+
+        self.client.post(chatbase_account_url, payload, follow=True)
+
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.is_connected_to_chatbase())
+
+        self.assertEquals(self.org.config_json()['CHATBASE_API_KEY'], 'api_key')
+        self.assertEquals(self.org.config_json()['CHATBASE_AGENT_NAME'], 'chatbase_agent')
+        self.assertEquals(self.org.config_json()['CHATBASE_TYPE'], 'user')
+        self.assertEquals(self.org.config_json()['CHATBASE_VERSION'], '1.0')
+        self.assertEquals(self.org.config_json()['CHATBASE_FEEDBACK'], False)
+        self.assertEquals(self.org.config_json()['CHATBASE_NOT_HANDLED'], True)
+
+        org_home_url = reverse('orgs.org_home')
+
+        response = self.client.get(org_home_url)
+        self.assertContains(response, self.org.config_json()['CHATBASE_AGENT_NAME'])
+
+        payload = dict(disconnect='true')
+
+        self.client.post(chatbase_account_url, payload, follow=True)
+
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_connected_to_chatbase())
+
+        response = self.client.get(chatbase_account_url, HTTP_X_FORMAX=True)
+        self.assertNotContains(response, reverse('chatbase.chatbase_list'))
+        self.assertNotContains(response, "%s?disconnect=true" % reverse('orgs.org_chatbase'))
+
+        response = self.client.get(chatbase_account_url)
+        self.assertNotContains(response, reverse('chatbase.chatbase_list'))
+        self.assertNotContains(response, "%s?disconnect=true" % reverse('orgs.org_chatbase'))
+
+        self.org.connect_chatbase('agent_name', 'api_key', 'agent', False, True, '1.0', self.admin)
+
+        # links not show if request is not from formax
+        response = self.client.get(chatbase_account_url)
+        self.assertNotContains(response, reverse('chatbase.chatbase_list'))
+        self.assertNotContains(response, "%s?disconnect=true" % reverse('orgs.org_chatbase'))
+
+        # link show for formax requests
+        response = self.client.get(chatbase_account_url, HTTP_X_FORMAX=True)
+        self.assertContains(response, reverse('chatbase.chatbase_list'))
+        self.assertContains(response, "%s?disconnect=true" % reverse('orgs.org_chatbase'))
+
     def test_resthooks(self):
         # no hitting this page without auth
         resthook_url = reverse('orgs.org_resthooks')
