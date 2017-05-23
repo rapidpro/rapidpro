@@ -801,7 +801,6 @@ GROUP_PERMISSIONS = {
         'locations.adminboundary_geometry',
 
         'orgs.org_api',
-        'orgs.org_chatbase',
         'orgs.org_download',
         'orgs.org_export',
         'orgs.org_home',
@@ -1273,4 +1272,4 @@ MSG_FIELD_SIZE = 640
 SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
 
-CHATBASE_API_URL = 'https://chatbase-area120.appspot.com/api/message'
+CHATBASE_API_URL = 'https://chatbase.com/api/message'
