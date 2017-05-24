@@ -37,7 +37,7 @@
                       {{ count_comma }} recipients
                     {% endblocktrans %}
                 %td
-                  -get_value object 'text'
+                  {{ object.get_default_text }}
                 %td
                   %nobr
                     {{ object.created_on|gmail_time }}

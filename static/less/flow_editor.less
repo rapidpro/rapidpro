@@ -428,6 +428,17 @@
       .ruleset-body {
         padding: 6px;
         border-bottom: 1px solid @flat-white;
+
+        .flow-link {
+          a {
+            color: @color-font-lightgrey;
+
+            &:hover {
+              text-decoration: underline;
+            }
+          }
+        }
+
       }
 
       &.dragging:hover {
@@ -749,7 +760,7 @@
 }
 
 
-  .reply, .send {
+  .reply, .send, .end_ussd {
     .title {
       text-shadow: 0px 1px @color-response - #222;
       .bg-gradient(@color-response, @color-response - #101010);
@@ -1016,8 +1027,8 @@
     }
   }
 
-  .sms-directive {
-    textarea.sms {
+  .msg-directive {
+    textarea.msg {
       height: 100px;
       padding: 10px;
       width: 498px;
@@ -1029,7 +1040,7 @@
     }
 
     .warning {
-      color: @flat-darkgrey;
+      color: @flat-mutedred;
     }
   }
 

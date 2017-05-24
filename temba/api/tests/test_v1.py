@@ -1034,8 +1034,9 @@ class APITest(TembaTest):
 
         # try updating a non-existent field
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
-        self.assertEquals(400, response.status_code)
-        self.assertIsNone(contact.get_field('real_name'))
+        self.assertEquals(201, response.status_code)
+        self.assertIsNotNone(contact.get_field('real_name'))
+        self.assertEquals("Andy", contact.get_field_display("real_name"))
 
         # create field and try again
         ContactField.get_or_create(self.org, self.user, 'real_name', "Real Name", value_type='T')
@@ -1062,8 +1063,8 @@ class APITest(TembaTest):
         state.is_active = False
         state.save()
         response = self.postJSON(url, dict(phone='+250788123456', fields={"state": "VA"}))
-        self.assertContains(response, "Invalid", status_code=400)
-        self.assertEquals("IL", Value.objects.get(contact=contact, contact_field=state).string_value)   # unchanged
+        self.assertEqual(response.status_code, 201)
+        self.assertEquals("VA", Value.objects.get(contact=contact, contact_field=state).string_value)   # unchanged
 
         drdre = Contact.objects.get()
 
@@ -1094,7 +1095,8 @@ class APITest(TembaTest):
 
         self.assertEqual(resp_json['results'][1]['name'], "Dr Dre")
         self.assertEqual(resp_json['results'][1]['urns'], ['tel:+250788123456', 'twitter:drdre'])
-        self.assertEqual(resp_json['results'][1]['fields'], {'real_name': "Andre", 'registration_date': None})
+        self.assertEqual(resp_json['results'][1]['fields'], {'real_name': "Andre", 'registration_date': None,
+                                                             'state': 'VA'})
         self.assertEqual(resp_json['results'][1]['group_uuids'], [artists.uuid])
         self.assertEqual(resp_json['results'][1]['groups'], ["Music Artists"])
         self.assertEqual(resp_json['results'][1]['blocked'], False)
@@ -1102,7 +1104,8 @@ class APITest(TembaTest):
 
         self.assertEqual(resp_json['results'][0]['name'], "Jay-Z")
         self.assertEqual(resp_json['results'][0]['fields'], {'real_name': None,
-                                                             'registration_date': "2014-12-31T01:04:00.000000Z"})
+                                                             'registration_date': "2014-12-31T01:04:00.000000Z",
+                                                             'state': None})
 
         # search using deprecated phone field
         response = self.fetchJSON(url, "phone=%2B250788123456")
@@ -1410,7 +1413,7 @@ class APITest(TembaTest):
         broadcast = serializer.save()
         contact = Contact.objects.get(urns__path='+250964150000')
         self.assertEqual(set(broadcast.contacts.all()), {contact, self.joe})
-        self.assertEqual(broadcast.text, 'Hello1')
+        self.assertEqual(broadcast.text, {'base': 'Hello1'})
 
         # try again with explicit channel
         serializer = MsgCreateSerializer(org=self.org, user=self.admin, data={
@@ -1422,7 +1425,7 @@ class APITest(TembaTest):
 
         broadcast = serializer.save()
         self.assertEqual(broadcast.channel, self.channel)
-        self.assertEqual(broadcast.text, 'Hello2')
+        self.assertEqual(broadcast.text, {'base': 'Hello2'})
 
         # try with channel that isn't ours
         serializer = MsgCreateSerializer(org=self.org, user=self.admin, data={

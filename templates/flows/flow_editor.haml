@@ -370,7 +370,7 @@
 
 
                 // messages with translations
-                %span.translation{ng-show:'action.type == "send" || action.type == "reply" || action.type == "say"'}
+                %span.translation{ng-show:'action.type == "send" || action.type == "reply" || action.type == "say" || action.type == "end_ussd"'}
 
                   .text{ng-class:'{}'}
 
@@ -451,8 +451,8 @@
                     [[action.name]]
 
 
-          .add.icon-plus-circle2{ng-click:'addAction(action_set);'}
-          .source{ng-attr-id:'[[action_set.uuid]]_source', drop-scope:'rules', ng-class:'{connected:action_set.destination}', ng-click:'clickActionSource(action_set); $event.stopPropagation()'}
+          .add.icon-plus-circle2{ng-show:'!hasEndUssd(action_set)', ng-click:'addAction(action_set);'}
+          .source{ng-show:'!hasEndUssd(action_set)', ng-attr-id:'[[action_set.uuid]]_source', drop-scope:'rules', ng-class:'{connected:action_set.destination}', ng-click:'clickActionSource(action_set); $event.stopPropagation()'}
             .recent-messages{ng-show:'action_set._showMessages'}
               .title
                 -trans "Recent Messages"
@@ -569,7 +569,9 @@
           .div
             .ruleset-body{ng-show:'ruleset.ruleset_type=="subflow"'}
               -trans "Run flow "
-              [[ruleset.config.flow.name]]
+              %span.flow-link{ng-click:'$event.stopPropagation();'}
+                %a{href:'../[[ruleset.config.flow.uuid]]'}
+                  [[ruleset.config.flow.name]]
 
           %table{style:'width:100%;', ruleset:"ruleset"}
             %tr.rules

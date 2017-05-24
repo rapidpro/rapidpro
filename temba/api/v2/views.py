@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import itertools
 import six
 
 from django import forms
@@ -9,6 +10,7 @@ from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
+from enum import Enum
 from rest_framework import generics, mixins, status, views
 from rest_framework.pagination import CursorPagination
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -116,6 +118,11 @@ class RootView(views.APIView):
      * **mailto:jack@example.com**
 
     Phone numbers should always be given in full [E164 format](http://en.wikipedia.org/wiki/E.164).
+
+    ## Translatable Values
+
+    Some endpoints return or accept text fields that may be translated into different languages. These should be objects
+    with ISO-639-2 language codes as keys, e.g. `{"eng": "Hello", "fre": "Bonjour"}`
 
     ## Authentication
 
@@ -575,7 +582,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **urns** - the URNs that received the broadcast (array of strings)
      * **contacts** - the contacts that received the broadcast (array of objects)
      * **groups** - the groups that received the broadcast (array of objects)
-     * **text** - the message text (string)
+     * **text** - the message text (string or translations object)
      * **created_on** - when this broadcast was either created (datetime) (filterable as `before` and `after`).
 
     Example:
@@ -820,7 +827,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
      * **offset** - the offset from our contact field (positive or negative integer).
      * **unit** - the unit for our offset (one of "minutes, "hours", "days", "weeks").
      * **delivery_hour** - the hour of the day to deliver the message (integer 0-24, -1 indicates send at the same hour as the contact field).
-     * **message** - the message to send to the contact if this is a message event (string)
+     * **message** - the message to send to the contact if this is a message event (string or translations object)
      * **flow** - the UUID and name of the flow if this is a flow event (object).
      * **created_on** - when the event was created (datetime).
 
@@ -882,7 +889,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
             "offset": 160,
             "unit": "W",
             "delivery_hour": -1,
-            "message": "Feeling sick and helpless, lost the compass where self is."
+            "message": {"eng": "Feeling sick and helpless, lost the compass where self is."},
             "flow": null,
             "created_on": "2013-08-19T19:11:21.088453Z"
         }
@@ -1550,6 +1557,11 @@ class DefinitionsEndpoint(BaseAPIView):
     """
     permission = 'orgs.org_api'
 
+    class Depends(Enum):
+        none = 0
+        flows = 1
+        all = 2
+
     def get(self, request, *args, **kwargs):
         org = request.user.get_org()
         params = request.query_params
@@ -1561,40 +1573,26 @@ class DefinitionsEndpoint(BaseAPIView):
             flow_uuids = params.getlist('flow')
             campaign_uuids = params.getlist('campaign')
 
-        dependency_type = params.get('dependencies', 'all')
-        depends = dependency_type != 'none'
+        include = DefinitionsEndpoint.Depends[params.get('dependencies', 'all')]
 
         if flow_uuids:
-            flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org))
+            flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org, is_active=True))
         else:
             flows = set()
 
-        # any fetched campaigns
-        campaigns = []
         if campaign_uuids:
-            campaigns = Campaign.objects.filter(uuid__in=campaign_uuids, org=org)
+            campaigns = set(Campaign.objects.filter(uuid__in=campaign_uuids, org=org, is_active=True))
+        else:
+            campaigns = set()
 
-            if depends:
-                for campaign in campaigns:
-                    for event in campaign.events.filter(event_type=CampaignEvent.TYPE_FLOW, is_active=True).exclude(flow=None):
-                        flows.add(event.flow)
+        if include == DefinitionsEndpoint.Depends.none:
+            components = set(itertools.chain(flows, campaigns))
+        elif include == DefinitionsEndpoint.Depends.flows:
+            components = org.resolve_dependencies(flows, campaigns, include_campaigns=False, include_triggers=True)
+        else:
+            components = org.resolve_dependencies(flows, campaigns, include_campaigns=True, include_triggers=True)
 
-        # get any dependencies on our flows and campaigns
-        dependencies = dict(flows=set(), campaigns=set(campaigns), triggers=set(), groups=set())
-        for flow in flows:
-            if depends:
-                include_campaigns = dependency_type == 'all'
-                dependencies = flow.get_dependencies(dependencies=dependencies, include_campaigns=include_campaigns)
-
-        # make sure our requested items are included flows we requested are included
-        to_export = dict(flows=dependencies['flows'],
-                         campaigns=dependencies['campaigns'],
-                         triggers=dependencies['triggers'])
-
-        # add in our primary requested flows
-        to_export['flows'].update(flows)
-
-        export = org.export_definitions(self.request.branding['link'], **to_export)
+        export = org.export_definitions(self.request.branding['link'], components)
 
         return Response(export, status=status.HTTP_200_OK)
 
@@ -1749,6 +1747,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
      * **labels** - the labels for this flow (array of objects)
      * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer)
      * **created_on** - when this flow was created (datetime)
+     * **modified_on** - when this flow was last modified (datetime), filterable as `before` and `after`.
      * **runs** - the counts of completed, interrupted and expired runs (object)
 
     Example:
@@ -1768,6 +1767,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
                     "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                     "expires": 600,
                     "created_on": "2016-01-06T15:33:00.813162Z",
+                    "modified_on": "2017-01-07T13:14:00.453567Z",
                     "runs": {
                         "active": 47,
                         "completed": 123,
@@ -1794,7 +1794,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
 
         queryset = queryset.prefetch_related('labels')
 
-        return queryset
+        return self.filter_before_after(queryset, 'modified_on')
 
     @classmethod
     def get_read_explorer(cls):
@@ -1804,7 +1804,9 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
             'url': reverse('api.v2.flows'),
             'slug': 'flow-list',
             'params': [
-                {'name': "uuid", 'required': False, 'help': "A flow UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
+                {'name': "uuid", 'required': False, 'help': "A flow UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"},
+                {'name': 'before', 'required': False, 'help': "Only return flows modified before this date, ex: 2017-01-28T18:00:00.000"},
+                {'name': 'after', 'required': False, 'help': "Only return flows modified after this date, ex: 2017-01-28T18:00:00.000"}
             ]
         }
 

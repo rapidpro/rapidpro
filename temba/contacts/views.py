@@ -699,14 +699,16 @@ class ContactCRUDL(SmartCRUDL):
 
             merged_upcoming_events = []
             for fire in event_fires:
-                merged_upcoming_events.append(dict(event_type=fire.event.event_type, message=fire.event.get_message(),
+                merged_upcoming_events.append(dict(event_type=fire.event.event_type,
+                                                   message=fire.event.get_message(contact=contact),
                                                    flow_uuid=fire.event.flow.uuid, flow_name=fire.event.flow.name,
                                                    scheduled=fire.scheduled))
 
             for sched_broadcast in scheduled_messages:
                 merged_upcoming_events.append(dict(repeat_period=sched_broadcast.schedule.repeat_period, event_type='M',
-                                                   message=sched_broadcast.text, flow_uuid=None,
-                                                   flow_name=None, scheduled=sched_broadcast.schedule.next_fire))
+                                                   message=sched_broadcast.get_translated_text(contact, org=contact.org),
+                                                   flow_uuid=None, flow_name=None,
+                                                   scheduled=sched_broadcast.schedule.next_fire))
 
             # upcoming scheduled events
             context['upcoming_events'] = sorted(merged_upcoming_events, key=lambda k: k['scheduled'], reverse=True)

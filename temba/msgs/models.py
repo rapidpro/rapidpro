@@ -1,6 +1,5 @@
 from __future__ import print_function, unicode_literals
 
-import json
 import logging
 import pytz
 import regex
@@ -22,15 +21,14 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from django_redis import get_redis_connection
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from temba.assets.models import register_asset_store
-from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit, datetime_to_ms, dict_to_json
-from temba.utils.cache import get_cacheable_attr
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
-from temba.utils.models import SquashableModel, TembaModel
+from temba.utils.models import SquashableModel, TembaModel, TranslatableField
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
 from .handler import MessageHandler
 
@@ -186,9 +184,6 @@ class Broadcast(models.Model):
     recipient_count = models.IntegerField(verbose_name=_("Number of recipients"), null=True,
                                           help_text=_("Number of urns which received this broadcast"))
 
-    text = models.TextField(max_length=settings.MSG_FIELD_SIZE, verbose_name=_("Text"),
-                            help_text=_("The message to send out"))
-
     channel = models.ForeignKey(Channel, null=True, verbose_name=_("Channel"),
                                 help_text=_("Channel to use for message sending"))
 
@@ -200,10 +195,10 @@ class Broadcast(models.Model):
 
     parent = models.ForeignKey('Broadcast', verbose_name=_("Parent"), null=True, related_name='children')
 
-    language_dict = models.TextField(verbose_name=_("Translations"),
-                                     help_text=_("The localized versions of the broadcast"), null=True)
+    text = TranslatableField(verbose_name=_("Translations"), max_length=settings.MSG_FIELD_SIZE,
+                             help_text=_("The localized versions of the message text"))
 
-    base_language = models.CharField(max_length=4, null=True, blank=True,
+    base_language = models.CharField(max_length=4,
                                      help_text=_('The language used to send this to contacts without a language'))
 
     is_active = models.BooleanField(default=True, help_text="Whether this broadcast is active")
@@ -223,18 +218,27 @@ class Broadcast(models.Model):
     purged = models.BooleanField(default=False,
                                  help_text="If the messages for this broadcast have been purged")
 
-    media_dict = models.TextField(verbose_name=_("Media"),
-                                  help_text=_("The localized versions of the media"), null=True)
+    media = TranslatableField(verbose_name=_("Media"), max_length=255,
+                              help_text=_("The localized versions of the media"), null=True)
 
     send_all = models.BooleanField(default=False,
                                    help_text="Whether this broadcast should send to all URNs for each contact")
 
     @classmethod
-    def create(cls, org, user, text, recipients, channel=None, media_dict=None, send_all=False, **kwargs):
-        create_args = dict(org=org, text=text, channel=channel, media_dict=media_dict, send_all=send_all,
-                           created_by=user, modified_by=user)
-        create_args.update(kwargs)
-        broadcast = Broadcast.objects.create(**create_args)
+    def create(cls, org, user, text, recipients, base_language=None, channel=None, media=None, send_all=False, **kwargs):
+        # for convenience broadcasts can still be created with single translation and no base_language
+        if isinstance(text, six.string_types):
+            base_language = org.primary_language.iso_code if org.primary_language else 'base'
+            text = {base_language: text}
+
+        if base_language not in text:  # pragma: no cover
+            raise ValueError("Base language %s doesn't exist in the provided translations dict" % base_language)
+        if media and base_language not in media:  # pragma: no cover
+            raise ValueError("Base language %s doesn't exist in the provided translations dict")
+
+        broadcast = cls.objects.create(org=org, channel=channel, send_all=send_all,
+                                       base_language=base_language, text=text, media=media,
+                                       created_by=user, modified_by=user, **kwargs)
         broadcast.update_recipients(recipients)
         return broadcast
 
@@ -305,7 +309,8 @@ class Broadcast(models.Model):
     def fire(self):
         recipients = list(self.urns.all()) + list(self.contacts.all()) + list(self.groups.all())
         broadcast = Broadcast.create(self.org, self.created_by, self.text, recipients,
-                                     parent=self, modified_by=self.modified_by)
+                                     media=self.media, base_language=self.base_language,
+                                     parent=self)
 
         broadcast.send(trigger_send=True)
 
@@ -340,76 +345,43 @@ class Broadcast(models.Model):
     def get_message_failed_count(self):  # pragma: needs cover
         return self.get_messages().filter(status__in=[FAILED, RESENT]).count()
 
-    def get_sync_commands(self, channel):
-        """
-        Returns the minimal # of broadcast commands for the given Android channel to uniquely represent all the
-        messages which are being sent to tel URNs. This will return an array of dicts that look like:
-             dict(cmd="mt_bcast", to=[dict(phone=msg.contact.tel, id=msg.pk) for msg in msgs], msg=broadcast.text))
-        """
-        commands = []
-        current_msg = None
-        contact_id_pairs = []
-
-        pending = self.get_messages().filter(status__in=[PENDING, QUEUED, WIRED], channel=channel,
-                                             contact_urn__scheme=TEL_SCHEME).select_related('contact_urn').order_by('text', 'pk')
-
-        for msg in pending:
-            if msg.text != current_msg and contact_id_pairs:
-                commands.append(dict(cmd='mt_bcast', to=contact_id_pairs, msg=current_msg))
-                contact_id_pairs = []
-
-            current_msg = msg.text
-            contact_id_pairs.append(dict(phone=msg.contact_urn.path, id=msg.pk))
-
-        if contact_id_pairs:
-            commands.append(dict(cmd='mt_bcast', to=contact_id_pairs, msg=current_msg))
-
-        return commands
-
-    def get_preferred_languages(self, contact, base_language=None, org=None):
+    def get_preferred_languages(self, contact=None, org=None):
         """
         Gets the ordered list of language preferences for the given contact
         """
         org = org or self.org  # org object can be provided to allow caching of org languages
         preferred_languages = []
 
+        # if contact has a language and it's a valid org language, it has priority
+        if contact is not None and contact.language and contact.language in org.get_language_codes():
+            preferred_languages.append(contact.language)
+
         if org.primary_language:
             preferred_languages.append(org.primary_language.iso_code)
 
-        if base_language:
-            preferred_languages.append(base_language)
-
-        # if contact has a language and it's a valid org language, it has priority
-        if contact.language and contact.language in org.get_language_codes():
-            preferred_languages = [contact.language] + preferred_languages
+        preferred_languages.append(self.base_language)
 
         return preferred_languages
 
-    def get_translations(self):
-        if not self.language_dict:
-            return []
-        return get_cacheable_attr(self, '_translations', lambda: json.loads(self.language_dict))
-
-    def get_media_translations(self):
-        if not self.media_dict:
-            return dict()
-        return get_cacheable_attr(self, '_media_translations', lambda: json.loads(self.media_dict))
+    def get_default_text(self):
+        """
+        Gets the appropriate display text for the broadcast without a contact
+        """
+        return self.text[self.base_language]
 
     def get_translated_text(self, contact, org=None):
         """
-        Gets the appropriate translation for the given contact. base_language may be provided
+        Gets the appropriate translation for the given contact
         """
-        translations = self.get_translations()
-        preferred_languages = self.get_preferred_languages(contact, self.base_language, org)
-        return Language.get_localized_text(translations, preferred_languages, self.text)
+        preferred_languages = self.get_preferred_languages(contact, org)
+        return Language.get_localized_text(self.text, preferred_languages)
 
     def get_translated_media(self, contact, org=None):
         """
-        Gets the appropriate media for the given contact. base_language may be provided
+        Gets the appropriate media for the given contact
         """
-        media_translations = self.get_media_translations()
-        preferred_languages = self.get_preferred_languages(contact, self.base_language, org)
-        return Language.get_localized_text(media_translations, preferred_languages, None)
+        preferred_languages = self.get_preferred_languages(contact, org)
+        return Language.get_localized_text(self.media, preferred_languages)
 
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
              created_on=None, partial_recipients=None, run_map=None):
@@ -451,7 +423,8 @@ class Broadcast(models.Model):
 
         # we batch up our SQL calls to speed up the creation of our SMS objects
         batch = []
-        recipient_batch = []
+        batch_recipients = []
+        existing_recipients = set(BroadcastRecipient.objects.filter(broadcast_id=self.id).values_list('contact_id', flat=True))
 
         # our priority is based on the number of recipients
         priority = Msg.PRIORITY_NORMAL
@@ -517,13 +490,16 @@ class Broadcast(models.Model):
             # only add it to our batch if it was legit
             if msg:
                 batch.append(msg)
-                # keep track of this URN as a recipient
-                recipient_batch.append(RelatedRecipient(contact_id=msg.contact_id, broadcast_id=self.id))
+
+                # if this isn't an existing recipient, add it as one
+                if msg.contact_id not in existing_recipients:
+                    existing_recipients.add(msg.contact_id)
+                    batch_recipients.append(RelatedRecipient(contact_id=msg.contact_id, broadcast_id=self.id))
 
             # we commit our messages in batches
             if len(batch) >= BATCH_SIZE:
                 Msg.objects.bulk_create(batch)
-                RelatedRecipient.objects.bulk_create(recipient_batch)
+                RelatedRecipient.objects.bulk_create(batch_recipients)
 
                 # send any messages
                 if trigger_send:
@@ -533,12 +509,12 @@ class Broadcast(models.Model):
                     created_on = created_on + timedelta(seconds=1)
 
                 batch = []
-                recipient_batch = []
+                batch_recipients = []
 
         # commit any remaining objects
         if batch:
             Msg.objects.bulk_create(batch)
-            RelatedRecipient.objects.bulk_create(recipient_batch)
+            RelatedRecipient.objects.bulk_create(batch_recipients)
 
             if trigger_send:
                 self.org.trigger_send(Msg.objects.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
@@ -749,14 +725,14 @@ class Msg(models.Model):
                 # update them to queued
                 send_messages = Msg.objects.filter(id__in=msg_ids)\
                                            .exclude(channel__channel_type=Channel.TYPE_ANDROID)\
-                                           .exclude(msg_type__in=(IVR, USSD))\
+                                           .exclude(msg_type=IVR)\
                                            .exclude(topup=None)\
                                            .exclude(contact__is_test=True)
                 send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
 
                 # now push each onto our queue
                 for msg in msgs:
-                    if (msg.msg_type != IVR and msg.msg_type != USSD and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and \
+                    if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and \
                             msg.topup and not msg.contact.is_test:
 
                         # if this is a different contact than our last, and we have msgs for that last contact, queue the task
@@ -1013,28 +989,26 @@ class Msg(models.Model):
             return parts
 
     @classmethod
-    def get_sync_commands(self, channel, msgs):
+    def get_sync_commands(cls, msgs):
         """
         Returns the minimal # of broadcast commands for the given Android channel to uniquely represent all the
         messages which are being sent to tel URNs. This will return an array of dicts that look like:
              dict(cmd="mt_bcast", to=[dict(phone=msg.contact.tel, id=msg.pk) for msg in msgs], msg=broadcast.text))
         """
         commands = []
-        current_msg = None
+        current_text = None
         contact_id_pairs = []
 
-        ordered_msgs = Msg.objects.filter(id__in=[m.id for m in msgs]).order_by('created_on')
-
-        for msg in ordered_msgs:
-            if msg.text != current_msg and contact_id_pairs:
-                commands.append(dict(cmd='mt_bcast', to=contact_id_pairs, msg=current_msg))
+        for m in msgs.values('id', 'text', 'contact_urn__path').order_by('created_on'):
+            if m['text'] != current_text and contact_id_pairs:
+                commands.append(dict(cmd='mt_bcast', to=contact_id_pairs, msg=current_text))
                 contact_id_pairs = []
 
-            current_msg = msg.text
-            contact_id_pairs.append(dict(phone=msg.contact_urn.path, id=msg.pk))
+            current_text = m['text']
+            contact_id_pairs.append(dict(phone=m['contact_urn__path'], id=m['id']))
 
         if contact_id_pairs:
-            commands.append(dict(cmd='mt_bcast', to=contact_id_pairs, msg=current_msg))
+            commands.append(dict(cmd='mt_bcast', to=contact_id_pairs, msg=current_text))
 
         return commands
 
@@ -1086,9 +1060,9 @@ class Msg(models.Model):
             return self.contact.send_all(text, user, trigger_send=trigger_send, message_context=message_context,
                                          response_to=self if self.id else None, session=session, media=media,
                                          msg_type=msg_type or self.msg_type, created_on=created_on)
-        return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None, session=session, media=media,
-                                 msg_type=msg_type or self.msg_type, created_on=created_on)
+        return [self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
+                                  response_to=self if self.id else None, session=session, media=media,
+                                  msg_type=msg_type or self.msg_type, created_on=created_on)]
 
     def update(self, cmd):
         """
@@ -1136,7 +1110,8 @@ class Msg(models.Model):
 
         # first push our msg on our contact's queue using our created date
         r = get_redis_connection('default')
-        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_ms(self.sent_on), dict_to_json(payload))
+        queue_time = self.sent_on if self.sent_on else timezone.now()
+        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_ms(queue_time), dict_to_json(payload))
 
         # queue up our celery task
         push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)
@@ -1220,7 +1195,7 @@ class Msg(models.Model):
                     status=self.status, direction=self.direction, media=self.media,
                     external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
-                    created_on=self.created_on, modified_on=self.modified_on)
+                    created_on=self.created_on, modified_on=self.modified_on, session_id=self.session_id)
 
         if self.contact_urn.auth:
             data.update(dict(auth=self.contact_urn.auth))
@@ -1662,8 +1637,8 @@ class SystemLabel(object):
                     (TYPE_CALLS, "Calls"))
 
     @classmethod
-    def get_counts(cls, org, label_types=None):
-        return SystemLabelCount.get_totals(org, label_types)
+    def get_counts(cls, org):
+        return SystemLabelCount.get_totals(org)
 
     @classmethod
     def get_queryset(cls, org, label_type, exclude_test_contacts=True):
@@ -1728,13 +1703,11 @@ class SystemLabelCount(SquashableModel):
         return sql, (distinct_set.org_id, distinct_set.label_type) * 2
 
     @classmethod
-    def get_totals(cls, org, label_types=None):
+    def get_totals(cls, org):
         """
         Gets all system label counts by type for the given org
         """
         counts = cls.objects.filter(org=org)
-        if label_types:
-            counts = counts.filter(label_type__in=label_types)
         counts = counts.values_list('label_type').annotate(count_sum=Sum('count'))
         counts_by_type = {c[0]: c[1] for c in counts}
 
@@ -2001,9 +1974,22 @@ class ExportMessagesTask(BaseExportTask):
 
     label = models.ForeignKey(Label, null=True)
 
+    system_label = models.CharField(null=True, max_length=1)
+
     start_date = models.DateField(null=True, blank=True, help_text=_("The date for the oldest message to export"))
 
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
+
+    @classmethod
+    def create(cls, org, user, system_label=None, label=None, groups=(), start_date=None, end_date=None):
+        if label and system_label:  # pragma: no cover
+            raise ValueError("Can't specify both label and system label")
+
+        export = cls.objects.create(org=org, system_label=system_label, label=label,
+                                    start_date=start_date, end_date=end_date,
+                                    created_by=user, modified_by=user)
+        export.groups.add(*groups)
+        return export
 
     def write_export(self):
         from openpyxl import Workbook
@@ -2021,25 +2007,27 @@ class ExportMessagesTask(BaseExportTask):
                             self.WIDTH_MEDIUM,  # Labels
                             self.WIDTH_SMALL]   # Status
 
-        all_messages = Msg.get_messages(self.org).order_by('-created_on')
+        if self.system_label:
+            messages = SystemLabel.get_queryset(self.org, self.system_label)
+        elif self.label:
+            messages = self.label.get_messages()
+        else:
+            messages = Msg.get_messages(self.org)
 
         tz = self.org.timezone
 
-        if self.start_date:  # pragma: needs cover
+        if self.start_date:
             start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
-            all_messages = all_messages.filter(created_on__gte=start_date)
+            messages = messages.filter(created_on__gte=start_date)
 
-        if self.end_date:  # pragma: needs cover
+        if self.end_date:
             end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
-            all_messages = all_messages.filter(created_on__lte=end_date)
+            messages = messages.filter(created_on__lte=end_date)
 
-        if self.groups.all():  # pragma: needs cover
-            all_messages = all_messages.filter(contact__all_groups__in=self.groups.all())
+        if self.groups.all():
+            messages = messages.filter(contact__all_groups__in=self.groups.all())
 
-        if self.label:  # pragma: needs cover
-            all_messages = all_messages.filter(labels=self.label)
-
-        all_message_ids = [m['id'] for m in all_messages.values('id')]
+        all_message_ids = list(messages.order_by('-created_on').values_list('id', flat=True))
 
         messages_sheet_number = 1
 

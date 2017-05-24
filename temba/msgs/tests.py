@@ -2,9 +2,10 @@
 from __future__ import unicode_literals
 
 import json
+import pytz
 import six
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
@@ -44,27 +45,36 @@ class MsgTest(TembaTest):
         msg2 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
         msg3 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, we heard from you.")
 
-        commands = Msg.get_sync_commands(self.channel, [msg1, msg2, msg3])
+        commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg2.id, msg3.id)))
 
-        self.assertEquals(1, len(commands))
-        self.assertEquals(3, len(commands[0]['to']))
+        self.assertEqual(commands, [
+            {'cmd': 'mt_bcast', 'to': [
+                {'phone': "123", 'id': msg1.id},
+                {'phone': "321", 'id': msg2.id},
+                {'phone': "987", 'id': msg3.id}
+            ], 'msg': "Hello, we heard from you."}
+        ])
 
         msg4 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, there")
 
-        commands = Msg.get_sync_commands(self.channel, [msg1, msg2, msg4])
+        commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg2.id, msg4.id)))
 
-        self.assertEquals(2, len(commands))
-        self.assertEquals(2, len(commands[0]['to']))
-        self.assertEquals(1, len(commands[1]['to']))
+        self.assertEqual(commands, [
+            {'cmd': 'mt_bcast', 'to': [
+                {'phone': "123", 'id': msg1.id}, {'phone': "321", 'id': msg2.id}
+            ], 'msg': "Hello, we heard from you."},
+            {'cmd': 'mt_bcast', 'to': [{'phone': "987", 'id': msg4.id}], 'msg': "Hello, there"}
+        ])
 
         msg5 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
 
-        commands = Msg.get_sync_commands(self.channel, [msg1, msg4, msg5])
+        commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg4.id, msg5.id)))
 
-        self.assertEquals(3, len(commands))
-        self.assertEquals(1, len(commands[0]['to']))
-        self.assertEquals(1, len(commands[1]['to']))
-        self.assertEquals(1, len(commands[2]['to']))
+        self.assertEqual(commands, [
+            {'cmd': 'mt_bcast', 'to': [{'phone': "123", 'id': msg1.id}], 'msg': "Hello, we heard from you."},
+            {'cmd': 'mt_bcast', 'to': [{'phone': "987", 'id': msg4.id}], 'msg': "Hello, there"},
+            {'cmd': 'mt_bcast', 'to': [{'phone': "321", 'id': msg5.id}], 'msg': "Hello, we heard from you."}
+        ])
 
     def test_archive_and_release(self):
         msg1 = Msg.create_incoming(self.channel, 'tel:123', "Incoming")
@@ -325,6 +335,30 @@ class MsgTest(TembaTest):
         # should have no messages but marked as sent
         self.assertEquals(0, broadcast.msgs.all().count())
         self.assertEquals(SENT, broadcast.status)
+
+    def test_send_all(self):
+        contact = self.create_contact('Stephen', '+12078778899')
+        ContactURN.get_or_create(self.org, contact, 'tel:+12078778800')
+        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact], send_all=True)
+        partial_recipients = list(), Contact.objects.filter(pk=contact.pk)
+        broadcast.send(True, partial_recipients=partial_recipients)
+
+        self.assertEquals(1, broadcast.recipients.all().count())
+        self.assertEquals(2, broadcast.msgs.all().count())
+        self.assertEquals(1, broadcast.msgs.all().filter(contact_urn__path='+12078778899').count())
+        self.assertEquals(1, broadcast.msgs.all().filter(contact_urn__path='+12078778800').count())
+
+        # should not create a broadcast recipient if a similar one exists
+        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact], send_all=True)
+        BroadcastRecipient.objects.create(broadcast_id=broadcast.id, contact_id=contact.id)
+
+        partial_recipients = list(), Contact.objects.filter(pk=contact.pk)
+        broadcast.send(True, partial_recipients=partial_recipients)
+
+        self.assertEquals(1, broadcast.recipients.all().count())
+        self.assertEquals(2, broadcast.msgs.all().count())
+        self.assertEquals(1, broadcast.msgs.all().filter(contact_urn__path='+12078778899').count())
+        self.assertEquals(1, broadcast.msgs.all().filter(contact_urn__path='+12078778800').count())
 
     def test_update_contacts(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
@@ -646,42 +680,40 @@ class MsgTest(TembaTest):
         self.joe.save()
 
         # create some messages...
-        joe_urn = self.joe.get_urn(TEL_SCHEME).urn
-        msg1 = Msg.create_incoming(self.channel, joe_urn, "hello 1")
-        msg2 = Msg.create_incoming(self.channel, joe_urn, "hello 2")
-        msg3 = Msg.create_incoming(self.channel, joe_urn, "hello 3")
-        msg4 = Msg.create_incoming(None, None, "hello 4", org=self.org, contact=self.joe)  # like a surveyor message
+        # joe_urn = self.joe.get_urn(TEL_SCHEME).urn
+
+        msg1 = self.create_msg(contact=self.joe, text="hello 1", direction='I', status=HANDLED,
+                               msg_type='I', created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
+        msg2 = self.create_msg(contact=self.joe, text="hello 2", direction='I', status=HANDLED,
+                               msg_type='I', created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC))
+        msg3 = self.create_msg(contact=self.joe, text="hello 3", direction='I', status=HANDLED,
+                               msg_type='I', created_on=datetime(2017, 1, 3, 10, tzinfo=pytz.UTC))
+
+        # inbound message that looks like a surveyor message
+        msg4 = self.create_msg(contact=self.joe, contact_urn=None, text="hello 4", direction='I', status=HANDLED,
+                               channel=None, msg_type='I', created_on=datetime(2017, 1, 4, 10, tzinfo=pytz.UTC))
 
         # inbound message with media attached, such as an ivr recording
-        msg5 = Msg.create_incoming(self.channel, joe_urn, "Media message", media='audio:http://rapidpro.io/audio/sound.mp3')
+        msg5 = self.create_msg(contact=self.joe, text="Media message", direction='I', status=HANDLED,
+                               msg_type='I', media='audio:http://rapidpro.io/audio/sound.mp3',
+                               created_on=datetime(2017, 1, 5, 10, tzinfo=pytz.UTC))
 
-        # outgoing message
-        msg6 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 6")
-        msg7 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 7")
-        msg8 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 8")
-        msg9 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 9")
-
-        # mark msg as sent
-        msg6.status = SENT
-        msg6.save()
-
-        # mark msg as delivered
-        msg7.status = DELIVERED
-        msg7.save()
-
-        # mark msg as errored
-        msg8.status = ERRORED
-        msg8.save()
-
-        # mark message as failed
-        msg9.status = FAILED
-        msg9.save()
+        # create some outbound messages with different statuses
+        msg6 = self.create_msg(contact=self.joe, text="Hey out 6", direction='O', status=SENT,
+                               created_on=datetime(2017, 1, 6, 10, tzinfo=pytz.UTC))
+        msg7 = self.create_msg(contact=self.joe, text="Hey out 7", direction='O', status=DELIVERED,
+                               created_on=datetime(2017, 1, 7, 10, tzinfo=pytz.UTC))
+        msg8 = self.create_msg(contact=self.joe, text="Hey out 8", direction='O', status=ERRORED,
+                               created_on=datetime(2017, 1, 8, 10, tzinfo=pytz.UTC))
+        msg9 = self.create_msg(contact=self.joe, text="Hey out 9", direction='O', status=FAILED,
+                               created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC))
 
         self.assertTrue(msg5.is_media_type_audio())
         self.assertEqual('http://rapidpro.io/audio/sound.mp3', msg5.get_media_path())
 
         # label first message
-        label = Label.get_or_create(self.org, self.user, "la\02bel1")
+        folder = Label.get_or_create_folder(self.org, self.user, "Folder")
+        label = Label.get_or_create(self.org, self.user, "la\02bel1", folder=folder)
         label.toggle_label([msg1], add=True)
 
         # archive last message
@@ -689,114 +721,96 @@ class MsgTest(TembaTest):
         msg3.save()
 
         # create a dummy export task so that we won't be able to export
-        blocking_export = ExportMessagesTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
-        response = self.client.post(reverse('msgs.msg_export'), follow=True)
+        blocking_export = ExportMessagesTask.create(self.org, self.admin, SystemLabel.TYPE_INBOX)
+        response = self.client.post(reverse('msgs.msg_export') + '?l=I', {'export_all': 1}, follow=True)
         self.assertContains(response, "already an export in progress")
 
         # perform the export manually, assert how many queries
         self.assertNumQueries(8, lambda: blocking_export.perform())
 
-        self.client.post(reverse('msgs.msg_export'))
-        task = ExportMessagesTask.objects.all().order_by('-id').first()
+        def request_export(query, data=None):
+            response = self.client.post(reverse('msgs.msg_export') + query, data)
+            self.assertEqual(response.status_code, 302)
+            task = ExportMessagesTask.objects.order_by('-id').first()
+            filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
+            workbook = load_workbook(filename=filename)
+            return workbook.worksheets[0]
 
-        filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-        workbook = load_workbook(filename=filename)
-        sheet = workbook.worksheets[0]
+        # export all visible messages (i.e. not msg3) using export_all param
+        with self.assertNumQueries(25):
+            self.assertExcelSheet(request_export('?l=I', {'export_all': 1}), [
+                ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+                [msg9.created_on, "123", "tel", "Joe Blow", msg9.contact.uuid, "Outgoing", "Hey out 9", "", "Failed Sending"],
+                [msg8.created_on, "123", "tel", "Joe Blow", msg8.contact.uuid, "Outgoing", "Hey out 8", "", "Error Sending"],
+                [msg7.created_on, "123", "tel", "Joe Blow", msg7.contact.uuid, "Outgoing", "Hey out 7", "", "Delivered"],
+                [msg6.created_on, "123", "tel", "Joe Blow", msg6.contact.uuid, "Outgoing", "Hey out 6", "", "Sent"],
+                [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming", "Media message", "", "Handled"],
+                [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "Incoming", "hello 4", "", "Handled"],
+                [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid, "Incoming", "hello 2", "", "Handled"],
+                [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"]
+            ], self.org.timezone)
 
-        self.assertEquals(len(list(sheet.rows)), 9)  # msg3 not included as it's archived
-
-        self.assertExcelRow(sheet, 0, ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction",
-                                       "Text", "Labels", "Status"])
-
-        self.assertExcelRow(sheet, 1,
-                            [msg9.created_on, "123", "tel", "Joe Blow", msg9.contact.uuid, "Outgoing",
-                             "Hey out 9", "", "Failed Sending"], self.org.timezone)
-
-        self.assertExcelRow(sheet, 2,
-                            [msg8.created_on, "123", "tel", "Joe Blow", msg8.contact.uuid, "Outgoing",
-                             "Hey out 8", "", "Error Sending"], self.org.timezone)
-
-        self.assertExcelRow(sheet, 3,
-                            [msg7.created_on, "123", "tel", "Joe Blow", msg7.contact.uuid, "Outgoing",
-                             "Hey out 7", "", "Delivered"], self.org.timezone)
-
-        self.assertExcelRow(sheet, 4,
-                            [msg6.created_on, "123", "tel", "Joe Blow", msg6.contact.uuid, "Outgoing",
-                             "Hey out 6", "", "Sent"], self.org.timezone)
-
-        self.assertExcelRow(sheet, 5, [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming",
-                                       "Media message", "", "Handled"], self.org.timezone)
-
-        self.assertExcelRow(sheet, 6, [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "Incoming",
-                                       "hello 4", "", "Handled"], self.org.timezone)
-
-        self.assertExcelRow(sheet, 7, [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid, "Incoming",
-                                       "hello 2", "", "Handled"], self.org.timezone)
-
-        self.assertExcelRow(sheet, 8, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming",
-                                       "hello 1", "label1", "Handled"], self.org.timezone)
-
+        # check email was sent correctly
         email_args = mock_send_temba_email.call_args[0]  # all positional args
-
+        export = ExportMessagesTask.objects.order_by('-id').first()
         self.assertEqual(email_args[0], "Your messages export is ready")
-        self.assertIn('https://app.rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[1])
+        self.assertIn('https://app.rapidpro.io/assets/download/message_export/%d/' % export.id, email_args[1])
         self.assertNotIn('{{', email_args[1])
-        self.assertIn('https://app.rapidpro.io/assets/download/message_export/%d/' % task.pk, email_args[2])
+        self.assertIn('https://app.rapidpro.io/assets/download/message_export/%d/' % export.id, email_args[2])
         self.assertNotIn('{{', email_args[2])
 
-        ExportMessagesTask.objects.all().delete()
+        # export just archived messages
+        self.assertExcelSheet(request_export('?l=A', {'export_all': 0}), [
+            ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+            [msg3.created_on, "123", "tel", "Joe Blow", msg3.contact.uuid, "Incoming", "hello 3", "", "Handled"],
+        ], self.org.timezone)
 
-        # visit the filter page
-        response = self.client.get(reverse('msgs.msg_filter', args=[label.pk]))
-        self.assertContains(response, "Export Data")
+        # filter page should have an export option
+        response = self.client.get(reverse('msgs.msg_filter', args=[label.id]))
+        self.assertContains(response, "Export")
 
-        self.client.post("%s?label=%s" % (reverse('msgs.msg_export'), label.pk))
-        task = ExportMessagesTask.objects.get()
+        # try export with user label
+        self.assertExcelSheet(request_export('?l=%s' % label.uuid, {'export_all': 0}), [
+            ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+            [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"]
+        ], self.org.timezone)
 
-        filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-        workbook = load_workbook(filename=filename)
-        sheet = workbook.worksheets[0]
+        # try export with user label folder
+        self.assertExcelSheet(request_export('?l=%s' % folder.uuid, {'export_all': 0}), [
+            ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+            [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"]
+        ], self.org.timezone)
 
-        self.assertEquals(len(list(sheet.rows)), 2)  # only header and msg1
-        self.assertExcelRow(sheet, 1, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming",
-                                       "hello 1", "label1", "Handled"], self.org.timezone)
+        # try export with groups and date range
+        export_data = {
+            'export_all': 1,
+            'groups': [self.just_joe.id],
+            'start_date': msg5.created_on.strftime('%B %d, %Y'),
+            'end_date': msg7.created_on.strftime('%B %d, %Y'),
+        }
 
-        ExportMessagesTask.objects.all().delete()
+        self.assertExcelSheet(request_export('?l=I', export_data), [
+            ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+            [msg7.created_on, "123", "tel", "Joe Blow", msg7.contact.uuid, "Outgoing", "Hey out 7", "", "Delivered"],
+            [msg6.created_on, "123", "tel", "Joe Blow", msg6.contact.uuid, "Outgoing", "Hey out 6", "", "Sent"],
+            [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming", "Media message", "", "Handled"],
+        ], self.org.timezone)
 
         # test as anon org to check that URNs don't end up in exports
         with AnonymousOrg(self.org):
-            self.client.post(reverse('msgs.msg_export'))
-            task = ExportMessagesTask.objects.get()
+            joe_anon_id = "%010d" % self.joe.id
 
-            filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-            workbook = load_workbook(filename=filename)
-            sheet = workbook.worksheets[0]
-
-            self.assertEquals(len(list(sheet.rows)), 9)
-
-            self.assertExcelRow(sheet, 1, [msg9.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg9.contact.uuid,
-                                           "Outgoing", "Hey out 9", "", "Failed Sending"], self.org.timezone)
-
-            self.assertExcelRow(sheet, 2, [msg8.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg8.contact.uuid,
-                                           "Outgoing", "Hey out 8", "", "Error Sending"], self.org.timezone)
-
-            self.assertExcelRow(sheet, 3, [msg7.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg7.contact.uuid,
-                                           "Outgoing", "Hey out 7", "", "Delivered"], self.org.timezone)
-
-            self.assertExcelRow(sheet, 4, [msg6.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg6.contact.uuid,
-                                           "Outgoing", "Hey out 6", "", "Sent"], self.org.timezone)
-
-            self.assertExcelRow(sheet, 5, [msg5.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg5.contact.uuid,
-                                           "Incoming", "Media message", "", "Handled"], self.org.timezone)
-
-            self.assertExcelRow(sheet, 6, [msg4.created_on, "%010d" % self.joe.pk, "", "Joe Blow", msg4.contact.uuid,
-                                           "Incoming", "hello 4", "", "Handled"], self.org.timezone)
-
-            self.assertExcelRow(sheet, 7, [msg2.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg2.contact.uuid,
-                                           "Incoming", "hello 2", "", "Handled"], self.org.timezone)
-
-            self.assertExcelRow(sheet, 8, [msg1.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg1.contact.uuid,
-                                           "Incoming", "hello 1", "label1", "Handled"], self.org.timezone)
+            self.assertExcelSheet(request_export('?l=I', {'export_all': 1}), [
+                ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels", "Status"],
+                [msg9.created_on, joe_anon_id, "tel", "Joe Blow", msg9.contact.uuid, "Outgoing", "Hey out 9", "", "Failed Sending"],
+                [msg8.created_on, joe_anon_id, "tel", "Joe Blow", msg8.contact.uuid, "Outgoing", "Hey out 8", "", "Error Sending"],
+                [msg7.created_on, joe_anon_id, "tel", "Joe Blow", msg7.contact.uuid, "Outgoing", "Hey out 7", "", "Delivered"],
+                [msg6.created_on, joe_anon_id, "tel", "Joe Blow", msg6.contact.uuid, "Outgoing", "Hey out 6", "", "Sent"],
+                [msg5.created_on, joe_anon_id, "tel", "Joe Blow", msg5.contact.uuid, "Incoming", "Media message", "", "Handled"],
+                [msg4.created_on, joe_anon_id, "", "Joe Blow", msg4.contact.uuid, "Incoming", "hello 4", "", "Handled"],
+                [msg2.created_on, joe_anon_id, "tel", "Joe Blow", msg2.contact.uuid, "Incoming", "hello 2", "", "Handled"],
+                [msg1.created_on, joe_anon_id, "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"]
+            ], self.org.timezone)
 
 
 class MsgCRUDLTest(TembaTest):
@@ -927,17 +941,6 @@ class BroadcastTest(TembaTest):
         self.assertEqual(broadcast.get_message_count(), 4)
         self.assertEqual(set(broadcast.recipients.all()), {self.joe, self.frank, self.kevin, self.lucy})
 
-        bcast_commands = broadcast.get_sync_commands(self.channel)
-        self.assertEquals(1, len(bcast_commands))
-        self.assertEquals(3, len(bcast_commands[0]['to']))
-
-        # set our single message as sent
-        broadcast.get_messages().update(status='S')
-        self.assertEquals(0, len(broadcast.get_sync_commands(self.channel)))
-
-        # back to Q
-        broadcast.get_messages().update(status='Q')
-
         # after calling send, all messages are queued
         self.assertEquals(broadcast.status, 'Q')
 
@@ -1010,9 +1013,11 @@ class BroadcastTest(TembaTest):
 
         post_data = dict(text="message #1", omnibox="g-%s,c-%s,c-%s" % (self.joe_and_frank.uuid, self.joe.uuid, self.lucy.uuid))
         self.client.post(send_url, post_data, follow=True)
-        broadcast = Broadcast.objects.get(text="message #1")
-        self.assertEquals(1, broadcast.groups.count())
-        self.assertEquals(2, broadcast.contacts.count())
+        broadcast = Broadcast.objects.get()
+        self.assertEqual(broadcast.text, {'base': "message #1"})
+        self.assertEqual(broadcast.get_default_text(), "message #1")
+        self.assertEqual(broadcast.groups.count(), 1)
+        self.assertEqual(broadcast.contacts.count(), 2)
         self.assertIsNotNone(Msg.objects.filter(contact=self.joe, text="message #1"))
         self.assertIsNotNone(Msg.objects.filter(contact=self.frank, text="message #1"))
         self.assertIsNotNone(Msg.objects.filter(contact=self.lucy, text="message #1"))
@@ -1028,7 +1033,8 @@ class BroadcastTest(TembaTest):
 
         post_data = dict(text="message #2", omnibox='g-%s,c-%s' % (self.joe_and_frank.uuid, self.kevin.uuid))
         self.client.post(send_url, post_data, follow=True)
-        broadcast = Broadcast.objects.get(text="message #2")
+        broadcast = Broadcast.objects.order_by('-id').first()
+        self.assertEqual(broadcast.text, {'base': "message #2"})
         self.assertEquals(broadcast.groups.count(), 1)
         self.assertEquals(broadcast.contacts.count(), 1)
 
@@ -1250,10 +1256,6 @@ class BroadcastTest(TembaTest):
                                           [self.joe_and_frank, self.kevin])
         self.broadcast.send(trigger_send=False)
 
-        # there should be three broadcast objects
-        broadcast_groups = self.broadcast.get_sync_commands(self.channel)
-        self.assertEquals(3, len(broadcast_groups))
-
         # no message created for Frank because he misses some fields for variables substitution
         self.assertEquals(Msg.objects.all().count(), 3)
 
@@ -1436,7 +1438,7 @@ class BroadcastCRUDLTest(TembaTest):
         Contact.objects.get(urns=new_urn)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, "Hey Joe, where you goin' with that gun in your hand?")
+        self.assertEqual(broadcast.text, {'base': "Hey Joe, where you goin' with that gun in your hand?"})
         self.assertEqual(set(broadcast.groups.all()), {just_joe})
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
         self.assertEqual(set(broadcast.urns.all()), {new_urn})
@@ -1455,7 +1457,8 @@ class BroadcastCRUDLTest(TembaTest):
         self.assertEqual(response.status_code, 302)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, "Dinner reminder")
+        self.assertEqual(broadcast.text, {'base': "Dinner reminder"})
+        self.assertEqual(broadcast.base_language, 'base')
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
 
     def test_schedule_list(self):
@@ -1889,9 +1892,8 @@ class BroadcastLanguageTest(TembaTest):
         fre_msg = "Ceci est mon message"
 
         # now create a broadcast with a couple contacts, one with an explicit language, the other not
-        bcast = Broadcast.create(self.org, self.admin, "This is my new message",
-                                 [self.francois, self.greg, self.wilbert],
-                                 language_dict=json.dumps(dict(eng=eng_msg, fre=fre_msg)))
+        bcast = Broadcast.create(self.org, self.admin, dict(eng=eng_msg, fre=fre_msg),
+                                 [self.francois, self.greg, self.wilbert], base_language='eng')
 
         bcast.send()
 
@@ -1907,10 +1909,9 @@ class BroadcastLanguageTest(TembaTest):
         fre_attachment = 'image/jpeg:attachments/fre_picture.jpg'
 
         # now create a broadcast with a couple contacts, one with an explicit language, the other not
-        bcast = Broadcast.create(self.org, self.admin, "This is my new message with attachment",
-                                 [self.francois, self.greg, self.wilbert],
-                                 language_dict=json.dumps(dict(eng=eng_msg, fre=fre_msg)),
-                                 media_dict=json.dumps(dict(eng=eng_attachment, fre=fre_attachment)))
+        bcast = Broadcast.create(self.org, self.admin, dict(eng=eng_msg, fre=fre_msg),
+                                 [self.francois, self.greg, self.wilbert], base_language='eng',
+                                 media=dict(eng=eng_attachment, fre=fre_attachment))
 
         bcast.send()
 

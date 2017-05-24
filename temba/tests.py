@@ -392,7 +392,8 @@ class TembaTest(SmartminTest):
             actual = actual_values[index]
 
             if isinstance(expected, datetime):
-                self.assertTrue(abs(expected - actual) < timedelta(seconds=1))
+                close_enough = abs(expected - actual) < timedelta(seconds=1)
+                self.assertTrue(close_enough, "Datetime value %s doesn't match %s" % (expected, actual))
             else:
                 self.assertEqual(expected, actual)
 

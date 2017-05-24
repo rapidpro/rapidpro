@@ -1,6 +1,7 @@
 from __future__ import print_function, unicode_literals
 
 import calendar
+import itertools
 import json
 import logging
 import os
@@ -11,10 +12,10 @@ import six
 import stripe
 import traceback
 
+from collections import defaultdict
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
-
 from django.conf import settings
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
@@ -23,9 +24,8 @@ from django.core.urlresolvers import reverse
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import Sum, F, Q
+from django.db.models import Sum, F, Q, Prefetch
 from django.utils import timezone
-from temba.utils.email import send_simple_email, send_custom_smtp_email
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
 from django_redis import get_redis_connection
@@ -34,12 +34,10 @@ from requests import Session
 from smartmin.models import SmartModel
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-
-from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
-from temba.utils import languages
+from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string, languages
 from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from temba.utils.currencies import currency_for_country
-from temba.utils.email import send_template_email
+from temba.utils.email import send_template_email, send_simple_email, send_custom_smtp_email
 from temba.utils.models import SquashableModel
 from temba.utils.timezones import timezone_to_country_code
 from timezone_field import TimeZoneField
@@ -297,19 +295,6 @@ class Org(SmartModel):
         counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ALL, ContactGroup.TYPE_BLOCKED))
         return (counts[ContactGroup.TYPE_ALL] + counts[ContactGroup.TYPE_BLOCKED]) > 0
 
-    def has_messages(self):
-        """
-        Gets whether this org has any messages (or calls)
-        """
-        from temba.msgs.models import SystemLabel
-
-        msg_counts = SystemLabel.get_counts(self, (SystemLabel.TYPE_INBOX,
-                                                   SystemLabel.TYPE_OUTBOX,
-                                                   SystemLabel.TYPE_CALLS))
-        return (msg_counts[SystemLabel.TYPE_INBOX] +
-                msg_counts[SystemLabel.TYPE_OUTBOX] +
-                msg_counts[SystemLabel.TYPE_CALLS]) > 0
-
     def update_caches(self, event, entity):
         """
         Update org-level caches in response to an event
@@ -394,31 +379,23 @@ class Org(SmartModel):
         Trigger.import_triggers(data, self, user, same_site)
 
     @classmethod
-    def export_definitions(cls, site_link, flows=(), campaigns=(), triggers=()):
-        # remove any triggers that aren't included in our flows
-        flow_uuids = set([f.uuid for f in flows])
-        filtered_triggers = []
-        for trigger in triggers:
-            if trigger.flow.uuid in flow_uuids:
-                filtered_triggers.append(trigger)
-
-        triggers = filtered_triggers
+    def export_definitions(cls, site_link, components):
+        from temba.campaigns.models import Campaign
+        from temba.flows.models import Flow
+        from temba.triggers.models import Trigger
 
         exported_flows = []
-        for flow in flows:
-            # only export current versions
-            flow.ensure_current_version()
-            exported_flows.append(flow.as_json(expand_contacts=True))
-
         exported_campaigns = []
-        for campaign in campaigns:
-            for flow in campaign.get_flows():
-                flows.add(flow)
-            exported_campaigns.append(campaign.as_json())
-
         exported_triggers = []
-        for trigger in triggers:
-            exported_triggers.append(trigger.as_json())
+
+        for component in components:
+            if isinstance(component, Flow):
+                component.ensure_current_version()  # only export current versions
+                exported_flows.append(component.as_json(expand_contacts=True))
+            elif isinstance(component, Campaign):
+                exported_campaigns.append(component.as_json())
+            elif isinstance(component, Trigger):
+                exported_triggers.append(component.as_json())
 
         return dict(version=CURRENT_EXPORT_VERSION,
                     site=site_link,
@@ -1101,7 +1078,7 @@ class Org(SmartModel):
             if len(words) > 1:
                 for word in words:
                     boundary = self.find_boundary_by_name(word, level, parent)
-                    if not boundary:
+                    if boundary:
                         break
 
                 if not boundary:
@@ -1690,12 +1667,92 @@ class Org(SmartModel):
 
         return subscription
 
-    def get_export_flows(self, include_archived=False):
+    def generate_dependency_graph(self, include_campaigns=True, include_triggers=False, include_archived=False):
+        """
+        Generates a dict of all exportable flows and campaigns for this org with each object's immediate dependencies
+        """
+        from temba.campaigns.models import Campaign, CampaignEvent
+        from temba.contacts.models import ContactGroup
         from temba.flows.models import Flow
-        flows = self.flows.all().exclude(is_active=False).exclude(flow_type=Flow.MESSAGE).order_by('-modified_on')
+
+        flow_prefetches = ('action_sets', 'rule_sets')
+        campaign_prefetches = (
+            Prefetch('events', queryset=CampaignEvent.objects.filter(is_active=True).exclude(flow__flow_type=Flow.MESSAGE), to_attr='flow_events'),
+            'flow_events__flow'
+        )
+
+        all_flows = self.flows.filter(is_active=True).exclude(flow_type=Flow.MESSAGE).prefetch_related(*flow_prefetches)
+        all_flow_map = {f.uuid: f for f in all_flows}
+
+        if include_campaigns:
+            all_campaigns = self.campaign_set.filter(is_active=True).select_related('group').prefetch_related(*campaign_prefetches)
+        else:
+            all_campaigns = Campaign.objects.none()
+
         if not include_archived:
-            flows = flows.filter(is_archived=False)
-        return flows
+            all_flows = all_flows.filter(is_archived=False)
+            all_campaigns = all_campaigns.filter(is_archived=False)
+
+        # build dependency graph for all flows and campaigns
+        dependencies = defaultdict(set)
+        for flow in all_flows:
+            dependencies[flow] = flow.get_dependencies(all_flow_map)
+        for campaign in all_campaigns:
+            dependencies[campaign] = set([e.flow for e in campaign.flow_events])
+
+        # replace any dependency on a group with that group's associated campaigns - we're not actually interested
+        # in flow-group-flow relationships - only relationships that go through a campaign
+        campaigns_by_group = defaultdict(list)
+        if include_campaigns:
+            for campaign in self.campaign_set.filter(is_active=True).select_related('group'):
+                campaigns_by_group[campaign.group].append(campaign)
+
+        for c, deps in six.iteritems(dependencies):
+            if isinstance(c, Flow):
+                for d in list(deps):
+                    if isinstance(d, ContactGroup):
+                        deps.remove(d)
+                        deps.update(campaigns_by_group[d])
+
+        if include_triggers:
+            all_triggers = self.trigger_set.filter(is_archived=False, is_active=True).select_related('flow')
+            for trigger in all_triggers:
+                dependencies[trigger] = {trigger.flow}
+
+        # make dependencies symmetric, i.e. if A depends on B, B depends on A
+        for c, deps in six.iteritems(dependencies.copy()):
+            for d in deps:
+                dependencies[d].add(c)
+
+        return dependencies
+
+    def resolve_dependencies(self, flows, campaigns, include_campaigns=True, include_triggers=False, include_archived=False):
+        """
+        Given a set of flows and and a set of campaigns, returns a new set including all dependencies
+        """
+        dependencies = self.generate_dependency_graph(include_campaigns=include_campaigns,
+                                                      include_triggers=include_triggers,
+                                                      include_archived=include_archived)
+
+        primary_components = set(itertools.chain(flows, campaigns))
+        all_components = set()
+
+        def add_component(c):
+            if c in all_components:
+                return
+
+            all_components.add(c)
+            if c in primary_components:
+                primary_components.remove(c)
+
+            for d in dependencies[c]:
+                add_component(d)
+
+        while primary_components:
+            component = next(iter(primary_components))
+            add_component(component)
+
+        return all_components
 
     def get_recommended_channel(self):
         from temba.channels.views import TWILIO_SEARCH_COUNTRIES
@@ -1955,7 +2012,7 @@ class Language(SmartModel):
         return dict(name=self.name, iso_code=self.iso_code)
 
     @classmethod
-    def get_localized_text(cls, text_translations, preferred_languages, default_text):
+    def get_localized_text(cls, text_translations, preferred_languages, default_text=None):
         """
         Returns the appropriate translation to use.
         :param text_translations: A dictionary (or plain text) which contains our message indexed by language iso code
@@ -1972,8 +2029,8 @@ class Language(SmartModel):
 
         # otherwise, find the first preferred language
         for lang in preferred_languages:
-            localized = text_translations.get(lang, None)
-            if localized:
+            localized = text_translations.get(lang)
+            if localized is not None:
                 return localized
 
         return default_text

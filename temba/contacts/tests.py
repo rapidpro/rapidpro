@@ -1510,7 +1510,7 @@ class ContactTest(TembaTest):
 
         self.assertEqual(len(activity), 95)
         self.assertIsInstance(activity[4]['obj'], Broadcast)  # TODO fix order so initial broadcasts come after their run
-        self.assertEqual(activity[4]['obj'].text, "What is your favorite color?")
+        self.assertEqual(activity[4]['obj'].text, {'base': "What is your favorite color?", 'fre': "Quelle est votre couleur préférée?"})
         self.assertEqual(activity[4]['obj'].translated_text, "What is your favorite color?")
 
         # if a new message comes in
@@ -1769,10 +1769,10 @@ class ContactTest(TembaTest):
         # create more events
         from temba.campaigns.models import CampaignEvent
         for i in range(5):
+            msg = "Sent %d days after planting date" % (i + 10)
             self.message_event = CampaignEvent.create_message_event(self.org, self.admin, self.campaign,
                                                                     relative_to=self.planting_date,
-                                                                    offset=i + 10, unit='D',
-                                                                    message='{"base": "Sent %d days after planting date"}' % (i + 10))
+                                                                    offset=i + 10, unit='D', message=msg)
 
         now = timezone.now()
         self.joe.set_field(self.user, 'planting_date', six.text_type(now + timedelta(days=1)))

@@ -33,7 +33,7 @@ from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView, SmartModelActionView
 from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
-from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
+from temba.msgs.models import Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin, AnonMixin
@@ -573,42 +573,18 @@ def channel_status_processor(request):
 
 
 def get_commands(channel, commands, sync_event=None):
+    """
+    Generates sync commands for all queued messages on the given channel
+    """
+    msgs = Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel, direction=OUTGOING)
+    msgs = msgs.exclude(contact__is_test=True).exclude(topup=None)
 
-    # we want to find all queued messages
-
-    pending_msgs = []
-    retry_msgs = []
     if sync_event:
         pending_msgs = sync_event.get_pending_messages()
         retry_msgs = sync_event.get_retry_messages()
+        msgs = msgs.exclude(id__in=pending_msgs).exclude(id__in=retry_msgs)
 
-    # messages without broadcast
-    msgs = list(Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel, direction=OUTGOING,
-                                   broadcast=None).select_related('contact_urn').order_by('text', 'pk'))
-
-    # all outgoing messages for our channel that are queued up
-    broadcasts = Broadcast.objects.filter(status__in=[QUEUED, PENDING], schedule=None,
-                                          msgs__channel=channel).distinct().order_by('created_on', 'pk')
-
-    outgoing_messages = 0
-    for broadcast in broadcasts:
-        # Send command looks like this:
-        # {
-        #    "cmd":"send",
-        #    "to":[{number:"250788382384", "id":26],
-        #    "msg":"Is water point A19 still functioning?"
-        # }
-        msgs += list(broadcast.get_messages().filter(status__in=[PENDING, QUEUED]).exclude(topup=None))
-
-        outgoing_messages += len(msgs)
-
-    msgs = Msg.objects.filter(pk__in=[m.id for m in msgs]).exclude(contact__is_test=True).exclude(topup=None)
-
-    if sync_event:
-        msgs = msgs.exclude(pk__in=pending_msgs).exclude(pk__in=retry_msgs)
-
-    if msgs:
-        commands += Msg.get_sync_commands(channel=channel, msgs=msgs)
+    commands += Msg.get_sync_commands(msgs=msgs)
 
     # TODO: add in other commands for the channel
     # We need a queueable model similar to messages for sending arbitrary commands to the client
@@ -655,9 +631,10 @@ def sync(request, channel_id):
         return JsonResponse({"error_id": 1, "error": "Invalid signature: \'%(request)s\'"
                                                      % {'request': request_signature}, "cmds": []}, status=401)
 
-    # update our last seen on our channel
-    channel.last_seen = timezone.now()
-    channel.save()
+    # update our last seen on our channel if we haven't seen this channel in a bit
+    if not channel.last_seen or timezone.now() - channel.last_seen > timedelta(minutes=5):
+        channel.last_seen = timezone.now()
+        channel.save(update_fields=['last_seen'])
 
     sync_event = None
 
@@ -694,11 +671,16 @@ def sync(request, channel_id):
 
                         # it is possible to receive spam SMS messages from no number on some carriers
                         tel = cmd['phone'] if cmd['phone'] else 'empty'
+                        try:
+                            URN.normalize(URN.from_tel(tel), channel.country.code)
 
-                        if 'msg' in cmd:
-                            msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd['msg'], date=date)
-                            if msg:
-                                extra = dict(msg_id=msg.id)
+                            if 'msg' in cmd:
+                                msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd['msg'], date=date)
+                                if msg:
+                                    extra = dict(msg_id=msg.id)
+                        except ValueError:
+                            pass
+
                         handled = True
 
                     # phone event
@@ -722,10 +704,25 @@ def sync(request, channel_id):
                         handled = True
 
                     elif keyword == 'gcm':
-                        # update our gcm and uuid
-                        channel.gcm_id = cmd['gcm_id']
+                        gcm_id = cmd.get('gcm_id', None)
+                        uuid = cmd.get('uuid', None)
+                        if channel.gcm_id != gcm_id or channel.uuid != uuid:
+                            channel.gcm_id = gcm_id
+                            channel.uuid = uuid
+                            channel.save(update_fields=['gcm_id', 'uuid'])
+
+                        # no acking the gcm
+                        handled = False
+
+                    elif keyword == 'fcm':
+                        # update our fcm and uuid
+
+                        channel.gcm_id = None
+                        config = channel.config_json()
+                        config.update({Channel.CONFIG_FCM_ID: cmd['fcm_id']})
+                        channel.config = json.dumps(config)
                         channel.uuid = cmd.get('uuid', None)
-                        channel.save()
+                        channel.save(update_fields=['uuid', 'config', 'gcm_id'])
 
                         # no acking the gcm
                         handled = False
@@ -885,7 +882,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
                'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
-               'claim_red_rabbit')
+               'claim_red_rabbit', 'claim_macrokiosk')
     permissions = True
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -1495,7 +1492,8 @@ class ChannelCRUDL(SmartCRUDL):
             config = {Channel.CONFIG_SEND_URL: url,
                       Channel.CONFIG_VERIFY_SSL: data.get('verify_ssl', False),
                       Channel.CONFIG_USE_NATIONAL: data.get('use_national', False),
-                      Channel.CONFIG_USERNAME: data.get('username', None), Channel.CONFIG_PASSWORD: data.get('password', None),
+                      Channel.CONFIG_USERNAME: data.get('username', None),
+                      Channel.CONFIG_PASSWORD: data.get('password', None),
                       Channel.CONFIG_ENCODING: data.get('encoding', Channel.ENCODING_DEFAULT)}
             self.object = Channel.add_config_external_channel(org, self.request.user, country, number, Channel.TYPE_KANNEL,
                                                               config, role=role, parent=None)
@@ -1513,6 +1511,48 @@ class ChannelCRUDL(SmartCRUDL):
             self.object.save()
 
             return super(ChannelCRUDL.ClaimKannel, self).form_valid(form)
+
+    class ClaimMacrokiosk(OrgPermsMixin, SmartFormView):
+        class MacrokioskClaimForm(forms.Form):
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+                                        help_text=_("The country this phone number is used in"))
+            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
+                                     help_text=_("The phone number or short code you are connecting with country code. "
+                                                 "ex: +250788123124"))
+            username = forms.CharField(label=_("Username"),
+                                       help_text=_("The username provided by Macrokiosk to use their API"))
+            password = forms.CharField(label=_("Password"),
+                                       help_text=_("The password provided by Macrokiosk to use their API"))
+            service_id = forms.CharField(label=_("Service ID"),
+                                         help_text=_("The Service ID provided by Macrokiosk to use their API"))
+
+        title = _("Connect Macrokiosk")
+        success_url = "id@channels.channel_configuration"
+        form_class = MacrokioskClaimForm
+
+        def get_submitted_country(self, data):
+            return data['country']
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+
+            if not org:  # pragma: no cover
+                raise Exception(_("No org for this user, cannot claim"))
+
+            data = form.cleaned_data
+
+            config = {
+                Channel.CONFIG_USERNAME: data.get('username', None),
+                Channel.CONFIG_PASSWORD: data.get('password', None),
+                Channel.CONFIG_MACROKIOSK_SERVICE_ID: data.get('service_id', None)
+            }
+            self.object = Channel.add_config_external_channel(org, self.request.user,
+                                                              self.get_submitted_country(data),
+                                                              data['number'], Channel.TYPE_MACROKIOSK,
+                                                              config,
+                                                              role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
+
+            return super(ChannelCRUDL.ClaimMacrokiosk, self).form_valid(form)
 
     class ClaimExternal(OrgPermsMixin, SmartFormView):
         class EXClaimForm(forms.Form):
@@ -1616,7 +1656,8 @@ class ChannelCRUDL(SmartCRUDL):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
                                         help_text=_("The country this phone number is used in"))
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The phone number or short code you are connecting with country code. ex: +250788123124"))
+                                     help_text=_(
+                                         "The phone number or short code you are connecting with country code. ex: +250788123124"))
             username = forms.CharField(label=_("Username"),
                                        help_text=_("The username provided by the provider to use their API"))
             password = forms.CharField(label=_("Password"),

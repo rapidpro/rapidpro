@@ -351,6 +351,19 @@ class PartialTemplate(SmartTemplateView):  # pragma: no cover
         return "partials/%s.html" % self.template
 
 
+class FlowRunCRUDL(SmartCRUDL):
+    actions = ('delete',)
+    model = FlowRun
+
+    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+        fields = ('pk',)
+        success_message = None
+
+        def post(self, request, *args, **kwargs):
+            self.get_object().release()
+            return HttpResponse()
+
+
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'simulate', 'export_results',
                'upload_action_recording', 'read', 'editor', 'results', 'run_table', 'json', 'broadcast', 'activity',
@@ -690,7 +703,8 @@ class FlowCRUDL(SmartCRUDL):
             return context
 
         def derive_queryset(self, *args, **kwargs):
-            return super(FlowCRUDL.BaseList, self).derive_queryset(*args, **kwargs).exclude(flow_type=Flow.MESSAGE)
+            qs = super(FlowCRUDL.BaseList, self).derive_queryset(*args, **kwargs)
+            return qs.exclude(flow_type=Flow.MESSAGE).exclude(is_active=False)
 
         def get_campaigns(self):
             from temba.campaigns.models import CampaignEvent
@@ -885,12 +899,15 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
 
+            flow = self.get_object(self.get_queryset())
+
             # hangup any test calls if we have them
-            IVRCall.hangup_test_call(self.get_object())
+            if flow.flow_type == Flow.VOICE:
+                IVRCall.hangup_test_call(flow)
 
             org = self.request.user.get_org()
             context = super(FlowCRUDL.Read, self).get_context_data(*args, **kwargs)
-            flow = self.get_object(self.get_queryset())
+
             flow.ensure_current_version()
 
             initial = flow.as_json(expand_contacts=True)
@@ -1100,10 +1117,10 @@ class FlowCRUDL(SmartCRUDL):
         """
 
         # the min number of responses to show a histogram
-        HISTOGRAM_MIN = 1000
+        HISTOGRAM_MIN = 0
 
         # the min number of responses to show the period charts
-        PERIOD_MIN = 200
+        PERIOD_MIN = 0
 
         EXIT_TYPES = {
             None: 'active',
@@ -1163,16 +1180,19 @@ class FlowCRUDL(SmartCRUDL):
                 histogram = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids)
                 if date_range < timedelta(days=21):
                     histogram = histogram.extra({"bucket": "date_trunc('hour', period)"})
+                    min_date = end_date - timedelta(hours=100)
                 elif date_range < timedelta(days=500):
                     histogram = histogram.extra({"bucket": "date_trunc('day', period)"})
+                    min_date = end_date - timedelta(days=100)
                 else:
                     histogram = histogram.extra({"bucket": "date_trunc('week', period)"})
+                    min_date = end_date - timedelta(days=500)
 
                 histogram = histogram.values('bucket').annotate(count=Sum('count')).order_by('bucket')
                 context['histogram'] = histogram
-
                 # highcharts works in UTC, but we want to offset our chart according to the org timezone
                 context['utcoffset'] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds())
+                context['min_date'] = min_date
 
             counts = FlowRunCount.objects.filter(flow=flow).values('exit_type').annotate(Sum('count'))
 
@@ -1212,14 +1232,28 @@ class FlowCRUDL(SmartCRUDL):
             test_contacts = Contact.objects.filter(org=org, is_test=True).values_list('id', flat=True)
             runs = FlowRun.objects.filter(flow=flow, responded=True).exclude(contact__in=test_contacts)
 
+            query = self.request.GET.get('q', None)
+            contact_ids = []
+            if query:
+                query = query.strip()
+                contact_ids = list(Contact.objects.filter(org=flow.org, name__icontains=query).exclude(id__in=test_contacts).values_list('id', flat=True))
+                query = query.replace("-", "")
+                contact_ids += list(ContactURN.objects.filter(org=flow.org, path__icontains=query).exclude(contact__in=test_contacts).order_by('contact__id').distinct('contact__id').values_list('contact__id', flat=True))
+                runs = runs.filter(contact__in=contact_ids)
+
             # paginate
             modified_on = self.request.GET.get('modified_on', None)
             if modified_on:
                 id = self.request.GET['id']
-                modified_on = datetime.fromtimestamp(int(modified_on), flow.org.timezone)
-                runs = runs.filter(modified_on__lt=modified_on).exclude(modified_on=modified_on, id__lt=id)
 
-            runs = list(runs.order_by('-modified_on')[:self.paginate_by])
+                from temba.utils import json_date_to_datetime
+                modified_on = json_date_to_datetime(modified_on)
+                runs = runs.filter(modified_on__lte=modified_on).exclude(id__gte=id)
+
+            # we grab one more than our page to denote whether there's more to get
+            runs = list(runs.order_by('-modified_on')[:self.paginate_by + 1])
+            context['more'] = len(runs) > self.paginate_by
+            runs = runs[:self.paginate_by]
 
             # populate ruleset values
             for run in runs:
@@ -1231,6 +1265,7 @@ class FlowCRUDL(SmartCRUDL):
                     run.value_list.append(value)
 
             context['runs'] = runs
+            context['paginate_by'] = self.paginate_by
 
             return context
 
@@ -1369,9 +1404,10 @@ class FlowCRUDL(SmartCRUDL):
                         USSDSession.handle_incoming(test_contact.org.get_ussd_channel(contact_urn=test_contact.get_urn(TEL_SCHEME)),
                                                     test_contact.get_urn(TEL_SCHEME).path,
                                                     content=new_message,
+                                                    contact=test_contact,
                                                     date=timezone.now(),
                                                     message_id=str(randint(0, 1000)),
-                                                    external_id=str(randint(0, 1000)),
+                                                    external_id='test',
                                                     org=user.get_org(),
                                                     status=status)
                     else:
@@ -1388,6 +1424,15 @@ class FlowCRUDL(SmartCRUDL):
                                         status=400)
 
             messages = Msg.objects.filter(contact=test_contact).order_by('pk', 'created_on')
+
+            if flow.flow_type == Flow.USSD:
+                for msg in messages:
+                    if msg.session.should_end:
+                        msg.session.close()
+
+                # don't show the empty closing message on the simulator
+                messages = messages.exclude(text='', direction='O')
+
             action_logs = ActionLog.objects.filter(run__contact=test_contact).order_by('pk', 'created_on')
 
             messages_and_logs = chain(messages, action_logs)
