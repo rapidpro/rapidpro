@@ -118,16 +118,26 @@
           %a.expand{href:"javascript:;",ng-click:'showAdditionalOptions()'}
             -trans "Additional options"
 
-          .templates
-            .webhook-header-pair{ng-if:'formData.isAdditionalOptionsVisible'}
-              .webhook-header-key
+          .templates.hide
+            .modal-webhook-header-pair
+              .modal-webhook-header-key
                 .message
                   -trans "Header key"
-                %input{type:"text",ng-model:"formData.webhook_header_key[]"}
-              .webhook-header-value
+                %input{type:"text",ng-model:"formData.webhook_header_key"}
+              .modal-webhook-header-value
                 .message
                   -trans "Header value"
-                %input{type:"text",ng-model:"formData.webhook_header_value[]"}
+                %input{type:"text",ng-model:"formData.webhook_header_value"}
+
+          .modal-webhook-header-pair{ng-if:'formData.isAdditionalOptionsVisible'}
+            .modal-webhook-header-key
+              .message
+                -trans "Header key"
+              %input{type:"text",ng-model:"formData.webhook_header_key"}
+            .modal-webhook-header-value
+              .message
+                -trans "Header value"
+              %input{type:"text",ng-model:"formData.webhook_header_value"}
 
         .help-text
           -blocktrans
@@ -236,3 +246,35 @@
     -trans "Cancel"
   %button{ng-disabled:'variable.$invalid || (hasRules() && ruleForm.$invalid) || splitEditor.$invalid || (characters && characters < 0)',ng-click:"okRules(splitEditor)",class:"btn btn-primary"}
     -trans "Ok"
+
+-block extra-style
+  :css
+    .modal-webhook-header-pair{
+      margin: 5px 0;
+    }
+    .modal-webhook-header-key{
+      width: 48%;
+      display: inline-block;
+      position: relative;
+      margin: 0 1% 0 0;
+    }
+    .modal-webhook-header-key input{
+      width: 100%;
+      box-sizing: border-box;
+      -moz-box-sizing: border-box;
+      -webkit-box-sizing: border-box;
+      padding: 14px 6px;
+    }
+    .modal-webhook-header-value{
+      width: 48%;
+      display: inline-block;
+      position: relative;
+      margin: 0 0 0 1%;
+    }
+    .modal-webhook-header-value input{
+      width: 100%;
+      box-sizing: border-box;
+      -moz-box-sizing: border-box;
+      -webkit-box-sizing: border-box;
+      padding: 14px 6px;
+    }
