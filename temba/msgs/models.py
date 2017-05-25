@@ -934,17 +934,14 @@ class Msg(models.Model):
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
     @classmethod
-    def get_media(cls, msg):
+    def get_attachments(cls, msg):
+        """
+        Returns the attachments on the given MsgStruct split into type and URL
+        """
         if msg.attachments:
-            media = msg.attachments[0]  # for now we only support a single attachment
+            return [a.split(':', 1) for a in msg.attachments if ":" in a]
         else:
-            media = None
-
-        if media:
-            parts = media.split(':', 1)
-            if len(parts) == 2:
-                return parts
-        return None, None
+            return []
 
     def as_json(self):
         return dict(direction=self.direction,
