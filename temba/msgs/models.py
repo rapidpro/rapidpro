@@ -695,9 +695,6 @@ class Msg(models.Model):
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name='msgs', on_delete=models.SET_NULL,
                               help_text="The topup that this message was deducted from")
 
-    media = models.URLField(null=True, blank=True, max_length=255,
-                            help_text=_("The media associated with this message if any"))
-
     attachments = ArrayField(models.URLField(max_length=255), null=True,
                              help_text=_("The media attachments on this message if any"))
 
@@ -938,9 +935,7 @@ class Msg(models.Model):
 
     @classmethod
     def get_media(cls, msg):
-        if hasattr(msg, 'media') and msg.media:  # pragma: no cover
-            media = msg.media
-        elif hasattr(msg, 'attachments') and msg.attachments:
+        if msg.attachments:
             media = msg.attachments[0]  # for now we only support a single attachment
         else:
             media = None

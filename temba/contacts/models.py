@@ -521,11 +521,6 @@ class Contact(TembaModel):
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
         msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).select_related('channel').prefetch_related('channel_logs')
 
-        # TODO for now we assume a message can only have one attachment but this will change and read page needs updated
-        # accordingly
-        for msg in msgs:
-            msg.media = msg.attachments[0] if msg.attachments else None
-
         # we also include in the timeline purged broadcasts with a best guess at the translation used
         recipients = BroadcastRecipient.objects.filter(contact=self)
         recipients = recipients.filter(broadcast__purged=True, broadcast__created_on__gte=after, broadcast__created_on__lt=before)
