@@ -33,7 +33,7 @@ from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView, SmartModelActionView
 from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
-from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
+from temba.msgs.models import Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin, AnonMixin
@@ -573,42 +573,18 @@ def channel_status_processor(request):
 
 
 def get_commands(channel, commands, sync_event=None):
+    """
+    Generates sync commands for all queued messages on the given channel
+    """
+    msgs = Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel, direction=OUTGOING)
+    msgs = msgs.exclude(contact__is_test=True).exclude(topup=None)
 
-    # we want to find all queued messages
-
-    pending_msgs = []
-    retry_msgs = []
     if sync_event:
         pending_msgs = sync_event.get_pending_messages()
         retry_msgs = sync_event.get_retry_messages()
+        msgs = msgs.exclude(id__in=pending_msgs).exclude(id__in=retry_msgs)
 
-    # messages without broadcast
-    msgs = list(Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel, direction=OUTGOING,
-                                   broadcast=None).select_related('contact_urn').order_by('text', 'pk'))
-
-    # all outgoing messages for our channel that are queued up
-    broadcasts = Broadcast.objects.filter(status__in=[QUEUED, PENDING], schedule=None,
-                                          msgs__channel=channel).distinct().order_by('created_on', 'pk')
-
-    outgoing_messages = 0
-    for broadcast in broadcasts:
-        # Send command looks like this:
-        # {
-        #    "cmd":"send",
-        #    "to":[{number:"250788382384", "id":26],
-        #    "msg":"Is water point A19 still functioning?"
-        # }
-        msgs += list(broadcast.get_messages().filter(status__in=[PENDING, QUEUED]).exclude(topup=None))
-
-        outgoing_messages += len(msgs)
-
-    msgs = Msg.objects.filter(pk__in=[m.id for m in msgs]).exclude(contact__is_test=True).exclude(topup=None)
-
-    if sync_event:
-        msgs = msgs.exclude(pk__in=pending_msgs).exclude(pk__in=retry_msgs)
-
-    if msgs:
-        commands += Msg.get_sync_commands(channel=channel, msgs=msgs)
+    commands += Msg.get_sync_commands(msgs=msgs)
 
     # TODO: add in other commands for the channel
     # We need a queueable model similar to messages for sending arbitrary commands to the client
@@ -695,11 +671,16 @@ def sync(request, channel_id):
 
                         # it is possible to receive spam SMS messages from no number on some carriers
                         tel = cmd['phone'] if cmd['phone'] else 'empty'
+                        try:
+                            URN.normalize(URN.from_tel(tel), channel.country.code)
 
-                        if 'msg' in cmd:
-                            msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd['msg'], date=date)
-                            if msg:
-                                extra = dict(msg_id=msg.id)
+                            if 'msg' in cmd:
+                                msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd['msg'], date=date)
+                                if msg:
+                                    extra = dict(msg_id=msg.id)
+                        except ValueError:
+                            pass
+
                         handled = True
 
                     # phone event
@@ -729,6 +710,19 @@ def sync(request, channel_id):
                             channel.gcm_id = gcm_id
                             channel.uuid = uuid
                             channel.save(update_fields=['gcm_id', 'uuid'])
+
+                        # no acking the gcm
+                        handled = False
+
+                    elif keyword == 'fcm':
+                        # update our fcm and uuid
+
+                        channel.gcm_id = None
+                        config = channel.config_json()
+                        config.update({Channel.CONFIG_FCM_ID: cmd['fcm_id']})
+                        channel.config = json.dumps(config)
+                        channel.uuid = cmd.get('uuid', None)
+                        channel.save(update_fields=['uuid', 'config', 'gcm_id'])
 
                         # no acking the gcm
                         handled = False

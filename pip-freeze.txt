@@ -128,3 +128,5 @@ elasticsearch==5.0.1
 uwsgi
 flower
 whitenoise==3.2.2
+pyfcm==1.2.9
+requests-toolbelt==0.7.1

@@ -31,6 +31,7 @@ from django.core.cache import cache
 from django_redis import get_redis_connection
 from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
+from pyfcm import FCMNotification
 from smartmin.models import SmartModel
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID, NEXMO_APP_ID
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit
@@ -125,6 +126,7 @@ class Channel(TembaModel):
     CONFIG_CHANNEL_ID = 'channel_id'
     CONFIG_CHANNEL_SECRET = 'channel_secret'
     CONFIG_CHANNEL_MID = 'channel_mid'
+    CONFIG_FCM_ID = 'FCM_ID'
     CONFIG_FCM_KEY = 'FCM_KEY'
     CONFIG_FCM_TITLE = 'FCM_TITLE'
     CONFIG_FCM_NOTIFICATION = 'FCM_NOTIFICATION'
@@ -722,23 +724,32 @@ class Channel(TembaModel):
         return channel
 
     @classmethod
-    def get_or_create_android(cls, gcm, status):
+    def get_or_create_android(cls, registration_data, status):
         """
         Creates a new Android channel from the gcm and status commands sent during device registration
         """
-        gcm_id = gcm.get('gcm_id')
-        uuid = gcm.get('uuid')
+        gcm_id = registration_data.get('gcm_id')
+        fcm_id = registration_data.get('fcm_id')
+        uuid = registration_data.get('uuid')
         country = status.get('cc')
         device = status.get('dev')
 
-        if not gcm_id or not uuid:  # pragma: no cover
-            raise ValueError("Can't create Android channel without UUID and GCM ID")
+        if (not gcm_id and not fcm_id) or not uuid:  # pragma: no cover
+            raise ValueError("Can't create Android channel without UUID, FCM ID and GCM ID")
+
+        # Clear and Ignore the GCM ID if we have the FCM ID
+        if fcm_id:
+            gcm_id = None
 
         # look for existing active channel with this UUID
         existing = Channel.objects.filter(uuid=uuid, is_active=True).first()
 
         # if device exists reset some of the settings (ok because device clearly isn't in use if it's registering)
         if existing:
+            config = existing.config_json()
+            config.update({Channel.CONFIG_FCM_ID: fcm_id})
+
+            existing.config = json.dumps(config)
             existing.gcm_id = gcm_id
             existing.claim_code = cls.generate_claim_code()
             existing.secret = cls.generate_secret()
@@ -757,9 +768,10 @@ class Channel(TembaModel):
         claim_code = cls.generate_claim_code()
         secret = cls.generate_secret()
         anon = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+        config = {Channel.CONFIG_FCM_ID: fcm_id}
 
-        return Channel.create(None, anon, country, Channel.TYPE_ANDROID, None, None, gcm_id=gcm_id, uuid=uuid,
-                              device=device, claim_code=claim_code, secret=secret)
+        return Channel.create(None, anon, country, Channel.TYPE_ANDROID, None, None, gcm_id=gcm_id, config=config,
+                              uuid=uuid, device=device, claim_code=claim_code, secret=secret)
 
     @classmethod
     def generate_claim_code(cls):
@@ -1169,11 +1181,18 @@ class Channel(TembaModel):
 
         # save off our org and gcm id before nullifying
         org = self.org
-        gcm_id = self.gcm_id
+        config = self.config_json()
+        fcm_id = config.pop(Channel.CONFIG_FCM_ID, None)
+
+        if fcm_id is not None:
+            registration_id = fcm_id
+        else:
+            registration_id = self.gcm_id
 
         # remove all identifying bits from the client
         self.org = None
         self.gcm_id = None
+        self.config = json.dumps(config)
         self.secret = None
         self.claim_code = None
         self.is_active = False
@@ -1185,7 +1204,7 @@ class Channel(TembaModel):
 
         # trigger the orphaned channel
         if trigger_sync and self.channel_type == Channel.TYPE_ANDROID:  # pragma: no cover
-            self.trigger_sync(gcm_id)
+            self.trigger_sync(registration_id)
 
         # clear our cache for this channel
         Channel.clear_cached_channel(self.id)
@@ -1198,28 +1217,54 @@ class Channel(TembaModel):
         from temba.triggers.models import Trigger
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)
 
-    def trigger_sync(self, gcm_id=None):  # pragma: no cover
+    def trigger_sync(self, registration_id=None):  # pragma: no cover
         """
         Sends a GCM command to trigger a sync on the client
         """
-        # androids sync via GCM
+        # androids sync via FCM or GCM(for old apps installs)
         if self.channel_type == Channel.TYPE_ANDROID:
-            if getattr(settings, 'GCM_API_KEY', None):
-                from .tasks import sync_channel_task
-                if not gcm_id:
-                    gcm_id = self.gcm_id
-                if gcm_id:
-                    on_transaction_commit(lambda: sync_channel_task.delay(gcm_id, channel_id=self.pk))
+            config = self.config_json()
+            fcm_id = config.get(Channel.CONFIG_FCM_ID)
+
+            if fcm_id is not None:
+                if getattr(settings, 'FCM_API_KEY', None):
+                    from .tasks import sync_channel_fcm_task
+                    if not registration_id:
+                        registration_id = fcm_id
+                    if registration_id:
+                        on_transaction_commit(lambda: sync_channel_fcm_task.delay(registration_id, channel_id=self.pk))
+
+            elif self.gcm_id:
+                if getattr(settings, 'GCM_API_KEY', None):
+                    from .tasks import sync_channel_gcm_task
+                    if not registration_id:
+                        registration_id = self.gcm_id
+                    if registration_id:
+                        on_transaction_commit(lambda: sync_channel_gcm_task.delay(registration_id, channel_id=self.pk))
 
         # otherwise this is an aggregator, no-op
         else:
             raise Exception("Trigger sync called on non Android channel. [%d]" % self.pk)
 
     @classmethod
-    def sync_channel(cls, gcm_id, channel=None):  # pragma: no cover
+    def sync_channel_fcm(cls, registration_id, channel=None):  # pragma: no cover
+        push_service = FCMNotification(api_key=settings.FCM_API_KEY)
+        result = push_service.notify_single_device(registration_id=registration_id, data_message=dict(msg='sync'))
+
+        if not result.get('success', 0):
+            valid_registration_ids = push_service.clean_registration_ids([registration_id])
+            if registration_id not in valid_registration_ids:
+                # this fcm id is invalid now, clear it out
+                config = channel.config_json()
+                config.pop(Channel.CONFIG_FCM_ID, None)
+                channel.config = json.dumps(config)
+                channel.save()
+
+    @classmethod
+    def sync_channel_gcm(cls, registration_id, channel=None):  # pragma: no cover
         try:
             gcm = GCM(settings.GCM_API_KEY)
-            gcm.plaintext_request(registration_id=gcm_id, data=dict(msg='sync'))
+            gcm.plaintext_request(registration_id=registration_id, data=dict(msg='sync'))
         except GCMNotRegisteredException:
             if channel:
                 # this gcm id is invalid now, clear it out
