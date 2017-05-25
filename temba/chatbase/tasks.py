@@ -15,10 +15,7 @@ def send_chatbase_event(org, channel, msg, contact):
     try:
         org = Org.objects.get(id=org)
         if org.is_connected_to_chatbase():
-            chatbase_args = dict(org=org.id,
-                                 channel=channel,
-                                 msg=msg,
-                                 contact=contact)
+            chatbase_args = dict(org=org.id, channel=channel, msg=msg, contact=contact)
             chatbase = Chatbase.create(**chatbase_args)
             chatbase.trigger_chatbase_event()
     except Exception as e:
