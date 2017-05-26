@@ -2671,6 +2671,9 @@ class FlowRun(models.Model):
         for ruleset in self.flow.rule_sets.all():
             Value.invalidate_cache(ruleset=ruleset)
 
+        # clear any recent messages
+        self.recent_messages.all().delete()
+
     def set_completed(self, final_step=None, completed_on=None):
         """
         Mark a run as complete
@@ -3692,8 +3695,8 @@ class FlowPathRecentMessage(models.Model):
 
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
+    run = models.ForeignKey(FlowRun, related_name='recent_messages')
     text = models.CharField(max_length=Msg.MAX_SIZE)
-    contact = models.ForeignKey(Contact, related_name='recent_messages')
     created_on = models.DateTimeField(help_text=_("When the message arrived"))
 
     @classmethod
@@ -3704,13 +3707,13 @@ class FlowPathRecentMessage(models.Model):
         objs = []
         for msg in step.messages.all():
             objs.append(cls(from_uuid=from_uuid, to_uuid=to_uuid,
-                            text=msg.text, contact=msg.contact, created_on=msg.created_on))
+                            run=step.run, text=msg.text, created_on=msg.created_on))
         cls.objects.bulk_create(objs)
 
     @classmethod
     def get_recent(cls, from_uuids, to_uuids, limit=PRUNE_TO):
         """
-        Gets the recent step records for the given flow segments
+        Gets the recent messages for the given flow segments
         """
         recent = cls.objects.filter(from_uuid__in=from_uuids, to_uuid__in=to_uuids).order_by('-created_on')
         if limit:
