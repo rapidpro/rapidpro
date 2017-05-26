@@ -1047,7 +1047,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   if ruleset.config
     formData.webhook = ruleset.config.webhook
     formData.webhook_action = ruleset.config.webhook_action
-    formData.webhook_header = ruleset.config.webhook_header
+    formData.webhook_header = ruleset.config.webhook_header or {}
 
   formData.rulesetConfig = Flow.getRulesetConfig({type:ruleset.ruleset_type})
 
@@ -1091,21 +1091,13 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   formData.flowField = Flow.getFieldSelection($scope.flowFields, $scope.ruleset.operand, true)
   formData.contactField = Flow.getFieldSelection($scope.contactFields, $scope.ruleset.operand, false)
 
-  $scope.showAdditionalOptions = () ->
-    if formData.isAdditionalOptionsVisible
-      formData.isAdditionalOptionsVisible = false
-    else
-      formData.isAdditionalOptionsVisible = true
-      if formData.webhook_header.length == 0
-        $scope.addNewWebhookHeader()
+  #-----------------------------------------------------------------
+  # Webhook Header
+  #-----------------------------------------------------------------
 
-  formData.webhook_header = []
-  $scope.addNewWebhookHeader = () ->
-    formData.webhook_header.push
-      key: ''
-      value: ''
-
-  formData.isAdditionalOptionsVisible = false
+  $scope.updateWebhookHeader = (key, value) ->
+    if key and value
+      formData.webhook_header[key] = value
 
   config = $scope.ruleset.config
   if not config
