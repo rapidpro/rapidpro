@@ -1484,6 +1484,9 @@ class Contact(TembaModel):
         for run in self.runs.all():
             run.release()
 
+        # clear any recent messages
+        self.recent_messages.all().delete()
+
         self.is_active = False
         self.modified_by = user
         self.save(update_fields=('is_active', 'modified_on', 'modified_by'))

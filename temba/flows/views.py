@@ -385,6 +385,10 @@ class FlowCRUDL(SmartCRUDL):
             if (step_uuid or rule_uuids) and next_uuid:
                 from_uuids = rule_uuids.split(',') if rule_uuids else [step_uuid]
                 to_uuids = [next_uuid]
+
+                # TODO switch to this when backfill migration has been performed
+                # recent = FlowPathRecentMessage.get_recent(from_uuids, to_uuids)
+
                 recent = FlowPathRecentStep.get_recent_messages(from_uuids, to_uuids, limit=5)
 
                 for msg in recent:

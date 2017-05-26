@@ -1811,6 +1811,7 @@ class Flow(TembaModel):
 
             if not previous_step.contact.is_test:
                 FlowPathRecentStep.record_step(previous_step)
+                FlowPathRecentMessage.record_step(previous_step)
 
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
@@ -3679,6 +3680,74 @@ class FlowPathCount(SquashableModel):
 
     class Meta:
         index_together = ['flow', 'from_uuid', 'to_uuid', 'period']
+
+
+class FlowPathRecentMessage(models.Model):
+    """
+    Maintains recent messages for a flow path segment. Doesn't store references to actual steps or messages as these
+    might be purged.
+    """
+    PRUNE_TO = 5
+    LAST_PRUNED_KEY = 'last_recentmessage_pruned'
+
+    from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
+    to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
+    text = models.CharField(max_length=Msg.MAX_SIZE)
+    contact = models.ForeignKey(Contact, related_name='recent_messages')
+    created_on = models.DateTimeField(help_text=_("When the message arrived"))
+
+    @classmethod
+    def record_step(cls, step):
+        from_uuid = step.rule_uuid or step.step_uuid
+        to_uuid = step.next_uuid
+
+        objs = []
+        for msg in step.messages.all():
+            objs.append(cls(from_uuid=from_uuid, to_uuid=to_uuid,
+                            text=msg.text, contact=msg.contact, created_on=msg.created_on))
+        cls.objects.bulk_create(objs)
+
+    @classmethod
+    def get_recent(cls, from_uuids, to_uuids, limit=PRUNE_TO):
+        """
+        Gets the recent step records for the given flow segments
+        """
+        recent = cls.objects.filter(from_uuid__in=from_uuids, to_uuid__in=to_uuids).order_by('-created_on')
+        if limit:
+            recent = recent[:limit]
+
+        return recent
+
+    @classmethod
+    def prune(cls):
+        """
+        Removes old steps leaving only PRUNE_TO most recent for each segment
+        """
+        last_id = cache.get(cls.LAST_PRUNED_KEY, -1)
+
+        newest = cls.objects.order_by('-id').values('id').first()
+        newest_id = newest['id'] if newest else -1
+
+        sql = """
+            DELETE FROM %(table)s WHERE id IN (
+              SELECT id FROM (
+                  SELECT
+                    r.id,
+                    dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY created_on DESC) AS pos
+                  FROM %(table)s r
+                  WHERE (from_uuid, to_uuid) IN (
+                    -- get the unique segments added to since last prune
+                    SELECT DISTINCT from_uuid, to_uuid FROM %(table)s WHERE id > %(last_id)d
+                  )
+              ) s WHERE s.pos > %(limit)d
+            )""" % {'table': cls._meta.db_table, 'last_id': last_id, 'limit': cls.PRUNE_TO}
+
+        cursor = connection.cursor()
+        cursor.execute(sql)
+
+        cache.set(cls.LAST_PRUNED_KEY, newest_id)
+
+        return cursor.rowcount  # number of deleted entries
 
 
 class FlowPathRecentStep(models.Model):
