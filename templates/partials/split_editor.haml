@@ -115,29 +115,18 @@
         %input{ng-model:"formData.webhook",placeholder:"http://yourwebsite.com/endpoint",auto-complete:"",ng-required:"true",type:"url",class:"url"}
         .webhook-headers
 
-          %a.expand{href:"javascript:;",ng-click:'showAdditionalOptions()'}
+          %a.expand{href:"javascript:;",ng-click:"showAdditionalOptions()"}
             -trans "Additional options"
 
-          .templates.hide
-            .modal-webhook-header-pair
-              .modal-webhook-header-key
-                .message
-                  -trans "Header key"
-                %input{type:"text",ng-model:"formData.webhook_header_key"}
-              .modal-webhook-header-value
-                .message
-                  -trans "Header value"
-                %input{type:"text",ng-model:"formData.webhook_header_value"}
-
-          .modal-webhook-header-pair{ng-if:'formData.isAdditionalOptionsVisible'}
+          .modal-webhook-header-pair{ng-repeat:"header in formData.webhook_header",ng-show:"formData.isAdditionalOptionsVisible"}
             .modal-webhook-header-key
               .message
                 -trans "Header key"
-              %input{type:"text",ng-model:"formData.webhook_header_key"}
+              %input{type:"text",ng-model:"header.key"}
             .modal-webhook-header-value
               .message
                 -trans "Header value"
-              %input{type:"text",ng-model:"formData.webhook_header_value"}
+              %input{type:"text",ng-model:"header.value",ng-focus:"addHeaderPair()"}
 
         .help-text
           -blocktrans
