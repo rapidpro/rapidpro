@@ -3790,7 +3790,7 @@ class FlowPathRecentStep(models.Model):
                 if msg.visibility == Msg.VISIBILITY_VISIBLE:
                     messages.append(msg)
 
-                    if limit is not None and len(messages) >= limit:
+                    if limit is not None and len(messages) >= limit:  # pragma: no cover
                         return messages
 
         return messages
