@@ -221,6 +221,7 @@ class IVRTests(FlowFileTest):
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
         self.assertContains(response, '<Say>Please make a recording after the tone.</Say>')
+        self.assertEqual(response._headers['content-type'][1], 'text/xml; charset=utf-8')
 
         self.assertEqual(ChannelLog.objects.all().count(), 1)
         channel_log = ChannelLog.objects.last()
