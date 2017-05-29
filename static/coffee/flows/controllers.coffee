@@ -1047,7 +1047,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   if ruleset.config
     formData.webhook = ruleset.config.webhook
     formData.webhook_action = ruleset.config.webhook_action
-    formData.webhook_header = ruleset.config.webhook_header or {}
+    formData.webhook_header = ruleset.config.webhook_header or  []
 
   formData.rulesetConfig = Flow.getRulesetConfig({type:ruleset.ruleset_type})
 
@@ -1094,10 +1094,23 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   #-----------------------------------------------------------------
   # Webhook Header
   #-----------------------------------------------------------------
+  $scope.addNewWebhookHeader = (index) ->
+    if index == 0
+      formData.webhook_header.push
+        key: ''
+        value: ''
+    else if index > 0
+      if formData.webhook_header[index-1]['key'] and formData.webhook_header[index-1]['value']
+        formData.webhook_header.push
+          key: ''
+          value: ''
 
-  $scope.updateWebhookHeader = (key, value) ->
-    if key and value
-      formData.webhook_header[key] = value
+  $scope.updateWebhookHeader = (index, item) ->
+    if item.key and item.value
+      formData.webhook_header[index] = {key: item.key, value: item.value}
+
+  if formData.webhook_header.length == 0
+    $scope.addNewWebhookHeader(0)
 
   config = $scope.ruleset.config
   if not config

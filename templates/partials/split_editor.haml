@@ -115,15 +115,15 @@
         %input{ng-model:"formData.webhook",placeholder:"http://yourwebsite.com/endpoint",auto-complete:"",ng-required:"true",type:"url",class:"url"}
         .webhook-headers
 
-          .modal-webhook-header-pair{ng-repeat:"(key, value) in formData.webhook_header"}
+          .modal-webhook-header-pair{ng-repeat:"header in formData.webhook_header"}
             .modal-webhook-header-key
               .message
                 -trans "Header key"
-              %input{type:"text",name:"webhook-key",ng-model:"key",ng-change:"updateWebhookHeader(key, value)"}
+              %input{type:"text",name:"webhook-key",ng-model:"header.key"}
             .modal-webhook-header-value
               .message
                 -trans "Header value"
-              %input{type:"text",name:"webhook-value",ng-model:"value",ng-change:"updateWebhookHeader(key, value)"}
+              %input{type:"text",name:"webhook-value",ng-model:"header.value",ng-focus:"addNewWebhookHeader($index)",ng-change:"updateWebhookHeader($index, header)"}
 
         .help-text
           -blocktrans
