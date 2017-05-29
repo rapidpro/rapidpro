@@ -855,6 +855,20 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         self.assertEquals(outbound_msg.session.status, USSDSession.TRIGGERED)
         self.assertEquals(inbound_msg.direction, INCOMING)
 
+    def test_receive_with_session_id(self):
+        from temba.ussd.models import USSDSession
+
+        data = self.mk_ussd_msg(content="événement", session_id='session-id', to=self.starcode)
+        callback_url = reverse('handlers.junebug_handler',
+                               args=['inbound', self.channel.uuid])
+        self.client.post(callback_url, json.dumps(data), content_type='application/json')
+
+        # load our message
+        inbound_msg, outbound_msg = Msg.objects.all().order_by('pk')
+        self.assertEquals(outbound_msg.session.status, USSDSession.TRIGGERED)
+        self.assertEquals(outbound_msg.session.external_id, 'session-id')
+        self.assertEquals(inbound_msg.session.external_id, 'session-id')
+
     def test_receive_ussd_no_session(self):
         from temba.channels.handlers import JunebugHandler
 
