@@ -2064,7 +2064,8 @@ class JunebugHandler(BaseChannelHandler):
 
                 message_date = datetime.strptime(data['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
                 gmt_date = pytz.timezone('GMT').localize(message_date)
-                session_id = '%s.%s' % (data['from'], int(time.mktime(message_date.timetuple())))
+                # Use a session id if provided, otherwise fall back to using the `from` address as the identifier
+                session_id = channel.get('session_id', data['from'])
 
                 session = USSDSession.handle_incoming(channel=channel, urn=data['from'], content=data['content'],
                                                       status=status, date=gmt_date, external_id=session_id,
