@@ -8977,9 +8977,10 @@ class JunebugTestMixin(object):
         default.update(kwargs)
         return default
 
-    def mk_ussd_msg(self, session_event='new', **kwargs):
-        return self.mk_msg(channel_data={'session_event': session_event},
-                           **kwargs)
+    def mk_ussd_msg(self, session_event='new', session_id=None, **kwargs):
+        return self.mk_msg(
+            channel_data={'session_event': session_event,
+                          'session_id': session_id}, **kwargs)
 
     def mk_msg(self, **kwargs):
         default = {
