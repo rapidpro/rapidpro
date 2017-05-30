@@ -3055,6 +3055,7 @@ class RuleSet(models.Model):
 
     CONFIG_WEBHOOK = 'webhook'
     CONFIG_WEBHOOK_ACTION = 'webhook_action'
+    CONFIG_WEBHOOK_HEADER = 'webhook_header'
     CONFIG_RESTHOOK = 'resthook'
 
     TYPE_MEDIA = (TYPE_WAIT_PHOTO, TYPE_WAIT_GPS, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_RECORDING)
@@ -3253,6 +3254,9 @@ class RuleSet(models.Model):
                 urls = [self.config_json()[RuleSet.CONFIG_WEBHOOK]]
                 action = self.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION]
 
+                if RuleSet.CONFIG_WEBHOOK_HEADER in self.config_json():
+                    header = self.config_json()[RuleSet.CONFIG_WEBHOOK_HEADER]
+
             elif self.ruleset_type == RuleSet.TYPE_RESTHOOK:
                 from temba.api.models import Resthook
 
@@ -3265,6 +3269,8 @@ class RuleSet(models.Model):
                 if not urls:
                     urls = [None]
 
+                header = None
+
                 action = 'POST'
 
             # by default we are a failure (there are no resthooks for example)
@@ -3276,7 +3282,8 @@ class RuleSet(models.Model):
 
                 (value, errors) = Msg.substitute_variables(url, context, org=run.flow.org, url_encode=True)
 
-                result = WebHookEvent.trigger_flow_event(run, value, self, msg, action, resthook=resthook)
+                result = WebHookEvent.trigger_flow_event(run, value, self, msg, action, resthook=resthook,
+                                                         header=header)
 
                 # we haven't recorded any status yet, do so
                 if not status_code:

@@ -113,17 +113,17 @@
 
         %select{ng-model:"formData.webhook_action",ng-options:"method for method in methods",style:"height:34px;width:95px",class:"method",select2:""}
         %input{ng-model:"formData.webhook",placeholder:"http://yourwebsite.com/endpoint",auto-complete:"",ng-required:"true",type:"url",class:"url"}
-        .webhook-headers
 
-          .modal-webhook-header-pair{ng-repeat:"header in formData.webhook_header"}
-            .modal-webhook-header-key
+        .webhook-headers
+          .modal-webhook-header-pair
+            .modal-webhook-header.modal-webhook-header-key
               .message
                 -trans "Header key"
-              %input{type:"text",name:"webhook-key",ng-model:"header.key"}
-            .modal-webhook-header-value
+              %input{type:"text",name:"webhook-key",ng-model:"formData.webhook_header_key",ng-change:"updateWebhookHeader()"}
+            .modal-webhook-header.modal-webhook-header-value
               .message
                 -trans "Header value"
-              %input{type:"text",name:"webhook-value",ng-model:"header.value",ng-focus:"addNewWebhookHeader($index)",ng-change:"updateWebhookHeader($index, header)"}
+              %input{type:"text",name:"webhook-value",ng-model:"formData.webhook_header_value",ng-change:"updateWebhookHeader()"}
 
         .help-text
           -blocktrans
@@ -238,29 +238,22 @@
     .modal-webhook-header-pair{
       margin: 5px 0;
     }
-    .modal-webhook-header-key{
+    .modal-webhook-header{
       width: 48%;
       display: inline-block;
       position: relative;
+    }
+    .modal-webhook-header-key{
       margin: 0 1% 0 0;
     }
-    .modal-webhook-header-key input{
-      width: 100%;
-      box-sizing: border-box;
-      -moz-box-sizing: border-box;
-      -webkit-box-sizing: border-box;
-      padding: 14px 6px;
-    }
     .modal-webhook-header-value{
-      width: 48%;
-      display: inline-block;
-      position: relative;
       margin: 0 0 0 1%;
     }
-    .modal-webhook-header-value input{
+    .modal-webhook-header-key input, .modal-webhook-header-value input{
       width: 100%;
       box-sizing: border-box;
       -moz-box-sizing: border-box;
       -webkit-box-sizing: border-box;
       padding: 14px 6px;
+      margin: 10px 0;
     }

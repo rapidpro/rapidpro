@@ -1047,9 +1047,18 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   if ruleset.config
     formData.webhook = ruleset.config.webhook
     formData.webhook_action = ruleset.config.webhook_action
-    formData.webhook_header = ruleset.config.webhook_header or  []
+    formData.webhook_header_key = if ruleset.config.webhook_header then Object.keys(ruleset.config.webhook_header)[0] else ''
+    formData.webhook_header_value = if ruleset.config.webhook_header then Object.values(ruleset.config.webhook_header)[0] else ''
+    if formData.webhook_header_key and formData.webhook_header_value
+      formData.webhook_header = {}
+      formData.webhook_header[formData.webhook_header_key] = formData.webhook_header_value
 
   formData.rulesetConfig = Flow.getRulesetConfig({type:ruleset.ruleset_type})
+
+  $scope.updateWebhookHeader = () ->
+    if formData.webhook_header_key and formData.webhook_header_value
+      formData.webhook_header = {}
+      formData.webhook_header[formData.webhook_header_key] = formData.webhook_header_value
 
   $scope.updateActionForm = (config) ->
 
@@ -1090,27 +1099,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   formData.flowField = Flow.getFieldSelection($scope.flowFields, $scope.ruleset.operand, true)
   formData.contactField = Flow.getFieldSelection($scope.contactFields, $scope.ruleset.operand, false)
-
-  #-----------------------------------------------------------------
-  # Webhook Header
-  #-----------------------------------------------------------------
-  $scope.addNewWebhookHeader = (index) ->
-    if index == 0
-      formData.webhook_header.push
-        key: ''
-        value: ''
-    else if index > 0
-      if formData.webhook_header[index-1]['key'] and formData.webhook_header[index-1]['value']
-        formData.webhook_header.push
-          key: ''
-          value: ''
-
-  $scope.updateWebhookHeader = (index, item) ->
-    if item.key and item.value
-      formData.webhook_header[index] = {key: item.key, value: item.value}
-
-  if formData.webhook_header.length == 0
-    $scope.addNewWebhookHeader(0)
 
   config = $scope.ruleset.config
   if not config
