@@ -1612,8 +1612,11 @@ class Channel(TembaModel):
         if is_ussd:
             session = USSDSession.objects.get_session_with_status_only(msg.session_id)
             external_id = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
-            # NOTE: Only one of `to` or `reply_to` may be specified
-            payload['reply_to'] = external_id
+            # NOTE: Only one of `to` or `reply_to` may be specified, use external_id if we have it.
+            if external_id:
+                payload['reply_to'] = external_id
+            else:
+                payload['to'] = msg.urn_path
             payload['channel_data'] = {
                 'continue_session': session and not session.should_end or False,
             }
