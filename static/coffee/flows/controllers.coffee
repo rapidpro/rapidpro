@@ -1720,8 +1720,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   #-----------------------------------------------------------------
   # Actions editor
   #-----------------------------------------------------------------
-
   $scope.action = utils.clone(action)
+  if $scope.action.webhook_header
+    $scope.action_webhook_header = {}
+    $scope.action_webhook_header['key'] = Object.keys($scope.action.webhook_header)[0]
+    $scope.action_webhook_header['value'] = Object.values($scope.action.webhook_header)[0]
+
   $scope.actionset = actionset
   $scope.flowId = window.flowId
 
@@ -1886,10 +1890,15 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $modalInstance.close()
 
   # save a webhook action
-  $scope.saveWebhook = (method, url) ->
+  $scope.saveWebhook = (method, url, header_key, header_value) ->
     $scope.action.type = 'api'
     $scope.action.action = method
     $scope.action.webhook = url
+    $scope.action.webhook_header = {}
+    if header_key and header_value
+      $scope.action_webhook_header = {key: header_key, value: header_value}
+      $scope.action.webhook_header[header_key] = header_value
+
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 

@@ -144,6 +144,18 @@
 
       %select{ng-model:"action.action",ng-options:"method for method in methods",style:"height:34px;width:95px",class:"method",select2:""}
       %input{ng-model:"action.webhook",name:"url",placeholder:"http://yourwebsite.com/endpoint",auto-complete:"",flow:"[[flowId]]",ng-required:"true",type:"url",class:"url"}
+
+      .webhook-headers
+        .modal-webhook-header-pair
+          .modal-webhook-header.modal-webhook-header-key
+            .message
+              -trans "Header key"
+            %input{type:"text",name:"webhook-key",ng-model:"action_webhook_header.key"}
+          .modal-webhook-header.modal-webhook-header-value
+            .message
+              -trans "Header value"
+            %input{type:"text",name:"webhook-value",ng-model:"action_webhook_header.value"}
+
       .help-text
         -blocktrans
           We'll include the message text along with data specified
@@ -175,7 +187,7 @@
           In this example @extra.product and @extra.stock_level
           would be added for all future steps.
 
-      %button{ng-click:"saveWebhook(action.action, action.webhook)",class:"submit hide"}
+      %button{ng-click:"saveWebhook(action.action, action.webhook, action_webhook_header.key, action_webhook_header.value)",class:"submit hide"}
         -trans "Ok"
     </ng-form>
 .modal-footer
@@ -192,3 +204,29 @@
     -trans "Cancel"
   %button{ng-disabled:"action_editor.$invalid",ng-click:"ok()",class:"btn btn-primary",ng-model:"message"}
     -trans "Ok"
+
+-block extra-style
+  :css
+    .modal-webhook-header-pair{
+      margin: 5px 0;
+    }
+    .modal-webhook-header{
+      width: 48%;
+      display: inline-block;
+      position: relative;
+    }
+    .modal-webhook-header-key{
+      margin: 0 1% 0 0;
+    }
+    .modal-webhook-header-value{
+      margin: 0 0 0 1%;
+    }
+    .modal-webhook-header-key input, .modal-webhook-header-value input{
+      width: 100% !important;
+      box-sizing: border-box;
+      -moz-box-sizing: border-box;
+      -webkit-box-sizing: border-box;
+      padding: 14px 6px;
+      margin-left: 0 !important;
+      margin: 10px 0;
+    }
