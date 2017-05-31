@@ -122,8 +122,13 @@ class LessBlockNode(template.Node):
 
     def render(self, context):
         output = self.nodelist.render(context)
+
+        # When compressing offline the brand isn't set by the middleware
+        # and so we have to fallback to the default brand
+        brand = context.get('brand', settings.BRANDING[settings.DEFAULT_BRAND])
+
         includes = '@import (reference) "variables.less";\n'
-        includes += '@import (reference, optional) "../brands/%s/less/variables.less";\n' % context['brand']['slug']
+        includes += '@import (reference, optional) "../brands/%s/less/variables.less";\n' % brand['slug']
         includes += '@import (reference) "mixins.less";\n'
         style_output = '<style type="text/less" media="all">\n%s\n%s</style>' % (includes, output)
         return style_output
