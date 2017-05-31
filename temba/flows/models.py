@@ -4676,7 +4676,7 @@ class WebhookAction(Action):
                              json_obj.get('webhook_header', {}))
 
     def as_json(self):
-        return dict(type=WebhookAction.TYPE, webhook=self.webhook, action=self.action, 
+        return dict(type=WebhookAction.TYPE, webhook=self.webhook, action=self.action,
                     webhook_header=self.webhook_header)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
