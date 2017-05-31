@@ -1047,8 +1047,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   if ruleset.config
     formData.webhook = ruleset.config.webhook
     formData.webhook_action = ruleset.config.webhook_action
-    formData.webhook_header_key = if ruleset.config.webhook_header then Object.keys(ruleset.config.webhook_header)[0] else ''
-    formData.webhook_header_value = if ruleset.config.webhook_header then Object.values(ruleset.config.webhook_header)[0] else ''
+    formData.webhook_header_key = if ruleset.config.webhook_header then Object.keys(ruleset.config.webhook_header)[0] else null
+    formData.webhook_header_value = if formData.webhook_header_key then ruleset.config.webhook_header[formData.webhook_header_key] else null
     if formData.webhook_header_key and formData.webhook_header_value
       formData.webhook_header = {}
       formData.webhook_header[formData.webhook_header_key] = formData.webhook_header_value
