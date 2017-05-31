@@ -3248,6 +3248,8 @@ class RuleSet(models.Model):
                         return rule, value
 
         elif self.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
+            header = None
+
             # figure out which URLs will be called
             if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
                 resthook = None
@@ -3268,8 +3270,6 @@ class RuleSet(models.Model):
                 # no urls? use None, as our empty case
                 if not urls:
                     urls = [None]
-
-                header = None
 
                 action = 'POST'
 
