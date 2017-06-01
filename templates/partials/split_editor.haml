@@ -118,11 +118,11 @@
           .modal-webhook-header-pair
             .modal-webhook-header.modal-webhook-header-key
               .message
-                -trans "Header key"
+                -trans "Header Key"
               %input{type:"text",name:"webhook-key",ng-model:"formData.webhook_header_key",ng-change:"updateWebhookHeader()"}
             .modal-webhook-header.modal-webhook-header-value
               .message
-                -trans "Header value"
+                -trans "Header Value"
               %input{type:"text",name:"webhook-value",ng-model:"formData.webhook_header_value",ng-change:"updateWebhookHeader()"}
 
         .help-text
