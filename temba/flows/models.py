@@ -4667,19 +4667,19 @@ class WebhookAction(Action):
     TYPE = 'api'
     ACTION = 'action'
 
-    def __init__(self, webhook, action='POST', webhook_header=None):
+    def __init__(self, webhook, action='POST', webhook_headers=None):
         self.webhook = webhook
         self.action = action
-        self.webhook_header = webhook_header
+        self.webhook_headers = webhook_headers
 
     @classmethod
     def from_json(cls, org, json_obj):
         return WebhookAction(json_obj.get('webhook', org.get_webhook_url()), json_obj.get('action', 'POST'),
-                             json_obj.get('webhook_header', {}))
+                             json_obj.get('webhook_headers', []))
 
     def as_json(self):
         return dict(type=WebhookAction.TYPE, webhook=self.webhook, action=self.action,
-                    webhook_header=self.webhook_header)
+                    webhook_headers=self.webhook_headers)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         from temba.api.models import WebHookEvent
@@ -4689,7 +4689,7 @@ class WebhookAction(Action):
         if errors:
             ActionLog.warn(run, _("URL appears to contain errors: %s") % ", ".join(errors))
 
-        WebHookEvent.trigger_flow_event(run, value, actionset_uuid, msg, self.action, header=self.webhook_header)
+        WebHookEvent.trigger_flow_event(run, value, actionset_uuid, msg, self.action, header=self.webhook_headers)
         return []
 
 

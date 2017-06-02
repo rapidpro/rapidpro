@@ -1044,12 +1044,13 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       formData.timeout = option
 
   formData.webhook_action = 'GET'
+  $scope.webhook_headers_name = []
+  $scope.webhook_headers_value = []
+
   if ruleset.config
     formData.webhook = ruleset.config.webhook
     formData.webhook_action = ruleset.config.webhook_action
     formData.webhook_headers = ruleset.config.webhook_headers or []
-    $scope.webhook_headers_name = []
-    $scope.webhook_headers_value = []
 
     item_counter = 0
     for item in formData.webhook_headers
@@ -1736,10 +1737,23 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   # Actions editor
   #-----------------------------------------------------------------
   $scope.action = utils.clone(action)
-  if $scope.action.webhook_header
-    $scope.action_webhook_header = {}
-    $scope.action_webhook_header['key'] = Object.keys($scope.action.webhook_header)[0]
-    $scope.action_webhook_header['value'] = Object.values($scope.action.webhook_header)[0]
+  $scope.action_webhook_headers_name = []
+  $scope.action_webhook_headers_value = []
+
+  if $scope.action.webhook_headers
+    item_counter = 0
+    for item in $scope.action.webhook_headers
+      $scope.action_webhook_headers_name[item_counter] = item.name
+      $scope.action_webhook_headers_value[item_counter] = item.value
+      item_counter++
+  else
+    $scope.action.webhook_headers = []
+
+  $scope.addNewActionWebhookHeader = () ->
+    if !$scope.action.webhook_headers
+      $scope.action.webhook_headers = []
+
+    $scope.action.webhook_headers.push({name: '', value: ''})
 
   $scope.actionset = actionset
   $scope.flowId = window.flowId
@@ -1905,14 +1919,21 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $modalInstance.close()
 
   # save a webhook action
-  $scope.saveWebhook = (method, url, header_key, header_value) ->
+  $scope.saveWebhook = (method, url) ->
     $scope.action.type = 'api'
     $scope.action.action = method
     $scope.action.webhook = url
-    $scope.action.webhook_header = {}
-    if header_key and header_value
-      $scope.action_webhook_header = {key: header_key, value: header_value}
-      $scope.action.webhook_header[header_key] = header_value
+
+    webhook_headers = []
+    item_counter = 0
+    for item in $scope.action.webhook_headers
+      item_name = if $scope.action_webhook_headers_name then $scope.action_webhook_headers_name[item_counter] else null
+      item_value = if $scope.action_webhook_headers_value then $scope.action_webhook_headers_value[item_counter] else null
+      if item_name and item_value
+        webhook_headers.push({name: item_name, value: item_value})
+      item_counter++
+
+    $scope.action.webhook_headers = webhook_headers
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
