@@ -507,7 +507,10 @@ class ExternalHandler(BaseChannelHandler):
             # handlers can optionally specify the date/time of the message (as 'date' or 'time') in ECMA format
             date = self.get_param('date', self.get_param('time'))
             if date:
-                date = json_date_to_datetime(date)
+                try:
+                    date = json_date_to_datetime(date)
+                except ValueError as e:
+                    return HttpResponse("Bad parameter error: %s" % e.message, status=400)
 
             urn = URN.from_parts(channel.scheme, sender)
             sms = Msg.create_incoming(channel, urn, text, date=date)
