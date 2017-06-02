@@ -22,9 +22,9 @@ def deliver_event_task(event_id):  # pragma: no cover
     if not r.get(key):
         with r.lock(key, timeout=60):
             # load our event and try to deliver it
-            event = WebHookEvent.objects.filter(pk=event_id).first()
+            event = WebHookEvent.objects.get(pk=event_id)
 
-            if event is not None and event.status != WebHookEvent.STATUS_COMPLETE and event.status != WebHookEvent.STATUS_FAILED:
+            if event.status != WebHookEvent.STATUS_COMPLETE and event.status != WebHookEvent.STATUS_FAILED:
                 result = event.deliver()
 
                 # record our result.  We do this here and not in deliver() because we want to allow

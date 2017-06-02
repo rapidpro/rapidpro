@@ -91,9 +91,8 @@ def check_channels_task():
 
 @task(track_started=True, name='send_alert_task')
 def send_alert_task(alert_id, resolved):
-    alert = Alert.objects.filter(pk=alert_id).first()
-    if alert is not None:
-        alert.send_email(resolved)
+    alert = Alert.objects.get(pk=alert_id)
+    alert.send_email(resolved)
 
 
 @nonoverlapping_task(track_started=True, name='trim_channel_log_task')
