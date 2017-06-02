@@ -119,7 +119,6 @@
             .modal-webhook-header.modal-webhook-header-name
               .message
                 -trans "Header Name"
-              -#%input{type:"text",name:"webhook-name",ng-model:"header.name",ng-change:"updateWebhookHeader(this,$index,header.name,header.value)"}
               %input{type:"text",name:"webhook-name",ng-model:"webhook_headers_name[$index]"}
             .modal-webhook-header.modal-webhook-header-value
               .message
