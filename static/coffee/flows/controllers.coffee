@@ -1047,18 +1047,23 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   if ruleset.config
     formData.webhook = ruleset.config.webhook
     formData.webhook_action = ruleset.config.webhook_action
-    formData.webhook_header_key = if ruleset.config.webhook_header then Object.keys(ruleset.config.webhook_header)[0] else null
-    formData.webhook_header_value = if formData.webhook_header_key then ruleset.config.webhook_header[formData.webhook_header_key] else null
-    if formData.webhook_header_key and formData.webhook_header_value
-      formData.webhook_header = {}
-      formData.webhook_header[formData.webhook_header_key] = formData.webhook_header_value
+    formData.webhook_headers = ruleset.config.webhook_headers or []
+    $scope.webhook_headers_name = []
+    $scope.webhook_headers_value = []
+
+    item_counter = 0
+    for item in formData.webhook_headers
+      $scope.webhook_headers_name[item_counter] = item.name
+      $scope.webhook_headers_value[item_counter] = item.value
+      item_counter++
 
   formData.rulesetConfig = Flow.getRulesetConfig({type:ruleset.ruleset_type})
 
-  $scope.updateWebhookHeader = () ->
-    if formData.webhook_header_key and formData.webhook_header_value
-      formData.webhook_header = {}
-      formData.webhook_header[formData.webhook_header_key] = formData.webhook_header_value
+  $scope.addNewWebhookHeader = () ->
+    if formData.webhook_headers == undefined
+      formData.webhook_headers = []
+
+    formData.webhook_headers.push({name: '', value: ''})
 
   $scope.updateActionForm = (config) ->
 
@@ -1647,10 +1652,20 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         ruleset.config = {'resthook': splitEditor.resthook.selected[0]['id']}
 
       else if rulesetConfig.type == 'webhook'
+        webhook_headers = []
+
+        item_counter = 0
+        for item in formData.webhook_headers
+          item_name = if $scope.webhook_headers_name then $scope.webhook_headers_name[item_counter] else null
+          item_value = if $scope.webhook_headers_value then $scope.webhook_headers_value[item_counter] else null
+          if (item_name and item_value)
+            webhook_headers.push({name: item_name, value: item_value})
+          item_counter++
+
         ruleset.config =
           webhook: formData.webhook
           webhook_action: formData.webhook_action
-          webhook_header: formData.webhook_header
+          webhook_headers: webhook_headers
 
       # update our operand if they selected a contact field explicitly
       else if rulesetConfig.type == 'contact_field'

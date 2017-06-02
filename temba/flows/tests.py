@@ -4015,7 +4015,7 @@ class WebhookTest(TembaTest):
         webhook = RuleSet.objects.create(flow=self.flow, uuid=uuid(100), x=0, y=0, ruleset_type=RuleSet.TYPE_WEBHOOK)
         config = {RuleSet.CONFIG_WEBHOOK: "http://ordercheck.com/check_order.php?phone=@step.contact.tel_e164",
                   RuleSet.CONFIG_WEBHOOK_ACTION: "GET",
-                  RuleSet.CONFIG_WEBHOOK_HEADER: {"Authorization": "Token 12345"}}
+                  RuleSet.CONFIG_WEBHOOK_HEADERS: {"Authorization": "Token 12345"}}
         webhook.config = json.dumps(config)
         webhook.set_rules_dict([Rule(uuid(15), dict(base="All Responses"), uuid(200), 'R', TrueTest()).as_json()])
         webhook.save()

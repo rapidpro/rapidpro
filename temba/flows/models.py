@@ -3055,7 +3055,7 @@ class RuleSet(models.Model):
 
     CONFIG_WEBHOOK = 'webhook'
     CONFIG_WEBHOOK_ACTION = 'webhook_action'
-    CONFIG_WEBHOOK_HEADER = 'webhook_header'
+    CONFIG_WEBHOOK_HEADERS = 'webhook_headers'
     CONFIG_RESTHOOK = 'resthook'
 
     TYPE_MEDIA = (TYPE_WAIT_PHOTO, TYPE_WAIT_GPS, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_RECORDING)
@@ -3248,7 +3248,7 @@ class RuleSet(models.Model):
                         return rule, value
 
         elif self.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
-            header = None
+            header = {}
 
             # figure out which URLs will be called
             if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
@@ -3256,8 +3256,10 @@ class RuleSet(models.Model):
                 urls = [self.config_json()[RuleSet.CONFIG_WEBHOOK]]
                 action = self.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION]
 
-                if RuleSet.CONFIG_WEBHOOK_HEADER in self.config_json():
-                    header = self.config_json()[RuleSet.CONFIG_WEBHOOK_HEADER]
+                if RuleSet.CONFIG_WEBHOOK_HEADERS in self.config_json():
+                    headers = self.config_json()[RuleSet.CONFIG_WEBHOOK_HEADERS]
+                    for item in headers:
+                        header[item.get('name')] = item.get('value')
 
             elif self.ruleset_type == RuleSet.TYPE_RESTHOOK:
                 from temba.api.models import Resthook
