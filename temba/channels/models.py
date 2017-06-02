@@ -1620,8 +1620,10 @@ class Channel(TembaModel):
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
 
+        # for now we only support sending one attachment per message but this could change in future
         from temba.msgs.models import Msg
-        media_type, media_url = Msg.get_media(msg)
+        attachments = Msg.get_attachments(msg)
+        media_type, media_url = attachments[0] if attachments else (None, None)
 
         if media_type and media_url:
             media_type = media_type.split('/')[0]
@@ -2657,11 +2659,12 @@ class Channel(TembaModel):
         callback_url = Channel.build_twilio_callback_url(msg.id)
 
         start = time.time()
-        media_url = []
+        media_urls = []
 
         if msg.attachments:
-            (media_type, media_url) = Msg.get_media(msg)
-            media_url = [media_url]
+            # for now we only support sending one attachment per message but this could change in future
+            media_type, media_url = Msg.get_attachments(msg)[0]
+            media_urls = [media_url]
 
         if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
             config = channel.config
@@ -2676,13 +2679,13 @@ class Channel(TembaModel):
                 client.messages.create(to=msg.urn_path,
                                        messaging_service_sid=messaging_service_sid,
                                        body=text,
-                                       media_url=media_url,
+                                       media_url=media_urls,
                                        status_callback=callback_url)
             else:
                 client.messages.create(to=msg.urn_path,
                                        from_=channel.address,
                                        body=text,
-                                       media_url=media_url,
+                                       media_url=media_urls,
                                        status_callback=callback_url)
 
             Channel.success(channel, msg, WIRED, start, events=client.messages.events)
@@ -2712,8 +2715,10 @@ class Channel(TembaModel):
 
         start = time.time()
 
+        # for now we only support sending one attachment per message but this could change in future
         from temba.msgs.models import Msg
-        media_type, media_url = Msg.get_media(msg)
+        attachments = Msg.get_attachments(msg)
+        media_type, media_url = attachments[0] if attachments else (None, None)
 
         if media_type and media_url:
             media_type = media_type.split('/')[0]
@@ -3104,7 +3109,8 @@ class Channel(TembaModel):
         text = msg.text
 
         if msg.attachments and not Channel.supports_media(channel):
-            media_type, media_url = Msg.get_media(msg)
+            # for now we only support sending one attachment per message but this could change in future
+            media_type, media_url = Msg.get_attachments(msg)[0]
             if media_type and media_url:
                 text = '%s\n%s' % (text, media_url)
 
@@ -3153,7 +3159,7 @@ class Channel(TembaModel):
                     sent_count -= 1
 
                     # make sure media isn't sent more than once
-                    msg.media = None
+                    msg.attachments = None
 
         # update the number of sms it took to send this if it was more than 1
         if len(parts) > 1:
