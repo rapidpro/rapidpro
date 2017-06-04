@@ -1211,7 +1211,9 @@ class FlowTest(TembaTest):
                           "action_sets": [{"y": 0, "x": 100,
                                            "destination": None, "uuid": "02a2f789-1545-466b-978a-4cebcc9ab89a",
                                            "actions": [{"type": "api", "webhook": "https://rapidpro.io/demo/coupon/",
-                                                        "webhook_header": {"Authorization": "Token 12345"}},
+                                                        "webhook_header": [{
+                                                            "name": "Authorization", "value": "Token 12345"
+                                                        }]},
                                                        {"msg": {"base": "text to get @extra.coupon"}, "type": "reply"}]}],
                           "metadata": {"notes": []}})
 
@@ -3658,7 +3660,8 @@ class ActionTest(TembaTest):
         mock_requests_post.return_value = MockResponse(200, '{ "coupon": "NEXUS4" }')
         mock_timezone_now.return_value = tz.localize(datetime.datetime(2015, 10, 27, 16, 7, 30, 6))
 
-        action = WebhookAction('http://example.com/callback.php', webhook_header={'Authorization': 'Token 12345'})
+        action = WebhookAction('http://example.com/callback.php',
+                               webhook_headers=[{'name': 'Authorization', 'value': 'Token 12345'}])
 
         # check to and from JSON
         action_json = action.as_json()
@@ -3673,8 +3676,8 @@ class ActionTest(TembaTest):
 
         # check webhook was called with correct payload
         mock_requests_post.assert_called_once_with('http://example.com/callback.php',
-                                                   headers={'User-agent': 'RapidPro',
-                                                            'Authorization': 'Token 12345'},
+                                                   headers={'Authorization': 'Token 12345',
+                                                            'User-agent': 'RapidPro'},
                                                    data={'run': run.pk,
                                                          'phone': u'+250788382382',
                                                          'contact': self.contact.uuid,
@@ -3692,9 +3695,8 @@ class ActionTest(TembaTest):
                                                          'steps': '[]',
                                                          'channel': -1,
                                                          'channel_uuid': None,
-                                                         'header': {
-                                                             'Authorization': 'Token 12345'
-                                                         }},
+                                                         'header': {'Authorization': 'Token 12345'}
+                                                         },
                                                    timeout=10)
         mock_requests_post.reset_mock()
 
@@ -3726,9 +3728,8 @@ class ActionTest(TembaTest):
                                                          'steps': '[]',
                                                          'channel': msg.channel.pk,
                                                          'channel_uuid': msg.channel.uuid,
-                                                         'header': {
-                                                             'Authorization': 'Token 12345'
-                                                         }},
+                                                         'header': {'Authorization': 'Token 12345'}
+                                                         },
                                                    timeout=10)
 
         # check simulator warns of webhook URL errors
@@ -4015,7 +4016,7 @@ class WebhookTest(TembaTest):
         webhook = RuleSet.objects.create(flow=self.flow, uuid=uuid(100), x=0, y=0, ruleset_type=RuleSet.TYPE_WEBHOOK)
         config = {RuleSet.CONFIG_WEBHOOK: "http://ordercheck.com/check_order.php?phone=@step.contact.tel_e164",
                   RuleSet.CONFIG_WEBHOOK_ACTION: "GET",
-                  RuleSet.CONFIG_WEBHOOK_HEADERS: {"Authorization": "Token 12345"}}
+                  RuleSet.CONFIG_WEBHOOK_HEADERS: [{"name": "Authorization", "value": "Token 12345"}]}
         webhook.config = json.dumps(config)
         webhook.set_rules_dict([Rule(uuid(15), dict(base="All Responses"), uuid(200), 'R', TrueTest()).as_json()])
         webhook.save()
