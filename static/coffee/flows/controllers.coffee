@@ -1656,12 +1656,13 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         webhook_headers = []
 
         item_counter = 0
-        for item in formData.webhook_headers
-          item_name = if $scope.webhook_headers_name then $scope.webhook_headers_name[item_counter] else null
-          item_value = if $scope.webhook_headers_value then $scope.webhook_headers_value[item_counter] else null
-          if (item_name and item_value)
-            webhook_headers.push({name: item_name, value: item_value})
-          item_counter++
+        if formData.webhook_headers
+          for item in formData.webhook_headers
+            item_name = if $scope.webhook_headers_name.length > 0 then $scope.webhook_headers_name[item_counter] else null
+            item_value = if $scope.webhook_headers_value.length > 0 then $scope.webhook_headers_value[item_counter] else null
+            if item_name and item_value
+              webhook_headers.push({name: item_name, value: item_value})
+            item_counter++
 
         ruleset.config =
           webhook: formData.webhook
