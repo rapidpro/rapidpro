@@ -4689,7 +4689,12 @@ class WebhookAction(Action):
         if errors:
             ActionLog.warn(run, _("URL appears to contain errors: %s") % ", ".join(errors))
 
-        WebHookEvent.trigger_flow_event(run, value, actionset_uuid, msg, self.action, header=self.webhook_headers)
+        headers = {}
+        if self.webhook_headers:
+            for item in self.webhook_headers:
+                headers[item.get('name')] = item.get('value')
+
+        WebHookEvent.trigger_flow_event(run, value, actionset_uuid, msg, self.action, header=headers)
         return []
 
 
