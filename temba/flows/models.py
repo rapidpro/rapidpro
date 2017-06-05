@@ -3707,7 +3707,7 @@ class FlowPathRecentMessage(models.Model):
         objs = []
         for msg in step.messages.all():
             objs.append(cls(from_uuid=from_uuid, to_uuid=to_uuid,
-                            run=step.run, text=msg.text, created_on=msg.created_on))
+                            run=step.run, text=msg.text[:Msg.MAX_SIZE], created_on=msg.created_on))
         cls.objects.bulk_create(objs)
 
     @classmethod
