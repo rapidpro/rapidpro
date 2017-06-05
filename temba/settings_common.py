@@ -1065,6 +1065,10 @@ CELERYBEAT_SCHEDULE = {
         'task': 'prune_flowpathrecentsteps',
         'schedule': timedelta(seconds=300),
     },
+    "prune-recentmessages": {
+        'task': 'prune_recentmessages',
+        'schedule': timedelta(seconds=300),
+    },
     "squash-channelcounts": {
         'task': 'squash_channelcounts',
         'schedule': timedelta(seconds=300),
