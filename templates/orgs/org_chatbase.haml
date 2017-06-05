@@ -33,10 +33,6 @@
 -block post-form
   -if object.is_connected_to_chatbase and request.META.HTTP_X_FORMAX
     %p
-      %a.btn.pull-right{style: 'margin-left: 30px', href:'{% url "chatbase.chatbase_list" %}'}
-        -trans "Chatbase Log"
-
-    %p
       -trans "Your account is connected to the Chatbase account"
       {{chatbase_agent_name}}.
 
