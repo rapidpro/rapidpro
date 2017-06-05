@@ -1209,7 +1209,7 @@ class Msg(models.Model):
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
                         status=PENDING, media=None, msg_type=None, topup=None, external_id=None, session=None):
 
-        from temba.chatbase.tasks import send_chatbase_event
+        from temba.msgs.tasks import send_chatbase_log
         from temba.api.models import WebHookEvent
         if not org and channel:
             org = channel.org
@@ -1290,7 +1290,8 @@ class Msg(models.Model):
             WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, date)
 
         # Task to send data to Chatbase API
-        on_transaction_commit(lambda: send_chatbase_event.delay(org.id, channel.id, msg.id, contact.id))
+        on_transaction_commit(lambda: send_chatbase_log.apply_async(args=(org.id, channel.name, msg.text, contact.id),
+                                                                    queue='msgs'))
 
         return msg
 

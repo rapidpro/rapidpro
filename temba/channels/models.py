@@ -32,6 +32,7 @@ from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID, NEXMO_APP_ID
+from temba.orgs.models import CHATBASE_API_KEY, CHATBASE_TYPE, CHATBASE_NOT_HANDLED, CHATBASE_FEEDBACK, CHATBASE_VERSION
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
@@ -1294,7 +1295,7 @@ class Channel(TembaModel):
     def success(cls, channel, msg, msg_status, start, external_id=None, event=None, events=None):
         request_time = time.time() - start
 
-        from temba.chatbase.tasks import send_chatbase_event
+        from temba.msgs.tasks import send_chatbase_log
         from temba.msgs.models import Msg
         Msg.mark_sent(channel.config['r'], msg, msg_status, external_id)
 
@@ -1329,8 +1330,9 @@ class Channel(TembaModel):
                                       response_status=event.status_code,
                                       request_time=request_time_ms)
 
-            # Task to send data to Chatbase API
-            on_transaction_commit(lambda: send_chatbase_event.delay(msg.org, msg.channel, msg.id, msg.contact))
+            # Send data to Chatbase API
+            on_transaction_commit(lambda: send_chatbase_log.apply_async(args=(msg.org, channel.name, msg.text,
+                                                                              msg.contact), queue='msgs'))
 
     @classmethod
     def send_fcm_message(cls, channel, msg, text):
@@ -2963,6 +2965,31 @@ class Channel(TembaModel):
 
         external_id = response.json().get('message_token', None)
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
+
+    @staticmethod
+    def send_chatbase_log(org_id, channel_name, text, contact_id):
+        if not settings.SEND_CHATBASE:
+            raise Exception("!! Skipping Chatbase request, SEND_CHATBASE set to False")
+
+        try:
+            org = Org.objects.get(id=org_id)
+            if org.is_connected_to_chatbase():
+                config = org.config_json()
+                data = dict(api_key=config.get(CHATBASE_API_KEY),
+                            type=config.get(CHATBASE_TYPE),
+                            user_id=contact_id,
+                            platform=channel_name,
+                            not_handled=config.get(CHATBASE_NOT_HANDLED),
+                            message=text,
+                            feedback=config.get(CHATBASE_FEEDBACK),
+                            time_stamp=int(time.time()),
+                            version=config.get(CHATBASE_VERSION))
+
+                requests.post(settings.CHATBASE_API_URL, data)
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc(e)
 
     @classmethod
     def get_pending_messages(cls, org):
