@@ -1,3 +1,9 @@
+v3.0.144
+----------
+ * Remove Msg.media field that was replaced by Msg.attachments
+ * Change default ivr timeouts to 2m
+ * Fix the content-type for Twilio call response
+
 v3.0.143
 ----------
  * Update contact read page and inbox views to show multiple message attachments 
