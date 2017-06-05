@@ -1810,7 +1810,6 @@ class Flow(TembaModel):
             previous_step.save(update_fields=('left_on', 'next_uuid'))
 
             if not previous_step.contact.is_test:
-                FlowPathRecentStep.record_step(previous_step)
                 FlowPathRecentMessage.record_step(previous_step)
 
         # update our timeouts
