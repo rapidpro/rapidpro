@@ -114,19 +114,27 @@
         %select{ng-model:"formData.webhook_action",ng-options:"method for method in methods",style:"height:34px;width:95px",class:"method",select2:""}
         %input{ng-model:"formData.webhook",placeholder:"http://yourwebsite.com/endpoint",auto-complete:"",ng-required:"true",type:"url",class:"url"}
 
-        .webhook-headers
-          .modal-webhook-header-pair{ng-repeat:"header in formData.webhook_headers"}
+        %a.additional-options{href:"javascript:;",ng-click:"webhookAdditionalOptions()"}
+          -trans "Additional options"
+
+        .webhook-headers{ng-show:"formData.isWebhookAdditionalOptionsVisible"}
+          .modal-webhook-header-pair
             .modal-webhook-header.modal-webhook-header-name
               .message
                 -trans "Header Name"
-              %input{type:"text",name:"webhook-name",ng-model:"webhook_headers_name[$index]"}
             .modal-webhook-header.modal-webhook-header-value
               .message
                 -trans "Header Value"
+          .modal-webhook-header-pair{ng-repeat:"header in formData.webhook_headers"}
+            .modal-webhook-header.modal-webhook-header-name
+              %input{type:"text",name:"webhook-name",ng-model:"webhook_headers_name[$index]"}
+            .modal-webhook-header.modal-webhook-header-value
               %input{type:"text",name:"webhook-value",ng-model:"webhook_headers_value[$index]"}
+            .modal-webhook-header-remove
+              .icon.icon-close{ng-click:"removeWebhookHeader($index)"}
 
-        %a.expand{href:"javascript:;",ng-click:"addNewWebhookHeader()"}
-          -trans "Add new header item"
+          %a.expand{href:"javascript:;",ng-click:"addNewWebhookHeader()"}
+            -trans "Add header"
 
         .help-text
           -blocktrans
@@ -238,19 +246,36 @@
 
 -block extra-style
   :css
-    .modal-webhook-header-pair{
-      margin: 5px 0 0 0;
-    }
     .modal-webhook-header{
-      width: 48%;
+      width: 46%;
       display: inline-block;
       position: relative;
+    }
+    .modal-webhook-header-pair{
+      margin: 0 !important;
+    }
+    .modal-webhook-header-remove{
+      width: 1%;
+      display: inline-block;
+      position: relative;
+    }
+    .modal-webhook-header-remove .icon{
+      display: none;
+      color: #ccc;
+      margin: 8px 0;
+      cursor: pointer;
+    }
+    .modal-webhook-header-pair:hover .modal-webhook-header-remove .icon{
+      display: inline-block;
     }
     .modal-webhook-header-name{
       margin: 0 1% 0 0;
     }
     .modal-webhook-header-value{
       margin: 0 0 0 1%;
+    }
+    .modal-webhook-header-remove{
+      margin: 0 1%;
     }
     .modal-webhook-header-name input, .modal-webhook-header-value input{
       width: 100%;
@@ -259,4 +284,8 @@
       -webkit-box-sizing: border-box;
       padding: 14px 6px;
       margin: 10px 0 0 0 !important;
+    }
+    a.expand, a.additional-options{
+      margin: 5px 0;
+      display: inline-block;
     }

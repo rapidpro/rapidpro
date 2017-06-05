@@ -1044,6 +1044,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       formData.timeout = option
 
   formData.webhook_action = 'GET'
+  formData.isWebhookAdditionalOptionsVisible = false
   $scope.webhook_headers_name = []
   $scope.webhook_headers_value = []
 
@@ -1065,6 +1066,23 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       formData.webhook_headers = []
 
     formData.webhook_headers.push({name: '', value: ''})
+
+  $scope.webhookAdditionalOptions = () ->
+    if formData.isWebhookAdditionalOptionsVisible == true
+      formData.isWebhookAdditionalOptionsVisible = false
+    else
+      formData.isWebhookAdditionalOptionsVisible = true
+
+    if formData.webhook_headers.length == 0
+      $scope.addNewWebhookHeader()
+
+  $scope.removeWebhookHeader = (index) ->
+    formData.webhook_headers.splice(index, 1)
+    $scope.webhook_headers_name.splice(index, 1)
+    $scope.webhook_headers_value.splice(index, 1)
+
+    if formData.webhook_headers.length == 0
+      $scope.addNewWebhookHeader()
 
   $scope.updateActionForm = (config) ->
 
