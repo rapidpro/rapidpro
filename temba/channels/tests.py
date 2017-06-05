@@ -4039,6 +4039,16 @@ class ExternalTest(TembaTest):
         self.assertEquals(2012, msg.sent_on.year)
         self.assertEquals(18, msg.sent_on.hour)
 
+        Msg.objects.all().delete()
+
+        data = {'from': '5511996458779', 'text': 'Hello World!', 'date': '2012-04-23T18:25:43Z'}
+        response = self.client.post(callback_url, data)
+
+        self.assertEquals(400, response.status_code)
+        self.assertEquals("Bad parameter error: time data '2012-04-23T18:25:43Z' "
+                          "does not match format '%Y-%m-%dT%H:%M:%S.%fZ'", response.content)
+        self.assertFalse(Msg.objects.all())
+
     def test_receive_external(self):
         self.channel.scheme = 'ext'
         self.channel.save()
