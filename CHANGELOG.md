@@ -1,3 +1,7 @@
+v3.0.147
+----------
+ * Clip messages to 640 chars for recent messages table
+
 v3.0.146
 ----------
  * Migration to populate FlowPathRecentMessage
