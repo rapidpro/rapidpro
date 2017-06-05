@@ -1,3 +1,7 @@
+v3.0.146
+----------
+ * Migration to populate FlowPathRecentMessage
+
 v3.0.145
 ----------
  * Change Macrokiosk time format to not have space
