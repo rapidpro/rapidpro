@@ -33,7 +33,7 @@ def populate_recent_message(FlowPathRecentStep, FlowPathRecentMessage):
         recent_messages = []
         for msg in messages:
             r = FlowPathRecentMessage(from_uuid=from_uuid, to_uuid=to_uuid,
-                                      run_id=msg.run_id, text=msg.text, created_on=msg.created_on)
+                                      run_id=msg.run_id, text=msg.text[:640], created_on=msg.created_on)
             recent_messages.append(r)
 
         FlowPathRecentMessage.objects.bulk_create(recent_messages)
