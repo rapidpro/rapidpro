@@ -3752,19 +3752,6 @@ class FlowPathRecentMessage(models.Model):
         return cursor.rowcount  # number of deleted entries
 
 
-class FlowPathRecentStep(models.Model):
-    """
-    Maintains recent messages for a flow path segment
-    """
-    PRUNE_TO = 10
-    LAST_PRUNED_KEY = 'last_flowpathrecentstep_pruned'
-
-    from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
-    to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
-    step = models.ForeignKey(FlowStep, related_name='recent_segments')
-    left_on = models.DateTimeField(help_text=_("When they left the first node"))
-
-
 class FlowNodeCount(SquashableModel):
     """
     Maintains counts of unique contacts at each flow node.
