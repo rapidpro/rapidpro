@@ -46,15 +46,13 @@ class JiochatClient:
                 cache.set(key, access_token, timeout=7200)
                 return access_token
 
-    def verify_request(self, request):
-        access_token = self.get_access_token()
-
+    def verify_request(self, request, channel_secret):
         signature = request.GET.get('signature')
         timestamp = request.GET.get('timestamp')
         nonce = request.GET.get('nonce')
         echostr = request.GET.get('echostr')
 
-        value = "".join(sorted([access_token, timestamp, nonce]))
+        value = "".join(sorted([channel_secret, timestamp, nonce]))
 
         hash_object = hashlib.sha1(value.encode('utf-8'))
         signature_check = hash_object.hexdigest()

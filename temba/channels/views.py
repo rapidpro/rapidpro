@@ -17,7 +17,6 @@ from datetime import datetime, timedelta
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.core.validators import MaxValueValidator
@@ -40,7 +39,6 @@ from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin, AnonMixin
 from temba.channels.models import ChannelSession
 from temba.utils import analytics, on_transaction_commit
-from temba.utils.models import generate_uuid
 from temba.utils.timezones import timezone_to_country_code
 from twilio import TwilioRestException
 from twython import Twython
@@ -2411,25 +2409,6 @@ class ChannelCRUDL(SmartCRUDL):
             app_secret = forms.CharField(min_length=32, required=True,
                                          help_text=_("The Jiochat App secret"))
 
-            def clean(self):
-                app_id = self.cleaned_data['app_id']
-                app_secret = self.cleaned_data['app_secret']
-
-                post_data = dict(grant_type='client_credentials', appid=app_id, secret=app_secret)
-                response = requests.post('https://channels.jiochat.com/auth/token.action', post_data)
-                response_json = response.json()
-
-                if response.status_code not in [200, 201, 202]:
-                    default_error = _("Invalid appId and appSecret, please check then and try again.")
-                    raise ValidationError(response_json.get('errmsg', default_error))
-
-                uuid = generate_uuid()
-                key = Channel.JIOCHAT_ACCESS_TOKEN_KEY % uuid
-                cache.set(key, response_json['access_token'], 6000)
-
-                self.cleaned_data['uuid'] = uuid
-                return self.cleaned_data
-
         form_class = JiochatForm
         fields = ('app_id', 'app_secret')
 
@@ -2438,7 +2417,7 @@ class ChannelCRUDL(SmartCRUDL):
             cleaned_data = form.cleaned_data
 
             channel = Channel.add_jiochat_channel(self.request.user.get_org(), self.request.user,
-                                                  cleaned_data.get('uuid'), cleaned_data.get('app_id'),
+                                                  cleaned_data.get('app_id'),
                                                   cleaned_data.get('app_secret'))
 
             return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))

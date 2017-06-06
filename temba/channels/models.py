@@ -700,8 +700,8 @@ class Channel(TembaModel):
         return channel
 
     @classmethod
-    def add_jiochat_channel(cls, org, user, uuid, app_id, app_secret):
-        channel = Channel.create(org, user, None, Channel.TYPE_JIOCHAT, name='', address='', uuid=uuid,
+    def add_jiochat_channel(cls, org, user, app_id, app_secret):
+        channel = Channel.create(org, user, None, Channel.TYPE_JIOCHAT, name='', address='',
                                  config={Channel.CONFIG_JIOCHAT_APP_ID: app_id,
                                          Channel.CONFIG_JIOCHAT_APP_SECRET: app_secret},
                                  secret=Channel.generate_secret(32))
@@ -709,8 +709,11 @@ class Channel(TembaModel):
         return channel
 
     @classmethod
-    def refresh_all_jiochat_access_token(cls):
+    def refresh_all_jiochat_access_token(cls, channel_id=None):
         jiochat_channels = Channel.objects.filter(channel_type=Channel.TYPE_JIOCHAT, is_active=True)
+        if channel_id:
+            jiochat_channels = jiochat_channels.filter(id=channel_id)
+
         for channel in jiochat_channels:
             client = channel.get_jiochat_client()
             if client is not None:

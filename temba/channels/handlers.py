@@ -36,7 +36,7 @@ from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
 from temba.utils import decode_base64
 from twilio import twiml
-from .tasks import fb_channel_subscribe
+from .tasks import fb_channel_subscribe, refresh_jiochat_access_tokens
 
 
 class BaseChannelHandler(View):
@@ -2224,9 +2224,10 @@ class JioChatHandler(BaseChannelHandler):
 
         client = channel.get_jiochat_client()
         if client:
-            verified, echostr = client.verify_request(request)
+            verified, echostr = client.verify_request(request, channel.secret)
 
             if verified:
+                refresh_jiochat_access_tokens.delay(channel.id)
                 return HttpResponse(echostr)
 
         return JsonResponse(dict(error="Unknown request"), status=400)

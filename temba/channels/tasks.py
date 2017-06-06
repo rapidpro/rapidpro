@@ -96,8 +96,8 @@ def send_alert_task(alert_id, resolved):
 
 
 @task(track_started=True, name='refresh_jiochat_access_tokens')
-def refresh_jiochat_access_tokens():
-    Channel.refresh_all_jiochat_access_token()
+def refresh_jiochat_access_tokens(channel_id=None):
+    Channel.refresh_all_jiochat_access_token(channel_id=channel_id)
 
 
 @nonoverlapping_task(track_started=True, name='trim_channel_log_task')
