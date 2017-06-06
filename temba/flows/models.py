@@ -2835,7 +2835,7 @@ class FlowStep(models.Model):
     rule_category = models.CharField(max_length=36, null=True,
                                      help_text=_("The category label that matched on this ruleset, null on ActionSets"))
 
-    rule_value = models.CharField(max_length=Msg.MAX_SIZE, null=True,
+    rule_value = models.CharField(max_length=Msg.MAX_TEXT_LEN, null=True,
                                   help_text=_("The value that was matched in our category for this ruleset, null on ActionSets"))
 
     rule_decimal_value = models.DecimalField(max_digits=36, decimal_places=8, null=True,
@@ -3695,7 +3695,7 @@ class FlowPathRecentMessage(models.Model):
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
     run = models.ForeignKey(FlowRun, related_name='recent_messages')
-    text = models.CharField(max_length=Msg.MAX_SIZE)
+    text = models.CharField(max_length=Msg.MAX_TEXT_LEN)
     created_on = models.DateTimeField(help_text=_("When the message arrived"))
 
     @classmethod
@@ -3706,7 +3706,7 @@ class FlowPathRecentMessage(models.Model):
         objs = []
         for msg in step.messages.all():
             objs.append(cls(from_uuid=from_uuid, to_uuid=to_uuid,
-                            run=step.run, text=msg.text[:Msg.MAX_SIZE], created_on=msg.created_on))
+                            run=step.run, text=msg.text[:Msg.MAX_TEXT_LEN], created_on=msg.created_on))
         cls.objects.bulk_create(objs)
 
     @classmethod

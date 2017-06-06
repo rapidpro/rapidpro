@@ -166,6 +166,8 @@ class Broadcast(models.Model):
 
     BULK_THRESHOLD = 50  # use bulk priority for messages if number of recipients greater than this
 
+    MAX_TEXT_LEN = 8000
+
     org = models.ForeignKey(Org, verbose_name=_("Org"),
                             help_text=_("The org this broadcast is connected to"))
 
@@ -196,7 +198,7 @@ class Broadcast(models.Model):
 
     parent = models.ForeignKey('Broadcast', verbose_name=_("Parent"), null=True, related_name='children')
 
-    text = TranslatableField(verbose_name=_("Translations"), max_length=settings.MSG_FIELD_SIZE,
+    text = TranslatableField(verbose_name=_("Translations"), max_length=MAX_TEXT_LEN,
                              help_text=_("The localized versions of the message text"))
 
     base_language = models.CharField(max_length=4,
@@ -618,7 +620,7 @@ class Msg(models.Model):
 
     CONTACT_HANDLING_QUEUE = 'ch:%d'
 
-    MAX_SIZE = settings.MSG_FIELD_SIZE
+    MAX_TEXT_LEN = Broadcast.MAX_TEXT_LEN
 
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))
@@ -639,7 +641,7 @@ class Msg(models.Model):
                                   related_name='msgs', verbose_name=_("Broadcast"),
                                   help_text=_("If this message was sent to more than one recipient"))
 
-    text = models.TextField(max_length=MAX_SIZE, verbose_name=_("Text"),
+    text = models.TextField(verbose_name=_("Text"),
                             help_text=_("The actual message content that was sent"))
 
     priority = models.IntegerField(default=PRIORITY_NORMAL,
@@ -1225,7 +1227,7 @@ class Msg(models.Model):
 
         # we limit our text message length
         if text:
-            text = text[:Msg.MAX_SIZE]
+            text = text[:cls.MAX_TEXT_LEN]
 
         now = timezone.now()
 
@@ -1362,6 +1364,8 @@ class Msg(models.Model):
             message_context['channel'] = channel.build_expressions_context()
 
         (text, errors) = Msg.substitute_variables(text, message_context, contact=contact, org=org)
+        if text:
+            text = text[:Msg.MAX_TEXT_LEN]
 
         # if we are doing a single message, check whether this might be a loop of some kind
         if insert_object:

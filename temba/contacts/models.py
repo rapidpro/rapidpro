@@ -650,7 +650,7 @@ class Contact(TembaModel):
             Value.objects.filter(contact=self, contact_field__pk=field.id).delete()
         else:
             # parse as all value data types
-            str_value = six.text_type(value)
+            str_value = six.text_type(value)[:Value.MAX_VALUE_LEN]
             dt_value = self.org.parse_date(value)
             dec_value = self.org.parse_decimal(value)
             loc_value = None
