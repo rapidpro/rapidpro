@@ -1044,7 +1044,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       formData.timeout = option
 
   formData.webhook_action = 'GET'
-  formData.isWebhookAdditionalOptionsVisible = false
   $scope.webhook_headers_name = []
   $scope.webhook_headers_value = []
 
@@ -1052,20 +1051,18 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     formData.webhook = ruleset.config.webhook
     formData.webhook_action = ruleset.config.webhook_action
     formData.webhook_headers = ruleset.config.webhook_headers or []
+    formData.isWebhookAdditionalOptionsVisible = formData.webhook_headers.length > 0
 
     item_counter = 0
     for item in formData.webhook_headers
       $scope.webhook_headers_name[item_counter] = item.name
       $scope.webhook_headers_value[item_counter] = item.value
       item_counter++
+  else
+    formData.webhook_headers = []
+    formData.isWebhookAdditionalOptionsVisible = false
 
   formData.rulesetConfig = Flow.getRulesetConfig({type:ruleset.ruleset_type})
-
-  $scope.addNewWebhookHeader = () ->
-    if formData.webhook_headers == undefined
-      formData.webhook_headers = []
-
-    formData.webhook_headers.push({name: '', value: ''})
 
   $scope.webhookAdditionalOptions = () ->
     if formData.isWebhookAdditionalOptionsVisible == true
@@ -1075,6 +1072,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     if formData.webhook_headers.length == 0
       $scope.addNewWebhookHeader()
+
+  $scope.addNewWebhookHeader = () ->
+    if formData.webhook_headers == undefined
+      formData.webhook_headers = []
+
+    formData.webhook_headers.push({name: '', value: ''})
 
   $scope.removeWebhookHeader = (index) ->
     formData.webhook_headers.splice(index, 1)
@@ -1768,11 +1771,30 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   else
     $scope.action.webhook_headers = []
 
+  formData.isActionWebhookAdditionalOptionsVisible = $scope.action.webhook_headers.length > 0
+
+  $scope.actionWebhookAdditionalOptions = () ->
+    if formData.isActionWebhookAdditionalOptionsVisible == true
+      formData.isActionWebhookAdditionalOptionsVisible = false
+    else
+      formData.isActionWebhookAdditionalOptionsVisible = true
+
+    if $scope.action.webhook_headers.length == 0
+      $scope.addNewActionWebhookHeader()
+
   $scope.addNewActionWebhookHeader = () ->
     if !$scope.action.webhook_headers
       $scope.action.webhook_headers = []
 
     $scope.action.webhook_headers.push({name: '', value: ''})
+
+  $scope.removeActionWebhookHeader = (index) ->
+    $scope.action.webhook_headers.splice(index, 1)
+    $scope.action_webhook_headers_name.splice(index, 1)
+    $scope.action_webhook_headers_value.splice(index, 1)
+
+    if $scope.action.webhook_headers.length == 0
+      $scope.addNewActionWebhookHeader()
 
   $scope.actionset = actionset
   $scope.flowId = window.flowId
