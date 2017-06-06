@@ -2,8 +2,6 @@ from __future__ import print_function, unicode_literals
 
 import json
 import logging
-from uuid import uuid4
-
 import regex
 import six
 import traceback
@@ -44,7 +42,8 @@ from temba.utils import analytics, percentage, datetime_to_str, on_transaction_c
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 from temba.values.models import Value
-from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart, FlowPathRecentStep
+from uuid import uuid4
+from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart, FlowPathRecentMessage
 
 logger = logging.getLogger(__name__)
 
@@ -386,10 +385,7 @@ class FlowCRUDL(SmartCRUDL):
                 from_uuids = rule_uuids.split(',') if rule_uuids else [step_uuid]
                 to_uuids = [next_uuid]
 
-                # TODO switch to this when backfill migration has been performed
-                # recent = FlowPathRecentMessage.get_recent(from_uuids, to_uuids)
-
-                recent = FlowPathRecentStep.get_recent_messages(from_uuids, to_uuids, limit=5)
+                recent = FlowPathRecentMessage.get_recent(from_uuids, to_uuids)
 
                 for msg in recent:
                     recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=org.timezone), text=msg.text))
