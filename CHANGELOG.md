@@ -1,3 +1,8 @@
+v3.0.148
+----------
+* Fix simulator with attachments
+* Switch to using new recent messages model
+
 v3.0.147
 ----------
  * Migration to populate FlowPathRecentMessage
