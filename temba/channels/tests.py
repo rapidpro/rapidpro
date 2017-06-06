@@ -3415,10 +3415,7 @@ class ChannelClaimTest(TembaTest):
 
         self.assertEquals(mail.outbox[1].body, text)
 
-    @patch('requests.post')
-    def test_claim_jiochat(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
-
+    def test_claim_jiochat(self):
         Channel.objects.all().delete()
 
         self.login(self.admin)
@@ -3448,11 +3445,6 @@ class ChannelClaimTest(TembaTest):
 
         self.assertContains(response, reverse('handlers.jiochat_handler', args=[channel.uuid]))
         self.assertContains(response, channel.secret)
-
-        mock_post.return_value = MockResponse(400, '{"errmsg":"Invalid appID."}')
-
-        response = self.client.post(reverse('channels.channel_claim_jiochat'), post_data)
-        self.assertContains(response, "Invalid appID")
 
     def test_claim_macrokiosk(self):
         Channel.objects.all().delete()
