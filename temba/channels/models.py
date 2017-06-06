@@ -3726,11 +3726,11 @@ class Alert(SmartModel):
 
     def send_alert(self):
         from .tasks import send_alert_task
-        send_alert_task.delay(self.id, resolved=False)
+        on_transaction_commit(lambda: send_alert_task.delay(self.id, resolved=False))
 
     def send_resolved(self):
         from .tasks import send_alert_task
-        send_alert_task.delay(self.id, resolved=True)
+        on_transaction_commit(lambda: send_alert_task.delay(self.id, resolved=True))
 
     def send_email(self, resolved):
         from temba.msgs.models import Msg

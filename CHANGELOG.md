@@ -1,3 +1,14 @@
+v3.0.147
+----------
+ * Migration to populate FlowPathRecentMessage
+ * Clip messages to 640 chars for recent messages table
+
+v3.0.145
+----------
+ * Change Macrokiosk time format to not have space
+ * Better error message for external channel handler for wrong time format
+ * Add new model for tracking recent messages on flow path segments
+
 v3.0.144
 ----------
  * Remove Msg.media field that was replaced by Msg.attachments

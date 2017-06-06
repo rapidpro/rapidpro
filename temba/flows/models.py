@@ -1810,7 +1810,7 @@ class Flow(TembaModel):
             previous_step.save(update_fields=('left_on', 'next_uuid'))
 
             if not previous_step.contact.is_test:
-                FlowPathRecentStep.record_step(previous_step)
+                FlowPathRecentMessage.record_step(previous_step)
 
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
@@ -2669,6 +2669,9 @@ class FlowRun(models.Model):
         # clear analytics results cache
         for ruleset in self.flow.rule_sets.all():
             Value.invalidate_cache(ruleset=ruleset)
+
+        # clear any recent messages
+        self.recent_messages.all().delete()
 
     def set_completed(self, final_step=None, completed_on=None):
         """
@@ -3681,50 +3684,41 @@ class FlowPathCount(SquashableModel):
         index_together = ['flow', 'from_uuid', 'to_uuid', 'period']
 
 
-class FlowPathRecentStep(models.Model):
+class FlowPathRecentMessage(models.Model):
     """
-    Maintains recent messages for a flow path segment
+    Maintains recent messages for a flow path segment. Doesn't store references to actual steps or messages as these
+    might be purged.
     """
-    PRUNE_TO = 10
-    LAST_PRUNED_KEY = 'last_flowpathrecentstep_pruned'
+    PRUNE_TO = 5
+    LAST_PRUNED_KEY = 'last_recentmessage_pruned'
 
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
-    step = models.ForeignKey(FlowStep, related_name='recent_segments')
-    left_on = models.DateTimeField(help_text=_("When they left the first node"))
+    run = models.ForeignKey(FlowRun, related_name='recent_messages')
+    text = models.CharField(max_length=Msg.MAX_SIZE)
+    created_on = models.DateTimeField(help_text=_("When the message arrived"))
 
     @classmethod
     def record_step(cls, step):
         from_uuid = step.rule_uuid or step.step_uuid
         to_uuid = step.next_uuid
 
-        cls.objects.create(from_uuid=from_uuid, to_uuid=to_uuid, step=step, left_on=step.left_on)
+        objs = []
+        for msg in step.messages.all():
+            objs.append(cls(from_uuid=from_uuid, to_uuid=to_uuid,
+                            run=step.run, text=msg.text[:Msg.MAX_SIZE], created_on=msg.created_on))
+        cls.objects.bulk_create(objs)
 
     @classmethod
-    def get_recent(cls, from_uuids, to_uuids):
+    def get_recent(cls, from_uuids, to_uuids, limit=PRUNE_TO):
         """
-        Gets the recent step records for the given flow segments
+        Gets the recent messages for the given flow segments
         """
-        recent = cls.objects.filter(from_uuid__in=from_uuids, to_uuid__in=to_uuids)
-        return recent.order_by('-left_on').prefetch_related('step')
+        recent = cls.objects.filter(from_uuid__in=from_uuids, to_uuid__in=to_uuids).order_by('-created_on')
+        if limit:
+            recent = recent[:limit]
 
-    @classmethod
-    def get_recent_messages(cls, from_uuids, to_uuids, limit=None):
-        """
-        Gets the recent messages for the given flow segment
-        """
-        recent = cls.get_recent(from_uuids, to_uuids).prefetch_related('step__messages')
-
-        messages = []
-        for r in recent:
-            for msg in r.step.messages.all():
-                if msg.visibility == Msg.VISIBILITY_VISIBLE:
-                    messages.append(msg)
-
-                    if limit is not None and len(messages) >= limit:
-                        return messages
-
-        return messages
+        return recent
 
     @classmethod
     def prune(cls):
@@ -3737,18 +3731,18 @@ class FlowPathRecentStep(models.Model):
         newest_id = newest['id'] if newest else -1
 
         sql = """
-        DELETE FROM %(table)s WHERE id IN (
-          SELECT id FROM (
-              SELECT
-                r.id,
-                dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY left_on DESC) AS pos
-              FROM %(table)s r
-              WHERE (from_uuid, to_uuid) IN (
-                -- get the unique segments added to since last prune
-                SELECT DISTINCT from_uuid, to_uuid FROM %(table)s WHERE id > %(last_id)d
-              )
-          ) s WHERE s.pos > %(limit)d
-        )""" % {'table': cls._meta.db_table, 'last_id': last_id, 'limit': cls.PRUNE_TO}
+            DELETE FROM %(table)s WHERE id IN (
+              SELECT id FROM (
+                  SELECT
+                    r.id,
+                    dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY created_on DESC) AS pos
+                  FROM %(table)s r
+                  WHERE (from_uuid, to_uuid) IN (
+                    -- get the unique segments added to since last prune
+                    SELECT DISTINCT from_uuid, to_uuid FROM %(table)s WHERE id > %(last_id)d
+                  )
+              ) s WHERE s.pos > %(limit)d
+            )""" % {'table': cls._meta.db_table, 'last_id': last_id, 'limit': cls.PRUNE_TO}
 
         cursor = connection.cursor()
         cursor.execute(sql)
@@ -3756,6 +3750,19 @@ class FlowPathRecentStep(models.Model):
         cache.set(cls.LAST_PRUNED_KEY, newest_id)
 
         return cursor.rowcount  # number of deleted entries
+
+
+class FlowPathRecentStep(models.Model):
+    """
+    Maintains recent messages for a flow path segment
+    """
+    PRUNE_TO = 10
+    LAST_PRUNED_KEY = 'last_flowpathrecentstep_pruned'
+
+    from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
+    to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
+    step = models.ForeignKey(FlowStep, related_name='recent_segments')
+    left_on = models.DateTimeField(help_text=_("When they left the first node"))
 
 
 class FlowNodeCount(SquashableModel):

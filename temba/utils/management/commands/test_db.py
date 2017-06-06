@@ -24,7 +24,7 @@ from temba.channels.models import Channel
 from temba.channels.tasks import squash_channelcounts
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, ContactGroupCount, URN, TEL_SCHEME, TWITTER_SCHEME
 from temba.flows.models import FlowStart, FlowRun
-from temba.flows.tasks import squash_flowpathcounts, squash_flowruncounts, prune_flowpathrecentsteps
+from temba.flows.tasks import squash_flowpathcounts, squash_flowruncounts, prune_recentmessages
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label, Msg
 from temba.msgs.tasks import squash_labelcounts
@@ -550,7 +550,7 @@ class Command(BaseCommand):
         squash_channelcounts()
         squash_flowpathcounts()
         squash_flowruncounts()
-        prune_flowpathrecentsteps()
+        prune_recentmessages()
         squash_topupcredits()
         squash_labelcounts()
 
