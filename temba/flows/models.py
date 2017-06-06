@@ -5527,7 +5527,8 @@ class SaveToContactAction(Action):
                     contact.update_urns(user, urns)
 
         else:
-            contact.set_field(user, self.field, value)
+            new_value = value[:Value.MAX_VALUE_LEN]
+            contact.set_field(user, self.field, new_value)
             self.logger(run, new_value)
 
         return []
