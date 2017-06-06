@@ -4,6 +4,7 @@ import six
 import time
 
 from collections import defaultdict
+from django.conf import settings
 from django.db import models, connection
 from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
@@ -54,7 +55,7 @@ class Value(models.Model):
                    (AUDIO, _("Audio")),
                    (IMAGE, _("Image")))
 
-    MAX_VALUE_LEN = 8000
+    MAX_VALUE_LEN = settings.VALUE_FIELD_SIZE
 
     contact = models.ForeignKey('contacts.Contact', related_name='values')
 

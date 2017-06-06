@@ -166,7 +166,7 @@ class Broadcast(models.Model):
 
     BULK_THRESHOLD = 50  # use bulk priority for messages if number of recipients greater than this
 
-    MAX_TEXT_LEN = 8000
+    MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
     org = models.ForeignKey(Org, verbose_name=_("Org"),
                             help_text=_("The org this broadcast is connected to"))
@@ -620,7 +620,7 @@ class Msg(models.Model):
 
     CONTACT_HANDLING_QUEUE = 'ch:%d'
 
-    MAX_TEXT_LEN = Broadcast.MAX_TEXT_LEN
+    MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))

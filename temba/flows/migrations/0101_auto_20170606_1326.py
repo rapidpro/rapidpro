@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='flowpathrecentmessage',
             name='text',
-            field=models.CharField(max_length=8000),
+            field=models.TextField(help_text='The message text'),
         ),
         migrations.AlterField(
             model_name='flowstep',

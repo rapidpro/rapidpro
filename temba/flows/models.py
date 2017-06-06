@@ -3695,7 +3695,7 @@ class FlowPathRecentMessage(models.Model):
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
     run = models.ForeignKey(FlowRun, related_name='recent_messages')
-    text = models.CharField(max_length=Msg.MAX_TEXT_LEN)
+    text = models.TextField(help_text=_("The message text"))
     created_on = models.DateTimeField(help_text=_("When the message arrived"))
 
     @classmethod
@@ -3706,7 +3706,7 @@ class FlowPathRecentMessage(models.Model):
         objs = []
         for msg in step.messages.all():
             objs.append(cls(from_uuid=from_uuid, to_uuid=to_uuid,
-                            run=step.run, text=msg.text[:Msg.MAX_TEXT_LEN], created_on=msg.created_on))
+                            run=step.run, text=msg.text, created_on=msg.created_on))
         cls.objects.bulk_create(objs)
 
     @classmethod
