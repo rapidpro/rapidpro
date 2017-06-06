@@ -2489,7 +2489,7 @@ class FlowRun(models.Model):
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
         if isinstance(fields, six.string_types):
-            return fields[:Msg.MAX_SIZE], count + 1
+            return fields[:Value.MAX_VALUE_LEN], count + 1
 
         elif isinstance(fields, numbers.Number):
             return fields, count + 1
@@ -2967,7 +2967,7 @@ class FlowStep(models.Model):
 
         if value is None:
             value = ''
-        self.rule_value = six.text_type(value)[:Msg.MAX_SIZE]
+        self.rule_value = six.text_type(value)[:Msg.MAX_TEXT_LEN]
 
         if isinstance(value, Decimal):
             self.rule_decimal_value = value
@@ -3370,7 +3370,7 @@ class RuleSet(models.Model):
         return None, None
 
     def save_run_value(self, run, rule, value):
-        value = six.text_type(value)[:Msg.MAX_SIZE]
+        value = six.text_type(value)[:Value.MAX_VALUE_LEN]
         location_value = None
         dec_value = None
         dt_value = None
@@ -5527,8 +5527,7 @@ class SaveToContactAction(Action):
                     contact.update_urns(user, urns)
 
         else:
-            new_value = value[:Msg.MAX_SIZE]
-            contact.set_field(user, self.field, new_value)
+            contact.set_field(user, self.field, value)
             self.logger(run, new_value)
 
         return []
