@@ -2489,7 +2489,7 @@ class FlowRun(models.Model):
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
         if isinstance(fields, six.string_types):
-            return fields[:Msg.MAX_SIZE], count + 1
+            return fields[:Value.MAX_VALUE_LEN], count + 1
 
         elif isinstance(fields, numbers.Number):
             return fields, count + 1
@@ -2835,7 +2835,7 @@ class FlowStep(models.Model):
     rule_category = models.CharField(max_length=36, null=True,
                                      help_text=_("The category label that matched on this ruleset, null on ActionSets"))
 
-    rule_value = models.CharField(max_length=Msg.MAX_SIZE, null=True,
+    rule_value = models.CharField(max_length=Msg.MAX_TEXT_LEN, null=True,
                                   help_text=_("The value that was matched in our category for this ruleset, null on ActionSets"))
 
     rule_decimal_value = models.DecimalField(max_digits=36, decimal_places=8, null=True,
@@ -2967,7 +2967,7 @@ class FlowStep(models.Model):
 
         if value is None:
             value = ''
-        self.rule_value = six.text_type(value)[:Msg.MAX_SIZE]
+        self.rule_value = six.text_type(value)[:Msg.MAX_TEXT_LEN]
 
         if isinstance(value, Decimal):
             self.rule_decimal_value = value
@@ -3370,7 +3370,7 @@ class RuleSet(models.Model):
         return None, None
 
     def save_run_value(self, run, rule, value):
-        value = six.text_type(value)[:Msg.MAX_SIZE]
+        value = six.text_type(value)[:Value.MAX_VALUE_LEN]
         location_value = None
         dec_value = None
         dt_value = None
@@ -3695,7 +3695,7 @@ class FlowPathRecentMessage(models.Model):
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
     run = models.ForeignKey(FlowRun, related_name='recent_messages')
-    text = models.CharField(max_length=Msg.MAX_SIZE)
+    text = models.TextField(help_text=_("The message text"))
     created_on = models.DateTimeField(help_text=_("When the message arrived"))
 
     @classmethod
@@ -3706,7 +3706,7 @@ class FlowPathRecentMessage(models.Model):
         objs = []
         for msg in step.messages.all():
             objs.append(cls(from_uuid=from_uuid, to_uuid=to_uuid,
-                            run=step.run, text=msg.text[:Msg.MAX_SIZE], created_on=msg.created_on))
+                            run=step.run, text=msg.text, created_on=msg.created_on))
         cls.objects.bulk_create(objs)
 
     @classmethod
@@ -5527,7 +5527,7 @@ class SaveToContactAction(Action):
                     contact.update_urns(user, urns)
 
         else:
-            new_value = value[:Msg.MAX_SIZE]
+            new_value = value[:Value.MAX_VALUE_LEN]
             contact.set_field(user, self.field, new_value)
             self.logger(run, new_value)
 
