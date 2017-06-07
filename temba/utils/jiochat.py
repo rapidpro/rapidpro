@@ -104,7 +104,7 @@ class JiochatClient:
         event = HttpEvent('POST', url, json.dumps(data))
 
         try:
-            response = self._request(url, 'POST', data, access_token)
+            response = self._request(url, 'POST_JSON', data, access_token)
             event.status_code = response.status_code
             event.response_body = response.text
         except Exception as e:
@@ -122,8 +122,10 @@ class JiochatClient:
         headers = {'Authorization': 'Bearer ' + access_token} if access_token else {}
         headers.update(TEMBA_HEADERS)
 
-        if method == 'POST':
+        if method == 'POST_JSON':
             response = requests.post(url, json=params, headers=headers, timeout=15)
+        elif method == 'POST':
+            response = requests.post(url, data=params, headers=headers, timeout=15)
         else:
             response = requests.get(url, params=params, headers=headers, timeout=15)
 
