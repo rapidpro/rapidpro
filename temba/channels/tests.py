@@ -10051,6 +10051,9 @@ class JiochatTest(TembaTest):
             channel_client = self.channel.get_jiochat_client()
 
             self.assertEqual(channel_client.get_access_token(), 'ABC1234')
+            self.assertEqual(mock.call_args_list[0][1]['data'], {'client_secret': u'app-secret',
+                                                                 'grant_type': 'client_credentials',
+                                                                 'client_id': u'app-id'})
 
     @patch('temba.utils.jiochat.JiochatClient.refresh_access_token')
     def test_url_verification(self, mock_refresh_access_token):

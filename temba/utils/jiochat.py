@@ -36,7 +36,7 @@ class JiochatClient:
             with r.lock(lock_name, timeout=30):
                 key = JIOCHAT_ACCESS_TOKEN_KEY % self.channel_uuid
 
-                post_data = dict(grant_type='client_credentials', appid=self.app_id, secret=self.app_secret)
+                post_data = dict(grant_type='client_credentials', client_id=self.app_id, client_secret=self.app_secret)
                 url = 'https://channels.jiochat.com/auth/token.action'
 
                 response = self._request(url, 'POST', post_data, access_token=None)
