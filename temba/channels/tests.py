@@ -10160,7 +10160,7 @@ class JiochatTest(TembaTest):
         data = {
             'ToUsername': '12121212121212',
             'FromUserName': '1234',
-            'CreateTime': an_hour_ago.toordinal(),
+            'CreateTime': time.mktime(an_hour_ago.timetuple()),
             'MsgType': 'blabla',
             'MsgId': '123456',
             "Content": "Test",
@@ -10172,7 +10172,7 @@ class JiochatTest(TembaTest):
         data = {
             'ToUsername': '12121212121212',
             'FromUserName': '1234',
-            'CreateTime': an_hour_ago.toordinal(),
+            'CreateTime': time.mktime(an_hour_ago.timetuple()),
             'MsgType': 'text',
             'MsgId': '123456',
             "Content": "Test",
@@ -10238,7 +10238,7 @@ class JiochatTest(TembaTest):
         data = {
             'ToUsername': '12121212121212',
             'FromUserName': '1234',
-            'CreateTime': an_hour_ago.toordinal(),
+            'CreateTime': time.mktime(an_hour_ago.timetuple()),
             'MsgType': 'image',
             'MsgId': '123456',
             "MediaId": "12",
