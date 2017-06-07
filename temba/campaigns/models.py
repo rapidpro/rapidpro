@@ -264,7 +264,7 @@ class CampaignEvent(TembaModel):
                                   help_text='The type of this event')
 
     # when sending single message events, we store the message here (as well as on the flow) for convenience
-    message = TranslatableField(max_length=Msg.MAX_SIZE, null=True)
+    message = TranslatableField(max_length=Msg.MAX_TEXT_LEN, null=True)
 
     delivery_hour = models.IntegerField(default=-1, help_text="The hour to send the message or flow at.")
 
