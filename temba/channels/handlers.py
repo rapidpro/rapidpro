@@ -2208,7 +2208,9 @@ class MbloxHandler(BaseChannelHandler):
 
 class JioChatHandler(BaseChannelHandler):
 
-    url = r'^jiochat/(?P<uuid>[a-z0-9\-]+)/?$'
+    # Jiochat expected the URL to receive message on CONFIG_URL/rcv/msg/message
+    # and for event message on CONFIG_URL/rcv/event/menu
+    url = r'^jiochat/(?P<uuid>[a-z0-9\-]+)(/rcv/msg/message|/rcv/event/menu)?/?$'
     url_name = 'handlers.jiochat_handler'
 
     def lookup_channel(self, kwargs):
