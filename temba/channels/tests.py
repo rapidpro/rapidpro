@@ -10860,6 +10860,13 @@ class FcmTest(TembaTest):
 
         self.assertEquals(contact.get('contact_uuid'), updated_contact.get('contact_uuid'))
 
+        data = {'urn': '12345abcde', 'fcm_token': '1234567890qwertyuiop', 'contact_uuid': contact.get('contact_uuid')}
+        response = self.client.post(self.register_url, data)
+        self.assertEquals(200, response.status_code)
+        updated_contact = json.loads(response.content)
+
+        self.assertEquals(contact.get('contact_uuid'), updated_contact.get('contact_uuid'))
+
     def test_send(self):
         joe = self.create_contact("Joe", urn="fcm:12345abcde", auth="123456abcdef")
         msg = joe.send("Hello, world!", self.admin, trigger_send=False)
