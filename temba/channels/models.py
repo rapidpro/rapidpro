@@ -32,7 +32,7 @@ from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID, NEXMO_APP_ID
-from temba.orgs.models import CHATBASE_API_KEY, CHATBASE_TYPE, CHATBASE_NOT_HANDLED, CHATBASE_FEEDBACK, CHATBASE_VERSION
+from temba.orgs.models import CHATBASE_API_KEY, CHATBASE_VERSION, CHATBASE_TYPE_AGENT, CHATBASE_TYPE_USER
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
@@ -1332,7 +1332,8 @@ class Channel(TembaModel):
 
             # Send data to Chatbase API
             on_transaction_commit(lambda: send_chatbase_log.apply_async(args=(msg.org, channel.name, msg.text,
-                                                                              msg.contact), queue='msgs'))
+                                                                              msg.contact, CHATBASE_TYPE_AGENT, False),
+                                                                        queue='msgs'))
 
     @classmethod
     def send_fcm_message(cls, channel, msg, text):
@@ -2967,7 +2968,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @staticmethod
-    def send_chatbase_log(org_id, channel_name, text, contact_id):
+    def send_chatbase_log(org_id, channel_name, text, contact_id, type, not_handled):
         if not settings.SEND_CHATBASE:
             raise Exception("!! Skipping Chatbase request, SEND_CHATBASE set to False")
 
@@ -2976,14 +2977,15 @@ class Channel(TembaModel):
             if org.is_connected_to_chatbase():
                 config = org.config_json()
                 data = dict(api_key=config.get(CHATBASE_API_KEY),
-                            type=config.get(CHATBASE_TYPE),
+                            type=type,
                             user_id=contact_id,
                             platform=channel_name,
-                            not_handled=config.get(CHATBASE_NOT_HANDLED),
                             message=text,
-                            feedback=config.get(CHATBASE_FEEDBACK),
                             time_stamp=int(time.time()),
                             version=config.get(CHATBASE_VERSION))
+
+                if type == CHATBASE_TYPE_USER and not_handled:
+                    data.update(dict(not_handled=True))
 
                 requests.post(settings.CHATBASE_API_URL, data)
 

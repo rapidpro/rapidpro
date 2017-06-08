@@ -396,6 +396,7 @@ def clear_old_msg_external_ids():
 
 
 @task(track_started=True, name='send_chatbase_log')
-def send_chatbase_log(org_id, channel_name, text, contact_id):
+def send_chatbase_log(org_id, channel_name, text, contact_id, type, not_handled):
     from temba.channels.models import Channel
-    Channel.send_chatbase_log(org_id=org_id, channel_name=channel_name, text=text, contact_id=contact_id)
+    Channel.send_chatbase_log(org_id=org_id, channel_name=channel_name, text=text, contact_id=contact_id, type=type,
+                              not_handled=not_handled)
