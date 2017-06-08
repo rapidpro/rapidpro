@@ -10135,6 +10135,42 @@ class JiochatTest(TembaTest):
             msg.refresh_from_db()
             self.assertEquals(msg.status, ERRORED)
 
+    def test_follow(self):
+        callback_url = reverse('handlers.jiochat_handler', args=[self.channel.uuid])
+        an_hour_ago = timezone.now() - timedelta(hours=1)
+
+        flow = self.create_flow()
+
+        data = {
+            'ToUsername': '12121212121212',
+            'FromUserName': '1234',
+            'CreateTime': time.mktime(an_hour_ago.timetuple()),
+            'MsgType': 'event',
+            'Event': 'subscribe',
+        }
+
+        Contact.objects.all().delete()
+
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+        contact = Contact.objects.get()
+        self.assertEqual(contact.get_urn(JIOCHAT_SCHEME).path, "1234")
+
+        self.assertEqual(0, flow.runs.all().count())
+
+        Trigger.objects.create(created_by=self.user, modified_by=self.user, org=self.org,
+                               trigger_type=Trigger.TYPE_FOLLOW, flow=flow, channel=self.channel)
+
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(1, flow.runs.all().count())
+
+        # we ignore unsubscribe event
+        data['Event'] = 'unsubscribe'
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
     @patch('requests.get')
     @patch('temba.utils.jiochat.JiochatClient.get_access_token')
     def test_receive(self, mock_access_token, mock_get):

@@ -2244,7 +2244,7 @@ class JioChatHandler(BaseChannelHandler):
         except Exception as e:  # pragma: needs cover
             return HttpResponse("Invalid JSON in POST body: %s" % str(e), status=400)
 
-        if 'FromUserName' not in body or 'MsgType' not in body or 'MsgId' not in body:
+        if 'FromUserName' not in body or 'MsgType' not in body or ('MsgId' not in body and 'Event' not in body):
             return HttpResponse("Missing parameters", status=400)
 
         client = channel.get_jiochat_client()
@@ -2255,7 +2255,7 @@ class JioChatHandler(BaseChannelHandler):
         if create_time:
             msg_date = datetime.utcfromtimestamp(float(unicode(create_time)[:10])).replace(tzinfo=pytz.utc)
         msg_type = body.get('MsgType')
-        external_id = body.get('MsgId')
+        external_id = body.get('MsgId', None)
 
         urn = URN.from_jiochat(sender_id)
         msg = None
@@ -2266,6 +2266,12 @@ class JioChatHandler(BaseChannelHandler):
 
         contact = Contact.get_or_create(channel.org, channel.created_by, name=contact_name,
                                         urns=[urn], channel=channel)
+
+        if msg_type == 'event':
+            event = body.get('Event')
+            if event == 'subscribe':
+                Trigger.catch_triggers(contact, Trigger.TYPE_FOLLOW, channel)
+                return HttpResponse("New follow handled: %s" % sender_id)
 
         if msg_type == 'text':
             msg = Msg.create_incoming(channel, urn, body.get('Content'), date=msg_date, contact=contact)
