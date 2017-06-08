@@ -783,4 +783,7 @@
 .icon-attachment:before {
   content: "\e9cd";
 }
+.icon-chatbase:before {
+  content: "\e902";
+}
 
