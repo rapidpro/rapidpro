@@ -2210,7 +2210,8 @@ class JioChatHandler(BaseChannelHandler):
 
     # Jiochat expected the URL to receive message on CONFIG_URL/rcv/msg/message
     # and for event message on CONFIG_URL/rcv/event/menu
-    url = r'^jiochat/(?P<uuid>[a-z0-9\-]+)(/rcv/msg/message|/rcv/event/menu)?/?$'
+    # and for follow event on CONFIG_URL/rcv/event/follow
+    url = r'^jiochat/(?P<uuid>[a-z0-9\-]+)(/rcv/msg/message|/rcv/event/menu|/rcv/event/follow)?/?$'
     url_name = 'handlers.jiochat_handler'
 
     def lookup_channel(self, kwargs):
