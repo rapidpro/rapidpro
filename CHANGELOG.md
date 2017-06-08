@@ -1,3 +1,9 @@
+v3.0.149
+----------
+ * Add sender ID config for Macrokiosk channels
+ * Expose org credit information on API org endpoint
+ * Drop database-level length restrictions on msg and values
+
 v3.0.148
 ----------
 * Fix simulator with attachments
