@@ -2394,6 +2394,7 @@ class OrgEndpoint(BaseAPIView):
             "primary_language": "eng",
             "timezone": "Africa/Kigali",
             "date_style": "day_first",
+            "credits": {"used": 121433, "remaining": 3452},
             "anon": false
         }
     """
@@ -2409,6 +2410,7 @@ class OrgEndpoint(BaseAPIView):
             'primary_language': org.primary_language.iso_code if org.primary_language else None,
             'timezone': six.text_type(org.timezone),
             'date_style': ('day_first' if org.get_dayfirst() else 'month_first'),
+            'credits': {'used': org.get_credits_used(), 'remaining': org.get_credits_remaining()},
             'anon': org.is_anon
         }
 

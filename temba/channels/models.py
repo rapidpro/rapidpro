@@ -134,6 +134,7 @@ class Channel(TembaModel):
     CONFIG_FCM_TITLE = 'FCM_TITLE'
     CONFIG_FCM_NOTIFICATION = 'FCM_NOTIFICATION'
     CONFIG_MAX_LENGTH = 'max_length'
+    CONFIG_MACROKIOSK_SENDER_ID = 'macrokiosk_sender_id'
     CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
 
     JIOCHAT_ACCESS_TOKEN_KEY = 'jiochat_channel_access_token:%s'
@@ -2159,7 +2160,7 @@ class Channel(TembaModel):
 
         data = {
             'user': channel.config[Channel.CONFIG_USERNAME], 'pass': channel.config[Channel.CONFIG_PASSWORD],
-            'to': recipient, 'text': text, 'from': channel.address.lstrip('+'),
+            'to': recipient, 'text': text, 'from': channel.config[Channel.CONFIG_MACROKIOSK_SENDER_ID],
             'servid': channel.config[Channel.CONFIG_MACROKIOSK_SERVICE_ID], 'type': message_type
         }
 

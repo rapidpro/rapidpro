@@ -3464,6 +3464,7 @@ class ChannelClaimTest(TembaTest):
         post_data['number'] = '250788123123'
         post_data['username'] = 'user1'
         post_data['password'] = 'pass1'
+        post_data['sender_id'] = 'macro'
         post_data['service_id'] = 'SERVID'
 
         response = self.client.post(reverse('channels.channel_claim_macrokiosk'), post_data)
@@ -3473,6 +3474,7 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(channel.country, 'MY')
         self.assertEquals(channel.config_json()['username'], post_data['username'])
         self.assertEquals(channel.config_json()['password'], post_data['password'])
+        self.assertEquals(channel.config_json()[Channel.CONFIG_MACROKIOSK_SENDER_ID], post_data['sender_id'])
         self.assertEquals(channel.config_json()[Channel.CONFIG_MACROKIOSK_SERVICE_ID], post_data['service_id'])
         self.assertEquals(channel.address, '250788123123')
         self.assertEquals(channel.channel_type, Channel.TYPE_MACROKIOSK)
@@ -5786,6 +5788,7 @@ class MacrokioskTest(TembaTest):
         self.channel.delete()
         config = dict(username='mk-user', password='mk-password')
         config[Channel.CONFIG_MACROKIOSK_SERVICE_ID] = 'SERVICE-ID'
+        config[Channel.CONFIG_MACROKIOSK_SENDER_ID] = 'macro'
 
         self.channel = Channel.create(self.org, self.user, 'NP', 'MK', None, '1212',
                                       config=config, uuid='00000000-0000-0000-0000-000000001234')
@@ -5947,6 +5950,7 @@ class MacrokioskTest(TembaTest):
                 self.assertEquals('asdf-asdf-asdf-asdf', msg.external_id)
 
                 self.assertEqual(mock.call_args[1]['json']['text'], 'Test message')
+                self.assertEqual(mock.call_args[1]['json']['from'], 'macro')
 
                 self.clear_cache()
 
