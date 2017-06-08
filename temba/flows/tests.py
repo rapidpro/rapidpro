@@ -3757,9 +3757,9 @@ class FlowRunTest(TembaTest):
         self.assertEqual(normalized, dict(value_1='value1', value_2='value2'))
 
         # field text too long
-        fields['field2'] = "*" * 8001
+        fields['field2'] = "*" * 650
         (normalized, count) = FlowRun.normalize_fields(fields)
-        self.assertEqual(len(normalized['field2']), 8000)
+        self.assertEqual(len(normalized['field2']), 640)
 
         # field name too long
         fields['field' + ("*" * 350)] = "short value"
