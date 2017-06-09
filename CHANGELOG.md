@@ -1,17 +1,10 @@
 v3.0.150
 ----------
- * Remove remaining database-level length constraints
- * Revert default message text length limit to 640
+ * Drop database-level length restrictions on msg and values
  * Add sender ID config for Macrokiosk channels
  * Expose org credit information on API org endpoint
  * Add contact_uuid parameter to update FCM user
  * Add configurable webhook header fields
-
-v3.0.149
-----------
- * Add sender ID config for Macrokiosk channels
- * Expose org credit information on API org endpoint
- * Drop database-level length restrictions on msg and values
 
 v3.0.148
 ----------
