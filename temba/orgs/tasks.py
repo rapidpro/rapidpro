@@ -1,10 +1,12 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import time
+import requests
 
 from celery.task import task
 from datetime import timedelta
 from django.utils import timezone
+from django.conf import settings
 from temba.utils.queues import nonoverlapping_task
 from .models import CreditAlert, Invitation, Org, TopUpCredits
 
@@ -45,3 +47,14 @@ def calculate_credit_caches():  # pragma: needs cover
 @nonoverlapping_task(track_started=True, name="squash_topupcredits", lock_key='squash_topupcredits')
 def squash_topupcredits():
     TopUpCredits.squash()
+
+
+@task(track_started=True, name='send_chatbase_logs')
+def send_chatbase_logs():  # pragma: needs cover
+    """
+    Send messages logs in batch to Chatbase
+    """
+    from temba.orgs.models import CHATBASE_API_KEY
+
+    for org in Org.objects.filter(config__contains=CHATBASE_API_KEY).distinct('pk'):
+        requests.post(settings.CHATBASE_API_URL, {})

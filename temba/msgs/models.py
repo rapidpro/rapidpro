@@ -23,7 +23,7 @@ from temba_expressions.evaluator import EvaluationContext, DateStyle
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
 from temba.channels.models import Channel, ChannelEvent
-from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
+from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS, CHATBASE_API_KEY, CHATBASE_VERSION
 from temba.schedules.models import Schedule
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit, datetime_to_ms, dict_to_json
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
@@ -1200,6 +1200,11 @@ class Msg(models.Model):
         if self.contact_urn.auth:
             data.update(dict(auth=self.contact_urn.auth))
 
+        if self.org.is_connected_to_chatbase():
+            data.update(dict(is_org_connected_to_chatbase=True,
+                             chatbase_api_key=self.org.config_json()[CHATBASE_API_KEY],
+                             chatbase_version=self.org.config_json()[CHATBASE_VERSION]))
+
         return data
 
     def __str__(self):
@@ -1209,7 +1214,6 @@ class Msg(models.Model):
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
                         status=PENDING, media=None, msg_type=None, topup=None, external_id=None, session=None):
 
-        from temba.msgs.tasks import send_chatbase_log
         from temba.api.models import WebHookEvent
         from temba.orgs.models import CHATBASE_TYPE_USER
         if not org and channel:
@@ -1290,11 +1294,12 @@ class Msg(models.Model):
             # fire an event off for this message
             WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, date)
 
-        # Task to send data to Chatbase API
-        not_handled = msg.msg_type == INBOX
-        on_transaction_commit(lambda: send_chatbase_log.apply_async(args=(org.id, channel.name, msg.text, contact.id,
-                                                                          CHATBASE_TYPE_USER, not_handled),
-                                                                    queue='msgs'))
+        # Registering data to send to Chatbase API later
+        if org.is_connected_to_chatbase():
+            config = org.config_json()
+            Org.register_chatbase_log(api_key=config.get(CHATBASE_API_KEY), version=config.get(CHATBASE_VERSION),
+                                      org_id=org.id, channel_name=channel.name, msg_id=msg.id, text=msg.text,
+                                      contact_id=contact.id, type=CHATBASE_TYPE_USER, not_handled=True)
 
         return msg
 
