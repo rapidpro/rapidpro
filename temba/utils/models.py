@@ -41,11 +41,6 @@ class TranslatableField(HStoreField):
     def validators(self):
         return super(TranslatableField, self).validators + [TranslatableField.Validator(self.max_length)]
 
-    def deconstruct(self):
-        name, path, args, kwargs = super(TranslatableField, self).deconstruct()
-        kwargs['max_length'] = self.max_length
-        return name, path, args, kwargs
-
 
 class TembaModel(SmartModel):
 
