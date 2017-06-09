@@ -3060,6 +3060,7 @@ class RuleSet(models.Model):
 
     CONFIG_WEBHOOK = 'webhook'
     CONFIG_WEBHOOK_ACTION = 'webhook_action'
+    CONFIG_WEBHOOK_HEADERS = 'webhook_headers'
     CONFIG_RESTHOOK = 'resthook'
 
     TYPE_MEDIA = (TYPE_WAIT_PHOTO, TYPE_WAIT_GPS, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_RECORDING)
@@ -3252,11 +3253,18 @@ class RuleSet(models.Model):
                         return rule, value
 
         elif self.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
+            header = {}
+
             # figure out which URLs will be called
             if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
                 resthook = None
                 urls = [self.config_json()[RuleSet.CONFIG_WEBHOOK]]
                 action = self.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION]
+
+                if RuleSet.CONFIG_WEBHOOK_HEADERS in self.config_json():
+                    headers = self.config_json()[RuleSet.CONFIG_WEBHOOK_HEADERS]
+                    for item in headers:
+                        header[item.get('name')] = item.get('value')
 
             elif self.ruleset_type == RuleSet.TYPE_RESTHOOK:
                 from temba.api.models import Resthook
@@ -3281,7 +3289,8 @@ class RuleSet(models.Model):
 
                 (value, errors) = Msg.substitute_variables(url, context, org=run.flow.org, url_encode=True)
 
-                result = WebHookEvent.trigger_flow_event(run, value, self, msg, action, resthook=resthook)
+                result = WebHookEvent.trigger_flow_event(run, value, self, msg, action, resthook=resthook,
+                                                         header=header)
 
                 # we haven't recorded any status yet, do so
                 if not status_code:
@@ -4654,16 +4663,19 @@ class WebhookAction(Action):
     TYPE = 'api'
     ACTION = 'action'
 
-    def __init__(self, webhook, action='POST'):
+    def __init__(self, webhook, action='POST', webhook_headers=None):
         self.webhook = webhook
         self.action = action
+        self.webhook_headers = webhook_headers
 
     @classmethod
     def from_json(cls, org, json_obj):
-        return WebhookAction(json_obj.get('webhook', org.get_webhook_url()), json_obj.get('action', 'POST'))
+        return WebhookAction(json_obj.get('webhook', org.get_webhook_url()), json_obj.get('action', 'POST'),
+                             json_obj.get('webhook_headers', []))
 
     def as_json(self):
-        return dict(type=WebhookAction.TYPE, webhook=self.webhook, action=self.action)
+        return dict(type=WebhookAction.TYPE, webhook=self.webhook, action=self.action,
+                    webhook_headers=self.webhook_headers)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         from temba.api.models import WebHookEvent
@@ -4673,7 +4685,12 @@ class WebhookAction(Action):
         if errors:
             ActionLog.warn(run, _("URL appears to contain errors: %s") % ", ".join(errors))
 
-        WebHookEvent.trigger_flow_event(run, value, actionset_uuid, msg, self.action)
+        headers = {}
+        if self.webhook_headers:
+            for item in self.webhook_headers:
+                headers[item.get('name')] = item.get('value')
+
+        WebHookEvent.trigger_flow_event(run, value, actionset_uuid, msg, self.action, header=headers)
         return []
 
 
