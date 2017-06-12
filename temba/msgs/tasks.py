@@ -393,10 +393,3 @@ def clear_old_msg_external_ids():
         Msg.objects.filter(pk__in=msg_id_batch).update(external_id=None)
 
     print("Cleared external ids on %d messages" % len(msg_ids))
-
-
-@task(track_started=True, name='send_chatbase_log')
-def register_chatbase_log(org_id, channel_name, msg_id, text, contact_id, type, not_handled):
-    from temba.channels.models import Channel
-    Channel.register_chatbase_log(org_id=org_id, channel_name=channel_name, msg_id=msg_id, text=text,
-                                  contact_id=contact_id, type=type, not_handled=not_handled)
