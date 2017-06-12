@@ -136,6 +136,7 @@ ORG_ACTIVE_TOPUP_KEY = 'org:%d:cache:active_topup'
 ORG_ACTIVE_TOPUP_REMAINING = 'org:%d:cache:credits_remaining:%d'
 ORG_CREDIT_EXPIRING_CACHE_KEY = 'org:%d:cache:credits_expiring_soon'
 ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY = 'org:%d:cache:low_credits_threshold'
+ORG_CHATBASE_LOG_CACHE_KEY = 'org:%d:cache:chatbase_log:%d'
 
 ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
@@ -1950,11 +1951,11 @@ class Org(SmartModel):
             if type == CHATBASE_TYPE_USER and not_handled:
                 data.update(dict(not_handled=True))
 
-            key = 'org_chatbase_log:%d:%d' % (org_id, msg_id)
+            key = ORG_CHATBASE_LOG_CACHE_KEY % (org_id, msg_id)
             cached = cache.get(key, None)
 
             if cached is None:
-                cache.set(key, dict_to_json(data), timeout=900)
+                cache.set(key, dict_to_json(data), timeout=300)
 
         except Exception as e:
             import traceback
