@@ -109,7 +109,7 @@ class BroadcastReadSerializer(ReadSerializer):
 
 
 class BroadcastWriteSerializer(WriteSerializer):
-    text = fields.TranslatableField(required=True, max_length=Msg.MAX_SIZE)
+    text = fields.TranslatableField(required=True, max_length=Msg.MAX_TEXT_LEN)
     urns = fields.URNListField(required=False)
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
@@ -222,7 +222,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
     unit = serializers.ChoiceField(required=True, choices=UNITS.keys())
     delivery_hour = serializers.IntegerField(required=True, min_value=-1, max_value=23)
     relative_to = fields.ContactFieldField(required=True)
-    message = fields.TranslatableField(required=False, max_length=Msg.MAX_SIZE)
+    message = fields.TranslatableField(required=False, max_length=Msg.MAX_TEXT_LEN)
     flow = fields.FlowField(required=False)
 
     def validate_unit(self, value):

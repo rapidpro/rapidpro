@@ -507,7 +507,10 @@ class ExternalHandler(BaseChannelHandler):
             # handlers can optionally specify the date/time of the message (as 'date' or 'time') in ECMA format
             date = self.get_param('date', self.get_param('time'))
             if date:
-                date = json_date_to_datetime(date)
+                try:
+                    date = json_date_to_datetime(date)
+                except ValueError as e:
+                    return HttpResponse("Bad parameter error: %s" % e.message, status=400)
 
             urn = URN.from_parts(channel.scheme, sender)
             sms = Msg.create_incoming(channel, urn, text, date=date)
@@ -1047,7 +1050,7 @@ class MacroKioskHandler(BaseChannelHandler):
         elif action == 'receive':
 
             external_id = self.get_param('msgid')
-            message_date = datetime.strptime(self.get_param('time'), "%Y-%m-%d %H:%M:%S")
+            message_date = datetime.strptime(self.get_param('time'), "%Y-%m-%d%H:%M:%S")
             local_date = pytz.timezone('Asia/Kuala_Lumpur').localize(message_date)
             gmt_date = local_date.astimezone(pytz.utc)
 
@@ -2863,8 +2866,11 @@ class FCMHandler(BaseChannelHandler):
                 fcm_urn = URN.from_fcm(self.get_param('urn'))
                 fcm_token = self.get_param('fcm_token')
                 name = self.get_param('name', None)
+                contact_uuid = self.get_param('contact_uuid', None)
+
                 contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[fcm_urn],
-                                                channel=channel, auth=fcm_token)
+                                                channel=channel, auth=fcm_token, uuid=contact_uuid)
+
                 return HttpResponse(json.dumps({'contact_uuid': contact.uuid}), content_type='application/json')
 
             else:  # pragma: no cover

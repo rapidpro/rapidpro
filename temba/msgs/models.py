@@ -166,6 +166,8 @@ class Broadcast(models.Model):
 
     BULK_THRESHOLD = 50  # use bulk priority for messages if number of recipients greater than this
 
+    MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
+
     org = models.ForeignKey(Org, verbose_name=_("Org"),
                             help_text=_("The org this broadcast is connected to"))
 
@@ -196,7 +198,7 @@ class Broadcast(models.Model):
 
     parent = models.ForeignKey('Broadcast', verbose_name=_("Parent"), null=True, related_name='children')
 
-    text = TranslatableField(verbose_name=_("Translations"), max_length=settings.MSG_FIELD_SIZE,
+    text = TranslatableField(verbose_name=_("Translations"), max_length=MAX_TEXT_LEN,
                              help_text=_("The localized versions of the message text"))
 
     base_language = models.CharField(max_length=4,
@@ -618,7 +620,7 @@ class Msg(models.Model):
 
     CONTACT_HANDLING_QUEUE = 'ch:%d'
 
-    MAX_SIZE = settings.MSG_FIELD_SIZE
+    MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))
@@ -639,7 +641,7 @@ class Msg(models.Model):
                                   related_name='msgs', verbose_name=_("Broadcast"),
                                   help_text=_("If this message was sent to more than one recipient"))
 
-    text = models.TextField(max_length=MAX_SIZE, verbose_name=_("Text"),
+    text = models.TextField(verbose_name=_("Text"),
                             help_text=_("The actual message content that was sent"))
 
     priority = models.IntegerField(default=PRIORITY_NORMAL,
@@ -694,9 +696,6 @@ class Msg(models.Model):
 
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name='msgs', on_delete=models.SET_NULL,
                               help_text="The topup that this message was deducted from")
-
-    media = models.URLField(null=True, blank=True, max_length=255,
-                            help_text=_("The media associated with this message if any"))
 
     attachments = ArrayField(models.URLField(max_length=255), null=True,
                              help_text=_("The media attachments on this message if any"))
@@ -937,19 +936,14 @@ class Msg(models.Model):
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
     @classmethod
-    def get_media(cls, msg):
-        if hasattr(msg, 'media') and msg.media:  # pragma: no cover
-            media = msg.media
-        elif hasattr(msg, 'attachments') and msg.attachments:
-            media = msg.attachments[0]  # for now we only support a single attachment
+    def get_attachments(cls, msg):
+        """
+        Returns the attachments on the given MsgStruct split into type and URL
+        """
+        if msg.attachments:
+            return [a.split(':', 1) for a in msg.attachments if ":" in a]
         else:
-            media = None
-
-        if media:
-            parts = media.split(':', 1)
-            if len(parts) == 2:
-                return parts
-        return None, None
+            return []
 
     def as_json(self):
         return dict(direction=self.direction,
@@ -1168,17 +1162,6 @@ class Msg(models.Model):
         # send our message
         self.org.trigger_send([cloned])
 
-    def get_flow_step(self):  # pragma: needs cover
-        if self.msg_type not in (FLOW, IVR):
-            return None
-
-        steps = list(self.steps.all())  # steps may have been pre-fetched
-        return steps[0] if steps else None
-
-    def get_flow(self):  # pragma: needs cover
-        step = self.get_flow_step()
-        return step.run.flow if step else None
-
     def as_task_json(self):
         """
         Used internally to serialize to JSON when queueing messages in Redis
@@ -1244,7 +1227,7 @@ class Msg(models.Model):
 
         # we limit our text message length
         if text:
-            text = text[:Msg.MAX_SIZE]
+            text = text[:cls.MAX_TEXT_LEN]
 
         now = timezone.now()
 
@@ -1381,6 +1364,8 @@ class Msg(models.Model):
             message_context['channel'] = channel.build_expressions_context()
 
         (text, errors) = Msg.substitute_variables(text, message_context, contact=contact, org=org)
+        if text:
+            text = text[:Msg.MAX_TEXT_LEN]
 
         # if we are doing a single message, check whether this might be a loop of some kind
         if insert_object:

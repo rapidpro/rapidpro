@@ -1435,6 +1435,73 @@
 
   }
 
+  .modal-body{
+    a.additional-options{
+      margin: 5px 0;
+      display: inline-block;
+    }
+    .webhook-headers{
+      a.add-header{
+        margin: 5px 0;
+        display: inline-block;
+      }
+      .modal-webhook-header-pair{
+        margin: 0;
+        .modal-webhook-header{
+          width: 46%;
+          display: inline-block;
+          position: relative;
+
+          &.modal-webhook-header-name {
+            margin: 0 1% 0 0;
+            input{
+              width: 100%;
+              box-sizing: border-box;
+              -moz-box-sizing: border-box;
+              -webkit-box-sizing: border-box;
+              padding: 14px 6px;
+              margin: 10px 0 0 0;
+            }
+          }
+
+          &.modal-webhook-header-value {
+            margin: 0 0 0 1%;
+            input{
+              width: 100%;
+              box-sizing: border-box;
+              -moz-box-sizing: border-box;
+              -webkit-box-sizing: border-box;
+              padding: 14px 6px;
+              margin: 10px 0 0 0;
+            }
+          }
+
+          &.modal-webhook-header-remove {
+            width: 1% !important;
+            display: inline-block;
+            position: relative;
+            margin: 0 1%;
+            .icon{
+              display: none;
+              color: #ccc;
+              margin: 8px 0;
+              cursor: pointer;
+            }
+          }
+        }
+        &:hover{
+          .modal-webhook-header{
+            &.modal-webhook-header-remove {
+              .icon{
+                display: inline-block;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   .modal-body input.url {
     width: 400px;
     margin-left:5px;
@@ -1531,6 +1598,73 @@
   }
   .modal-body {
     padding-bottom:20px;
+
+    .webhook {
+      a.additional-options{
+        margin: 5px 0;
+        display: inline-block;
+      }
+      .webhook-headers{
+        a.add-header{
+          margin: 5px 0;
+          display: inline-block;
+        }
+        .modal-webhook-header-pair{
+          margin: 0;
+          .modal-webhook-header{
+            width: 46%;
+            display: inline-block;
+            position: relative;
+
+            &.modal-webhook-header-name {
+              margin: 0 1% 0 0;
+              input{
+                width: 100%;
+                box-sizing: border-box;
+                -moz-box-sizing: border-box;
+                -webkit-box-sizing: border-box;
+                padding: 14px 6px;
+                margin: 10px 0 0 0;
+              }
+            }
+
+            &.modal-webhook-header-value {
+              margin: 0 0 0 1%;
+              input{
+                width: 100%;
+                box-sizing: border-box;
+                -moz-box-sizing: border-box;
+                -webkit-box-sizing: border-box;
+                padding: 14px 6px;
+                margin: 10px 0 0 0;
+              }
+            }
+
+            &.modal-webhook-header-remove {
+              width: 1% !important;
+              display: inline-block;
+              position: relative;
+              margin: 0 1%;
+              .icon{
+                display: none;
+                color: #ccc;
+                margin: 8px 0;
+                cursor: pointer;
+              }
+            }
+          }
+          &:hover{
+            .modal-webhook-header{
+              &.modal-webhook-header-remove {
+                .icon{
+                  display: inline-block;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
   .modal-body input.url {
     width: 490px;

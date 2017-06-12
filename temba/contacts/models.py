@@ -521,11 +521,6 @@ class Contact(TembaModel):
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
         msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).select_related('channel').prefetch_related('channel_logs')
 
-        # TODO for now we assume a message can only have one attachment but this will change and read page needs updated
-        # accordingly
-        for msg in msgs:
-            msg.media = msg.attachments[0] if msg.attachments else None
-
         # we also include in the timeline purged broadcasts with a best guess at the translation used
         recipients = BroadcastRecipient.objects.filter(contact=self)
         recipients = recipients.filter(broadcast__purged=True, broadcast__created_on__gte=after, broadcast__created_on__lt=before)
@@ -533,8 +528,11 @@ class Contact(TembaModel):
         broadcasts = []
         for recipient in recipients:
             broadcast = recipient.broadcast
+            media = broadcast.get_translated_media(contact=self, org=self.org) if broadcast.media else None
+
             broadcast.translated_text = broadcast.get_translated_text(contact=self, org=self.org)
             broadcast.purged_status = recipient.purged_status
+            broadcast.attachments = [media] if media else []
             broadcasts.append(broadcast)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
@@ -652,7 +650,7 @@ class Contact(TembaModel):
             Value.objects.filter(contact=self, contact_field__pk=field.id).delete()
         else:
             # parse as all value data types
-            str_value = six.text_type(value)
+            str_value = six.text_type(value)[:Value.MAX_VALUE_LEN]
             dt_value = self.org.parse_date(value)
             dec_value = self.org.parse_decimal(value)
             loc_value = None

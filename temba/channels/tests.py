@@ -3432,6 +3432,7 @@ class ChannelClaimTest(TembaTest):
         post_data['number'] = '250788123123'
         post_data['username'] = 'user1'
         post_data['password'] = 'pass1'
+        post_data['sender_id'] = 'macro'
         post_data['service_id'] = 'SERVID'
 
         response = self.client.post(reverse('channels.channel_claim_macrokiosk'), post_data)
@@ -3441,6 +3442,7 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(channel.country, 'MY')
         self.assertEquals(channel.config_json()['username'], post_data['username'])
         self.assertEquals(channel.config_json()['password'], post_data['password'])
+        self.assertEquals(channel.config_json()[Channel.CONFIG_MACROKIOSK_SENDER_ID], post_data['sender_id'])
         self.assertEquals(channel.config_json()[Channel.CONFIG_MACROKIOSK_SERVICE_ID], post_data['service_id'])
         self.assertEquals(channel.address, '250788123123')
         self.assertEquals(channel.channel_type, Channel.TYPE_MACROKIOSK)
@@ -4038,6 +4040,16 @@ class ExternalTest(TembaTest):
         msg = Msg.objects.get()
         self.assertEquals(2012, msg.sent_on.year)
         self.assertEquals(18, msg.sent_on.hour)
+
+        Msg.objects.all().delete()
+
+        data = {'from': '5511996458779', 'text': 'Hello World!', 'date': '2012-04-23T18:25:43Z'}
+        response = self.client.post(callback_url, data)
+
+        self.assertEquals(400, response.status_code)
+        self.assertEquals("Bad parameter error: time data '2012-04-23T18:25:43Z' "
+                          "does not match format '%Y-%m-%dT%H:%M:%S.%fZ'", response.content)
+        self.assertFalse(Msg.objects.all())
 
     def test_receive_external(self):
         self.channel.scheme = 'ext'
@@ -5744,6 +5756,7 @@ class MacrokioskTest(TembaTest):
         self.channel.delete()
         config = dict(username='mk-user', password='mk-password')
         config[Channel.CONFIG_MACROKIOSK_SERVICE_ID] = 'SERVICE-ID'
+        config[Channel.CONFIG_MACROKIOSK_SENDER_ID] = 'macro'
 
         self.channel = Channel.create(self.org, self.user, 'NP', 'MK', None, '1212',
                                       config=config, uuid='00000000-0000-0000-0000-000000001234')
@@ -5752,7 +5765,7 @@ class MacrokioskTest(TembaTest):
 
         two_hour_ago = timezone.now() - timedelta(hours=2)
 
-        msg_date = datetime_to_str(two_hour_ago, format="%Y-%m-%d %H:%M:%S")
+        msg_date = datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")
 
         data = {'shortcode': '1212', 'from': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
                 'time': msg_date}
@@ -5775,7 +5788,7 @@ class MacrokioskTest(TembaTest):
         self.assertEqual(msg.text, "Hello World")
         self.assertEqual(msg.external_id, 'abc1234')
 
-        message_date = datetime.strptime(msg_date, "%Y-%m-%d %H:%M:%S")
+        message_date = datetime.strptime(msg_date, "%Y-%m-%d%H:%M:%S")
         local_date = pytz.timezone('Asia/Kuala_Lumpur').localize(message_date)
         gmt_date = local_date.astimezone(pytz.utc)
         self.assertEqual(msg.sent_on, gmt_date)
@@ -5784,7 +5797,7 @@ class MacrokioskTest(TembaTest):
 
         # try longcode and msisdn
         data = {'longcode': '1212', 'msisdn': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
-                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d %H:%M:%S")}
+                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
 
         encoded_message = urlencode(data)
 
@@ -5806,7 +5819,7 @@ class MacrokioskTest(TembaTest):
 
         # mixed param should not be accepted
         data = {'shortcode': '1212', 'msisdn': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
-                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d %H:%M:%S")}
+                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
 
         encoded_message = urlencode(data)
 
@@ -5817,7 +5830,7 @@ class MacrokioskTest(TembaTest):
         self.assertEquals(400, response.status_code)
 
         data = {'longcode': '1212', 'from': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
-                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d %H:%M:%S")}
+                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
 
         encoded_message = urlencode(data)
 
@@ -5829,7 +5842,7 @@ class MacrokioskTest(TembaTest):
 
         # try missing param
         data = {'from': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
-                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d %H:%M:%S")}
+                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
         encoded_message = urlencode(data)
 
         callback_url = reverse('handlers.macrokiosk_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
@@ -5905,6 +5918,7 @@ class MacrokioskTest(TembaTest):
                 self.assertEquals('asdf-asdf-asdf-asdf', msg.external_id)
 
                 self.assertEqual(mock.call_args[1]['json']['text'], 'Test message')
+                self.assertEqual(mock.call_args[1]['json']['from'], 'macro')
 
                 self.clear_cache()
 
@@ -10854,6 +10868,13 @@ class FcmTest(TembaTest):
         contact = json.loads(response.content)
 
         data = {'urn': '12345abcde', 'fcm_token': 'qwertyuiop1234567890'}
+        response = self.client.post(self.register_url, data)
+        self.assertEquals(200, response.status_code)
+        updated_contact = json.loads(response.content)
+
+        self.assertEquals(contact.get('contact_uuid'), updated_contact.get('contact_uuid'))
+
+        data = {'urn': '12345abcde', 'fcm_token': '1234567890qwertyuiop', 'contact_uuid': contact.get('contact_uuid')}
         response = self.client.post(self.register_url, data)
         self.assertEquals(200, response.status_code)
         updated_contact = json.loads(response.content)

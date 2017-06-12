@@ -18,3 +18,50 @@ tr.warning td {
   border-bottom: 1px solid;
   border-color: rgba(207, 127, 127, 0.35);
 }
+
+// used on message views and contact history page
+.attachment {
+  display: inline-block;
+  margin-right: 5px;
+  font-size: 0;
+  white-space: nowrap;
+
+  .attachment-preview {
+    background-color: #EAEAEA;
+    border: 0;
+    color: #777;
+    display: inline-block;
+    font-size: 12px;
+    height: 18px;
+    margin: 0;
+    padding: 3px 8px;
+    text-decoration: none;
+
+    .attachment-icon {
+      margin-right: 3px;
+    }
+  }
+
+  a.attachment-preview:hover{
+    background-color: #D0D0D0;
+    color: #555;
+    cursor: pointer;
+  }
+
+  .attachment-download {
+    background-color: #E0E0E0;
+    border: 0;
+    color: #666;
+    display: inline-block;
+    font-size: 12px;
+    height: 18px;
+    margin: 0;
+    padding: 3px;
+
+    &:hover {
+      background-color: #D0D0D0;
+      color: #555;
+      cursor: pointer;
+    }
+  }
+}
