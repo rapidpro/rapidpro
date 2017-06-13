@@ -1033,7 +1033,7 @@ CELERYBEAT_SCHEDULE = {
     },
     "send-chatbase-logs": {
         'task': 'send_chatbase_logs',
-        'schedule': timedelta(seconds=20),
+        'schedule': timedelta(seconds=300),
         'options': {'queue': 'msgs'}
     },
     "fail-old-messages": {

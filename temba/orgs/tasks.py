@@ -7,6 +7,7 @@ from celery.task import task
 from datetime import timedelta
 from django.utils import timezone
 from django.conf import settings
+from django.core.cache import cache
 from temba.utils.queues import nonoverlapping_task
 from .models import CreditAlert, Invitation, Org, TopUpCredits
 
@@ -56,5 +57,9 @@ def send_chatbase_logs():  # pragma: needs cover
     """
     from temba.orgs.models import CHATBASE_API_KEY
 
-    for org in Org.objects.filter(config__contains=CHATBASE_API_KEY).distinct('pk'):
-        requests.post(settings.CHATBASE_API_URL, {})
+    for org in Org.objects.filter(config__icontains=CHATBASE_API_KEY):
+        cache_keys = cache.keys('org:%d:cache:chatbase_log:*' % org.id)
+        for key in cache_keys:
+            chatbase_payload = cache.get(key)
+            requests.post(settings.CHATBASE_API_URL, chatbase_payload)
+            cache.delete(key)
