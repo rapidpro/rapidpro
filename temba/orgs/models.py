@@ -917,9 +917,16 @@ class Org(SmartModel):
 
     def remove_chatbase_account(self, user):
         config = self.config_json()
-        config[CHATBASE_AGENT_NAME] = ''
-        config[CHATBASE_API_KEY] = ''
-        config[CHATBASE_VERSION] = ''
+
+        if CHATBASE_AGENT_NAME in config:
+            del config[CHATBASE_AGENT_NAME]
+
+        if CHATBASE_API_KEY in config:
+            del config[CHATBASE_API_KEY]
+
+        if CHATBASE_VERSION in config:
+            del config[CHATBASE_VERSION]
+
         self.config = json.dumps(config)
         self.modified_by = user
         self.save()
