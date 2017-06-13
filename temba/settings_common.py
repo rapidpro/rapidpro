@@ -1031,6 +1031,11 @@ CELERYBEAT_SCHEDULE = {
         'task': 'check_messages_task',
         'schedule': timedelta(seconds=300)
     },
+    "send-chatbase-logs": {
+        'task': 'send_chatbase_logs',
+        'schedule': timedelta(seconds=20),
+        'options': {'queue': 'msgs'}
+    },
     "fail-old-messages": {
         'task': 'fail_old_messages',
         'schedule': crontab(hour=0, minute=0),
