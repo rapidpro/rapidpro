@@ -23,7 +23,7 @@ from django.core.urlresolvers import reverse
 from django.test import RequestFactory
 from django.test.utils import override_settings
 from django.utils import timezone
-from django.template import loader, Context
+from django.template import loader
 from django_redis import get_redis_connection
 from mock import patch
 from smartmin.tests import SmartminTest
@@ -3383,7 +3383,7 @@ class ChannelClaimTest(TembaTest):
                        last_seen=self.channel.last_seen, sync=alert.sync_event)
 
         text_template = loader.get_template(template)
-        text = text_template.render(Context(context))
+        text = text_template.render(context)
 
         self.assertEquals(mail.outbox[0].body, text)
 
@@ -3410,7 +3410,7 @@ class ChannelClaimTest(TembaTest):
                        last_seen=self.channel.last_seen, sync=alert.sync_event)
 
         text_template = loader.get_template(template)
-        text = text_template.render(Context(context))
+        text = text_template.render(context)
 
         self.assertEquals(mail.outbox[1].body, text)
 

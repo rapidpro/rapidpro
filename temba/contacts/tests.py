@@ -3317,7 +3317,7 @@ class ContactTest(TembaTest):
         self.assertEquals(c1.pk, c2.pk)
         self.assertFalse(c2.is_blocked)
 
-        import_params = dict(org_id=self.org.id, timezone=timezone.UTC, extra_fields=[
+        import_params = dict(org_id=self.org.id, timezone=timezone.utc, extra_fields=[
             dict(key='nick_name', header='nick name', label='Nickname', type='T')
         ])
         field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson')

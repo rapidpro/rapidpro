@@ -8,9 +8,10 @@ from django.db import migrations
 
 
 def ensure_anon_user_exists(apps, schema_editor):
-    user = User(username=settings.ANONYMOUS_USER_NAME)
-    user.set_unusable_password()
-    user.save()
+    if not User.objects.filter(username=settings.ANONYMOUS_USER_NAME).exists():
+        user = User(username=settings.ANONYMOUS_USER_NAME)
+        user.set_unusable_password()
+        user.save()
 
 
 class Migration(migrations.Migration):

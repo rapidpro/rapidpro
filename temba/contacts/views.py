@@ -22,7 +22,7 @@ from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
-from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
+from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartTemplateView, smart_url
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.values.models import Value
@@ -337,8 +337,7 @@ class ContactCRUDL(SmartCRUDL):
     actions = ('create', 'update', 'stopped', 'list', 'import', 'read', 'filter', 'blocked', 'omnibox',
                'customize', 'update_fields', 'update_fields_input', 'export', 'block', 'unblock', 'unstop', 'delete', 'history')
 
-    class Export(OrgPermsMixin, SmartXlsView):
-
+    class Export(OrgPermsMixin, SmartTemplateView):
         def render_to_response(self, context, **response_kwargs):
             user = self.request.user
             org = user.get_org()
