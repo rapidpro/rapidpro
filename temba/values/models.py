@@ -4,6 +4,7 @@ import six
 import time
 
 from collections import defaultdict
+from django.conf import settings
 from django.db import models, connection
 from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
@@ -12,7 +13,6 @@ from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org
 from temba.utils import format_decimal, get_dict_from_cursor, dict_to_json, json_to_dict
 from stop_words import safe_get_stop_words
-from django.conf import settings
 
 VALUE_SUMMARY_CACHE_KEY = 'value_summary'
 CONTACT_KEY = 'vsd::vsc%d'
@@ -55,6 +55,8 @@ class Value(models.Model):
                    (AUDIO, _("Audio")),
                    (IMAGE, _("Image")))
 
+    MAX_VALUE_LEN = settings.VALUE_FIELD_SIZE
+
     contact = models.ForeignKey('contacts.Contact', related_name='values')
 
     contact_field = models.ForeignKey('contacts.ContactField', null=True, on_delete=models.SET_NULL,
@@ -72,8 +74,8 @@ class Value(models.Model):
     category = models.CharField(max_length=128, null=True,
                                 help_text="The name of the category this value matched in the RuleSet")
 
-    string_value = models.TextField(max_length=settings.MSG_FIELD_SIZE,
-                                    help_text="The string value or string representation of this value")
+    string_value = models.TextField(help_text="The string value or string representation of this value")
+
     decimal_value = models.DecimalField(max_digits=36, decimal_places=8, null=True,
                                         help_text="The decimal value of this value if any.")
     datetime_value = models.DateTimeField(null=True,

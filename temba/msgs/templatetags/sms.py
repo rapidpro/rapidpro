@@ -6,17 +6,23 @@ from temba.channels.models import ChannelEvent
 
 register = template.Library()
 
+PLAYABLE_CONTENT_TYPES = {
+    'audio/wav',
+    'audio/x-wav',
+    'audio/vnd.wav',
+    'audio/ogg',
+    'audio/mp3',
+    'audio/m4a',
+    'video/mp4',
+    'video/webm'
+}
+
 
 @register.filter
 def as_icon(contact_event):
-
     icon = 'icon-bubble-dots-2 green'
     direction = getattr(contact_event, 'direction', 'O')
     msg_type = getattr(contact_event, 'msg_type', 'I')
-    media_type = getattr(contact_event, 'media', None)
-
-    if media_type and ':' in media_type:
-        media_type = media_type.split(':', 1)[0].split('/', 1)[0]
 
     if hasattr(contact_event, 'status'):
         status = contact_event.status
@@ -25,9 +31,7 @@ def as_icon(contact_event):
     else:
         status = None
 
-    if media_type == 'image':  # pragma: needs cover
-        icon = 'icon-photo_camera primary boost'
-    elif msg_type == 'V':
+    if msg_type == 'V':
         icon = 'icon-phone'
     elif direction == 'I':
         icon = 'icon-bubble-user primary'
@@ -96,3 +100,35 @@ def render(parser, token):
     nodes = parser.parse(('endrender',))
     parser.delete_first_token()
     return RenderNode(nodes, as_var)
+
+
+@register.inclusion_tag('msgs/tags/attachment.haml')
+def attachment_button(attachment):
+    content_type, delim, url = attachment.partition(":")
+
+    # some OGG/OGA attachments may have wrong content type
+    if content_type == 'application/octet-stream' and (url.endswith('.ogg') or url.endswith('.oga')):  # pragma: no cover
+        content_type = 'audio/ogg'
+
+    category = content_type.split('/')[0] if '/' in content_type else content_type
+
+    if category == 'geo':
+        preview = url
+
+        (lat, lng) = url.split(',')
+        url = 'http://www.openstreetmap.org/?mlat=%(lat)s&mlon=%(lng)s#map=18/%(lat)s/%(lng)s' % {"lat": lat, "lng": lng}
+    else:
+        preview = url.rpartition('.')[2].upper()  # preview is the file extension in uppercase
+
+    return {
+        'content_type': content_type,
+        'category': category,
+        'preview': preview,
+        'url': url,
+        'is_playable': content_type in PLAYABLE_CONTENT_TYPES
+    }
+
+
+@register.inclusion_tag('msgs/tags/channel_log_link.haml')
+def channel_log_link(msg_or_call):
+    return {'log': msg_or_call.get_last_log()}

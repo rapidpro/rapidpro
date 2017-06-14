@@ -41,8 +41,9 @@ window.updateSimulator = (data) ->
 
     media_type = null
     media_viewer_elt = null
-    if msg.media
-      parts = msg.media.split(':')
+
+    if msg.attachments
+      parts = msg.attachments[0].split(':')
 
       media_type = parts[0]
       media_url = 'http:' + parts.slice(2).join(":")

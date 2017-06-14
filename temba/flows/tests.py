@@ -36,7 +36,7 @@ from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate
 from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate_export_to_version_9
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
 from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user
-from .models import FlowPathRecentStep, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
+from .models import FlowPathRecentMessage, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest, ContainsOnlyPhraseTest, ContainsPhraseTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
@@ -46,7 +46,7 @@ from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromG
 from .models import VariableContactAction, UssdAction
 from .views import FlowCRUDL
 from .flow_migrations import map_actions
-from .tasks import update_run_expirations_task, prune_flowpathrecentsteps, squash_flowruncounts, squash_flowpathcounts
+from .tasks import update_run_expirations_task, prune_recentmessages, squash_flowruncounts, squash_flowpathcounts
 
 
 class FlowTest(TembaTest):
@@ -2877,7 +2877,7 @@ class ActionTest(TembaTest):
         self.execute_action(action, run, msg)
         reply_msg = Msg.objects.get(contact=self.contact, direction='O')
         self.assertEquals("We love green too!", reply_msg.text)
-        self.assertEquals(reply_msg.media, "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg'))
+        self.assertEquals(reply_msg.attachments, ["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg')])
 
         Broadcast.objects.all().delete()
         Msg.objects.all().delete()
@@ -2892,7 +2892,7 @@ class ActionTest(TembaTest):
 
         response = msg.responses.get()
         self.assertEquals("We love green too!", response.text)
-        self.assertEquals(response.media, "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg'))
+        self.assertEquals(response.attachments, ["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg')])
         self.assertEquals(self.contact, response.contact)
 
     def test_ussd_action(self):
@@ -3133,7 +3133,7 @@ class ActionTest(TembaTest):
         msg = broadcast.get_messages().first()
         self.assertEqual(msg.contact, self.contact2)
         self.assertEqual(msg.text, msg_body)
-        self.assertEqual(msg.media, "image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'attachments/picture.jpg'))
+        self.assertEqual(msg.attachments, ["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'attachments/picture.jpg')])
 
         # also send if we have empty message but have an attachment
         action = SendAction(dict(base=""), [], [self.contact], [], dict(base='image/jpeg:attachments/picture.jpg'))
@@ -4878,17 +4878,17 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, len(active))
         self.assertEquals(1, active[beer.uuid])
 
-        # check recent steps
-        recent = FlowPathRecentStep.get_recent_messages([color_question.uuid], [color.uuid])
+        # check recent messages
+        recent = FlowPathRecentMessage.get_recent([color_question.uuid], [color.uuid])
         self.assertEqual([m.text for m in recent], ["What is your favorite color?"])
 
-        recent = FlowPathRecentStep.get_recent_messages([color_other_uuid], [other_action.uuid])
+        recent = FlowPathRecentMessage.get_recent([color_other_uuid], [other_action.uuid])
         self.assertEqual([m.text for m in recent], ["mauve", "chartreuse"])
 
-        recent = FlowPathRecentStep.get_recent_messages([other_action.uuid], [color.uuid])
+        recent = FlowPathRecentMessage.get_recent([other_action.uuid], [color.uuid])
         self.assertEqual([m.text for m in recent], ["I don't know that color. Try again.", "I don't know that color. Try again."])
 
-        recent = FlowPathRecentStep.get_recent_messages([color_blue_uuid], [beer_question.uuid])
+        recent = FlowPathRecentMessage.get_recent([color_blue_uuid], [beer_question.uuid])
         self.assertEqual([m.text for m in recent], ["blue"])
 
         # a new participant, showing distinct active counts and incremented path
@@ -4969,7 +4969,7 @@ class FlowsTest(FlowFileTest):
                          {'total': 1, 'active': 0, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 100})
 
         # messages to/from deleted contacts shouldn't appear in the recent messages
-        recent = FlowPathRecentStep.get_recent_messages([color_other_uuid], [other_action.uuid])
+        recent = FlowPathRecentMessage.get_recent([color_other_uuid], [other_action.uuid])
         self.assertEqual([m.text for m in recent], ["burnt sienna"])
 
         # test contacts should not affect the counts
@@ -4991,7 +4991,7 @@ class FlowsTest(FlowFileTest):
                          {'total': 1, 'active': 0, 'completed': 1, 'expired': 0, 'interrupted': 0, 'completion': 100})
 
         # and no recent message entries for this test contact
-        recent = FlowPathRecentStep.get_recent_messages([color_other_uuid], [other_action.uuid])
+        recent = FlowPathRecentMessage.get_recent([color_other_uuid], [other_action.uuid])
         self.assertEqual([m.text for m in recent], ["burnt sienna"])
 
         # try the same thing after squashing
@@ -5089,7 +5089,7 @@ class FlowsTest(FlowFileTest):
         for k, v in flow.get_segment_counts(False).items():
             self.assertTrue(v >= 0)
 
-    def test_prune_recentsteps(self):
+    def test_prune_recentmessages(self):
         flow = self.get_flow('favorites')
 
         other_action = ActionSet.objects.get(y=8, flow=flow)
@@ -5102,33 +5102,33 @@ class FlowsTest(FlowFileTest):
             contact = self.contact if m % 2 == 0 else bob
             self.send_message(flow, '%d' % (m + 1), contact=contact)
 
-        # all 12 steps are stored for the other segment
-        other_recent = FlowPathRecentStep.objects.filter(from_uuid=other_rule.uuid, to_uuid=other_action.uuid)
+        # all 12 messages are stored for the other segment
+        other_recent = FlowPathRecentMessage.objects.filter(from_uuid=other_rule.uuid, to_uuid=other_action.uuid)
         self.assertEqual(len(other_recent), 12)
 
         # and these are returned with most-recent first
-        other_recent = FlowPathRecentStep.get_recent_messages([other_rule.uuid], [other_action.uuid])
+        other_recent = FlowPathRecentMessage.get_recent([other_rule.uuid], [other_action.uuid], limit=None)
         self.assertEqual([m.text for m in other_recent], ["12", "11", "10", "9", "8", "7", "6", "5", "4", "3", "2", "1"])
 
         # even when limit is applied
-        other_recent = FlowPathRecentStep.get_recent_messages([other_rule.uuid], [other_action.uuid], limit=5)
+        other_recent = FlowPathRecentMessage.get_recent([other_rule.uuid], [other_action.uuid], limit=5)
         self.assertEqual([m.text for m in other_recent], ["12", "11", "10", "9", "8"])
 
-        prune_flowpathrecentsteps()
+        prune_recentmessages()
 
-        # now only 10 newest are stored
-        other_recent = FlowPathRecentStep.objects.filter(from_uuid=other_rule.uuid, to_uuid=other_action.uuid)
-        self.assertEqual(len(other_recent), 10)
+        # now only 5 newest are stored
+        other_recent = FlowPathRecentMessage.objects.filter(from_uuid=other_rule.uuid, to_uuid=other_action.uuid)
+        self.assertEqual(len(other_recent), 5)
 
-        other_recent = FlowPathRecentStep.get_recent_messages([other_rule.uuid], [other_action.uuid])
-        self.assertEqual([m.text for m in other_recent], ["12", "11", "10", "9", "8", "7", "6", "5", "4", "3"])
+        other_recent = FlowPathRecentMessage.get_recent([other_rule.uuid], [other_action.uuid])
+        self.assertEqual([m.text for m in other_recent], ["12", "11", "10", "9", "8"])
 
         # send another message and prune again
         self.send_message(flow, "13", contact=bob)
-        prune_flowpathrecentsteps()
+        prune_recentmessages()
 
-        other_recent = FlowPathRecentStep.get_recent_messages([other_rule.uuid], [other_action.uuid])
-        self.assertEqual([m.text for m in other_recent], ["13", "12", "11", "10", "9", "8", "7", "6", "5", "4"])
+        other_recent = FlowPathRecentMessage.get_recent([other_rule.uuid], [other_action.uuid])
+        self.assertEqual([m.text for m in other_recent], ["13", "12", "11", "10", "9"])
 
     def test_destination_type(self):
         flow = self.get_flow('pick_a_number')
@@ -5359,9 +5359,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, len(runs))
         self.assertEquals(1, self.contact.msgs.all().count())
         self.assertEquals('Hey', self.contact.msgs.all()[0].text)
-        self.assertEquals("image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN,
-                          "attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg"),
-                          self.contact.msgs.all()[0].media)
+        self.assertEquals(["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, "attachments/2/53/steps/87d34837-491c-4541-98a1-fa75b52ebccc.jpg")],
+                          self.contact.msgs.all()[0].attachments)
 
     def test_substitution(self):
         flow = self.get_flow('substitution')
