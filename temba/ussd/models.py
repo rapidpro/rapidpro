@@ -3,12 +3,11 @@ from __future__ import absolute_import, unicode_literals
 import six
 
 from django.db import models
-from django.conf import settings
 from django.utils import timezone
-from django.contrib.auth.models import User
 from temba.channels.models import ChannelSession
 from temba.contacts.models import Contact, URN, ContactURN
 from temba.triggers.models import Trigger
+from temba.utils import get_anonymous_user
 
 
 class USSDQuerySet(models.QuerySet):
@@ -20,7 +19,7 @@ class USSDQuerySet(models.QuerySet):
         if kwargs.get('channel'):
             user = kwargs.get('channel').created_by
         else:  # testing purposes (eg. simulator)
-            user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+            user = get_anonymous_user()
 
         kwargs.update(dict(session_type=USSDSession.USSD, created_by=user, modified_by=user))
         return super(USSDQuerySet, self).create(**kwargs)
