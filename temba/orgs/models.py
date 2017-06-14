@@ -1858,9 +1858,6 @@ class Org(SmartModel):
         return self.save_media(File(temp), extension)
 
     def save_response_media(self, response):
-        if response is None:
-            return None, None
-
         disposition = response.headers.get('Content-Disposition', None)
         content_type = response.headers.get('Content-Type', None)
 
