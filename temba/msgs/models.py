@@ -25,7 +25,8 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS, CHATBASE_API_KEY, CHATBASE_VERSION
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit, datetime_to_ms, dict_to_json
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
+from temba.utils import datetime_to_ms, dict_to_json, json_to_dict
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField
@@ -769,6 +770,7 @@ class Msg(models.Model):
         """
         Processes a message, running it through all our handlers
         """
+        from temba.orgs.models import ORG_CHATBASE_LOG_CACHE_KEY
         handlers = get_message_handlers()
 
         if msg.contact.is_blocked:
@@ -798,6 +800,12 @@ class Msg(models.Model):
         # if this is an inbox message, increment our unread inbox count
         if msg.msg_type == INBOX:
             msg.org.increment_unread_msg_count(UNREAD_INBOX_MSGS)
+        elif msg.msg_type == FLOW:
+            key = ORG_CHATBASE_LOG_CACHE_KEY % (msg.org_id, msg.id)
+            chatbase_log = cache.get(key)
+            chatbase_log = json_to_dict(chatbase_log)
+            chatbase_log['not_handled'] = False
+            cache.set(key, dict_to_json(chatbase_log), timeout=300)
 
         # record our handling latency for this object
         if msg.queued_on:
