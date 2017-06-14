@@ -3701,6 +3701,8 @@ class FlowPathRecentMessage(models.Model):
     PRUNE_TO = 5
     LAST_PRUNED_KEY = 'last_recentmessage_pruned'
 
+    id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name='ID')
+
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
     run = models.ForeignKey(FlowRun, related_name='recent_messages')
