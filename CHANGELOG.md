@@ -1,8 +1,10 @@
-v3.0.149
+v3.0.150
 ----------
+ * Drop database-level length restrictions on msg and values
  * Add sender ID config for Macrokiosk channels
  * Expose org credit information on API org endpoint
- * Drop database-level length restrictions on msg and values
+ * Add contact_uuid parameter to update FCM user
+ * Add configurable webhook header fields
 
 v3.0.148
 ----------

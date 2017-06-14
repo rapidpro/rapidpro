@@ -2952,8 +2952,11 @@ class FCMHandler(BaseChannelHandler):
                 fcm_urn = URN.from_fcm(self.get_param('urn'))
                 fcm_token = self.get_param('fcm_token')
                 name = self.get_param('name', None)
+                contact_uuid = self.get_param('contact_uuid', None)
+
                 contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[fcm_urn],
-                                                channel=channel, auth=fcm_token)
+                                                channel=channel, auth=fcm_token, uuid=contact_uuid)
+
                 return HttpResponse(json.dumps({'contact_uuid': contact.uuid}), content_type='application/json')
 
             else:  # pragma: no cover
