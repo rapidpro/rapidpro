@@ -13,7 +13,6 @@ from temba.channels.models import ChannelLog
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow
 from temba.ivr.models import IVRCall
-from temba.utils import save_response_media
 from temba.utils.http import HttpEvent
 from temba.utils.nexmo import NexmoClient as NexmoCli
 from temba.utils.twilio import TembaTwilioRestClient
@@ -102,7 +101,7 @@ class NexmoClient(NexmoCli):
                 attempts += 1
                 time.sleep(.250)
 
-        content_type, downloaded = save_response_media(response, self.org)
+        content_type, downloaded = self.org.save_response_media(response)
 
         if content_type:
             # log that we downloaded it to our own url
@@ -175,7 +174,7 @@ class TwilioClient(TembaTwilioRestClient):
                 attempts += 1
                 time.sleep(.250)
 
-        content_type, downloaded = save_response_media(response, self.org)
+        content_type, downloaded = self.org.save_response_media(response)
         if content_type:
             return '%s:%s' % (content_type, downloaded)
 

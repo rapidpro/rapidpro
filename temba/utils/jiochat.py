@@ -5,6 +5,7 @@ import time
 
 import six
 from django.core.cache import cache
+from django.utils.crypto import constant_time_compare
 from django_redis import get_redis_connection
 
 from temba.utils.http import HttpEvent
@@ -57,7 +58,7 @@ class JiochatClient:
         hash_object = hashlib.sha1(value.encode('utf-8'))
         signature_check = hash_object.hexdigest()
 
-        return signature_check == signature, echostr
+        return constant_time_compare(signature_check, signature), echostr
 
     def request_media(self, media_id):
         access_token = self.get_access_token()

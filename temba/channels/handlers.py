@@ -31,7 +31,7 @@ from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, OUTGOING
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
-from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit, save_response_media
+from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
 from temba.utils import decode_base64
@@ -2216,9 +2216,8 @@ class JioChatHandler(BaseChannelHandler):
 
     def lookup_channel(self, kwargs):
         # look up the channel
-        channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
-                                         channel_type=Channel.TYPE_JIOCHAT).exclude(org=None).first()
-        return channel
+        return Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
+                                      channel_type=Channel.TYPE_JIOCHAT).exclude(org=None).first()
 
     def get(self, request, *args, **kwargs):
         channel = self.lookup_channel(kwargs)
@@ -2279,7 +2278,7 @@ class JioChatHandler(BaseChannelHandler):
 
         elif msg_type in ['image', 'video', 'voice']:
             media_response = client.request_media(body.get('MediaId'))
-            content_type, downloaded = save_response_media(media_response, channel.org)
+            content_type, downloaded = channel.org.save_response_media(media_response)
             media_url = '%s:%s' % (content_type, downloaded)
             path = media_url.partition(':')[2]
 

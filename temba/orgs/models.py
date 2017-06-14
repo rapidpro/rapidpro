@@ -4,9 +4,12 @@ import calendar
 import itertools
 import json
 import logging
+import mimetypes
 import os
 import pycountry
 import random
+
+import re
 import regex
 import six
 import stripe
@@ -1853,6 +1856,35 @@ class Org(SmartModel):
             raise Exception("Received non-200 response (%s) for request: %s" % (response.status_code, response.content))
 
         return self.save_media(File(temp), extension)
+
+    def save_response_media(self, response):
+        if response is None:
+            return None, None
+
+        disposition = response.headers.get('Content-Disposition', None)
+        content_type = response.headers.get('Content-Type', None)
+
+        downloaded = None
+
+        if content_type:
+            extension = None
+            if disposition == 'inline':
+                extension = mimetypes.guess_extension(content_type)
+                extension = extension.strip('.')
+            elif disposition:
+                filename = re.findall("filename=\"(.+)\"", disposition)[0]
+                extension = filename.rpartition('.')[2]
+            elif content_type == 'audio/x-wav':
+                extension = 'wav'
+
+            temp = NamedTemporaryFile(delete=True)
+            temp.write(response.content)
+            temp.flush()
+
+            # save our file off
+            downloaded = self.save_media(File(temp), extension)
+
+        return content_type, downloaded
 
     def save_media(self, file, extension):
         """
