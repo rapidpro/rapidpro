@@ -17,7 +17,7 @@ def ensure_anon_user_exists(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('orgs', '0034_auto_20170228_0837'),
+        ('orgs', '0035_auto_20170614_0915'),
     ]
 
     operations = [
