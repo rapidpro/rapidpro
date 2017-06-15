@@ -57,6 +57,8 @@ class SquashableModel(models.Model):
     """
     SQUASH_OVER = None
 
+    id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name='ID')
+
     is_squashed = models.BooleanField(default=False, help_text=_("Whether this row was created by squashing"))
 
     @classmethod
