@@ -1,3 +1,7 @@
+v3.0.151
+----------
+ * Convert all squashable and prunable models to use big primary keys
+
 v3.0.150
 ----------
  * Drop database-level length restrictions on msg and values
