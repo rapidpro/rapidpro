@@ -18,11 +18,11 @@ dj-database-url
 smartmin
 
 ########################## services ##########################
-analytics-python
+analytics-python==0.4.4
 boto3
 google
 librato_bg
-nexmo
+nexmo==1.4.0
 plivo
 pyfcm
 python-gcm
@@ -56,8 +56,9 @@ numpy
 phonenumbers
 ply
 pycountry==1.20
-pytz
 pycrypto
+python-dateutil==2.2
+pytz
 psycopg2
 rapidpro-expressions
 redis
