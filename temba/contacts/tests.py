@@ -3335,7 +3335,7 @@ class ContactTest(TembaTest):
 
         # check that trying to save an extra field with a reserved name throws an exception
         with self.assertRaises(Exception):
-            import_params = dict(org_id=self.org.id, timezone=timezone.UTC, extra_fields=[
+            import_params = dict(org_id=self.org.id, timezone=timezone.utc, extra_fields=[
                 dict(key='phone', header='phone', label='Phone')
             ])
             Contact.prepare_fields(field_dict, import_params)

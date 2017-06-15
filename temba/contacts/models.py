@@ -1096,7 +1096,7 @@ class Contact(TembaModel):
     @classmethod
     def prepare_fields(cls, field_dict, import_params=None, user=None):
         if not import_params or 'org_id' not in import_params or 'extra_fields' not in import_params:
-            raise Exception('Import params must include org_id and extra_fields')
+            raise ValueError('Import params must include org_id and extra_fields')
 
         field_dict['created_by'] = user
         field_dict['org'] = Org.objects.get(pk=import_params['org_id'])
@@ -1117,7 +1117,7 @@ class Contact(TembaModel):
                 ContactField.get_or_create(field_dict['org'], user, key, label, False, field['type'])
                 extra_fields.append(key)
             else:
-                raise Exception('Extra field %s is a reserved field name' % key)
+                raise ValueError('Extra field %s is a reserved field name' % key)
 
         active_scheme = [scheme[0] for scheme in ContactURN.SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
 
