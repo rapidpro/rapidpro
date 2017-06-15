@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contacts', '0058_remove_contactgroup_count'),
+        ('contacts', '0059_auto_20170614_0915'),
     ]
 
     operations = [
