@@ -12,3 +12,5 @@ from django.core.wsgi import get_wsgi_application  # pragma: needs cover
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "temba.settings")  # pragma: needs cover
 application = get_wsgi_application()  # pragma: needs cover
+
+harakiri = 120
