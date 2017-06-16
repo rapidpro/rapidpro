@@ -6814,17 +6814,12 @@ class TwilioTest(TembaTest):
             response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
             self.assertEquals(201, response.status_code)
 
-        # we should have two messages, one for the text, the other for the media
-        msgs = Msg.objects.all().order_by('-created_on')
-        self.assertEqual(2, msgs.count())
-        self.assertEqual('Test', msgs[0].text)
-        self.assertIsNone(msgs[0].attachments)
-        self.assertTrue(msgs[1].attachments[0].startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
-        self.assertTrue(msgs[1].attachments[0].endswith('.wav'))
-
-        # text should have the url (without the content type)
-        self.assertTrue(msgs[1].text.startswith('https://%s' % settings.AWS_BUCKET_DOMAIN))
-        self.assertTrue(msgs[1].text.endswith('.wav'))
+        # should have a single message with text and attachment
+        msg = Msg.objects.get()
+        self.assertEqual(msg.text, 'Test')
+        self.assertEqual(len(msg.attachments), 1)
+        self.assertTrue(msg.attachments[0].startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
+        self.assertTrue(msg.attachments[0].endswith('.wav'))
 
         Msg.objects.all().delete()
 
@@ -6837,10 +6832,12 @@ class TwilioTest(TembaTest):
 
             post_data['Body'] = ''
             signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
-            response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+            self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
-        # just a single message this time
+        # should have a single message with an attachment but no text
         msg = Msg.objects.get()
+        self.assertEqual(msg.text, '')
+        self.assertEqual(len(msg.attachments), 1)
         self.assertTrue(msg.attachments[0].startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
         self.assertTrue(msg.attachments[0].endswith('.wav'))
 

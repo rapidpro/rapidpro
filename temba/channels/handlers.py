@@ -235,19 +235,16 @@ class TwimlAPIHandler(BaseChannelHandler):
             if not validator.validate(url, request.POST, signature):
                 return HttpResponse("Invalid request signature.", status=400)
 
-            body = request.POST['Body']
+            # Twilio sometimes sends concat sms as base64 encoded MMS
+            body = decode_base64(request.POST['Body'])
             urn = URN.from_tel(request.POST['From'])
+            attachments = []
 
-            # process any attached media
+            # download any attached media
             for i in range(int(request.POST.get('NumMedia', 0))):
-                media_url = client.download_media(request.POST['MediaUrl%d' % i])
-                path = media_url.partition(':')[2]
-                Msg.create_incoming(channel, urn, path, attachments=[media_url])
+                attachments.append(client.download_media(request.POST['MediaUrl%d' % i]))
 
-            if body:
-                # Twilio sometimes sends concat sms as base64 encoded MMS
-                body = decode_base64(body)
-                Msg.create_incoming(channel, urn, body)
+            Msg.create_incoming(channel, urn, body, attachments=attachments)
 
             return HttpResponse("", status=201)
 
