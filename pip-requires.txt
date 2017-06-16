@@ -71,6 +71,5 @@ coverage
 flake8
 flake8-print
 mock
-nose-perfdump
 responses
 selenium
