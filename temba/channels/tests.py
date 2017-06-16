@@ -7617,19 +7617,11 @@ class TelegramTest(TembaTest):
                     response = self.client.post(receive_url, data, content_type='application/json', post_data=data)
                     self.assertEquals(201, response.status_code)
 
-                    # should have a media message now with an image
-                    msgs = Msg.objects.all().order_by('-pk')
-
-                    if caption:
-                        self.assertEqual(msgs.count(), 2)
-                        self.assertEqual(msgs[1].text, caption)
-                    else:
-                        self.assertEqual(msgs.count(), 1)
-
-                    self.assertTrue(msgs[0].attachments[0].startswith('%s:https://' % content_type))
-                    self.assertTrue(msgs[0].attachments[0].endswith(extension))
-                    self.assertTrue(msgs[0].text.startswith('https://'))
-                    self.assertTrue(msgs[0].text.endswith(extension))
+                    # should have a new message
+                    msg = Msg.objects.get()
+                    self.assertEqual(msg.text, caption or "")
+                    self.assertTrue(msg.attachments[0].startswith('%s:https://' % content_type))
+                    self.assertTrue(msg.attachments[0].endswith(extension))
 
         # stickers are allowed
         sticker_data = """

@@ -566,7 +566,7 @@ class TelegramHandler(BaseChannelHandler):
                     try:
                         m = magic.Magic(mime=True)
                         content_type = m.from_buffer(response.content)
-                    except:  # pragma: no cover
+                    except Exception:  # pragma: no cover
                         pass
 
                     # fallback on the content type in our response header
@@ -631,81 +631,53 @@ class TelegramHandler(BaseChannelHandler):
             if name:
                 Contact.get_or_create(channel.org, channel.created_by, name, urns=[urn])
 
+        text = ""
+        attachments = []
         msg_date = datetime.utcfromtimestamp(body['message']['date']).replace(tzinfo=pytz.utc)
 
-        def create_media_message(body, name):
-            msg = None
+        def fetch_attachment(media_type):
+            attachment = body['message'][media_type]
+            if isinstance(attachment, list):
+                attachment = attachment[-1]
+                if isinstance(attachment, list):  # pragma: needs cover
+                    attachment = attachment[0]
 
-            # if we have a caption add it
-            if 'caption' in body['message']:
-                msg = Msg.create_incoming(channel, urn, body['message']['caption'], date=msg_date)
-                log(msg, 'Inbound message', json.dumps(dict(description='Message accepted')))
+            # if we got a media URL for this attachment, save it away
+            media_url = TelegramHandler.download_file(channel, attachment['file_id'])
+            if media_url:
+                attachments.append(media_url)
 
-            # pull out the media body, download it and create our msg
-            if name in body['message']:
-                attachment = body['message'][name]
-                if isinstance(attachment, list):
-                    attachment = attachment[-1]
-                    if isinstance(attachment, list):  # pragma: needs cover
-                        attachment = attachment[0]
-
-                media_url = TelegramHandler.download_file(channel, attachment['file_id'])
-
-                # if we got a media URL for this attachment, save it away
-                if media_url:
-                    url = media_url.partition(':')[2]
-                    msg = Msg.create_incoming(channel, urn, url, date=msg_date, attachments=[media_url])
-                    log(msg, 'Incoming media', json.dumps(dict(description='Message accepted')))
-
-            # this one's a little kludgy cause we might create more than
-            # one message, so we need to log them both above instead
-            return make_response("Message accepted")
-
-        if 'sticker' in body['message']:
-            return create_media_message(body, 'sticker')
-
-        if 'video' in body['message']:
-            return create_media_message(body, 'video')
-
-        if 'voice' in body['message']:
-            return create_media_message(body, 'voice')
-
-        if 'document' in body['message']:  # pragma: needs cover
-            return create_media_message(body, 'document')
-
-        if 'location' in body['message']:
-            location = body['message']['location']
-            location = '%s,%s' % (location['latitude'], location['longitude'])
-
-            msg_text = location
-            if 'venue' in body['message']:
-                if 'title' in body['message']['venue']:
-                    msg_text = '%s (%s)' % (msg_text, body['message']['venue']['title'])
-            media_url = 'geo:%s' % location
-            msg = Msg.create_incoming(channel, urn, msg_text, date=msg_date, attachments=[media_url])
-            return make_response('Message accepted', msg)
-
-        if 'photo' in body['message']:
-            create_media_message(body, 'photo')
-
-        if 'contact' in body['message']:  # pragma: needs cover
+        if 'text' in body['message']:
+            text = body['message']['text']
+        elif 'caption' in body['message']:
+            text = body['message']['caption']
+        elif 'contact' in body['message']:
             contact = body['message']['contact']
 
             if 'first_name' in contact and 'phone_number' in contact:
-                body['message']['text'] = '%(first_name)s (%(phone_number)s)' % contact
-
+                text = '%(first_name)s (%(phone_number)s)' % contact
             elif 'first_name' in contact:
-                body['message']['text'] = '%(first_name)s' % contact
-
+                text = '%(first_name)s' % contact
             elif 'phone_number' in contact:
-                body['message']['text'] = '%(phone_number)s' % contact
+                text = '%(phone_number)s' % contact
+        elif 'venue' in body['message']:
+            if 'title' in body['message']['venue']:
+                text = body['message']['venue']['title']
 
-        # skip if there is no message block (could be a sticker or voice)
-        if 'text' in body['message']:
-            msg = Msg.create_incoming(channel, urn, body['message']['text'], date=msg_date)
+        for msg_type in ('sticker', 'video', 'voice', 'document', 'photo'):
+            if msg_type in body['message']:
+                fetch_attachment(msg_type)
+
+        if 'location' in body['message']:
+            location = body['message']['location']
+            attachments.append('geo:%s,%s' % (location['latitude'], location['longitude']))
+
+        if text or attachments:
+            msg = Msg.create_incoming(channel, urn, text, attachments=attachments, date=msg_date)
+            log(msg, 'Inbound message', json.dumps(dict(description='Message accepted')))
             return make_response('Message accepted', msg)
-
-        return make_response("Ignored, nothing provided in payload to create a message")
+        else:
+            return make_response("Ignored, nothing provided in payload to create a message")
 
 
 class InfobipHandler(BaseChannelHandler):
