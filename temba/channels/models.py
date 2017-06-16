@@ -36,6 +36,7 @@ from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, 
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
 from temba.utils.http import HttpEvent
+from temba.utils.jiochat import JiochatClient
 from temba.utils.nexmo import NexmoClient, NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from temba.utils.twitter import TembaTwython
@@ -77,6 +78,7 @@ class Channel(TembaModel):
     TYPE_HUB9 = 'H9'
     TYPE_INFOBIP = 'IB'
     TYPE_JASMIN = 'JS'
+    TYPE_JIOCHAT = 'JC'
     TYPE_JUNEBUG = 'JN'
     TYPE_JUNEBUG_USSD = 'JNU'
     TYPE_KANNEL = 'KN'
@@ -117,6 +119,9 @@ class Channel(TembaModel):
     CONFIG_USE_NATIONAL = 'use_national'
     CONFIG_ENCODING = 'encoding'
     CONFIG_PAGE_NAME = 'page_name'
+    CONFIG_JIOCHAT_APP_ID = 'jiochat_app_id'
+    CONFIG_JIOCHAT_APP_SECRET = 'jiochat_app_secret'
+    CONFIG_JIOCHAT_CHANNEL_NAME = 'jiochat_channel_name'
     CONFIG_PLIVO_AUTH_ID = 'PLIVO_AUTH_ID'
     CONFIG_PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
     CONFIG_PLIVO_APP_ID = 'PLIVO_APP_ID'
@@ -131,6 +136,9 @@ class Channel(TembaModel):
     CONFIG_MAX_LENGTH = 'max_length'
     CONFIG_MACROKIOSK_SENDER_ID = 'macrokiosk_sender_id'
     CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
+
+    JIOCHAT_ACCESS_TOKEN_KEY = 'jiochat_channel_access_token:%s'
+    JIOCHAT_ACCESS_TOKEN_REFRESH_LOCK = 'jiochat_channel_access_token:refresh-lock:%s'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -195,6 +203,7 @@ class Channel(TembaModel):
         TYPE_HUB9: dict(scheme='tel', max_length=1600),
         TYPE_INFOBIP: dict(scheme='tel', max_length=1600),
         TYPE_JASMIN: dict(scheme='tel', max_length=1600),
+        TYPE_JIOCHAT: dict(scheme='jiochat', max_length=1600),
         TYPE_JUNEBUG: dict(scheme='tel', max_length=1600),
         TYPE_JUNEBUG_USSD: dict(scheme='tel', max_length=1600),
         TYPE_KANNEL: dict(scheme='tel', max_length=1600),
@@ -692,6 +701,26 @@ class Channel(TembaModel):
         return channel
 
     @classmethod
+    def add_jiochat_channel(cls, org, user, app_id, app_secret):
+        channel = Channel.create(org, user, None, Channel.TYPE_JIOCHAT, name='', address='',
+                                 config={Channel.CONFIG_JIOCHAT_APP_ID: app_id,
+                                         Channel.CONFIG_JIOCHAT_APP_SECRET: app_secret},
+                                 secret=Channel.generate_secret(32))
+
+        return channel
+
+    @classmethod
+    def refresh_all_jiochat_access_token(cls, channel_id=None):
+        jiochat_channels = Channel.objects.filter(channel_type=Channel.TYPE_JIOCHAT, is_active=True)
+        if channel_id:
+            jiochat_channels = jiochat_channels.filter(id=channel_id)
+
+        for channel in jiochat_channels:
+            client = channel.get_jiochat_client()
+            if client is not None:
+                client.refresh_access_token()
+
+    @classmethod
     def add_line_channel(cls, org, user, credentials, name):
         channel_id = credentials.get('channel_id')
         channel_secret = credentials.get('channel_secret')
@@ -783,11 +812,11 @@ class Channel(TembaModel):
         return code
 
     @classmethod
-    def generate_secret(cls):
+    def generate_secret(cls, length=64):
         """
         Generates a secret value used for command signing
         """
-        return random_string(64)
+        return random_string(length)
 
     @classmethod
     def determine_encoding(cls, text, replace=False):
@@ -907,6 +936,15 @@ class Channel(TembaModel):
             return self.org.get_verboice_client()
         elif self.channel_type == Channel.TYPE_NEXMO:
             return self.org.get_nexmo_client()
+
+    def get_jiochat_client(self):
+        config = self.config_json()
+        if config:
+            app_id = config.get(Channel.CONFIG_JIOCHAT_APP_ID, None)
+            app_secret = config.get(Channel.CONFIG_JIOCHAT_APP_SECRET, None)
+
+            if app_id and app_secret:
+                return JiochatClient(self.uuid, app_id, app_secret)
 
     def get_twiml_client(self):
         from temba.ivr.clients import TwilioClient
@@ -1410,6 +1448,23 @@ class Channel(TembaModel):
 
         except Exception as e:  # pragma: no cover
             raise SendException(six.text_type(e), event=event, start=start)
+
+        Channel.success(channel, msg, WIRED, start, event=event)
+
+    @classmethod
+    def send_jiochat_message(cls, channel, msg, text):
+        from temba.msgs.models import WIRED
+
+        data = dict(msgtype='text')
+        data['touser'] = msg.urn_path
+        data['text'] = dict(content=text)
+
+        client = JiochatClient(channel.uuid, channel.config.get(Channel.CONFIG_JIOCHAT_APP_ID),
+                               channel.config.get(Channel.CONFIG_JIOCHAT_APP_SECRET))
+
+        start = time.time()
+
+        response, event = client.send_message(data, start)
 
         Channel.success(channel, msg, WIRED, start, event=event)
 
@@ -3191,6 +3246,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_HUB9: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_INFOBIP: Channel.send_infobip_message,
                   Channel.TYPE_JASMIN: Channel.send_jasmin_message,
+                  Channel.TYPE_JIOCHAT: Channel.send_jiochat_message,
                   Channel.TYPE_JUNEBUG: Channel.send_junebug_message,
                   Channel.TYPE_JUNEBUG_USSD: Channel.send_junebug_message,
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,
