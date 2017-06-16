@@ -10295,7 +10295,7 @@ class JiochatTest(TembaTest):
                 self.assertEqual(msg.direction, INCOMING)
                 self.assertEqual(msg.org, self.org)
                 self.assertEqual(msg.channel, self.channel)
-                self.assertEqual(msg.text, '<MEDIA_SAVED_URL>')
+                self.assertEqual(msg.text, "")
                 self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
                 self.assertEqual(msg.attachments[0], 'image/jpeg:<MEDIA_SAVED_URL>')
 
@@ -10935,7 +10935,7 @@ class ViberPublicTest(TembaTest):
             }
 
             response = self.assertSignedRequest(json.dumps(data), 400)
-            self.assertIn("Missing 'text' key in 'message' in request_body.", response.content)
+            self.assertContains(response, "Missing text or media in message in request body.", status_code=400)
             Msg.objects.all().delete()
 
     def test_receive_picture_missing_media_key(self):
@@ -10951,7 +10951,7 @@ class ViberPublicTest(TembaTest):
         self.assertMessageReceived('url', 'media', 'http://foo.com/', 'http://foo.com/')
 
     def test_receive_gps(self):
-        self.assertMessageReceived('location', 'location', dict(lat='1.2', lon='-1.3'), 'geo:1.2,-1.3')
+        self.assertMessageReceived('location', 'location', dict(lat='1.2', lon='-1.3'), 'incoming msg')
 
     def test_webhook_check(self):
         data = {

@@ -2226,7 +2226,6 @@ class JioChatHandler(BaseChannelHandler):
         external_id = body.get('MsgId', None)
 
         urn = URN.from_jiochat(sender_id)
-        msg = None
         contact_name = None
         if not channel.org.is_anon:
             contact_detail = client.get_user_detail(sender_id)
@@ -2241,19 +2240,19 @@ class JioChatHandler(BaseChannelHandler):
                 Trigger.catch_triggers(contact, Trigger.TYPE_FOLLOW, channel)
                 return HttpResponse("New follow handled: %s" % sender_id)
 
-        if msg_type == 'text':
-            msg = Msg.create_incoming(channel, urn, body.get('Content'), date=msg_date, contact=contact)
+        text = ""
+        attachments = []
 
+        if msg_type == 'text':
+            text = body.get('Content', "")
         elif msg_type in ['image', 'video', 'voice']:
             media_response = client.request_media(body.get('MediaId'))
-            content_type, downloaded = channel.org.save_response_media(media_response)
-            media_url = '%s:%s' % (content_type, downloaded)
-            path = media_url.partition(':')[2]
+            content_type, downloaded_url = channel.org.save_response_media(media_response)
+            attachments.append('%s:%s' % (content_type, downloaded_url))
 
-            msg = Msg.create_incoming(channel, urn, path, attachments=[media_url], date=msg_date, contact=contact)
-
-        if msg:
-            Msg.objects.filter(pk=msg.id).update(external_id=external_id)
+        if text or attachments:
+            msg = Msg.create_incoming(channel, urn, text, date=msg_date, contact=contact, attachments=attachments,
+                                      external_id=external_id)
             return HttpResponse("Msgs Accepted: %s" % msg.id)
 
         return HttpResponse("Not handled", status=400)
@@ -2800,38 +2799,26 @@ class ViberPublicHandler(BaseChannelHandler):
 
             message = body['message']
             msg_date = datetime.utcfromtimestamp(body['timestamp'] / 1000).replace(tzinfo=pytz.utc)
-            media = None
-            caption = None
+            text = message.get('text', "")
+            attachments = []
 
             # convert different messages types to the right thing
             message_type = message['type']
+
             if message_type == 'text':
-                # "text": "a message from pa"
-                text = message.get('text', None)
+                pass
 
             elif message_type == 'picture':
                 # "media": "http://www.images.com/img.jpg"
-                caption = message.get('text')
-                if message.get('media', None):  # pragma: needs cover
-                    media = '%s:%s' % (Msg.MEDIA_IMAGE, channel.org.download_and_save_media(Request('GET',
-                                                                                                    message['media'])))
-                else:
-                    # not media then make it the caption and ignore the caption
-                    media = caption
-                    caption = None
-                text = media
+                if message.get('media', None):
+                    downloaded_url = channel.org.download_and_save_media(Request('GET', message['media']))
+                    attachments.append('%s:%s' % (Msg.MEDIA_IMAGE, downloaded_url))
 
             elif message_type == 'video':
-                caption = message.get('text')
                 # "media": "http://www.images.com/video.mp4"
-                if message.get('media', None):  # pragma: needs cover
-                    media = '%s:%s' % (Msg.MEDIA_VIDEO, channel.org.download_and_save_media(Request('GET',
-                                                                                                    message['media'])))
-                else:
-                    # not media then make it the caption and ignore the caption
-                    media = caption
-                    caption = None
-                text = media
+                if message.get('media', None):
+                    downloaded_url = channel.org.download_and_save_media(Request('GET', message['media']))
+                    attachments.append('%s:%s' % (Msg.MEDIA_VIDEO, downloaded_url))
 
             elif message_type == 'contact':
                 # "contact": {
@@ -2846,14 +2833,13 @@ class ViberPublicHandler(BaseChannelHandler):
 
             elif message_type == 'location':
                 # "location": {"lat": "37.7898", "lon": "-122.3942"}
-                text = '%s:%s,%s' % (Msg.MEDIA_GPS, message['location']['lat'], message['location']['lon'])
-                media = text
+                attachments.append('%s:%s,%s' % (Msg.MEDIA_GPS, message['location']['lat'], message['location']['lon']))
 
             else:  # pragma: needs cover
                 return HttpResponse("Unknown message type: %s" % message_type, status=400)
 
-            if text is None:
-                return HttpResponse("Missing 'text' key in 'message' in request_body.", status=400)
+            if not text and not attachments:
+                return HttpResponse("Missing text or media in message in request body.", status=400)
 
             # get or create our contact with any name sent in
             urn = URN.from_viber(body['sender']['id'])
@@ -2861,12 +2847,8 @@ class ViberPublicHandler(BaseChannelHandler):
             contact_name = None if channel.org.is_anon else body['sender'].get('name')
             contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
 
-            # add our caption first if it is present
-            if caption:  # pragma: needs cover
-                Msg.create_incoming(channel, urn, caption, contact=contact, date=msg_date)
-
             msg = Msg.create_incoming(channel, urn, text, contact=contact, date=msg_date,
-                                      external_id=body['message_token'], attachments=[media] if media else None)
+                                      external_id=body['message_token'], attachments=attachments)
             return HttpResponse('Msg Accepted: %d' % msg.id)
 
         else:  # pragma: no cover
