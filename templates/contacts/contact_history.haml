@@ -1,181 +1,87 @@
--load contacts humanize smartmin temba i18n
+-load contacts humanize smartmin temba i18n sms
 
 -for item in activity
   %tr{class:"{{item|history_class}}"}
+    %td.icon
+      %span.det{title:'{% if item.obj.channel %}{{item.obj.channel.get_channel_type_name}} {{item.obj.channel.get_name}}{% endif %}'}
+        {{item|activity_icon}}
 
-    -with media_type=item.obj.media|media_type media_content_type=item.obj.media|media_content_type media_url=item.obj.media|media_url
-      %td.icon
-        -if item.obj.media
-          -if media_type == 'audio'
-            -if media_content_type|is_playable_audio
-              .recording{onClick:'playMessage("{{item.pk}}");'}
-                %audio{id:'message-{{item.obj.id}}', type:"{{media_content_type}}", src:'{{media_url}}'}
-                .play
-                  -if item.obj.direction == 'O'
-                    .icon-call-outgoing{title:'{{item.obj.channel.get_channel_type_name}} {{item.obj.channel.get_name}}'}
-                  -else
-                    .icon-call-incoming{title:'{{item.obj.channel.get_channel_type_name}} {{item.obj.channel.get_name}}'}
-                .stop.hide
-                  .icon-nav-channels-inverted
-            -else
-              -if item.obj.direction == 'O'
-                .icon-call-outgoing.greyed
-              -else
-                .icon-call-incoming.greyed
-          -else
-            %span.det{title:'{{item.obj.channel.get_channel_type_name}} {{item.obj.channel.get_name}}'}
-            -if media_type == 'geo'
-              .glyph.icon-location.user.boost
-            -elif media_type == 'image'
-              .glyph.icon-photo_camera.user.boost
-            -elif media_type == 'video'
-              .glyph.icon-videocam.user.boost
-            -elif item.media|is_document
-              .glyph.icon-docs.user.boost
-
-        -else
-          %span.det{title:'{% if item.obj.channel %}{{item.obj.channel.get_channel_type_name}} {{item.obj.channel.get_name}}{% endif %}'}
-            {{item|activity_icon}}
-
-      %td.details.wrapped
-        -if item.type == 'channel-event'
-          -with item.obj as event
-            -if event.event_type == 'mt_miss'
-              Missed call
-            -else
-              Phone call ({{event.duration|format_seconds}})
-
-        -elif item.type == 'call'
-          -with item.obj as call
-            -if call.status == 'D'
-              -trans "Call Started"
-            -else
-              {{call.get_status_display}}
-
-        -elif item.type == 'run-start' or item.type == 'run-exit'
-          -with item.obj as run
-            .activity-run
-              .activity-body
+    %td.details.wrapped
+      -if item.type == 'msg'
+        -with item.obj as msg
+          .activity-message
+            -if msg.direction == 'O' and msg.broadcast.recipient_count > 1
+              .sent-to
                 .summary
-                -if item.type == 'run-exit'
-                  {{ run.get_exit_type_display }}
-                -else
-                  Started
-                %a{href:'{% url "flows.flow_editor" run.flow.uuid %}'}
-                  {{run.flow.name}}
+                  Broadcast to {{msg.broadcast.recipient_count|intcomma}} recipients
 
-        -elif item.type == 'event-fire'
-          -with item.obj as eventfire
-            %a{href:'{%url "campaigns.campaign_read" eventfire.event.campaign.pk %}'}><
-              {{eventfire.event.campaign.name}}
-
-            &nbsp;triggered
-
-            %a{href:'{%url "campaigns.campaignevent_read" eventfire.event.pk %}'}
-              {{eventfire.event|event_time}}
-
-        -elif item.type == 'webhook-result'
-          -with item.obj as result
-            -if result.is_success
-              -trans "Successfully called"
-            -else
-              -trans "Failed to call"
-            {{result.url|truncatechars:100}}
-
-        -elif media_type == 'geo'
-          .activity-message
             .activity-body
-              .text
-                <a href="{{item.obj.media|osm_link}}" target="_loc">{{item.obj.media|location}}</a>
+              -if item.obj.text
+                .text{ style:"{% if msg.attachments %}margin-bottom:10px{% endif %}" }
+                  {{item.obj.text}}
 
-        -elif media_type == 'image'
-          .activity-message
-            .activity-body
-              .text
-                {{item.text}}
-              .text
-                <a href="#" data-featherlight="<a class='download-link' href='{{media_url}}' download><span class='icon-file_download'></span></a><img class='image-full' src='{{media_url}}'>">
-                  <img class="image-preview" src="{{media_url}}">
-                </a>
+              -for attachment in msg.attachments
+                {% attachment_button attachment %}
 
-        -elif media_type == 'video'
-          .activity-message
-            .activity-body
-              .text
-                {{item.text}}
-              <video id="video_{{item.id}}" height="240px" class="video-js vjs-default-skin" controls preload="auto">
-                <source src="{{media_url}}" type='video/mp4'/>
-              </video>
-
-              :javascript
-
-                // keep track of previously initiated players and dispose on reload if necessary
-                if (!window.players) {
-                  window.players = []
-                } else {
-                  active = []
-                  for (idx in window.players) {
-                    var player = window.players[idx];
-                    if (player.id_ == "video_{{item.obj.id}}") {
-                      player.dispose();
-                    } else {
-                      active.push(player);
-                    }
-                  }
-                  window.players = active;
-                }
-
-                // initialize and push our current video
-                window.players.push(videojs("video_{{item.obj.id}}", {plugins : {
-                   vjsdownload:{
-                     beforeElement: 'playbackRateMenuButton',
-                     textControl: 'Download',
-                     name: 'downloadButton'
-                   }
-                }}, function(){
-                }));
-
-        -elif item.obj.media|is_document
-          .activity-message
-            .activity-body
-              {{media_url|extension|upper}} document (<a href="{{media_url}}" download>download</a>)
-
-        -elif item.type == 'broadcast'
-          -with item.obj as broadcast
-            .activity-broadcast
+      -if item.type == 'broadcast'
+        -with item.obj as broadcast
+          .activity-broadcast
+            -if broadcast.recipient_count > 1
               .sent-to
                 .summary
                   Broadcast to {{broadcast.recipient_count|intcomma}} recipients
 
-              .activity-body
-                {{broadcast.translated_text}}
+            .activity-body
+              -if broadcast.translated_text
+                .text{ style:"{% if broadcast.attachments %}margin-bottom:10px{% endif %}" }
+                  {{broadcast.translated_text}}
 
-        -else
-          -with item.obj as message
+              -for attachment in broadcast.attachments
+                {% attachment_button attachment %}
 
-            .activity-message
-              -if message.direction == 'O'
-                -if message.broadcast.recipient_count > 1
-                  .sent-to
-                    .summary
-                      Broadcast to {{message.broadcast.recipient_count|intcomma}} recipients
+      -elif item.type == 'channel-event'
+        -with item.obj as event
+          -if event.event_type == 'mt_miss'
+            Missed call
+          -else
+            Phone call ({{event.duration|format_seconds}})
 
-              .activity-body
-                .text
-                  -if message.media and media_type == 'audio'
-                    .recording-text
-                      %span.text
-                        -if message.direction == 'O'
-                          -if message.text not in message.media
-                            {{message.text}}
-                          -else
-                            -trans "Listened to a recording"
-                        -else
-                          -trans "Audio recording"
-                      %span.link
-                        (<a href="{{media_url}}" download>{%if message.text not in message.media%}recording{%else%}download{%endif%}</a>)
-                  -else
-                    {{message.text}}
+      -elif item.type == 'call'
+        -with item.obj as call
+          -if call.status == 'D'
+            -trans "Call Started"
+          -else
+            {{call.get_status_display}}
+
+      -elif item.type == 'run-start' or item.type == 'run-exit'
+        -with item.obj as run
+          .activity-run
+            .activity-body
+              .summary
+              -if item.type == 'run-exit'
+                {{ run.get_exit_type_display }}
+              -else
+                Started
+              %a{href:'{% url "flows.flow_editor" run.flow.uuid %}'}
+                {{run.flow.name}}
+
+      -elif item.type == 'event-fire'
+        -with item.obj as eventfire
+          %a{href:'{%url "campaigns.campaign_read" eventfire.event.campaign.pk %}'}><
+            {{eventfire.event.campaign.name}}
+
+          &nbsp;triggered
+
+          %a{href:'{%url "campaigns.campaignevent_read" eventfire.event.pk %}'}
+            {{eventfire.event|event_time}}
+
+      -elif item.type == 'webhook-result'
+        -with item.obj as result
+          -if result.is_success
+            -trans "Successfully called"
+          -else
+            -trans "Failed to call"
+          {{result.url|truncatechars:100}}
 
     %td.created_on
       %span.time
@@ -187,14 +93,8 @@
       .log-icon
         -if not user_org.is_anon or perms.contacts.contact_break_anon
           -if item.type == 'msg' or item.type == 'call'
-            -with item.obj.get_last_log as log
-              -if log
-                -if log.session
-                  %a{href:"{% url 'channels.channellog_session' log.session.id %}"}
-                    .icon-docs-2
-                -else
-                  %a{href:"{% url 'channels.channellog_read' log.id %}"}
-                    .icon-docs-2
+            {% channel_log_link item.obj %}
+
           -if item.type == 'webhook-result'
             -with item.obj.event as event
               %a{href:"{%url 'api.log_read' event.id %}"}

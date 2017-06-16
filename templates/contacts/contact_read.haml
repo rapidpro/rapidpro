@@ -206,8 +206,6 @@
 -block extra-less
   -compress css
 
-    %link{type:'text/css', rel:'stylesheet', href:'{{STATIC_URL}}bower/video.js/dist/video-js.css', media:'all'}
-
     {% lessblock %}
       :plain
         .time {
@@ -298,10 +296,29 @@
             border-bottom: 1px solid #f3f3f3;
             width: 100%;
 
-          }
+            &.msg {
+              td.icon {
+                .icon-bubble-right, .icon-bubble-check, .icon-bullhorn, .icon-call-outgoing {
+                  color: @color-status-green;
+                }
 
-          tr.non-msg {
-            background: #fafafa;
+                .icon-bubble-user, .icon-call-incoming {
+                  color: @color-primary;
+                }
+
+                .icon-bubble-notification {
+                  color: @color-status-failed;
+                }
+              }
+            }
+
+            &.non-msg {
+              background: #fafafa;
+
+              .icon {
+                color: rgba(0, 0, 0, 0.20);
+              }
+            }
           }
 
           td {
@@ -309,14 +326,19 @@
             padding: 2px 20px;
 
             &.icon {
+              border: 0px solid;
               width: 30px;
               padding: 2px 0px;
-              padding-left:10px;
-              text-align:center;
-            }
+              padding-left: 10px;
+              text-align: center;
 
-            &.details {
-
+              .glyph {
+                margin-top:16px;
+                font-size:14px;
+                line-height:0;
+                color: rgba(0,0,0,.20);
+                padding: 5px;
+              }
             }
           }
 
@@ -332,106 +354,15 @@
             }
           }
 
-          .icon {
-            border: 0px solid;
-            text-align:center;
-
-            .glyph {
-              margin-top:16px;
-              font-size:14px;
-              line-height:0;
-              color: rgba(0,0,0,.20);
-              padding: 5px;
-
-              &.boost {
-                font-size:18px;
-                margin-left:-3px;
-              }
-
-              &.icon-bubble-right, &.icon-bubble-check {
-                color: @color-status-green;
-              }
-
-              &.icon-bubble-user {
-                color: @color-primary;
-              }
-
-              &.icon-bubble-user, &.user {
-                color: @color-primary;
-              }
-
-              &.icon-bullhorn {
-                color: @color-status-green;
-              }
-
-              &.icon-bubble-notification {
-                color: @color-status-failed;
-              }
-            }
-          }
-
           .details {
             border: 0px solid;
             padding: 14px;
-
-            .activity-message {
-
-              .activity-body {
-
-                .channel {
-                  display:inline-block;
-                  font-size:11px;
-                  line-height:11px;
-                  color: @flat-white;
-                  a {
-                    color: #ccc;
-
-                    &:hover {
-                      text-decoration:none;
-                    }
-                  }
-                }
-              }
-            }
 
             .summary {
               font-size:11px;
               font-weight:500;
               line-height:10px;
               color: @flat-grey;
-            }
-
-            .contact-count {
-              padding-left:5px;
-              font-weight:normal;
-            }
-          }
-        }
-
-
-        .message-history {
-          .broadcast {
-            .rounded-corners();
-            border: solid 1px #f3f3f3;
-
-            padding:15px;
-            margin-bottom:5px;
-
-            .icon-megaphone {
-              float:left;
-              font-size:30px;
-              color: @color-status-green;
-            }
-
-            .sent-to {
-              margin-left:50px;
-              font-size: 12px;
-              font-weight: 400;
-              color: #c1c1c1;
-              line-height:9px;
-            }
-            .message-body {
-              margin-left:50px;
             }
           }
         }
@@ -444,52 +375,6 @@
             margin-right: 3px;
           }
         }
-
-        .recording-text {
-          .text {
-            font-style: italic;
-          }
-        }
-
-        .recording {
-          width:16px;
-          padding:4px;
-          text-align:center;
-          .stop {
-
-            font-size:22px;
-            margin-left:-7px;
-            margin-top:-3px;
-          }
-
-
-          color:@color-links + #222;
-          display:inline-block;
-          margin-left:0px;
-          font-size:14px;
-          line-height:0px;
-
-          &:hover {
-            color: @color-links;
-            cursor:pointer;
-          }
-
-          &.playing {
-            color: @color-links + #222;
-            &:hover {
-              color: @color-links;
-            }
-
-            .stop {
-              display:block;
-            }
-
-            .play {
-              display:none;
-            }
-          }
-        }
-
 
         .contact-fields {
           background: #f9f9f9;
@@ -583,9 +468,9 @@
       Intercooler.triggerRequest($('tr.poll'));
     }
 
-    // plays the audio recording for a message
-    function playMessage (messageId) {
-      var audio = $('audio#message-' + messageId)
+    // plays an audio attachment on a message
+    function playAudioAttachment(audioId) {
+      var audio = $('audio#audio-' + audioId);
       var parent = audio.parent();
       var player = audio[0];
 

@@ -317,6 +317,13 @@ class BaseAPIView(generics.GenericAPIView):
 
         return generics.get_object_or_404(queryset)
 
+    def get_int_param(self, name):
+        param = self.request.query_params.get(name)
+        try:
+            return int(param) if param is not None else None
+        except ValueError:
+            raise InvalidQueryError("Value for %s must be an integer" % name)
+
     def get_serializer_context(self):
         context = super(BaseAPIView, self).get_serializer_context()
         context['org'] = self.request.user.get_org()
@@ -642,15 +649,14 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     pagination_class = CreatedOnCursorPagination
 
     def filter_queryset(self, queryset):
-        params = self.request.query_params
         org = self.request.user.get_org()
 
         queryset = queryset.filter(is_active=True)
 
         # filter by id (optional)
-        msg_id = params.get('id')
-        if msg_id:
-            queryset = queryset.filter(id=msg_id)
+        broadcast_id = self.get_int_param('id')
+        if broadcast_id:
+            queryset = queryset.filter(id=broadcast_id)
 
         queryset = queryset.prefetch_related(
             Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name')),
@@ -1138,9 +1144,9 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
         org = self.request.user.get_org()
 
         # filter by id (optional)
-        call_id = params.get('id')
+        call_id = self.get_int_param('id')
         if call_id:
-            queryset = queryset.filter(pk=call_id)
+            queryset = queryset.filter(id=call_id)
 
         # filter by contact (optional)
         contact_uuid = params.get('contact')
@@ -1238,7 +1244,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
             "name": "Ben Haggerty",
             "language": "eng",
             "urns": ["tel:+250788123123", "twitter:ben"],
-            "groups": [{"name": "Devs", "uuid": "6685e933-26e1-4363-a468-8f7268ab63a9"}],
+            "groups": ["6685e933-26e1-4363-a468-8f7268ab63a9"],
             "fields": {
               "nickname": "Macklemore",
               "side_kick": "Ryan Lewis"
@@ -1573,7 +1579,11 @@ class DefinitionsEndpoint(BaseAPIView):
             flow_uuids = params.getlist('flow')
             campaign_uuids = params.getlist('campaign')
 
-        include = DefinitionsEndpoint.Depends[params.get('dependencies', 'all')]
+        include = params.get('dependencies', 'all')
+        if include not in DefinitionsEndpoint.Depends.__members__:
+            raise InvalidQueryError("dependencies must be one of %s" % ', '.join(DefinitionsEndpoint.Depends.__members__))
+
+        include = DefinitionsEndpoint.Depends[include]
 
         if flow_uuids:
             flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org, is_active=True))
@@ -2243,7 +2253,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         org = self.request.user.get_org()
 
         # filter by id (optional)
-        msg_id = params.get('id')
+        msg_id = self.get_int_param('id')
         if msg_id:
             queryset = queryset.filter(id=msg_id)
 
@@ -2384,6 +2394,7 @@ class OrgEndpoint(BaseAPIView):
             "primary_language": "eng",
             "timezone": "Africa/Kigali",
             "date_style": "day_first",
+            "credits": {"used": 121433, "remaining": 3452},
             "anon": false
         }
     """
@@ -2399,6 +2410,7 @@ class OrgEndpoint(BaseAPIView):
             'primary_language': org.primary_language.iso_code if org.primary_language else None,
             'timezone': six.text_type(org.timezone),
             'date_style': ('day_first' if org.get_dayfirst() else 'month_first'),
+            'credits': {'used': org.get_credits_used(), 'remaining': org.get_credits_remaining()},
             'anon': org.is_anon
         }
 
@@ -2552,7 +2564,7 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
         params = self.request.query_params
 
         # filter by id (optional)
-        subscriber_id = params.get('id')
+        subscriber_id = self.get_int_param('id')
         if subscriber_id:
             queryset = queryset.filter(id=subscriber_id)
 
@@ -2779,7 +2791,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                 queryset = queryset.filter(pk=-1)
 
         # filter by id (optional)
-        run_id = params.get('id')
+        run_id = self.get_int_param('id')
         if run_id:
             queryset = queryset.filter(id=run_id)
 
@@ -2938,10 +2950,8 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         return self.model.objects.filter(flow__org=org, is_active=True)
 
     def filter_queryset(self, queryset):
-        params = self.request.query_params
-
         # filter by id (optional)
-        start_id = params.get('id')
+        start_id = self.get_int_param('id')
         if start_id:
             queryset = queryset.filter(id=start_id)
 
