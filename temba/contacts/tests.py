@@ -3317,7 +3317,7 @@ class ContactTest(TembaTest):
         self.assertEquals(c1.pk, c2.pk)
         self.assertFalse(c2.is_blocked)
 
-        import_params = dict(org_id=self.org.id, timezone=timezone.UTC, extra_fields=[
+        import_params = dict(org_id=self.org.id, timezone=timezone.utc, extra_fields=[
             dict(key='nick_name', header='nick name', label='Nickname', type='T')
         ])
         field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson')
@@ -3335,7 +3335,7 @@ class ContactTest(TembaTest):
 
         # check that trying to save an extra field with a reserved name throws an exception
         with self.assertRaises(Exception):
-            import_params = dict(org_id=self.org.id, timezone=timezone.UTC, extra_fields=[
+            import_params = dict(org_id=self.org.id, timezone=timezone.utc, extra_fields=[
                 dict(key='phone', header='phone', label='Phone')
             ])
             Contact.prepare_fields(field_dict, import_params)
@@ -3884,7 +3884,7 @@ class ContactFieldTest(TembaTest):
             return workbook.worksheets[0]
 
         # no group specified, so will default to 'All Contacts'
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(38):
             self.assertExcelSheet(request_export(), [
                 ["UUID", "Name", "Email", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "1234", "adam", "", "", ""],
@@ -3897,7 +3897,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, 'tel:+12062233445')
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(38):
             self.assertExcelSheet(request_export(), [
                 ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
@@ -3907,7 +3907,7 @@ class ContactFieldTest(TembaTest):
             ])
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(39):
             self.assertExcelSheet(request_export('?g=%s' % group.uuid), [
                 ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
@@ -3915,7 +3915,7 @@ class ContactFieldTest(TembaTest):
             ])
 
         # export a search
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(39):
             self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng'), [
                 ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
@@ -3923,7 +3923,7 @@ class ContactFieldTest(TembaTest):
             ])
 
         # export a search within a specified group of contacts
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(39):
             self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid), [
                 ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],

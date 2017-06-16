@@ -32,7 +32,7 @@ from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID, NEXMO_APP_ID
-from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit
+from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
 from temba.utils.http import HttpEvent
@@ -766,7 +766,7 @@ class Channel(TembaModel):
         # generate random secret and claim code
         claim_code = cls.generate_claim_code()
         secret = cls.generate_secret()
-        anon = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+        anon = get_anonymous_user()
         config = {Channel.CONFIG_FCM_ID: fcm_id}
 
         return Channel.create(None, anon, country, Channel.TYPE_ANDROID, None, None, gcm_id=gcm_id, config=config,
@@ -3334,7 +3334,7 @@ class ChannelEvent(models.Model):
         from temba.triggers.models import Trigger
 
         org = channel.org
-        user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+        user = get_anonymous_user()
 
         contact = Contact.get_or_create(org, user, name=None, urns=[urn], channel=channel)
         contact_urn = contact.urn_objects[urn]
@@ -3527,7 +3527,7 @@ class SyncEvent(SmartModel):
         args['retry_message_count'] = len(cmd.get('retry', cmd.get('retry_messages')))
         args['incoming_command_count'] = max(len(incoming_commands) - 2, 0)
 
-        anon_user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+        anon_user = get_anonymous_user()
         args['channel'] = channel
         args['created_by'] = anon_user
         args['modified_by'] = anon_user

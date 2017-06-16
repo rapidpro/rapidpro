@@ -11,16 +11,12 @@ import six
 import time
 
 from collections import defaultdict
-
-from django.conf import settings
-from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import models
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
-from guardian.utils import get_anonymous_user
 from itertools import chain
 from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
@@ -28,7 +24,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
+from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string, get_anonymous_user
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.profiler import time_monitor
@@ -1100,7 +1096,7 @@ class Contact(TembaModel):
     @classmethod
     def prepare_fields(cls, field_dict, import_params=None, user=None):
         if not import_params or 'org_id' not in import_params or 'extra_fields' not in import_params:
-            raise Exception('Import params must include org_id and extra_fields')
+            raise ValueError('Import params must include org_id and extra_fields')
 
         field_dict['created_by'] = user
         field_dict['org'] = Org.objects.get(pk=import_params['org_id'])
@@ -1121,7 +1117,7 @@ class Contact(TembaModel):
                 ContactField.get_or_create(field_dict['org'], user, key, label, False, field['type'])
                 extra_fields.append(key)
             else:
-                raise Exception('Extra field %s is a reserved field name' % key)
+                raise ValueError('Extra field %s is a reserved field name' % key)
 
         active_scheme = [scheme[0] for scheme in ContactURN.SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
 
@@ -1459,7 +1455,7 @@ class Contact(TembaModel):
 
     def ensure_unstopped(self, user=None):
         if user is None:
-            user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+            user = get_anonymous_user()
         self.unstop(user)
 
     def release(self, user):
