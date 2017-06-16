@@ -1,3 +1,8 @@
+v3.0.153
+----------
+ * Jiochat channels
+ * Django 1.11
+
 v3.0.151
 ----------
  * Convert all squashable and prunable models to use big primary keys

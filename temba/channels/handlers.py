@@ -21,7 +21,6 @@ from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from django_redis import get_redis_connection
-from guardian.utils import get_anonymous_user
 from requests import Request
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelLog
@@ -34,9 +33,9 @@ from temba.ussd.models import USSDSession
 from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
-from temba.utils import decode_base64
+from temba.utils import decode_base64, get_anonymous_user
 from twilio import twiml
-from .tasks import fb_channel_subscribe
+from .tasks import fb_channel_subscribe, refresh_jiochat_access_tokens
 
 
 class BaseChannelHandler(View):
@@ -2204,6 +2203,91 @@ class MbloxHandler(BaseChannelHandler):
 
         else:  # pragma: needs cover
             return HttpResponse("Not handled, unknown type: %s" % body['type'], status=400)
+
+
+class JioChatHandler(BaseChannelHandler):
+
+    # Jiochat expected the URL to receive message on CONFIG_URL/rcv/msg/message
+    # and for event message on CONFIG_URL/rcv/event/menu
+    # and for follow event on CONFIG_URL/rcv/event/follow
+    url = r'^jiochat/(?P<uuid>[a-z0-9\-]+)(/rcv/msg/message|/rcv/event/menu|/rcv/event/follow)?/?$'
+    url_name = 'handlers.jiochat_handler'
+
+    def lookup_channel(self, kwargs):
+        # look up the channel
+        return Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
+                                      channel_type=Channel.TYPE_JIOCHAT).exclude(org=None).first()
+
+    def get(self, request, *args, **kwargs):
+        channel = self.lookup_channel(kwargs)
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
+
+        client = channel.get_jiochat_client()
+        if client:
+            verified, echostr = client.verify_request(request, channel.secret)
+
+            if verified:
+                refresh_jiochat_access_tokens.delay(channel.id)
+                return HttpResponse(echostr)
+
+        return JsonResponse(dict(error="Unknown request"), status=400)
+
+    def post(self, request, *args, **kwargs):
+        channel = self.lookup_channel(kwargs)
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
+
+        try:
+            body = json.loads(request.body)
+        except Exception as e:  # pragma: needs cover
+            return HttpResponse("Invalid JSON in POST body: %s" % str(e), status=400)
+
+        if 'FromUserName' not in body or 'MsgType' not in body or ('MsgId' not in body and 'Event' not in body):
+            return HttpResponse("Missing parameters", status=400)
+
+        client = channel.get_jiochat_client()
+
+        sender_id = body.get('FromUserName')
+        create_time = body.get('CreateTime', None)
+        msg_date = None
+        if create_time:
+            msg_date = datetime.utcfromtimestamp(float(unicode(create_time)[:10])).replace(tzinfo=pytz.utc)
+        msg_type = body.get('MsgType')
+        external_id = body.get('MsgId', None)
+
+        urn = URN.from_jiochat(sender_id)
+        msg = None
+        contact_name = None
+        if not channel.org.is_anon:
+            contact_detail = client.get_user_detail(sender_id)
+            contact_name = contact_detail.get('nickname')
+
+        contact = Contact.get_or_create(channel.org, channel.created_by, name=contact_name,
+                                        urns=[urn], channel=channel)
+
+        if msg_type == 'event':
+            event = body.get('Event')
+            if event == 'subscribe':
+                Trigger.catch_triggers(contact, Trigger.TYPE_FOLLOW, channel)
+                return HttpResponse("New follow handled: %s" % sender_id)
+
+        if msg_type == 'text':
+            msg = Msg.create_incoming(channel, urn, body.get('Content'), date=msg_date, contact=contact)
+
+        elif msg_type in ['image', 'video', 'voice']:
+            media_response = client.request_media(body.get('MediaId'))
+            content_type, downloaded = channel.org.save_response_media(media_response)
+            media_url = '%s:%s' % (content_type, downloaded)
+            path = media_url.partition(':')[2]
+
+            msg = Msg.create_incoming(channel, urn, path, attachments=[media_url], date=msg_date, contact=contact)
+
+        if msg:
+            Msg.objects.filter(pk=msg.id).update(external_id=external_id)
+            return HttpResponse("Msgs Accepted: %s" % msg.id)
+
+        return HttpResponse("Not handled", status=400)
 
 
 class FacebookHandler(BaseChannelHandler):
