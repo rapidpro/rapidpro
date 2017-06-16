@@ -813,7 +813,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
     def test_status(self):
         joe = self.create_contact("Joe Biden", "+254788383383")
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin, msg_type=USSD)
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin, msg_type=USSD)[0]
 
         data = self.mk_event()
         msg.external_id = data['message_id']

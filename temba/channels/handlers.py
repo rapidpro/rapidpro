@@ -243,7 +243,7 @@ class TwimlAPIHandler(BaseChannelHandler):
             for i in range(int(request.POST.get('NumMedia', 0))):
                 media_url = client.download_media(request.POST['MediaUrl%d' % i])
                 path = media_url.partition(':')[2]
-                Msg.create_incoming(channel, urn, path, media=media_url)
+                Msg.create_incoming(channel, urn, path, attachments=[media_url])
 
             if body:
                 # Twilio sometimes sends concat sms as base64 encoded MMS
@@ -507,7 +507,10 @@ class ExternalHandler(BaseChannelHandler):
             # handlers can optionally specify the date/time of the message (as 'date' or 'time') in ECMA format
             date = self.get_param('date', self.get_param('time'))
             if date:
-                date = json_date_to_datetime(date)
+                try:
+                    date = json_date_to_datetime(date)
+                except ValueError as e:
+                    return HttpResponse("Bad parameter error: %s" % e.message, status=400)
 
             urn = URN.from_parts(channel.scheme, sender)
             sms = Msg.create_incoming(channel, urn, text, date=date)
@@ -655,7 +658,7 @@ class TelegramHandler(BaseChannelHandler):
                 # if we got a media URL for this attachment, save it away
                 if media_url:
                     url = media_url.partition(':')[2]
-                    msg = Msg.create_incoming(channel, urn, url, date=msg_date, media=media_url)
+                    msg = Msg.create_incoming(channel, urn, url, date=msg_date, attachments=[media_url])
                     log(msg, 'Incoming media', json.dumps(dict(description='Message accepted')))
 
             # this one's a little kludgy cause we might create more than
@@ -683,7 +686,7 @@ class TelegramHandler(BaseChannelHandler):
                 if 'title' in body['message']['venue']:
                     msg_text = '%s (%s)' % (msg_text, body['message']['venue']['title'])
             media_url = 'geo:%s' % location
-            msg = Msg.create_incoming(channel, urn, msg_text, date=msg_date, media=media_url)
+            msg = Msg.create_incoming(channel, urn, msg_text, date=msg_date, attachments=[media_url])
             return make_response('Message accepted', msg)
 
         if 'photo' in body['message']:
@@ -1047,7 +1050,7 @@ class MacroKioskHandler(BaseChannelHandler):
         elif action == 'receive':
 
             external_id = self.get_param('msgid')
-            message_date = datetime.strptime(self.get_param('time'), "%Y-%m-%d %H:%M:%S")
+            message_date = datetime.strptime(self.get_param('time'), "%Y-%m-%d%H:%M:%S")
             local_date = pytz.timezone('Asia/Kuala_Lumpur').localize(message_date)
             gmt_date = local_date.astimezone(pytz.utc)
 
@@ -2809,7 +2812,8 @@ class ViberPublicHandler(BaseChannelHandler):
             if caption:  # pragma: needs cover
                 Msg.create_incoming(channel, urn, caption, contact=contact, date=msg_date)
 
-            msg = Msg.create_incoming(channel, urn, text, contact=contact, date=msg_date, external_id=body['message_token'], media=media)
+            msg = Msg.create_incoming(channel, urn, text, contact=contact, date=msg_date,
+                                      external_id=body['message_token'], attachments=[media] if media else None)
             return HttpResponse('Msg Accepted: %d' % msg.id)
 
         else:  # pragma: no cover

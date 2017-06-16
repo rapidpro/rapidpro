@@ -1,0 +1,34 @@
+.attachment
+  -if category == 'image'
+    %a.attachment-preview{ href:"#", data-featherlight:'<img class="image-full" src="{{url}}"/>' }
+      .attachment-icon.icon-photo
+      {{preview}}
+
+  -elif category == 'audio' and is_playable
+    %a.attachment-preview{ href:"#", data-featherlight:'<audio style="width: 360px" controls><source type="{{content_type}}" src="{{url}}" /></audio>' }
+      .attachment-icon.icon-volume-medium
+      {{preview}}
+
+  -elif category == 'video' and is_playable
+    %a.attachment-preview{
+      href:"#",
+      data-featherlight:'<video class="video-js vjs-default-skin" controls preload="auto"><source type="{{content_type}}" src="{{url}}" /></video>',
+      data-featherlight-after-content:'initializeVideoPlayer(this.$content[0])',
+      data-featherlight-after-close:'disposeVideoPlayer(this.$content[0])'
+    }
+      .attachment-icon.icon-videocam
+      {{preview}}
+
+  -elif category == 'geo'
+    %a.attachment-preview{ href:"{{url}}", target:"_loc" }
+      .attachment-icon.icon-pin_drop
+      {{preview}}
+
+  -else
+    .attachment-preview
+      .attachment-icon.icon-docs
+      {{preview}}
+
+  -if category != 'geo'
+    %a.attachment-download{ href:"{{url}}", download }
+      .icon-file_download

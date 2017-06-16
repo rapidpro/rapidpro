@@ -1,3 +1,63 @@
+v3.0.150
+----------
+ * Drop database-level length restrictions on msg and values
+ * Add sender ID config for Macrokiosk channels
+ * Expose org credit information on API org endpoint
+ * Add contact_uuid parameter to update FCM user
+ * Add configurable webhook header fields
+
+v3.0.148
+----------
+* Fix simulator with attachments
+* Switch to using new recent messages model
+
+v3.0.147
+----------
+ * Migration to populate FlowPathRecentMessage
+ * Clip messages to 640 chars for recent messages table
+
+v3.0.145
+----------
+ * Change Macrokiosk time format to not have space
+ * Better error message for external channel handler for wrong time format
+ * Add new model for tracking recent messages on flow path segments
+
+v3.0.144
+----------
+ * Remove Msg.media field that was replaced by Msg.attachments
+ * Change default ivr timeouts to 2m
+ * Fix the content-type for Twilio call response
+
+v3.0.143
+----------
+ * Update contact read page and inbox views to show multiple message attachments 
+ * Fix use of videojs to provide consistent video playback across browsers
+ * API should return error message if user provides something unparseable for a non-serializer param
+
+v3.0.142
+----------
+ * Fix handling of old msg structs with no attachments attribute
+ * Tweak in create_outgoing to prevent possible NPEs in flow execution
+ * Switch to using Msg.attachments instead of Msg.media
+ * Replace index on Value.string_value with one that is limited to first 32 chars
+
+v3.0.139
+----------
+* Fix Macrokiosk JSON responses
+
+v3.0.138
+----------
+ * Migration to populate attachments field on old messages
+
+v3.0.137
+----------
+ * Don't assume event fires still exist in process_fire_events
+ * Add new Msg.attachments field to hold multiple attachments on an incoming message
+
+v3.0.136
+----------
+ * Fix scheduled broadcast text display
+
 v3.0.135
 ----------
  * Make 'only' keyword triggers ignore punctuation

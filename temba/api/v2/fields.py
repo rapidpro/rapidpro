@@ -153,6 +153,9 @@ class TembaModelField(serializers.RelatedField):
         return {'uuid': obj.uuid, 'name': obj.name}
 
     def to_internal_value(self, data):
+        if not (isinstance(data, six.string_types) or isinstance(data, six.integer_types)):
+            raise serializers.ValidationError("Must be a string or integer")
+
         obj = self.get_object(data)
 
         if not obj:

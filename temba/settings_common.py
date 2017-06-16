@@ -1061,8 +1061,8 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_flowpathcounts',
         'schedule': timedelta(seconds=300),
     },
-    "prune-flowpathrecentsteps": {
-        'task': 'prune_flowpathrecentsteps',
+    "prune-recentmessages": {
+        'task': 'prune_recentmessages',
         'schedule': timedelta(seconds=300),
     },
     "squash-channelcounts": {
@@ -1245,10 +1245,10 @@ LIBRATO_TOKEN = os.environ.get('LIBRATO_TOKEN', '')
 IP_ADDRESSES = ('172.16.10.10', '162.16.10.20')
 
 # -----------------------------------------------------------------------------------
-# Installs may choose how big they want their text messages and contact fields to be
-# by default we use 640 chars or about 4 normal text messages
+# Installs may choose how big they want their text messages and contact fields to be.
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640
+VALUE_FIELD_SIZE = 640
 
 # -----------------------------------------------------------------------------------
 # Installs may choose how long to keep the channel logs in hours

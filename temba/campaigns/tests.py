@@ -724,7 +724,7 @@ class CampaignTest(TembaTest):
             event1.full_clean()
 
         with self.assertRaises(ValidationError):
-            event1.message = {'eng': "x" * 1000}
+            event1.message = {'eng': "x" * 8001}
             event1.full_clean()
 
         with self.assertRaises(ValidationError):

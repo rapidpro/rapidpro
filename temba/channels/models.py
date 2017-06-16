@@ -129,6 +129,7 @@ class Channel(TembaModel):
     CONFIG_FCM_TITLE = 'FCM_TITLE'
     CONFIG_FCM_NOTIFICATION = 'FCM_NOTIFICATION'
     CONFIG_MAX_LENGTH = 'max_length'
+    CONFIG_MACROKIOSK_SENDER_ID = 'macrokiosk_sender_id'
     CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
@@ -1568,8 +1569,10 @@ class Channel(TembaModel):
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
 
+        # for now we only support sending one attachment per message but this could change in future
         from temba.msgs.models import Msg
-        media_type, media_url = Msg.get_media(msg)
+        attachments = Msg.get_attachments(msg)
+        media_type, media_url = attachments[0] if attachments else (None, None)
 
         if media_type and media_url:
             media_type = media_type.split('/')[0]
@@ -2100,24 +2103,24 @@ class Channel(TembaModel):
         # strip a leading +
         recipient = msg.urn_path[1:] if msg.urn_path.startswith('+') else msg.urn_path
 
-        payload = {
+        data = {
             'user': channel.config[Channel.CONFIG_USERNAME], 'pass': channel.config[Channel.CONFIG_PASSWORD],
-            'to': recipient, 'text': text, 'from': channel.address.lstrip('+'),
+            'to': recipient, 'text': text, 'from': channel.config[Channel.CONFIG_MACROKIOSK_SENDER_ID],
             'servid': channel.config[Channel.CONFIG_MACROKIOSK_SERVICE_ID], 'type': message_type
         }
 
         url = 'https://www.etracker.cc/bulksms/send'
-        payload_json = json.dumps(payload)
+        payload = json.dumps(data)
 
         headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
         headers.update(TEMBA_HEADERS)
 
-        event = HttpEvent('POST', url, payload_json)
+        event = HttpEvent('POST', url, payload)
 
         start = time.time()
 
         try:
-            response = requests.post(url, data=payload, headers=headers, timeout=30)
+            response = requests.post(url, json=data, headers=headers, timeout=30)
             event.status_code = response.status_code
             event.response_body = response.text
 
@@ -2605,11 +2608,12 @@ class Channel(TembaModel):
         callback_url = Channel.build_twilio_callback_url(msg.id)
 
         start = time.time()
-        media_url = []
+        media_urls = []
 
-        if msg.media:
-            (media_type, media_url) = Msg.get_media(msg)
-            media_url = [media_url]
+        if msg.attachments:
+            # for now we only support sending one attachment per message but this could change in future
+            media_type, media_url = Msg.get_attachments(msg)[0]
+            media_urls = [media_url]
 
         if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
             config = channel.config
@@ -2624,13 +2628,13 @@ class Channel(TembaModel):
                 client.messages.create(to=msg.urn_path,
                                        messaging_service_sid=messaging_service_sid,
                                        body=text,
-                                       media_url=media_url,
+                                       media_url=media_urls,
                                        status_callback=callback_url)
             else:
                 client.messages.create(to=msg.urn_path,
                                        from_=channel.address,
                                        body=text,
-                                       media_url=media_url,
+                                       media_url=media_urls,
                                        status_callback=callback_url)
 
             Channel.success(channel, msg, WIRED, start, events=client.messages.events)
@@ -2660,8 +2664,10 @@ class Channel(TembaModel):
 
         start = time.time()
 
+        # for now we only support sending one attachment per message but this could change in future
         from temba.msgs.models import Msg
-        media_type, media_url = Msg.get_media(msg)
+        attachments = Msg.get_attachments(msg)
+        media_type, media_url = attachments[0] if attachments else (None, None)
 
         if media_type and media_url:
             media_type = media_type.split('/')[0]
@@ -3051,13 +3057,14 @@ class Channel(TembaModel):
         # append media url if our channel doesn't support it
         text = msg.text
 
-        if msg.media and not Channel.supports_media(channel):
-            media_type, media_url = Msg.get_media(msg)
+        if msg.attachments and not Channel.supports_media(channel):
+            # for now we only support sending one attachment per message but this could change in future
+            media_type, media_url = Msg.get_attachments(msg)[0]
             if media_type and media_url:
                 text = '%s\n%s' % (text, media_url)
 
             # don't send as media
-            msg.media = None
+            msg.attachments = None
 
         parts = Msg.get_text_parts(text, channel.config.get(Channel.CONFIG_MAX_LENGTH, type_settings[Channel.CONFIG_MAX_LENGTH]))
 
@@ -3101,7 +3108,7 @@ class Channel(TembaModel):
                     sent_count -= 1
 
                     # make sure media isn't sent more than once
-                    msg.media = None
+                    msg.attachments = None
 
         # update the number of sms it took to send this if it was more than 1
         if len(parts) > 1:
@@ -3667,11 +3674,11 @@ class Alert(SmartModel):
 
     def send_alert(self):
         from .tasks import send_alert_task
-        send_alert_task.delay(self.id, resolved=False)
+        on_transaction_commit(lambda: send_alert_task.delay(self.id, resolved=False))
 
     def send_resolved(self):
         from .tasks import send_alert_task
-        send_alert_task.delay(self.id, resolved=True)
+        on_transaction_commit(lambda: send_alert_task.delay(self.id, resolved=True))
 
     def send_email(self, resolved):
         from temba.msgs.models import Msg

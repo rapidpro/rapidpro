@@ -10,6 +10,7 @@ import traceback
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
@@ -165,6 +166,8 @@ class Broadcast(models.Model):
 
     BULK_THRESHOLD = 50  # use bulk priority for messages if number of recipients greater than this
 
+    MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
+
     org = models.ForeignKey(Org, verbose_name=_("Org"),
                             help_text=_("The org this broadcast is connected to"))
 
@@ -195,7 +198,7 @@ class Broadcast(models.Model):
 
     parent = models.ForeignKey('Broadcast', verbose_name=_("Parent"), null=True, related_name='children')
 
-    text = TranslatableField(verbose_name=_("Translations"), max_length=settings.MSG_FIELD_SIZE,
+    text = TranslatableField(verbose_name=_("Translations"), max_length=MAX_TEXT_LEN,
                              help_text=_("The localized versions of the message text"))
 
     base_language = models.CharField(max_length=4,
@@ -479,7 +482,7 @@ class Broadcast(models.Model):
                                           status=status,
                                           msg_type=msg_type,
                                           insert_object=False,
-                                          media=media,
+                                          attachments=[media] if media else None,
                                           priority=priority,
                                           created_on=created_on)
 
@@ -617,7 +620,7 @@ class Msg(models.Model):
 
     CONTACT_HANDLING_QUEUE = 'ch:%d'
 
-    MAX_SIZE = settings.MSG_FIELD_SIZE
+    MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))
@@ -638,7 +641,7 @@ class Msg(models.Model):
                                   related_name='msgs', verbose_name=_("Broadcast"),
                                   help_text=_("If this message was sent to more than one recipient"))
 
-    text = models.TextField(max_length=MAX_SIZE, verbose_name=_("Text"),
+    text = models.TextField(verbose_name=_("Text"),
                             help_text=_("The actual message content that was sent"))
 
     priority = models.IntegerField(default=PRIORITY_NORMAL,
@@ -694,8 +697,8 @@ class Msg(models.Model):
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name='msgs', on_delete=models.SET_NULL,
                               help_text="The topup that this message was deducted from")
 
-    media = models.URLField(null=True, blank=True, max_length=255,
-                            help_text=_("The media associated with this message if any"))
+    attachments = ArrayField(models.URLField(max_length=255), null=True,
+                             help_text=_("The media attachments on this message if any"))
 
     session = models.ForeignKey('channels.ChannelSession', null=True,
                                 help_text=_("The session this message was a part of if any"))
@@ -933,18 +936,20 @@ class Msg(models.Model):
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
     @classmethod
-    def get_media(cls, msg):
-        if msg.media:
-            parts = msg.media.split(':', 1)
-            if len(parts) == 2:
-                return parts
-        return None, None
+    def get_attachments(cls, msg):
+        """
+        Returns the attachments on the given MsgStruct split into type and URL
+        """
+        if msg.attachments:
+            return [a.split(':', 1) for a in msg.attachments if ":" in a]
+        else:
+            return []
 
     def as_json(self):
         return dict(direction=self.direction,
                     text=self.text,
                     id=self.id,
-                    media=self.media,
+                    attachments=self.attachments,
                     created_on=self.created_on.strftime('%x %X'),
                     model="msg")
 
@@ -1022,24 +1027,12 @@ class Msg(models.Model):
         return sorted_logs[0] if sorted_logs else None
 
     def get_media_path(self):
-
-        if self.media:
-            # TODO: remove after migration msgs.0053
-            if self.media.startswith('http'):  # pragma: needs cover
-                return self.media
-
-            if ':' in self.media:
-                return self.media.split(':', 1)[1]
+        if self.attachments and ':' in self.attachments[0]:
+            return self.attachments[0].split(':', 1)[1]
 
     def get_media_type(self):
-
-        if self.media:
-            # TODO: remove after migration msgs.0053
-            if self.media.startswith('http'):  # pragma: needs cover
-                return 'audio'
-
-        if self.media and ':' in self.media:
-            type = self.media.split(':', 1)[0]
+        if self.attachments and ':' in self.attachments[0]:
+            type = self.attachments[0].split(':', 1)[0]
             if type == 'application/octet-stream':  # pragma: needs cover
                 return 'audio'
             return type.split('/', 1)[0]
@@ -1053,16 +1046,12 @@ class Msg(models.Model):
     def is_media_type_image(self):
         return Msg.MEDIA_IMAGE == self.get_media_type()
 
-    def reply(self, text, user, trigger_send=False, message_context=None, session=None, media=None, msg_type=None,
+    def reply(self, text, user, trigger_send=False, message_context=None, session=None, attachments=None, msg_type=None,
               send_all=False, created_on=None):
 
-        if send_all:
-            return self.contact.send_all(text, user, trigger_send=trigger_send, message_context=message_context,
-                                         response_to=self if self.id else None, session=session, media=media,
-                                         msg_type=msg_type or self.msg_type, created_on=created_on)
-        return [self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                  response_to=self if self.id else None, session=session, media=media,
-                                  msg_type=msg_type or self.msg_type, created_on=created_on)]
+        return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
+                                 response_to=self if self.id else None, session=session, attachments=attachments,
+                                 msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all)
 
     def update(self, cmd):
         """
@@ -1173,17 +1162,6 @@ class Msg(models.Model):
         # send our message
         self.org.trigger_send([cloned])
 
-    def get_flow_step(self):  # pragma: needs cover
-        if self.msg_type not in (FLOW, IVR):
-            return None
-
-        steps = list(self.steps.all())  # steps may have been pre-fetched
-        return steps[0] if steps else None
-
-    def get_flow(self):  # pragma: needs cover
-        step = self.get_flow_step()
-        return step.run.flow if step else None
-
     def as_task_json(self):
         """
         Used internally to serialize to JSON when queueing messages in Redis
@@ -1192,7 +1170,7 @@ class Msg(models.Model):
                     text=self.text, urn_path=self.contact_urn.path,
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
-                    status=self.status, direction=self.direction, media=self.media,
+                    status=self.status, direction=self.direction, attachments=self.attachments,
                     external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
                     created_on=self.created_on, modified_on=self.modified_on, session_id=self.session_id)
@@ -1207,7 +1185,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
-                        status=PENDING, media=None, msg_type=None, topup=None, external_id=None, session=None):
+                        status=PENDING, attachments=None, msg_type=None, topup=None, external_id=None, session=None):
 
         from temba.api.models import WebHookEvent
         if not org and channel:
@@ -1249,7 +1227,7 @@ class Msg(models.Model):
 
         # we limit our text message length
         if text:
-            text = text[:Msg.MAX_SIZE]
+            text = text[:cls.MAX_TEXT_LEN]
 
         now = timezone.now()
 
@@ -1264,7 +1242,7 @@ class Msg(models.Model):
                         queued_on=now,
                         direction=INCOMING,
                         msg_type=msg_type,
-                        media=media,
+                        attachments=attachments,
                         status=status,
                         external_id=external_id,
                         session=session)
@@ -1339,7 +1317,7 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
-                        media=None, topup_id=None, msg_type=INBOX, session=None, role=None):
+                        attachments=None, topup_id=None, msg_type=INBOX, session=None):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
@@ -1386,6 +1364,8 @@ class Msg(models.Model):
             message_context['channel'] = channel.build_expressions_context()
 
         (text, errors) = Msg.substitute_variables(text, message_context, contact=contact, org=org)
+        if text:
+            text = text[:Msg.MAX_TEXT_LEN]
 
         # if we are doing a single message, check whether this might be a loop of some kind
         if insert_object:
@@ -1394,7 +1374,7 @@ class Msg(models.Model):
             same_msgs = Msg.objects.filter(contact_urn=contact_urn,
                                            contact__is_test=False,
                                            channel=channel,
-                                           media=media,
+                                           attachments=attachments,
                                            text=text,
                                            direction=OUTGOING,
                                            created_on__gte=created_on - timedelta(minutes=10))
@@ -1446,7 +1426,7 @@ class Msg(models.Model):
                         response_to=response_to,
                         msg_type=msg_type,
                         priority=priority,
-                        media=media,
+                        attachments=attachments,
                         session=session,
                         has_template_error=len(errors) > 0)
 
