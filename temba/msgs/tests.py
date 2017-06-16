@@ -1246,8 +1246,8 @@ class BroadcastTest(TembaTest):
         msg.save()
         context = msg.build_expressions_context()
 
-        self.assertEqual(context['__default__'], "keyword remainder-remainder|http://e.com/test.jpg|http://e.com/test.mp3")
-        self.assertEqual(context['value'], "keyword remainder-remainder|http://e.com/test.jpg|http://e.com/test.mp3")
+        self.assertEqual(context['__default__'], "keyword remainder-remainder\nhttp://e.com/test.jpg\nhttp://e.com/test.mp3")
+        self.assertEqual(context['value'], "keyword remainder-remainder\nhttp://e.com/test.jpg\nhttp://e.com/test.mp3")
         self.assertEqual(context['text'], "keyword remainder-remainder")
         self.assertEqual(context['attachments'], {"0": "http://e.com/test.jpg", "1": "http://e.com/test.mp3"})
 
@@ -1256,8 +1256,8 @@ class BroadcastTest(TembaTest):
         msg.save()
         context = msg.build_expressions_context()
 
-        self.assertEqual(context['__default__'], "http://e.com/test.jpg|http://e.com/test.mp3")
-        self.assertEqual(context['value'], "http://e.com/test.jpg|http://e.com/test.mp3")
+        self.assertEqual(context['__default__'], "http://e.com/test.jpg\nhttp://e.com/test.mp3")
+        self.assertEqual(context['value'], "http://e.com/test.jpg\nhttp://e.com/test.mp3")
         self.assertEqual(context['text'], "")
         self.assertEqual(context['attachments'], {"0": "http://e.com/test.jpg", "1": "http://e.com/test.mp3"})
 
