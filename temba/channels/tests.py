@@ -6260,7 +6260,7 @@ class SMSCentralTest(TembaTest):
                                         data={'user': 'sc-user', 'pass': 'sc-password',
                                               'mobile': '9771488532', 'content': "Test message"},
                                         headers=TEMBA_HEADERS,
-                                        timeout=30)
+                                        timeout=60)
 
                 self.clear_cache()
 
@@ -6319,7 +6319,7 @@ class SMSCentralTest(TembaTest):
                                               'mobile': '9771488532',
                                               'content': "Test message\nhttps://example.com/attachments/pic.jpg"},
                                         headers=TEMBA_HEADERS,
-                                        timeout=30)
+                                        timeout=60)
 
                 self.clear_cache()
         finally:
