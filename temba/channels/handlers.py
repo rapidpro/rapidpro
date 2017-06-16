@@ -21,7 +21,6 @@ from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from django_redis import get_redis_connection
-from guardian.utils import get_anonymous_user
 from requests import Request
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelLog
@@ -34,7 +33,7 @@ from temba.ussd.models import USSDSession
 from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
-from temba.utils import decode_base64
+from temba.utils import decode_base64, get_anonymous_user
 from twilio import twiml
 from .tasks import fb_channel_subscribe, refresh_jiochat_access_tokens
 

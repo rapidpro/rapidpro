@@ -23,7 +23,7 @@ from django.core.urlresolvers import reverse
 from django.test import RequestFactory
 from django.test.utils import override_settings
 from django.utils import timezone
-from django.template import loader, Context
+from django.template import loader
 from django_redis import get_redis_connection
 from mock import patch
 from smartmin.tests import SmartminTest
@@ -39,7 +39,7 @@ from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLI
     NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, AnonymousOrg
 from temba.triggers.models import Trigger
-from temba.utils import dict_to_struct, datetime_to_str
+from temba.utils import dict_to_struct, datetime_to_str, get_anonymous_user
 from telegram import User as TelegramUser
 from twilio import TwilioRestException
 from twilio.util import RequestValidator
@@ -929,7 +929,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(android1.uuid, 'uuid')
         self.assertTrue(android1.secret)
         self.assertTrue(android1.claim_code)
-        self.assertEqual(android1.created_by.username, settings.ANONYMOUS_USER_NAME)
+        self.assertEqual(android1.created_by, get_anonymous_user())
 
         # check channel JSON in response
         response_json = response.json()
@@ -3384,7 +3384,7 @@ class ChannelClaimTest(TembaTest):
                        last_seen=self.channel.last_seen, sync=alert.sync_event)
 
         text_template = loader.get_template(template)
-        text = text_template.render(Context(context))
+        text = text_template.render(context)
 
         self.assertEquals(mail.outbox[0].body, text)
 
@@ -3411,7 +3411,7 @@ class ChannelClaimTest(TembaTest):
                        last_seen=self.channel.last_seen, sync=alert.sync_event)
 
         text_template = loader.get_template(template)
-        text = text_template.render(Context(context))
+        text = text_template.render(context)
 
         self.assertEquals(mail.outbox[1].body, text)
 

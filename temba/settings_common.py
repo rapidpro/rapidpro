@@ -202,9 +202,6 @@ INSTALLED_APPS = (
     # Redis cache
     'redis',
 
-    # mo-betta permission management
-    'guardian',
-
     # rest framework for api access
     'rest_framework',
     'rest_framework.authtoken',
@@ -966,12 +963,8 @@ LOGOUT_URL = "/users/logout/"
 LOGIN_REDIRECT_URL = "/org/choose/"
 LOGOUT_REDIRECT_URL = "/"
 
-# -----------------------------------------------------------------------------------
-# Guardian Configuration
-# -----------------------------------------------------------------------------------
 AUTHENTICATION_BACKENDS = (
     'smartmin.backends.CaseInsensitiveBackend',
-    'guardian.backends.ObjectPermissionBackend',
 )
 
 ANONYMOUS_USER_NAME = 'AnonymousUser'
