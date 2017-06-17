@@ -1233,12 +1233,33 @@ class BroadcastTest(TembaTest):
 
         self.assertEqual(context['__default__'], "keyword remainder-remainder")
         self.assertEqual(context['value'], "keyword remainder-remainder")
+        self.assertEqual(context['text'], "keyword remainder-remainder")
+        self.assertEqual(context['attachments'], {})
         self.assertEqual(context['contact']['__default__'], "Joe Blow")
         self.assertEqual(context['contact']['superhero_name'], "batman")
 
         # time should be in org format and timezone
-        msg_time = datetime_to_str(msg.created_on, '%d-%m-%Y %H:%M', tz=self.org.timezone)
-        self.assertEqual(msg_time, context['time'])
+        self.assertEqual(context['time'], datetime_to_str(msg.created_on, '%d-%m-%Y %H:%M', tz=self.org.timezone))
+
+        # add some attachments to this message
+        msg.attachments = ["image/jpeg:http://e.com/test.jpg", "audio/mp3:http://e.com/test.mp3"]
+        msg.save()
+        context = msg.build_expressions_context()
+
+        self.assertEqual(context['__default__'], "keyword remainder-remainder\nhttp://e.com/test.jpg\nhttp://e.com/test.mp3")
+        self.assertEqual(context['value'], "keyword remainder-remainder\nhttp://e.com/test.jpg\nhttp://e.com/test.mp3")
+        self.assertEqual(context['text'], "keyword remainder-remainder")
+        self.assertEqual(context['attachments'], {"0": "http://e.com/test.jpg", "1": "http://e.com/test.mp3"})
+
+        # clear the text of the message
+        msg.text = ""
+        msg.save()
+        context = msg.build_expressions_context()
+
+        self.assertEqual(context['__default__'], "http://e.com/test.jpg\nhttp://e.com/test.mp3")
+        self.assertEqual(context['value'], "http://e.com/test.jpg\nhttp://e.com/test.mp3")
+        self.assertEqual(context['text'], "")
+        self.assertEqual(context['attachments'], {"0": "http://e.com/test.jpg", "1": "http://e.com/test.mp3"})
 
     def test_variables_substitution(self):
         ContactField.get_or_create(self.org, self.admin, "sector", "sector")
