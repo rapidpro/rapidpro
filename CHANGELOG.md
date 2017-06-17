@@ -1,3 +1,10 @@
+v3.0.154
+----------
+ * Rate limit sending throught SMS central to 10 messages per second
+ * Fix some more uses of Context objects no longer supported in django 1.11
+ * Fix channel log list request time display
+ * Add @step.text and @step.attachments to message context
+
 v3.0.153
 ----------
  * Jiochat channels
