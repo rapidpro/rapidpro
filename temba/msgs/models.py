@@ -1188,8 +1188,11 @@ class Msg(models.Model):
         return data
 
     def __str__(self):
-        parts = ([self.text] if self.text else []) + self.get_attachment_urls()
-        return "\n".join(parts)
+        if self.attachments:
+            parts = ([self.text] if self.text else []) + self.get_attachment_urls()
+            return "\n".join(parts)
+        else:
+            return self.text
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
