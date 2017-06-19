@@ -2,6 +2,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import time
 import requests
+import json
 
 from celery.task import task
 from datetime import timedelta
@@ -56,10 +57,21 @@ def send_chatbase_logs():  # pragma: needs cover
     Send messages logs in batch to Chatbase
     """
     from temba.orgs.models import CHATBASE_API_KEY
+    from temba.channels.models import TEMBA_HEADERS
 
     for org in Org.objects.filter(config__icontains=CHATBASE_API_KEY):
         cache_keys = cache.keys('org:%d:cache:chatbase_log:*' % org.id)
+
+        messages = []
         for key in cache_keys:
             chatbase_payload = cache.get(key)
-            requests.post(settings.CHATBASE_API_URL, chatbase_payload)
+            messages.append(json.loads(chatbase_payload))
             cache.delete(key)
+
+        payload = dict(messages=messages)
+        if messages:
+            payload = json.dumps(payload)
+            headers = {'Content-Type': 'application/json'}
+            headers.update(TEMBA_HEADERS)
+            requests.post(settings.CHATBASE_API_URL, data=payload, headers=headers)
+
