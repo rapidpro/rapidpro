@@ -651,7 +651,7 @@ class TelegramHandler(BaseChannelHandler):
             text = body['message']['text']
         elif 'caption' in body['message']:
             text = body['message']['caption']
-        elif 'contact' in body['message']:
+        elif 'contact' in body['message']:  # pragma: needs cover
             contact = body['message']['contact']
 
             if 'first_name' in contact and 'phone_number' in contact:
