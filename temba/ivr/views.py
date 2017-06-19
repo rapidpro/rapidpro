@@ -136,7 +136,7 @@ class CallHandler(View):
                         return JsonResponse(json.loads(six.text_type(response)), safe=False)
 
                     ChannelLog.log_ivr_interaction(call, "Incoming request for call", event)
-                    return HttpResponse(six.text_type(response))
+                    return HttpResponse(six.text_type(response), content_type="text/xml; charset=utf-8")
             else:
 
                 if call.status == IVRCall.COMPLETED:

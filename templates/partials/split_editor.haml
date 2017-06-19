@@ -113,6 +113,29 @@
 
         %select{ng-model:"formData.webhook_action",ng-options:"method for method in methods",style:"height:34px;width:95px",class:"method",select2:""}
         %input{ng-model:"formData.webhook",placeholder:"http://yourwebsite.com/endpoint",auto-complete:"",ng-required:"true",type:"url",class:"url"}
+
+        %a.additional-options{href:"javascript:;",ng-click:"webhookAdditionalOptions()",ng-show:"!formData.isWebhookAdditionalOptionsVisible"}
+          -trans "Additional options"
+
+        .webhook-headers{ng-show:"formData.isWebhookAdditionalOptionsVisible"}
+          .modal-webhook-header-pair
+            .modal-webhook-header.modal-webhook-header-name
+              .message
+                -trans "Header Name"
+            .modal-webhook-header.modal-webhook-header-value
+              .message
+                -trans "Header Value"
+          .modal-webhook-header-pair{ng-repeat:"header in formData.webhook_headers"}
+            .modal-webhook-header.modal-webhook-header-name
+              %input{type:"text",name:"webhook-name",ng-model:"webhook_headers_name[$index]"}
+            .modal-webhook-header.modal-webhook-header-value
+              %input{type:"text",name:"webhook-value",ng-model:"webhook_headers_value[$index]"}
+            .modal-webhook-header.modal-webhook-header-remove
+              .icon.icon-close{ng-click:"removeWebhookHeader($index)"}
+
+          %a.add-header{href:"javascript:;",ng-click:"addNewWebhookHeader()"}
+            -trans "Add header"
+
         .help-text
           -blocktrans
             We'll include the message text along with data specified in

@@ -23,7 +23,7 @@ from temba.channels.models import Channel, ChannelEvent, TEMBA_HEADERS
 from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import FlowRun, ActionLog
 from temba.orgs.models import Org
-from temba.utils import datetime_to_str, prepped_request_to_str
+from temba.utils import datetime_to_str, prepped_request_to_str, on_transaction_commit
 from temba.utils.cache import get_cacheable_attr
 from urllib import urlencode
 
@@ -208,10 +208,10 @@ class WebHookEvent(SmartModel):
     def fire(self):
         # start our task with this event id
         from .tasks import deliver_event_task
-        deliver_event_task.delay(self.id)
+        on_transaction_commit(lambda: deliver_event_task.delay(self.id))
 
     @classmethod
-    def trigger_flow_event(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None):
+    def trigger_flow_event(cls, run, webhook_url, node_uuid, msg, action='POST', resthook=None, header=None):
         flow = run.flow
         org = flow.org
         contact = run.contact
@@ -263,7 +263,8 @@ class WebHookEvent(SmartModel):
                     urn=six.text_type(contact_urn),
                     values=json.dumps(values),
                     steps=json.dumps(steps),
-                    time=json_time)
+                    time=json_time,
+                    header=header)
 
         if not action:  # pragma: needs cover
             action = 'POST'
@@ -287,11 +288,16 @@ class WebHookEvent(SmartModel):
             # only send webhooks when we are configured to, otherwise fail
             if settings.SEND_WEBHOOKS:
 
+                requests_headers = TEMBA_HEADERS
+
+                if header:
+                    requests_headers.update(header)
+
                 # some hosts deny generic user agents, use Temba as our user agent
                 if action == 'GET':
-                    response = requests.get(webhook_url, headers=TEMBA_HEADERS, timeout=10)
+                    response = requests.get(webhook_url, headers=requests_headers, timeout=10)
                 else:
-                    response = requests.post(webhook_url, data=data, headers=TEMBA_HEADERS, timeout=10)
+                    response = requests.post(webhook_url, data=data, headers=requests_headers, timeout=10)
 
                 body = response.text
                 if body:

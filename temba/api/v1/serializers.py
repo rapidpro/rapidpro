@@ -580,7 +580,7 @@ class FlowRunWriteSerializer(WriteSerializer):
 
     def validate_submitted_by(self, value):
         if value:
-            user = User.objects.filter(username=value).first()
+            user = User.objects.filter(username__iexact=value).first()
             if user and self.org in user.get_user_orgs():
                 self.submitted_by_obj = user
             else:  # pragma: needs cover
