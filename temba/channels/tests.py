@@ -3420,7 +3420,7 @@ class ChannelClaimTest(TembaTest):
 
         self.login(self.admin)
         response = self.client.get(reverse('channels.channel_claim'))
-        # self.assertContains(response, reverse('channels.channel_claim_jiochat'))
+        self.assertContains(response, reverse('channels.channel_claim_jiochat'))
 
         # try to claim a channel
         response = self.client.get(reverse('channels.channel_claim_jiochat'))
