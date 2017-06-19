@@ -52,7 +52,6 @@ gunicorn
 iptools
 iso639
 isoweek
-numpy
 phonenumbers
 ply
 pycountry==1.20
