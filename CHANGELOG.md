@@ -1,3 +1,10 @@
+v3.0.155
+----------
+ * Reduce the rate limit for SMS central to 1 requests per second
+ * Display Jiochat on channel claim page
+ * Fix date pickers on modal forms
+ * Update channels to generate messages with multiple attachments
+
 v3.0.154
 ----------
  * Rate limit sending throught SMS central to 10 messages per second
