@@ -451,7 +451,7 @@ class ExportForm(Form):
         start_date = cleaned_data.get('start_date')
         end_date = cleaned_data.get('end_date')
 
-        if start_date and start_date > date.today():
+        if start_date and start_date > date.today():  # pragma: needs cover
             raise forms.ValidationError(_("Start date can't be in the future."))
 
         if end_date and start_date and end_date < start_date:  # pragma: needs cover
