@@ -731,6 +731,26 @@
                     for free. Your users will need an Android, Windows or iOS device and a LINE account to send
                     and receive messages.
 
+      -if org_perms.channels.channel_claim_jiochat
+        .claim-row.jiochat-channel
+          .row
+            .span3
+              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_line' %}"}
+                .btn-container
+                  .claim-glyph.icon-jiochat
+                  %p.claim-text
+                    -trans "JioChat"
+
+            .span9
+              .claim-description
+                %div
+                  -blocktrans
+                    Add a <a href="https://jiochat.me">JioChat</a> bot to send and receive messages to JioChat users
+                    for free. Your users will need an Android, Windows or iOS device and a JioChat account to send
+                    and receive messages.
+
+
+
     %h3
       -trans "API Channels"
 
