@@ -1962,7 +1962,7 @@ class Org(SmartModel):
             cached = cache.get(key, None)
 
             if cached is None:
-                cache.set(key, dict_to_json(data), timeout=300)
+                cache.set(key, dict_to_json(data))
 
         except Exception as e:
             import traceback
