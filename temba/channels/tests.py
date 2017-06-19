@@ -7592,7 +7592,7 @@ class TelegramTest(TembaTest):
         """
 
         receive_url = reverse('handlers.telegram_handler', args=[self.channel.uuid])
-        response = self.client.post(receive_url, data, content_type='application/json', post_data=data)
+        response = self.client.post(receive_url, data, content_type='application/json')
         self.assertEquals(201, response.status_code)
 
         # and we should have a new message
@@ -7614,7 +7614,7 @@ class TelegramTest(TembaTest):
                     post.return_value = MockResponse(200, json.dumps(dict(ok="true", result=dict(file_path=file_path))))
                     get.return_value = MockResponse(200, "Fake image bits", headers={"Content-Type": content_type})
 
-                    response = self.client.post(receive_url, data, content_type='application/json', post_data=data)
+                    response = self.client.post(receive_url, data, content_type='application/json')
                     self.assertEquals(201, response.status_code)
 
                     # should have a new message
@@ -7777,6 +7777,7 @@ class TelegramTest(TembaTest):
         test_file_message(video_data, 'file/video.mp4', "video/mp4", "mp4", caption="Check out this amazeballs video")
         test_file_message(audio_data, 'file/audio.oga', "audio/ogg", "oga")
 
+        # test with a location which will create an geo attachment
         location_data = """
         {
           "update_id":414383175,
@@ -7812,19 +7813,16 @@ class TelegramTest(TembaTest):
           }
         }
         """
-
-        # with patch('requests.post') as post:
-        # post.return_value = MockResponse(200, json.dumps(dict(ok="true", result=dict(file_path=file_path))))
         Msg.objects.all().delete()
-        response = self.client.post(receive_url, location_data, content_type='application/json', post_data=location_data)
-        self.assertEquals(201, response.status_code)
+        response = self.client.post(receive_url, location_data, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
 
-        # should have a media message now with an image
-        msgs = Msg.objects.all().order_by('-created_on')
-        self.assertEqual(msgs.count(), 1)
-        self.assertTrue(msgs[0].attachments[0].startswith('geo:'))
-        self.assertTrue('Fogo Mar' in msgs[0].text)
+        # location should be a geo attachment and venue title should be the message text
+        msg = Msg.objects.get()
+        self.assertEqual(msg.attachments, ['geo:-2.910574,-79.000239'])
+        self.assertEqual(msg.text, "Fogo Mar")
 
+        # test payload missing message object
         no_message = """
         {
           "channel_post": {
@@ -7855,8 +7853,34 @@ class TelegramTest(TembaTest):
           "update_id": 677142491
         }
         """
-        response = self.client.post(receive_url, no_message, content_type='application/json', post_data=location_data)
-        self.assertEquals(400, response.status_code)
+        response = self.client.post(receive_url, no_message, content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+
+        # test valid message with no content for us to create a message from
+        empty_message = """
+        {
+          "update_id":414383174,
+          "message": {
+            "message_id":55,
+            "from":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn"
+            },
+            "chat":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn",
+              "type":"private"
+            },
+            "date":1460849148
+          }
+        }
+        """
+        response = self.client.post(receive_url, empty_message, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
 
     def test_send(self):
         joe = self.create_contact("Ernie", urn='telegram:1234')
