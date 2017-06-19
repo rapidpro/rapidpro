@@ -2810,13 +2810,13 @@ class ViberPublicHandler(BaseChannelHandler):
 
             elif message_type == 'picture':
                 # "media": "http://www.images.com/img.jpg"
-                if message.get('media', None):
+                if message.get('media', None):  # pragma: needs cover
                     downloaded_url = channel.org.download_and_save_media(Request('GET', message['media']))
                     attachments.append('%s:%s' % (Msg.MEDIA_IMAGE, downloaded_url))
 
-            elif message_type == 'video':
+            elif message_type == 'video':  # pragma: needs cover
                 # "media": "http://www.images.com/video.mp4"
-                if message.get('media', None):
+                if message.get('media', None):  # pragma: needs cover
                     downloaded_url = channel.org.download_and_save_media(Request('GET', message['media']))
                     attachments.append('%s:%s' % (Msg.MEDIA_VIDEO, downloaded_url))
 
