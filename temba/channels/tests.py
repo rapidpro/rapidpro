@@ -6814,17 +6814,12 @@ class TwilioTest(TembaTest):
             response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
             self.assertEquals(201, response.status_code)
 
-        # we should have two messages, one for the text, the other for the media
-        msgs = Msg.objects.all().order_by('-created_on')
-        self.assertEqual(2, msgs.count())
-        self.assertEqual('Test', msgs[0].text)
-        self.assertIsNone(msgs[0].attachments)
-        self.assertTrue(msgs[1].attachments[0].startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
-        self.assertTrue(msgs[1].attachments[0].endswith('.wav'))
-
-        # text should have the url (without the content type)
-        self.assertTrue(msgs[1].text.startswith('https://%s' % settings.AWS_BUCKET_DOMAIN))
-        self.assertTrue(msgs[1].text.endswith('.wav'))
+        # should have a single message with text and attachment
+        msg = Msg.objects.get()
+        self.assertEqual(msg.text, 'Test')
+        self.assertEqual(len(msg.attachments), 1)
+        self.assertTrue(msg.attachments[0].startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
+        self.assertTrue(msg.attachments[0].endswith('.wav'))
 
         Msg.objects.all().delete()
 
@@ -6837,10 +6832,12 @@ class TwilioTest(TembaTest):
 
             post_data['Body'] = ''
             signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
-            response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+            self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
-        # just a single message this time
+        # should have a single message with an attachment but no text
         msg = Msg.objects.get()
+        self.assertEqual(msg.text, '')
+        self.assertEqual(len(msg.attachments), 1)
         self.assertTrue(msg.attachments[0].startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
         self.assertTrue(msg.attachments[0].endswith('.wav'))
 
@@ -7595,7 +7592,7 @@ class TelegramTest(TembaTest):
         """
 
         receive_url = reverse('handlers.telegram_handler', args=[self.channel.uuid])
-        response = self.client.post(receive_url, data, content_type='application/json', post_data=data)
+        response = self.client.post(receive_url, data, content_type='application/json')
         self.assertEquals(201, response.status_code)
 
         # and we should have a new message
@@ -7617,22 +7614,14 @@ class TelegramTest(TembaTest):
                     post.return_value = MockResponse(200, json.dumps(dict(ok="true", result=dict(file_path=file_path))))
                     get.return_value = MockResponse(200, "Fake image bits", headers={"Content-Type": content_type})
 
-                    response = self.client.post(receive_url, data, content_type='application/json', post_data=data)
+                    response = self.client.post(receive_url, data, content_type='application/json')
                     self.assertEquals(201, response.status_code)
 
-                    # should have a media message now with an image
-                    msgs = Msg.objects.all().order_by('-pk')
-
-                    if caption:
-                        self.assertEqual(msgs.count(), 2)
-                        self.assertEqual(msgs[1].text, caption)
-                    else:
-                        self.assertEqual(msgs.count(), 1)
-
-                    self.assertTrue(msgs[0].attachments[0].startswith('%s:https://' % content_type))
-                    self.assertTrue(msgs[0].attachments[0].endswith(extension))
-                    self.assertTrue(msgs[0].text.startswith('https://'))
-                    self.assertTrue(msgs[0].text.endswith(extension))
+                    # should have a new message
+                    msg = Msg.objects.get()
+                    self.assertEqual(msg.text, caption or "")
+                    self.assertTrue(msg.attachments[0].startswith('%s:https://' % content_type))
+                    self.assertTrue(msg.attachments[0].endswith(extension))
 
         # stickers are allowed
         sticker_data = """
@@ -7788,6 +7777,7 @@ class TelegramTest(TembaTest):
         test_file_message(video_data, 'file/video.mp4', "video/mp4", "mp4", caption="Check out this amazeballs video")
         test_file_message(audio_data, 'file/audio.oga', "audio/ogg", "oga")
 
+        # test with a location which will create an geo attachment
         location_data = """
         {
           "update_id":414383175,
@@ -7823,19 +7813,16 @@ class TelegramTest(TembaTest):
           }
         }
         """
-
-        # with patch('requests.post') as post:
-        # post.return_value = MockResponse(200, json.dumps(dict(ok="true", result=dict(file_path=file_path))))
         Msg.objects.all().delete()
-        response = self.client.post(receive_url, location_data, content_type='application/json', post_data=location_data)
-        self.assertEquals(201, response.status_code)
+        response = self.client.post(receive_url, location_data, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
 
-        # should have a media message now with an image
-        msgs = Msg.objects.all().order_by('-created_on')
-        self.assertEqual(msgs.count(), 1)
-        self.assertTrue(msgs[0].attachments[0].startswith('geo:'))
-        self.assertTrue('Fogo Mar' in msgs[0].text)
+        # location should be a geo attachment and venue title should be the message text
+        msg = Msg.objects.get()
+        self.assertEqual(msg.attachments, ['geo:-2.910574,-79.000239'])
+        self.assertEqual(msg.text, "Fogo Mar")
 
+        # test payload missing message object
         no_message = """
         {
           "channel_post": {
@@ -7866,8 +7853,34 @@ class TelegramTest(TembaTest):
           "update_id": 677142491
         }
         """
-        response = self.client.post(receive_url, no_message, content_type='application/json', post_data=location_data)
-        self.assertEquals(400, response.status_code)
+        response = self.client.post(receive_url, no_message, content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+
+        # test valid message with no content for us to create a message from
+        empty_message = """
+        {
+          "update_id":414383174,
+          "message": {
+            "message_id":55,
+            "from":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn"
+            },
+            "chat":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn",
+              "type":"private"
+            },
+            "date":1460849148
+          }
+        }
+        """
+        response = self.client.post(receive_url, empty_message, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
 
     def test_send(self):
         joe = self.create_contact("Ernie", urn='telegram:1234')
@@ -10306,7 +10319,7 @@ class JiochatTest(TembaTest):
                 self.assertEqual(msg.direction, INCOMING)
                 self.assertEqual(msg.org, self.org)
                 self.assertEqual(msg.channel, self.channel)
-                self.assertEqual(msg.text, '<MEDIA_SAVED_URL>')
+                self.assertEqual(msg.text, "")
                 self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
                 self.assertEqual(msg.attachments[0], 'image/jpeg:<MEDIA_SAVED_URL>')
 
@@ -10946,7 +10959,7 @@ class ViberPublicTest(TembaTest):
             }
 
             response = self.assertSignedRequest(json.dumps(data), 400)
-            self.assertIn("Missing 'text' key in 'message' in request_body.", response.content)
+            self.assertContains(response, "Missing text or media in message in request body.", status_code=400)
             Msg.objects.all().delete()
 
     def test_receive_picture_missing_media_key(self):
@@ -10962,7 +10975,7 @@ class ViberPublicTest(TembaTest):
         self.assertMessageReceived('url', 'media', 'http://foo.com/', 'http://foo.com/')
 
     def test_receive_gps(self):
-        self.assertMessageReceived('location', 'location', dict(lat='1.2', lon='-1.3'), 'geo:1.2,-1.3')
+        self.assertMessageReceived('location', 'location', dict(lat='1.2', lon='-1.3'), 'incoming msg')
 
     def test_webhook_check(self):
         data = {
