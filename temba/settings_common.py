@@ -1270,4 +1270,4 @@ VALUE_FIELD_SIZE = 640
 SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
 
-CHATBASE_API_URL = 'https://chatbase.com/api/message'
+CHATBASE_API_URL = 'https://chatbase.com/api/messages'
