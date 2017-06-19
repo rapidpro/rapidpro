@@ -136,7 +136,7 @@ ORG_ACTIVE_TOPUP_KEY = 'org:%d:cache:active_topup'
 ORG_ACTIVE_TOPUP_REMAINING = 'org:%d:cache:credits_remaining:%d'
 ORG_CREDIT_EXPIRING_CACHE_KEY = 'org:%d:cache:credits_expiring_soon'
 ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY = 'org:%d:cache:low_credits_threshold'
-ORG_CHATBASE_LOG_CACHE_KEY = 'org:%d:cache:chatbase_log:%d'
+ORG_CHATBASE_LOG_CACHE_KEY = 'org:%d:cache:chatbase_log'
 
 ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
@@ -1942,23 +1942,21 @@ class Org(SmartModel):
         return getattr(user, '_org', None)
 
     @staticmethod
-    def register_chatbase_log(api_key, version, org_id, channel_name, msg_id, text, contact_id, type, not_handled):
+    def queue_chatbase_log(org_id, channel_name, text, contact_id, type, not_handled):
         if not settings.SEND_CHATBASE:
             raise Exception("!! Skipping Chatbase request, SEND_CHATBASE set to False")
 
         try:
-            data = dict(api_key=api_key,
-                        type=type,
+            data = dict(type=type,
                         user_id=contact_id,
                         platform=channel_name,
                         message=text,
-                        time_stamp=int(time.time()),
-                        version=version)
+                        time_stamp=int(time.time()))
 
             if type == CHATBASE_TYPE_USER and not_handled:
                 data.update(dict(not_handled=True))
 
-            key = ORG_CHATBASE_LOG_CACHE_KEY % (org_id, msg_id)
+            key = ORG_CHATBASE_LOG_CACHE_KEY % org_id
             cached = cache.get(key, None)
 
             if cached is None:

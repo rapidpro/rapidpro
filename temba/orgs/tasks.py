@@ -56,22 +56,22 @@ def send_chatbase_logs():  # pragma: needs cover
     """
     Send messages logs in batch to Chatbase
     """
-    from temba.orgs.models import CHATBASE_API_KEY
+    from temba.orgs.models import CHATBASE_API_KEY, ORG_CHATBASE_LOG_CACHE_KEY
     from temba.channels.models import TEMBA_HEADERS
 
     for org in Org.objects.filter(config__icontains=CHATBASE_API_KEY):
-        cache_keys = cache.keys('org:%d:cache:chatbase_log:*' % org.id)
+        org_chatbase_log_key = ORG_CHATBASE_LOG_CACHE_KEY % org.id
+        chatbase_logs = cache.get(org_chatbase_log_key, None)
 
-        messages = []
-        for key in cache_keys:
-            chatbase_payload = cache.get(key)
-            messages.append(json.loads(chatbase_payload))
-            cache.delete(key)
-
-        payload = dict(messages=messages)
-        if messages:
+        if chatbase_logs:
+            payload = dict(messages=json.loads(chatbase_logs))
             payload = json.dumps(payload)
+
             headers = {'Content-Type': 'application/json'}
             headers.update(TEMBA_HEADERS)
-            requests.post(settings.CHATBASE_API_URL, data=payload, headers=headers)
+            response = requests.post(settings.CHATBASE_API_URL, data=payload, headers=headers)
+
+            if response.status_code == 200:
+                cache.delete(org_chatbase_log_key)
+
 

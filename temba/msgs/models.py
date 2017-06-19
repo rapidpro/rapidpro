@@ -1187,9 +1187,7 @@ class Msg(models.Model):
             data.update(dict(auth=self.contact_urn.auth))
 
         if self.org.is_connected_to_chatbase():
-            data.update(dict(is_org_connected_to_chatbase=True,
-                             chatbase_api_key=self.org.config_json()[CHATBASE_API_KEY],
-                             chatbase_version=self.org.config_json()[CHATBASE_VERSION]))
+            data.update(dict(is_org_connected_to_chatbase=True))
 
         return data
 
@@ -1283,9 +1281,8 @@ class Msg(models.Model):
         # Registering data to send to Chatbase API later
         if org.is_connected_to_chatbase():
             config = org.config_json()
-            Org.register_chatbase_log(api_key=config.get(CHATBASE_API_KEY), version=config.get(CHATBASE_VERSION),
-                                      org_id=org.id, channel_name=channel.name, msg_id=msg.id, text=msg.text,
-                                      contact_id=contact.id, type=CHATBASE_TYPE_USER, not_handled=True)
+            Org.queue_chatbase_log(org_id=org.id, channel_name=channel.name, text=msg.text, contact_id=contact.id,
+                                   type=CHATBASE_TYPE_USER, not_handled=True)
 
         return msg
 
