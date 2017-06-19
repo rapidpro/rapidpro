@@ -215,7 +215,7 @@ class Channel(TembaModel):
         TYPE_PLIVO: dict(scheme='tel', max_length=1600),
         TYPE_RED_RABBIT: dict(scheme='tel', max_length=1600),
         TYPE_SHAQODOON: dict(scheme='tel', max_length=1600),
-        TYPE_SMSCENTRAL: dict(scheme='tel', max_length=1600),
+        TYPE_SMSCENTRAL: dict(scheme='tel', max_length=1600, max_tps=10),
         TYPE_START: dict(scheme='tel', max_length=1600),
         TYPE_TELEGRAM: dict(scheme='telegram', max_length=1600),
         TYPE_TWILIO: dict(scheme='tel', max_length=1600),
