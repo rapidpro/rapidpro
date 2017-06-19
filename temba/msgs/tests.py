@@ -796,6 +796,11 @@ class MsgTest(TembaTest):
             [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming", "Media message", "", "Handled"],
         ], self.org.timezone)
 
+        # check sending an invalid date
+        response = self.client.post(reverse('msgs.msg_export') + '?l=I', {'export_all': 1, 'start_date': 'xyz'})
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, 'form', 'start_date', "Enter a valid date.")
+
         # test as anon org to check that URNs don't end up in exports
         with AnonymousOrg(self.org):
             joe_anon_id = "%010d" % self.joe.id
