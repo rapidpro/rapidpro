@@ -2022,7 +2022,7 @@ class OrgCRUDL(SmartCRUDL):
             if disconnect:
                 org.remove_chatbase_account(user)
                 return HttpResponseRedirect(reverse('orgs.org_home'))
-            elif api_key and type:
+            elif api_key:
                 org.connect_chatbase(agent_name, api_key, version, user)
 
             return super(OrgCRUDL.Chatbase, self).form_valid(form)
