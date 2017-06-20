@@ -589,12 +589,13 @@ class Channel(TembaModel):
         # create new TwiML app
         new_receive_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['receive', channel_uuid])
         new_status_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['status', channel_uuid])
+        new_voice_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['voice', channel_uuid])
 
         new_app = client.applications.create(
             friendly_name="%s/%d" % (settings.TEMBA_HOST.lower(), channel_uuid),
             sms_url=new_receive_url,
             sms_method="POST",
-            voice_url=new_receive_url,
+            voice_url=new_voice_url,
             voice_fallback_url="https://" + settings.AWS_BUCKET_DOMAIN + "/voice_unavailable.xml",
             voice_fallback_method='GET',
             status_callback=new_status_url,

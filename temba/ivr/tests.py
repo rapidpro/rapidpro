@@ -1,28 +1,27 @@
 from __future__ import print_function, unicode_literals
 
 import json
-
-from datetime import timedelta
-from platform import python_version
-
 import nexmo
 import os
 import re
 
-from urlparse import urlparse
+from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.files import File
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from mock import patch, MagicMock
+from platform import python_version
 from temba.channels.models import Channel, ChannelLog, ChannelSession
 from temba.contacts.models import Contact
-from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep
-from temba.ivr.clients import IVRException
+from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep, FlowRevision
 from temba.msgs.models import Msg, IVR, OUTGOING, PENDING
+from temba.orgs.models import CURRENT_EXPORT_VERSION
 from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator, MockResponse
-from temba.ivr.models import IVRCall
+from urlparse import urlparse
+from .clients import IVRException
+from .models import IVRCall
 
 
 class IVRTests(FlowFileTest):
@@ -1197,15 +1196,13 @@ class IVRTests(FlowFileTest):
 
         # go back to our original version
         flow_json = self.get_flow_json('call_me_maybe')['definition']
-
-        from temba.flows.models import FlowRevision
         FlowRevision.objects.create(flow=flow, definition=json.dumps(flow_json, indent=2),
                                     spec_version=3, revision=2, created_by=self.admin, modified_by=self.admin)
 
         # create an inbound call
         post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
                          From='+250788382382', To=self.channel.address)
-        response = self.client.post(reverse('handlers.twilio_handler'), post_data)
+        response = self.client.post(reverse('handlers.twilio_handler', args=['voice', self.channel.uuid]), post_data)
         self.assertContains(response, '<Say>Would you like me to call you? Press one for yes, two for no, or three for maybe.</Say>')
 
         call = IVRCall.objects.all().first()
@@ -1215,24 +1212,23 @@ class IVRTests(FlowFileTest):
         status_callback = dict(CallSid='CallSid', CallbackSource='call-progress-events',
                                CallStatus='completed', Direction='inbound',
                                From='+250788382382', To=self.channel.address)
-        response = self.client.post(reverse('handlers.twilio_handler'), status_callback)
+        response = self.client.post(reverse('handlers.twilio_handler', args=['voice', self.channel.uuid]), status_callback)
         call.refresh_from_db()
         self.assertEqual('D', call.status)
 
         status_callback = dict(CallSid='NoCallMatches', CallbackSource='call-progress-events',
                                CallStatus='completed', Direction='inbound',
                                From='+250788382382', To=self.channel.address)
-        response = self.client.post(reverse('handlers.twilio_handler'), status_callback)
+        response = self.client.post(reverse('handlers.twilio_handler', args=['voice', self.channel.uuid]), status_callback)
         self.assertContains(response, 'No call found')
 
-        from temba.orgs.models import CURRENT_EXPORT_VERSION
         flow.refresh_from_db()
         self.assertEquals(CURRENT_EXPORT_VERSION, flow.version_number)
 
         # now try an inbound call after remove our channel
         self.channel.is_active = False
         self.channel.save()
-        response = self.client.post(reverse('handlers.twilio_handler'), post_data)
+        response = self.client.post(reverse('handlers.twilio_handler', args=['voice', self.channel.uuid]), post_data)
         self.assertContains(response, 'no channel configured to take this call')
         self.assertEqual(200, response.status_code)
 
@@ -1253,7 +1249,7 @@ class IVRTests(FlowFileTest):
         # create an inbound call
         post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
                          From='+250788382382', To=self.channel.address)
-        response = self.client.post(reverse('handlers.twilio_handler'), post_data)
+        response = self.client.post(reverse('handlers.twilio_handler', args=['voice', self.channel.uuid]), post_data)
 
         # grab the redirect URL
         redirect_url = re.match(r'.*<Redirect>(.*)</Redirect>.*', response.content).group(1)
@@ -1490,7 +1486,7 @@ class IVRTests(FlowFileTest):
         # create an inbound call
         post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
                          From='+250788382382', To=self.channel.address)
-        response = self.client.post(reverse('handlers.twilio_handler'), post_data)
+        response = self.client.post(reverse('handlers.twilio_handler', args=['voice', self.channel.uuid]), post_data)
 
         self.assertEqual(200, response.status_code)
         self.assertContains(response, 'no channel configured to take this call')
@@ -1510,7 +1506,7 @@ class IVRTests(FlowFileTest):
         # create an inbound call
         post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
                          From='+250788382382', To=self.channel.address)
-        response = self.client.post(reverse('handlers.twilio_handler'), post_data)
+        response = self.client.post(reverse('handlers.twilio_handler', args=['voice', self.channel.uuid]), post_data)
 
         self.assertContains(response, 'Hangup')
         # no call object created
@@ -1526,7 +1522,7 @@ class IVRTests(FlowFileTest):
         # create an inbound call
         post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
                          From='+250788382382', To=self.channel.address)
-        response = self.client.post(reverse('handlers.twilio_handler'), post_data)
+        response = self.client.post(reverse('handlers.twilio_handler', args=['voice', self.channel.uuid]), post_data)
 
         self.assertEquals(response.status_code, 400)
 

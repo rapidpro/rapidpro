@@ -270,7 +270,7 @@ class TwimlAPIHandler(BaseChannelHandler):
 
 class TwilioHandler(TwimlAPIHandler):
 
-    url = r'^twilio/(?P<action>receive|status)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^twilio/(?P<action>receive|status|voice)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.twilio_handler'
 
     def get_channel_type(self):
