@@ -2369,7 +2369,7 @@ class LanguageTest(TembaTest):
         self.assertEquals('French, Old (842-ca.1400)', matches[3]['text'])
 
         # try a language that doesn't exist
-        self.assertEquals(None, languages.get_language_name('klingon'))
+        self.assertEquals(None, languages.get_language_name('xyz'))
 
     def test_get_localized_text(self):
         text_translations = dict(eng="Hello", esp="Hola")
