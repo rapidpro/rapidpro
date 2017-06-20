@@ -1192,7 +1192,6 @@ class ChannelTest(TembaTest):
         # should be added with RW as the country
         self.assertTrue(Channel.objects.get(address='+250788382382', country='RW', org=self.org))
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_claim_twilio(self):
@@ -1206,12 +1205,8 @@ class ChannelTest(TembaTest):
         self.assertContains(response, "Twilio")
         self.assertContains(response, reverse('orgs.org_twilio_connect'))
 
-        twilio_config = dict()
-        twilio_config[ACCOUNT_SID] = 'account-sid'
-        twilio_config[ACCOUNT_TOKEN] = 'account-token'
-        twilio_config[APPLICATION_SID] = 'TwilioTestSid'
-
-        self.org.config = json.dumps(twilio_config)
+        # attach a Twilio accont to the org
+        self.org.config = json.dumps({ACCOUNT_SID: 'account-sid', ACCOUNT_TOKEN: 'account-token'})
         self.org.save()
 
         # hit the claim page, should now have a claim twilio link
@@ -1220,7 +1215,7 @@ class ChannelTest(TembaTest):
         self.assertContains(response, claim_twilio)
 
         response = self.client.get(claim_twilio)
-        self.assertTrue('account_trial' in response.context)
+        self.assertIn('account_trial', response.context)
         self.assertFalse(response.context['account_trial'])
 
         with patch('temba.orgs.models.Org.get_twilio_client') as mock_get_twilio_client:
@@ -1238,7 +1233,7 @@ class ChannelTest(TembaTest):
             mock_get.return_value = MockTwilioClient.MockAccount('Trial')
 
             response = self.client.get(claim_twilio)
-            self.assertTrue('account_trial' in response.context)
+            self.assertIn('account_trial', response.context)
             self.assertTrue(response.context['account_trial'])
 
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.search') as mock_search:
@@ -1374,7 +1369,6 @@ class ChannelTest(TembaTest):
                 self.assertEqual(mock_numbers.call_args_list[-1][1], dict(voice_application_sid='',
                                                                           sms_application_sid=''))
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_claim_twilio_messaging_service(self):
@@ -1436,7 +1430,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(channel.channel_type, "TMS")
         self.assertEqual(channel.config_json(), dict(messaging_service_sid="MSG-SERVICE-SID"))
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_claim_twiml_api(self):
@@ -6792,7 +6785,6 @@ class TwilioTest(TembaTest):
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + url, data)
         return self.client.post(url, data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_receive_media(self):

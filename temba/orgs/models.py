@@ -804,6 +804,7 @@ class Org(SmartModel):
 
     def connect_twilio(self, account_sid, account_token, user):
         twilio_config = {ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token}
+
         config = self.config_json()
         config.update(twilio_config)
         self.config = json.dumps(config)
