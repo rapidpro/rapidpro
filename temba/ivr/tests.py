@@ -44,7 +44,6 @@ class IVRTests(FlowFileTest):
     @patch('nexmo.Client.create_application')
     @patch('nexmo.Client.create_call')
     @patch('nexmo.Client.update_call')
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_preferred_channel(self, mock_update_call, mock_create_call, mock_create_application):
@@ -96,7 +95,6 @@ class IVRTests(FlowFileTest):
         self.assertEquals(IVRCall.PENDING, call.status)
         self.assertEquals(Channel.TYPE_NEXMO, call.channel.channel_type)
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_twilio_failed_auth(self):
@@ -128,10 +126,9 @@ class IVRTests(FlowFileTest):
 
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_call_logging(self):
-        with patch('temba.orgs.models.TwilioRestClient', MockTwilioClient):
-            # create our ivr setup
-            self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
-            self.org.save()
+        # create our ivr setup
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        self.org.save()
 
         with patch('twilio.rest.resources.base.make_request') as mock:
             mock.return_value = MockResponse(200, '{"sid": "CAa346467ca321c71dbd5e12f627deb854"}')
@@ -155,7 +152,6 @@ class IVRTests(FlowFileTest):
             log = ChannelLog.objects.exclude(id=log.id).get(is_error=False)
             self.assertEqual(log.response, mock.return_value.text)
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_disable_calls(self):
@@ -175,7 +171,6 @@ class IVRTests(FlowFileTest):
                 call = IVRCall.objects.get()
                 self.assertEquals(IVRCall.FAILED, call.status)
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_bogus_call(self):
@@ -200,7 +195,6 @@ class IVRTests(FlowFileTest):
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
         self.assertEqual(200, response.status_code)
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_recording(self):
@@ -458,7 +452,6 @@ class IVRTests(FlowFileTest):
         self.assertContains(response, "https://api.nexmo.com/v1/calls")
         self.assertContains(response, "Kab00m!")
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_subflow(self):
@@ -519,7 +512,6 @@ class IVRTests(FlowFileTest):
             run.refresh_from_db()
             self.assertFalse(run.is_completed())
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_start_flow(self):
@@ -547,7 +539,6 @@ class IVRTests(FlowFileTest):
         self.assertTrue(FlowRun.objects.filter(contact=ben, flow=msg_flow).first())
         self.assertTrue(Msg.objects.filter(direction=IVRCall.OUTGOING, contact=ben, text="You said foo!").first())
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_call_redirect(self):
@@ -581,7 +572,6 @@ class IVRTests(FlowFileTest):
         call.refresh_from_db()
         self.assertEquals(IVRCall.COMPLETED, call.status)
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_text_trigger_ivr(self):
@@ -614,7 +604,6 @@ class IVRTests(FlowFileTest):
         self.assertEqual(1, IVRCall.objects.filter(direction=IVRCall.OUTGOING).count())
         self.assertEqual(2, Msg.objects.all().count())
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_non_blocking_rule_ivr(self):
@@ -658,7 +647,6 @@ class IVRTests(FlowFileTest):
         # now we should have an outbound message
         self.assertEquals('Hi there Eminem', Msg.objects.filter(direction='O', contact=eminem).first().text)
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_digit_gather(self):
@@ -890,7 +878,6 @@ class IVRTests(FlowFileTest):
         self.assertEqual(0, FlowRun.objects.filter(is_active=True).count())
         mock_create_call.assert_called_once()
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_flow(self):
@@ -1140,7 +1127,6 @@ class IVRTests(FlowFileTest):
         self.assertIsNotNone(call.get_duration())
         self.assertEqual(timedelta(seconds=23), call.get_duration())
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_rule_first_ivr_flow(self):
@@ -1180,7 +1166,6 @@ class IVRTests(FlowFileTest):
         msg = self.create_msg(direction='I', contact=test_contact, text="message during phone call")
         self.assertFalse(Flow.find_and_handle(msg)[0])
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_incoming_call(self):
@@ -1237,7 +1222,6 @@ class IVRTests(FlowFileTest):
         self.assertEqual(400, response.status_code)
         self.assertEqual('No channel found', response.content)
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_incoming_start(self):
@@ -1473,7 +1457,6 @@ class IVRTests(FlowFileTest):
         # have a run in the missed call flow
         self.assertTrue(FlowRun.objects.filter(flow=flow))
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_no_channel_for_call(self):
@@ -1494,7 +1477,6 @@ class IVRTests(FlowFileTest):
         # no call object created
         self.assertFalse(IVRCall.objects.all())
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_no_flow_for_incoming(self):
@@ -1515,7 +1497,6 @@ class IVRTests(FlowFileTest):
         # have a run in the missed call flow
         self.assertTrue(FlowRun.objects.filter(flow=flow))
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_no_twilio_connected(self):
@@ -1526,7 +1507,6 @@ class IVRTests(FlowFileTest):
 
         self.assertEquals(response.status_code, 400)
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_download_media_twilio(self):
