@@ -617,10 +617,10 @@ class Org(SmartModel):
         channel_country_codes = set(channel_country_codes.values_list('country', flat=True))
 
         for country_code in channel_country_codes:
-            country_obj = pycountry.countries.get(alpha2=country_code)
+            country_obj = pycountry.countries.get(alpha_2=country_code)
             country_name = country_obj.name
             currency = currency_for_country(country_code)
-            channel_countries.append(dict(code=country_code, name=country_name, currency_code=currency.letter,
+            channel_countries.append(dict(code=country_code, name=country_name, currency_code=currency.alpha_3,
                                           currency_name=currency.name))
 
         return sorted(channel_countries, key=lambda k: k['name'])
@@ -923,7 +923,7 @@ class Org(SmartModel):
             try:
                 country = pycountry.countries.get(name=self.country.name)
                 if country:
-                    return country.alpha2
+                    return country.alpha_2
             except KeyError:  # pragma: no cover
                 # pycountry blows up if we pass it a country name it doesn't know
                 pass

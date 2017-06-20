@@ -63,6 +63,7 @@ def init_analytics():
     if librato_user and librato_token:  # pragma: needs cover
         init_librato(librato_user, librato_token)
 
+
 # initialize our analytics (the signal below will initialize each worker)
 init_analytics()
 
@@ -95,6 +96,7 @@ def track_user(self):  # pragma: no cover
         return False
 
     return True
+
 
 User.track_user = track_user
 AnonymousUser.track_user = track_user
