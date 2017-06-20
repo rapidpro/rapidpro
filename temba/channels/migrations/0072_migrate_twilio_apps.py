@@ -66,6 +66,11 @@ def migrate_all_twilio_apps(Channel):
     if twilio_channels:
         print("Fetched %d Twilio channels to migrate apps for..." % len(twilio_channels))
 
+    if not settings.IS_PROD:
+        if twilio_channels:
+            print("Skipping Twilio app migration on non-prod instance")
+        return
+
     for c, channel in enumerate(twilio_channels):
         try:
             channel_config = json.loads(channel.config)
