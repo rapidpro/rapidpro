@@ -13,11 +13,11 @@ for handler in get_channel_handlers():
     rel_url, url_name = handler.get_url()
     handler_urls.append(url(rel_url, handler.as_view(), name=url_name))
 
-    print(" > Registering handler URL %s (%s)" % (rel_url, url_name))
 
 # TODO migrate all TwiML apps to use channel specific endpoints. Until that's complete, allow Twilio messages to be
 # received on the old non-channel specific endpoint
 handler_urls.append(url('^twilio/$', TwilioHandler.as_view()))
+
 
 urlpatterns = [
     url(r'^', include(ChannelEventCRUDL().as_urlpatterns())),
