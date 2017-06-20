@@ -18,7 +18,6 @@ def migrate_twilio_app(channel):
     org_config = json.loads(channel.org.config)
     client = TwilioRestClient(org_config['ACCOUNT_SID'], org_config['ACCOUNT_TOKEN'])
 
-    old_app_sid = org_config['APPLICATION_SID']
     number_sid = channel.bod
     is_short_code = len(channel.address) <= 6
 
@@ -42,19 +41,23 @@ def migrate_twilio_app(channel):
     channel.bod = None
     channel.save(update_fields=('config', 'bod'))
 
-    # remove app sid from org config as it's now in the channel config
-    del org_config['APPLICATION_SID']
-    channel.org.config = json.dumps(org_config)
-    channel.org.save(update_fields=('config',))
-
     # associate the Twilio number with the new app
     if is_short_code:
         client.sms.short_codes.update(number_sid, sms_url=new_receive_url, sms_method='POST')
     else:
         client.phone_numbers.update(number_sid, sms_application_sid=new_app.sid, voice_application_sid=new_app.sid)
 
-    # delete the old org-level app
-    client.applications.delete(sid=old_app_sid)
+    # cleanup old org-level app
+    old_app_sid = org_config.get('APPLICATION_SID')
+
+    if old_app_sid:
+        # remove app sid from org config
+        del org_config['APPLICATION_SID']
+        channel.org.config = json.dumps(org_config)
+        channel.org.save(update_fields=('config',))
+
+        # delete the old org-level app
+        client.applications.delete(sid=old_app_sid)
 
 
 def migrate_all_twilio_apps(Channel):
