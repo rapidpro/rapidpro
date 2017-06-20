@@ -37,7 +37,7 @@ from smartmin.models import SmartModel
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string, languages
-from temba.utils import dict_to_json
+from temba.utils import dict_to_json, json_to_dict
 from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from temba.utils.currencies import currency_for_country
 from temba.utils.email import send_template_email, send_simple_email, send_custom_smtp_email
@@ -115,6 +115,7 @@ CHATBASE_TYPE_AGENT = 'agent'
 CHATBASE_TYPE_USER = 'user'
 CHATBASE_FEEDBACK = 'CHATBASE_FEEDBACK'
 CHATBASE_VERSION = 'CHATBASE_VERSION'
+CHATBASE_BATCH_SIZE = 500
 
 ORG_STATUS = 'STATUS'
 SUSPENDED = 'suspended'
@@ -1960,7 +1961,11 @@ class Org(SmartModel):
             cached = cache.get(key, None)
 
             if cached is None:
-                cache.set(key, dict_to_json(data))
+                cache.set(key, dict_to_json([data]))
+            else:
+                cached_dict = json_to_dict(cached)
+                cached_dict.append(data)
+                cache.set(key, dict_to_json(cached_dict))
 
         except Exception as e:
             import traceback
