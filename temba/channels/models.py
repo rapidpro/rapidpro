@@ -42,6 +42,7 @@ from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from temba.utils.twitter import TembaTwython
 from time import sleep
 from twilio import twiml, TwilioRestException
+from uuid import uuid4
 from xml.sax.saxutils import quoteattr, escape
 
 
@@ -598,6 +599,7 @@ class Channel(TembaModel):
             raise Exception(_("Your Twilio account is no longer connected. "
                               "First remove your Twilio account, reconnect it and try again."))
 
+        channel_uuid = uuid4()
         is_short_code = len(phone_number) <= 6
 
         if is_short_code:
@@ -606,7 +608,7 @@ class Channel(TembaModel):
             if short_codes:
                 short_code = short_codes[0]
                 twilio_sid = short_code.sid
-                app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler')
+                app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler', args=['receive', channel_uuid])
                 client.sms.short_codes.update(twilio_sid, sms_url=app_url)
 
                 role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
@@ -632,7 +634,8 @@ class Channel(TembaModel):
 
             twilio_sid = twilio_phone.sid
 
-        return Channel.create(org, user, country, Channel.TYPE_TWILIO, name=phone, address=phone_number, role=role, bod=twilio_sid)
+        return Channel.create(org, user, country, Channel.TYPE_TWILIO, name=phone, address=phone_number, role=role,
+                              bod=twilio_sid, uuid=channel_uuid)
 
     @classmethod
     def add_twilio_messaging_service_channel(cls, org, user, messaging_service_sid, country):
@@ -2660,7 +2663,7 @@ class Channel(TembaModel):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
         from temba.utils.twilio import TembaTwilioRestClient
 
-        callback_url = Channel.build_twilio_callback_url(msg.id)
+        callback_url = Channel.build_twilio_callback_url(channel.uuid, msg.id)
 
         start = time.time()
         media_urls = []
@@ -3176,8 +3179,9 @@ class Channel(TembaModel):
             analytics.gauge('temba.channel_%s_%s' % (status.lower(), channel.channel_type.lower()))
 
     @classmethod
-    def build_twilio_callback_url(cls, sms_id):
-        url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler') + "?action=callback&id=%d" % sms_id
+    def build_twilio_callback_url(cls, channel_uuid, sms_id):
+        url = reverse('handlers.twilio_handler', args=['status', channel_uuid])
+        url = "https://" + settings.TEMBA_HOST + url + "?action=callback&id=%d" % sms_id
         return url
 
     def __str__(self):  # pragma: no cover

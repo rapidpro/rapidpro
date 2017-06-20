@@ -254,7 +254,9 @@ class TwimlAPIHandler(BaseChannelHandler):
         return Channel.objects.filter(address=to_number, channel_type=self.get_channel_type(), role__contains='A', is_active=True).exclude(org=None).first()
 
     def get_receive_channel(self, channel_uuid=None, to_number=None):
-        return Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
+        channels = Channel.objects.filter(is_active=True, channel_type=self.get_channel_type()).exclude(org=None)
+        match = dict(uuid=channel_uuid) if channel_uuid else dict(address=to_number)
+        return channels.filter(**match).first()
 
     def get_client(self, channel):
         if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
@@ -268,11 +270,8 @@ class TwimlAPIHandler(BaseChannelHandler):
 
 class TwilioHandler(TwimlAPIHandler):
 
-    url = r'^twilio/$'
+    url = r'^twilio/(?P<action>receive|status)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.twilio_handler'
-
-    def get_receive_channel(self, channel_uuid=None, to_number=None):
-        return Channel.objects.filter(address=to_number, is_active=True).exclude(org=None).first()
 
     def get_channel_type(self):
         return Channel.TYPE_TWILIO
