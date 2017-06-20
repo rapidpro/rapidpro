@@ -2992,7 +2992,7 @@ class ChannelCRUDL(SmartCRUDL):
 
                         region = number_dict['region']
                         country_name = region.split(',')[-1].strip().title()
-                        country = pycountry.countries.get(name=country_name).alpha2
+                        country = pycountry.countries.get(name=country_name).alpha_2
 
                         if len(number_dict['number']) <= 6:
                             phone_number = number_dict['number']

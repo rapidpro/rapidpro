@@ -54,7 +54,7 @@ iso639
 isoweek
 phonenumbers
 ply
-pycountry==1.20
+pycountry
 pycrypto
 python-dateutil==2.2
 pytz
