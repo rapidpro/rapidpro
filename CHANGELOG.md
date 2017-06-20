@@ -1,3 +1,7 @@
+v3.0.156
+----------
+ * Clean up pip-requires and reset pip-freeze
+
 v3.0.155
 ----------
  * Reduce the rate limit for SMS central to 1 requests per second
