@@ -592,7 +592,7 @@ class Channel(TembaModel):
         new_voice_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['voice', channel_uuid])
 
         new_app = client.applications.create(
-            friendly_name="%s/%d" % (settings.TEMBA_HOST.lower(), channel_uuid),
+            friendly_name="%s/%s" % (settings.TEMBA_HOST.lower(), channel_uuid),
             sms_url=new_receive_url,
             sms_method="POST",
             voice_url=new_voice_url,
@@ -1215,7 +1215,10 @@ class Channel(TembaModel):
                             client.phone_numbers.update(matching[0].sid, **number_update_args)
 
                 if 'application_sid' in config:
-                    client.applications.delete(sid=config['application_sid'])
+                    try:
+                        client.applications.delete(sid=config['application_sid'])
+                    except TwilioRestException:  # pragma: no cover
+                        pass
 
             # unsubscribe from facebook events for this page
             elif self.channel_type == Channel.TYPE_FACEBOOK:
