@@ -1098,12 +1098,13 @@ class ExportTest(TembaTest):
 class CurrencyTest(TembaTest):
 
     def test_currencies(self):
-        self.assertEqual(currency_for_country('US').letter, 'USD')
-        self.assertEqual(currency_for_country('EC').letter, 'USD')
-        self.assertEqual(currency_for_country('FR').letter, 'EUR')
-        self.assertEqual(currency_for_country('DE').letter, 'EUR')
-        self.assertEqual(currency_for_country('YE').letter, 'YER')
-        self.assertEqual(currency_for_country('AF').letter, 'AFN')
+
+        self.assertEqual(currency_for_country('US').alpha_3, 'USD')
+        self.assertEqual(currency_for_country('EC').alpha_3, 'USD')
+        self.assertEqual(currency_for_country('FR').alpha_3, 'EUR')
+        self.assertEqual(currency_for_country('DE').alpha_3, 'EUR')
+        self.assertEqual(currency_for_country('YE').alpha_3, 'YER')
+        self.assertEqual(currency_for_country('AF').alpha_3, 'AFN')
 
 
 class VoiceXMLTest(TembaTest):

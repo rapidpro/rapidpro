@@ -4,9 +4,12 @@ import calendar
 import itertools
 import json
 import logging
+import mimetypes
 import os
 import pycountry
 import random
+
+import re
 import regex
 import six
 import stripe
@@ -615,10 +618,10 @@ class Org(SmartModel):
         channel_country_codes = set(channel_country_codes.values_list('country', flat=True))
 
         for country_code in channel_country_codes:
-            country_obj = pycountry.countries.get(alpha2=country_code)
+            country_obj = pycountry.countries.get(alpha_2=country_code)
             country_name = country_obj.name
             currency = currency_for_country(country_code)
-            channel_countries.append(dict(code=country_code, name=country_name, currency_code=currency.letter,
+            channel_countries.append(dict(code=country_code, name=country_name, currency_code=currency.alpha_3,
                                           currency_name=currency.name))
 
         return sorted(channel_countries, key=lambda k: k['name'])
@@ -944,7 +947,7 @@ class Org(SmartModel):
             try:
                 country = pycountry.countries.get(name=self.country.name)
                 if country:
-                    return country.alpha2
+                    return country.alpha_2
             except KeyError:  # pragma: no cover
                 # pycountry blows up if we pass it a country name it doesn't know
                 pass
@@ -1853,6 +1856,32 @@ class Org(SmartModel):
             raise Exception("Received non-200 response (%s) for request: %s" % (response.status_code, response.content))
 
         return self.save_media(File(temp), extension)
+
+    def save_response_media(self, response):
+        disposition = response.headers.get('Content-Disposition', None)
+        content_type = response.headers.get('Content-Type', None)
+
+        downloaded = None
+
+        if content_type:
+            extension = None
+            if disposition == 'inline':
+                extension = mimetypes.guess_extension(content_type)
+                extension = extension.strip('.')
+            elif disposition:
+                filename = re.findall("filename=\"(.+)\"", disposition)[0]
+                extension = filename.rpartition('.')[2]
+            elif content_type == 'audio/x-wav':
+                extension = 'wav'
+
+            temp = NamedTemporaryFile(delete=True)
+            temp.write(response.content)
+            temp.flush()
+
+            # save our file off
+            downloaded = self.save_media(File(temp), extension)
+
+        return content_type, downloaded
 
     def save_media(self, file, extension):
         """

@@ -202,9 +202,6 @@ INSTALLED_APPS = (
     # Redis cache
     'redis',
 
-    # mo-betta permission management
-    'guardian',
-
     # rest framework for api access
     'rest_framework',
     'rest_framework.authtoken',
@@ -429,6 +426,7 @@ PERMISSIONS = {
                          'claim_hub9',
                          'claim_infobip',
                          'claim_jasmin',
+                         'claim_jiochat',
                          'claim_junebug',
                          'claim_kannel',
                          'claim_line',
@@ -677,6 +675,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
         'channels.channel_claim_jasmin',
+        'channels.channel_claim_jiochat',
         'channels.channel_claim_junebug',
         'channels.channel_claim_kannel',
         'channels.channel_claim_line',
@@ -824,6 +823,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
         'channels.channel_claim_jasmin',
+        'channels.channel_claim_jiochat',
         'channels.channel_claim_junebug',
         'channels.channel_claim_kannel',
         'channels.channel_claim_line',
@@ -963,12 +963,8 @@ LOGOUT_URL = "/users/logout/"
 LOGIN_REDIRECT_URL = "/org/choose/"
 LOGOUT_REDIRECT_URL = "/"
 
-# -----------------------------------------------------------------------------------
-# Guardian Configuration
-# -----------------------------------------------------------------------------------
 AUTHENTICATION_BACKENDS = (
     'smartmin.backends.CaseInsensitiveBackend',
-    'guardian.backends.ObjectPermissionBackend',
 )
 
 ANONYMOUS_USER_NAME = 'AnonymousUser'
@@ -1061,8 +1057,8 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_flowpathcounts',
         'schedule': timedelta(seconds=300),
     },
-    "prune-flowpathrecentsteps": {
-        'task': 'prune_flowpathrecentsteps',
+    "prune-recentmessages": {
+        'task': 'prune_recentmessages',
         'schedule': timedelta(seconds=300),
     },
     "squash-channelcounts": {
@@ -1081,6 +1077,11 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_contactgroupcounts',
         'schedule': timedelta(seconds=300),
     },
+    "refresh-jiochat-access-tokens": {
+        'task': 'refresh_jiochat_access_tokens',
+        'schedule': timedelta(seconds=3600),
+    },
+
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
@@ -1245,10 +1246,10 @@ LIBRATO_TOKEN = os.environ.get('LIBRATO_TOKEN', '')
 IP_ADDRESSES = ('172.16.10.10', '162.16.10.20')
 
 # -----------------------------------------------------------------------------------
-# Installs may choose how big they want their text messages and contact fields to be
-# by default we use 640 chars or about 4 normal text messages
+# Installs may choose how big they want their text messages and contact fields to be.
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640
+VALUE_FIELD_SIZE = 640
 
 # -----------------------------------------------------------------------------------
 # Installs may choose how long to keep the channel logs in hours

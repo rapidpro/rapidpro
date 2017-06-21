@@ -81,8 +81,6 @@ var/
 *.manifest
 *.spec
 
-tags
-
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt

@@ -884,7 +884,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
                'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
-               'claim_red_rabbit', 'claim_macrokiosk')
+               'claim_red_rabbit', 'claim_macrokiosk', 'claim_jiochat')
     permissions = True
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -1521,6 +1521,9 @@ class ChannelCRUDL(SmartCRUDL):
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
                                      help_text=_("The phone number or short code you are connecting with country code. "
                                                  "ex: +250788123124"))
+            sender_id = forms.CharField(label=_("Sender ID"),
+                                        help_text=_("The sender ID provided by Macrokiosk to use their API"))
+
             username = forms.CharField(label=_("Username"),
                                        help_text=_("The username provided by Macrokiosk to use their API"))
             password = forms.CharField(label=_("Password"),
@@ -1546,6 +1549,7 @@ class ChannelCRUDL(SmartCRUDL):
             config = {
                 Channel.CONFIG_USERNAME: data.get('username', None),
                 Channel.CONFIG_PASSWORD: data.get('password', None),
+                Channel.CONFIG_MACROKIOSK_SENDER_ID: data.get('sender_id', data['number']),
                 Channel.CONFIG_MACROKIOSK_SERVICE_ID: data.get('service_id', None)
             }
             self.object = Channel.add_config_external_channel(org, self.request.user,
@@ -2434,6 +2438,26 @@ class ChannelCRUDL(SmartCRUDL):
 
             return super(ChannelCRUDL.ClaimFcm, self).form_valid(form)
 
+    class ClaimJiochat(OrgPermsMixin, SmartFormView):
+        class JiochatForm(forms.Form):
+            app_id = forms.CharField(min_length=32, required=True,
+                                     help_text=_("The Jiochat App ID"))
+            app_secret = forms.CharField(min_length=32, required=True,
+                                         help_text=_("The Jiochat App secret"))
+
+        form_class = JiochatForm
+        fields = ('app_id', 'app_secret')
+
+        def form_valid(self, form):
+            super(ChannelCRUDL.ClaimJiochat, self).form_valid(form)
+            cleaned_data = form.cleaned_data
+
+            channel = Channel.add_jiochat_channel(self.request.user.get_org(), self.request.user,
+                                                  cleaned_data.get('app_id'),
+                                                  cleaned_data.get('app_secret'))
+
+            return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))
+
     class ClaimFacebook(OrgPermsMixin, SmartFormView):
         class FacebookForm(forms.Form):
             page_access_token = forms.CharField(min_length=43, required=True,
@@ -3000,7 +3024,7 @@ class ChannelCRUDL(SmartCRUDL):
 
                         region = number_dict['region']
                         country_name = region.split(',')[-1].strip().title()
-                        country = pycountry.countries.get(name=country_name).alpha2
+                        country = pycountry.countries.get(name=country_name).alpha_2
 
                         if len(number_dict['number']) <= 6:
                             phone_number = number_dict['number']

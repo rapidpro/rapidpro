@@ -23,12 +23,13 @@ from django.core.urlresolvers import reverse
 from django.test import RequestFactory
 from django.test.utils import override_settings
 from django.utils import timezone
-from django.template import loader, Context
+from django.template import loader
 from django_redis import get_redis_connection
 from mock import patch
 from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent
-from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, LINE_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, \
+    LINE_SCHEME, JIOCHAT_SCHEME
 from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME, FCM_SCHEME
@@ -38,7 +39,7 @@ from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLI
     NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, AnonymousOrg
 from temba.triggers.models import Trigger
-from temba.utils import dict_to_struct, datetime_to_str
+from temba.utils import dict_to_struct, datetime_to_str, get_anonymous_user
 from temba.utils.twitter import generate_twitter_signature
 from telegram import User as TelegramUser
 from twilio import TwilioRestException
@@ -49,7 +50,7 @@ from xml.etree import ElementTree as ET
 from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, TEMBA_HEADERS, HUB9_ENDPOINT, \
     ChannelSession
 from .models import DART_MEDIA_ENDPOINT
-from .tasks import check_channels_task, squash_channelcounts
+from .tasks import check_channels_task, squash_channelcounts, refresh_jiochat_access_tokens
 from .views import TWILIO_SUPPORTED_COUNTRIES
 
 
@@ -929,7 +930,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(android1.uuid, 'uuid')
         self.assertTrue(android1.secret)
         self.assertTrue(android1.claim_code)
-        self.assertEqual(android1.created_by.username, settings.ANONYMOUS_USER_NAME)
+        self.assertEqual(android1.created_by, get_anonymous_user())
 
         # check channel JSON in response
         response_json = response.json()
@@ -3384,7 +3385,7 @@ class ChannelClaimTest(TembaTest):
                        last_seen=self.channel.last_seen, sync=alert.sync_event)
 
         text_template = loader.get_template(template)
-        text = text_template.render(Context(context))
+        text = text_template.render(context)
 
         self.assertEquals(mail.outbox[0].body, text)
 
@@ -3411,9 +3412,40 @@ class ChannelClaimTest(TembaTest):
                        last_seen=self.channel.last_seen, sync=alert.sync_event)
 
         text_template = loader.get_template(template)
-        text = text_template.render(Context(context))
+        text = text_template.render(context)
 
         self.assertEquals(mail.outbox[1].body, text)
+
+    def test_claim_jiochat(self):
+        Channel.objects.all().delete()
+
+        self.login(self.admin)
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertContains(response, reverse('channels.channel_claim_jiochat'))
+
+        # try to claim a channel
+        response = self.client.get(reverse('channels.channel_claim_jiochat'))
+        post_data = response.context['form'].initial
+
+        post_data['app_id'] = 'foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo'
+        post_data['app_secret'] = 'barbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbar'
+
+        response = self.client.post(reverse('channels.channel_claim_jiochat'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertEquals(channel.config_json()[Channel.CONFIG_JIOCHAT_APP_ID], post_data['app_id'])
+        self.assertEquals(channel.config_json()[Channel.CONFIG_JIOCHAT_APP_SECRET], post_data['app_secret'])
+        self.assertEquals(channel.channel_type, Channel.TYPE_JIOCHAT)
+
+        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        self.assertRedirect(response, config_url)
+
+        response = self.client.get(config_url)
+        self.assertEquals(200, response.status_code)
+
+        self.assertContains(response, reverse('handlers.jiochat_handler', args=[channel.uuid]))
+        self.assertContains(response, channel.secret)
 
     def test_claim_macrokiosk(self):
         Channel.objects.all().delete()
@@ -3433,6 +3465,7 @@ class ChannelClaimTest(TembaTest):
         post_data['number'] = '250788123123'
         post_data['username'] = 'user1'
         post_data['password'] = 'pass1'
+        post_data['sender_id'] = 'macro'
         post_data['service_id'] = 'SERVID'
 
         response = self.client.post(reverse('channels.channel_claim_macrokiosk'), post_data)
@@ -3442,6 +3475,7 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(channel.country, 'MY')
         self.assertEquals(channel.config_json()['username'], post_data['username'])
         self.assertEquals(channel.config_json()['password'], post_data['password'])
+        self.assertEquals(channel.config_json()[Channel.CONFIG_MACROKIOSK_SENDER_ID], post_data['sender_id'])
         self.assertEquals(channel.config_json()[Channel.CONFIG_MACROKIOSK_SERVICE_ID], post_data['service_id'])
         self.assertEquals(channel.address, '250788123123')
         self.assertEquals(channel.channel_type, Channel.TYPE_MACROKIOSK)
@@ -3872,7 +3906,7 @@ class AfricasTalkingTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -4039,6 +4073,16 @@ class ExternalTest(TembaTest):
         msg = Msg.objects.get()
         self.assertEquals(2012, msg.sent_on.year)
         self.assertEquals(18, msg.sent_on.hour)
+
+        Msg.objects.all().delete()
+
+        data = {'from': '5511996458779', 'text': 'Hello World!', 'date': '2012-04-23T18:25:43Z'}
+        response = self.client.post(callback_url, data)
+
+        self.assertEquals(400, response.status_code)
+        self.assertEquals("Bad parameter error: time data '2012-04-23T18:25:43Z' "
+                          "does not match format '%Y-%m-%dT%H:%M:%S.%fZ'", response.content)
+        self.assertFalse(Msg.objects.all())
 
     def test_receive_external(self):
         self.channel.scheme = 'ext'
@@ -4210,7 +4254,7 @@ class ExternalTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -4417,7 +4461,7 @@ class YoTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+252788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -4520,7 +4564,7 @@ class ShaqodoonTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -4671,7 +4715,7 @@ class M3TechTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -4763,7 +4807,7 @@ class KannelTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -5164,7 +5208,7 @@ class NexmoTest(TembaTest):
         self.channel.save()
 
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -5435,7 +5479,7 @@ class VumiTest(TembaTest):
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
         self.create_group("Reporters", [joe])
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -5585,7 +5629,7 @@ class ZenviaTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -5712,7 +5756,7 @@ class InfobipTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -5745,6 +5789,7 @@ class MacrokioskTest(TembaTest):
         self.channel.delete()
         config = dict(username='mk-user', password='mk-password')
         config[Channel.CONFIG_MACROKIOSK_SERVICE_ID] = 'SERVICE-ID'
+        config[Channel.CONFIG_MACROKIOSK_SENDER_ID] = 'macro'
 
         self.channel = Channel.create(self.org, self.user, 'NP', 'MK', None, '1212',
                                       config=config, uuid='00000000-0000-0000-0000-000000001234')
@@ -5753,7 +5798,7 @@ class MacrokioskTest(TembaTest):
 
         two_hour_ago = timezone.now() - timedelta(hours=2)
 
-        msg_date = datetime_to_str(two_hour_ago, format="%Y-%m-%d %H:%M:%S")
+        msg_date = datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")
 
         data = {'shortcode': '1212', 'from': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
                 'time': msg_date}
@@ -5776,7 +5821,7 @@ class MacrokioskTest(TembaTest):
         self.assertEqual(msg.text, "Hello World")
         self.assertEqual(msg.external_id, 'abc1234')
 
-        message_date = datetime.strptime(msg_date, "%Y-%m-%d %H:%M:%S")
+        message_date = datetime.strptime(msg_date, "%Y-%m-%d%H:%M:%S")
         local_date = pytz.timezone('Asia/Kuala_Lumpur').localize(message_date)
         gmt_date = local_date.astimezone(pytz.utc)
         self.assertEqual(msg.sent_on, gmt_date)
@@ -5785,7 +5830,7 @@ class MacrokioskTest(TembaTest):
 
         # try longcode and msisdn
         data = {'longcode': '1212', 'msisdn': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
-                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d %H:%M:%S")}
+                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
 
         encoded_message = urlencode(data)
 
@@ -5807,7 +5852,7 @@ class MacrokioskTest(TembaTest):
 
         # mixed param should not be accepted
         data = {'shortcode': '1212', 'msisdn': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
-                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d %H:%M:%S")}
+                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
 
         encoded_message = urlencode(data)
 
@@ -5818,7 +5863,7 @@ class MacrokioskTest(TembaTest):
         self.assertEquals(400, response.status_code)
 
         data = {'longcode': '1212', 'from': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
-                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d %H:%M:%S")}
+                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
 
         encoded_message = urlencode(data)
 
@@ -5830,7 +5875,7 @@ class MacrokioskTest(TembaTest):
 
         # try missing param
         data = {'from': '+9771488532', 'text': 'Hello World', 'msgid': 'abc1234',
-                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d %H:%M:%S")}
+                'time': datetime_to_str(two_hour_ago, format="%Y-%m-%d%H:%M:%S")}
         encoded_message = urlencode(data)
 
         callback_url = reverse('handlers.macrokiosk_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
@@ -5906,6 +5951,7 @@ class MacrokioskTest(TembaTest):
                 self.assertEquals('asdf-asdf-asdf-asdf', msg.external_id)
 
                 self.assertEqual(mock.call_args[1]['json']['text'], 'Test message')
+                self.assertEqual(mock.call_args[1]['json']['from'], 'macro')
 
                 self.clear_cache()
 
@@ -5969,7 +6015,7 @@ class MacrokioskTest(TembaTest):
     def test_send_media(self):
         joe = self.create_contact("Joe", "+9771488532")
         msg = joe.send("Test message", self.admin, trigger_send=False,
-                       media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+                       attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6093,7 +6139,7 @@ class BlackmynaTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+9771488532")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6253,7 +6299,7 @@ class SMSCentralTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+9771488532")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6389,7 +6435,7 @@ class Hub9Test(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6565,7 +6611,7 @@ class DartMediaTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6645,7 +6691,7 @@ class HighConnectionTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -6769,17 +6815,12 @@ class TwilioTest(TembaTest):
             response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
             self.assertEquals(201, response.status_code)
 
-        # we should have two messages, one for the text, the other for the media
-        msgs = Msg.objects.all().order_by('-created_on')
-        self.assertEqual(2, msgs.count())
-        self.assertEqual('Test', msgs[0].text)
-        self.assertIsNone(msgs[0].media)
-        self.assertTrue(msgs[1].media.startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
-        self.assertTrue(msgs[1].media.endswith('.wav'))
-
-        # text should have the url (without the content type)
-        self.assertTrue(msgs[1].text.startswith('https://%s' % settings.AWS_BUCKET_DOMAIN))
-        self.assertTrue(msgs[1].text.endswith('.wav'))
+        # should have a single message with text and attachment
+        msg = Msg.objects.get()
+        self.assertEqual(msg.text, 'Test')
+        self.assertEqual(len(msg.attachments), 1)
+        self.assertTrue(msg.attachments[0].startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
+        self.assertTrue(msg.attachments[0].endswith('.wav'))
 
         Msg.objects.all().delete()
 
@@ -6792,12 +6833,14 @@ class TwilioTest(TembaTest):
 
             post_data['Body'] = ''
             signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
-            response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+            self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
-        # just a single message this time
+        # should have a single message with an attachment but no text
         msg = Msg.objects.get()
-        self.assertTrue(msg.media.startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
-        self.assertTrue(msg.media.endswith('.wav'))
+        self.assertEqual(msg.text, '')
+        self.assertEqual(len(msg.attachments), 1)
+        self.assertTrue(msg.attachments[0].startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
+        self.assertTrue(msg.attachments[0].endswith('.wav'))
 
         Msg.objects.all().delete()
 
@@ -6813,8 +6856,8 @@ class TwilioTest(TembaTest):
             response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
         msg = Msg.objects.get()
-        self.assertTrue(msg.media.startswith('text/x-vcard:https://%s' % settings.AWS_BUCKET_DOMAIN))
-        self.assertTrue(msg.media.endswith('.vcf'))
+        self.assertTrue(msg.attachments[0].startswith('text/x-vcard:https://%s' % settings.AWS_BUCKET_DOMAIN))
+        self.assertTrue(msg.attachments[0].endswith('.vcf'))
 
     def test_receive_base64(self):
         post_data = dict(To=self.channel.address, From='+250788383383', Body="QmFubm9uIEV4cGxhaW5zIFRoZSBXb3JsZCAuLi4K4oCcVGhlIENhbXAgb2YgdGhlIFNhaW50c+KA\r")
@@ -7078,7 +7121,7 @@ class TwilioTest(TembaTest):
         self.org.save()
 
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         settings.SEND_MESSAGES = True
 
@@ -7116,7 +7159,7 @@ class TwilioTest(TembaTest):
             self.channel.save()
             self.clear_cache()
 
-            msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+            msg = joe.send("MT", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
             # manually send it off
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -7481,7 +7524,7 @@ class ClickatellTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -7550,7 +7593,7 @@ class TelegramTest(TembaTest):
         """
 
         receive_url = reverse('handlers.telegram_handler', args=[self.channel.uuid])
-        response = self.client.post(receive_url, data, content_type='application/json', post_data=data)
+        response = self.client.post(receive_url, data, content_type='application/json')
         self.assertEquals(201, response.status_code)
 
         # and we should have a new message
@@ -7572,22 +7615,14 @@ class TelegramTest(TembaTest):
                     post.return_value = MockResponse(200, json.dumps(dict(ok="true", result=dict(file_path=file_path))))
                     get.return_value = MockResponse(200, "Fake image bits", headers={"Content-Type": content_type})
 
-                    response = self.client.post(receive_url, data, content_type='application/json', post_data=data)
+                    response = self.client.post(receive_url, data, content_type='application/json')
                     self.assertEquals(201, response.status_code)
 
-                    # should have a media message now with an image
-                    msgs = Msg.objects.all().order_by('-pk')
-
-                    if caption:
-                        self.assertEqual(msgs.count(), 2)
-                        self.assertEqual(msgs[1].text, caption)
-                    else:
-                        self.assertEqual(msgs.count(), 1)
-
-                    self.assertTrue(msgs[0].media.startswith('%s:https://' % content_type))
-                    self.assertTrue(msgs[0].media.endswith(extension))
-                    self.assertTrue(msgs[0].text.startswith('https://'))
-                    self.assertTrue(msgs[0].text.endswith(extension))
+                    # should have a new message
+                    msg = Msg.objects.get()
+                    self.assertEqual(msg.text, caption or "")
+                    self.assertTrue(msg.attachments[0].startswith('%s:https://' % content_type))
+                    self.assertTrue(msg.attachments[0].endswith(extension))
 
         # stickers are allowed
         sticker_data = """
@@ -7743,6 +7778,7 @@ class TelegramTest(TembaTest):
         test_file_message(video_data, 'file/video.mp4', "video/mp4", "mp4", caption="Check out this amazeballs video")
         test_file_message(audio_data, 'file/audio.oga', "audio/ogg", "oga")
 
+        # test with a location which will create an geo attachment
         location_data = """
         {
           "update_id":414383175,
@@ -7778,19 +7814,16 @@ class TelegramTest(TembaTest):
           }
         }
         """
-
-        # with patch('requests.post') as post:
-        # post.return_value = MockResponse(200, json.dumps(dict(ok="true", result=dict(file_path=file_path))))
         Msg.objects.all().delete()
-        response = self.client.post(receive_url, location_data, content_type='application/json', post_data=location_data)
-        self.assertEquals(201, response.status_code)
+        response = self.client.post(receive_url, location_data, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
 
-        # should have a media message now with an image
-        msgs = Msg.objects.all().order_by('-created_on')
-        self.assertEqual(msgs.count(), 1)
-        self.assertTrue(msgs[0].media.startswith('geo:'))
-        self.assertTrue('Fogo Mar' in msgs[0].text)
+        # location should be a geo attachment and venue title should be the message text
+        msg = Msg.objects.get()
+        self.assertEqual(msg.attachments, ['geo:-2.910574,-79.000239'])
+        self.assertEqual(msg.text, "Fogo Mar")
 
+        # test payload missing message object
         no_message = """
         {
           "channel_post": {
@@ -7821,8 +7854,34 @@ class TelegramTest(TembaTest):
           "update_id": 677142491
         }
         """
-        response = self.client.post(receive_url, no_message, content_type='application/json', post_data=location_data)
-        self.assertEquals(400, response.status_code)
+        response = self.client.post(receive_url, no_message, content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+
+        # test valid message with no content for us to create a message from
+        empty_message = """
+        {
+          "update_id":414383174,
+          "message": {
+            "message_id":55,
+            "from":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn"
+            },
+            "chat":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn",
+              "type":"private"
+            },
+            "date":1460849148
+          }
+        }
+        """
+        response = self.client.post(receive_url, empty_message, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
 
     def test_send(self):
         joe = self.create_contact("Ernie", urn='telegram:1234')
@@ -7864,7 +7923,7 @@ class TelegramTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Ernie", urn='telegram:1234')
-        msg = joe.send("Test message", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         settings.SEND_MESSAGES = True
 
@@ -7886,7 +7945,7 @@ class TelegramTest(TembaTest):
             self.assertEqual(mock.call_args[0][1]['chat_id'], "1234")
 
             msg = joe.send("Test message", self.admin, trigger_send=False,
-                           media='audio/mp3:https://example.com/attachments/sound.mp3')[0]
+                           attachments=['audio/mp3:https://example.com/attachments/sound.mp3'])[0]
 
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
@@ -7901,7 +7960,7 @@ class TelegramTest(TembaTest):
             self.assertEqual(mock.call_args[0][1]['chat_id'], "1234")
 
             msg = joe.send("Test message", self.admin, trigger_send=False,
-                           media='video/mpeg4:https://example.com/attachments/video.mp4')[0]
+                           attachments=['video/mpeg4:https://example.com/attachments/video.mp4'])[0]
 
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
@@ -8050,7 +8109,7 @@ class PlivoTest(TembaTest):
             settings.SEND_MESSAGES = False
 
     def test_send_media(self):
-        msg = self.joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = self.joe.send("MT", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -8164,7 +8223,7 @@ class TwitterTest(TembaTest):
         self.assertEqual(Msg.objects.count(), 1)
 
     def test_send_media(self):
-        msg = self.joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = self.joe.send("MT", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
         try:
             settings.SEND_MESSAGES = True
 
@@ -8653,7 +8712,7 @@ class StartMobileTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+977788123123")
-        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("MT", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -8888,7 +8947,7 @@ class ChikkaTest(TembaTest):
         incoming.external_id = '4004'
         incoming.save()
 
-        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("MT", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         with self.settings(SEND_MESSAGES=True):
 
@@ -9031,7 +9090,7 @@ class JasminTest(TembaTest):
         from temba.utils import gsm7
 
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("MT", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         settings.SEND_MESSAGES = True
 
@@ -9225,7 +9284,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("MT", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         settings.SEND_MESSAGES = True
 
@@ -9437,7 +9496,7 @@ class MbloxTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("MT", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         settings.SEND_MESSAGES = True
 
@@ -9997,7 +10056,7 @@ class FacebookTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", urn="facebook:1234")
-        msg = joe.send("Facebook Msg", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Facebook Msg", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         settings.SEND_MESSAGES = True
 
@@ -10057,6 +10116,285 @@ class FacebookTest(TembaTest):
 
             self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
                                                                               "referenced before assignment"))
+
+
+class JiochatTest(TembaTest):
+
+    def setUp(self):
+        super(JiochatTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_JIOCHAT, None, '1212',
+                                      config={Channel.CONFIG_JIOCHAT_APP_ID: 'app-id',
+                                              Channel.CONFIG_JIOCHAT_APP_SECRET: 'app-secret'},
+                                      uuid='00000000-0000-0000-0000-000000001234',
+                                      secret=Channel.generate_secret(32))
+
+    def test_refresh_jiochat_access_tokens_task(self):
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
+
+            refresh_jiochat_access_tokens()
+            self.assertEqual(mock.call_count, 1)
+            channel_client = self.channel.get_jiochat_client()
+
+            self.assertEqual(channel_client.get_access_token(), 'ABC1234')
+            self.assertEqual(mock.call_args_list[0][1]['data'], {'client_secret': u'app-secret',
+                                                                 'grant_type': 'client_credentials',
+                                                                 'client_id': u'app-id'})
+
+    @patch('temba.utils.jiochat.JiochatClient.refresh_access_token')
+    def test_url_verification(self, mock_refresh_access_token):
+        mock_refresh_access_token.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
+
+        # invalid UUID
+        response = self.client.get(reverse('handlers.jiochat_handler', args=['00000000-0000-0000-0000-000000000000']))
+        self.assertEqual(response.status_code, 400)
+
+        timestamp = str(time.time())
+        nonce = 'nonce'
+
+        value = "".join(sorted([self.channel.secret, timestamp, nonce]))
+
+        hash_object = hashlib.sha1(value.encode('utf-8'))
+        signature = hash_object.hexdigest()
+
+        callback_url = reverse('handlers.jiochat_handler', args=[self.channel.uuid])
+
+        response = self.client.get(callback_url +
+                                   "?signature=%s&timestamp=%s&nonce=%s&echostr=SUCCESS" % (signature, timestamp,
+                                                                                            nonce))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, 'SUCCESS')
+        self.assertTrue(mock_refresh_access_token.called)
+
+        mock_refresh_access_token.reset_mock()
+
+        # fail verification
+        response = self.client.get(callback_url +
+                                   "?signature=%s&timestamp=%s&nonce=%s&echostr=SUCCESS" % (signature, timestamp,
+                                                                                            'other'))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(mock_refresh_access_token.called)  # we did not fire task to refresh access token
+
+    @patch('temba.utils.jiochat.JiochatClient.get_access_token')
+    def test_send(self, mock_access_token):
+        mock_access_token.return_value = 'ABC1234'
+
+        joe = self.create_contact("Joe", urn="jiochat:1234")
+        msg = joe.send("Test Msg", self.admin, trigger_send=False)[0]
+
+        settings.SEND_MESSAGES = True
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{"errcode":0,"errmsg":"Request succeeded"}')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message is now sent
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.clear_cache()
+
+            self.assertEqual(mock.call_args[0][0], 'https://channels.jiochat.com/custom/custom_send.action')
+            self.assertEqual(mock.call_args[1]['json'],
+                             dict(touser="1234", text=dict(content="Test Msg"), msgtype='text'))
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(412, 'Error')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message now errored
+            msg.refresh_from_db()
+            self.assertEquals(msg.status, ERRORED)
+
+        with patch('requests.post') as mock:
+            mock.side_effect = Exception('Kaboom!')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message now errored
+            msg.refresh_from_db()
+            self.assertEquals(msg.status, ERRORED)
+
+    def test_follow(self):
+        callback_url = reverse('handlers.jiochat_handler', args=[self.channel.uuid])
+        an_hour_ago = timezone.now() - timedelta(hours=1)
+
+        flow = self.create_flow()
+
+        data = {
+            'ToUsername': '12121212121212',
+            'FromUserName': '1234',
+            'CreateTime': time.mktime(an_hour_ago.timetuple()),
+            'MsgType': 'event',
+            'Event': 'subscribe',
+        }
+
+        Contact.objects.all().delete()
+
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+        contact = Contact.objects.get()
+        self.assertEqual(contact.get_urn(JIOCHAT_SCHEME).path, "1234")
+
+        self.assertEqual(0, flow.runs.all().count())
+
+        Trigger.objects.create(created_by=self.user, modified_by=self.user, org=self.org,
+                               trigger_type=Trigger.TYPE_FOLLOW, flow=flow, channel=self.channel)
+
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(1, flow.runs.all().count())
+
+        # we ignore unsubscribe event
+        data['Event'] = 'unsubscribe'
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+    @patch('requests.get')
+    @patch('temba.utils.jiochat.JiochatClient.get_access_token')
+    def test_receive(self, mock_access_token, mock_get):
+        mock_access_token.return_value = 'ABC1234'
+        mock_get.return_value = MockResponse(400, '{"error":"Not found"}')
+
+        # invalid UUID
+        response = self.client.post(reverse('handlers.jiochat_handler', args=['00000000-0000-0000-0000-000000000000']))
+        self.assertEqual(response.status_code, 400)
+
+        callback_url = reverse('handlers.jiochat_handler', args=[self.channel.uuid])
+
+        # POST invalid JSON data
+        response = self.client.post(callback_url, "not json", content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        # POST missing data
+        response = self.client.post(callback_url, json.dumps({}), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        an_hour_ago = timezone.now() - timedelta(hours=1)
+
+        data = {
+            'ToUsername': '12121212121212',
+            'FromUserName': '1234',
+            'CreateTime': time.mktime(an_hour_ago.timetuple()),
+            'MsgType': 'blabla',
+            'MsgId': '123456',
+            "Content": "Test",
+        }
+
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        data = {
+            'ToUsername': '12121212121212',
+            'FromUserName': '1234',
+            'CreateTime': time.mktime(an_hour_ago.timetuple()),
+            'MsgType': 'text',
+            'MsgId': '123456',
+            "Content": "Test",
+        }
+
+        Contact.objects.all().delete()
+
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+        msg = Msg.objects.get()
+        self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
+
+        # load our message
+        self.assertIsNone(msg.contact.name)
+        self.assertEqual(msg.contact.get_urn(JIOCHAT_SCHEME).path, "1234")
+        self.assertEqual(msg.direction, INCOMING)
+        self.assertEqual(msg.org, self.org)
+        self.assertEqual(msg.channel, self.channel)
+        self.assertEqual(msg.text, "Test")
+        self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
+
+        Msg.objects.all().delete()
+        Contact.objects.all().delete()
+
+        mock_get.return_value = MockResponse(200, '{"nickname":"Shinonda"}')
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+        msg = Msg.objects.get()
+        self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
+
+        # load our message
+        self.assertEqual(msg.contact.name, "Shinonda")
+        self.assertEqual(msg.contact.get_urn(JIOCHAT_SCHEME).path, "1234")
+        self.assertEqual(msg.direction, INCOMING)
+        self.assertEqual(msg.org, self.org)
+        self.assertEqual(msg.channel, self.channel)
+        self.assertEqual(msg.text, "Test")
+        self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
+
+        Msg.objects.all().delete()
+        Contact.objects.all().delete()
+
+        with AnonymousOrg(self.org):
+            response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+            self.assertEqual(response.status_code, 200)
+
+            msg = Msg.objects.get()
+            self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
+
+            # load our message
+            self.assertIsNone(msg.contact.name)
+            self.assertEqual(msg.contact.get_urn(JIOCHAT_SCHEME).path, "1234")
+            self.assertEqual(msg.direction, INCOMING)
+            self.assertEqual(msg.org, self.org)
+            self.assertEqual(msg.channel, self.channel)
+            self.assertEqual(msg.text, "Test")
+            self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
+
+        Msg.objects.all().delete()
+
+        data = {
+            'ToUsername': '12121212121212',
+            'FromUserName': '1234',
+            'CreateTime': time.mktime(an_hour_ago.timetuple()),
+            'MsgType': 'image',
+            'MsgId': '123456',
+            "MediaId": "12",
+        }
+
+        with patch('requests.get') as mock_get:
+            mock_get.side_effect = [MockResponse(200, '{"nickname":"Shinonda"}'),
+                                    MockResponse(400, 'Error'),
+                                    MockResponse(200, "IMG_BITS",
+                                                 headers={"Content-Type": "image/jpeg",
+                                                          "Content-Disposition":
+                                                          'attachment; filename="image_name.jpg"'})]
+
+            with patch('temba.orgs.models.Org.save_media') as mock_save_media:
+                mock_save_media.return_value = '<MEDIA_SAVED_URL>'
+
+                response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+                self.assertEqual(response.status_code, 200)
+
+                msg = Msg.objects.get()
+                self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
+
+                # load our message
+                self.assertEqual(msg.contact.get_urn(JIOCHAT_SCHEME).path, "1234")
+                self.assertEqual(msg.direction, INCOMING)
+                self.assertEqual(msg.org, self.org)
+                self.assertEqual(msg.channel, self.channel)
+                self.assertEqual(msg.text, "")
+                self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
+                self.assertEqual(msg.attachments[0], 'image/jpeg:<MEDIA_SAVED_URL>')
+
+                self.assertEqual(mock_get.call_count, 3)
 
 
 class GlobeTest(TembaTest):
@@ -10206,7 +10544,7 @@ class GlobeTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+639171234567")
-        msg = joe.send("MT", self.admin, trigger_send=False, media="image/jpeg:https://example.com/attachments/pic.jpg")[0]
+        msg = joe.send("MT", self.admin, trigger_send=False, attachments=["image/jpeg:https://example.com/attachments/pic.jpg"])[0]
 
         settings.SEND_MESSAGES = True
 
@@ -10376,7 +10714,7 @@ class ViberTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", "+639171234567")
-        msg = joe.send("Hello, world!", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         settings.SEND_MESSAGES = True
         with patch('requests.post') as mock:
@@ -10518,7 +10856,7 @@ class LineTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", urn="line:uabcdefghijkl")
-        msg = joe.send("Hello, world!", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         with self.settings(SEND_MESSAGES=True):
 
@@ -10673,7 +11011,7 @@ class ViberPublicTest(TembaTest):
         self.assertEqual(msg.text, assert_text)
 
         if assert_media:
-            self.assertEqual(msg.media, assert_media)
+            self.assertIn(assert_media, msg.attachments)
 
     def test_reject_message_missing_text(self):
         for viber_msg_type in ['text', 'picture', 'video']:
@@ -10692,7 +11030,7 @@ class ViberPublicTest(TembaTest):
             }
 
             response = self.assertSignedRequest(json.dumps(data), 400)
-            self.assertIn("Missing 'text' key in 'message' in request_body.", response.content)
+            self.assertContains(response, "Missing text or media in message in request body.", status_code=400)
             Msg.objects.all().delete()
 
     def test_receive_picture_missing_media_key(self):
@@ -10708,7 +11046,7 @@ class ViberPublicTest(TembaTest):
         self.assertMessageReceived('url', 'media', 'http://foo.com/', 'http://foo.com/')
 
     def test_receive_gps(self):
-        self.assertMessageReceived('location', 'location', dict(lat='1.2', lon='-1.3'), 'geo:1.2,-1.3')
+        self.assertMessageReceived('location', 'location', dict(lat='1.2', lon='-1.3'), 'incoming msg')
 
     def test_webhook_check(self):
         data = {
@@ -10844,7 +11182,7 @@ class ViberPublicTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", urn="viber:xy5/5y6O81+/kbWHpLhBoA==")
-        msg = joe.send("MT", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("MT", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         settings.SEND_MESSAGES = True
         with patch('requests.post') as mock:
@@ -10931,6 +11269,13 @@ class FcmTest(TembaTest):
 
         self.assertEquals(contact.get('contact_uuid'), updated_contact.get('contact_uuid'))
 
+        data = {'urn': '12345abcde', 'fcm_token': '1234567890qwertyuiop', 'contact_uuid': contact.get('contact_uuid')}
+        response = self.client.post(self.register_url, data)
+        self.assertEquals(200, response.status_code)
+        updated_contact = json.loads(response.content)
+
+        self.assertEquals(contact.get('contact_uuid'), updated_contact.get('contact_uuid'))
+
     def test_send(self):
         joe = self.create_contact("Joe", urn="fcm:12345abcde", auth="123456abcdef")
         msg = joe.send("Hello, world!", self.admin, trigger_send=False)[0]
@@ -10989,7 +11334,7 @@ class FcmTest(TembaTest):
 
     def test_send_media(self):
         joe = self.create_contact("Joe", urn="fcm:12345abcde", auth="123456abcdef")
-        msg = joe.send("Hello, world!", self.admin, trigger_send=False, media='image/jpeg:https://example.com/attachments/pic.jpg')[0]
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, attachments=['image/jpeg:https://example.com/attachments/pic.jpg'])[0]
 
         with self.settings(SEND_MESSAGES=True):
 

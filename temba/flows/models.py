@@ -415,7 +415,9 @@ class Flow(TembaModel):
                 text = saved_media_url.partition(':')[2]
 
             msg = Msg.create_incoming(call.channel, call.contact_urn.urn,
-                                      text, status=PENDING, msg_type=IVR, media=saved_media_url, session=run.session)
+                                      text, status=PENDING, msg_type=IVR,
+                                      attachments=[saved_media_url] if saved_media_url else None,
+                                      session=run.session)
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
@@ -663,7 +665,7 @@ class Flow(TembaModel):
                         ActionLog.create(run, _("USSD Session was marked to end"))
 
                 # add any generated messages to be sent at once
-                msgs += result['msgs']
+                msgs += result.get('msgs', [])
 
             # if this is a triggered start, we only consider user input on the first step, so clear it now
             if triggered_start:
@@ -771,9 +773,9 @@ class Flow(TembaModel):
             step.add_message(msg)
             run.update_expiration(timezone.now())
 
-        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg.media is not None:
+        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA and msg.attachments:
             # store the media path as the value
-            value = msg.media.split(':', 1)[1]
+            value = msg.attachments[0].split(':', 1)[1]
 
         step.save_rule_match(rule, value)
         ruleset.save_run_value(run, rule, value)
@@ -1808,7 +1810,7 @@ class Flow(TembaModel):
             previous_step.save(update_fields=('left_on', 'next_uuid'))
 
             if not previous_step.contact.is_test:
-                FlowPathRecentStep.record_step(previous_step)
+                FlowPathRecentMessage.record_step(previous_step)
 
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
@@ -2487,7 +2489,7 @@ class FlowRun(models.Model):
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
         if isinstance(fields, six.string_types):
-            return fields[:Msg.MAX_SIZE], count + 1
+            return fields[:Value.MAX_VALUE_LEN], count + 1
 
         elif isinstance(fields, numbers.Number):
             return fields, count + 1
@@ -2668,6 +2670,9 @@ class FlowRun(models.Model):
         for ruleset in self.flow.rule_sets.all():
             Value.invalidate_cache(ruleset=ruleset)
 
+        # clear any recent messages
+        self.recent_messages.all().delete()
+
     def set_completed(self, final_step=None, completed_on=None):
         """
         Mark a run as complete
@@ -2787,12 +2792,12 @@ class FlowRun(models.Model):
         # create a Msg object to track what happened
         from temba.msgs.models import DELIVERED, IVR
 
-        media = None
+        attachments = None
         if recording_url:
-            media = '%s/x-wav:%s' % (Msg.MEDIA_AUDIO, recording_url)
+            attachments = ['%s/x-wav:%s' % (Msg.MEDIA_AUDIO, recording_url)]
 
         msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.session.channel,
-                                  response_to=response_to, media=media,
+                                  response_to=response_to, attachments=attachments,
                                   status=DELIVERED, msg_type=IVR, session=session)
 
         # play a recording or read some text
@@ -2830,7 +2835,7 @@ class FlowStep(models.Model):
     rule_category = models.CharField(max_length=36, null=True,
                                      help_text=_("The category label that matched on this ruleset, null on ActionSets"))
 
-    rule_value = models.CharField(max_length=Msg.MAX_SIZE, null=True,
+    rule_value = models.TextField(null=True,
                                   help_text=_("The value that was matched in our category for this ruleset, null on ActionSets"))
 
     rule_decimal_value = models.DecimalField(max_digits=36, decimal_places=8, null=True,
@@ -2879,7 +2884,8 @@ class FlowStep(models.Model):
 
                     # if we received a message
                     incoming = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
-                                                   media=media, msg_type=FLOW, status=HANDLED, date=arrived_on,
+                                                   attachments=[media] if media else None,
+                                                   msg_type=FLOW, status=HANDLED, date=arrived_on,
                                                    channel=None, urn=None)
             else:  # pragma: needs cover
                 incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
@@ -2961,7 +2967,7 @@ class FlowStep(models.Model):
 
         if value is None:
             value = ''
-        self.rule_value = six.text_type(value)[:Msg.MAX_SIZE]
+        self.rule_value = six.text_type(value)[:Msg.MAX_TEXT_LEN]
 
         if isinstance(value, Decimal):
             self.rule_decimal_value = value
@@ -3054,6 +3060,7 @@ class RuleSet(models.Model):
 
     CONFIG_WEBHOOK = 'webhook'
     CONFIG_WEBHOOK_ACTION = 'webhook_action'
+    CONFIG_WEBHOOK_HEADERS = 'webhook_headers'
     CONFIG_RESTHOOK = 'resthook'
 
     TYPE_MEDIA = (TYPE_WAIT_PHOTO, TYPE_WAIT_GPS, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_RECORDING)
@@ -3212,10 +3219,10 @@ class RuleSet(models.Model):
         if self.ruleset_type in [RuleSet.TYPE_WAIT_RECORDING, RuleSet.TYPE_SUBFLOW]:
             return voice_response
         elif self.ruleset_type == RuleSet.TYPE_WAIT_DIGITS:
-            return voice_response.gather(finishOnKey=self.finished_key, timeout=60, action=action)
+            return voice_response.gather(finishOnKey=self.finished_key, timeout=120, action=action)
         else:
             # otherwise we assume it's single digit entry
-            return voice_response.gather(numDigits=1, timeout=60, action=action)
+            return voice_response.gather(numDigits=1, timeout=120, action=action)
 
     def is_pause(self):
         return self.ruleset_type in RuleSet.TYPE_WAIT
@@ -3246,11 +3253,18 @@ class RuleSet(models.Model):
                         return rule, value
 
         elif self.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
+            header = {}
+
             # figure out which URLs will be called
             if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
                 resthook = None
                 urls = [self.config_json()[RuleSet.CONFIG_WEBHOOK]]
                 action = self.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION]
+
+                if RuleSet.CONFIG_WEBHOOK_HEADERS in self.config_json():
+                    headers = self.config_json()[RuleSet.CONFIG_WEBHOOK_HEADERS]
+                    for item in headers:
+                        header[item.get('name')] = item.get('value')
 
             elif self.ruleset_type == RuleSet.TYPE_RESTHOOK:
                 from temba.api.models import Resthook
@@ -3275,7 +3289,8 @@ class RuleSet(models.Model):
 
                 (value, errors) = Msg.substitute_variables(url, context, org=run.flow.org, url_encode=True)
 
-                result = WebHookEvent.trigger_flow_event(run, value, self, msg, action, resthook=resthook)
+                result = WebHookEvent.trigger_flow_event(run, value, self, msg, action, resthook=resthook,
+                                                         header=header)
 
                 # we haven't recorded any status yet, do so
                 if not status_code:
@@ -3364,7 +3379,7 @@ class RuleSet(models.Model):
         return None, None
 
     def save_run_value(self, run, rule, value):
-        value = six.text_type(value)[:Msg.MAX_SIZE]
+        value = six.text_type(value)[:Value.MAX_VALUE_LEN]
         location_value = None
         dec_value = None
         dt_value = None
@@ -3678,50 +3693,43 @@ class FlowPathCount(SquashableModel):
         index_together = ['flow', 'from_uuid', 'to_uuid', 'period']
 
 
-class FlowPathRecentStep(models.Model):
+class FlowPathRecentMessage(models.Model):
     """
-    Maintains recent messages for a flow path segment
+    Maintains recent messages for a flow path segment. Doesn't store references to actual steps or messages as these
+    might be purged.
     """
-    PRUNE_TO = 10
-    LAST_PRUNED_KEY = 'last_flowpathrecentstep_pruned'
+    PRUNE_TO = 5
+    LAST_PRUNED_KEY = 'last_recentmessage_pruned'
+
+    id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name='ID')
 
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
-    step = models.ForeignKey(FlowStep, related_name='recent_segments')
-    left_on = models.DateTimeField(help_text=_("When they left the first node"))
+    run = models.ForeignKey(FlowRun, related_name='recent_messages')
+    text = models.TextField(help_text=_("The message text"))
+    created_on = models.DateTimeField(help_text=_("When the message arrived"))
 
     @classmethod
     def record_step(cls, step):
         from_uuid = step.rule_uuid or step.step_uuid
         to_uuid = step.next_uuid
 
-        cls.objects.create(from_uuid=from_uuid, to_uuid=to_uuid, step=step, left_on=step.left_on)
+        objs = []
+        for msg in step.messages.all():
+            objs.append(cls(from_uuid=from_uuid, to_uuid=to_uuid,
+                            run=step.run, text=msg.text, created_on=msg.created_on))
+        cls.objects.bulk_create(objs)
 
     @classmethod
-    def get_recent(cls, from_uuids, to_uuids):
+    def get_recent(cls, from_uuids, to_uuids, limit=PRUNE_TO):
         """
-        Gets the recent step records for the given flow segments
+        Gets the recent messages for the given flow segments
         """
-        recent = cls.objects.filter(from_uuid__in=from_uuids, to_uuid__in=to_uuids)
-        return recent.order_by('-left_on').prefetch_related('step')
+        recent = cls.objects.filter(from_uuid__in=from_uuids, to_uuid__in=to_uuids).order_by('-created_on')
+        if limit:
+            recent = recent[:limit]
 
-    @classmethod
-    def get_recent_messages(cls, from_uuids, to_uuids, limit=None):
-        """
-        Gets the recent messages for the given flow segment
-        """
-        recent = cls.get_recent(from_uuids, to_uuids).prefetch_related('step__messages')
-
-        messages = []
-        for r in recent:
-            for msg in r.step.messages.all():
-                if msg.visibility == Msg.VISIBILITY_VISIBLE:
-                    messages.append(msg)
-
-                    if limit is not None and len(messages) >= limit:
-                        return messages
-
-        return messages
+        return recent
 
     @classmethod
     def prune(cls):
@@ -3734,18 +3742,18 @@ class FlowPathRecentStep(models.Model):
         newest_id = newest['id'] if newest else -1
 
         sql = """
-        DELETE FROM %(table)s WHERE id IN (
-          SELECT id FROM (
-              SELECT
-                r.id,
-                dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY left_on DESC) AS pos
-              FROM %(table)s r
-              WHERE (from_uuid, to_uuid) IN (
-                -- get the unique segments added to since last prune
-                SELECT DISTINCT from_uuid, to_uuid FROM %(table)s WHERE id > %(last_id)d
-              )
-          ) s WHERE s.pos > %(limit)d
-        )""" % {'table': cls._meta.db_table, 'last_id': last_id, 'limit': cls.PRUNE_TO}
+            DELETE FROM %(table)s WHERE id IN (
+              SELECT id FROM (
+                  SELECT
+                    r.id,
+                    dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY created_on DESC) AS pos
+                  FROM %(table)s r
+                  WHERE (from_uuid, to_uuid) IN (
+                    -- get the unique segments added to since last prune
+                    SELECT DISTINCT from_uuid, to_uuid FROM %(table)s WHERE id > %(last_id)d
+                  )
+              ) s WHERE s.pos > %(limit)d
+            )""" % {'table': cls._meta.db_table, 'last_id': last_id, 'limit': cls.PRUNE_TO}
 
         cursor = connection.cursor()
         cursor.execute(sql)
@@ -4657,16 +4665,19 @@ class WebhookAction(Action):
     TYPE = 'api'
     ACTION = 'action'
 
-    def __init__(self, webhook, action='POST'):
+    def __init__(self, webhook, action='POST', webhook_headers=None):
         self.webhook = webhook
         self.action = action
+        self.webhook_headers = webhook_headers
 
     @classmethod
     def from_json(cls, org, json_obj):
-        return WebhookAction(json_obj.get('webhook', org.get_webhook_url()), json_obj.get('action', 'POST'))
+        return WebhookAction(json_obj.get('webhook', org.get_webhook_url()), json_obj.get('action', 'POST'),
+                             json_obj.get('webhook_headers', []))
 
     def as_json(self):
-        return dict(type=WebhookAction.TYPE, webhook=self.webhook, action=self.action)
+        return dict(type=WebhookAction.TYPE, webhook=self.webhook, action=self.action,
+                    webhook_headers=self.webhook_headers)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         from temba.api.models import WebHookEvent
@@ -4676,7 +4687,12 @@ class WebhookAction(Action):
         if errors:
             ActionLog.warn(run, _("URL appears to contain errors: %s") % ", ".join(errors))
 
-        WebHookEvent.trigger_flow_event(run, value, actionset_uuid, msg, self.action)
+        headers = {}
+        if self.webhook_headers:
+            for item in self.webhook_headers:
+                headers[item.get('name')] = item.get('value')
+
+        WebHookEvent.trigger_flow_event(run, value, actionset_uuid, msg, self.action, header=headers)
         return []
 
 
@@ -5038,14 +5054,14 @@ class ReplyAction(Action):
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
 
-            media = None
+            attachments = None
             if self.media:
                 # localize our media attachment
                 media_type, media_url = run.flow.get_localized_text(self.media, run.contact).split(':', 1)
 
                 # if we have a localized media, create the url
                 if media_url:
-                    media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
+                    attachments = ["%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)]
 
             if offline_on:
                 context = None
@@ -5055,11 +5071,11 @@ class ReplyAction(Action):
 
             if msg:
                 replies = msg.reply(text, user, trigger_send=False, message_context=context,
-                                    session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                    session=run.session, msg_type=self.MSG_TYPE, attachments=attachments,
                                     send_all=self.send_all, created_on=created_on)
             else:
                 replies = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                           session=run.session, msg_type=self.MSG_TYPE, media=media,
+                                           session=run.session, msg_type=self.MSG_TYPE, attachments=attachments,
                                            created_on=created_on, all_urns=self.send_all)
         return replies
 
@@ -5530,7 +5546,7 @@ class SaveToContactAction(Action):
                     contact.update_urns(user, urns)
 
         else:
-            new_value = value[:Msg.MAX_SIZE]
+            new_value = value[:Value.MAX_VALUE_LEN]
             contact.set_field(user, self.field, new_value)
             self.logger(run, new_value)
 

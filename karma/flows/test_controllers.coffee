@@ -426,6 +426,9 @@ describe 'Controllers:', ->
         scope.ruleset.ruleset_type = 'webhook'
         scope.formData.webhook = 'http://www.nyaruka.com'
         scope.formData.webhook_action = 'POST'
+        scope.formData.webhook_headers = [{name: '', key: ''}]
+        scope.webhook_headers_name[0] = 'Authorization'
+        scope.webhook_headers_value[0] = 'Token 12345'
 
       ruleset = flowService.flow.rule_sets[0]
       expect(ruleset.ruleset_type).toBe('webhook')
@@ -436,6 +439,8 @@ describe 'Controllers:', ->
       # our config should have a url
       expect(ruleset.config.webhook).toBe('http://www.nyaruka.com')
       expect(ruleset.config.webhook_action).toBe('POST')
+      expect(ruleset.config.webhook_headers[0]['name']).toBe('Authorization')
+      expect(ruleset.config.webhook_headers[0]['value']).toBe('Token 12345')
 
       # do it again, make sure we have the right number of rules
       editRules ruleset, (scope) ->

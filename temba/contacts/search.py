@@ -8,7 +8,7 @@ import six
 from collections import OrderedDict
 from decimal import Decimal
 from django.db.models import Q, Func, Value as Val, CharField
-from django.db.models.functions import Upper
+from django.db.models.functions import Upper, Substr
 from django.utils.encoding import force_unicode
 from django.utils.translation import gettext as _
 from functools import reduce
@@ -18,6 +18,8 @@ from temba.utils import str_to_datetime, date_to_utc_range
 from temba.values.models import Value
 from .models import ContactField, ContactURN
 
+# our index for equality checks on string values is limited to the first 32 characters
+STRING_VALUE_COMPARISON_LIMIT = 32
 
 BOUNDARY_LEVELS_BY_VALUE_TYPE = {
     Value.TYPE_STATE: AdminBoundary.LEVEL_STATE,
@@ -286,13 +288,17 @@ class Condition(QueryNode):
             raise ValueError("Unrecognized contact field type '%s'" % field.value_type)
 
     def _build_text_field_params(self, field):
+        # combine field and value to match database index
+        def index_key(f, val):
+            return '%d|%s' % (f.id, val[:STRING_VALUE_COMPARISON_LIMIT].upper())
+
         if isinstance(self.value, list):
-            return {'field_and_string_value__in': ['%d|%s' % (field.id, v.upper()) for v in self.value]}
+            return {'field_and_string_value__in': [index_key(field, v) for v in self.value]}
         else:
             if self.comparator not in self.TEXT_LOOKUPS:
                 raise SearchException(_("Can't query text fields with %s") % self.comparator)
 
-            return {'field_and_string_value': '%d|%s' % (field.id, self.value.upper())}
+            return {'field_and_string_value': index_key(field, self.value)}
 
     def _build_decimal_field_params(self, field):
         if isinstance(self.value, list):
@@ -347,7 +353,7 @@ class Condition(QueryNode):
     @staticmethod
     def get_base_value_query():
         return Value.objects.annotate(
-            field_and_string_value=Concat('contact_field_id', Val('|'), Upper('string_value'), output_field=CharField())
+            field_and_string_value=Concat('contact_field_id', Val('|'), Upper(Substr('string_value', 1, STRING_VALUE_COMPARISON_LIMIT)), output_field=CharField())
         ).values('contact_id')
 
     @staticmethod

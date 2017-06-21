@@ -39,8 +39,6 @@ ACTIVITY_ICONS = {
     'WebHookResult': 'icon-cloud-upload',
 }
 
-PLAYABLE_AUDIO_TYPES = {'audio/wav', 'audio/x-wav', 'audio/vnd.wav', 'application/octet-stream'}
-
 MISSING_VALUE = '--'
 
 
@@ -98,60 +96,6 @@ def urn_icon(urn):
 
 
 @register.filter
-def osm_link(geo_url):
-    (content_type, delim, loc) = geo_url.partition(':')
-    coords = loc.split(',')
-    if len(coords) == 2:
-        (lat, lng) = coords
-        return 'http://www.openstreetmap.org/?mlat=%(lat)s&mlon=%(lng)s#map=18/%(lat)s/%(lng)s' % {"lat": lat, "lng": lng}
-
-
-@register.filter
-def location(geo_url):
-    (content_type, delim, loc) = geo_url.partition(':')
-    if len(loc.split(',')) == 2:
-        return loc
-
-
-@register.filter
-def media_url(media):
-    if media:
-        return media.partition(':')[2]
-
-
-@register.filter
-def media_content_type(media):
-    if media:
-        return media.partition(':')[0]
-
-
-@register.filter
-def media_type(media):
-    content_type = media_content_type(media)
-    if content_type == 'application/octet-stream' and media.endswith('.oga'):  # pragma: needs cover
-        return 'audio'
-    if content_type and '/' in content_type:  # pragma: needs cover
-        content_type = content_type.split('/')[0]
-    return content_type
-
-
-@register.filter
-def is_playable_audio(content_type):
-    return content_type in PLAYABLE_AUDIO_TYPES
-
-
-@register.filter
-def is_document(url):
-    content_type = media_type(url)
-    return content_type in ['application', 'text']
-
-
-@register.filter
-def extension(url):  # pragma: needs cover
-    return url.rpartition('.')[2]
-
-
-@register.filter
 def activity_icon(item):
     obj = item['obj']
 
@@ -191,10 +135,8 @@ def history_class(item):
     obj = item['obj']
     classes = []
 
-    if item['type'] == 'msg':
+    if item['type'] in ('msg', 'broadcast'):
         classes.append('msg')
-        if obj.media and obj.media[:6] == 'video:':
-            classes.append('video')
         if obj.status in (ERRORED, FAILED):
             classes.append('warning')
     else:

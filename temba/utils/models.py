@@ -41,11 +41,6 @@ class TranslatableField(HStoreField):
     def validators(self):
         return super(TranslatableField, self).validators + [TranslatableField.Validator(self.max_length)]
 
-    def deconstruct(self):
-        name, path, args, kwargs = super(TranslatableField, self).deconstruct()
-        kwargs['max_length'] = self.max_length
-        return name, path, args, kwargs
-
 
 class TembaModel(SmartModel):
 
@@ -61,6 +56,8 @@ class SquashableModel(models.Model):
     Base class for models which track counts by delta insertions which are then periodically squashed
     """
     SQUASH_OVER = None
+
+    id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name='ID')
 
     is_squashed = models.BooleanField(default=False, help_text=_("Whether this row was created by squashing"))
 

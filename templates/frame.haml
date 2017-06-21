@@ -87,14 +87,10 @@
       %script{src:"{{ STATIC_URL }}bower/xregexp/xregexp-all.js"}
       %script{src:"{{ STATIC_URL }}bower/sticky-kit/jquery.sticky-kit.js"}
 
-
       // Non-bower packages
       %script{src:"{{ STATIC_URL }}lib/uuid.js"}
       %script{src:"{{ STATIC_URL }}lib/bootstrap-limit.js"}
       %script{src:"{{ STATIC_URL }}lib/jquery-ui-timepicker-addon.js"}
-
-      // smartmin
-      %script{src:"{{ STATIC_URL }}js/heavy_data.js"}
 
       -if not debug and not testing
         %script{src:"{{ STATIC_URL }}lib/raven.min.js"}
@@ -248,8 +244,8 @@
 
   -include "includes/frame_bottom.html"
 
-    {# media associated with any form we are displaying #}
-    -if form
+  // media associated with any form we are displaying
+  -if form
     {{ form.media }}
 
   -block script

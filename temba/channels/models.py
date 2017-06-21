@@ -32,10 +32,11 @@ from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID, NEXMO_APP_ID
-from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit
+from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
 from temba.utils.http import HttpEvent
+from temba.utils.jiochat import JiochatClient
 from temba.utils.nexmo import NexmoClient, NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from temba.utils.twitter import TembaTwython
@@ -77,6 +78,7 @@ class Channel(TembaModel):
     TYPE_HUB9 = 'H9'
     TYPE_INFOBIP = 'IB'
     TYPE_JASMIN = 'JS'
+    TYPE_JIOCHAT = 'JC'
     TYPE_JUNEBUG = 'JN'
     TYPE_JUNEBUG_USSD = 'JNU'
     TYPE_KANNEL = 'KN'
@@ -117,6 +119,9 @@ class Channel(TembaModel):
     CONFIG_USE_NATIONAL = 'use_national'
     CONFIG_ENCODING = 'encoding'
     CONFIG_PAGE_NAME = 'page_name'
+    CONFIG_JIOCHAT_APP_ID = 'jiochat_app_id'
+    CONFIG_JIOCHAT_APP_SECRET = 'jiochat_app_secret'
+    CONFIG_JIOCHAT_CHANNEL_NAME = 'jiochat_channel_name'
     CONFIG_PLIVO_AUTH_ID = 'PLIVO_AUTH_ID'
     CONFIG_PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
     CONFIG_PLIVO_APP_ID = 'PLIVO_APP_ID'
@@ -129,7 +134,11 @@ class Channel(TembaModel):
     CONFIG_FCM_TITLE = 'FCM_TITLE'
     CONFIG_FCM_NOTIFICATION = 'FCM_NOTIFICATION'
     CONFIG_MAX_LENGTH = 'max_length'
+    CONFIG_MACROKIOSK_SENDER_ID = 'macrokiosk_sender_id'
     CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
+
+    JIOCHAT_ACCESS_TOKEN_KEY = 'jiochat_channel_access_token:%s'
+    JIOCHAT_ACCESS_TOKEN_REFRESH_LOCK = 'jiochat_channel_access_token:refresh-lock:%s'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -194,6 +203,7 @@ class Channel(TembaModel):
         TYPE_HUB9: dict(scheme='tel', max_length=1600),
         TYPE_INFOBIP: dict(scheme='tel', max_length=1600),
         TYPE_JASMIN: dict(scheme='tel', max_length=1600),
+        TYPE_JIOCHAT: dict(scheme='jiochat', max_length=1600),
         TYPE_JUNEBUG: dict(scheme='tel', max_length=1600),
         TYPE_JUNEBUG_USSD: dict(scheme='tel', max_length=1600),
         TYPE_KANNEL: dict(scheme='tel', max_length=1600),
@@ -205,7 +215,7 @@ class Channel(TembaModel):
         TYPE_PLIVO: dict(scheme='tel', max_length=1600),
         TYPE_RED_RABBIT: dict(scheme='tel', max_length=1600),
         TYPE_SHAQODOON: dict(scheme='tel', max_length=1600),
-        TYPE_SMSCENTRAL: dict(scheme='tel', max_length=1600),
+        TYPE_SMSCENTRAL: dict(scheme='tel', max_length=1600, max_tps=1),
         TYPE_START: dict(scheme='tel', max_length=1600),
         TYPE_TELEGRAM: dict(scheme='telegram', max_length=1600),
         TYPE_TWILIO: dict(scheme='tel', max_length=1600),
@@ -691,6 +701,26 @@ class Channel(TembaModel):
         return channel
 
     @classmethod
+    def add_jiochat_channel(cls, org, user, app_id, app_secret):
+        channel = Channel.create(org, user, None, Channel.TYPE_JIOCHAT, name='', address='',
+                                 config={Channel.CONFIG_JIOCHAT_APP_ID: app_id,
+                                         Channel.CONFIG_JIOCHAT_APP_SECRET: app_secret},
+                                 secret=Channel.generate_secret(32))
+
+        return channel
+
+    @classmethod
+    def refresh_all_jiochat_access_token(cls, channel_id=None):
+        jiochat_channels = Channel.objects.filter(channel_type=Channel.TYPE_JIOCHAT, is_active=True)
+        if channel_id:
+            jiochat_channels = jiochat_channels.filter(id=channel_id)
+
+        for channel in jiochat_channels:
+            client = channel.get_jiochat_client()
+            if client is not None:
+                client.refresh_access_token()
+
+    @classmethod
     def add_line_channel(cls, org, user, credentials, name):
         channel_id = credentials.get('channel_id')
         channel_secret = credentials.get('channel_secret')
@@ -794,7 +824,7 @@ class Channel(TembaModel):
         # generate random secret and claim code
         claim_code = cls.generate_claim_code()
         secret = cls.generate_secret()
-        anon = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+        anon = get_anonymous_user()
         config = {Channel.CONFIG_FCM_ID: fcm_id}
 
         return Channel.create(None, anon, country, Channel.TYPE_ANDROID, None, None, gcm_id=gcm_id, config=config,
@@ -811,11 +841,11 @@ class Channel(TembaModel):
         return code
 
     @classmethod
-    def generate_secret(cls):
+    def generate_secret(cls, length=64):
         """
         Generates a secret value used for command signing
         """
-        return random_string(64)
+        return random_string(length)
 
     @classmethod
     def determine_encoding(cls, text, replace=False):
@@ -935,6 +965,15 @@ class Channel(TembaModel):
             return self.org.get_verboice_client()
         elif self.channel_type == Channel.TYPE_NEXMO:
             return self.org.get_nexmo_client()
+
+    def get_jiochat_client(self):
+        config = self.config_json()
+        if config:
+            app_id = config.get(Channel.CONFIG_JIOCHAT_APP_ID, None)
+            app_secret = config.get(Channel.CONFIG_JIOCHAT_APP_SECRET, None)
+
+            if app_id and app_secret:
+                return JiochatClient(self.uuid, app_id, app_secret)
 
     def get_twiml_client(self):
         from temba.ivr.clients import TwilioClient
@@ -1442,6 +1481,23 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
+    def send_jiochat_message(cls, channel, msg, text):
+        from temba.msgs.models import WIRED
+
+        data = dict(msgtype='text')
+        data['touser'] = msg.urn_path
+        data['text'] = dict(content=text)
+
+        client = JiochatClient(channel.uuid, channel.config.get(Channel.CONFIG_JIOCHAT_APP_ID),
+                               channel.config.get(Channel.CONFIG_JIOCHAT_APP_SECRET))
+
+        start = time.time()
+
+        response, event = client.send_message(data, start)
+
+        Channel.success(channel, msg, WIRED, start, event=event)
+
+    @classmethod
     def send_jasmin_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
         from temba.utils import gsm7
@@ -1597,8 +1653,10 @@ class Channel(TembaModel):
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
 
+        # for now we only support sending one attachment per message but this could change in future
         from temba.msgs.models import Msg
-        media_type, media_url = Msg.get_media(msg)
+        attachments = Msg.get_attachments(msg)
+        media_type, media_url = attachments[0] if attachments else (None, None)
 
         if media_type and media_url:
             media_type = media_type.split('/')[0]
@@ -2131,7 +2189,7 @@ class Channel(TembaModel):
 
         data = {
             'user': channel.config[Channel.CONFIG_USERNAME], 'pass': channel.config[Channel.CONFIG_PASSWORD],
-            'to': recipient, 'text': text, 'from': channel.address.lstrip('+'),
+            'to': recipient, 'text': text, 'from': channel.config[Channel.CONFIG_MACROKIOSK_SENDER_ID],
             'servid': channel.config[Channel.CONFIG_MACROKIOSK_SERVICE_ID], 'type': message_type
         }
 
@@ -2634,11 +2692,12 @@ class Channel(TembaModel):
         callback_url = Channel.build_twilio_callback_url(msg.id)
 
         start = time.time()
-        media_url = []
+        media_urls = []
 
-        if msg.media:
-            (media_type, media_url) = Msg.get_media(msg)
-            media_url = [media_url]
+        if msg.attachments:
+            # for now we only support sending one attachment per message but this could change in future
+            media_type, media_url = Msg.get_attachments(msg)[0]
+            media_urls = [media_url]
 
         if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
             config = channel.config
@@ -2653,13 +2712,13 @@ class Channel(TembaModel):
                 client.messages.create(to=msg.urn_path,
                                        messaging_service_sid=messaging_service_sid,
                                        body=text,
-                                       media_url=media_url,
+                                       media_url=media_urls,
                                        status_callback=callback_url)
             else:
                 client.messages.create(to=msg.urn_path,
                                        from_=channel.address,
                                        body=text,
-                                       media_url=media_url,
+                                       media_url=media_urls,
                                        status_callback=callback_url)
 
             Channel.success(channel, msg, WIRED, start, events=client.messages.events)
@@ -2689,8 +2748,10 @@ class Channel(TembaModel):
 
         start = time.time()
 
+        # for now we only support sending one attachment per message but this could change in future
         from temba.msgs.models import Msg
-        media_type, media_url = Msg.get_media(msg)
+        attachments = Msg.get_attachments(msg)
+        media_type, media_url = attachments[0] if attachments else (None, None)
 
         if media_type and media_url:
             media_type = media_type.split('/')[0]
@@ -3074,13 +3135,14 @@ class Channel(TembaModel):
         # append media url if our channel doesn't support it
         text = msg.text
 
-        if msg.media and not Channel.supports_media(channel):
-            media_type, media_url = Msg.get_media(msg)
+        if msg.attachments and not Channel.supports_media(channel):
+            # for now we only support sending one attachment per message but this could change in future
+            media_type, media_url = Msg.get_attachments(msg)[0]
             if media_type and media_url:
                 text = '%s\n%s' % (text, media_url)
 
             # don't send as media
-            msg.media = None
+            msg.attachments = None
 
         parts = Msg.get_text_parts(text, channel.config.get(Channel.CONFIG_MAX_LENGTH, type_settings[Channel.CONFIG_MAX_LENGTH]))
 
@@ -3124,7 +3186,7 @@ class Channel(TembaModel):
                     sent_count -= 1
 
                     # make sure media isn't sent more than once
-                    msg.media = None
+                    msg.attachments = None
 
         # update the number of sms it took to send this if it was more than 1
         if len(parts) > 1:
@@ -3207,6 +3269,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_HUB9: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_INFOBIP: Channel.send_infobip_message,
                   Channel.TYPE_JASMIN: Channel.send_jasmin_message,
+                  Channel.TYPE_JIOCHAT: Channel.send_jiochat_message,
                   Channel.TYPE_JUNEBUG: Channel.send_junebug_message,
                   Channel.TYPE_JUNEBUG_USSD: Channel.send_junebug_message,
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,
@@ -3350,7 +3413,7 @@ class ChannelEvent(models.Model):
         from temba.triggers.models import Trigger
 
         org = channel.org
-        user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+        user = get_anonymous_user()
 
         contact = Contact.get_or_create(org, user, name=None, urns=[urn], channel=channel)
         contact_urn = contact.urn_objects[urn]
@@ -3543,7 +3606,7 @@ class SyncEvent(SmartModel):
         args['retry_message_count'] = len(cmd.get('retry', cmd.get('retry_messages')))
         args['incoming_command_count'] = max(len(incoming_commands) - 2, 0)
 
-        anon_user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+        anon_user = get_anonymous_user()
         args['channel'] = channel
         args['created_by'] = anon_user
         args['modified_by'] = anon_user
@@ -3690,11 +3753,11 @@ class Alert(SmartModel):
 
     def send_alert(self):
         from .tasks import send_alert_task
-        send_alert_task.delay(self.id, resolved=False)
+        on_transaction_commit(lambda: send_alert_task.delay(self.id, resolved=False))
 
     def send_resolved(self):
         from .tasks import send_alert_task
-        send_alert_task.delay(self.id, resolved=True)
+        on_transaction_commit(lambda: send_alert_task.delay(self.id, resolved=True))
 
     def send_email(self, resolved):
         from temba.msgs.models import Msg
