@@ -1357,6 +1357,7 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Connect Zenvia Account")
         fields = ('shortcode', 'account', 'code')
         form_class = ZVClaimForm
+        permission = 'channels.channel_claim'
         success_url = "id@channels.channel_configuration"
 
         def form_valid(self, form):
@@ -1382,6 +1383,7 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Connect Viber Bot")
         fields = ('name',)
         form_class = ViberCreateForm
+        permission = 'channels.channel_claim'
         success_url = "id@channels.channel_claim_viber"
 
         def form_valid(self, form):
@@ -1404,6 +1406,7 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Connect Viber Bot")
         fields = ('service_id',)
         form_class = ViberClaimForm
+        permission = 'channels.channel_claim'
         success_url = "id@channels.channel_configuration"
 
         def get_context_data(self, **kwargs):
@@ -1437,6 +1440,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         title = _("Connect Public Viber Channel")
         form_class = ViberClaimForm
+        permission = 'channels.channel_claim'
         success_url = "id@channels.channel_configuration"
 
         def form_valid(self, form):
@@ -1477,6 +1481,7 @@ class ChannelCRUDL(SmartCRUDL):
                                                           "sending (not recommended)"))
 
         title = _("Connect Kannel Service")
+        permission = 'channels.channel_claim'
         success_url = "id@channels.channel_configuration"
         form_class = KannelClaimForm
 
@@ -1530,6 +1535,7 @@ class ChannelCRUDL(SmartCRUDL):
                                          help_text=_("The Service ID provided by Macrokiosk to use their API"))
 
         title = _("Connect Macrokiosk")
+        permission = 'channels.channel_claim'
         success_url = "id@channels.channel_configuration"
         form_class = MacrokioskClaimForm
 
@@ -1598,6 +1604,7 @@ class ChannelCRUDL(SmartCRUDL):
                                        help_text=_("What HTTP method to use when calling the URL"))
 
         title = "Connect External Service"
+        permission = 'channels.channel_claim'
         success_url = "id@channels.channel_configuration"
 
         def derive_initial(self):
@@ -1687,6 +1694,7 @@ class ChannelCRUDL(SmartCRUDL):
         title = "Connect External Service"
         fields = ('country', 'number', 'username', 'password')
         form_class = AEClaimForm
+        permission = 'channels.channel_claim'
         success_url = "id@channels.channel_configuration"
         channel_type = "AE"
         template_name = 'channels/channel_claim_authenticated.html'
@@ -1859,6 +1867,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         title = _("Claim Telegram")
         form_class = TelegramForm
+        permission = 'channels.channel_claim'
         success_url = 'uuid@channels.channel_read'
         submit_button_name = _("Connect Telegram Bot")
 
@@ -2132,6 +2141,7 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Connect Africa's Talking Account")
         fields = ('shortcode', 'country', 'is_shared', 'username', 'api_key')
         form_class = ATClaimForm
+        permission = 'channels.channel_claim'
         success_url = "id@channels.channel_configuration"
 
         def form_valid(self, form):
@@ -2156,6 +2166,7 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Add Twilio Messaging Service Channel")
         fields = ('country', 'messaging_service_sid')
         form_class = TwilioMessagingServiceForm
+        permission = 'channels.channel_claim'
         success_url = "id@channels.channel_configuration"
 
         def __init__(self, *args):
@@ -2208,6 +2219,7 @@ class ChannelCRUDL(SmartCRUDL):
             account_token = forms.CharField(max_length=64, required=False, help_text=_("The Account Token to use to authenticate to the TwiML REST API"), widget=forms.TextInput(attrs={'autocomplete': 'off'}))
 
         title = _("Connect TwiML REST API")
+        permission = 'channels.channel_claim'
         success_url = "id@channels.channel_configuration"
         form_class = TwimlApiClaimForm
 
@@ -2278,10 +2290,10 @@ class ChannelCRUDL(SmartCRUDL):
             return context
 
     class ClaimAndroid(OrgPermsMixin, SmartFormView):
-        title = _("Register Android Phone")
         fields = ('claim_code', 'phone_number')
         form_class = ClaimAndroidForm
-        title = _("Claim Channel")
+        title = _("Connect Android Channel")
+        permission = 'channels.channel_claim'
 
         def get_form_kwargs(self):
             kwargs = super(ChannelCRUDL.ClaimAndroid, self).get_form_kwargs()
@@ -2331,6 +2343,7 @@ class ChannelCRUDL(SmartCRUDL):
             return org
 
     class ClaimTwitter(OrgPermsMixin, SmartTemplateView):
+        permission = 'channels.channel_claim'
 
         def pre_process(self, *args, **kwargs):
             response = super(ChannelCRUDL.ClaimTwitter, self).pre_process(*args, **kwargs)
@@ -2390,6 +2403,7 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = ClaimFcmForm
         fields = ('title', 'key', 'send_notification',)
         title = _("Connect Firebase Cloud Messaging")
+        permission = 'channels.channel_claim'
         success_url = "id@channels.channel_configuration"
 
         def form_valid(self, form):
@@ -2415,6 +2429,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         form_class = JiochatForm
         fields = ('app_id', 'app_secret')
+        permission = 'channels.channel_claim'
 
         def form_valid(self, form):
             super(ChannelCRUDL.ClaimJiochat, self).form_valid(form)
@@ -2445,6 +2460,7 @@ class ChannelCRUDL(SmartCRUDL):
                 return token
 
         form_class = FacebookForm
+        permission = 'channels.channel_claim'
 
         def form_valid(self, form):
             super(ChannelCRUDL.ClaimFacebook, self).form_valid(form)
@@ -2503,6 +2519,7 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = LineForm
         title = _("Line Channel")
         fields = ('channel_secret', 'channel_access_token')
+        permission = 'channels.channel_claim'
         success_url = "id@channels.channel_configuration"
 
         def form_valid(self, form):
@@ -2625,6 +2642,7 @@ class ChannelCRUDL(SmartCRUDL):
                 return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
 
         form_class = ClaimNumberForm
+        permission = 'channels.channel_claim'
 
         def pre_process(self, *args, **kwargs):  # pragma: needs cover
             org = self.request.user.get_org()
