@@ -773,7 +773,8 @@ class Msg(models.Model):
         """
         Processes a message, running it through all our handlers
         """
-        from temba.orgs.models import ORG_CHATBASE_LOG_CACHE_KEY
+        from temba.orgs.models import CHATBASE_TYPE_USER
+
         handlers = get_message_handlers()
 
         if msg.contact.is_blocked:
@@ -800,15 +801,22 @@ class Msg(models.Model):
 
         cls.mark_handled(msg)
 
+        # Chatbase parameters to track logs
+        chatbase_not_handled = True
+        chatbase_intent = None
+
         # if this is an inbox message, increment our unread inbox count
         if msg.msg_type == INBOX:
             msg.org.increment_unread_msg_count(UNREAD_INBOX_MSGS)
         elif msg.msg_type == FLOW:
-            key = ORG_CHATBASE_LOG_CACHE_KEY % (msg.org_id, msg.id)
-            chatbase_log = cache.get(key)
-            chatbase_log = json_to_dict(chatbase_log)
-            chatbase_log['not_handled'] = False
-            cache.set(key, dict_to_json(chatbase_log), timeout=300)
+            chatbase_not_handled = False
+            chatbase_intent = None
+
+        # Registering data to send to Chatbase API later
+        org = msg.org
+        if org.is_connected_to_chatbase():
+            Org.queue_chatbase_log(org_id=org.id, channel_name=msg.channel.name, text=msg.text, type=CHATBASE_TYPE_USER,
+                                   contact_id=msg.contact.id, not_handled=chatbase_not_handled, intent=chatbase_intent)
 
         # record our handling latency for this object
         if msg.queued_on:
@@ -1199,7 +1207,6 @@ class Msg(models.Model):
                         status=PENDING, attachments=None, msg_type=None, topup=None, external_id=None, session=None):
 
         from temba.api.models import WebHookEvent
-        from temba.orgs.models import CHATBASE_TYPE_USER
         if not org and channel:
             org = channel.org
 
@@ -1277,12 +1284,6 @@ class Msg(models.Model):
 
             # fire an event off for this message
             WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, date)
-
-        # Registering data to send to Chatbase API later
-        if org.is_connected_to_chatbase():
-            config = org.config_json()
-            Org.queue_chatbase_log(org_id=org.id, channel_name=channel.name, text=msg.text, contact_id=contact.id,
-                                   type=CHATBASE_TYPE_USER, not_handled=True)
 
         return msg
 

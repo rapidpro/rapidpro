@@ -1943,7 +1943,7 @@ class Org(SmartModel):
         return getattr(user, '_org', None)
 
     @staticmethod
-    def queue_chatbase_log(org_id, channel_name, text, contact_id, type, not_handled):
+    def queue_chatbase_log(org_id, channel_name, text, contact_id, type, not_handled, intent=None):
         if not settings.SEND_CHATBASE:
             raise Exception("!! Skipping Chatbase request, SEND_CHATBASE set to False")
 
@@ -1954,8 +1954,11 @@ class Org(SmartModel):
                         message=text,
                         time_stamp=int(time.time()))
 
+            if intent:
+                data.update(dict(intent=intent))
+
             if type == CHATBASE_TYPE_USER and not_handled:
-                data.update(dict(not_handled=True))
+                data.update(dict(not_handled=not_handled))
 
             key = ORG_CHATBASE_LOG_CACHE_KEY % org_id
             cached = cache.get(key, None)
