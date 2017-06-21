@@ -12,6 +12,7 @@ import six
 import stripe
 import traceback
 import time
+import requests
 
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -1974,6 +1975,22 @@ class Org(SmartModel):
             import traceback
             traceback.print_exc(e)
             raise Exception("Error: %s" % e.args)
+
+    def send_messages_to_chatbase(self, messages):
+        from temba.channels.models import TEMBA_HEADERS
+
+        for message in messages:
+            message['api_key'] = self.config_json()[CHATBASE_API_KEY]
+
+            if CHATBASE_VERSION in self.config_json():
+                message['version'] = self.config_json()[CHATBASE_VERSION]
+
+        payload = dict(messages=messages)
+        payload = json.dumps(payload)
+
+        headers = {'Content-Type': 'application/json'}
+        headers.update(TEMBA_HEADERS)
+        requests.post(settings.CHATBASE_API_URL, data=payload, headers=headers)
 
     def __str__(self):
         return self.name
