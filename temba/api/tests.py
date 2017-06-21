@@ -19,7 +19,7 @@ from temba.msgs.models import Broadcast, FAILED
 from temba.orgs.models import ALL_EVENTS
 from temba.tests import MockResponse, TembaTest
 from urlparse import parse_qs
-from ..models import APIToken, WebHookEvent, WebHookResult
+from temba.api.models import APIToken, WebHookEvent, WebHookResult
 
 
 class APITokenTest(TembaTest):

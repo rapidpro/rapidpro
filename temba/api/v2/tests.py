@@ -27,9 +27,9 @@ from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
 from urllib import quote_plus
-from ..models import APIToken, Resthook, WebHookEvent
-from ..v2 import fields
-from ..v2.serializers import format_datetime
+from temba.api.models import APIToken, Resthook, WebHookEvent
+from . import fields
+from .serializers import format_datetime
 
 
 NUM_BASE_REQUEST_QUERIES = 7  # number of db queries required for any API request
