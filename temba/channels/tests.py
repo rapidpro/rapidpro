@@ -2071,6 +2071,56 @@ class ChannelTest(TembaTest):
                 self.assertEqual(config['oauth_token'], 'defgh')
                 self.assertEqual(config['oauth_token_secret'], '45678')
 
+    @patch('temba.utils.twitter.TembaTwython.subscribe_to_webhook')
+    @patch('temba.utils.twitter.TembaTwython.register_webhook')
+    @patch('twython.Twython.verify_credentials')
+    def test_claim_twitter_beta(self, mock_verify_credentials, mock_register_webhook, mock_subscribe_to_webhook):
+        self.login(self.admin)
+
+        claim_url = reverse('channels.channel_claim_twitter_beta')
+
+        response = self.client.get(claim_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context['form'].fields.keys()),
+                         ['api_key', 'api_secret', 'access_token', 'access_token_secret', 'loc'])
+
+        # try submitting empty form
+        response = self.client.post(claim_url, {})
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, 'form', 'api_key', "This field is required.")
+        self.assertFormError(response, 'form', 'api_secret', "This field is required.")
+        self.assertFormError(response, 'form', 'access_token', "This field is required.")
+        self.assertFormError(response, 'form', 'access_token_secret', "This field is required.")
+
+        # try submitting with invalid credentials
+        mock_verify_credentials.side_effect = TwythonError("Invalid credentials")
+
+        response = self.client.post(claim_url, {'api_key': 'ak', 'api_secret': 'as', 'access_token': 'at', 'access_token_secret': 'ats'})
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, 'form', None, "The provided Twitter credentials do not appear to be valid.")
+
+        # try submitting for handle which already has a channel
+        mock_verify_credentials.side_effect = None
+        mock_verify_credentials.return_value = {'id': '345678', 'screen_name': "billy_bob"}
+
+        response = self.client.post(claim_url, {'api_key': 'ak', 'api_secret': 'as', 'access_token': 'at', 'access_token_secret': 'ats'})
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, 'form', None, "A Twitter channel already exists for that handle.")
+
+        # try a valid submission
+        mock_verify_credentials.return_value = {'id': '87654', 'screen_name': "jimmy"}
+        mock_register_webhook.return_value = {'id': "1234567"}
+
+        response = self.client.post(claim_url, {'api_key': 'ak', 'api_secret': 'as', 'access_token': 'at', 'access_token_secret': 'ats'})
+        self.assertEqual(response.status_code, 302)
+
+        channel = Channel.objects.get(address='jimmy')
+        self.assertEqual(json.loads(channel.config), {'handle_id': '87654', 'api_key': 'ak', 'api_secret': 'as',
+                                                      'access_token': 'at', 'access_token_secret': 'ats'})
+
+        mock_register_webhook.assert_called_once_with('https://temba.ngrok.io/handlers/twitter/%s' % channel.uuid)
+        mock_subscribe_to_webhook.assert_called_once_with("1234567")
+
     def test_claim_line(self):
 
         # disassociate all of our channels

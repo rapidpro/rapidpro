@@ -1,14 +1,19 @@
--extends "smartmin/base.html"
+-extends "smartmin/form.html"
 -load i18n compress temba
 
 -block title
   .medium-help.icon-twitter.float-left
 
   %h2.font_normalize.header-margin
-    -trans "Connect Twitter"
+    -trans "Connect Twitter Beta"
 
--block content
+-block pre-form
   .info
+    .important
+      %p
+        This channel type uses the new <a href="https://dev.twitter.com/webhooks/account-activity">Twitter Activity API</a> which is
+        still in beta. If your Twitter account has not been granted access to this API, then you can still
+        <a href="{% url 'channels.channel_claim_twitter' %}">add a regular Twitter channel</a>.
     %p
       -blocktrans with name=brand.name
         After connecting your account, any incoming direct messages will automatically be read by {{ name }},
@@ -31,12 +36,6 @@
 
       %p
         <img src="{{STATIC_URL}}images/twitter_settings.png"/>
-
-    %a.btn.btn-primary{href:"{{ twitter_auth_url }}", style:"margin-right: 5px"}
-      -trans "Authorize"
-
-    %a.btn{href:"{% url 'channels.channel_claim' %}"}
-      -trans "Cancel"
 
 -block extra-style
   {{ block.super }}

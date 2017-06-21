@@ -730,7 +730,7 @@ class Channel(TembaModel):
         return Channel.create(org, user, None, Channel.TYPE_LINE, name=name, address=channel_mid, config={Channel.CONFIG_AUTH_TOKEN: channel_access_token, Channel.CONFIG_CHANNEL_ID: channel_id, Channel.CONFIG_CHANNEL_SECRET: channel_secret, Channel.CONFIG_CHANNEL_MID: channel_mid})
 
     @classmethod
-    def add_twitter_channel_legacy(cls, org, user, screen_name, handle_id, oauth_token, oauth_token_secret):
+    def add_twitter_channel(cls, org, user, screen_name, handle_id, oauth_token, oauth_token_secret):
         config = dict(handle_id=int(handle_id), oauth_token=oauth_token, oauth_token_secret=oauth_token_secret)
 
         with org.lock_on(OrgLock.channels):
@@ -750,33 +750,29 @@ class Channel(TembaModel):
         return channel
 
     @classmethod
-    def add_twitter_channel(cls, org, user, api_key, api_secret, access_token, access_token_secret):
+    def add_twitter_beta_channel(cls, org, user, api_key, api_secret, access_token, access_token_secret):
         twitter = TembaTwython(api_key, api_secret, access_token, access_token_secret)
         account_info = twitter.verify_credentials()
         handle_id = account_info['id']
         screen_name = account_info['screen_name']
 
-        config = dict(handle_id=handle_id,
-                      api_key=api_key, api_secret=api_secret,
-                      access_token=access_token, access_token_secret=access_token_secret)
+        config = {
+            'handle_id': handle_id,
+            'api_key': api_key,
+            'api_secret': api_secret,
+            'access_token': access_token,
+            'access_token_secret': access_token_secret
+        }
 
         with org.lock_on(OrgLock.channels):
-            channel = Channel.objects.filter(org=org, channel_type=Channel.TYPE_TWITTER, address=screen_name,
-                                             is_active=True).first()
-            if channel:
-                channel.config = json.dumps(config)
-                channel.modified_by = user
-                channel.save()
-            else:
-                channel = Channel.create(org, user, None, Channel.TYPE_TWITTER, name="@%s" % screen_name,
-                                         address=screen_name, config=config)
+            channel = Channel.create(org, user, None, Channel.TYPE_TWITTER, name="@%s" % screen_name, address=screen_name, config=config)
 
-                def register_webook(ch):
-                    callback_url = 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.twitter_handler', args=[ch.uuid]))
-                    webhook = twitter.register_webook(callback_url)
-                    twitter.subscribe_to_webhook(webhook['id'])
+            def register_webook():
+                callback_url = 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.twitter_handler', args=[channel.uuid]))
+                webhook = twitter.register_webhook(callback_url)
+                twitter.subscribe_to_webhook(webhook['id'])
 
-                on_transaction_commit(lambda: register_webook(channel))
+            on_transaction_commit(register_webook)
 
         return channel
 
