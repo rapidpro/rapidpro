@@ -26,7 +26,7 @@ def migrate_twilio_app(channel):
     new_voice_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['voice', channel.uuid])
 
     new_app = client.applications.create(
-        friendly_name="%s/%d" % (settings.TEMBA_HOST.lower(), channel.uuid),
+        friendly_name="%s/%s" % (settings.TEMBA_HOST.lower(), channel.uuid),
         sms_url=new_receive_url,
         sms_method="POST",
         voice_url=new_voice_url,
@@ -64,7 +64,7 @@ def migrate_all_twilio_apps(Channel):
     """
     Migrates all active Twilio channels to use channel specific TwiML apps with new channel-specific endpoints
     """
-    twilio_channels = list(Channel.objects.filter(channel_type='TW', is_active=True).exclude(org=None).select_related('org'))
+    twilio_channels = list(Channel.objects.filter(channel_type='T', is_active=True).exclude(org=None).select_related('org'))
 
     if twilio_channels:
         print("Fetched %d Twilio channels to migrate apps for..." % len(twilio_channels))
@@ -83,7 +83,7 @@ def migrate_all_twilio_apps(Channel):
 
             migrate_twilio_app(channel)
 
-            print(" > Migrated channel %s for org '%s' (%d/%d)" % (channel.uuid, channel.org.name, c, len(twilio_channels)))
+            print(" > Migrated channel %s for org '%s' (%d/%d)" % (channel.uuid, channel.org.name, (c + 1), len(twilio_channels)))
         except Exception as e:
             print(" ! Error occurred migrating app for channel %s: %s" % (channel.uuid, six.text_type(e)))
 
