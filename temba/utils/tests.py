@@ -4,6 +4,8 @@ from __future__ import absolute_import, unicode_literals
 
 import datetime
 import json
+
+import pycountry
 import pytz
 import six
 import time
@@ -1105,6 +1107,12 @@ class CurrencyTest(TembaTest):
         self.assertEqual(currency_for_country('DE').alpha_3, 'EUR')
         self.assertEqual(currency_for_country('YE').alpha_3, 'YER')
         self.assertEqual(currency_for_country('AF').alpha_3, 'AFN')
+
+        for country in list(pycountry.countries):
+            try:
+                currency_for_country(country.alpha_2)
+            except KeyError:
+                self.fail('Country missing currency: %s' % country)
 
 
 class VoiceXMLTest(TembaTest):
