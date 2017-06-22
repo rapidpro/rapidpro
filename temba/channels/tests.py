@@ -2070,6 +2070,16 @@ class ChannelTest(TembaTest):
     def test_claim_twitter_beta(self, mock_verify_credentials, mock_register_webhook, mock_subscribe_to_webhook):
         self.login(self.admin)
 
+        claim_url = reverse('channels.channel_claim')
+
+        response = self.client.get(claim_url)
+        self.assertNotContains(response, 'claim_twitter_beta')
+
+        Group.objects.get(name="Beta").user_set.add(self.admin)
+
+        response = self.client.get(claim_url)
+        self.assertContains(response, 'claim_twitter_beta')
+
         claim_url = reverse('channels.channel_claim_twitter_beta')
 
         response = self.client.get(claim_url)
