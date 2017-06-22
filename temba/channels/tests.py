@@ -8217,20 +8217,19 @@ class TwitterTest(TembaTest):
 
         self.channel.delete()
 
-        # a new style Twitter channel configured for the Webhooks API
-        self.twitter = Channel.create(self.org, self.user, None, 'TT', None, 'cuenca_facts',
-                                      config={'handle_id': 10001,
-                                              'api_key': 'APIKEY',
-                                              'api_secret': 'APISECRET',
-                                              'access_token': 'abcdefghijklmnopqrstuvwxyz',
-                                              'access_token_secret': '0123456789'},
-                                      uuid='00000000-0000-0000-0000-000000001234')
-
         # an old style Twitter channel which would use Mage for receiving messages
-        self.twitter_legacy = Channel.create(self.org, self.user, None, 'TT', None, 'billy_bob',
-                                             config={'oauth_token': 'abcdefghijklmnopqrstuvwxyz',
-                                                     'oauth_token_secret': '0123456789'},
-                                             uuid='00000000-0000-0000-0000-000000002345')
+        self.twitter = Channel.create(self.org, self.user, None, 'TT', None, 'billy_bob',
+                                      config={'oauth_token': 'abcdefghijklmnopqrstuvwxyz', 'oauth_token_secret': '0123456789'},
+                                      uuid='00000000-0000-0000-0000-000000002345')
+
+        # a new style Twitter channel configured for the Webhooks API
+        self.twitter_beta = Channel.create(self.org, self.user, None, 'TT', None, 'cuenca_facts',
+                                           config={'handle_id': 10001,
+                                                   'api_key': 'APIKEY',
+                                                   'api_secret': 'APISECRET',
+                                                   'access_token': 'abcdefghijklmnopqrstuvwxyz',
+                                                   'access_token_secret': '0123456789'},
+                                           uuid='00000000-0000-0000-0000-000000001234')
 
         self.joe = self.create_contact("Joe", twitter='joe81')
 
@@ -8265,6 +8264,15 @@ class TwitterTest(TembaTest):
             }
         }
 
+    def test_crc_check(self):
+        # try requesting from a non-existent channel
+        response = self.client.get(reverse('handlers.twitter_handler', args=['xyz']) + '?crc_token=123456')
+        self.assertEqual(response.status_code, 400)
+
+        response = self.client.get(reverse('handlers.twitter_handler', args=[self.twitter_beta.uuid]) + '?crc_token=123456')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'response_token': generate_twitter_signature('123456', 'APISECRET')})
+
     def test_receive(self):
         data = self.webhook_payload('ext1', "Thanks for the info!",
                                     dict(id='10002', name="Joe", screen_name="joe81"),
@@ -8275,10 +8283,10 @@ class TwitterTest(TembaTest):
         self.assertEqual(response.status_code, 400)
 
         # try sending with an invalid request signature
-        response = self.signed_request(reverse('handlers.twitter_handler', args=[self.twitter.uuid]), data, api_secret='XYZ')
+        response = self.signed_request(reverse('handlers.twitter_handler', args=[self.twitter_beta.uuid]), data, api_secret='XYZ')
         self.assertEqual(response.status_code, 400)
 
-        response = self.signed_request(reverse('handlers.twitter_handler', args=[self.twitter.uuid]), data)
+        response = self.signed_request(reverse('handlers.twitter_handler', args=[self.twitter_beta.uuid]), data)
         self.assertEqual(response.status_code, 200)
 
         msg = Msg.objects.get()
@@ -8291,7 +8299,7 @@ class TwitterTest(TembaTest):
         data = self.webhook_payload('ext2', "It rains a lot in Cuenca",
                                     dict(id='10001', name="Cuenca Facts", screen_name="cuenca_facts"),
                                     dict(id='10002', name="Joe", screen_name="joe81"))
-        response = self.signed_request(reverse('handlers.twitter_handler', args=[self.twitter.uuid]), data)
+        response = self.signed_request(reverse('handlers.twitter_handler', args=[self.twitter_beta.uuid]), data)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Msg.objects.count(), 1)
