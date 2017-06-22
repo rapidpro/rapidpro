@@ -7002,13 +7002,6 @@ class TwilioTest(TembaTest):
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("Hello World", msg1.text)
 
-    def test_receive_old_url(self):
-        post_data = dict(To=self.channel.address, From='+250788383383', Body="Hey there")
-        self.signed_request('/handlers/twilio/', post_data)
-        msg = Msg.objects.get()
-        self.assertEqual(msg.text, "Hey there")
-        self.assertEqual(msg.channel, self.channel)
-
     def test_send(self):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
         org_config = self.org.config_json()
@@ -7063,17 +7056,6 @@ class TwilioTest(TembaTest):
 
                     msg.status = WIRED
                     msg.save()
-
-                    # check status can also be updated via on old style URL
-                    callback_url = "https://%s/handlers/twilio/?action=callback&id=%d" % (settings.TEMBA_HOST, msg.id)
-                    validator = RequestValidator(client.auth[1])
-                    post_data = dict(SmsStatus='delivered', To='+250788383383')
-                    signature = validator.compute_signature(callback_url, post_data)
-                    response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
-
-                    self.assertEquals(response.status_code, 200)
-                    msg.refresh_from_db()
-                    self.assertEquals(msg.status, DELIVERED)
 
                     # simulate Twilio failing to send the message
                     mock.side_effect = Exception("Request Timeout")

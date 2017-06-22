@@ -1,7 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 from django.conf.urls import url, include
-from .handlers import TwilioHandler, VerboiceHandler, AfricasTalkingHandler, ZenviaHandler, M3TechHandler
+from .handlers import VerboiceHandler, AfricasTalkingHandler, ZenviaHandler, M3TechHandler
 from .handlers import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHandler, Hub9Handler, VumiHandler
 from .handlers import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
 from .handlers import SMSCentralHandler, MageHandler, YoHandler, get_channel_handlers
@@ -14,11 +14,6 @@ for handler in get_channel_handlers():
     handler_urls.append(url(rel_url, handler.as_view(), name=url_name))
 
 
-# TODO migrate all TwiML apps to use channel specific endpoints. Until that's complete, allow Twilio messages to be
-# received on the old non-channel specific endpoint
-handler_urls.append(url('^twilio/$', TwilioHandler.as_view()))
-
-
 urlpatterns = [
     url(r'^', include(ChannelEventCRUDL().as_urlpatterns())),
 
@@ -28,7 +23,6 @@ urlpatterns = [
 
     # for backwards compatibility these channel handlers are exposed at /api/v1 as well
     url(r'^api/v1/', include([
-        url(r'^twilio/$', TwilioHandler.as_view()),
         url(r'^verboice/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', VerboiceHandler.as_view()),
         url(r'^africastalking/(?P<action>delivery|callback)/(?P<uuid>[a-z0-9\-]+)/$', AfricasTalkingHandler.as_view()),
         url(r'^zenvia/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$', ZenviaHandler.as_view()),

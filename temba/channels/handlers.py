@@ -91,6 +91,7 @@ class TwimlAPIHandler(BaseChannelHandler):
         signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
         url = "https://" + settings.TEMBA_HOST + "%s" % request.get_full_path()
 
+        channel_uuid = kwargs.get('uuid')
         call_sid = self.get_param('CallSid')
         direction = self.get_param('Direction')
         status = self.get_param('CallStatus')
@@ -106,7 +107,7 @@ class TwimlAPIHandler(BaseChannelHandler):
         if to_number and call_sid and direction == 'inbound' and status == 'ringing':
 
             # find a channel that knows how to answer twilio calls
-            channel = self.get_ringing_channel(to_number=to_number)
+            channel = self.get_ringing_channel(uuid=channel_uuid)
             if not channel:
                 response = twiml.Response()
                 response.say('Sorry, there is no channel configured to take this call. Goodbye.')
@@ -164,7 +165,6 @@ class TwimlAPIHandler(BaseChannelHandler):
                     return HttpResponse(six.text_type(response))
 
         action = request.GET.get('action', 'received')
-        channel_uuid = kwargs.get('uuid')
 
         # check for call progress events, these include post-call hangup notifications
         if request.POST.get('CallbackSource', None) == 'call-progress-events':
@@ -220,7 +220,7 @@ class TwimlAPIHandler(BaseChannelHandler):
             if not to_number:
                 return HttpResponse("Must provide To number for received messages", status=400)
 
-            channel = self.get_receive_channel(channel_uuid=channel_uuid, to_number=to_number)
+            channel = self.get_receive_channel(uuid=channel_uuid)
             if not channel:
                 return HttpResponse("No active channel found for number: %s" % to_number, status=400)
 
@@ -250,13 +250,11 @@ class TwimlAPIHandler(BaseChannelHandler):
 
         return HttpResponse("Not Handled, unknown action", status=400)  # pragma: no cover
 
-    def get_ringing_channel(self, to_number):
-        return Channel.objects.filter(address=to_number, channel_type=self.get_channel_type(), role__contains='A', is_active=True).exclude(org=None).first()
+    def get_ringing_channel(self, uuid):
+        return Channel.objects.filter(uuid=uuid, channel_type=self.get_channel_type(), role__contains='A', is_active=True).exclude(org=None).first()
 
-    def get_receive_channel(self, channel_uuid=None, to_number=None):
-        channels = Channel.objects.filter(is_active=True, channel_type=self.get_channel_type()).exclude(org=None)
-        match = dict(uuid=channel_uuid) if channel_uuid else dict(address=to_number)
-        return channels.filter(**match).first()
+    def get_receive_channel(self, uuid=None):
+        return Channel.objects.filter(uuid=uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
 
     def get_client(self, channel):
         if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
