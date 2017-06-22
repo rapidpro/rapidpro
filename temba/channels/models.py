@@ -770,15 +770,14 @@ class Channel(TembaModel):
             'access_token_secret': access_token_secret
         }
 
-        with org.lock_on(OrgLock.channels):
-            channel = Channel.create(org, user, None, Channel.TYPE_TWITTER, name="@%s" % screen_name, address=screen_name, config=config)
+        channel = Channel.create(org, user, None, Channel.TYPE_TWITTER, name="@%s" % screen_name, address=screen_name, config=config)
 
-            def register_webook():
-                callback_url = 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.twitter_handler', args=[channel.uuid]))
-                webhook = twitter.register_webhook(callback_url)
-                twitter.subscribe_to_webhook(webhook['id'])
+        def register_webook():
+            callback_url = 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.twitter_handler', args=[channel.uuid]))
+            webhook = twitter.register_webhook(callback_url)
+            twitter.subscribe_to_webhook(webhook['id'])
 
-            on_transaction_commit(register_webook)
+        on_transaction_commit(register_webook)
 
         return channel
 
