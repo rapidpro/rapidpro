@@ -1192,7 +1192,6 @@ class ChannelTest(TembaTest):
         # should be added with RW as the country
         self.assertTrue(Channel.objects.get(address='+250788382382', country='RW', org=self.org))
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_claim_twilio(self):
@@ -1206,12 +1205,8 @@ class ChannelTest(TembaTest):
         self.assertContains(response, "Twilio")
         self.assertContains(response, reverse('orgs.org_twilio_connect'))
 
-        twilio_config = dict()
-        twilio_config[ACCOUNT_SID] = 'account-sid'
-        twilio_config[ACCOUNT_TOKEN] = 'account-token'
-        twilio_config[APPLICATION_SID] = 'TwilioTestSid'
-
-        self.org.config = json.dumps(twilio_config)
+        # attach a Twilio accont to the org
+        self.org.config = json.dumps({ACCOUNT_SID: 'account-sid', ACCOUNT_TOKEN: 'account-token'})
         self.org.save()
 
         # hit the claim page, should now have a claim twilio link
@@ -1220,7 +1215,7 @@ class ChannelTest(TembaTest):
         self.assertContains(response, claim_twilio)
 
         response = self.client.get(claim_twilio)
-        self.assertTrue('account_trial' in response.context)
+        self.assertIn('account_trial', response.context)
         self.assertFalse(response.context['account_trial'])
 
         with patch('temba.orgs.models.Org.get_twilio_client') as mock_get_twilio_client:
@@ -1238,7 +1233,7 @@ class ChannelTest(TembaTest):
             mock_get.return_value = MockTwilioClient.MockAccount('Trial')
 
             response = self.client.get(claim_twilio)
-            self.assertTrue('account_trial' in response.context)
+            self.assertIn('account_trial', response.context)
             self.assertTrue(response.context['account_trial'])
 
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.search') as mock_search:
@@ -1374,7 +1369,6 @@ class ChannelTest(TembaTest):
                 self.assertEqual(mock_numbers.call_args_list[-1][1], dict(voice_application_sid='',
                                                                           sms_application_sid=''))
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_claim_twilio_messaging_service(self):
@@ -1436,7 +1430,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(channel.channel_type, "TMS")
         self.assertEqual(channel.config_json(), dict(messaging_service_sid="MSG-SERVICE-SID"))
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_claim_twiml_api(self):
@@ -6792,7 +6785,6 @@ class TwilioTest(TembaTest):
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + url, data)
         return self.client.post(url, data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_receive_media(self):
@@ -6800,11 +6792,11 @@ class TwilioTest(TembaTest):
                          NumMedia='1', MediaUrl0='https://yourimage.io/IMPOSSIBLE-HASH',
                          MediaContentType0='audio/x-wav')
 
-        twilio_url = reverse('handlers.twilio_handler')
+        twilio_url = reverse('handlers.twilio_handler', args=['receive', self.channel.uuid])
 
         client = self.org.get_twilio_client()
         validator = RequestValidator(client.auth[1])
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
+        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + twilio_url, post_data)
 
         with patch('requests.get') as response:
             mock = MockResponse(200, 'Fake Recording Bits')
@@ -6860,13 +6852,13 @@ class TwilioTest(TembaTest):
 
     def test_receive_base64(self):
         post_data = dict(To=self.channel.address, From='+250788383383', Body="QmFubm9uIEV4cGxhaW5zIFRoZSBXb3JsZCAuLi4K4oCcVGhlIENhbXAgb2YgdGhlIFNhaW50c+KA\r")
-        twilio_url = reverse('handlers.twilio_handler')
+        twilio_url = reverse('handlers.twilio_handler', args=['receive', self.channel.uuid])
         self.signed_request(twilio_url, post_data)
         self.assertIsNotNone(Msg.objects.filter(text__contains='Bannon Explains').first())
 
     def test_receive(self):
         post_data = dict(To=self.channel.address, From='+250788383383', Body="Hello World")
-        twilio_url = reverse('handlers.twilio_handler')
+        twilio_url = reverse('handlers.twilio_handler', args=['receive', self.channel.uuid])
 
         response = self.client.post(twilio_url, post_data)
         self.assertEqual(response.status_code, 400)
@@ -7010,6 +7002,13 @@ class TwilioTest(TembaTest):
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("Hello World", msg1.text)
 
+    def test_receive_old_url(self):
+        post_data = dict(To=self.channel.address, From='+250788383383', Body="Hey there")
+        self.signed_request('/handlers/twilio/', post_data)
+        msg = Msg.objects.get()
+        self.assertEqual(msg.text, "Hey there")
+        self.assertEqual(msg.channel, self.channel)
+
     def test_send(self):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
         org_config = self.org.config_json()
@@ -7049,7 +7048,7 @@ class TwilioTest(TembaTest):
                     self.clear_cache()
 
                     # handle the status callback
-                    callback_url = Channel.build_twilio_callback_url(msg.pk)
+                    callback_url = Channel.build_twilio_callback_url(self.channel.uuid, msg.id)
 
                     client = self.org.get_twilio_client()
                     validator = RequestValidator(client.auth[1])
@@ -7062,6 +7061,21 @@ class TwilioTest(TembaTest):
                     msg.refresh_from_db()
                     self.assertEquals(msg.status, DELIVERED)
 
+                    msg.status = WIRED
+                    msg.save()
+
+                    # check status can also be updated via on old style URL
+                    callback_url = "https://%s/handlers/twilio/?action=callback&id=%d" % (settings.TEMBA_HOST, msg.id)
+                    validator = RequestValidator(client.auth[1])
+                    post_data = dict(SmsStatus='delivered', To='+250788383383')
+                    signature = validator.compute_signature(callback_url, post_data)
+                    response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+                    self.assertEquals(response.status_code, 200)
+                    msg.refresh_from_db()
+                    self.assertEquals(msg.status, DELIVERED)
+
+                    # simulate Twilio failing to send the message
                     mock.side_effect = Exception("Request Timeout")
 
                     # manually send it off
@@ -7141,7 +7155,7 @@ class TwilioTest(TembaTest):
             self.clear_cache()
 
             # handle the status callback
-            callback_url = Channel.build_twilio_callback_url(msg.pk)
+            callback_url = Channel.build_twilio_callback_url(self.channel.uuid, msg.id)
 
             client = self.org.get_twilio_client()
             validator = RequestValidator(client.auth[1])

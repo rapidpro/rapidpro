@@ -31,7 +31,7 @@ from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
-from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID, NEXMO_APP_ID
+from temba.orgs.models import Org, OrgLock, NEXMO_UUID, NEXMO_APP_ID
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
@@ -42,6 +42,7 @@ from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from temba.utils.twitter import TembaTwython
 from time import sleep
 from twilio import twiml, TwilioRestException
+from uuid import uuid4
 from xml.sax.saxutils import quoteattr, escape
 
 
@@ -583,31 +584,33 @@ class Channel(TembaModel):
     def add_twilio_channel(cls, org, user, phone_number, country, role):
         client = org.get_twilio_client()
         twilio_phones = client.phone_numbers.list(phone_number=phone_number)
+        channel_uuid = uuid4()
 
-        config = org.config_json()
-        application_sid = config.get(APPLICATION_SID)
+        # create new TwiML app
+        new_receive_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['receive', channel_uuid])
+        new_status_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['status', channel_uuid])
+        new_voice_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['voice', channel_uuid])
 
-        # make sure our application id still exists on this account
-        exists = False
-        for app in client.applications.list():
-            if app.sid == application_sid:
-                exists = True
-                break
-
-        if not exists:  # pragma: no cover
-            raise Exception(_("Your Twilio account is no longer connected. "
-                              "First remove your Twilio account, reconnect it and try again."))
+        new_app = client.applications.create(
+            friendly_name="%s/%s" % (settings.TEMBA_HOST.lower(), channel_uuid),
+            sms_url=new_receive_url,
+            sms_method="POST",
+            voice_url=new_voice_url,
+            voice_fallback_url="https://" + settings.AWS_BUCKET_DOMAIN + "/voice_unavailable.xml",
+            voice_fallback_method='GET',
+            status_callback=new_status_url,
+            status_callback_method='POST'
+        )
 
         is_short_code = len(phone_number) <= 6
-
         if is_short_code:
             short_codes = client.sms.short_codes.list(short_code=phone_number)
 
             if short_codes:
                 short_code = short_codes[0]
-                twilio_sid = short_code.sid
-                app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler')
-                client.sms.short_codes.update(twilio_sid, sms_url=app_url)
+                number_sid = short_code.sid
+                app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler', args=['receive', channel_uuid])
+                client.sms.short_codes.update(number_sid, sms_url=app_url, sms_method='POST')
 
                 role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
                 phone = phone_number
@@ -619,20 +622,23 @@ class Channel(TembaModel):
             if twilio_phones:
                 twilio_phone = twilio_phones[0]
                 client.phone_numbers.update(twilio_phone.sid,
-                                            voice_application_sid=application_sid,
-                                            sms_application_sid=application_sid)
+                                            voice_application_sid=new_app.sid,
+                                            sms_application_sid=new_app.sid)
 
             else:  # pragma: needs cover
                 twilio_phone = client.phone_numbers.purchase(phone_number=phone_number,
-                                                             voice_application_sid=application_sid,
-                                                             sms_application_sid=application_sid)
+                                                             voice_application_sid=new_app.sid,
+                                                             sms_application_sid=new_app.sid)
 
             phone = phonenumbers.format_number(phonenumbers.parse(phone_number, None),
                                                phonenumbers.PhoneNumberFormat.NATIONAL)
 
-            twilio_sid = twilio_phone.sid
+            number_sid = twilio_phone.sid
 
-        return Channel.create(org, user, country, Channel.TYPE_TWILIO, name=phone, address=phone_number, role=role, bod=twilio_sid)
+        config = {'application_sid': new_app.sid, 'number_sid': number_sid}
+
+        return Channel.create(org, user, country, Channel.TYPE_TWILIO, name=phone, address=phone_number, role=role,
+                              config=config, uuid=channel_uuid)
 
     @classmethod
     def add_twilio_messaging_service_channel(cls, org, user, messaging_service_sid, country):
@@ -1169,6 +1175,8 @@ class Channel(TembaModel):
         """
         Releases this channel, removing it from the org and making it inactive
         """
+        config = self.config_json()
+
         # release any channels working on our behalf as well
         for delegate_channel in Channel.objects.filter(parent=self, org=self.org):
             delegate_channel.release()
@@ -1198,12 +1206,19 @@ class Channel(TembaModel):
                     number_update_args['voice_application_sid'] = ""
 
                 try:
-                    client.phone_numbers.update(self.bod, **number_update_args)
+                    number_sid = self.bod or self.config_json()['number_sid']
+                    client.phone_numbers.update(number_sid, **number_update_args)
                 except Exception:
                     if client:
                         matching = client.phone_numbers.list(phone_number=self.address)
                         if matching:
                             client.phone_numbers.update(matching[0].sid, **number_update_args)
+
+                if 'application_sid' in config:
+                    try:
+                        client.applications.delete(sid=config['application_sid'])
+                    except TwilioRestException:  # pragma: no cover
+                        pass
 
             # unsubscribe from facebook events for this page
             elif self.channel_type == Channel.TYPE_FACEBOOK:
@@ -1218,7 +1233,6 @@ class Channel(TembaModel):
 
         # save off our org and gcm id before nullifying
         org = self.org
-        config = self.config_json()
         fcm_id = config.pop(Channel.CONFIG_FCM_ID, None)
 
         if fcm_id is not None:
@@ -2660,7 +2674,7 @@ class Channel(TembaModel):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
         from temba.utils.twilio import TembaTwilioRestClient
 
-        callback_url = Channel.build_twilio_callback_url(msg.id)
+        callback_url = Channel.build_twilio_callback_url(channel.uuid, msg.id)
 
         start = time.time()
         media_urls = []
@@ -3176,8 +3190,9 @@ class Channel(TembaModel):
             analytics.gauge('temba.channel_%s_%s' % (status.lower(), channel.channel_type.lower()))
 
     @classmethod
-    def build_twilio_callback_url(cls, sms_id):
-        url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler') + "?action=callback&id=%d" % sms_id
+    def build_twilio_callback_url(cls, channel_uuid, sms_id):
+        url = reverse('handlers.twilio_handler', args=['status', channel_uuid])
+        url = "https://" + settings.TEMBA_HOST + url + "?action=callback&id=%d" % sms_id
         return url
 
     def __str__(self):  # pragma: no cover
