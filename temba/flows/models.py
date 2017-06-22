@@ -4365,6 +4365,8 @@ class FlowStart(SmartModel):
                       (STATUS_COMPLETE, "Complete"),
                       (STATUS_FAILED, "Failed"))
 
+    uuid = models.UUIDField(null=True, default=uuid4)
+
     flow = models.ForeignKey(Flow, related_name='starts', help_text=_("The flow that is being started"))
 
     groups = models.ManyToManyField(ContactGroup, help_text=_("Groups that will start the flow"))
