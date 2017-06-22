@@ -328,6 +328,10 @@ class MsgTest(TembaTest):
 
         self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
 
+        # test that invalid chars are stripped from message text
+        msg5 = Msg.create_incoming(self.channel, "tel:250788382382", "Don't be null!\x00")
+        self.assertEqual(msg5.text, "Don't be null!")
+
     def test_empty(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
         broadcast.send(True)
