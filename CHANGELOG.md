@@ -1,3 +1,8 @@
+v3.0.158
+----------
+ * Add more exception currencies for pycountry
+ * Support channel specific Twilio endpoints
+
 v3.0.156
 ----------
  * Clean up pip-requires and reset pip-freeze
