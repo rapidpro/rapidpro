@@ -759,8 +759,14 @@ class MockTwilioClient(TwilioClient):
         def __init__(self, *args):
             pass
 
+        def create(self, **kwargs):
+            return MockTwilioClient.MockApplication('temba.io/1234')
+
         def list(self, friendly_name=None):
             return [MockTwilioClient.MockApplication(friendly_name)]
+
+        def delete(self, **kwargs):
+            return True
 
     class MockCalls(object):
         def __init__(self):
