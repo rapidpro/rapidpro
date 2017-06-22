@@ -1285,8 +1285,8 @@ class Channel(TembaModel):
         # clear our cache for this channel
         Channel.clear_cached_channel(self.id)
 
-        if notify_mage and self.channel_type == Channel.TYPE_TWITTER:
-            # notify Mage so that it deactivates this channel
+        # if this is an old-style Twitter channel, notify Mage so that it stops streaming for this channel
+        if notify_mage and self.channel_type == Channel.TYPE_TWITTER and ('api_key' not in config):
             from .tasks import MageStreamAction, notify_mage_task
             on_transaction_commit(lambda: notify_mage_task.delay(self.uuid, MageStreamAction.deactivate.name))
 
