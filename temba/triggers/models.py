@@ -267,7 +267,7 @@ class Trigger(SmartModel):
             contact.ensure_unstopped()
             triggers[0].flow.start([], [contact], start_msg=start_msg, restart_participants=True, extra=extra)
 
-        return bool(triggers)
+        return bool(triggers), None
 
     @classmethod
     def find_and_handle(cls, msg):
@@ -275,7 +275,7 @@ class Trigger(SmartModel):
 
         # skip if message doesn't have any words
         if not words:
-            return False
+            return False, None
 
         # skip if message contact is currently active in a flow
         active_run_qs = FlowRun.objects.filter(is_active=True, contact=msg.contact,
@@ -283,7 +283,7 @@ class Trigger(SmartModel):
         active_run = active_run_qs.prefetch_related('steps').order_by("-created_on", "-pk").first()
 
         if active_run and active_run.flow.ignore_triggers and not active_run.is_completed():
-            return False
+            return False, None
 
         # find a matching keyword trigger with an active flow
         trigger = Trigger.objects.filter(org=msg.org, is_archived=False, is_active=True, trigger_type=cls.TYPE_KEYWORD,
@@ -300,7 +300,7 @@ class Trigger(SmartModel):
 
         # if no trigger for contact groups find there is a no group trigger
         if not trigger:
-            return False
+            return False, None
 
         contact = msg.contact
 
@@ -314,7 +314,7 @@ class Trigger(SmartModel):
         # if we have an associated flow, start this contact in it
         trigger.flow.start([], [contact], start_msg=msg, restart_participants=True)
 
-        return True
+        return True, trigger.flow.name
 
     @classmethod
     def find_flow_for_inbound_call(cls, contact):

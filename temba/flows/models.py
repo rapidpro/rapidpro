@@ -586,9 +586,9 @@ class Flow(TembaModel):
                 if not msg.contact.is_test:
                     flow.increment_unread_responses()
 
-                return True, msgs
+                return True, msgs, flow.name
 
-        return False, []
+        return False, [], None
 
     @classmethod
     def handle_destination(cls, destination, step, run, msg,

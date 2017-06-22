@@ -776,6 +776,7 @@ class Msg(models.Model):
         from temba.orgs.models import CHATBASE_TYPE_USER
 
         handlers = get_message_handlers()
+        flow = None
 
         if msg.contact.is_blocked:
             msg.visibility = Msg.VISIBILITY_ARCHIVED
@@ -787,7 +788,7 @@ class Msg(models.Model):
                     if settings.DEBUG:  # pragma: no cover
                         start = time.time()
 
-                    handled = handler.handle(msg)
+                    (handled, flow) = handler.handle(msg)
 
                     if start:  # pragma: no cover
                         print("[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk or 0))
@@ -803,20 +804,18 @@ class Msg(models.Model):
 
         # Chatbase parameters to track logs
         chatbase_not_handled = True
-        chatbase_intent = None
 
         # if this is an inbox message, increment our unread inbox count
         if msg.msg_type == INBOX:
             msg.org.increment_unread_msg_count(UNREAD_INBOX_MSGS)
         elif msg.msg_type == FLOW:
             chatbase_not_handled = False
-            chatbase_intent = None
 
         # Registering data to send to Chatbase API later
         org = msg.org
         if org.is_connected_to_chatbase():
             Org.queue_chatbase_log(org_id=org.id, channel_name=msg.channel.name, text=msg.text, type=CHATBASE_TYPE_USER,
-                                   contact_id=msg.contact.id, not_handled=chatbase_not_handled, intent=chatbase_intent)
+                                   contact_id=msg.contact.id, not_handled=chatbase_not_handled, intent=flow)
 
         # record our handling latency for this object
         if msg.queued_on:

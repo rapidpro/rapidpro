@@ -9,7 +9,8 @@ class TriggerHandler(MessageHandler):
         super(TriggerHandler, self).__init__('triggers')
 
     def handle(self, msg):
-        return Trigger.find_and_handle(msg)
+        (handled, flow) = Trigger.find_and_handle(msg)
+        return handled, flow
 
 
 class CatchAllHandler(MessageHandler):
@@ -17,4 +18,5 @@ class CatchAllHandler(MessageHandler):
         super(CatchAllHandler, self).__init__('triggers')
 
     def handle(self, msg):
-        return Trigger.catch_triggers(msg, Trigger.TYPE_CATCH_ALL, msg.channel)
+        (handled, flow) = Trigger.catch_triggers(msg, Trigger.TYPE_CATCH_ALL, msg.channel)
+        return handled, flow
