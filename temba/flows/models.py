@@ -4365,7 +4365,7 @@ class FlowStart(SmartModel):
                       (STATUS_COMPLETE, "Complete"),
                       (STATUS_FAILED, "Failed"))
 
-    uuid = models.UUIDField(null=True, default=uuid4)
+    uuid = models.UUIDField(unique=True, default=uuid4)
 
     flow = models.ForeignKey(Flow, related_name='starts', help_text=_("The flow that is being started"))
 

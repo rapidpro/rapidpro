@@ -692,7 +692,7 @@ class FlowStartReadSerializer(ReadSerializer):
 
     class Meta:
         model = FlowStart
-        fields = ('id', 'flow', 'status', 'groups', 'contacts', 'restart_participants', 'extra', 'created_on', 'modified_on')
+        fields = ('id', 'uuid', 'flow', 'status', 'groups', 'contacts', 'restart_participants', 'extra', 'created_on', 'modified_on')
 
 
 class FlowStartWriteSerializer(WriteSerializer):

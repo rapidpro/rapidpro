@@ -2558,6 +2558,7 @@ class APITest(TembaTest):
         self.assertResultsById(response, [start2, start1])
         self.assertEqual(response.json()['results'][0], {
             'id': start2.id,
+            'uuid': six.text_type(start2.uuid),
             'flow': {'uuid': flow.uuid, 'name': 'Favorites'},
             'contacts': [
                 {'uuid': self.joe.uuid, 'name': 'Joe Blow'},
@@ -2573,6 +2574,10 @@ class APITest(TembaTest):
             'modified_on': format_datetime(start2.modified_on),
         })
 
-        # check filtering by id
+        # check filtering by UUID (deprecated)
+        response = self.fetchJSON(url, "uuid=%s" % str(start2.uuid))
+        self.assertResultsById(response, [start2])
+
+        # check filtering by id (deprecated)
         response = self.fetchJSON(url, "id=%d" % start2.id)
         self.assertResultsById(response, [start2])
