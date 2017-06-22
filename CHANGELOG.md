@@ -1,3 +1,7 @@
+v3.0.159
+----------
+ * Clean incoming message text to remove invalid chars
+
 v3.0.158
 ----------
  * Add more exception currencies for pycountry
