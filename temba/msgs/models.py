@@ -27,7 +27,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
-from temba.utils import datetime_to_ms, dict_to_json, get_anonymous_user
+from temba.utils import datetime_to_ms, dict_to_json, get_anonymous_user, clean_string
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField
@@ -1225,6 +1225,10 @@ class Msg(models.Model):
         if contact_urn:
             contact_urn.update_affinity(channel)
 
+        # we limit our text message length and remove any invalid chars
+        if text:
+            text = clean_string(text[:cls.MAX_TEXT_LEN])
+
         existing = Msg.objects.filter(text=text, sent_on=date, contact=contact, direction='I').first()
         if existing:
             return existing
@@ -1235,10 +1239,6 @@ class Msg(models.Model):
             topup_id = topup.pk
         elif not contact.is_test:
             (topup_id, amount) = org.decrement_credit()
-
-        # we limit our text message length
-        if text:
-            text = text[:cls.MAX_TEXT_LEN]
 
         now = timezone.now()
 
