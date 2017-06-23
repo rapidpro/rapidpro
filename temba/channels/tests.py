@@ -667,14 +667,11 @@ class ChannelTest(TembaTest):
         postdata['alert_email'] = "bob@example.com"
         postdata['address'] = "billy_bob"
 
-        with patch('temba.utils.mage.MageClient.refresh_twitter_stream') as refresh_twitter_stream:
-            refresh_twitter_stream.return_value = dict()
-
-            self.fetch_protected(update_url, self.user, postdata)
-            channel = Channel.objects.get(pk=self.tel_channel.id)
-            self.assertEquals(channel.name, "Twitter2")
-            self.assertEquals(channel.alert_email, "bob@example.com")
-            self.assertEquals(channel.address, "billy_bob")
+        self.fetch_protected(update_url, self.user, postdata)
+        channel = Channel.objects.get(pk=self.tel_channel.id)
+        self.assertEquals(channel.name, "Twitter2")
+        self.assertEquals(channel.alert_email, "bob@example.com")
+        self.assertEquals(channel.address, "billy_bob")
 
     def test_read(self):
         post_data = dict(cmds=[

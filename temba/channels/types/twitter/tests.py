@@ -3,6 +3,7 @@ from __future__ import unicode_literals, absolute_import
 import json
 
 from django.contrib.auth.models import Group
+from django.test import override_settings
 from django.urls import reverse
 from mock import patch
 from temba.tests import TembaTest
@@ -12,6 +13,8 @@ from ...models import Channel
 
 class TwitterTypeTest(TembaTest):
     def setUp(self):
+        super(TwitterTypeTest, self).setUp()
+
         self.channel = Channel.create(self.org, self.user, None, 'TT', name="Twitter", address="billy_bob",
                                       role="SR", scheme='twitter', config={})
         self.beta_channel = Channel.create(self.org, self.user, None, 'TT', name="Twitter Beta", address="beta_bob",
@@ -23,6 +26,7 @@ class TwitterTypeTest(TembaTest):
                                                    'handle_id': 'h123456',
                                                    'webhook_id': 'wh45678'})
 
+    @override_settings(IS_PROD=True)
     @patch('twython.Twython.get_authentication_tokens')
     @patch('temba.utils.mage.MageClient.activate_twitter_stream')
     @patch('twython.Twython.get_authorized_tokens')
@@ -90,6 +94,7 @@ class TwitterTypeTest(TembaTest):
         self.assertEqual(config['oauth_token'], 'defgh')
         self.assertEqual(config['oauth_token_secret'], '45678')
 
+    @override_settings(IS_PROD=True)
     @patch('temba.utils.twitter.TembaTwython.subscribe_to_webhook')
     @patch('temba.utils.twitter.TembaTwython.register_webhook')
     @patch('twython.Twython.verify_credentials')
@@ -145,11 +150,12 @@ class TwitterTypeTest(TembaTest):
 
         channel = Channel.objects.get(address='jimmy')
         self.assertEqual(json.loads(channel.config), {'handle_id': '87654', 'api_key': 'ak', 'api_secret': 'as',
-                                                      'access_token': 'at', 'access_token_secret': 'ats'})
+                                                      'access_token': 'at', 'access_token_secret': 'ats', 'webhook_id': '1234567'})
 
         mock_register_webhook.assert_called_once_with('https://temba.ngrok.io/handlers/twitter/%s' % channel.uuid)
         mock_subscribe_to_webhook.assert_called_once_with("1234567")
 
+    @override_settings(IS_PROD=True)
     @patch('temba.utils.mage.MageClient._request')
     def test_release(self, mock_mage_request):
         # check that removing Twitter channel notifies Mage
@@ -157,6 +163,7 @@ class TwitterTypeTest(TembaTest):
 
         mock_mage_request.assert_called_once_with('DELETE', 'twitter/%s' % self.channel.uuid)
 
+    @override_settings(IS_PROD=True)
     @patch('temba.utils.twitter.TembaTwython.delete_webhook')
     def test_release_beta(self, mock_delete_webhook):
         self.beta_channel.release()

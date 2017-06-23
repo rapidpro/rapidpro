@@ -39,7 +39,7 @@ from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin, AnonMixin
 from temba.channels.models import ChannelSession
-from temba.utils import analytics, on_transaction_commit
+from temba.utils import analytics
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.twitter import TembaTwython, TwythonError
 from twilio import TwilioRestException
@@ -1229,11 +1229,6 @@ class ChannelCRUDL(SmartCRUDL):
                     channel.address = obj.address
                     channel.bod = e164_phone_number
                     channel.save(update_fields=('address', 'bod'))
-
-            if obj.channel_type == 'TT':
-                # notify Mage so that it refreshes this channel
-                from .tasks import MageStreamAction, notify_mage_task
-                on_transaction_commit(lambda: notify_mage_task.delay(obj.uuid, MageStreamAction.refresh.name))
 
             return obj
 
