@@ -75,7 +75,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     max_tps = None
     attachment_support = False
 
-    def is_available_to(self, user):
+    def is_available_to(self, user):  # pragma: no cover
         """
         Determines whether this channel type is available to the given user, e.g. check timezone
         """
@@ -91,20 +91,17 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         Setup things like callbacks required by this channel - will only be called when IS_PROD setting is True
         """
-        pass
 
     def deactivate(self, channel):
         """
         Cleanup things like callbacks which were used by this channel - will only be called when IS_PROD setting is True
         """
-        pass
 
     @abstractmethod
     def send(self, channel, msg, text):
         """
         Sends the give message struct
         """
-        pass
 
 
 @six.python_2_unicode_compatible
