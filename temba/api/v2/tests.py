@@ -2578,9 +2578,13 @@ class APITest(TembaTest):
             'modified_on': format_datetime(start2.modified_on),
         })
 
-        # check filtering by UUID (deprecated)
+        # check filtering by UUID
         response = self.fetchJSON(url, "uuid=%s" % str(start2.uuid))
         self.assertResultsById(response, [start2])
+
+        # check filtering by in invalid UUID
+        response = self.fetchJSON(url, "uuid=xyz")
+        self.assertResponseError(response, None, "Value for uuid must be a valid UUID")
 
         # check filtering by id (deprecated)
         response = self.fetchJSON(url, "id=%d" % start2.id)
