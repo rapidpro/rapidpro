@@ -17,6 +17,7 @@ for code, name in Channel.TYPE_CHOICES:
         scheme=type_settings.get('scheme'),
         max_length=type_settings.get('max_length'),
         max_tps=type_settings.get('max_tps'),
+        show_config_page=code not in Channel.HIDE_CONFIG_PAGE,
         send=SEND_FUNCTIONS.get(code)
     ))
     TYPES[code] = type_class()

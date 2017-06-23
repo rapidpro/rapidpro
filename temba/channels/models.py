@@ -69,6 +69,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     scheme = None
     max_length = -1
     max_tps = None
+    show_config_page = True
 
     def get_name(self):
         return self.name
@@ -313,6 +314,8 @@ class Channel(TembaModel):
     NCCO_CHANNELS = [TYPE_NEXMO]
 
     MEDIA_CHANNELS = [TYPE_TWILIO, TYPE_TWIML, TYPE_TWILIO_MESSAGING_SERVICE, TYPE_TELEGRAM, TYPE_FACEBOOK]
+
+    HIDE_CONFIG_PAGE = [TYPE_TWILIO, TYPE_ANDROID, TYPE_TELEGRAM]
 
     GET_STARTED = 'get_started'
     VIBER_NO_SERVICE_ID = 'no_service_id'
@@ -915,12 +918,6 @@ class Channel(TembaModel):
 
     def has_channel_log(self):
         return self.channel_type != Channel.TYPE_ANDROID
-
-    def has_configuration_page(self):
-        """
-        Whether or not this channel supports a configuration/settings page
-        """
-        return self.channel_type not in (Channel.TYPE_TWILIO, Channel.TYPE_ANDROID, 'TT', Channel.TYPE_TELEGRAM)
 
     def get_delegate_channels(self):
         # detached channels can't have delegates
