@@ -70,15 +70,19 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     max_length = -1
     max_tps = None
     show_config_page = True
-
-    def get_name(self):
-        return self.name
+    attachment_support = False
 
     def is_available_to(self, user):
         """
         Determines whether this channel type is available to the given user, e.g. check timezone
         """
         return True
+
+    def has_attachment_support(self, channel):
+        """
+        Whether the given channel instance supports message attachments
+        """
+        return self.attachment_support
 
     def activate(self, channel):
         """
@@ -909,12 +913,11 @@ class Channel(TembaModel):
         Can this channel send images, audio, and video. This is static to work
         with ChannelStructs or Channels
         """
-        if channel.channel_type in Channel.MEDIA_CHANNELS:
-            # twilio only supports mms in the US and Canada
-            if channel.channel_type in Channel.TWIML_CHANNELS and channel.country not in ('US', 'CA'):
-                return False
-            return True
-        return False
+        # Twilio only supports mms in the US and Canada
+        if channel.channel_type == cls.TYPE_TWILIO:
+            return channel.country in ('US', 'CA')
+        else:
+            return cls.get_type_from_code(channel.channel_type).has_attachment_support(channel)
 
     def has_channel_log(self):
         return self.channel_type != Channel.TYPE_ANDROID

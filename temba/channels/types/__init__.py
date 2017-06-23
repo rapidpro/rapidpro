@@ -18,6 +18,7 @@ for code, name in Channel.TYPE_CHOICES:
         max_length=type_settings.get('max_length'),
         max_tps=type_settings.get('max_tps'),
         show_config_page=code not in Channel.HIDE_CONFIG_PAGE,
+        attachment_support=code in Channel.MEDIA_CHANNELS,
         send=SEND_FUNCTIONS.get(code)
     ))
     TYPES[code] = type_class()
