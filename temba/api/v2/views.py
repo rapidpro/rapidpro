@@ -2824,6 +2824,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         queryset = queryset.prefetch_related(
             Prefetch('flow', queryset=Flow.objects.only('uuid', 'name', 'base_language')),
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name', 'language')),
+            Prefetch('start', queryset=FlowStart.objects.only('uuid')),
             Prefetch('values'),
             Prefetch('values__ruleset', queryset=RuleSet.objects.only('uuid', 'label')),
             Prefetch('steps', queryset=FlowStep.objects.only('run', 'step_uuid', 'arrived_on').order_by('arrived_on'))
