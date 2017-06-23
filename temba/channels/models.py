@@ -11,6 +11,7 @@ import telegram
 import re
 import six
 
+from abc import ABCMeta
 from enum import Enum
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
@@ -60,6 +61,32 @@ class Encoding(Enum):
     GSM7 = 1
     REPLACED = 2
     UNICODE = 3
+
+
+class ChannelType(six.with_metaclass(ABCMeta)):
+    name = None
+    code = None
+
+    def get_name(self):
+        return self.name
+
+    def is_available_to(self, user):
+        """
+        Determines whether this channel type is available to the given user, e.g. might check timezone
+        """
+        return True
+
+    def activate(self, channel):
+        """
+        Setup things like callbacks required by this channel - will only be called when IS_PROD setting is True
+        """
+        pass
+
+    def deactivate(self, channel):
+        """
+        Cleanup things like callbacks which were used by this channel - will only be called when IS_PROD setting is True
+        """
+        pass
 
 
 @six.python_2_unicode_compatible
@@ -337,13 +364,13 @@ class Channel(TembaModel):
                            help_text=_("Any channel specific state data"))
 
     @classmethod
-    def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=DEFAULT_ROLE, scheme=None, **kwargs):
-        type_settings = Channel.CHANNEL_SETTINGS[channel_type]
+    def create(cls, org, user, country, type_code, name=None, address=None, config=None, role=DEFAULT_ROLE, scheme=None, **kwargs):
+        type_settings = Channel.CHANNEL_SETTINGS[type_code]
         fixed_scheme = type_settings.get('scheme')
 
         if scheme:
             if fixed_scheme and fixed_scheme != scheme:
-                raise ValueError("Channel type %s cannot support scheme %s" % (channel_type, scheme))
+                raise ValueError("Channel type %s cannot support scheme %s" % (type_code, scheme))
         else:
             scheme = fixed_scheme
 
@@ -358,7 +385,7 @@ class Channel(TembaModel):
 
         create_args = dict(org=org, created_by=user, modified_by=user,
                            country=country,
-                           channel_type=channel_type,
+                           channel_type=type_code,
                            name=name, address=address,
                            config=json.dumps(config),
                            role=role, scheme=scheme)
@@ -373,7 +400,15 @@ class Channel(TembaModel):
         if org:
             org.normalize_contact_tels()
 
+        channel_type = channel.get_type()
+        if channel_type and settings.IS_PROD:
+            on_transaction_commit(lambda: channel_type.activate(channel))
+
         return channel
+
+    def get_type(self):
+        from .types import TYPES
+        return TYPES.get(self.channel_type)
 
     @classmethod
     def add_telegram_channel(cls, org, user, auth_token):
@@ -740,18 +775,15 @@ class Channel(TembaModel):
         config = dict(handle_id=int(handle_id), oauth_token=oauth_token, oauth_token_secret=oauth_token_secret)
 
         with org.lock_on(OrgLock.channels):
-            channel = Channel.objects.filter(org=org, channel_type=Channel.TYPE_TWITTER, address=screen_name, is_active=True).first()
+            channel = Channel.objects.filter(org=org, channel_type=Channel.TYPE_TWITTER,
+                                             address=screen_name, is_active=True).first()
             if channel:
                 channel.config = json.dumps(config)
                 channel.modified_by = user
                 channel.save()
             else:
-                channel = Channel.create(org, user, None, Channel.TYPE_TWITTER, name="@%s" % screen_name, address=screen_name,
-                                         config=config)
-
-                # notify Mage so that it activates this channel
-                from .tasks import MageStreamAction, notify_mage_task
-                on_transaction_commit(lambda: notify_mage_task.delay(channel.uuid, MageStreamAction.activate.name))
+                channel = cls.create(org, user, None, Channel.TYPE_TWITTER, name="@%s" % screen_name,
+                                     address=screen_name, config=config)
 
         return channel
 
@@ -770,16 +802,8 @@ class Channel(TembaModel):
             'access_token_secret': access_token_secret
         }
 
-        channel = Channel.create(org, user, None, Channel.TYPE_TWITTER, name="@%s" % screen_name, address=screen_name, config=config)
-
-        def register_webook():
-            callback_url = 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.twitter_handler', args=[channel.uuid]))
-            webhook = twitter.register_webhook(callback_url)
-            twitter.subscribe_to_webhook(webhook['id'])
-
-        on_transaction_commit(register_webook)
-
-        return channel
+        return cls.create(org, user, None, Channel.TYPE_TWITTER, name="@%s" % screen_name,
+                          address=screen_name, config=config)
 
     @classmethod
     def get_or_create_android(cls, registration_data, status):
@@ -1205,8 +1229,12 @@ class Channel(TembaModel):
         for delegate_channel in Channel.objects.filter(parent=self, org=self.org):
             delegate_channel.release()
 
+        # only call out to external aggregator services if we are on prod servers
         if settings.IS_PROD:
-            # only call out to external aggregator services if we are on prod servers
+            # if channel is a new style type, deactivate it
+            channel_type = self.get_type()
+            if channel_type:
+                channel_type.deactivate(self)
 
             # hangup all its calls
             from temba.ivr.models import IVRCall
@@ -1283,11 +1311,6 @@ class Channel(TembaModel):
 
         # clear our cache for this channel
         Channel.clear_cached_channel(self.id)
-
-        # if this is an old-style Twitter channel, notify Mage so that it stops streaming for this channel
-        if notify_mage and self.channel_type == Channel.TYPE_TWITTER and ('api_key' not in config):
-            from .tasks import MageStreamAction, notify_mage_task
-            on_transaction_commit(lambda: notify_mage_task.delay(self.uuid, MageStreamAction.deactivate.name))
 
         from temba.triggers.models import Trigger
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)
