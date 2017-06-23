@@ -12,8 +12,11 @@ from ...tasks import MageStreamAction, notify_mage_task
 
 
 class TwitterType(ChannelType):
-    name = "Twitter"
     code = "TT"
+
+    name = "Twitter"
+    icon = 'icon-twitter'
+
     scheme = 'twitter'
     max_length = 10000
     show_config_page = False

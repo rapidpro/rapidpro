@@ -46,23 +46,6 @@ from twilio import TwilioRestException
 from uuid import uuid4
 from .models import Channel, ChannelEvent, SyncEvent, Alert, ChannelLog, ChannelCount
 
-RELAYER_TYPE_ICONS = {Channel.TYPE_ANDROID: "icon-channel-android",
-                      Channel.TYPE_CHIKKA: "icon-channel-external",
-                      Channel.TYPE_EXTERNAL: "icon-channel-external",
-                      Channel.TYPE_KANNEL: "icon-channel-kannel",
-                      Channel.TYPE_LINE: "icon-line",
-                      Channel.TYPE_NEXMO: "icon-channel-nexmo",
-                      Channel.TYPE_VERBOICE: "icon-channel-external",
-                      Channel.TYPE_TWILIO: "icon-channel-twilio",
-                      Channel.TYPE_TWIML: "icon-channel-twilio",
-                      Channel.TYPE_TWILIO_MESSAGING_SERVICE: "icon-channel-twilio",
-                      Channel.TYPE_PLIVO: "icon-channel-plivo",
-                      Channel.TYPE_CLICKATELL: "icon-channel-clickatell",
-                      'TT': "icon-twitter",
-                      Channel.TYPE_TELEGRAM: "icon-telegram",
-                      Channel.TYPE_FACEBOOK: "icon-facebook-official",
-                      Channel.TYPE_FCM: "icon-fcm",
-                      Channel.TYPE_VIBER: "icon-viber"}
 
 SESSION_TWITTER_API_KEY = 'twitter_api_key'
 SESSION_TWITTER_API_SECRET = 'twitter_api_secret'
@@ -497,10 +480,6 @@ PLIVO_SUPPORTED_COUNTRY_CODES = list(set([code
 # django_countries now uses a dict of countries, let's turn it in our tuple
 # list of codes and countries sorted by country name
 ALL_COUNTRIES = sorted(((code, name) for code, name in COUNTRIES_NAMES.items()), key=lambda x: x[1])
-
-
-def get_channel_icon(channel_type):
-    return RELAYER_TYPE_ICONS.get(channel_type, "icon-channel-external")
 
 
 def get_channel_read_url(channel):

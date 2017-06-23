@@ -64,12 +64,15 @@ class Encoding(Enum):
 
 
 class ChannelType(six.with_metaclass(ABCMeta)):
-    name = None
     code = None
+
+    name = None
+    icon = 'icon-channel-external'
+    show_config_page = True
+
     scheme = None
     max_length = -1
     max_tps = None
-    show_config_page = True
     attachment_support = False
 
     def is_available_to(self, user):
@@ -309,6 +312,22 @@ class Channel(TembaModel):
                     (TYPE_VUMI_USSD, "Vumi USSD"),
                     (TYPE_YO, "Yo!"),
                     (TYPE_ZENVIA, "Zenvia"))
+
+    TYPE_ICONS = {
+        TYPE_ANDROID: "icon-channel-android",
+        TYPE_KANNEL: "icon-channel-kannel",
+        TYPE_LINE: "icon-line",
+        TYPE_NEXMO: "icon-channel-nexmo",
+        TYPE_TWILIO: "icon-channel-twilio",
+        TYPE_TWIML: "icon-channel-twilio",
+        TYPE_TWILIO_MESSAGING_SERVICE: "icon-channel-twilio",
+        TYPE_PLIVO: "icon-channel-plivo",
+        TYPE_CLICKATELL: "icon-channel-clickatell",
+        TYPE_TELEGRAM: "icon-telegram",
+        TYPE_FACEBOOK: "icon-facebook-official",
+        TYPE_FCM: "icon-fcm",
+        TYPE_VIBER: "icon-viber"
+    }
 
     # list of all USSD channels
     USSD_CHANNELS = [TYPE_VUMI_USSD, TYPE_JUNEBUG_USSD]

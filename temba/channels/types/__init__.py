@@ -12,12 +12,13 @@ TYPES = {
 for code, name in Channel.TYPE_CHOICES:
     type_settings = Channel.CHANNEL_SETTINGS[code]
     type_class = type(str(code + 'Type'), (ChannelType,), dict(
-        name=name,
         code=code,
+        name=name,
+        icon=Channel.TYPE_ICONS.get(code, 'icon-channel-external'),
+        show_config_page=code not in Channel.HIDE_CONFIG_PAGE,
         scheme=type_settings.get('scheme'),
         max_length=type_settings.get('max_length'),
         max_tps=type_settings.get('max_tps'),
-        show_config_page=code not in Channel.HIDE_CONFIG_PAGE,
         attachment_support=code in Channel.MEDIA_CHANNELS,
         send=SEND_FUNCTIONS.get(code)
     ))
