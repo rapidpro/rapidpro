@@ -1231,6 +1231,7 @@ class Channel(TembaModel):
         """
         Releases this channel, removing it from the org and making it inactive
         """
+        channel_type = self.get_type()
         config = self.config_json()
 
         # release any channels working on our behalf as well
@@ -1240,9 +1241,7 @@ class Channel(TembaModel):
         # only call out to external aggregator services if we are on prod servers
         if settings.IS_PROD:
             # if channel is a new style type, deactivate it
-            channel_type = self.get_type()
-            if channel_type:
-                channel_type.deactivate(self)
+            channel_type.deactivate(self)
 
             # hangup all its calls
             from temba.ivr.models import IVRCall
