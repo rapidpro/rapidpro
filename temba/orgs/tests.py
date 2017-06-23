@@ -2194,7 +2194,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a twitter channel
-        Channel.create(self.org, self.user, None, Channel.TYPE_TWITTER, "Twitter")
+        Channel.create(self.org, self.user, None, 'TT', "Twitter")
         self.org = Org.objects.get(pk=self.org.id)
         self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
         self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))

@@ -1081,7 +1081,7 @@ class TriggerTest(TembaTest):
 
     def test_export_import(self):
         # tweak our current channel to be twitter so we can create a channel-based trigger
-        Channel.objects.filter(id=self.channel.id).update(channel_type=Channel.TYPE_TWITTER)
+        Channel.objects.filter(id=self.channel.id).update(channel_type='TT')
         flow = self.create_flow()
 
         group = self.create_group("Trigger Group", [])

@@ -646,7 +646,7 @@ class ChannelTest(TembaTest):
         self.assertEquals("EATRIGHT", channel.get_address_display(e164=True))
 
         # change channel type to Twitter
-        channel.channel_type = Channel.TYPE_TWITTER
+        channel.channel_type = 'TT'
         channel.address = 'billy_bob'
         channel.scheme = 'twitter'
         channel.config = json.dumps({'handle_id': 12345, 'oauth_token': 'abcdef', 'oauth_token_secret': '23456'})

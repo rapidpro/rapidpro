@@ -58,7 +58,7 @@ RELAYER_TYPE_ICONS = {Channel.TYPE_ANDROID: "icon-channel-android",
                       Channel.TYPE_TWILIO_MESSAGING_SERVICE: "icon-channel-twilio",
                       Channel.TYPE_PLIVO: "icon-channel-plivo",
                       Channel.TYPE_CLICKATELL: "icon-channel-clickatell",
-                      Channel.TYPE_TWITTER: "icon-twitter",
+                      'TT': "icon-twitter",
                       Channel.TYPE_TELEGRAM: "icon-telegram",
                       Channel.TYPE_FACEBOOK: "icon-facebook-official",
                       Channel.TYPE_FCM: "icon-fcm",
@@ -1230,7 +1230,7 @@ class ChannelCRUDL(SmartCRUDL):
                     channel.bod = e164_phone_number
                     channel.save(update_fields=('address', 'bod'))
 
-            if obj.channel_type == Channel.TYPE_TWITTER:
+            if obj.channel_type == 'TT':
                 # notify Mage so that it refreshes this channel
                 from .tasks import MageStreamAction, notify_mage_task
                 on_transaction_commit(lambda: notify_mage_task.delay(obj.uuid, MageStreamAction.refresh.name))
@@ -2418,7 +2418,7 @@ class ChannelCRUDL(SmartCRUDL):
                         user = twitter.verify_credentials()
 
                         # check there isn't already a channel for this Twitter account
-                        if self.org.channels.filter(channel_type=Channel.TYPE_TWITTER, address=user['screen_name'], is_active=True).exists():
+                        if self.org.channels.filter(channel_type='TT', address=user['screen_name'], is_active=True).exists():
                             raise ValidationError(_("A Twitter channel already exists for that handle."))
 
                     except TwythonError:

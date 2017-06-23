@@ -11,7 +11,7 @@ import telegram
 import re
 import six
 
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 from enum import Enum
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
@@ -66,13 +66,16 @@ class Encoding(Enum):
 class ChannelType(six.with_metaclass(ABCMeta)):
     name = None
     code = None
+    scheme = None
+    max_length = -1
+    max_tps = None
 
     def get_name(self):
         return self.name
 
     def is_available_to(self, user):
         """
-        Determines whether this channel type is available to the given user, e.g. might check timezone
+        Determines whether this channel type is available to the given user, e.g. check timezone
         """
         return True
 
@@ -85,6 +88,13 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     def deactivate(self, channel):
         """
         Cleanup things like callbacks which were used by this channel - will only be called when IS_PROD setting is True
+        """
+        pass
+
+    @abstractmethod
+    def send(self, channel, msg, text):
+        """
+        Sends the give message struct
         """
         pass
 
@@ -124,7 +134,6 @@ class Channel(TembaModel):
     TYPE_TWILIO = 'T'
     TYPE_TWIML = 'TW'
     TYPE_TWILIO_MESSAGING_SERVICE = 'TMS'
-    TYPE_TWITTER = 'TT'
     TYPE_VERBOICE = 'VB'
     TYPE_VIBER = 'VI'
     TYPE_VIBER_PUBLIC = 'VP'
@@ -191,9 +200,6 @@ class Channel(TembaModel):
     # how big each batch of outgoing messages can be
     SEND_BATCH_SIZE = 100
 
-    TWITTER_FATAL_403S = ("messages to this user right now",  # handle is suspended
-                          "users who are not following you")  # handle no longer follows us
-
     YO_API_URL_1 = 'http://smgw1.yo.co.ug:9100/sendsms'
     YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
     YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
@@ -249,7 +255,6 @@ class Channel(TembaModel):
         TYPE_TWILIO: dict(scheme='tel', max_length=1600),
         TYPE_TWIML: dict(scheme='tel', max_length=1600),
         TYPE_TWILIO_MESSAGING_SERVICE: dict(scheme='tel', max_length=1600),
-        TYPE_TWITTER: dict(scheme='twitter', max_length=10000),
         TYPE_VERBOICE: dict(scheme='tel', max_length=1600),
         TYPE_VIBER: dict(scheme='tel', max_length=1000),
         TYPE_VIBER_PUBLIC: dict(scheme='viber', max_length=7000),
@@ -262,6 +267,7 @@ class Channel(TembaModel):
     TYPE_CHOICES = ((TYPE_AFRICAS_TALKING, "Africa's Talking"),
                     (TYPE_ANDROID, "Android"),
                     (TYPE_BLACKMYNA, "Blackmyna"),
+                    (TYPE_CHIKKA, "Chikka"),
                     (TYPE_CLICKATELL, "Clickatell"),
                     (TYPE_DARTMEDIA, "Dart Media"),
                     (TYPE_DUMMY, "Dummy"),
@@ -273,10 +279,12 @@ class Channel(TembaModel):
                     (TYPE_HUB9, "Hub9"),
                     (TYPE_INFOBIP, "Infobip"),
                     (TYPE_JASMIN, "Jasmin"),
+                    (TYPE_JIOCHAT, "JioChat"),
                     (TYPE_JUNEBUG, "Junebug"),
                     (TYPE_JUNEBUG_USSD, "Junebug USSD"),
                     (TYPE_KANNEL, "Kannel"),
                     (TYPE_LINE, "Line"),
+                    (TYPE_MACROKIOSK, "Macrokiosk"),
                     (TYPE_M3TECH, "M3 Tech"),
                     (TYPE_MBLOX, "Mblox"),
                     (TYPE_NEXMO, "Nexmo"),
@@ -289,7 +297,6 @@ class Channel(TembaModel):
                     (TYPE_TWILIO, "Twilio"),
                     (TYPE_TWIML, "TwiML Rest API"),
                     (TYPE_TWILIO_MESSAGING_SERVICE, "Twilio Messaging Service"),
-                    (TYPE_TWITTER, "Twitter"),
                     (TYPE_VERBOICE, "Verboice"),
                     (TYPE_VIBER, "Viber"),
                     (TYPE_VIBER_PUBLIC, "Viber Public Channels"),
@@ -312,8 +319,7 @@ class Channel(TembaModel):
 
     SIMULATOR_CONTEXT = dict(__default__='(800) 555-1212', name='Simulator', tel='(800) 555-1212', tel_e164='+18005551212')
 
-    channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=TYPE_CHOICES,
-                                    default=TYPE_ANDROID, help_text=_("Type of this channel, whether Android, Twilio or SMSC"))
+    channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3)
 
     name = models.CharField(verbose_name=_("Name"), max_length=64, blank=True, null=True,
                             help_text=_("Descriptive label for this channel"))
@@ -365,14 +371,13 @@ class Channel(TembaModel):
 
     @classmethod
     def create(cls, org, user, country, type_code, name=None, address=None, config=None, role=DEFAULT_ROLE, scheme=None, **kwargs):
-        type_settings = Channel.CHANNEL_SETTINGS[type_code]
-        fixed_scheme = type_settings.get('scheme')
+        channel_type = cls.get_type_from_code(type_code)
 
         if scheme:
-            if fixed_scheme and fixed_scheme != scheme:
+            if channel_type.scheme and channel_type.scheme != scheme:
                 raise ValueError("Channel type %s cannot support scheme %s" % (type_code, scheme))
         else:
-            scheme = fixed_scheme
+            scheme = channel_type.scheme
 
         if not scheme:
             raise ValueError("Cannot create channel without scheme")
@@ -400,15 +405,21 @@ class Channel(TembaModel):
         if org:
             org.normalize_contact_tels()
 
-        channel_type = channel.get_type()
-        if channel_type and settings.IS_PROD:
+        if settings.IS_PROD:
             on_transaction_commit(lambda: channel_type.activate(channel))
 
         return channel
 
-    def get_type(self):
+    @classmethod
+    def get_type_from_code(cls, code):
         from .types import TYPES
-        return TYPES.get(self.channel_type)
+        try:
+            return TYPES[code]
+        except KeyError:
+            raise ValueError("Unrecognized channel type code: %s" % code)
+
+    def get_type(self):
+        return self.get_type_from_code(self.channel_type)
 
     @classmethod
     def add_telegram_channel(cls, org, user, auth_token):
@@ -775,15 +786,13 @@ class Channel(TembaModel):
         config = dict(handle_id=int(handle_id), oauth_token=oauth_token, oauth_token_secret=oauth_token_secret)
 
         with org.lock_on(OrgLock.channels):
-            channel = Channel.objects.filter(org=org, channel_type=Channel.TYPE_TWITTER,
-                                             address=screen_name, is_active=True).first()
+            channel = Channel.objects.filter(org=org, channel_type='TT', address=screen_name, is_active=True).first()
             if channel:
                 channel.config = json.dumps(config)
                 channel.modified_by = user
                 channel.save()
             else:
-                channel = cls.create(org, user, None, Channel.TYPE_TWITTER, name="@%s" % screen_name,
-                                     address=screen_name, config=config)
+                channel = cls.create(org, user, None, 'TT', name="@%s" % screen_name, address=screen_name, config=config)
 
         return channel
 
@@ -802,8 +811,7 @@ class Channel(TembaModel):
             'access_token_secret': access_token_secret
         }
 
-        return cls.create(org, user, None, Channel.TYPE_TWITTER, name="@%s" % screen_name,
-                          address=screen_name, config=config)
+        return cls.create(org, user, None, 'TT', name="@%s" % screen_name, address=screen_name, config=config)
 
     @classmethod
     def get_or_create_android(cls, registration_data, status):
@@ -912,7 +920,7 @@ class Channel(TembaModel):
         """
         Whether or not this channel supports a configuration/settings page
         """
-        return self.channel_type not in (Channel.TYPE_TWILIO, Channel.TYPE_ANDROID, Channel.TYPE_TWITTER, Channel.TYPE_TELEGRAM)
+        return self.channel_type not in (Channel.TYPE_TWILIO, Channel.TYPE_ANDROID, 'TT', Channel.TYPE_TELEGRAM)
 
     def get_delegate_channels(self):
         # detached channels can't have delegates
@@ -1027,6 +1035,9 @@ class Channel(TembaModel):
         else:
             return _("Android Phone")
 
+    def get_channel_type_display(self):
+        return self.get_type().name
+
     def get_channel_type_name(self):
         channel_type_display = self.get_channel_type_display()
 
@@ -1053,7 +1064,7 @@ class Channel(TembaModel):
                 # the number may be alphanumeric in the case of short codes
                 pass
 
-        elif self.channel_type == Channel.TYPE_TWITTER:
+        elif self.channel_type == 'TT':
             return '@%s' % self.address
 
         elif self.channel_type == Channel.TYPE_FACEBOOK:
@@ -2818,39 +2829,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_twitter_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-        from temba.contacts.models import Contact
-
-        twitter = TembaTwython.from_channel(channel)
-        start = time.time()
-
-        try:
-            # TODO: Wrap in such a way that we can get full request/response details
-            dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
-        except Exception as e:
-            error_code = getattr(e, 'error_code', 400)
-            fatal = False
-
-            if error_code == 404:  # handle doesn't exist
-                fatal = True
-            elif error_code == 403:
-                for err in Channel.TWITTER_FATAL_403S:
-                    if six.text_type(e).find(err) >= 0:
-                        fatal = True
-                        break
-
-            # if message can never be sent, stop them contact
-            if fatal:
-                contact = Contact.objects.get(id=msg.contact)
-                contact.stop(contact.modified_by)
-
-            raise SendException(str(e), events=twitter.events, fatal=fatal, start=start)
-
-        external_id = dm['id']
-        Channel.success(channel, msg, WIRED, start, events=twitter.events, external_id=external_id)
-
-    @classmethod
     def send_clickatell_message(cls, channel, msg, text):
         """
         Sends a message to Clickatell, they expect a GET in the following format:
@@ -3131,14 +3109,13 @@ class Channel(TembaModel):
         # populate redis in our config
         channel.config['r'] = r
 
-        type_settings = Channel.CHANNEL_SETTINGS[channel.channel_type]
+        channel_type = Channel.get_type_from_code(channel.channel_type)
 
         # Check whether we need to throttle ourselves
         # This isn't an ideal implementation, in that if there is only one Channel with tons of messages
         # and a low throttle rate, we will have lots of threads waiting, but since throttling is currently
         # a rare event, this is an ok stopgap.
-        max_tps = type_settings.get('max_tps', 0)
-        if max_tps:
+        if channel_type.max_tps:
             tps_set_name = 'channel_tps_%d' % channel.id
             lock_name = '%s_lock' % tps_set_name
 
@@ -3153,14 +3130,14 @@ class Channel(TembaModel):
                     count = r.zcount(tps_set_name, last_second, now)
 
                     # we're within our tps, add ourselves to the list and go on our way
-                    if count < max_tps:
+                    if count < channel_type.max_tps:
                         r.zadd(tps_set_name, now, now)
                         r.zremrangebyscore(tps_set_name, "-inf", last_second)
                         r.expire(tps_set_name, 5)
                         break
 
                 # too many sent in the last second, sleep a bit and try again
-                time.sleep(1 / float(max_tps))
+                time.sleep(1 / float(channel_type.max_tps))
 
         sent_count = 0
 
@@ -3176,22 +3153,18 @@ class Channel(TembaModel):
             # don't send as media
             msg.attachments = None
 
-        parts = Msg.get_text_parts(text, channel.config.get(Channel.CONFIG_MAX_LENGTH, type_settings[Channel.CONFIG_MAX_LENGTH]))
+        parts = Msg.get_text_parts(text, channel.config.get(Channel.CONFIG_MAX_LENGTH, channel_type.max_length))
 
         for part in parts:
             sent_count += 1
             try:
-                channel_type = channel.channel_type
-
                 # never send in debug unless overridden
                 if not settings.SEND_MESSAGES:
                     Msg.mark_sent(r, msg, WIRED, -1)
                     print("FAKED SEND for [%d] - %s" % (msg.id, part))
-                elif channel_type in SEND_FUNCTIONS:
-                    SEND_FUNCTIONS[channel_type](channel, msg, part)
                 else:
-                    sent_count -= 1
-                    raise Exception(_("Unknown channel type: %(channel)s") % {'channel': channel.channel_type})
+                    channel_type.send(channel, msg, part)
+
             except SendException as e:
                 ChannelLog.log_exception(channel, msg, e)
 
@@ -3320,7 +3293,6 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_TWILIO: Channel.send_twilio_message,
                   Channel.TYPE_TWIML: Channel.send_twilio_message,
                   Channel.TYPE_TWILIO_MESSAGING_SERVICE: Channel.send_twilio_message,
-                  Channel.TYPE_TWITTER: Channel.send_twitter_message,
                   Channel.TYPE_VIBER: Channel.send_viber_message,
                   Channel.TYPE_VIBER_PUBLIC: Channel.send_viber_public_message,
                   Channel.TYPE_VUMI: Channel.send_vumi_message,
