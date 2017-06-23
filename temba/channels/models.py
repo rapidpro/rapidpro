@@ -438,7 +438,7 @@ class Channel(TembaModel):
         from .types import TYPES
         try:
             return TYPES[code]
-        except KeyError:
+        except KeyError:  # pragma: no cover
             raise ValueError("Unrecognized channel type code: %s" % code)
 
     def get_type(self):
