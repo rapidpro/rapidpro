@@ -1,13 +1,5 @@
 v3.0.163
 ----------
- * Fix TwiML app migration
-
-v3.0.162
-----------
- * Fix TwiML app migration
-
-v3.0.161
-----------
  * Add uuid field to FlowStart
  * Migration to convert TwiML apps
 
