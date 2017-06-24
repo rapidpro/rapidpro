@@ -1,3 +1,7 @@
+v3.0.164
+----------
+ * Migration to populate FlowStart.uuid on existing objects (advise faking and run manually)
+
 v3.0.163
 ----------
  * Add uuid field to FlowStart
