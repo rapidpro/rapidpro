@@ -836,6 +836,11 @@ class Org(SmartModel):
 
     def remove_nexmo_account(self, user):
         if self.config:
+            # release any nexmo channels
+            from temba.channels.models import Channel
+            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_NEXMO):  # pragma: needs cover
+                channel.release()
+
             config = self.config_json()
             config[NEXMO_KEY] = ''
             config[NEXMO_SECRET] = ''
@@ -843,17 +848,16 @@ class Org(SmartModel):
             self.modified_by = user
             self.save()
 
-            # release any nexmo channels
-            from temba.channels.models import Channel
-            channels = self.channels.filter(is_active=True, channel_type=Channel.TYPE_NEXMO)
-            for channel in channels:  # pragma: needs cover
-                channel.release()
-
             # clear all our channel configurations
             self.clear_channel_caches()
 
     def remove_twilio_account(self, user):
         if self.config:
+            # release any twilio channels
+            from temba.channels.models import Channel
+            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_TWILIO):
+                channel.release()
+
             config = self.config_json()
             config[ACCOUNT_SID] = ''
             config[ACCOUNT_TOKEN] = ''
@@ -861,12 +865,6 @@ class Org(SmartModel):
             self.config = json.dumps(config)
             self.modified_by = user
             self.save()
-
-            # release any twilio channels
-            from temba.channels.models import Channel
-            channels = self.channels.filter(is_active=True, channel_type=Channel.TYPE_TWILIO)
-            for channel in channels:
-                channel.release()
 
             # clear all our channel configurations
             self.clear_channel_caches()
