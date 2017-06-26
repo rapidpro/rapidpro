@@ -2,11 +2,18 @@ from __future__ import unicode_literals
 
 from ..models import Channel, ChannelType, SEND_FUNCTIONS
 from .twitter.type import TwitterType
+from .twitter_activity.type import TwitterActivityType
 
 # TODO enumerate types dynamically
-TYPES = {
-    TwitterType.code: TwitterType()
-}
+TYPE_CLASSES = [TwitterType, TwitterActivityType]
+
+
+TYPES = {}
+for type_class in TYPE_CLASSES:
+    if type_class.code in TYPES:  # pragma: no cover
+        raise ValueError("More than channel type with code: %s" % type_class.code)
+    TYPES[type_class.code] = type_class()
+
 
 # create types on the fly for each type not yet converted to a dynamic type
 for code, name in Channel.TYPE_CHOICES:

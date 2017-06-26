@@ -1,17 +1,18 @@
 from __future__ import unicode_literals, absolute_import
 
-import json
 import six
 import time
 
-from django.conf import settings
-from django.urls import reverse
 from temba.utils.twitter import TembaTwython
 from ...models import Channel, ChannelType, SendException
 from ...tasks import MageStreamAction, notify_mage_task
 
 
 class TwitterType(ChannelType):
+    """
+    A Twitter channel which uses Mage to stream DMs for a handle which has given access to a Twitter app configured for
+    this deployment.
+    """
     code = "TT"
 
     name = "Twitter"
@@ -25,35 +26,12 @@ class TwitterType(ChannelType):
                   "users who are not following you")  # handle no longer follows us
 
     def activate(self, channel):
-        config = channel.config_json()
-        new_style = 'api_key' in config
-
-        if new_style:
-            client = TembaTwython(config['api_key'], config['api_secret'], config['access_token'], config['access_token_secret'])
-
-            callback_url = 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.twitter_handler', args=[channel.uuid]))
-            webhook = client.register_webhook(callback_url)
-            client.subscribe_to_webhook(webhook['id'])
-
-            # save this webhook for later so we can delete it
-            config['webhook_id'] = webhook['id']
-            channel.config = json.dumps(config)
-            channel.save(update_fields=('config',))
-        else:
-            # notify Mage so that it activates this channel
-            notify_mage_task.delay(channel.uuid, MageStreamAction.activate.name)
+        # tell Mage to activate this channel
+        notify_mage_task.delay(channel.uuid, MageStreamAction.activate.name)
 
     def deactivate(self, channel):
-        config = channel.config_json()
-        new_style = 'api_key' in config
-
-        if new_style:
-            # if this is a new-style Twitter channel, disable the webhook
-            client = TembaTwython(config['api_key'], config['api_secret'], config['access_token'], config['access_token_secret'])
-            client.delete_webhook(config['webhook_id'])
-        else:
-            # if this is an old-style Twitter channel, notify Mage
-            notify_mage_task.delay(channel.uuid, MageStreamAction.deactivate.name)
+        # tell Mage to deactivate this channel
+        notify_mage_task.delay(channel.uuid, MageStreamAction.deactivate.name)
 
     def send(self, channel, msg, text):
         from temba.msgs.models import WIRED
@@ -63,7 +41,6 @@ class TwitterType(ChannelType):
         start = time.time()
 
         try:
-            # TODO: wrap in such a way that we can get full request/response details
             dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
         except Exception as e:
             error_code = getattr(e, 'error_code', 400)

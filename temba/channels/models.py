@@ -834,7 +834,7 @@ class Channel(TembaModel):
             'access_token_secret': access_token_secret
         }
 
-        return cls.create(org, user, None, 'TT', name="@%s" % screen_name, address=screen_name, config=config)
+        return cls.create(org, user, None, 'TR', name="@%s" % screen_name, address=screen_name, config=config)
 
     @classmethod
     def get_or_create_android(cls, registration_data, status):

@@ -2392,7 +2392,7 @@ class ChannelCRUDL(SmartCRUDL):
                         user = twitter.verify_credentials()
 
                         # check there isn't already a channel for this Twitter account
-                        if self.org.channels.filter(channel_type='TT', address=user['screen_name'], is_active=True).exists():
+                        if self.org.channels.filter(channel_type='TR', address=user['screen_name'], is_active=True).exists():
                             raise ValidationError(_("A Twitter channel already exists for that handle."))
 
                     except TwythonError:
