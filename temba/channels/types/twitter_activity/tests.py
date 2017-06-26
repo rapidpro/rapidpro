@@ -34,14 +34,14 @@ class TwitterActivityTypeTest(TembaTest):
         claim_url = reverse('channels.channel_claim')
 
         response = self.client.get(claim_url)
-        self.assertNotContains(response, 'claim_twitter_beta')
+        self.assertNotContains(response, 'claim_twitter_activity')
 
         Group.objects.get(name="Beta").user_set.add(self.admin)
 
         response = self.client.get(claim_url)
-        self.assertContains(response, 'claim_twitter_beta')
+        self.assertContains(response, 'claim_twitter_activity')
 
-        claim_url = reverse('channels.channel_claim_twitter_beta')
+        claim_url = reverse('channels.channel_claim_twitter_activity')
 
         response = self.client.get(claim_url)
         self.assertEqual(response.status_code, 200)

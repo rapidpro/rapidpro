@@ -864,7 +864,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
                'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
-               'claim_red_rabbit', 'claim_macrokiosk', 'claim_jiochat', 'claim_twitter', 'claim_twitter_beta')
+               'claim_red_rabbit', 'claim_macrokiosk', 'claim_jiochat', 'claim_twitter', 'claim_twitter_activity')
     permissions = True
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -2368,7 +2368,7 @@ class ChannelCRUDL(SmartCRUDL):
             context['twitter_auth_url'] = auth['auth_url']
             return context
 
-    class ClaimTwitterBeta(OrgPermsMixin, PassRequestToFormMixin, SmartFormView):
+    class ClaimTwitterActivity(OrgPermsMixin, PassRequestToFormMixin, SmartFormView):
         class ClaimForm(forms.Form):
             api_key = forms.CharField(label=_('Consumer Key'))
             api_secret = forms.CharField(label=_('Consumer Secret'))
@@ -2377,10 +2377,10 @@ class ChannelCRUDL(SmartCRUDL):
 
             def __init__(self, **kwargs):
                 self.org = kwargs.pop('request').user.get_org()
-                super(ChannelCRUDL.ClaimTwitterBeta.ClaimForm, self).__init__(**kwargs)
+                super(ChannelCRUDL.ClaimTwitterActivity.ClaimForm, self).__init__(**kwargs)
 
             def clean(self):
-                cleaned_data = super(ChannelCRUDL.ClaimTwitterBeta.ClaimForm, self).clean()
+                cleaned_data = super(ChannelCRUDL.ClaimTwitterActivity.ClaimForm, self).clean()
                 api_key = cleaned_data.get('api_key')
                 api_secret = cleaned_data.get('api_secret')
                 access_token = cleaned_data.get('access_token')
@@ -2414,7 +2414,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             self.object = Channel.add_twitter_beta_channel(org, self.request.user, api_key, api_secret, access_token, access_token_secret)
 
-            return super(ChannelCRUDL.ClaimTwitterBeta, self).form_valid(form)
+            return super(ChannelCRUDL.ClaimTwitterActivity, self).form_valid(form)
 
     class ClaimFcm(OrgPermsMixin, SmartFormView):
         class ClaimFcmForm(forms.Form):
