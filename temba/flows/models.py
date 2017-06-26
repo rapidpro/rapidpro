@@ -216,11 +216,15 @@ class Flow(TembaModel):
     version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION,
                                          help_text=_("The flow version this definition is in"))
 
+    ussd_push_enabled = models.BooleanField(default=False,
+                                            help_text=_("Whether USSD Push is enabled for this flow"))
+
     @classmethod
-    def create(cls, org, user, name, flow_type=FLOW, expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER, base_language=None):
+    def create(cls, org, user, name, flow_type=FLOW, expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER,
+               base_language=None, ussd_push_enabled=False):
         flow = Flow.objects.create(org=org, name=name, flow_type=flow_type,
                                    expires_after_minutes=expires_after_minutes, base_language=base_language,
-                                   saved_by=user, created_by=user, modified_by=user)
+                                   saved_by=user, created_by=user, modified_by=user, ussd_push_enabled=ussd_push_enabled)
 
         analytics.track(user.username, 'nyaruka.flow_created', dict(name=name))
         return flow
