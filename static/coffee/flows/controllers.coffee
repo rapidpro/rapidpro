@@ -2050,7 +2050,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $('.submit').click()
       # link us up if necessary, we need to do this after our element is created
       if options.dragSource
-        Flow.updateDestination(options.dragSource, actionset.uuid)
+        if Flow.isConnectionAllowed(options.dragSource, actionset.uuid)
+          Flow.updateDestination(options.dragSource, actionset.uuid)
     ,0
 
     # switching from a ruleset means removing it and hijacking its connections
