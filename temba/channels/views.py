@@ -2401,7 +2401,7 @@ class ChannelCRUDL(SmartCRUDL):
                         user = twitter.verify_credentials()
 
                         # check there isn't already a channel for this Twitter account
-                        if self.org.channels.filter(channel_type='TR', address=user['screen_name'], is_active=True).exists():
+                        if self.org.channels.filter(channel_type='TWT', address=user['screen_name'], is_active=True).exists():
                             raise ValidationError(_("A Twitter channel already exists for that handle."))
 
                     except TwythonError:
@@ -2421,7 +2421,7 @@ class ChannelCRUDL(SmartCRUDL):
             access_token = cleaned_data['access_token']
             access_token_secret = cleaned_data['access_token_secret']
 
-            self.object = Channel.add_twitter_beta_channel(org, self.request.user, api_key, api_secret, access_token, access_token_secret)
+            self.object = Channel.add_twitter_activity_channel(org, self.request.user, api_key, api_secret, access_token, access_token_secret)
 
             return super(ChannelCRUDL.ClaimTwitterActivity, self).form_valid(form)
 

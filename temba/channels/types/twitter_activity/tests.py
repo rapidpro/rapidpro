@@ -15,7 +15,7 @@ class TwitterActivityTypeTest(TembaTest):
     def setUp(self):
         super(TwitterActivityTypeTest, self).setUp()
 
-        self.channel = Channel.create(self.org, self.user, None, 'TR', name="Twitter Beta", address="beta_bob",
+        self.channel = Channel.create(self.org, self.user, None, 'TWT', name="Twitter Beta", address="beta_bob",
                                       role="SR", scheme='twitter',
                                       config={'api_key': 'ak1',
                                               'api_secret': 'as1',

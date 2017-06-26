@@ -13,7 +13,7 @@ class TwitterActivityType(ChannelType):
     """
     A Twitter channel which uses Twitter's new Activity API (currently in beta) to stream DMs.
     """
-    code = "TR"
+    code = "TWT"
     category = ChannelType.Category.SOCIAL_MEDIA
 
     name = "Twitter Activity API"
@@ -46,6 +46,6 @@ class TwitterActivityType(ChannelType):
 
         client.delete_webhook(config['webhook_id'])
 
-    def send(self, channel, msg, text):
+    def send(self, channel, msg, text):  # pragma: no cover
         # use regular Twitter channel sending
         return Channel.get_type_for_code('TT').send(channel, msg, text)

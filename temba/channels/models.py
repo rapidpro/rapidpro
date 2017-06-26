@@ -83,13 +83,16 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     max_tps = None
     attachment_support = False
 
-    def is_available_to(self, user):  # pragma: no cover
+    def is_available_to(self, user):
         """
         Determines whether this channel type is available to the given user, e.g. check timezone
         """
         return True
 
     def get_blurb(self):
+        """
+        Gets the blurb for use on the claim page list of channel types
+        """
         return mark_safe(self.blurb)
 
     def has_attachment_support(self, channel):
@@ -836,7 +839,7 @@ class Channel(TembaModel):
         return channel
 
     @classmethod
-    def add_twitter_beta_channel(cls, org, user, api_key, api_secret, access_token, access_token_secret):
+    def add_twitter_activity_channel(cls, org, user, api_key, api_secret, access_token, access_token_secret):
         twitter = TembaTwython(api_key, api_secret, access_token, access_token_secret)
         account_info = twitter.verify_credentials()
         handle_id = account_info['id']
@@ -850,7 +853,7 @@ class Channel(TembaModel):
             'access_token_secret': access_token_secret
         }
 
-        return cls.create(org, user, None, 'TR', name="@%s" % screen_name, address=screen_name, config=config)
+        return cls.create(org, user, None, 'TWT', name="@%s" % screen_name, address=screen_name, config=config)
 
     @classmethod
     def get_or_create_android(cls, registration_data, status):
