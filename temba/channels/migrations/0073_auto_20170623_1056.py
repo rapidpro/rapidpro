@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0071_auto_20170614_0915'),
+        ('channels', '0072_migrate_twilio_apps'),
     ]
 
     operations = [
