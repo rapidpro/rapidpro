@@ -7,7 +7,7 @@ from uuid import uuid4
 
 
 def populate_flow_start_uuid(FlowStart):
-    start_ids = list(FlowStart.objects.filter(uuid=None).values_list('id', flat=True))
+    start_ids = list(FlowStart.objects.values_list('id', flat=True))
     if not start_ids:
         return
 

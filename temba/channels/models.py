@@ -737,9 +737,7 @@ class Channel(TembaModel):
 
     @classmethod
     def add_twitter_channel(cls, org, user, screen_name, handle_id, oauth_token, oauth_token_secret):
-        config = dict(handle_id=int(handle_id),
-                      oauth_token=oauth_token,
-                      oauth_token_secret=oauth_token_secret)
+        config = dict(handle_id=int(handle_id), oauth_token=oauth_token, oauth_token_secret=oauth_token_secret)
 
         with org.lock_on(OrgLock.channels):
             channel = Channel.objects.filter(org=org, channel_type=Channel.TYPE_TWITTER, address=screen_name, is_active=True).first()
@@ -754,6 +752,32 @@ class Channel(TembaModel):
                 # notify Mage so that it activates this channel
                 from .tasks import MageStreamAction, notify_mage_task
                 on_transaction_commit(lambda: notify_mage_task.delay(channel.uuid, MageStreamAction.activate.name))
+
+        return channel
+
+    @classmethod
+    def add_twitter_beta_channel(cls, org, user, api_key, api_secret, access_token, access_token_secret):
+        twitter = TembaTwython(api_key, api_secret, access_token, access_token_secret)
+        account_info = twitter.verify_credentials()
+        handle_id = account_info['id']
+        screen_name = account_info['screen_name']
+
+        config = {
+            'handle_id': handle_id,
+            'api_key': api_key,
+            'api_secret': api_secret,
+            'access_token': access_token,
+            'access_token_secret': access_token_secret
+        }
+
+        channel = Channel.create(org, user, None, Channel.TYPE_TWITTER, name="@%s" % screen_name, address=screen_name, config=config)
+
+        def register_webook():
+            callback_url = 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.twitter_handler', args=[channel.uuid]))
+            webhook = twitter.register_webhook(callback_url)
+            twitter.subscribe_to_webhook(webhook['id'])
+
+        on_transaction_commit(register_webook)
 
         return channel
 
@@ -1260,8 +1284,8 @@ class Channel(TembaModel):
         # clear our cache for this channel
         Channel.clear_cached_channel(self.id)
 
-        if notify_mage and self.channel_type == Channel.TYPE_TWITTER:
-            # notify Mage so that it deactivates this channel
+        # if this is an old-style Twitter channel, notify Mage so that it stops streaming for this channel
+        if notify_mage and self.channel_type == Channel.TYPE_TWITTER and ('api_key' not in config):
             from .tasks import MageStreamAction, notify_mage_task
             on_transaction_commit(lambda: notify_mage_task.delay(self.uuid, MageStreamAction.deactivate.name))
 
@@ -2775,13 +2799,7 @@ class Channel(TembaModel):
         from temba.msgs.models import WIRED
         from temba.contacts.models import Contact
 
-        consumer_key = settings.TWITTER_API_KEY
-        consumer_secret = settings.TWITTER_API_SECRET
-        oauth_token = channel.config['oauth_token']
-        oauth_token_secret = channel.config['oauth_token_secret']
-
-        twitter = TembaTwython(consumer_key, consumer_secret, oauth_token, oauth_token_secret)
-
+        twitter = TembaTwython.from_channel(channel)
         start = time.time()
 
         try:

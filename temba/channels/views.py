@@ -30,6 +30,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
+from smartmin.mixins import PassRequestToFormMixin
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView, SmartModelActionView
 from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
@@ -40,8 +41,8 @@ from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin, AnonMi
 from temba.channels.models import ChannelSession
 from temba.utils import analytics, on_transaction_commit
 from temba.utils.timezones import timezone_to_country_code
+from temba.utils.twitter import TembaTwython, TwythonError
 from twilio import TwilioRestException
-from twython import Twython
 from uuid import uuid4
 from .models import Channel, ChannelEvent, SyncEvent, Alert, ChannelLog, ChannelCount
 
@@ -63,8 +64,10 @@ RELAYER_TYPE_ICONS = {Channel.TYPE_ANDROID: "icon-channel-android",
                       Channel.TYPE_FCM: "icon-fcm",
                       Channel.TYPE_VIBER: "icon-viber"}
 
-SESSION_TWITTER_TOKEN = 'twitter_oauth_token'
-SESSION_TWITTER_SECRET = 'twitter_oauth_token_secret'
+SESSION_TWITTER_API_KEY = 'twitter_api_key'
+SESSION_TWITTER_API_SECRET = 'twitter_api_secret'
+SESSION_TWITTER_OAUTH_TOKEN = 'twitter_oauth_token'
+SESSION_TWITTER_OAUTH_SECRET = 'twitter_oauth_token_secret'
 
 
 COUNTRIES_NAMES = {key: value for key, value in COUNTRIES.iteritems()}
@@ -877,12 +880,12 @@ class ChannelCRUDL(SmartCRUDL):
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
                'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration', 'claim_external', 'claim_fcm',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
-               'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
+               'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
                'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
-               'claim_red_rabbit', 'claim_macrokiosk', 'claim_jiochat')
+               'claim_red_rabbit', 'claim_macrokiosk', 'claim_jiochat', 'claim_twitter', 'claim_twitter_beta')
     permissions = True
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -2350,13 +2353,13 @@ class ChannelCRUDL(SmartCRUDL):
 
             api_key = settings.TWITTER_API_KEY
             api_secret = settings.TWITTER_API_SECRET
-            oauth_token = self.request.session.get(SESSION_TWITTER_TOKEN, None)
-            oauth_token_secret = self.request.session.get(SESSION_TWITTER_SECRET, None)
-            oauth_verifier = self.request.GET.get('oauth_verifier', None)
+            oauth_token = self.request.session.get(SESSION_TWITTER_OAUTH_TOKEN)
+            oauth_token_secret = self.request.session.get(SESSION_TWITTER_OAUTH_SECRET)
+            oauth_verifier = self.request.GET.get('oauth_verifier')
 
-            # if we have all oauth values, then we be returning from an authorization callback
-            if oauth_token and oauth_token_secret and oauth_verifier:
-                twitter = Twython(api_key, api_secret, oauth_token, oauth_token_secret)
+            # if we have all required values, then we must be returning from an authorization callback
+            if api_key and api_secret and oauth_token and oauth_token_secret and oauth_verifier:
+                twitter = TembaTwython(api_key, api_secret, oauth_token, oauth_token_secret)
                 final_step = twitter.get_authorized_tokens(oauth_verifier)
                 screen_name = final_step['screen_name']
                 handle_id = final_step['user_id']
@@ -2368,8 +2371,9 @@ class ChannelCRUDL(SmartCRUDL):
                     raise Exception(_("No org for this user, cannot claim"))
 
                 channel = Channel.add_twitter_channel(org, self.request.user, screen_name, handle_id, oauth_token, oauth_token_secret)
-                del self.request.session[SESSION_TWITTER_TOKEN]
-                del self.request.session[SESSION_TWITTER_SECRET]
+
+                del self.request.session[SESSION_TWITTER_OAUTH_TOKEN]
+                del self.request.session[SESSION_TWITTER_OAUTH_SECRET]
 
                 return redirect(reverse('channels.channel_read', args=[channel.uuid]))
 
@@ -2379,16 +2383,64 @@ class ChannelCRUDL(SmartCRUDL):
             context = super(ChannelCRUDL.ClaimTwitter, self).get_context_data(**kwargs)
 
             # generate temp OAuth token and secret
-            twitter = Twython(settings.TWITTER_API_KEY, settings.TWITTER_API_SECRET)
+            twitter = TembaTwython(settings.TWITTER_API_KEY, settings.TWITTER_API_SECRET)
             callback_url = self.request.build_absolute_uri(reverse('channels.channel_claim_twitter'))
             auth = twitter.get_authentication_tokens(callback_url=callback_url)
 
             # put in session for when we return from callback
-            self.request.session[SESSION_TWITTER_TOKEN] = auth['oauth_token']
-            self.request.session[SESSION_TWITTER_SECRET] = auth['oauth_token_secret']
+            self.request.session[SESSION_TWITTER_OAUTH_TOKEN] = auth['oauth_token']
+            self.request.session[SESSION_TWITTER_OAUTH_SECRET] = auth['oauth_token_secret']
 
             context['twitter_auth_url'] = auth['auth_url']
             return context
+
+    class ClaimTwitterBeta(OrgPermsMixin, PassRequestToFormMixin, SmartFormView):
+        class ClaimForm(forms.Form):
+            api_key = forms.CharField(label=_('Consumer Key'))
+            api_secret = forms.CharField(label=_('Consumer Secret'))
+            access_token = forms.CharField(label=_('Access Token'))
+            access_token_secret = forms.CharField(label=_('Access Token Secret'))
+
+            def __init__(self, **kwargs):
+                self.org = kwargs.pop('request').user.get_org()
+                super(ChannelCRUDL.ClaimTwitterBeta.ClaimForm, self).__init__(**kwargs)
+
+            def clean(self):
+                cleaned_data = super(ChannelCRUDL.ClaimTwitterBeta.ClaimForm, self).clean()
+                api_key = cleaned_data.get('api_key')
+                api_secret = cleaned_data.get('api_secret')
+                access_token = cleaned_data.get('access_token')
+                access_token_secret = cleaned_data.get('access_token_secret')
+
+                if api_key and api_secret and access_token and access_token_secret:
+                    twitter = TembaTwython(api_key, api_secret, access_token, access_token_secret)
+                    try:
+                        user = twitter.verify_credentials()
+
+                        # check there isn't already a channel for this Twitter account
+                        if self.org.channels.filter(channel_type=Channel.TYPE_TWITTER, address=user['screen_name'], is_active=True).exists():
+                            raise ValidationError(_("A Twitter channel already exists for that handle."))
+
+                    except TwythonError:
+                        raise ValidationError(_("The provided Twitter credentials do not appear to be valid."))
+
+                return cleaned_data
+
+        form_class = ClaimForm
+        permission = 'channels.channel_claim'
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+
+            cleaned_data = form.cleaned_data
+            api_key = cleaned_data['api_key']
+            api_secret = cleaned_data['api_secret']
+            access_token = cleaned_data['access_token']
+            access_token_secret = cleaned_data['access_token_secret']
+
+            self.object = Channel.add_twitter_beta_channel(org, self.request.user, api_key, api_secret, access_token, access_token_secret)
+
+            return super(ChannelCRUDL.ClaimTwitterBeta, self).form_valid(form)
 
     class ClaimFcm(OrgPermsMixin, SmartFormView):
         class ClaimFcmForm(forms.Form):

@@ -17,6 +17,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
+from django.utils.crypto import constant_time_compare
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
@@ -30,10 +31,10 @@ from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, OUTGOING
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
-from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit
+from temba.utils import decode_base64, get_anonymous_user, json_date_to_datetime, ms_to_datetime, on_transaction_commit
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
-from temba.utils import decode_base64, get_anonymous_user
+from temba.utils.twitter import generate_twitter_signature
 from twilio import twiml
 from .tasks import fb_channel_subscribe, refresh_jiochat_access_tokens
 
@@ -2912,3 +2913,62 @@ class FCMHandler(BaseChannelHandler):
 
         except Exception as e:  # pragma: no cover
             return HttpResponse(e.args, status=400)
+
+
+class TwitterHandler(BaseChannelHandler):
+
+    url = r'^twitter/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.twitter_handler'
+
+    def get(self, request, *args, **kwargs):
+        crc_token = request.GET['crc_token']
+
+        channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
+                                         channel_type=Channel.TYPE_TWITTER).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("No such Twitter channel", status=400)
+
+        consumer_secret = channel.config_json()['api_secret']
+        resp_token = generate_twitter_signature(crc_token, consumer_secret)
+
+        return JsonResponse({'response_token': resp_token}, status=200)
+
+    def post(self, request, *args, **kwargs):
+        channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
+                                         channel_type=Channel.TYPE_TWITTER).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("No such Twitter channel", status=400)
+
+        channel_config = channel.config_json()
+
+        # validate that request has come from Twitter
+        expected_signature = request.META['HTTP_X_TWITTER_WEBHOOKS_SIGNATURE']
+        calculated_signature = generate_twitter_signature(request.body, channel_config['api_secret'])
+
+        if not constant_time_compare(expected_signature, calculated_signature):
+            return HttpResponse("Invalid request signature", status=400)
+
+        body = json.loads(request.body)
+        dm_events = body.get('direct_message_events', [])
+        users = body.get('users', {})
+
+        msgs = []
+        for dm_event in dm_events:
+            if dm_event['type'] == 'message_create':
+                sender_id = dm_event['message_create']['sender_id']
+
+                # check that this isn't a message that we sent
+                if int(sender_id) == channel_config['handle_id']:
+                    continue
+
+                urn = URN.from_twitter(users[sender_id]['screen_name'])
+                name = None if channel.org.is_anon else users[sender_id]['name']
+                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
+
+                external_id = dm_event['id']
+                created_on = ms_to_datetime(int(dm_event['created_timestamp']))
+                text = dm_event['message_create']['message_data']['text']
+
+                msgs.append(Msg.create_incoming(channel, urn, text, date=created_on, contact=contact, external_id=external_id))
+
+        return HttpResponse("Accepted %d messages" % len(msgs), status=200)
