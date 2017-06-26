@@ -3,6 +3,8 @@ from __future__ import unicode_literals, absolute_import
 import six
 import time
 
+from django.urls import reverse
+from django.utils.translation import ugettext_lazy as _
 from temba.utils.twitter import TembaTwython
 from ...models import Channel, ChannelType, SendException
 from ...tasks import MageStreamAction, notify_mage_task
@@ -14,9 +16,12 @@ class TwitterType(ChannelType):
     this deployment.
     """
     code = "TT"
+    category = ChannelType.Category.SOCIAL_MEDIA
 
     name = "Twitter"
     icon = 'icon-twitter'
+    blurb = _("""Add a <a href="http://twitter.com">Twitter</a> account to send messages as direct messages.""")
+    claim_url = reverse('channels.channel_claim_twitter')
 
     scheme = 'twitter'
     max_length = 10000

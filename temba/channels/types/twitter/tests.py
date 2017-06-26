@@ -23,6 +23,11 @@ class TwitterTypeTest(TembaTest):
     def test_claim(self, mock_get_authorized_tokens, mock_activate_twitter_stream, mock_get_authentication_tokens):
         self.login(self.admin)
 
+        claim_url = reverse('channels.channel_claim')
+
+        response = self.client.get(claim_url)
+        self.assertContains(response, 'claim_twitter')
+
         self.channel.delete()  # remove existing twitter channel
 
         claim_url = reverse('channels.channel_claim_twitter')

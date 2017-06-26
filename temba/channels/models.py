@@ -23,6 +23,7 @@ from django.db.models.signals import pre_save
 from django.conf import settings
 from django.utils import timezone
 from django.utils.http import urlencode, urlquote_plus
+from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 from django.dispatch import receiver
 from django_countries.fields import CountryField
@@ -64,10 +65,17 @@ class Encoding(Enum):
 
 
 class ChannelType(six.with_metaclass(ABCMeta)):
+    class Category(Enum):
+        PHONE = 1
+        SOCIAL_MEDIA = 2
+        API = 3
+
     code = None
+    category = None
 
     name = None
     icon = 'icon-channel-external'
+    blurb = None
     show_config_page = True
 
     scheme = None
@@ -80,6 +88,9 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         Determines whether this channel type is available to the given user, e.g. check timezone
         """
         return True
+
+    def get_blurb(self):
+        return mark_safe(self.blurb)
 
     def has_attachment_support(self, channel):
         """
@@ -440,6 +451,11 @@ class Channel(TembaModel):
             return TYPES[code]
         except KeyError:  # pragma: no cover
             raise ValueError("Unrecognized channel type code: %s" % code)
+
+    @classmethod
+    def get_types(cls):
+        from .types import TYPES
+        return six.itervalues(TYPES)
 
     def get_type(self):
         return self.get_type_from_code(self.channel_type)

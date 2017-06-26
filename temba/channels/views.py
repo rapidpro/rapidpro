@@ -13,6 +13,7 @@ import six
 import time
 import requests
 
+from collections import defaultdict
 from datetime import datetime, timedelta
 from django import forms
 from django.conf import settings
@@ -1215,6 +1216,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(ChannelCRUDL.Claim, self).get_context_data(**kwargs)
+            user = self.request.user
 
             twilio_countries = [six.text_type(c[1]) for c in TWILIO_SEARCH_COUNTRIES]
 
@@ -1223,10 +1225,17 @@ class ChannelCRUDL(SmartCRUDL):
 
             context['twilio_countries'] = twilio_countries_str
 
-            org = self.request.user.get_org()
+            org = user.get_org()
             context['recommended_channel'] = org.get_recommended_channel()
             context['org_timezone'] = six.text_type(org.timezone)
 
+            # fetch channel types, sorted by category and name
+            types_by_category = defaultdict(list)
+            for ch_type in sorted(Channel.get_types(), key=lambda t: t.name):
+                if ch_type.is_available_to(user) and ch_type.category:
+                    types_by_category[ch_type.category.name].append(ch_type)
+
+            context['channel_types'] = types_by_category
             return context
 
     class BulkSenderOptions(OrgPermsMixin, SmartTemplateView):

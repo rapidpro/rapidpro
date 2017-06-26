@@ -4,6 +4,7 @@ import json
 
 from django.conf import settings
 from django.urls import reverse
+from django.utils.translation import ugettext_lazy as _
 from temba.utils.twitter import TembaTwython
 from ...models import Channel, ChannelType
 
@@ -13,9 +14,13 @@ class TwitterActivityType(ChannelType):
     A Twitter channel which uses Twitter's new Activity API (currently in beta) to stream DMs.
     """
     code = "TR"
+    category = ChannelType.Category.SOCIAL_MEDIA
 
-    name = "Twitter (Beta)"
+    name = "Twitter Activity API"
     icon = 'icon-twitter'
+    blurb = _("""If you have access to the new <a href="https://dev.twitter.com/webhooks/account-activity">Twitter
+    Activity API</a> which is currently in beta, you can add a Twitter channel for that here.""")
+    claim_url = reverse('channels.channel_claim_twitter_activity')
 
     scheme = 'twitter'
 

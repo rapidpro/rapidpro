@@ -636,6 +636,18 @@
     %h3
       -trans "Social Network Channels"
 
+    -for ch_type in channel_types.SOCIAL_MEDIA
+      .claim-row
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{{ ch_type.claim_url }}"}
+              .btn-container
+                .claim-glyph{class:"{{ ch_type.icon }}"}
+                %p.claim-text= ch_type.name
+          .span9
+            .claim-description
+              %div= ch_type.get_blurb
+
     .claim-row.facebook-channel
       .row
         .span3
@@ -652,38 +664,6 @@
                 Add a <a href="http://facebook.com">Facebook</a> bot to send and receive messages on behalf
                 of one of your Facebook pages for free. You will need to create a Facebook application on
                 their <a href="http://developers.facebook.com">developers</a> site first.
-
-    .claim-row.twitter-channel
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_twitter' %}"}
-            .btn-container
-              .claim-glyph.icon-twitter
-              %p.claim-text
-                -trans "Twitter"
-
-        .span9
-          .claim-description
-            %div
-              -blocktrans
-                Add a <a href="http://twitter.com">Twitter</a> account to send messages as direct messages.
-
-    -if user.is_beta
-      .claim-row.twitter-channel
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_twitter_activity' %}"}
-              .btn-container
-                .claim-glyph.icon-twitter
-                %p.claim-text
-                  -trans "Twitter Activity API"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  If you have access to the new <a href="https://dev.twitter.com/webhooks/account-activity">Twitter Activity API</a>
-                  which is currently in beta, you can add a Twitter channel for that here.
 
     .claim-row.telegram-channel
       .row
