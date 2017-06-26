@@ -741,17 +741,49 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     isPausingRulesetType: (ruleset_type) ->
       return ruleset_type in ['wait_message', 'wait_recording', 'wait_digit', 'wait_digits']
 
+    isTargetAllowedForInterrupt: (targetId) ->
+      node = @getNode(targetId)
+
+      if node?.rules
+        return false
+
+      if node?.actions
+        for action in node.actions
+          if action.type in ['end_ussd']
+            return false
+      return true
+
+    detectInterruptRule: (sourceId, ruleId) ->
+      node = @getNode(sourceId)
+
+      if node?.actions
+        return
+
+      for rule in node.rules
+        if rule.uuid == ruleId and rule.test.type == 'interrupted_status'
+          return true
+
+    checkSourceForInterrupt: (actionset) ->
+      connections = Plumb.getConnectionMap({ target: actionset.uuid })
+
+      for source of connections
+        uuids = source.split('_')
+        sourceId = uuids[0]
+        ruleId = uuids[1]
+        if @detectInterruptRule(sourceId, ruleId)
+          @updateDestination(source, null)
+
     # check if a potential connection would result in an invalid loop
     detectLoop: (nodeId, targetId, path=[]) ->
 
       node = @getNode(targetId)
 
       # can't go back on ourselves
-      if nodeId == targetId and not @isUssdRuleset(node)
+      if nodeId == targetId and (not @isUssdRuleset(node) or @isUssdRuleset(node) and not window.ussd_push_enabled)
         throw new Error('Loop detected: ' + nodeId)
 
       # break out if our target is a pausing ruleset
-      if node and (@isPausingRuleset(node) or @isUssdRuleset(node))
+      if node and (@isPausingRuleset(node) or (@isUssdRuleset(node) and window.ussd_push_enabled))
         return false
 
       # check if we just ate our tail
@@ -785,6 +817,12 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       catch e
         $log.debug(e.message)
         return 'Connecting these together would create an infinite loop in your flow. To connect these, make sure to pass it through an action that waits for a response.'
+
+      if window.ussd and not window.ussd_push_enabled
+        ruleId = sourceId.split('_')[1]
+        if @detectInterruptRule(source, ruleId) and not @isTargetAllowedForInterrupt(targetId)
+          return "You can't connect an interrupt rule to messaging nodes, because the session is already interrupted at this point."
+
       return null
 
     # translates a string into a slug
@@ -1315,6 +1353,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       if action.type == "end_ussd"
         actionset.destination = null
         Plumb.updateConnection(actionset)
+        @checkSourceForInterrupt(actionset)
         @applyActivity(actionset, $rootScope.activity)
 
       found = false
