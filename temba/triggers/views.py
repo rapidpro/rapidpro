@@ -340,7 +340,7 @@ class UssdTriggerForm(BaseTriggerForm):
     """
     keyword = forms.CharField(max_length=32, required=True, label=_("USSD Code"),
                               help_text=_("USSD code to dial (eg: *111#)"))
-    channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("USSD Channel"), required=True)
+    channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("USSD Channel"), required=False)
 
     def __init__(self, user, *args, **kwargs):
         flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.USSD])
@@ -361,7 +361,9 @@ class UssdTriggerForm(BaseTriggerForm):
         data = super(UssdTriggerForm, self).clean()
         keyword = data.get('keyword', '').strip()
         existing = Trigger.objects.filter(org=self.user.get_org(), keyword__iexact=keyword, is_archived=False, is_active=True)
-        existing = existing.filter(channel=data['channel'])
+        channel = data.get('channel')
+        if channel:
+            existing = existing.filter(channel=channel)
 
         if self.instance:
             existing = existing.exclude(id=self.instance.id)
@@ -896,7 +898,7 @@ class TriggerCRUDL(SmartCRUDL):
 
             trigger = Trigger.objects.create(created_by=user, modified_by=user, org=org,
                                              keyword=form.cleaned_data['keyword'], trigger_type=Trigger.TYPE_USSD_PULL,
-                                             flow=form.cleaned_data['flow'], channel=form.cleaned_data['channel'])
+                                             flow=form.cleaned_data['flow'], channel=form.cleaned_data.get('channel'))
             trigger.archive_conflicts(user)
 
             analytics.track(self.request.user.username, 'temba.trigger_created_ussd')
