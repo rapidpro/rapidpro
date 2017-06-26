@@ -115,6 +115,43 @@ class BaseFlowForm(forms.ModelForm):
         fields = '__all__'
 
 
+class UssdFlowForm(forms.ModelForm):
+    ussd_trigger = forms.CharField(required=False, label=_("USSD code"),
+                                   help_text=_("USSD code to dial (eg: *111#)"))
+
+    ussd_push_enabled = forms.BooleanField(required=False, label=_("Enable USSD Push"), initial=False,
+                                           help_text=_(
+                                               "Enable RapidPro initiated USSD flows. (Only works if your channel supports USSD Push.)"))
+
+    def clean_ussd_trigger(self):
+        flow_type = self.cleaned_data.get('flow_type') or self.instance and self.instance.flow_type
+
+        # This means we don't want to validate neither save a new one
+        if self.instance and self.fields['ussd_trigger'].widget.attrs.get('readonly'):
+            return None
+
+        if flow_type == Flow.USSD:
+            keyword = self.cleaned_data.get('ussd_trigger', '').strip()
+
+            if keyword and not regex.match('^[\d\*\#]+$', keyword, flags=regex.UNICODE):
+                raise forms.ValidationError(_("USSD code must contain only *,# and numbers"))
+
+            existing = Trigger.objects.filter(org=self.user.get_org(), keyword__iexact=keyword, is_archived=False,
+                                              is_active=True)
+
+            if self.instance:
+                existing = existing.exclude(id=self.instance.id)
+
+            if existing:
+                raise forms.ValidationError(_("An active trigger already uses this keyword on this channel."))
+
+            return keyword
+
+    class Meta:
+        model = Flow
+        fields = '__all__'
+
+
 class FlowActionForm(BaseActionForm):
     allowed_actions = (('archive', _("Archive Flows")),
                        ('label', _("Label Messages")),
@@ -430,7 +467,7 @@ class FlowCRUDL(SmartCRUDL):
                 return queryset.filter(org=self.request.user.get_org())
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
-        class FlowCreateForm(BaseFlowForm):
+        class FlowCreateForm(UssdFlowForm, BaseFlowForm):
             keyword_triggers = forms.CharField(required=False, label=_("Global keyword triggers"),
                                                help_text=_("When a user sends any of these keywords they will begin this flow"))
 
@@ -453,7 +490,7 @@ class FlowCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Flow
-                fields = ('name', 'keyword_triggers', 'flow_type', 'base_language')
+                fields = ('name', 'keyword_triggers', 'flow_type', 'ussd_trigger', 'ussd_push_enabled', 'base_language')
 
         form_class = FlowCreateForm
         success_url = 'uuid@flows.flow_editor'
@@ -498,7 +535,7 @@ class FlowCRUDL(SmartCRUDL):
 
             self.object = Flow.create(org, self.request.user, obj.name,
                                       flow_type=obj.flow_type, expires_after_minutes=expires_after_minutes,
-                                      base_language=obj.base_language)
+                                      base_language=obj.base_language, ussd_push_enabled=obj.ussd_push_enabled)
 
         def post_save(self, obj):
             user = self.request.user
@@ -510,6 +547,11 @@ class FlowCRUDL(SmartCRUDL):
                     for keyword in self.form.cleaned_data['keyword_triggers'].split(','):
                         Trigger.objects.create(org=org, keyword=keyword, flow=obj, created_by=user, modified_by=user)
 
+            # create ussd triggers if entered
+            if self.form.cleaned_data.get('flow_type') == Flow.USSD and self.form.cleaned_data.get('ussd_trigger'):
+                Trigger.objects.create(trigger_type=Trigger.TYPE_USSD_PULL, org=org,
+                                       keyword=self.form.cleaned_data['ussd_trigger'].strip(), flow=obj,
+                                       created_by=user, modified_by=user)
             return obj
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
@@ -537,7 +579,7 @@ class FlowCRUDL(SmartCRUDL):
             return HttpResponseRedirect(reverse('flows.flow_editor', args=[copy.uuid]))
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        class FlowUpdateForm(BaseFlowForm):
+        class FlowUpdateForm(UssdFlowForm, BaseFlowForm):
 
             expires_after_minutes = forms.ChoiceField(label=_('Expire inactive contacts'),
                                                       help_text=_(
@@ -578,6 +620,15 @@ class FlowCRUDL(SmartCRUDL):
                     )
 
                     self.fields[Flow.CONTACT_CREATION] = contact_creation
+                elif self.instance.flow_type == Flow.USSD:
+                    ussd_trigger = Trigger.objects.filter(
+                        org=self.instance.org, flow=self.instance, is_archived=False, groups=None,
+                        trigger_type=Trigger.TYPE_USSD_PULL
+                    ).first()
+                    if ussd_trigger:
+                        self.fields['ussd_trigger'].initial = ussd_trigger.keyword
+                        self.fields['ussd_trigger'].widget.attrs['readonly'] = True
+                        self.fields['ussd_trigger'].help_text = 'To change the USSD trigger code, go to Triggers'
                 else:
                     self.fields['keyword_triggers'] = forms.CharField(required=False,
                                                                       label=_("Global keyword triggers"),
@@ -586,7 +637,8 @@ class FlowCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Flow
-                fields = ('name', 'labels', 'base_language', 'expires_after_minutes', 'ignore_triggers')
+                fields = ('name', 'labels', 'base_language', 'expires_after_minutes',
+                          'ussd_trigger', 'ussd_push_enabled', 'ignore_triggers')
 
         success_message = ''
         fields = ('name', 'expires_after_minutes')
@@ -601,6 +653,10 @@ class FlowCRUDL(SmartCRUDL):
 
             if obj.flow_type == Flow.SURVEY:
                 fields.insert(len(fields) - 1, Flow.CONTACT_CREATION)
+            elif obj.flow_type == Flow.USSD:
+                fields.append('ussd_trigger')
+                fields.append('ussd_push_enabled')
+                fields.append('ignore_triggers')
             else:
                 fields.insert(1, 'keyword_triggers')
                 fields.append('ignore_triggers')
@@ -650,6 +706,11 @@ class FlowCRUDL(SmartCRUDL):
                     else:
                         Trigger.objects.create(org=org, keyword=keyword, trigger_type=Trigger.TYPE_KEYWORD,
                                                flow=obj, created_by=user, modified_by=user)
+
+            if self.form.cleaned_data.get('ussd_trigger'):
+                Trigger.objects.create(trigger_type=Trigger.TYPE_USSD_PULL, org=org,
+                                       keyword=self.form.cleaned_data['ussd_trigger'].strip(), flow=obj,
+                                       created_by=user, modified_by=user)
 
             # run async task to update all runs
             from .tasks import update_run_expirations_task
@@ -948,14 +1009,17 @@ class FlowCRUDL(SmartCRUDL):
             links = []
             flow = self.get_object()
 
-            if flow.flow_type not in [Flow.SURVEY, Flow.USSD] \
+            if flow.flow_type != Flow.SURVEY \
                     and self.has_org_perm('flows.flow_broadcast') \
                     and not flow.is_archived:
 
-                links.append(dict(title=_("Start Flow"),
-                                  style='btn-primary',
-                                  js_class='broadcast-rulesflow',
-                                  href='#'))
+                if flow.flow_type == Flow.USSD and not flow.ussd_push_enabled:
+                    pass
+                else:
+                    links.append(dict(title=_("Start Flow"),
+                                      style='btn-primary',
+                                      js_class='broadcast-rulesflow',
+                                      href='#'))
 
             if self.has_org_perm('flows.flow_results'):
                 links.append(dict(title=_("Results"),
