@@ -1,3 +1,8 @@
+v3.0.166
+----------
+ * Release channels before Twilio/Nexmo configs are cleared
+ * Expose flow start UUID on runs from the runs endpoint
+
 v3.0.165
 ----------
  * Migration to populate FlowStart.uuid on existing objects (advise faking and run manually)

@@ -1295,11 +1295,10 @@ class Channel(TembaModel):
                         if matching:
                             client.phone_numbers.update(matching[0].sid, **number_update_args)
 
-                if 'application_sid' in config:
-                    try:
-                        client.applications.delete(sid=config['application_sid'])
-                    except TwilioRestException:  # pragma: no cover
-                        pass
+                try:
+                    client.applications.delete(sid=config['application_sid'])
+                except TwilioRestException:  # pragma: no cover
+                    pass
 
             # unsubscribe from facebook events for this page
             elif self.channel_type == Channel.TYPE_FACEBOOK:
