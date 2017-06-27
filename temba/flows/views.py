@@ -126,7 +126,7 @@ class UssdFlowForm(forms.ModelForm):
     def clean_ussd_trigger(self):
         flow_type = self.cleaned_data.get('flow_type') or self.instance and self.instance.flow_type
 
-        # This means we don't want to validate neither save a new one
+        # This means we don't want to validate neither save a new one (for Update Flow)
         if self.instance and self.fields['ussd_trigger'].widget.attrs.get('readonly'):
             return None
 
