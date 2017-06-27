@@ -3,30 +3,27 @@ from __future__ import unicode_literals, absolute_import
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
-from smartmin.mixins import PassRequestToFormMixin
 from smartmin.views import SmartFormView
 from temba.utils.twitter import TembaTwython, TwythonError
 from ...models import Channel
-from ...views import ClaimView
+from ...views import ClaimViewMixin
 
 
-class ClaimTwitterActivity(ClaimView, PassRequestToFormMixin, SmartFormView):
-    class Form(forms.Form):
+class ClaimView(ClaimViewMixin, SmartFormView):
+    class Form(ClaimViewMixin.Form):
         api_key = forms.CharField(label=_('Consumer Key'))
         api_secret = forms.CharField(label=_('Consumer Secret'))
         access_token = forms.CharField(label=_('Access Token'))
         access_token_secret = forms.CharField(label=_('Access Token Secret'))
 
-        def __init__(self, **kwargs):
-            self.org = kwargs.pop('request').user.get_org()
-            super(ClaimTwitterActivity.Form, self).__init__(**kwargs)
-
         def clean(self):
-            cleaned_data = super(ClaimTwitterActivity.Form, self).clean()
+            cleaned_data = super(ClaimView.Form, self).clean()
             api_key = cleaned_data.get('api_key')
             api_secret = cleaned_data.get('api_secret')
             access_token = cleaned_data.get('access_token')
             access_token_secret = cleaned_data.get('access_token_secret')
+
+            org = self.request.user.get_org()
 
             if api_key and api_secret and access_token and access_token_secret:
                 twitter = TembaTwython(api_key, api_secret, access_token, access_token_secret)
@@ -34,8 +31,8 @@ class ClaimTwitterActivity(ClaimView, PassRequestToFormMixin, SmartFormView):
                     user = twitter.verify_credentials()
 
                     # check there isn't already a channel for this Twitter account
-                    if self.org.channels.filter(channel_type='TWT', address=user['screen_name'],
-                                                is_active=True).exists():
+                    if org.channels.filter(channel_type=self.channel_type.code,
+                                           address=user['screen_name'], is_active=True).exists():
                         raise ValidationError(_("A Twitter channel already exists for that handle."))
 
                 except TwythonError:
@@ -67,7 +64,7 @@ class ClaimTwitterActivity(ClaimView, PassRequestToFormMixin, SmartFormView):
             'access_token_secret': access_token_secret
         }
 
-        self.object = Channel.create(org, self.request.user, None, 'TWT', name="@%s" % screen_name,
+        self.object = Channel.create(org, self.request.user, None, self.channel_type, name="@%s" % screen_name,
                                      address=screen_name, config=config)
 
-        return super(ClaimTwitterActivity, self).form_valid(form)
+        return super(ClaimView, self).form_valid(form)

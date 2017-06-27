@@ -762,14 +762,26 @@ def register(request):
     return JsonResponse(dict(cmds=[cmd]))
 
 
-class ClaimView(OrgPermsMixin):
+class ClaimViewMixin(OrgPermsMixin):
     permission = 'channels.channel_claim'
     channel_type = None
+
+    class Form(forms.Form):
+        def __init__(self, **kwargs):
+            self.request = kwargs.pop('request')
+            self.channel_type = kwargs.pop('channel_type')
+            super(ClaimViewMixin.Form, self).__init__(**kwargs)
 
     def __init__(self, channel_type):
         self.channel_type = channel_type
         self.template_name = 'channels/types/%s/claim.html' % channel_type.slug
-        super(ClaimView, self).__init__()
+        super(ClaimViewMixin, self).__init__()
+
+    def get_form_kwargs(self):
+        kwargs = super(ClaimViewMixin, self).get_form_kwargs()
+        kwargs['request'] = self.request
+        kwargs['channel_type'] = self.channel_type
+        return kwargs
 
     def get_success_url(self):
         return reverse('channels.channel_read', args=[self.object.uuid])

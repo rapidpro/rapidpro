@@ -5,7 +5,7 @@ import time
 
 from django.utils.translation import ugettext_lazy as _
 from temba.utils.twitter import TembaTwython
-from .views import ClaimTwitter
+from .views import ClaimView
 from ...models import Channel, ChannelType, SendException
 from ...tasks import MageStreamAction, notify_mage_task
 
@@ -22,7 +22,7 @@ class TwitterType(ChannelType):
     icon = 'icon-twitter'
 
     claim_blurb = _("""Add a <a href="http://twitter.com">Twitter</a> account to send messages as direct messages.""")
-    claim_view = ClaimTwitter
+    claim_view = ClaimView
 
     scheme = 'twitter'
     max_length = 10000

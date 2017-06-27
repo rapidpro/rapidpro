@@ -126,8 +126,11 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     @abstractmethod
     def send(self, channel, msg, text):
         """
-        Sends the give message struct
+        Sends the give message struct - will only be called when SEND_MESSAGES setting is True
         """
+
+    def __str__(self):
+        return self.name
 
 
 @six.python_2_unicode_compatible
@@ -419,12 +422,13 @@ class Channel(TembaModel):
                            help_text=_("Any channel specific state data"))
 
     @classmethod
-    def create(cls, org, user, country, type_code, name=None, address=None, config=None, role=DEFAULT_ROLE, scheme=None, **kwargs):
-        channel_type = cls.get_type_from_code(type_code)
+    def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=DEFAULT_ROLE, scheme=None, **kwargs):
+        if isinstance(channel_type, six.string_types):
+            channel_type = cls.get_type_from_code(channel_type)
 
         if scheme:
             if channel_type.scheme and channel_type.scheme != scheme:
-                raise ValueError("Channel type %s cannot support scheme %s" % (type_code, scheme))
+                raise ValueError("Channel type '%s' cannot support scheme %s" % (channel_type, scheme))
         else:
             scheme = channel_type.scheme
 
@@ -439,7 +443,7 @@ class Channel(TembaModel):
 
         create_args = dict(org=org, created_by=user, modified_by=user,
                            country=country,
-                           channel_type=type_code,
+                           channel_type=channel_type.code,
                            name=name, address=address,
                            config=json.dumps(config),
                            role=role, scheme=scheme)
