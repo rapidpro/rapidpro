@@ -21,16 +21,9 @@ class TwitterTypeTest(TembaTest):
     @patch('temba.utils.mage.MageClient.activate_twitter_stream')
     @patch('twython.Twython.get_authorized_tokens')
     def test_claim(self, mock_get_authorized_tokens, mock_activate_twitter_stream, mock_get_authentication_tokens):
-        self.login(self.admin)
-
-        claim_url = reverse('channels.channel_claim')
-
-        response = self.client.get(claim_url)
-        self.assertContains(response, 'claim_twitter')
+        url = reverse('channels.claim_twitter')
 
         self.channel.delete()  # remove existing twitter channel
-
-        claim_url = reverse('channels.channel_claim_twitter')
 
         mock_get_authentication_tokens.return_value = {
             'oauth_token': 'abcde',
@@ -38,7 +31,26 @@ class TwitterTypeTest(TembaTest):
             'auth_url': 'http://example.com/auth'
         }
 
-        response = self.client.get(claim_url)
+        # can't access claim page if not logged in
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+
+        self.login(self.user)
+
+        # also can't access if just a regular user
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+
+        self.login(self.admin)
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        # check that claim page URL appears on claim list page
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertContains(response, url)
+
+        response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['twitter_auth_url'], 'http://example.com/auth')
         self.assertEqual(self.client.session['twitter_oauth_token'], 'abcde')
@@ -53,7 +65,7 @@ class TwitterTypeTest(TembaTest):
             'oauth_token_secret': '23456'
         }
 
-        response = self.client.get(claim_url, {'oauth_verifier': 'vwxyz'}, follow=True)
+        response = self.client.get(url, {'oauth_verifier': 'vwxyz'}, follow=True)
         self.assertNotIn('twitter_oauth_token', self.client.session)
         self.assertNotIn('twitter_oauth_token_secret', self.client.session)
         self.assertEqual(response.status_code, 200)
@@ -79,7 +91,7 @@ class TwitterTypeTest(TembaTest):
             'oauth_token_secret': '45678'
         }
 
-        response = self.client.get(claim_url, {'oauth_verifier': 'uvwxy'}, follow=True)
+        response = self.client.get(url, {'oauth_verifier': 'uvwxy'}, follow=True)
         self.assertEqual(response.status_code, 200)
 
         channel = response.context['object']

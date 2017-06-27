@@ -14,20 +14,21 @@ import six
 from abc import ABCMeta, abstractmethod
 from enum import Enum
 from datetime import timedelta
+from django.conf import settings
+from django.conf.urls import url
 from django.contrib.auth.models import User, Group
+from django.core.cache import cache
 from django.core.urlresolvers import reverse
 from django.core.validators import URLValidator
 from django.db import models
 from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
-from django.conf import settings
+from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.http import urlencode, urlquote_plus
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
-from django.dispatch import receiver
 from django_countries.fields import CountryField
-from django.core.cache import cache
 from django_redis import get_redis_connection
 from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
@@ -71,11 +72,15 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         API = 3
 
     code = None
+    slug = None
     category = None
 
     name = None
     icon = 'icon-channel-external'
-    blurb = None
+
+    claim_blurb = None
+    claim_view = None
+
     show_config_page = True
 
     scheme = None
@@ -89,11 +94,17 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         return True
 
-    def get_blurb(self):
+    def get_claim_blurb(self):
         """
         Gets the blurb for use on the claim page list of channel types
         """
-        return mark_safe(self.blurb)
+        return mark_safe(self.claim_blurb)
+
+    def get_claim_url(self):
+        """
+        Gets the URL configuration for this channel types's claim page
+        """
+        return url(r'^claim/%s/' % self.slug, self.claim_view.as_view(), name='channels.claim_%s' % self.slug)
 
     def has_attachment_support(self, channel):
         """

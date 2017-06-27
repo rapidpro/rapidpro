@@ -640,13 +640,13 @@
       .claim-row
         .row
           .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{{ ch_type.claim_url }}"}
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
               .btn-container
                 .claim-glyph{class:"{{ ch_type.icon }}"}
                 %p.claim-text= ch_type.name
           .span9
             .claim-description
-              %div= ch_type.get_blurb
+              %div= ch_type.get_claim_blurb
 
     .claim-row.facebook-channel
       .row

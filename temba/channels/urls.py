@@ -5,8 +5,11 @@ from .handlers import TwilioHandler, VerboiceHandler, AfricasTalkingHandler, Zen
 from .handlers import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHandler, Hub9Handler, VumiHandler
 from .handlers import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
 from .handlers import SMSCentralHandler, MageHandler, YoHandler, get_channel_handlers
+from .models import Channel
 from .views import ChannelCRUDL, ChannelEventCRUDL, ChannelLogCRUDL
 
+
+claim_page_urls = [ch_type.get_claim_url() for ch_type in Channel.get_types() if ch_type.claim_view]
 
 handler_urls = []
 for handler in get_channel_handlers():
@@ -23,6 +26,8 @@ urlpatterns = [
     url(r'^', include(ChannelEventCRUDL().as_urlpatterns())),
 
     url(r'^channels/', include(ChannelCRUDL().as_urlpatterns() + ChannelLogCRUDL().as_urlpatterns())),
+
+    url(r'^channels/', include(claim_page_urls)),
 
     url(r'^handlers/', include(handler_urls)),
 
