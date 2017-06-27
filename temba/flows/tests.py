@@ -1985,7 +1985,7 @@ class FlowTest(TembaTest):
 
         # should't be allowed to have a survey flow and keywords
         self.assertEqual(0, flow.triggers.all().count())
-        
+
     def test_flow_create_with_ussd_trigger(self):
         self.login(self.admin)
 
