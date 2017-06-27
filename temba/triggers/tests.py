@@ -1159,12 +1159,4 @@ class TriggerTest(TembaTest):
         response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
         self.assertNoFormErrors(response)
         trigger = Trigger.objects.get(keyword='*112#')
-
-        # try a second ussd code with the same channel
-        # TODO: fix this with multichannel triggers
-        # post_data = dict(channel=channel.pk, keyword='*112#', flow=flow.pk)
-        # response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
-        # self.assertEquals(0, len(response.context['form'].errors))
-        # self.assertEquals(2, Trigger.objects.count())
-        # trigger = Trigger.objects.get(keyword='*112#')
-        # self.assertEquals(flow.pk, trigger.flow.pk)
+        self.assertEquals(2, Trigger.objects.count())

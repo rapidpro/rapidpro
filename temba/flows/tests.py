@@ -1985,6 +1985,79 @@ class FlowTest(TembaTest):
 
         # should't be allowed to have a survey flow and keywords
         self.assertEqual(0, flow.triggers.all().count())
+        
+    def test_flow_create_with_ussd_trigger(self):
+        self.login(self.admin)
+
+        post_data = dict()
+        post_data['name'] = "USSD Flow 1"
+        post_data['ussd_trigger'] = "notallowed"
+        post_data['flow_type'] = Flow.USSD
+        response = self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+
+        self.assertEqual(response.context_data['form'].errors,
+                         {u'ussd_trigger': [u'USSD code must contain only *,# and numbers']})
+
+        post_data['ussd_trigger'] = "*111#"
+        self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+
+        self.assertEqual(Trigger.objects.count(), 1)
+
+        # try to add duplicate
+        response = self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+        self.assertEqual(response.context_data['form'].errors,
+                         {u'ussd_trigger': [u"An active trigger already uses this keyword on this channel."]})
+
+    def test_flow_update_with_ussd_trigger(self):
+        self.login(self.admin)
+
+        post_data = dict()
+        post_data['name'] = "USSD Flow 2"
+        post_data['ussd_trigger'] = "*112#"
+        post_data['flow_type'] = Flow.USSD
+        post_data['ussd_push_enabled'] = False
+        self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+
+        flow = Flow.objects.get(name="USSD Flow 2")
+        trigger = Trigger.objects.get(keyword="*112#")
+
+        # can't change trigger from update, need to go to trigger page
+        post_data['ussd_trigger'] = "*113#"
+        post_data['ussd_push_enabled'] = True
+        post_data['expires_after_minutes'] = 60 * 12
+        self.client.post(reverse('flows.flow_update', args=[flow.pk]), post_data, follow=True)
+
+        flow.refresh_from_db()
+        trigger.refresh_from_db()
+
+        self.assertTrue(flow.ussd_push_enabled)
+        self.assertEqual(trigger.keyword, "*112#")
+        self.assertFalse(Trigger.objects.filter(keyword="*113#").exists())
+
+    def test_flow_create_on_update_ussd_trigger(self):
+        self.login(self.admin)
+
+        # create flow without trigger
+        post_data = dict()
+        post_data['name'] = "USSD Flow 2"
+        post_data['flow_type'] = Flow.USSD
+        post_data['ussd_push_enabled'] = False
+        self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+
+        flow = Flow.objects.get(name="USSD Flow 2")
+
+        # can't change trigger from update, need to go to trigger page
+        post_data['ussd_trigger'] = "*112#"
+        post_data['ussd_push_enabled'] = True
+        post_data['expires_after_minutes'] = 60 * 12
+        self.client.post(reverse('flows.flow_update', args=[flow.pk]), post_data, follow=True)
+
+        flow.refresh_from_db()
+        trigger = Trigger.objects.get(keyword="*112#")
+
+        self.assertTrue(flow.ussd_push_enabled)
+        self.assertEqual(trigger.keyword, "*112#")
+        self.assertEqual(trigger.flow, flow)
 
     def test_flow_keyword_update(self):
         self.login(self.admin)
