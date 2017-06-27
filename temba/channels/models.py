@@ -34,7 +34,7 @@ from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
-from temba.orgs.models import Org, OrgLock, NEXMO_UUID, NEXMO_APP_ID
+from temba.orgs.models import Org, NEXMO_UUID, NEXMO_APP_ID
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
@@ -42,7 +42,6 @@ from temba.utils.http import HttpEvent
 from temba.utils.jiochat import JiochatClient
 from temba.utils.nexmo import NexmoClient, NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid
-from temba.utils.twitter import TembaTwython
 from time import sleep
 from twilio import twiml, TwilioRestException
 from uuid import uuid4
@@ -835,38 +834,6 @@ class Channel(TembaModel):
         channel_access_token = credentials.get('channel_access_token')
 
         return Channel.create(org, user, None, Channel.TYPE_LINE, name=name, address=channel_mid, config={Channel.CONFIG_AUTH_TOKEN: channel_access_token, Channel.CONFIG_CHANNEL_ID: channel_id, Channel.CONFIG_CHANNEL_SECRET: channel_secret, Channel.CONFIG_CHANNEL_MID: channel_mid})
-
-    @classmethod
-    def add_twitter_channel(cls, org, user, screen_name, handle_id, oauth_token, oauth_token_secret):
-        config = dict(handle_id=int(handle_id), oauth_token=oauth_token, oauth_token_secret=oauth_token_secret)
-
-        with org.lock_on(OrgLock.channels):
-            channel = Channel.objects.filter(org=org, channel_type='TT', address=screen_name, is_active=True).first()
-            if channel:
-                channel.config = json.dumps(config)
-                channel.modified_by = user
-                channel.save()
-            else:
-                channel = cls.create(org, user, None, 'TT', name="@%s" % screen_name, address=screen_name, config=config)
-
-        return channel
-
-    @classmethod
-    def add_twitter_activity_channel(cls, org, user, api_key, api_secret, access_token, access_token_secret):
-        twitter = TembaTwython(api_key, api_secret, access_token, access_token_secret)
-        account_info = twitter.verify_credentials()
-        handle_id = account_info['id']
-        screen_name = account_info['screen_name']
-
-        config = {
-            'handle_id': handle_id,
-            'api_key': api_key,
-            'api_secret': api_secret,
-            'access_token': access_token,
-            'access_token_secret': access_token_secret
-        }
-
-        return cls.create(org, user, None, 'TWT', name="@%s" % screen_name, address=screen_name, config=config)
 
     @classmethod
     def get_or_create_android(cls, registration_data, status):

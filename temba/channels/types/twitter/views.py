@@ -1,6 +1,7 @@
 from __future__ import unicode_literals, absolute_import
 
 from django.conf import settings
+from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
@@ -37,16 +38,25 @@ class ClaimTwitter(ClaimView, SmartTemplateView):
             oauth_token_secret = final_step['oauth_token_secret']
 
             org = self.request.user.get_org()
-            if not org:  # pragma: no cover
-                raise Exception(_("No org for this user, cannot claim"))
-
-            channel = Channel.add_twitter_channel(org, self.request.user, screen_name, handle_id, oauth_token,
-                                                  oauth_token_secret)
 
             del self.request.session[SESSION_TWITTER_OAUTH_TOKEN]
             del self.request.session[SESSION_TWITTER_OAUTH_SECRET]
 
-            return redirect(reverse('channels.channel_read', args=[channel.uuid]))
+            # check there isn't already a channel for this Twitter account
+            if self.org.channels.filter(channel_type='TT', address=screen_name, is_active=True).exists():
+                messages.error(self.request, _("A Twitter channel for that handle already exists, and must be removed"
+                                               "before another channel can be created for that handle."))
+                return response
+            else:
+                config = {
+                    'handle_id': int(handle_id),
+                    'oauth_token': oauth_token,
+                    'oauth_token_secret': oauth_token_secret
+                }
+                self.object = Channel.create(org, self.request.user, None, 'TT', name="@%s" % screen_name,
+                                             address=screen_name, config=config)
+
+            return redirect(self.get_success_url())
 
         return response
 

@@ -771,6 +771,9 @@ class ClaimView(OrgPermsMixin):
         self.template_name = 'channels/types/%s/claim.html' % channel_type.slug
         super(ClaimView, self).__init__()
 
+    def get_success_url(self):
+        return reverse('channels.channel_read', args=[self.object.uuid])
+
 
 class ClaimAndroidForm(forms.Form):
     claim_code = forms.CharField(max_length=12, help_text=_("The claim code from your Android phone"))

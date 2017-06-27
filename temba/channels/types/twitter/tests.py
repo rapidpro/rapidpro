@@ -23,8 +23,6 @@ class TwitterTypeTest(TembaTest):
     def test_claim(self, mock_get_authorized_tokens, mock_activate_twitter_stream, mock_get_authentication_tokens):
         url = reverse('channels.claim_twitter')
 
-        self.channel.delete()  # remove existing twitter channel
-
         mock_get_authentication_tokens.return_value = {
             'oauth_token': 'abcde',
             'oauth_token_secret': '12345',
@@ -65,41 +63,31 @@ class TwitterTypeTest(TembaTest):
             'oauth_token_secret': '23456'
         }
 
+        # try re-adding a Twitter handle which already exists
+        response = self.client.get(url, {'oauth_verifier': 'vwxyz'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "A Twitter channel for that handle already exists")
+
+        mock_get_authorized_tokens.return_value = {
+            'screen_name': 'jimmy',
+            'user_id': 123,
+            'oauth_token': 'bcdef',
+            'oauth_token_secret': '23456'
+        }
+
+        # try adding a new Twitter handle
         response = self.client.get(url, {'oauth_verifier': 'vwxyz'}, follow=True)
         self.assertNotIn('twitter_oauth_token', self.client.session)
         self.assertNotIn('twitter_oauth_token_secret', self.client.session)
         self.assertEqual(response.status_code, 200)
 
         channel = response.context['object']
-        self.assertEqual(channel.address, 'billy_bob')
-        self.assertEqual(channel.name, '@billy_bob')
+        self.assertEqual(channel.address, 'jimmy')
+        self.assertEqual(channel.name, '@jimmy')
         config = json.loads(channel.config)
         self.assertEqual(config['handle_id'], 123)
         self.assertEqual(config['oauth_token'], 'bcdef')
         self.assertEqual(config['oauth_token_secret'], '23456')
-
-        # re-add same account but with different auth credentials
-        s = self.client.session
-        s['twitter_oauth_token'] = 'cdefg'
-        s['twitter_oauth_token_secret'] = '34567'
-        s.save()
-
-        mock_get_authorized_tokens.return_value = {
-            'screen_name': 'billy_bob',
-            'user_id': 123,
-            'oauth_token': 'defgh',
-            'oauth_token_secret': '45678'
-        }
-
-        response = self.client.get(url, {'oauth_verifier': 'uvwxy'}, follow=True)
-        self.assertEqual(response.status_code, 200)
-
-        channel = response.context['object']
-        self.assertEqual(channel.address, 'billy_bob')
-        config = json.loads(channel.config)
-        self.assertEqual(config['handle_id'], 123)
-        self.assertEqual(config['oauth_token'], 'defgh')
-        self.assertEqual(config['oauth_token_secret'], '45678')
 
     @override_settings(IS_PROD=True)
     @patch('temba.utils.mage.MageClient._request')

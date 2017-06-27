@@ -54,7 +54,20 @@ class ClaimTwitterActivity(ClaimView, PassRequestToFormMixin, SmartFormView):
         access_token = cleaned_data['access_token']
         access_token_secret = cleaned_data['access_token_secret']
 
-        self.object = Channel.add_twitter_activity_channel(org, self.request.user, api_key, api_secret, access_token,
-                                                           access_token_secret)
+        twitter = TembaTwython(api_key, api_secret, access_token, access_token_secret)
+        account_info = twitter.verify_credentials()
+        handle_id = account_info['id']
+        screen_name = account_info['screen_name']
+
+        config = {
+            'handle_id': handle_id,
+            'api_key': api_key,
+            'api_secret': api_secret,
+            'access_token': access_token,
+            'access_token_secret': access_token_secret
+        }
+
+        self.object = Channel.create(org, self.request.user, None, 'TWT', name="@%s" % screen_name,
+                                     address=screen_name, config=config)
 
         return super(ClaimTwitterActivity, self).form_valid(form)
