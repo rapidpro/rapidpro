@@ -764,6 +764,12 @@ def register(request):
 
 class ClaimView(OrgPermsMixin):
     permission = 'channels.channel_claim'
+    channel_type = None
+
+    def __init__(self, channel_type):
+        self.channel_type = channel_type
+        self.template_name = 'channels/types/%s/claim.html' % channel_type.slug
+        super(ClaimView, self).__init__()
 
 
 class ClaimAndroidForm(forms.Form):

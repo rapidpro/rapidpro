@@ -102,9 +102,11 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 
     def get_claim_url(self):
         """
-        Gets the URL configuration for this channel types's claim page
+        Gets the URL/view configuration for this channel types's claim page
         """
-        return url(r'^claim/%s/' % self.slug, self.claim_view.as_view(), name='channels.claim_%s' % self.slug)
+        rel_url = r'^claim/%s/' % self.slug
+        url_name = 'channels.claim_%s' % self.slug
+        return url(rel_url, self.claim_view.as_view(channel_type=self), name=url_name)
 
     def has_attachment_support(self, channel):
         """

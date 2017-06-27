@@ -17,7 +17,6 @@ SESSION_TWITTER_OAUTH_SECRET = 'twitter_oauth_token_secret'
 
 
 class ClaimTwitter(ClaimView, SmartTemplateView):
-    template_name = 'channels/channel_claim_twitter.haml'
 
     def pre_process(self, *args, **kwargs):
         response = super(ClaimTwitter, self).pre_process(*args, **kwargs)

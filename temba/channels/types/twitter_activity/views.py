@@ -44,7 +44,6 @@ class ClaimTwitterActivity(ClaimView, PassRequestToFormMixin, SmartFormView):
             return cleaned_data
 
     form_class = Form
-    template_name = 'channels/channel_claim_twitter_activity.haml'
 
     def form_valid(self, form):
         org = self.request.user.get_org()
