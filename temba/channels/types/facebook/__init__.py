@@ -46,7 +46,7 @@ class FacebookType(ChannelType):
             self._set_call_to_action(trigger.channel, 'get_started')
 
     def deactivate_trigger(self, trigger):
-        # for any new convo triggers, clear out the call to action payload
+        # for any new conversation triggers, clear out the call to action payload
         if trigger.trigger_type == Trigger.TYPE_NEW_CONVERSATION:
             self._set_call_to_action(trigger.channel, None)
 
@@ -132,7 +132,8 @@ class FacebookType(ChannelType):
 
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
-    def _set_call_to_action(self, channel, payload):
+    @staticmethod
+    def _set_call_to_action(channel, payload):
         # register for get_started events
         url = 'https://graph.facebook.com/v2.6/%s/thread_settings' % channel.address
         body = {'setting_type': 'call_to_actions', 'thread_state': 'new_thread', 'call_to_actions': []}
@@ -143,7 +144,7 @@ class FacebookType(ChannelType):
 
         access_token = channel.config_json()[Channel.CONFIG_AUTH_TOKEN]
 
-        response = requests.post(url, json.dumps(body), params={'access_token': access_token},
+        response = requests.post(url, json=body, params={'access_token': access_token},
                                  headers={'Content-Type': 'application/json'})
 
         if response.status_code != 200:  # pragma: no cover
