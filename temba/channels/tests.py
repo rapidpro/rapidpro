@@ -10204,11 +10204,18 @@ class JiochatTest(TembaTest):
 
     def test_refresh_jiochat_access_tokens_task(self):
         with patch('requests.post') as mock:
+            mock.return_value = MockResponse(400, '{ "error":"Failed" }')
+            refresh_jiochat_access_tokens()
+            self.assertEqual(mock.call_count, 1)
+            channel_client = self.channel.get_jiochat_client()
+
+            self.assertIsNone(channel_client.get_access_token())
+
+            mock.reset_mock()
             mock.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
 
             refresh_jiochat_access_tokens()
             self.assertEqual(mock.call_count, 1)
-            channel_client = self.channel.get_jiochat_client()
 
             self.assertEqual(channel_client.get_access_token(), 'ABC1234')
             self.assertEqual(mock.call_args_list[0][1]['data'], {'client_secret': u'app-secret',
