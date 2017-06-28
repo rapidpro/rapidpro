@@ -4,6 +4,8 @@ import six
 import time
 
 from django.utils.translation import ugettext_lazy as _
+from temba.contacts.models import Contact, TWITTER_SCHEME
+from temba.msgs.models import WIRED
 from temba.utils.twitter import TembaTwython
 from .views import ClaimView
 from ...models import Channel, ChannelType, SendException
@@ -15,7 +17,7 @@ class TwitterType(ChannelType):
     A Twitter channel which uses Mage to stream DMs for a handle which has given access to a Twitter app configured for
     this deployment.
     """
-    code = "TT"
+    code = 'TT'
     category = ChannelType.Category.SOCIAL_MEDIA
 
     name = "Twitter"
@@ -24,7 +26,7 @@ class TwitterType(ChannelType):
     claim_blurb = _("""Add a <a href="http://twitter.com">Twitter</a> account to send messages as direct messages.""")
     claim_view = ClaimView
 
-    scheme = 'twitter'
+    scheme = TWITTER_SCHEME
     max_length = 10000
     show_config_page = False
 
@@ -40,9 +42,6 @@ class TwitterType(ChannelType):
         notify_mage_task.delay(channel.uuid, MageStreamAction.deactivate.name)
 
     def send(self, channel, msg, text):
-        from temba.msgs.models import WIRED
-        from temba.contacts.models import Contact
-
         twitter = TembaTwython.from_channel(channel)
         start = time.time()
 

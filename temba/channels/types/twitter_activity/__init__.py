@@ -5,6 +5,7 @@ import json
 from django.conf import settings
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
+from temba.contacts.models import TWITTER_SCHEME
 from temba.utils.twitter import TembaTwython
 from .views import ClaimView
 from ...models import Channel, ChannelType
@@ -14,7 +15,7 @@ class TwitterActivityType(ChannelType):
     """
     A Twitter channel which uses Twitter's new Activity API (currently in beta) to stream DMs.
     """
-    code = "TWT"
+    code = 'TWT'
     category = ChannelType.Category.SOCIAL_MEDIA
 
     name = "Twitter Activity API"
@@ -24,7 +25,7 @@ class TwitterActivityType(ChannelType):
     Activity API</a> which is currently in beta, you can add a Twitter channel for that here.""")
     claim_view = ClaimView
 
-    scheme = 'twitter'
+    scheme = TWITTER_SCHEME
 
     def is_available_to(self, user):
         return user.is_beta()
