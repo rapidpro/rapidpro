@@ -373,7 +373,7 @@ class Trigger(SmartModel):
 
         # for any new convo triggers, clear out the call to action payload
         for trigger in triggers.filter(trigger_type=Trigger.TYPE_NEW_CONVERSATION):
-            if trigger.channel and trigger.channel.channel_type == Channel.TYPE_FACEBOOK:
+            if trigger.channel and trigger.channel.channel_type == 'FB':
                 trigger.channel.set_fb_call_to_action_payload(None)
 
         return [each_trigger.pk for each_trigger in triggers]

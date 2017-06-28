@@ -143,7 +143,6 @@ class Channel(TembaModel):
     TYPE_DARTMEDIA = 'DA'
     TYPE_DUMMY = 'DM'
     TYPE_EXTERNAL = 'EX'
-    TYPE_FACEBOOK = 'FB'
     TYPE_FCM = 'FCM'
     TYPE_GLOBE = 'GL'
     TYPE_HIGH_CONNECTION = 'HX'
@@ -264,7 +263,6 @@ class Channel(TembaModel):
         TYPE_DARTMEDIA: dict(scheme='tel', max_length=160),
         TYPE_DUMMY: dict(scheme='tel', max_length=160),
         TYPE_EXTERNAL: dict(max_length=160),
-        TYPE_FACEBOOK: dict(scheme='facebook', max_length=320),
         TYPE_FCM: dict(scheme='fcm', max_length=10000),
         TYPE_GLOBE: dict(scheme='tel', max_length=160),
         TYPE_HIGH_CONNECTION: dict(scheme='tel', max_length=1500),
@@ -306,7 +304,6 @@ class Channel(TembaModel):
                     (TYPE_DARTMEDIA, "Dart Media"),
                     (TYPE_DUMMY, "Dummy"),
                     (TYPE_EXTERNAL, "External"),
-                    (TYPE_FACEBOOK, "Facebook"),
                     (TYPE_FCM, "Firebase Cloud Messaging"),
                     (TYPE_GLOBE, "Globe Labs"),
                     (TYPE_HIGH_CONNECTION, "High Connection"),
@@ -350,7 +347,6 @@ class Channel(TembaModel):
         TYPE_PLIVO: "icon-channel-plivo",
         TYPE_CLICKATELL: "icon-channel-clickatell",
         TYPE_TELEGRAM: "icon-telegram",
-        TYPE_FACEBOOK: "icon-facebook-official",
         TYPE_FCM: "icon-fcm",
         TYPE_VIBER: "icon-viber"
     }
@@ -362,7 +358,7 @@ class Channel(TembaModel):
 
     NCCO_CHANNELS = [TYPE_NEXMO]
 
-    MEDIA_CHANNELS = [TYPE_TWILIO, TYPE_TWIML, TYPE_TWILIO_MESSAGING_SERVICE, TYPE_TELEGRAM, TYPE_FACEBOOK]
+    MEDIA_CHANNELS = [TYPE_TWILIO, TYPE_TWIML, TYPE_TWILIO_MESSAGING_SERVICE, TYPE_TELEGRAM]
 
     HIDE_CONFIG_PAGE = [TYPE_TWILIO, TYPE_ANDROID, TYPE_TELEGRAM]
 
@@ -803,14 +799,6 @@ class Channel(TembaModel):
                               address=channel.address, role=Channel.ROLE_CALL, parent=channel)
 
     @classmethod
-    def add_facebook_channel(cls, org, user, page_name, page_id, page_access_token):
-        channel = Channel.create(org, user, None, Channel.TYPE_FACEBOOK, name=page_name, address=page_id,
-                                 config={Channel.CONFIG_AUTH_TOKEN: page_access_token, Channel.CONFIG_PAGE_NAME: page_name},
-                                 secret=Channel.generate_secret())
-
-        return channel
-
-    @classmethod
     def add_jiochat_channel(cls, org, user, app_id, app_secret):
         channel = Channel.create(org, user, None, Channel.TYPE_JIOCHAT, name='', address='',
                                  config={Channel.CONFIG_JIOCHAT_APP_ID: app_id,
@@ -1066,7 +1054,7 @@ class Channel(TembaModel):
             return _("%s Channel" % channel_type_display)
 
     def get_address_display(self, e164=False):
-        from temba.contacts.models import TEL_SCHEME
+        from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, FACEBOOK_SCHEME
         if not self.address:
             return ''
 
@@ -1083,10 +1071,10 @@ class Channel(TembaModel):
                 # the number may be alphanumeric in the case of short codes
                 pass
 
-        elif self.channel_type == 'TT':
+        elif self.scheme == TWITTER_SCHEME:
             return '@%s' % self.address
 
-        elif self.channel_type == Channel.TYPE_FACEBOOK:
+        elif self.scheme == FACEBOOK_SCHEME:
             return "%s (%s)" % (self.config_json().get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
 
         return self.address
@@ -1299,12 +1287,6 @@ class Channel(TembaModel):
                     client.applications.delete(sid=config['application_sid'])
                 except TwilioRestException:  # pragma: no cover
                     pass
-
-            # unsubscribe from facebook events for this page
-            elif self.channel_type == Channel.TYPE_FACEBOOK:
-                page_access_token = self.config_json()[Channel.CONFIG_AUTH_TOKEN]
-                requests.delete('https://graph.facebook.com/v2.5/me/subscribed_apps',
-                                params=dict(access_token=page_access_token))
 
             # unsubscribe from Viber events
             elif self.channel_type == Channel.TYPE_VIBER_PUBLIC:
@@ -1680,96 +1662,6 @@ class Channel(TembaModel):
                                                 request_body=json.dumps(json.dumps(payload)),
                                                 response_body=json.dumps(data)),
                                 start=start)
-
-    @classmethod
-    def send_facebook_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-        from temba.contacts.models import Contact, ContactURN, URN
-
-        # build our payload
-        payload = dict()
-
-        # this is a ref facebook id, temporary just for this message
-        if URN.is_path_fb_ref(msg.urn_path):
-            payload['recipient'] = dict(user_ref=URN.fb_ref_from_path(msg.urn_path))
-        else:
-            payload['recipient'] = dict(id=msg.urn_path)
-
-        message = dict(text=text)
-        payload['message'] = message
-        payload = json.dumps(payload)
-
-        url = "https://graph.facebook.com/v2.5/me/messages"
-        params = dict(access_token=channel.config[Channel.CONFIG_AUTH_TOKEN])
-        headers = {'Content-Type': 'application/json'}
-        start = time.time()
-
-        event = HttpEvent('POST', url, payload)
-
-        try:
-            response = requests.post(url, payload, params=params, headers=headers, timeout=15)
-            event.status_code = response.status_code
-            event.response_body = response.text
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        # for now we only support sending one attachment per message but this could change in future
-        from temba.msgs.models import Msg
-        attachments = Msg.get_attachments(msg)
-        media_type, media_url = attachments[0] if attachments else (None, None)
-
-        if media_type and media_url:
-            media_type = media_type.split('/')[0]
-
-            payload = json.loads(payload)
-            payload['message'] = dict(attachment=dict(type=media_type, payload=dict(url=media_url)))
-            payload = json.dumps(payload)
-
-            event = HttpEvent('POST', url, payload)
-
-            try:
-                response = requests.post(url, payload, params=params, headers=headers, timeout=15)
-                event.status_code = response.status_code
-                event.response_body = response.text
-            except Exception as e:
-                raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code != 200:
-            raise SendException("Got non-200 response [%d] from Facebook" % response.status_code,
-                                event=event, start=start)
-
-        # grab our external id out, Facebook response is in format:
-        # "{"recipient_id":"997011467086879","message_id":"mid.1459532331848:2534ddacc3993a4b78"}"
-        external_id = None
-        try:
-            external_id = response.json()['message_id']
-        except Exception as e:  # pragma: no cover
-            # if we can't pull out our message id, that's ok, we still sent
-            pass
-
-        # if we sent Facebook a user_ref, look up the real Facebook id for this contact, should be in 'recipient_id'
-        if URN.is_path_fb_ref(msg.urn_path):
-            contact_obj = Contact.objects.get(id=msg.contact)
-            org_obj = Org.objects.get(id=channel.org)
-            channel_obj = Channel.objects.get(id=channel.id)
-
-            try:
-                real_fb_id = response.json()['recipient_id']
-
-                # associate this contact with our real FB id
-                ContactURN.get_or_create(org_obj, contact_obj, URN.from_facebook(real_fb_id), channel=channel_obj)
-
-                # save our ref_id as an external URN on this contact
-                ContactURN.get_or_create(org_obj, contact_obj, URN.from_external(URN.fb_ref_from_path(msg.urn_path)))
-
-                # finally, disassociate our temp ref URN with this contact
-                ContactURN.objects.filter(id=msg.contact_urn).update(contact=None)
-
-            except Exception as e:   # pragma: no cover
-                # if we can't pull out the recipient id, that's ok, msg was sent
-                pass
-
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
     def send_line_message(cls, channel, msg, text):
@@ -3285,7 +3177,6 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_DARTMEDIA: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
                   Channel.TYPE_EXTERNAL: Channel.send_external_message,
-                  Channel.TYPE_FACEBOOK: Channel.send_facebook_message,
                   Channel.TYPE_FCM: Channel.send_fcm_message,
                   Channel.TYPE_GLOBE: Channel.send_globe_message,
                   Channel.TYPE_HIGH_CONNECTION: Channel.send_high_connection_message,

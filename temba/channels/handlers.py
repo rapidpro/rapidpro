@@ -2264,7 +2264,7 @@ class FacebookHandler(BaseChannelHandler):
     def lookup_channel(self, kwargs):
         # look up the channel
         channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
-                                         channel_type=Channel.TYPE_FACEBOOK).exclude(org=None).first()
+                                         channel_type='FB').exclude(org=None).first()
         return channel
 
     def get(self, request, *args, **kwargs):
