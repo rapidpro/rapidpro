@@ -173,14 +173,14 @@ class Trigger(SmartModel):
             matches.exclude(id=self.id).update(is_archived=True, modified_on=now, modified_by=user)
 
     @classmethod
-    def archive_triggers_for_contact(cls, contact):
+    def archive_triggers_for_contact(cls, contact, user):
         contact_triggers = list(contact.trigger_set.all())
 
         for trigger in contact_triggers:
             trigger.contacts.remove(contact)
 
             if not trigger.groups.exists() and not trigger.contacts.exists() and not trigger.is_archived:
-                trigger.archive()
+                trigger.archive(user)
 
     @classmethod
     def import_triggers(cls, exported_json, org, user, same_site=False):
