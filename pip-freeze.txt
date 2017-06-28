@@ -107,7 +107,7 @@ rjsmin==1.0.12            # via django-compressor
 s3transfer==0.1.10        # via boto3
 selenium==3.4.3
 six==1.10.0               # via cryptography, django-extensions, django-hamlpy, django-rosetta, librato-bg, librato-metrics, microsofttranslator, mock, python-dateutil, rapidpro-expressions, responses, smartmin, twilio
-smartmin==1.11.2
+smartmin==1.11.3
 sqlparse==0.2.3           # via django-debug-toolbar
 stop-words==2015.2.23.1
 stripe==1.59.0
