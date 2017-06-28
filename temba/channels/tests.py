@@ -254,9 +254,6 @@ class ChannelTest(TembaTest):
         twitter_urn = contact.get_urn(schemes=[TWITTER_SCHEME])
         self.assertEquals(self.twitter_channel, self.org.get_send_channel(contact_urn=twitter_urn))
 
-        # calling without scheme or urn should raise exception
-        self.assertRaises(ValueError, self.org.get_send_channel)
-
     def test_message_splitting(self):
         # external API requires messages to be <= 160 chars
         self.tel_channel.channel_type = 'EX'

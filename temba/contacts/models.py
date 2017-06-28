@@ -68,9 +68,6 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), 'fcm', FCM_SCHEME))
 
 
-SEND_URN_SCHEMES = (TEL_SCHEME, FACEBOOK_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, VIBER_SCHEME, LINE_SCHEME,
-                    JIOCHAT_SCHEME, FCM_SCHEME)
-
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
 

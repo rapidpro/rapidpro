@@ -433,7 +433,11 @@ class Org(SmartModel):
         """
         from temba.channels.models import Channel
 
-        channel = self.channels.filter(is_active=True, scheme=scheme, role__contains=role).order_by('-pk')
+        channel = self.channels.filter(is_active=True, role__contains=role).order_by('-pk')
+
+        if scheme is not None:
+            channel = channel.filter(scheme=scheme)
+
         if country_code:
             channel = channel.filter(country=country_code)
 
@@ -441,8 +445,12 @@ class Org(SmartModel):
 
         # no channel? try without country
         if not channel and country_code:
-            channel = self.channels.filter(is_active=True, scheme=scheme,
-                                           role__contains=role).order_by('-pk').first()
+            channel = self.channels.filter(is_active=True, role__contains=role).order_by('-pk')
+
+            if scheme is not None:
+                channel = channel.filter(scheme=scheme)
+
+            channel = channel.first()
 
         if channel and (role == Channel.ROLE_SEND or role == Channel.ROLE_CALL):
             return channel.get_delegate(role)
@@ -453,9 +461,6 @@ class Org(SmartModel):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import Channel
         from temba.contacts.models import ContactURN
-
-        if not scheme and not contact_urn:
-            raise ValueError("Must specify scheme or contact URN")
 
         if contact_urn:
             if contact_urn:
