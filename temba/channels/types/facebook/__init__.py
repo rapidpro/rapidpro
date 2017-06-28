@@ -9,6 +9,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import Contact, ContactURN, URN, FACEBOOK_SCHEME
 from temba.msgs.models import Msg, WIRED
 from temba.orgs.models import Org
+from temba.triggers.models import Trigger
 from temba.utils.http import HttpEvent
 from .views import ClaimView
 from ...models import Channel, ChannelType, SendException
@@ -33,14 +34,21 @@ class FacebookType(ChannelType):
     max_length = 320
     attachment_support = True
 
-    def activate(self, channel):
-        pass
-
     def deactivate(self, channel):
         config = channel.config_json()
         requests.delete('https://graph.facebook.com/v2.5/me/subscribed_apps', params={
             'access_token': config[Channel.CONFIG_AUTH_TOKEN]
         })
+
+    def activate_trigger(self, trigger):
+        # if this is new conversation trigger, register for the FB callback
+        if trigger.trigger_type == Trigger.TYPE_NEW_CONVERSATION:
+            self._set_call_to_action(trigger.channel, 'get_started')
+
+    def deactivate_trigger(self, trigger):
+        # for any new convo triggers, clear out the call to action payload
+        if trigger.trigger_type == Trigger.TYPE_NEW_CONVERSATION:
+            self._set_call_to_action(trigger.channel, None)
 
     def send(self, channel, msg, text):
         # build our payload
@@ -123,3 +131,20 @@ class FacebookType(ChannelType):
                 pass
 
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
+
+    def _set_call_to_action(self, channel, payload):
+        # register for get_started events
+        url = 'https://graph.facebook.com/v2.6/%s/thread_settings' % channel.address
+        body = {'setting_type': 'call_to_actions', 'thread_state': 'new_thread', 'call_to_actions': []}
+
+        # if we have a payload, set it, otherwise, clear it
+        if payload:
+            body['call_to_actions'].append({'payload': payload})
+
+        access_token = channel.config_json()[Channel.CONFIG_AUTH_TOKEN]
+
+        response = requests.post(url, json.dumps(body), params={'access_token': access_token},
+                                 headers={'Content-Type': 'application/json'})
+
+        if response.status_code != 200:  # pragma: no cover
+            raise Exception(_("Unable to update call to action: %s" % response.text))

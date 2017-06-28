@@ -2431,7 +2431,7 @@ class FacebookHandler(BaseChannelHandler):
                             status.append("Msg %d accepted." % msg.id)
 
                         # a contact pressed "Get Started", trigger any new conversation triggers
-                        elif postback == Channel.GET_STARTED:
+                        elif postback == 'get_started':
                             Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
                             status.append("Postback handled.")
 

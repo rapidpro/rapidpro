@@ -65,6 +65,9 @@ class Encoding(Enum):
 
 
 class ChannelType(six.with_metaclass(ABCMeta)):
+    """
+    Base class for all dynamic channel types
+    """
     class Category(Enum):
         PHONE = 1
         SOCIAL_MEDIA = 2
@@ -76,13 +79,12 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 
     name = None
     icon = 'icon-channel-external'
+    scheme = None
+    show_config_page = True
 
     claim_blurb = None
     claim_view = None
 
-    show_config_page = True
-
-    scheme = None
     max_length = -1
     max_tps = None
     attachment_support = False
@@ -107,27 +109,41 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         url_name = 'channels.claim_%s' % self.slug
         return url(rel_url, self.claim_view.as_view(channel_type=self), name=url_name)
 
-    def has_attachment_support(self, channel):
-        """
-        Whether the given channel instance supports message attachments
-        """
-        return self.attachment_support
-
     def activate(self, channel):
         """
-        Setup things like callbacks required by this channel - will only be called when IS_PROD setting is True
+        Called when a channel of this type has been created. Can be used to setup things like callbacks required by the
+        channel. Note: this will only be called if IS_PROD setting is True.
         """
 
     def deactivate(self, channel):
         """
-        Cleanup things like callbacks which were used by this channel - will only be called when IS_PROD setting is True
+        Called when a channel of this type has been released. Can be used to cleanup things like callbacks which were
+        used by the channel. Note: this will only be called if IS_PROD setting is True.
+        """
+
+    def activate_trigger(self, trigger):
+        """
+        Called when a trigger that is bound to a channel of this type is being created or restored. Note: this will only
+        be called if IS_PROD setting is True.
+        """
+
+    def deactivate_trigger(self, trigger):
+        """
+        Called when a trigger that is bound to a channel of this type is being released. Note: this will only be called
+        if IS_PROD setting is True.
         """
 
     @abstractmethod
     def send(self, channel, msg, text):
         """
-        Sends the give message struct - will only be called when SEND_MESSAGES setting is True
+        Sends the give message struct. Note: this will only be called if SEND_MESSAGES setting is True.
         """
+
+    def has_attachment_support(self, channel):
+        """
+        Whether the given channel instance supports message attachments
+        """
+        return self.attachment_support
 
     def __str__(self):
         return self.name
@@ -362,7 +378,6 @@ class Channel(TembaModel):
 
     HIDE_CONFIG_PAGE = [TYPE_TWILIO, TYPE_ANDROID, TYPE_TELEGRAM]
 
-    GET_STARTED = 'get_started'
     VIBER_NO_SERVICE_ID = 'no_service_id'
 
     SIMULATOR_CONTEXT = dict(__default__='(800) 555-1212', name='Simulator', tel='(800) 555-1212', tel_e164='+18005551212')
@@ -935,24 +950,6 @@ class Channel(TembaModel):
             return Channel.objects.none()
 
         return self.org.channels.filter(parent=self, is_active=True, org=self.org).order_by('-role')
-
-    def set_fb_call_to_action_payload(self, payload):
-        # register for get_started events
-        url = 'https://graph.facebook.com/v2.6/%s/thread_settings' % self.address
-        body = dict(setting_type='call_to_actions', thread_state='new_thread', call_to_actions=[])
-
-        # if we have a payload, set it, otherwise, clear it
-        if payload:
-            body['call_to_actions'].append(dict(payload=payload))
-
-        access_token = self.config_json()[Channel.CONFIG_AUTH_TOKEN]
-
-        response = requests.post(url, json.dumps(body),
-                                 params=dict(access_token=access_token),
-                                 headers={'Content-Type': 'application/json'})
-
-        if response.status_code != 200:  # pragma: no cover
-            raise Exception(_("Unable to update call to action: %s" % response.text))
 
     def get_delegate(self, role):
         """

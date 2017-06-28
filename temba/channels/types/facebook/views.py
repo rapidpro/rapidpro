@@ -33,9 +33,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         org = self.request.user.get_org()
         page = form.cleaned_data['page']
-        page_access_token = form.cleaned_data['page_access_token']
+        auth_token = form.cleaned_data['page_access_token']
 
-        config = {Channel.CONFIG_AUTH_TOKEN: page_access_token, Channel.CONFIG_PAGE_NAME: page['name']}
+        config = {'auth_token': auth_token, 'page_name': page['name']}
 
         self.object = Channel.create(org, self.request.user, None, self.channel_type, name=page['name'],
                                      address=page['id'], config=config, secret=Channel.generate_secret())
