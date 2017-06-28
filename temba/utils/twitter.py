@@ -154,7 +154,7 @@ class TembaTwython(Twython):  # pragma: no cover
         """
         return self.post('account_activity/webhooks', params={'url': url})
 
-    def delete_webhook(self, webhook_id):  # pragma: no cover
+    def delete_webhook(self, webhook_id):
         """
         Removes the webhook from the provided application's configuration.
 

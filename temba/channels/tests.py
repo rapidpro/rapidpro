@@ -646,7 +646,7 @@ class ChannelTest(TembaTest):
         self.assertEquals("EATRIGHT", channel.get_address_display(e164=True))
 
         # change channel type to Twitter
-        channel.channel_type = Channel.TYPE_TWITTER
+        channel.channel_type = 'TT'
         channel.address = 'billy_bob'
         channel.scheme = 'twitter'
         channel.config = json.dumps({'handle_id': 12345, 'oauth_token': 'abcdef', 'oauth_token_secret': '23456'})
@@ -667,14 +667,11 @@ class ChannelTest(TembaTest):
         postdata['alert_email'] = "bob@example.com"
         postdata['address'] = "billy_bob"
 
-        with patch('temba.utils.mage.MageClient.refresh_twitter_stream') as refresh_twitter_stream:
-            refresh_twitter_stream.return_value = dict()
-
-            self.fetch_protected(update_url, self.user, postdata)
-            channel = Channel.objects.get(pk=self.tel_channel.id)
-            self.assertEquals(channel.name, "Twitter2")
-            self.assertEquals(channel.alert_email, "bob@example.com")
-            self.assertEquals(channel.address, "billy_bob")
+        self.fetch_protected(update_url, self.user, postdata)
+        channel = Channel.objects.get(pk=self.tel_channel.id)
+        self.assertEquals(channel.name, "Twitter2")
+        self.assertEquals(channel.alert_email, "bob@example.com")
+        self.assertEquals(channel.address, "billy_bob")
 
     def test_read(self):
         post_data = dict(cmds=[
@@ -2003,127 +2000,6 @@ class ChannelTest(TembaTest):
                 self.assertIsNotNone(send_channel)
                 self.assertEqual(Channel.TYPE_TELEGRAM, send_channel.channel_type)
 
-    def test_claim_twitter(self):
-        self.login(self.admin)
-
-        self.twitter_channel.delete()  # remove existing twitter channel
-
-        claim_url = reverse('channels.channel_claim_twitter')
-
-        with patch('twython.Twython.get_authentication_tokens') as get_authentication_tokens:
-            get_authentication_tokens.return_value = dict(oauth_token='abcde',
-                                                          oauth_token_secret='12345',
-                                                          auth_url='http://example.com/auth')
-            response = self.client.get(claim_url)
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.context['twitter_auth_url'], 'http://example.com/auth')
-            self.assertEqual(self.client.session['twitter_oauth_token'], 'abcde')
-            self.assertEqual(self.client.session['twitter_oauth_token_secret'], '12345')
-
-        with patch('temba.utils.mage.MageClient.activate_twitter_stream') as activate_twitter_stream:
-            activate_twitter_stream.return_value = dict()
-
-            with patch('twython.Twython.get_authorized_tokens') as get_authorized_tokens:
-                get_authorized_tokens.return_value = dict(screen_name='billy_bob',
-                                                          user_id=123,
-                                                          oauth_token='bcdef',
-                                                          oauth_token_secret='23456')
-
-                response = self.client.get(claim_url, {'oauth_verifier': 'vwxyz'}, follow=True)
-                self.assertNotIn('twitter_oauth_token', self.client.session)
-                self.assertNotIn('twitter_oauth_token_secret', self.client.session)
-                self.assertEqual(response.status_code, 200)
-
-                channel = response.context['object']
-                self.assertEqual(channel.address, 'billy_bob')
-                self.assertEqual(channel.name, '@billy_bob')
-                config = json.loads(channel.config)
-                self.assertEqual(config['handle_id'], 123)
-                self.assertEqual(config['oauth_token'], 'bcdef')
-                self.assertEqual(config['oauth_token_secret'], '23456')
-
-            # re-add same account but with different auth credentials
-            s = self.client.session
-            s['twitter_oauth_token'] = 'cdefg'
-            s['twitter_oauth_token_secret'] = '34567'
-            s.save()
-
-            with patch('twython.Twython.get_authorized_tokens') as get_authorized_tokens:
-                get_authorized_tokens.return_value = dict(screen_name='billy_bob',
-                                                          user_id=123,
-                                                          oauth_token='defgh',
-                                                          oauth_token_secret='45678')
-
-                response = self.client.get(claim_url, {'oauth_verifier': 'uvwxy'}, follow=True)
-                self.assertEqual(response.status_code, 200)
-
-                channel = response.context['object']
-                self.assertEqual(channel.address, 'billy_bob')
-                config = json.loads(channel.config)
-                self.assertEqual(config['handle_id'], 123)
-                self.assertEqual(config['oauth_token'], 'defgh')
-                self.assertEqual(config['oauth_token_secret'], '45678')
-
-    @patch('temba.utils.twitter.TembaTwython.subscribe_to_webhook')
-    @patch('temba.utils.twitter.TembaTwython.register_webhook')
-    @patch('twython.Twython.verify_credentials')
-    def test_claim_twitter_beta(self, mock_verify_credentials, mock_register_webhook, mock_subscribe_to_webhook):
-        self.login(self.admin)
-
-        claim_url = reverse('channels.channel_claim')
-
-        response = self.client.get(claim_url)
-        self.assertNotContains(response, 'claim_twitter_beta')
-
-        Group.objects.get(name="Beta").user_set.add(self.admin)
-
-        response = self.client.get(claim_url)
-        self.assertContains(response, 'claim_twitter_beta')
-
-        claim_url = reverse('channels.channel_claim_twitter_beta')
-
-        response = self.client.get(claim_url)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(response.context['form'].fields.keys()),
-                         ['api_key', 'api_secret', 'access_token', 'access_token_secret', 'loc'])
-
-        # try submitting empty form
-        response = self.client.post(claim_url, {})
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, 'form', 'api_key', "This field is required.")
-        self.assertFormError(response, 'form', 'api_secret', "This field is required.")
-        self.assertFormError(response, 'form', 'access_token', "This field is required.")
-        self.assertFormError(response, 'form', 'access_token_secret', "This field is required.")
-
-        # try submitting with invalid credentials
-        mock_verify_credentials.side_effect = TwythonError("Invalid credentials")
-
-        response = self.client.post(claim_url, {'api_key': 'ak', 'api_secret': 'as', 'access_token': 'at', 'access_token_secret': 'ats'})
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, 'form', None, "The provided Twitter credentials do not appear to be valid.")
-
-        # try submitting for handle which already has a channel
-        mock_verify_credentials.side_effect = None
-        mock_verify_credentials.return_value = {'id': '345678', 'screen_name': "billy_bob"}
-
-        response = self.client.post(claim_url, {'api_key': 'ak', 'api_secret': 'as', 'access_token': 'at', 'access_token_secret': 'ats'})
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, 'form', None, "A Twitter channel already exists for that handle.")
-
-        # try a valid submission
-        mock_verify_credentials.return_value = {'id': '87654', 'screen_name': "jimmy"}
-        mock_register_webhook.return_value = {'id': "1234567"}
-
-        response = self.client.post(claim_url, {'api_key': 'ak', 'api_secret': 'as', 'access_token': 'at', 'access_token_secret': 'ats'})
-        self.assertEqual(response.status_code, 302)
-
-        channel = Channel.objects.get(address='jimmy')
-        self.assertEqual(json.loads(channel.config), {'handle_id': '87654', 'api_key': 'ak', 'api_secret': 'as',
-                                                      'access_token': 'at', 'access_token_secret': 'ats'})
-
-        mock_register_webhook.assert_called_once_with('https://temba.ngrok.io/handlers/twitter/%s' % channel.uuid)
-        mock_subscribe_to_webhook.assert_called_once_with("1234567")
-
     def test_claim_line(self):
 
         # disassociate all of our channels
@@ -2245,20 +2121,6 @@ class ChannelTest(TembaTest):
         self.assertFalse(android.is_active)
 
         self.assertIsNone(android.config_json().get(Channel.CONFIG_FCM_ID, None))
-
-    def test_release_twitter(self):
-        # check that removing Twitter channel notifies Mage
-        with patch('temba.utils.mage.MageClient._request') as mock_mage_request:
-            mock_mage_request.return_value = ""
-
-            self.twitter_channel.release()
-
-            mock_mage_request.assert_called_once_with('DELETE', 'twitter/%s' % self.twitter_channel.uuid)
-
-        # can't view a released channel
-        self.login(self.admin)
-        response = self.client.get(reverse('channels.channel_read', args=[self.twitter_channel.uuid]))
-        self.assertEqual(response.status_code, 404)
 
     @override_settings(IS_PROD=True)
     def test_release_ivr_channel(self):
