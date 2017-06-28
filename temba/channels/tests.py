@@ -2121,7 +2121,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(json.loads(channel.config), {'handle_id': '87654', 'api_key': 'ak', 'api_secret': 'as',
                                                       'access_token': 'at', 'access_token_secret': 'ats'})
 
-        mock_register_webhook.assert_called_once_with('https://temba.ngrok.io/handlers/twitter/%s' % channel.uuid)
+        mock_register_webhook.assert_called_once_with('https://%s%s' % (settings.HOSTNAME, reverse('handlers.twitter_handler', args=[channel.uuid])))
         mock_subscribe_to_webhook.assert_called_once_with("1234567")
 
     def test_claim_line(self):
@@ -3499,6 +3499,14 @@ class ChannelClaimTest(TembaTest):
 
         self.assertContains(response, reverse('handlers.jiochat_handler', args=[channel.uuid]))
         self.assertContains(response, channel.secret)
+
+        contact = self.create_contact('Jiochat User', urn=URN.from_jiochat('1234'))
+
+        # make sure we our jiochat channel satisfies as a send channel
+        response = self.client.get(reverse('contacts.contact_read', args=[contact.uuid]))
+        send_channel = response.context['send_channel']
+        self.assertIsNotNone(send_channel)
+        self.assertEqual(Channel.TYPE_JIOCHAT, send_channel.channel_type)
 
     def test_claim_macrokiosk(self):
         Channel.objects.all().delete()

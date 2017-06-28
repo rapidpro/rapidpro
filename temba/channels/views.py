@@ -33,7 +33,7 @@ from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.mixins import PassRequestToFormMixin
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView, SmartModelActionView
-from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
+from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, SEND_URN_SCHEMES
 from temba.msgs.models import Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
@@ -534,19 +534,10 @@ def channel_status_processor(request):
 
         # twitter is a suitable sender
         if not send_channel:
-            send_channel = org.get_send_channel(scheme=TWITTER_SCHEME)
-
-        # as is telegram
-        if not send_channel:
-            send_channel = org.get_send_channel(scheme=TELEGRAM_SCHEME)
-
-        # and facebook
-        if not send_channel:
-            send_channel = org.get_send_channel(scheme=FACEBOOK_SCHEME)
-
-        # and viber
-        if not send_channel:
-            send_channel = org.get_send_channel(scheme=VIBER_SCHEME)
+            for scheme in SEND_URN_SCHEMES:
+                send_channel = org.get_send_channel(scheme=scheme)
+                if send_channel:
+                    break
 
         status['send_channel'] = send_channel
         status['call_channel'] = call_channel
