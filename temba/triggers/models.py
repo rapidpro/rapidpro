@@ -44,6 +44,8 @@ class Trigger(SmartModel):
                      (TYPE_USSD_PULL, _("USSD Pull Session Trigger")),
                      (TYPE_REFERRAL, _("Referral Trigger")))
 
+    KEYWORD_MAX_LEN = 16
+
     MATCH_FIRST_WORD = 'F'
     MATCH_ONLY_WORD = 'O'
 
@@ -52,7 +54,7 @@ class Trigger(SmartModel):
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The organization this trigger belongs to"))
 
-    keyword = models.CharField(verbose_name=_("Keyword"), max_length=16, null=True, blank=True,
+    keyword = models.CharField(verbose_name=_("Keyword"), max_length=KEYWORD_MAX_LEN, null=True, blank=True,
                                help_text=_("Word to match in the message text"))
 
     referrer_id = models.CharField(verbose_name=_("Referrer Id"), max_length=255, null=True, blank=True,
