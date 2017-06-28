@@ -10287,7 +10287,10 @@ class JiochatTest(TembaTest):
             msg.refresh_from_db()
             self.assertEquals(msg.status, ERRORED)
 
-    def test_follow(self):
+    @patch('temba.utils.jiochat.JiochatClient.get_user_detail')
+    def test_follow(self, mock_get_user_detail):
+        mock_get_user_detail.return_value = {'nickname': "Bob"}
+
         callback_url = reverse('handlers.jiochat_handler', args=[self.channel.uuid])
         an_hour_ago = timezone.now() - timedelta(hours=1)
 
