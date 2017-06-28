@@ -827,6 +827,10 @@ class Contact(TembaModel):
                         if normalized not in contact_urns:
                             contact_has_all_urns = False
 
+                        existing_urn = ContactURN.lookup(org, normalized, normalize=False)
+                        if existing_urn and auth:
+                            ContactURN.update_auth(existing_urn, auth)
+
                     if contact_has_all_urns:
                         # update contact name if provided
                         updated_attrs = []
