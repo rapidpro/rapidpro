@@ -467,6 +467,26 @@ class Contact(TembaModel):
         """
         return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
+    def as_engine_json(self):
+
+        #   "fields": {
+        #     "gender": {
+        #       "field_uuid": "501d8dc4-3fb7-45c1-acb8-626f87535a99",
+        #       "field_name": "Gender",
+        #       "value": "Male"
+        #     }
+        #
+
+        return dict(
+            uuid=self.uuid,
+            name=self.name,
+            urns=[urn.urn for urn in self.urns.all()],
+            groups=[{"uuid": group.uuid, "name": group.name} for group in self.user_groups.all()],
+            timezone="UTC",
+            language=self.language,
+            fields={}
+        )
+
     def as_json(self):
         obj = dict(id=self.pk, name=six.text_type(self), uuid=self.uuid)
 

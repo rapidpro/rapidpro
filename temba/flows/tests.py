@@ -5966,7 +5966,7 @@ class FlowsTest(FlowFileTest):
         reply = json_dict['action_sets'][1]['actions'][0]
         self.assertEquals('Good choice, I like @flow.color.category too! What is your favorite beer?', reply['msg']['base'])
 
-        # now interact with the flow and make sure we get an appropriate resonse
+        # now interact with the flow and make sure we get an appropriate response
         FlowRun.objects.all().delete()
 
         self.assertEquals("What is your favorite color?", self.send_message(favorites, "favorites", initiate_flow=True))
@@ -6029,14 +6029,8 @@ class FlowsTest(FlowFileTest):
 
         # test dirty json
         json_dict = favorites.as_json()
-
-        # boolean values in our language dict shouldn't blow up
-        json_dict['action_sets'][0]['actions'][0]['msg']['updated'] = True
         json_dict['action_sets'][0]['actions'][0]['msg']['kli'] = 'Bleck'
-
-        # boolean values in our rule dict shouldn't blow up
         rule = json_dict['rule_sets'][0]['rules'][0]
-        rule['category']['updated'] = True
 
         response = favorites.update(json_dict)
         self.assertEquals('success', response['status'])
@@ -6055,6 +6049,10 @@ class FlowsTest(FlowFileTest):
         simulate_url = "%s?lang=kli" % reverse('flows.flow_simulate', args=[favorites.pk])
         response = json.loads(self.client.post(simulate_url, json.dumps(dict(has_refresh=True)), content_type="application/json").content)
         self.assertEquals('Bleck', response['messages'][1]['text'])
+
+        from temba.flows.models import FlowSession
+        for session in FlowSession.objects.all():
+            print (json.dumps(json.loads(session.output), indent=1))
 
     def test_interrupted_state(self):
         self.channel.delete()

@@ -3879,10 +3879,12 @@ class ChannelSession(SmartModel):
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING,
                               help_text="The status of this session")
     channel = models.ForeignKey('Channel',
+                                null=True, blank=True,
                                 help_text="The channel that created this session")
     contact = models.ForeignKey('contacts.Contact', related_name='sessions',
                                 help_text="Who this session is with")
     contact_urn = models.ForeignKey('contacts.ContactURN', verbose_name=_("Contact URN"),
+                                    null=True, blank=True,
                                     help_text=_("The URN this session is communicating with"))
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES,
                                  help_text="The direction of this session, either incoming or outgoing")
@@ -3896,6 +3898,7 @@ class ChannelSession(SmartModel):
                                     help_text="What sort of session this is")
     duration = models.IntegerField(default=0, null=True,
                                    help_text="The length of this session in seconds")
+    output = models.TextField(null=True, blank=True)
 
     def __init__(self, *args, **kwargs):
         super(ChannelSession, self).__init__(*args, **kwargs)

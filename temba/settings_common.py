@@ -1144,3 +1144,5 @@ VALUE_FIELD_SIZE = 640
 # -----------------------------------------------------------------------------------
 SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
+
+FLOW_SERVER_URL = None
