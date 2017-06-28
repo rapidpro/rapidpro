@@ -829,6 +829,10 @@ class Contact(TembaModel):
                         if normalized not in contact_urns:
                             contact_has_all_urns = False
 
+                        existing_urn = ContactURN.lookup(org, normalized, normalize=False)
+                        if existing_urn and auth:
+                            ContactURN.update_auth(existing_urn, auth)
+
                     if contact_has_all_urns:
                         # update contact name if provided
                         updated_attrs = []
@@ -1866,7 +1870,8 @@ class ContactURN(models.Model):
     PRIORITY_STANDARD = 50
     PRIORITY_HIGHEST = 99
 
-    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90, FACEBOOK_SCHEME: 90, TELEGRAM_SCHEME: 90, VIBER_SCHEME: 90}
+    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90, FACEBOOK_SCHEME: 90, TELEGRAM_SCHEME: 90,
+                         VIBER_SCHEME: 90, FCM_SCHEME: 90}
 
     ANON_MASK = '*' * 8            # Returned instead of URN values for anon orgs
     ANON_MASK_HTML = '\u2022' * 8  # Pretty HTML version of anon mask
