@@ -128,6 +128,7 @@ def edit_distance(s1, s2):  # pragma: no cover
 class FlowServer:
     def __init__(self, base_url):
         self.base_url = base_url
+        self.DEBUG = False
 
     def start(self, flow_start):
         return self._request('start', flow_start)
@@ -139,17 +140,19 @@ class FlowServer:
         return self._request('migrate', flow_migrate)
 
     def _request(self, endpoint, payload):
-        print('=============== %s request ===============' % endpoint)
-        print(json.dumps(payload, indent=2))
-        print('=============== /%s request ===============' % endpoint)
+        if self.DEBUG:
+            print('=============== %s request ===============' % endpoint)
+            print(json.dumps(payload, indent=2))
+            print('=============== /%s request ===============' % endpoint)
 
         response = requests.post("%s/flow/%s" % (self.base_url, endpoint), json=payload)
         response.raise_for_status()
         resp_json = response.json()
 
-        print('=============== %s response ===============' % endpoint)
-        print(json.dumps(resp_json, indent=2))
-        print('=============== /%s response ===============' % endpoint)
+        if self.DEBUG:
+            print('=============== %s response ===============' % endpoint)
+            print(json.dumps(resp_json, indent=2))
+            print('=============== /%s response ===============' % endpoint)
 
         return resp_json
 
@@ -209,7 +212,7 @@ class FlowSession(ChannelSession):
 
             # create each of our runs
             for run in output['runs']:
-                runs.append(FlowRun.create_or_update_from_server(session, contact, run))
+                runs.append(FlowRun.create_or_update_from_goflow(session, contact, run))
 
             # apply the events
             session.apply_events(events, msg)
@@ -229,6 +232,10 @@ class FlowSession(ChannelSession):
         self.modified_on = timezone.now()
         self.save(update_fields=['output', 'is_active', 'modified_on'])
 
+        # update each of our runs
+        for run in output['runs']:
+            FlowRun.create_or_update_from_goflow(self, self.contact, run)
+
     def resume(self, msg):
 
         if not settings.FLOW_SERVER_URL:
@@ -236,7 +243,6 @@ class FlowSession(ChannelSession):
 
         # look up our active run
         active_run = None
-
         output = self.as_json()
 
         if len(output['runs']) > 0:
@@ -831,7 +837,6 @@ class Flow(TembaModel):
 
         # fire off request to flow server
         session = FlowSession.get_last_active_session(contact=msg.contact)
-        print ("Resuming session %s" % session)
         if session:
             return True, session.resume(msg)
 
@@ -2798,7 +2803,7 @@ class FlowRun(models.Model):
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
 
     @classmethod
-    def create_or_update_from_server(cls, session, contact, run_output):
+    def create_or_update_from_goflow(cls, session, contact, run_output):
         # does this run already exist?
         existing = FlowRun.objects.filter(org=contact.org, contact=contact, uuid=run_output['uuid']).select_related('flow').first()
 
@@ -2811,14 +2816,26 @@ class FlowRun(models.Model):
             existing.is_active = is_active
             existing.modified_on = iso8601.parse_date(run_output['modified_on'])
             existing.output = json.dumps(run_output)
-            existing.save(update_fields=['is_active', 'modified_on', 'output'])
+
+            if not is_active:
+                existing.exited_on = timezone.now()
+                existing.exit_type = cls.EXIT_TYPE_COMPLETED
+            existing.save(update_fields=['is_active', 'modified_on', 'output', 'exited_on', 'exit_type'])
             run = existing
         else:
             # previous_path = []
+            exited_on = None
+            exit_type = None
+            if not is_active:
+                exited_on = timezone.now()
+                exit_type = cls.EXIT_TYPE_COMPLETED
+
             flow = Flow.objects.get(org=contact.org, uuid=run_output['flow_uuid'])
             run = FlowRun.objects.create(org=contact.org, uuid=run_output['uuid'],
                                          flow=flow, contact=contact,
                                          output=json.dumps(run_output),
+                                         exited_on=exited_on,
+                                         exit_type=exit_type,
                                          session=session,
                                          is_active=is_active,
                                          modified_on=iso8601.parse_date(run_output['modified_on']),
