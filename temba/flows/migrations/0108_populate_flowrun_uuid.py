@@ -14,8 +14,8 @@ def populate_flowrun_uuid(FlowRun):
     print("Fetched %d flow run ids that need UUIDs..." % len(run_ids))
     num_updated = 0
 
-    for run_ids in run_ids:
-        FlowRun.objects.filter(id=run_ids).update(uuid=uuid4())
+    for run_id in run_ids:
+        FlowRun.objects.filter(id=run_id).update(uuid=uuid4())
         num_updated += 1
 
         if num_updated % 1000 == 0:
