@@ -1094,10 +1094,16 @@ SEND_AIRTIME = False
 #         could cause calls in test environments
 SEND_CALLS = False
 
+MESSAGE_HANDLERS = [
+    'temba.triggers.handlers.TriggerHandler',
+    'temba.flows.handlers.FlowHandler',
+    'temba.triggers.handlers.CatchAllHandler'
+]
 
-MESSAGE_HANDLERS = ['temba.triggers.handlers.TriggerHandler',
-                    'temba.flows.handlers.FlowHandler',
-                    'temba.triggers.handlers.CatchAllHandler']
+CHANNEL_TYPES = [
+    'temba.channels.types.twitter.TwitterType',
+    'temba.channels.types.twitter_activity.TwitterActivityType'
+]
 
 # -----------------------------------------------------------------------------------
 # Store sessions in our cache

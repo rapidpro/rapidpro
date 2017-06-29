@@ -643,7 +643,7 @@ class ChannelTest(TembaTest):
         self.assertEquals("EATRIGHT", channel.get_address_display(e164=True))
 
         # change channel type to Twitter
-        channel.channel_type = Channel.TYPE_TWITTER
+        channel.channel_type = 'TT'
         channel.address = 'billy_bob'
         channel.scheme = 'twitter'
         channel.config = json.dumps({'handle_id': 12345, 'oauth_token': 'abcdef', 'oauth_token_secret': '23456'})
@@ -664,14 +664,11 @@ class ChannelTest(TembaTest):
         postdata['alert_email'] = "bob@example.com"
         postdata['address'] = "billy_bob"
 
-        with patch('temba.utils.mage.MageClient.refresh_twitter_stream') as refresh_twitter_stream:
-            refresh_twitter_stream.return_value = dict()
-
-            self.fetch_protected(update_url, self.user, postdata)
-            channel = Channel.objects.get(pk=self.tel_channel.id)
-            self.assertEquals(channel.name, "Twitter2")
-            self.assertEquals(channel.alert_email, "bob@example.com")
-            self.assertEquals(channel.address, "billy_bob")
+        self.fetch_protected(update_url, self.user, postdata)
+        channel = Channel.objects.get(pk=self.tel_channel.id)
+        self.assertEquals(channel.name, "Twitter2")
+        self.assertEquals(channel.alert_email, "bob@example.com")
+        self.assertEquals(channel.address, "billy_bob")
 
     def test_read(self):
         post_data = dict(cmds=[
@@ -2242,20 +2239,6 @@ class ChannelTest(TembaTest):
         self.assertFalse(android.is_active)
 
         self.assertIsNone(android.config_json().get(Channel.CONFIG_FCM_ID, None))
-
-    def test_release_twitter(self):
-        # check that removing Twitter channel notifies Mage
-        with patch('temba.utils.mage.MageClient._request') as mock_mage_request:
-            mock_mage_request.return_value = ""
-
-            self.twitter_channel.release()
-
-            mock_mage_request.assert_called_once_with('DELETE', 'twitter/%s' % self.twitter_channel.uuid)
-
-        # can't view a released channel
-        self.login(self.admin)
-        response = self.client.get(reverse('channels.channel_read', args=[self.twitter_channel.uuid]))
-        self.assertEqual(response.status_code, 404)
 
     @override_settings(IS_PROD=True)
     def test_release_ivr_channel(self):
@@ -10299,7 +10282,10 @@ class JiochatTest(TembaTest):
             msg.refresh_from_db()
             self.assertEquals(msg.status, ERRORED)
 
-    def test_follow(self):
+    @patch('temba.utils.jiochat.JiochatClient.get_user_detail')
+    def test_follow(self, mock_get_user_detail):
+        mock_get_user_detail.return_value = {'nickname': "Bob"}
+
         callback_url = reverse('handlers.jiochat_handler', args=[self.channel.uuid])
         an_hour_ago = timezone.now() - timedelta(hours=1)
 
