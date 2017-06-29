@@ -136,7 +136,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     @abstractmethod
     def send(self, channel, msg, text):
         """
-        Sends the give message struct. Note: this will only be called if SEND_MESSAGES setting is True.
+        Sends the given message struct. Note: this will only be called if SEND_MESSAGES setting is True.
         """
 
     def has_attachment_support(self, channel):
