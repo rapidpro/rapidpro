@@ -3578,7 +3578,9 @@ class ActionTest(TembaTest):
 
         tel1_channel = Channel.add_config_external_channel(self.org, self.admin, 'US', '+12061111111', 'KN', {})
         tel2_channel = Channel.add_config_external_channel(self.org, self.admin, 'US', '+12062222222', 'KN', {})
-        fb_channel = Channel.add_facebook_channel(self.org, self.admin, "Page Name", "Page Id", "Page Token")
+
+        fb_channel = Channel.create(self.org, self.user, None, 'FB', address="Page Id",
+                                    config={'page_name': "Page Name", 'auth_token': "Page Token"})
 
         # create an incoming message on tel1, this should create an affinity to that channel
         Msg.create_incoming(tel1_channel, str(self.contact.urns.all().first()), "Incoming msg")
