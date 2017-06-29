@@ -24,13 +24,14 @@ class Migration(migrations.Migration):
             bases=('channels.channelsession',),
         ),
         migrations.AddField(
-            model_name='flow',
-            name='feature_class',
-            field=models.IntegerField(default=100, help_text='Which class of features are used in this flow'),
-        ),
-        migrations.AddField(
             model_name='flowrun',
             name='output',
             field=models.TextField(blank=True, null=True),
+        ),
+        migrations.AddField(
+            model_name='flow',
+            name='feature_flag',
+            field=models.BigIntegerField(default=0x7FFFFFFFFFFFFFFF,
+                                         help_text='Which features are used in this flow'),
         ),
     ]

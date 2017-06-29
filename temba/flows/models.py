@@ -5,6 +5,7 @@ import iso8601
 import json
 import logging
 import numbers
+import operator
 import phonenumbers
 import regex
 import requests
@@ -177,7 +178,7 @@ class FlowSession(ChannelSession):
 
         FlowSession.close_active_sessions(contacts)
 
-        flows = flow.as_json_with_dependencies()
+        flows = flow.as_json_with_dependencies(Flow.FEATURE_FLAG_GOFLOW)
         if len(flows) == 0:
             return []
 
@@ -254,7 +255,7 @@ class FlowSession(ChannelSession):
             return
 
         # build our flow request
-        flow_resume = dict(flows=flow.as_json_with_dependencies(),
+        flow_resume = dict(flows=flow.as_json_with_dependencies(Flow.FEATURE_FLAG_GOFLOW),
                            session=self.as_json(),
                            contact=self.contact.as_engine_json(),
                            event=msg.as_input())
@@ -417,8 +418,6 @@ class Flow(TembaModel):
     RULES_ENTRY = 'R'
     ACTIONS_ENTRY = 'A'
 
-    FEATURE_CLASS_ALL = 100
-
     FLOW_TYPES = ((FLOW, _("Message flow")),
                   (MESSAGE, _("Single Message Flow")),
                   (VOICE, _("Phone call flow")),
@@ -429,6 +428,9 @@ class Flow(TembaModel):
                    (ACTIONS_ENTRY, "Actions"))
 
     START_MSG_FLOW_BATCH = 'start_msg_flow_batch'
+
+    FEATURE_FLAG_ALL = 0x7FFFFFFFFFFFFFFF
+    FEATURE_FLAG_GOFLOW = None  # set after ruleset types are loaded etc
 
     name = models.CharField(max_length=64,
                             help_text=_("The name for this flow"))
@@ -473,8 +475,8 @@ class Flow(TembaModel):
     version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION,
                                          help_text=_("The flow version this definition is in"))
 
-    feature_class = models.IntegerField(default=FEATURE_CLASS_ALL,
-                                        help_text=_('Which class of features are used in this flow'))
+    feature_flag = models.BigIntegerField(default=FEATURE_FLAG_ALL,
+                                          help_text=_('Which features are used in this flow'))
 
     @classmethod
     def create(cls, org, user, name, flow_type=FLOW, expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER,
@@ -1115,14 +1117,14 @@ class Flow(TembaModel):
                 pass
         return changed
 
-    def as_json_with_dependencies(self, max_feature_class=0):
+    def as_json_with_dependencies(self, feature_flag=FEATURE_FLAG_ALL):
         """
         Gets the json for this flow in the new flow format, calling out to the flow server
         """
         flows = self.org.resolve_dependencies([self], [], False)
         flow_json = []
         for flow in flows:
-            if flow.feature_class <= max_feature_class:
+            if flow.feature_flag | feature_flag == feature_flag:
                 flow_json.append(flow.as_json(expand_contacts=True))
             else:
                 # return an empty list if any of our dependencies is too fancy
@@ -2385,43 +2387,18 @@ class Flow(TembaModel):
         return None
 
     @classmethod
-    def determine_feature_class(cls, action_types, ruleset_types, tests):
+    def calculate_feature_flag(cls, action_types, ruleset_types, tests):
+        feature_flag = 0
+        feature_bits = {(feat[0], feat[1]): (1 << f) for f, feat in enumerate(FLOW_FEATURES)}
 
-        feature_class = 0
         for action_type in action_types:
-            found = False
-            for idx, fc in enumerate(FEATURE_CLASSES[feature_class:]):
-                if action_type in fc['actions']:
-                    found = True
-                    if idx > feature_class:
-                        feature_class = idx
-            if not found:
-                # print("%s too advanced" % action_type)
-                return Flow.FEATURE_CLASS_ALL
-
+            feature_flag |= feature_bits.get(('A', action_type), 0)
         for ruleset_type in ruleset_types:
-            found = False
-            for idx, fc in enumerate(FEATURE_CLASSES[feature_class:]):
-                if ruleset_type in fc['rulesets']:
-                    found = True
-                    if idx > feature_class:
-                        feature_class = idx
-            if not found:
-                # print("%s too advanced" % ruleset_type)
-                return Flow.FEATURE_CLASS_ALL
-
+            feature_flag |= feature_bits.get(('R', ruleset_type), 0)
         for test_type in tests:
-            found = False
-            for idx, fc in enumerate(FEATURE_CLASSES[feature_class:]):
-                if test_type in fc['tests']:
-                    found = True
-                    if idx > feature_class:
-                        feature_class = idx
-            if not found:
-                # print("%s too advanced" % test_type)
-                return Flow.FEATURE_CLASS_ALL
+            feature_flag |= feature_bits.get(('T', test_type), 0)
 
-        return feature_class
+        return feature_flag
 
     def ensure_current_version(self):
         """
@@ -2671,7 +2648,7 @@ class Flow(TembaModel):
                     for rule in existing.get_rules():
                         tests.add(rule.test.TYPE)
 
-            self.feature_class = Flow.determine_feature_class(action_types, ruleset_types, tests)
+            self.feature_flag = Flow.calculate_feature_flag(action_types, ruleset_types, tests)
 
             # make sure all destinations are present though
             for destination in destinations:
@@ -3474,7 +3451,7 @@ class RuleSet(models.Model):
                     (TYPE_FORM_FIELD, "Split by message form"),
                     (TYPE_CONTACT_FIELD, "Split on contact field"),
                     (TYPE_EXPRESSION, "Split by expression"),
-                    (TYPE_SUBFLOW, "Split Randomly"))
+                    (TYPE_RANDOM, "Split Randomly"))
 
     uuid = models.CharField(max_length=36, unique=True)
 
@@ -7206,47 +7183,69 @@ class InterruptTest(Test):
         return (True, self.TYPE) if run.session and run.session.status == ChannelSession.INTERRUPTED else (False, None)
 
 
-FEATURE_CLASSES = [
-    {
-        "actions": [
-            ReplyAction.TYPE,
-            AddToGroupAction.TYPE,
-            DeleteFromGroupAction.TYPE,
-            SaveToContactAction.TYPE,
-            EmailAction.TYPE,
-            SetLanguageAction.TYPE,
-        ],
-        "rulesets": [
-            RuleSet.TYPE_EXPRESSION,
-            # RuleSet.TYPE_SUBFLOW,
-            RuleSet.TYPE_CONTACT_FIELD,
-            RuleSet.TYPE_FLOW_FIELD,
-            RuleSet.TYPE_FORM_FIELD,
-            RuleSet.TYPE_WAIT_MESSAGE,
-        ],
-        "tests": [
-            ContainsAnyTest.TYPE,
-            ContainsOnlyPhraseTest.TYPE,
-            ContainsPhraseTest.TYPE,
-            ContainsTest.TYPE,
-            DateAfterTest.TYPE,
-            DateBeforeTest.TYPE,
-            DateEqualTest.TYPE,
-            EqTest.TYPE,
-            FalseTest.TYPE,
-            GtTest.TYPE,
-            GteTest.TYPE,
-            HasDateTest.TYPE,
-            HasEmailTest.TYPE,
-            LtTest.TYPE,
-            LteTest.TYPE,
-            NotEmptyTest.TYPE,
-            NumberTest.TYPE,
-            OrTest.TYPE,
-            PhoneTest.TYPE,
-            StartsWithTest.TYPE,
-            SubflowTest.TYPE,
-            TrueTest.TYPE
-        ]
-    }
+# Possible flow features as tuples of class, type-code, and whether it is goflow supported. Excludes the most basic
+# test types (and/or/true/false) to keep the number under 64.
+FLOW_FEATURES = [
+    ('A', ReplyAction.TYPE, True),
+    ('A', SendAction.TYPE, False),
+    ('A', AddToGroupAction.TYPE, True),
+    ('A', DeleteFromGroupAction.TYPE, True),
+    ('A', AddLabelAction.TYPE, False),
+    ('A', EmailAction.TYPE, False),
+    ('A', WebhookAction.TYPE, False),
+    ('A', SaveToContactAction.TYPE, True),
+    ('A', SetLanguageAction.TYPE, False),
+    ('A', SetChannelAction.TYPE, False),
+    ('A', StartFlowAction.TYPE, False),
+    ('A', SayAction.TYPE, False),
+    ('A', PlayAction.TYPE, False),
+    ('A', TriggerFlowAction.TYPE, False),
+    ('A', EndUssdAction.TYPE, False),
+    ('R', RuleSet.TYPE_WAIT_MESSAGE, True),
+    ('R', RuleSet.TYPE_WAIT_USSD_MENU, False),
+    ('R', RuleSet.TYPE_WAIT_USSD, False),
+    ('R', RuleSet.TYPE_WAIT_RECORDING, False),
+    ('R', RuleSet.TYPE_WAIT_DIGIT, False),
+    ('R', RuleSet.TYPE_WAIT_DIGITS, False),
+    ('R', RuleSet.TYPE_SUBFLOW, False),
+    ('R', RuleSet.TYPE_WEBHOOK, False),
+    ('R', RuleSet.TYPE_RESTHOOK, False),
+    ('R', RuleSet.TYPE_AIRTIME, False),
+    ('R', RuleSet.TYPE_FLOW_FIELD, True),
+    ('R', RuleSet.TYPE_FORM_FIELD, True),
+    ('R', RuleSet.TYPE_CONTACT_FIELD, True),
+    ('R', RuleSet.TYPE_EXPRESSION, True),
+    ('R', RuleSet.TYPE_SUBFLOW, False),
+    ('R', RuleSet.TYPE_RANDOM, False),
+    ('T', AirtimeStatusTest.TYPE, False),
+    ('T', BetweenTest.TYPE, False),
+    ('T', ContainsAnyTest.TYPE, True),
+    ('T', ContainsOnlyPhraseTest.TYPE, True),
+    ('T', ContainsPhraseTest.TYPE, True),
+    ('T', ContainsTest.TYPE, False),
+    ('T', DateAfterTest.TYPE, False),
+    ('T', DateBeforeTest.TYPE, False),
+    ('T', DateEqualTest.TYPE, False),
+    ('T', EqTest.TYPE, True),
+    ('T', GtTest.TYPE, True),
+    ('T', GteTest.TYPE, True),
+    ('T', HasDateTest.TYPE, False),
+    ('T', HasDistrictTest.TYPE, False),
+    ('T', HasEmailTest.TYPE, False),
+    ('T', HasStateTest.TYPE, False),
+    ('T', HasWardTest.TYPE, False),
+    ('T', InGroupTest.TYPE, False),
+    ('T', InterruptTest.TYPE, False),
+    ('T', LtTest.TYPE, True),
+    ('T', LteTest.TYPE, True),
+    ('T', NotEmptyTest.TYPE, False),
+    ('T', NumberTest.TYPE, False),
+    ('T', PhoneTest.TYPE, False),
+    ('T', RegexTest.TYPE, False),
+    ('T', StartsWithTest.TYPE, True),
+    ('T', SubflowTest.TYPE, False),
+    ('T', TimeoutTest.TYPE, False),
+    ('T', WebhookStatusTest.TYPE, False),
 ]
+
+Flow.FEATURE_FLAG_GOFLOW = reduce(operator.or_, [(1 << f) for f, feat in enumerate(FLOW_FEATURES) if feat[2]])
