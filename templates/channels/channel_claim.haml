@@ -648,23 +648,6 @@
             .claim-description
               %div= ch_type.get_claim_blurb
 
-    .claim-row.facebook-channel
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_facebook' %}"}
-            .btn-container
-              .claim-glyph.icon-facebook-official
-              %p.claim-text
-                -trans "Facebook"
-
-        .span9
-          .claim-description
-            %div
-              -blocktrans
-                Add a <a href="http://facebook.com">Facebook</a> bot to send and receive messages on behalf
-                of one of your Facebook pages for free. You will need to create a Facebook application on
-                their <a href="http://developers.facebook.com">developers</a> site first.
-
     .claim-row.telegram-channel
       .row
         .span3

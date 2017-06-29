@@ -768,7 +768,10 @@ class ClaimViewMixin(OrgPermsMixin):
         return kwargs
 
     def get_success_url(self):
-        return reverse('channels.channel_read', args=[self.object.uuid])
+        if self.channel_type.show_config_page:
+            return reverse('channels.channel_configuration', args=[self.object.id])
+        else:
+            return reverse('channels.channel_read', args=[self.object.uuid])
 
 
 class ClaimAndroidForm(forms.Form):
@@ -863,7 +866,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
-               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
+               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_globe',
                'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
                'claim_red_rabbit', 'claim_macrokiosk', 'claim_jiochat')
     permissions = True
@@ -906,7 +909,7 @@ class ChannelCRUDL(SmartCRUDL):
                                   js_class='remove-channel',
                                   href="#"))
 
-            if self.object.channel_type == Channel.TYPE_FACEBOOK and self.has_org_perm('channels.channel_facebook_whitelist'):
+            if self.object.channel_type == 'FB' and self.has_org_perm('channels.channel_facebook_whitelist'):
                 links.append(dict(title=_("Whitelist Domain"), js_class='facebook-whitelist', href='#'))
 
             return links
@@ -2376,35 +2379,6 @@ class ChannelCRUDL(SmartCRUDL):
             channel = Channel.add_jiochat_channel(self.request.user.get_org(), self.request.user,
                                                   cleaned_data.get('app_id'),
                                                   cleaned_data.get('app_secret'))
-
-            return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))
-
-    class ClaimFacebook(OrgPermsMixin, SmartFormView):
-        class FacebookForm(forms.Form):
-            page_access_token = forms.CharField(min_length=43, required=True,
-                                                help_text=_("The Page Access Token for your Application"))
-
-            def clean_page_access_token(self):
-                token = self.cleaned_data['page_access_token']
-
-                # hit the FB graph, see if we can load the page attributes
-                response = requests.get('https://graph.facebook.com/v2.5/me', params=dict(access_token=token))
-                response_json = response.json()
-                if response.status_code != 200:
-                    default_error = _("Invalid page access token, please check it and try again.")
-                    raise ValidationError(response_json.get('error', default_error).get('message', default_error))
-
-                self.cleaned_data['page'] = response_json
-                return token
-
-        form_class = FacebookForm
-        permission = 'channels.channel_claim'
-
-        def form_valid(self, form):
-            super(ChannelCRUDL.ClaimFacebook, self).form_valid(form)
-            page = form.cleaned_data['page']
-            channel = Channel.add_facebook_channel(self.request.user.get_org(), self.request.user,
-                                                   page['name'], page['id'], form.cleaned_data['page_access_token'])
 
             return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))
 
