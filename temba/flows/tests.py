@@ -4381,6 +4381,41 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(self.get_flow('favorites').is_runnable_in_goflow())
         self.assertFalse(self.get_flow('timeout').is_runnable_in_goflow())
 
+    def test_simple(self):
+        favorites = self.get_flow('favorites')
+        run, = favorites.start([], [self.contact])
+
+        self.assertEqual(run.contact, self.contact)
+        self.assertIsNone(run.exit_type)
+        self.assertIsNone(run.exited_on)
+
+        msg1 = Msg.objects.get()
+        self.assertEqual(msg1.direction, 'O')
+        self.assertEqual(msg1.text, "What is your favorite color?")
+        self.assertEqual(msg1.contact, self.contact)
+
+        msg2 = Msg.create_incoming(self.channel, 'tel:+12065552020', "red")
+
+        msg3 = Msg.objects.get(id__gt=msg2.id)
+        self.assertEqual(msg3.direction, 'O')
+        self.assertEqual(msg3.text, "Good choice, I like Red too! What is your favorite beer?")
+
+        msg4 = Msg.create_incoming(self.channel, 'tel:+12065552020', "primus")
+
+        msg5 = Msg.objects.get(id__gt=msg4.id)
+        self.assertEqual(msg5.direction, 'O')
+        self.assertEqual(msg5.text, "Mmmmm... delicious Primus. If only they made red Primus! Lastly, what is your name?")
+
+        msg6 = Msg.create_incoming(self.channel, 'tel:+12065552020', "Ben")
+
+        msg7 = Msg.objects.get(id__gt=msg6.id)
+        self.assertEqual(msg7.direction, 'O')
+        self.assertEqual(msg7.text, "Thanks Ben, we are all done!")
+
+        run.refresh_from_db()
+        self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+        self.assertIsNotNone(run.exited_on)
+
     def test_validate_flow_definition(self):
 
         with self.assertRaises(ValueError):

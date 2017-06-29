@@ -1875,6 +1875,11 @@ class Flow(TembaModel):
     def start_msg_flow(self, all_contact_ids, started_flows=None, start_msg=None, extra=None,
                        flow_start=None, parent_run=None):
 
+        # try to start the session against our flow server
+        runs = FlowSession.start(Contact.objects.filter(id__in=all_contact_ids), self, start_msg)
+        if len(runs):
+            return runs
+
         start_msg_id = start_msg.id if start_msg else None
         flow_start_id = flow_start.id if flow_start else None
 
@@ -1933,11 +1938,6 @@ class Flow(TembaModel):
 
     def start_msg_flow_batch(self, batch_contact_ids, broadcasts, started_flows, start_msg=None,
                              extra=None, flow_start=None, parent_run=None):
-
-        # start the session against our flow server
-        runs = FlowSession.start(Contact.objects.filter(id__in=batch_contact_ids), self, start_msg)
-        if len(runs):
-            return
 
         simulation = False
         if len(batch_contact_ids) == 1:
