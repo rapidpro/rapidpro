@@ -139,17 +139,17 @@ class FlowServer:
         return self._request('migrate', flow_migrate)
 
     def _request(self, endpoint, payload):
-        # print('=============== %s request ===============' % endpoint)
-        # print(json.dumps(payload, indent=2))
-        # print('=============== /%s request ===============' % endpoint)
+        print('=============== %s request ===============' % endpoint)
+        print(json.dumps(payload, indent=2))
+        print('=============== /%s request ===============' % endpoint)
 
         response = requests.post("%s/flow/%s" % (self.base_url, endpoint), json=payload)
         response.raise_for_status()
         resp_json = response.json()
 
-        # print('=============== %s response ===============' % endpoint)
-        # print(json.dumps(resp_json, indent=2))
-        # print('=============== /%s response ===============' % endpoint)
+        print('=============== %s response ===============' % endpoint)
+        print(json.dumps(resp_json, indent=2))
+        print('=============== /%s response ===============' % endpoint)
 
         return resp_json
 
@@ -176,9 +176,9 @@ class FlowSession(ChannelSession):
         if not settings.FLOW_SERVER_URL:
             return []
 
-        FlowSession.close_active_sessions(contacts)
+        cls.close_active_sessions(contacts)
 
-        flows = flow.as_json_with_dependencies(Flow.FEATURE_FLAG_GOFLOW)
+        flows = flow.as_json_with_dependencies()
         if len(flows) == 0:
             return []
 
@@ -202,10 +202,10 @@ class FlowSession(ChannelSession):
                 active = output['runs'][0]['status'] == 'A'
 
             # create our session
-            session = FlowSession.objects.create(org=contact.org, contact=contact,
-                                                 output=json.dumps(output), is_active=active,
-                                                 created_by=flow.created_by, modified_by=flow.modified_by,
-                                                 modified_on=timezone.now(), created_on=timezone.now())
+            session = cls.objects.create(org=contact.org, contact=contact,
+                                         output=json.dumps(output), is_active=active,
+                                         created_by=flow.created_by, modified_by=flow.modified_by,
+                                         modified_on=timezone.now(), created_on=timezone.now())
 
             # create each of our runs
             for run in output['runs']:
@@ -255,7 +255,7 @@ class FlowSession(ChannelSession):
             return
 
         # build our flow request
-        flow_resume = dict(flows=flow.as_json_with_dependencies(Flow.FEATURE_FLAG_GOFLOW),
+        flow_resume = dict(flows=flow.as_json_with_dependencies(),
                            session=self.as_json(),
                            contact=self.contact.as_engine_json(),
                            event=msg.as_input())
@@ -1117,14 +1117,20 @@ class Flow(TembaModel):
                 pass
         return changed
 
-    def as_json_with_dependencies(self, feature_flag=FEATURE_FLAG_ALL):
+    def is_runnable_in_goflow(self):
+        """
+        Returns true if this flow only uses features supported by GoFlow
+        """
+        return (self.feature_flag | Flow.FEATURE_FLAG_GOFLOW) == Flow.FEATURE_FLAG_GOFLOW
+
+    def as_json_with_dependencies(self):
         """
         Gets the json for this flow in the new flow format, calling out to the flow server
         """
         flows = self.org.resolve_dependencies([self], [], False)
         flow_json = []
         for flow in flows:
-            if flow.feature_flag | feature_flag == feature_flag:
+            if flow.is_runnable_in_goflow():
                 flow_json.append(flow.as_json(expand_contacts=True))
             else:
                 # return an empty list if any of our dependencies is too fancy

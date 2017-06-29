@@ -4377,6 +4377,10 @@ class SimulationTest(FlowFileTest):
 
 class FlowsTest(FlowFileTest):
 
+    def test_is_runnable_in_goflow(self):
+        self.assertTrue(self.get_flow('favorites').is_runnable_in_goflow())
+        self.assertFalse(self.get_flow('timeout').is_runnable_in_goflow())
+
     def test_validate_flow_definition(self):
 
         with self.assertRaises(ValueError):
