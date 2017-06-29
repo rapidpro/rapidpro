@@ -1974,17 +1974,43 @@ class FlowTest(TembaTest):
     def test_flow_keyword_create(self):
         self.login(self.admin)
 
-        post_data = dict()
-        post_data['name'] = "Survey Flow"
-        post_data['keyword_triggers'] = "notallowed"
-        post_data['flow_type'] = Flow.SURVEY
-        post_data['expires_after_minutes'] = 60 * 12
-        self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+        # try creating a flow with invalid keywords
+        response = self.client.post(reverse('flows.flow_create'), {
+            'name': "Flow #1",
+            'keyword_triggers': "toooooooooooooolong,test",
+            'flow_type': Flow.FLOW,
+            'expires_after_minutes': 60 * 12
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, 'form', 'keyword_triggers',
+                             '"toooooooooooooolong" must be a single word, less than 16 characters, containing only '
+                             'letter and numbers')
 
-        flow = Flow.objects.filter(name='Survey Flow').first()
+        # submit with valid keywords
+        response = self.client.post(reverse('flows.flow_create'), {
+            'name': "Flow #1",
+            'keyword_triggers': "testing, test",
+            'flow_type': Flow.FLOW,
+            'expires_after_minutes': 60 * 12
+        })
+        self.assertEqual(response.status_code, 302)
+
+        flow = Flow.objects.get(name='Flow #1')
+        self.assertEqual(flow.triggers.all().count(), 2)
+        self.assertEqual(set(flow.triggers.values_list('keyword', flat=True)), {'testing', 'test'})
+
+        # try creating a survey flow with keywords (they'll be ignored)
+        response = self.client.post(reverse('flows.flow_create'), {
+            'name': "Survey Flow",
+            'keyword_triggers': "notallowed",
+            'flow_type': Flow.SURVEY,
+            'expires_after_minutes': 60 * 12
+        })
+        self.assertEqual(response.status_code, 302)
 
         # should't be allowed to have a survey flow and keywords
-        self.assertEqual(0, flow.triggers.all().count())
+        flow = Flow.objects.get(name='Survey Flow')
+        self.assertEqual(flow.triggers.all().count(), 0)
 
     def test_flow_keyword_update(self):
         self.login(self.admin)
@@ -2015,16 +2041,14 @@ class FlowTest(TembaTest):
         flow = Flow.create(self.org, self.admin, "Flow")
 
         # update flow triggers
-        post_data = dict()
-        post_data['name'] = "Flow With Keyword Triggers"
-        post_data['keyword_triggers'] = "it,changes,everything"
-        post_data['expires_after_minutes'] = 60 * 12
-        response = self.client.post(reverse('flows.flow_update', args=[flow.pk]), post_data, follow=True)
+        response = self.client.post(reverse('flows.flow_update', args=[flow.id]), {
+            'name': "Flow With Keyword Triggers",
+            'keyword_triggers': "it,changes,everything",
+            'expires_after_minutes': 60 * 12
+        })
+        self.assertEqual(response.status_code, 302)
 
-        flow_with_keywords = Flow.objects.get(name=post_data['name'])
-        self.assertEquals(200, response.status_code)
-        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_list'))
-        self.assertTrue(flow_with_keywords in response.context['object_list'].all())
+        flow_with_keywords = Flow.objects.get(name="Flow With Keyword Triggers")
         self.assertEquals(flow_with_keywords.triggers.count(), 3)
         self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).count(), 3)
         self.assertEquals(flow_with_keywords.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
@@ -2151,24 +2175,24 @@ class FlowTest(TembaTest):
         post_data['name'] = "Flow With Unformated Keyword Triggers"
         post_data['keyword_triggers'] = "this is,it"
         response = self.client.post(reverse('flows.flow_create'), post_data)
-        self.assertTrue(response.context['form'].errors)
-        self.assertTrue('"this is" must be a single word containing only letter and numbers' in response.context['form'].errors['keyword_triggers'])
+        self.assertFormError(response, 'form', 'keyword_triggers',
+                             '"this is" must be a single word, less than 16 characters, containing only letter and numbers')
 
         # create a new flow with one existing keyword
         post_data = dict()
         post_data['name'] = "Flow With Existing Keyword Triggers"
         post_data['keyword_triggers'] = "this,is,unique"
         response = self.client.post(reverse('flows.flow_create'), post_data)
-        self.assertTrue(response.context['form'].errors)
-        self.assertTrue('The keyword "unique" is already used for another flow' in response.context['form'].errors['keyword_triggers'])
+        self.assertFormError(response, 'form', 'keyword_triggers',
+                             'The keyword "unique" is already used for another flow')
 
         # create another trigger so there are two in the way
         trigger = Trigger.objects.create(org=self.org, keyword='this', flow=flow1,
                                          created_by=self.admin, modified_by=self.admin)
 
         response = self.client.post(reverse('flows.flow_create'), post_data)
-        self.assertTrue(response.context['form'].errors)
-        self.assertTrue('The keywords "this, unique" are already used for another flow' in response.context['form'].errors['keyword_triggers'])
+        self.assertFormError(response, 'form', 'keyword_triggers',
+                             'The keywords "this, unique" are already used for another flow')
         trigger.delete()
 
         # create a new flow with keywords
@@ -3554,7 +3578,9 @@ class ActionTest(TembaTest):
 
         tel1_channel = Channel.add_config_external_channel(self.org, self.admin, 'US', '+12061111111', 'KN', {})
         tel2_channel = Channel.add_config_external_channel(self.org, self.admin, 'US', '+12062222222', 'KN', {})
-        fb_channel = Channel.add_facebook_channel(self.org, self.admin, "Page Name", "Page Id", "Page Token")
+
+        fb_channel = Channel.create(self.org, self.user, None, 'FB', address="Page Id",
+                                    config={'page_name': "Page Name", 'auth_token': "Page Token"})
 
         # create an incoming message on tel1, this should create an affinity to that channel
         Msg.create_incoming(tel1_channel, str(self.contact.urns.all().first()), "Incoming msg")

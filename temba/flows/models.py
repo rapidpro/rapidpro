@@ -3701,6 +3701,8 @@ class FlowPathRecentMessage(models.Model):
     PRUNE_TO = 5
     LAST_PRUNED_KEY = 'last_recentmessage_pruned'
 
+    id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name='ID')
+
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
     run = models.ForeignKey(FlowRun, related_name='recent_messages')
@@ -4363,6 +4365,8 @@ class FlowStart(SmartModel):
                       (STATUS_COMPLETE, "Complete"),
                       (STATUS_FAILED, "Failed"))
 
+    uuid = models.UUIDField(unique=True, default=uuid4)
+
     flow = models.ForeignKey(Flow, related_name='starts', help_text=_("The flow that is being started"))
 
     groups = models.ManyToManyField(ContactGroup, help_text=_("Groups that will start the flow"))
@@ -4421,8 +4425,8 @@ class FlowStart(SmartModel):
             # load up our extra if any
             extra = json.loads(self.extra) if self.extra else None
 
-            self.flow.start(groups, contacts, flow_start=self, extra=extra,
-                            restart_participants=self.restart_participants, include_active=self.include_active)
+            return self.flow.start(groups, contacts, flow_start=self, extra=extra,
+                                   restart_participants=self.restart_participants, include_active=self.include_active)
 
         except Exception as e:  # pragma: no cover
             import traceback

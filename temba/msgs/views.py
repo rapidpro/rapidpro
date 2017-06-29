@@ -11,7 +11,6 @@ from django.core.urlresolvers import reverse
 from django.contrib import messages
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
-from django.template import Context
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.http import urlquote_plus
@@ -449,8 +448,8 @@ class ExportForm(Form):
 
     def clean(self):
         cleaned_data = super(ExportForm, self).clean()
-        start_date = cleaned_data['start_date']
-        end_date = cleaned_data['end_date']
+        start_date = cleaned_data.get('start_date')
+        end_date = cleaned_data.get('end_date')
 
         if start_date and start_date > date.today():  # pragma: needs cover
             raise forms.ValidationError(_("Start date can't be in the future."))
@@ -563,7 +562,7 @@ class MsgCRUDL(SmartCRUDL):
             # passing a minimal base template and a simple Context (instead of RequestContext) helps us
             # minimize number of other queries, allowing us to more easily measure queries per request
             context['base_template'] = 'msgs/msg_test_frame.html'
-            return self.render_to_response(Context(context))
+            return self.render_to_response(context)
 
         def get_form_kwargs(self, *args, **kwargs):  # pragma: needs cover
             kwargs = super(MsgCRUDL.Test, self).get_form_kwargs(*args, **kwargs)

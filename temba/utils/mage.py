@@ -35,9 +35,6 @@ class MageClient(object):  # pragma: needs cover
     def activate_twitter_stream(self, channel_uuid):
         return self._request('POST', 'twitter', {'uuid': channel_uuid})
 
-    def refresh_twitter_stream(self, channel_uuid):
-        return self._request('POST', 'twitter/%s' % channel_uuid)
-
     def deactivate_twitter_stream(self, channel_uuid):
         return self._request('DELETE', 'twitter/%s' % channel_uuid)
 
