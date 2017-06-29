@@ -2264,7 +2264,7 @@ class FacebookHandler(BaseChannelHandler):
     def lookup_channel(self, kwargs):
         # look up the channel
         channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
-                                         channel_type=Channel.TYPE_FACEBOOK).exclude(org=None).first()
+                                         channel_type='FB').exclude(org=None).first()
         return channel
 
     def get(self, request, *args, **kwargs):
@@ -2431,7 +2431,7 @@ class FacebookHandler(BaseChannelHandler):
                             status.append("Msg %d accepted." % msg.id)
 
                         # a contact pressed "Get Started", trigger any new conversation triggers
-                        elif postback == Channel.GET_STARTED:
+                        elif postback == 'get_started':
                             Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
                             status.append("Postback handled.")
 

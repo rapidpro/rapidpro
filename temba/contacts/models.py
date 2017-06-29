@@ -1439,7 +1439,7 @@ class Contact(TembaModel):
             raise ValueError("Can't block a test contact")
 
         self.clear_all_groups(user)
-        Trigger.archive_triggers_for_contact(self)
+        Trigger.archive_triggers_for_contact(self, user)
 
         self.is_blocked = True
         self.modified_by = user
@@ -1470,7 +1470,7 @@ class Contact(TembaModel):
 
         self.clear_all_groups(get_anonymous_user())
 
-        Trigger.archive_triggers_for_contact(self)
+        Trigger.archive_triggers_for_contact(self, user)
 
     def unstop(self, user):
         """
