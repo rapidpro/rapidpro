@@ -254,9 +254,6 @@ class ChannelTest(TembaTest):
         twitter_urn = contact.get_urn(schemes=[TWITTER_SCHEME])
         self.assertEquals(self.twitter_channel, self.org.get_send_channel(contact_urn=twitter_urn))
 
-        # calling without scheme or urn should raise exception
-        self.assertRaises(ValueError, self.org.get_send_channel)
-
     def test_message_splitting(self):
         # external API requires messages to be <= 160 chars
         self.tel_channel.channel_type = 'EX'
@@ -3283,6 +3280,14 @@ class ChannelClaimTest(TembaTest):
 
         self.assertContains(response, reverse('handlers.jiochat_handler', args=[channel.uuid]))
         self.assertContains(response, channel.secret)
+
+        contact = self.create_contact('Jiochat User', urn=URN.from_jiochat('1234'))
+
+        # make sure we our jiochat channel satisfies as a send channel
+        response = self.client.get(reverse('contacts.contact_read', args=[contact.uuid]))
+        send_channel = response.context['send_channel']
+        self.assertIsNotNone(send_channel)
+        self.assertEqual(Channel.TYPE_JIOCHAT, send_channel.channel_type)
 
     def test_claim_macrokiosk(self):
         Channel.objects.all().delete()
@@ -9980,11 +9985,18 @@ class JiochatTest(TembaTest):
 
     def test_refresh_jiochat_access_tokens_task(self):
         with patch('requests.post') as mock:
+            mock.return_value = MockResponse(400, '{ "error":"Failed" }')
+            refresh_jiochat_access_tokens()
+            self.assertEqual(mock.call_count, 1)
+            channel_client = self.channel.get_jiochat_client()
+
+            self.assertIsNone(channel_client.get_access_token())
+
+            mock.reset_mock()
             mock.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
 
             refresh_jiochat_access_tokens()
             self.assertEqual(mock.call_count, 1)
-            channel_client = self.channel.get_jiochat_client()
 
             self.assertEqual(channel_client.get_access_token(), 'ABC1234')
             self.assertEqual(mock.call_args_list[0][1]['data'], {'client_secret': u'app-secret',
