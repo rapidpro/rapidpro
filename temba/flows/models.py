@@ -6,10 +6,10 @@ import logging
 import numbers
 import phonenumbers
 import regex
+import six
 import time
 import urllib2
-import re
-import six
+import uuid
 
 from collections import OrderedDict
 from datetime import timedelta
@@ -2415,7 +2415,9 @@ class FlowRun(models.Model):
                          (EXIT_TYPE_INTERRUPTED, _("Interrupted")),
                          (EXIT_TYPE_EXPIRED, _("Expired")))
 
-    INVALID_EXTRA_KEY_CHARS = re.compile(r'[^a-zA-Z0-9_]')
+    INVALID_EXTRA_KEY_CHARS = regex.compile(r'[^a-zA-Z0-9_]')
+
+    uuid = models.UUIDField(null=True, default=uuid.uuid4)
 
     org = models.ForeignKey(Org, related_name='runs', db_index=False)
 
