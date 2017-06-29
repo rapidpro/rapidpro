@@ -433,24 +433,18 @@ class Org(SmartModel):
         """
         from temba.channels.models import Channel
 
-        channel = self.channels.filter(is_active=True, role__contains=role).order_by('-pk')
+        channels = self.channels.filter(is_active=True, role__contains=role).order_by('-pk')
 
         if scheme is not None:
-            channel = channel.filter(scheme=scheme)
+            channels = channels.filter(scheme=scheme)
 
+        channel = None
         if country_code:
-            channel = channel.filter(country=country_code)
-
-        channel = channel.first()
+            channel = channels.filter(country=country_code).first()
 
         # no channel? try without country
-        if not channel and country_code:
-            channel = self.channels.filter(is_active=True, role__contains=role).order_by('-pk')
-
-            if scheme is not None:
-                channel = channel.filter(scheme=scheme)
-
-            channel = channel.first()
+        if not channel:
+            channel = channels.first()
 
         if channel and (role == Channel.ROLE_SEND or role == Channel.ROLE_CALL):
             return channel.get_delegate(role)

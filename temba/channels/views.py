@@ -499,13 +499,9 @@ def channel_status_processor(request):
     if allowed:
         # only care about channels that are older than an hour
         cutoff = timezone.now() - timedelta(hours=1)
-        send_channel = org.get_send_channel(scheme=TEL_SCHEME)
+        send_channel = org.get_send_channel()
         call_channel = org.get_call_channel()
         ussd_channel = org.get_ussd_channel()
-
-        # twitter is a suitable sender
-        if not send_channel:
-            send_channel = org.get_send_channel()
 
         status['send_channel'] = send_channel
         status['call_channel'] = call_channel
