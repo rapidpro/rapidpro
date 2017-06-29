@@ -3,14 +3,13 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
-import temba.utils.models
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
         ('channels', '0074_channelsession_output'),
-        ('flows', '0106_auto_20170622_1541'),
+        ('flows', '0109_auto_20170629_0813'),
     ]
 
     operations = [
@@ -33,10 +32,5 @@ class Migration(migrations.Migration):
             model_name='flowrun',
             name='output',
             field=models.TextField(blank=True, null=True),
-        ),
-        migrations.AddField(
-            model_name='flowrun',
-            name='uuid',
-            field=models.CharField(db_index=True, default=temba.utils.models.generate_uuid, help_text='The unique identifier for this run', max_length=36, unique=True, verbose_name='Unique Identifier'),
         ),
     ]

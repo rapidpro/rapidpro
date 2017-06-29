@@ -7,11 +7,10 @@ import logging
 import numbers
 import phonenumbers
 import regex
-import time
-import urllib2
-import re
 import requests
 import six
+import time
+import urllib2
 
 from collections import OrderedDict
 from datetime import timedelta
@@ -2766,10 +2765,9 @@ class FlowRun(models.Model):
                          (EXIT_TYPE_INTERRUPTED, _("Interrupted")),
                          (EXIT_TYPE_EXPIRED, _("Expired")))
 
-    INVALID_EXTRA_KEY_CHARS = re.compile(r'[^a-zA-Z0-9_]')
+    INVALID_EXTRA_KEY_CHARS = regex.compile(r'[^a-zA-Z0-9_]')
 
-    uuid = models.CharField(max_length=36, unique=True, db_index=True, default=generate_uuid,
-                            verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this run"))
+    uuid = models.UUIDField(unique=True, default=uuid4)
 
     output = models.TextField(null=True, blank=True)
 
