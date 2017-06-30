@@ -217,8 +217,6 @@ class FlowSession(ChannelSession):
             for run in output['runs']:
                 runs.append(FlowRun.create_or_update_from_goflow(session, contact, run, msgs_by_step))
 
-            # TODO: implement apply_x_events, create steps and path data
-
         return runs
 
     def update(self, output, msgs_by_step):
@@ -7290,12 +7288,12 @@ class InterruptTest(Test):
 FLOW_FEATURES = [
     ('A', ReplyAction.TYPE, True),
     ('A', SendAction.TYPE, False),
-    ('A', AddToGroupAction.TYPE, True),
-    ('A', DeleteFromGroupAction.TYPE, True),
+    ('A', AddToGroupAction.TYPE, False),
+    ('A', DeleteFromGroupAction.TYPE, False),
     ('A', AddLabelAction.TYPE, False),
     ('A', EmailAction.TYPE, False),
     ('A', WebhookAction.TYPE, False),
-    ('A', SaveToContactAction.TYPE, True),
+    ('A', SaveToContactAction.TYPE, False),
     ('A', SetLanguageAction.TYPE, False),
     ('A', SetChannelAction.TYPE, False),
     ('A', StartFlowAction.TYPE, False),
@@ -7313,8 +7311,8 @@ FLOW_FEATURES = [
     ('R', RuleSet.TYPE_WEBHOOK, False),
     ('R', RuleSet.TYPE_RESTHOOK, False),
     ('R', RuleSet.TYPE_AIRTIME, False),
-    ('R', RuleSet.TYPE_FLOW_FIELD, True),
-    ('R', RuleSet.TYPE_FORM_FIELD, True),
+    ('R', RuleSet.TYPE_FLOW_FIELD, False),
+    ('R', RuleSet.TYPE_FORM_FIELD, False),
     ('R', RuleSet.TYPE_CONTACT_FIELD, True),
     ('R', RuleSet.TYPE_EXPRESSION, True),
     ('R', RuleSet.TYPE_SUBFLOW, False),
@@ -7329,8 +7327,8 @@ FLOW_FEATURES = [
     ('T', DateBeforeTest.TYPE, False),
     ('T', DateEqualTest.TYPE, False),
     ('T', EqTest.TYPE, True),
-    ('T', GtTest.TYPE, True),
-    ('T', GteTest.TYPE, True),
+    ('T', GtTest.TYPE, False),
+    ('T', GteTest.TYPE, False),
     ('T', HasDateTest.TYPE, False),
     ('T', HasDistrictTest.TYPE, False),
     ('T', HasEmailTest.TYPE, False),
@@ -7338,8 +7336,8 @@ FLOW_FEATURES = [
     ('T', HasWardTest.TYPE, False),
     ('T', InGroupTest.TYPE, False),
     ('T', InterruptTest.TYPE, False),
-    ('T', LtTest.TYPE, True),
-    ('T', LteTest.TYPE, True),
+    ('T', LtTest.TYPE, False),
+    ('T', LteTest.TYPE, False),
     ('T', NotEmptyTest.TYPE, False),
     ('T', NumberTest.TYPE, False),
     ('T', PhoneTest.TYPE, False),
