@@ -2821,7 +2821,8 @@ class FlowRun(models.Model):
             is_active = True
 
         if existing:
-            # previous_path = existing_output['path']
+            prev_path = json.loads(existing.output)['path']
+
             existing.is_active = is_active
             existing.modified_on = iso8601.parse_date(run_output['modified_on'])
             existing.output = json.dumps(run_output)
@@ -2832,12 +2833,14 @@ class FlowRun(models.Model):
             existing.save(update_fields=['is_active', 'modified_on', 'output', 'exited_on', 'exit_type'])
             run = existing
         else:
-            # previous_path = []
-            exited_on = None
-            exit_type = None
+            prev_path = []
+
             if not is_active:
                 exited_on = timezone.now()
                 exit_type = cls.EXIT_TYPE_COMPLETED
+            else:
+                exited_on = None
+                exit_type = None
 
             flow = Flow.objects.get(org=contact.org, uuid=run_output['flow_uuid'])
             run = cls.objects.create(org=contact.org, uuid=run_output['uuid'],
@@ -2850,19 +2853,18 @@ class FlowRun(models.Model):
                                      modified_on=iso8601.parse_date(run_output['modified_on']),
                                      created_on=iso8601.parse_date(run_output['created_on']))
 
-        # TODO only update steps which are new or could have been updated
+        curr_path = run_output['path']
 
-        # make sure we have steps recorded for our path data
-        for idx, path_item in enumerate(run_output['path']):
-            next_item = None
-            if idx + 1 < len(run_output['path']):
-                next_item = run_output['path'][idx + 1]
+        # only steps that need updated are new ones and the previous last one if it exists
+        path_to_update = curr_path[len(prev_path) - 1:] if prev_path else curr_path
+
+        # create flow steps for these path steps
+        for p, path_item in enumerate(path_to_update):
+            next_item = path_to_update[p + 1] if p < len(path_to_update) - 1 else None
 
             step_messages = msgs_by_step[path_item['uuid']]
             FlowStep.create_or_update_from_goflow(run, path_item, next_item, step_messages)
 
-        # current_path = run_output['path']
-        # run.record_activity(previous_path, current_path)
         return run
 
     @classmethod
@@ -3268,38 +3270,38 @@ class FlowStep(models.Model):
 
     @classmethod
     def create_or_update_from_goflow(cls, run, path_step, next_path_step, step_messages):
-
+        """
+        Creates or updates a flow step for the given path step returned from goflow
+        """
         arrived_on = iso8601.parse_date(path_step['arrived_on'])
-        existing = cls.objects.filter(run=run, arrived_on=arrived_on, step_uuid=path_step['node_uuid']).first()
+        left_on = iso8601.parse_date(path_step['left_on']) if 'left_on' in path_step else None
+        node_uuid = path_step['node_uuid']
+        next_uuid = next_path_step['node_uuid'] if next_path_step else None
 
-        left_on = None
-        if 'left_on' in path_step:
-            left_on = iso8601.parse_date(path_step['left_on'])
-
-        # look through our events for values to save
+        # look through our events for flow results to save as ruleset results
         category = None
         value = None
-        next_uuid = None
-
-        if next_path_step:
-            next_uuid = next_path_step['node_uuid']
-
         for event in path_step['events']:
             if event['type'] == 'save_flow_result' and event['category']:
                 category = event['category']
                 value = event['value']
                 break
 
+        # are we completing an existing step?
+        existing = cls.objects.filter(run=run, arrived_on=arrived_on, step_uuid=node_uuid).first()
+
         if existing:
+            # print("===Updating step for %s" % node_uuid)
             existing.left_on = left_on
             existing.rule_uuid = path_step.get('exit_uuid', None)
             existing.rule_category = category
             existing.rule_value = value
             existing.next_uuid = next_uuid
-            existing.save(update_fields=['left_on', 'rule_uuid', 'next_uuid', 'rule_category', 'rule_value'])
+            existing.save(update_fields=('left_on', 'rule_uuid', 'next_uuid', 'rule_category', 'rule_value'))
             step = existing
         else:
-            step = cls.objects.create(step_uuid=path_step['node_uuid'],
+            # print("===Creating step for %s" % node_uuid)
+            step = cls.objects.create(step_uuid=node_uuid,
                                       run=run,
                                       contact=run.contact,
                                       arrived_on=arrived_on,
@@ -3312,10 +3314,11 @@ class FlowStep(models.Model):
         for msg in step_messages:
             step.add_message(msg)
 
-        # TODO: fix recent message recording
-        # if record_step:
-            # FlowPathRecentMessage.record_step(step)
-            # print("Recording step for ", step.id)
+        if next_uuid and not run.contact.is_test:
+            # print("===Recording completed step for %s" % node_uuid)
+            FlowPathRecentMessage.record_step(step)
+
+        return step
 
     @classmethod
     def from_json(cls, json_obj, flow, run, previous_rule=None):
