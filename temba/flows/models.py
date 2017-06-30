@@ -2813,57 +2813,61 @@ class FlowRun(models.Model):
 
     @classmethod
     def create_or_update_from_goflow(cls, session, contact, run_output, msgs_by_step):
-        # does this run already exist?
-        existing = cls.objects.filter(org=contact.org, contact=contact, uuid=run_output['uuid']).select_related('flow').first()
+        """
+        Creates or updates a flow run from the given output returned from goflow
+        """
+        uuid = run_output['uuid']
+        path = run_output['path']
+        is_active = (run_output['status'] == 'A')
+        modified_on = iso8601.parse_date(run_output['modified_on'])
 
-        is_active = False
-        if run_output['status'] == 'A':
-            is_active = True
+        # does this run already exist?
+        existing = cls.objects.filter(org=contact.org, contact=contact, uuid=uuid).select_related('flow').first()
+
+        if not is_active:
+            exited_on = timezone.now()
+            exit_type = cls.EXIT_TYPE_COMPLETED
+        else:
+            exited_on = None
+            exit_type = None
 
         if existing:
             prev_path = json.loads(existing.output)['path']
 
-            existing.is_active = is_active
-            existing.modified_on = iso8601.parse_date(run_output['modified_on'])
             existing.output = json.dumps(run_output)
-
-            if not is_active:
-                existing.exited_on = timezone.now()
-                existing.exit_type = cls.EXIT_TYPE_COMPLETED
-            existing.save(update_fields=['is_active', 'modified_on', 'output', 'exited_on', 'exit_type'])
+            existing.exited_on = exited_on
+            existing.exit_type = exit_type
+            existing.is_active = is_active
+            existing.modified_on = modified_on
+            existing.save(update_fields=('is_active', 'modified_on', 'output', 'exited_on', 'exit_type'))
             run = existing
         else:
             prev_path = []
 
-            if not is_active:
-                exited_on = timezone.now()
-                exit_type = cls.EXIT_TYPE_COMPLETED
-            else:
-                exited_on = None
-                exit_type = None
-
             flow = Flow.objects.get(org=contact.org, uuid=run_output['flow_uuid'])
-            run = cls.objects.create(org=contact.org, uuid=run_output['uuid'],
+            run = cls.objects.create(org=contact.org, uuid=uuid,
                                      flow=flow, contact=contact,
                                      output=json.dumps(run_output),
-                                     exited_on=exited_on,
-                                     exit_type=exit_type,
+                                     exited_on=exited_on, exit_type=exit_type,
                                      session=session,
                                      is_active=is_active,
-                                     modified_on=iso8601.parse_date(run_output['modified_on']),
+                                     modified_on=modified_on,
                                      created_on=iso8601.parse_date(run_output['created_on']))
 
-        curr_path = run_output['path']
+        # generate set of ruleset UUIDs to help us resolve node types
+        ruleset_uuids = {r.uuid for r in run.flow.rule_sets.all()}
 
         # only steps that need updated are new ones and the previous last one if it exists
-        path_to_update = curr_path[len(prev_path) - 1:] if prev_path else curr_path
+        path_to_update = path[len(prev_path) - 1:] if prev_path else path
 
         # create flow steps for these path steps
         for p, path_item in enumerate(path_to_update):
             next_item = path_to_update[p + 1] if p < len(path_to_update) - 1 else None
 
+            step_type = FlowStep.TYPE_RULE_SET if path_item['node_uuid'] in ruleset_uuids else FlowStep.TYPE_ACTION_SET
             step_messages = msgs_by_step[path_item['uuid']]
-            FlowStep.create_or_update_from_goflow(run, path_item, next_item, step_messages)
+
+            FlowStep.create_or_update_from_goflow(run, path_item, next_item, step_type, step_messages)
 
         return run
 
@@ -3269,7 +3273,7 @@ class FlowStep(models.Model):
                                         help_text=_("Any broadcasts that are associated with this step (only sent)"))
 
     @classmethod
-    def create_or_update_from_goflow(cls, run, path_step, next_path_step, step_messages):
+    def create_or_update_from_goflow(cls, run, path_step, next_path_step, step_type, step_messages):
         """
         Creates or updates a flow step for the given path step returned from goflow
         """
@@ -3302,6 +3306,7 @@ class FlowStep(models.Model):
         else:
             # print("===Creating step for %s" % node_uuid)
             step = cls.objects.create(step_uuid=node_uuid,
+                                      step_type=step_type,
                                       run=run,
                                       contact=run.contact,
                                       arrived_on=arrived_on,
