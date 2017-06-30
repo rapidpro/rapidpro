@@ -41,6 +41,9 @@ class JiochatClient:
                 url = 'https://channels.jiochat.com/auth/token.action'
 
                 response = self._request(url, 'POST', post_data, access_token=None)
+                if response.status_code != 200:
+                    return
+
                 response_json = response.json()
 
                 access_token = response_json['access_token']

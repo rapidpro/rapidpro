@@ -32,7 +32,7 @@ from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView, SmartModelActionView
-from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
+from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
@@ -499,25 +499,9 @@ def channel_status_processor(request):
     if allowed:
         # only care about channels that are older than an hour
         cutoff = timezone.now() - timedelta(hours=1)
-        send_channel = org.get_send_channel(scheme=TEL_SCHEME)
+        send_channel = org.get_send_channel()
         call_channel = org.get_call_channel()
         ussd_channel = org.get_ussd_channel()
-
-        # twitter is a suitable sender
-        if not send_channel:
-            send_channel = org.get_send_channel(scheme=TWITTER_SCHEME)
-
-        # as is telegram
-        if not send_channel:
-            send_channel = org.get_send_channel(scheme=TELEGRAM_SCHEME)
-
-        # and facebook
-        if not send_channel:
-            send_channel = org.get_send_channel(scheme=FACEBOOK_SCHEME)
-
-        # and viber
-        if not send_channel:
-            send_channel = org.get_send_channel(scheme=VIBER_SCHEME)
 
         status['send_channel'] = send_channel
         status['call_channel'] = call_channel
