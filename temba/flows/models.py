@@ -160,7 +160,17 @@ class FlowServer:
 flow_server = FlowServer(settings.FLOW_SERVER_URL, settings.FLOW_SERVER_DEBUG)
 
 
+class FlowSessionManager(models.Manager):
+    def create(self, *args, **kwargs):
+        return super(FlowSessionManager, self).create(*args, session_type=FlowSession.GO, **kwargs)
+
+    def get_queryset(self):
+        return super(FlowSessionManager, self).get_queryset().filter(session_type=FlowSession.GO)
+
+
 class FlowSession(ChannelSession):
+    objects = FlowSessionManager()
+
     class Meta:
         proxy = True
 

@@ -3742,6 +3742,7 @@ class ChannelSession(SmartModel):
 
     IVR = 'F'
     USSD = 'U'
+    GO = 'G'
 
     DIRECTION_CHOICES = ((INCOMING, "Incoming"),
                          (OUTGOING, "Outgoing"))
