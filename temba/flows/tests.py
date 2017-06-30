@@ -4382,23 +4382,73 @@ class FlowsTest(FlowFileTest):
         self.assertFalse(self.get_flow('timeout').is_runnable_in_goflow())
 
     def test_simple(self):
-        favorites = self.get_flow('favorites')
-        run, = favorites.start([], [self.contact])
+        # don't use import process as we want to keep the UUIDs in the definition
+        favorites = self.create_flow(name="Favorites")
+        favorites.update(FlowRevision.migrate_definition(self.get_flow_json('favorites'), favorites, 7))
 
-        self.assertEqual(run.contact, self.contact)
-        self.assertIsNone(run.exit_type)
-        self.assertIsNone(run.exited_on)
+        run, = favorites.start([], [self.contact])
 
         msg1 = Msg.objects.get()
         self.assertEqual(msg1.direction, 'O')
         self.assertEqual(msg1.text, "What is your favorite color?")
         self.assertEqual(msg1.contact, self.contact)
 
+        self.assertEqual(run.contact, self.contact)
+        self.assertIsNone(run.exit_type)
+        self.assertIsNone(run.exited_on)
+        self.assertFalse(run.responded)
+
+        steps = list(run.steps.order_by('id'))
+        self.assertEqual(len(steps), 2)
+        self.assertEqual(steps[0].step_uuid, "127f3736-77ce-4006-9ab0-0c07cea88956")
+        self.assertIsNotNone(steps[0].arrived_on)
+        self.assertIsNotNone(steps[0].rule_uuid)  # usually none for an actionset but see https://github.com/nyaruka/goflow/issues/39
+        self.assertIsNone(steps[0].rule_category)
+        self.assertIsNotNone(steps[0].left_on)
+        self.assertEqual(steps[0].next_uuid, "2bff5c33-9d29-4cfc-8bb7-0a1b9f97d830")
+        self.assertEqual(set(steps[0].messages.all()), {msg1})
+        self.assertEqual(steps[1].step_uuid, "2bff5c33-9d29-4cfc-8bb7-0a1b9f97d830")
+        self.assertIsNotNone(steps[1].arrived_on)
+        self.assertIsNone(steps[1].rule_uuid)
+        self.assertIsNone(steps[1].rule_category)
+        self.assertIsNone(steps[1].left_on)
+        self.assertIsNone(steps[1].next_uuid)
+        self.assertEqual(set(steps[1].messages.all()), set())
+
         msg2 = Msg.create_incoming(self.channel, 'tel:+12065552020', "red")
+
+        run.refresh_from_db()
+        self.assertIsNone(run.exit_type)
+        self.assertIsNone(run.exited_on)
+        self.assertTrue(run.responded)
 
         msg3 = Msg.objects.get(id__gt=msg2.id)
         self.assertEqual(msg3.direction, 'O')
         self.assertEqual(msg3.text, "Good choice, I like Red too! What is your favorite beer?")
+
+        steps = list(run.steps.order_by('id'))
+        self.assertEqual(len(steps), 4)
+        self.assertEqual(steps[0].step_uuid, "127f3736-77ce-4006-9ab0-0c07cea88956")
+        self.assertIsNotNone(steps[0].arrived_on)
+        self.assertIsNotNone(steps[0].rule_uuid)
+        self.assertIsNone(steps[0].rule_category)
+        self.assertIsNotNone(steps[0].left_on)
+        self.assertEqual(steps[0].next_uuid, "2bff5c33-9d29-4cfc-8bb7-0a1b9f97d830")
+        self.assertEqual(set(steps[0].messages.all()), {msg1})
+        self.assertEqual(steps[1].step_uuid, "2bff5c33-9d29-4cfc-8bb7-0a1b9f97d830")
+        self.assertIsNotNone(steps[1].arrived_on)
+        self.assertEqual(steps[1].rule_uuid, "8cd25a3f-0be2-494b-8b4c-3a4f0de7f9b2")
+        self.assertEqual(steps[1].rule_category, "Red")
+        self.assertIsNotNone(steps[1].left_on)
+        self.assertEqual(steps[1].next_uuid, "44471ade-7979-4c94-8028-6cfb68836337")
+        self.assertEqual(set(steps[1].messages.all()), {msg2})
+        self.assertEqual(steps[2].step_uuid, "44471ade-7979-4c94-8028-6cfb68836337")
+        self.assertIsNotNone(steps[2].arrived_on)
+        self.assertIsNotNone(steps[2].left_on)
+        self.assertEqual(set(steps[2].messages.all()), {msg3})
+        self.assertIsNotNone(steps[3].arrived_on)
+        self.assertIsNone(steps[3].left_on)
+        self.assertEqual(set(steps[3].messages.all()), set())
 
         msg4 = Msg.create_incoming(self.channel, 'tel:+12065552020', "primus")
 
