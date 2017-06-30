@@ -2825,6 +2825,7 @@ class FlowRun(models.Model):
         uuid = run_output['uuid']
         path = run_output['path']
         is_active = (run_output['status'] == 'A')
+        is_error = (run_output['status'] == 'E')
         modified_on = iso8601.parse_date(run_output['modified_on'])
 
         # does this run already exist?
@@ -2832,7 +2833,7 @@ class FlowRun(models.Model):
 
         if not is_active:
             exited_on = timezone.now()
-            exit_type = cls.EXIT_TYPE_COMPLETED
+            exit_type = cls.EXIT_TYPE_INTERRUPTED if is_error else cls.EXIT_TYPE_COMPLETED
         else:
             exited_on = None
             exit_type = None
