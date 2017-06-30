@@ -1597,7 +1597,7 @@ class Channel(TembaModel):
         session = None
 
         # the event url Junebug will relay events to
-        event_url = 'http://%s%s' % (
+        event_url = 'https://%s%s' % (
             settings.HOSTNAME,
             reverse('handlers.junebug_handler',
                     args=['event', channel.uuid]))
