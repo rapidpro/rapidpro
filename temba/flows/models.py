@@ -3286,6 +3286,7 @@ class FlowStep(models.Model):
         arrived_on = iso8601.parse_date(path_step['arrived_on'])
         left_on = iso8601.parse_date(path_step['left_on']) if 'left_on' in path_step else None
         node_uuid = path_step['node_uuid']
+        rule_uuid = path_step.get('exit_uuid') if step_type == FlowStep.TYPE_RULE_SET else None
         next_uuid = next_path_step['node_uuid'] if next_path_step else None
 
         # look through our events for flow results to save as ruleset results
@@ -3303,7 +3304,7 @@ class FlowStep(models.Model):
         if existing:
             # print("===Updating step for %s" % node_uuid)
             existing.left_on = left_on
-            existing.rule_uuid = path_step.get('exit_uuid', None)
+            existing.rule_uuid = rule_uuid
             existing.rule_category = category
             existing.rule_value = value
             existing.next_uuid = next_uuid
@@ -3320,7 +3321,7 @@ class FlowStep(models.Model):
                                       next_uuid=next_uuid,
                                       rule_category=category,
                                       rule_value=value,
-                                      rule_uuid=path_step.get('exit_uuid'))
+                                      rule_uuid=rule_uuid)
 
         for msg in step_messages:
             step.add_message(msg)

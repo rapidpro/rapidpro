@@ -4403,7 +4403,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(steps[0].step_uuid, "127f3736-77ce-4006-9ab0-0c07cea88956")
         self.assertEqual(steps[0].step_type, 'A')
         self.assertIsNotNone(steps[0].arrived_on)
-        self.assertIsNotNone(steps[0].rule_uuid)  # usually none for an actionset but see https://github.com/nyaruka/goflow/issues/39
+        self.assertIsNone(steps[0].rule_uuid)
         self.assertIsNone(steps[0].rule_category)
         self.assertIsNotNone(steps[0].left_on)
         self.assertEqual(steps[0].next_uuid, "2bff5c33-9d29-4cfc-8bb7-0a1b9f97d830")
@@ -4433,7 +4433,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(steps[0].step_uuid, "127f3736-77ce-4006-9ab0-0c07cea88956")
         self.assertEqual(steps[0].step_type, 'A')
         self.assertIsNotNone(steps[0].arrived_on)
-        self.assertIsNotNone(steps[0].rule_uuid)
+        self.assertIsNone(steps[0].rule_uuid)
         self.assertIsNone(steps[0].rule_category)
         self.assertIsNotNone(steps[0].left_on)
         self.assertEqual(steps[0].next_uuid, "2bff5c33-9d29-4cfc-8bb7-0a1b9f97d830")
