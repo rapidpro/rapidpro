@@ -157,7 +157,7 @@ class FlowServer:
         return resp_json
 
 
-flow_server = FlowServer(settings.FLOW_SERVER_URL)
+flow_server = FlowServer(settings.FLOW_SERVER_URL, settings.FLOW_SERVER_DEBUG)
 
 
 class FlowSession(ChannelSession):
@@ -321,7 +321,15 @@ class FlowSession(ChannelSession):
         user = get_flow_user(self.org)
         recipient = msg.contact_urn if msg else contact
 
-        return Msg.create_outgoing(self.org, user, recipient, event['text'],
+        # convert attachment URLs to absolute URLs
+        attachments = []
+        for attachment in event['attachments']:
+            media_type, media_url = attachment.split(':', 1)
+            attachments.append("%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url))
+
+        return Msg.create_outgoing(self.org, user, recipient,
+                                   text=event['text'],
+                                   attachments=attachments,
                                    channel=msg.channel if msg else None,
                                    created_on=iso8601.parse_date(event['created_on']),
                                    response_to=msg,
