@@ -3298,6 +3298,18 @@ class FlowStep(models.Model):
                 value = event['value']
                 break
 
+        if step_type == cls.TYPE_RULE_SET:
+            ruleset = RuleSet.objects.filter(flow=run.flow, uuid=node_uuid).first()
+            if ruleset:
+                rule = None
+                for r in ruleset.get_rules():
+                    if r.uuid == rule_uuid:
+                        rule = r
+                        break
+                if rule and category:
+                    rule.category = category
+                    ruleset.save_run_value(run, rule, value)
+
         # are we completing an existing step?
         existing = cls.objects.filter(run=run, arrived_on=arrived_on, step_uuid=node_uuid).first()
 

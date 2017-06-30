@@ -5657,7 +5657,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('Thank you! I like blue.', replies[0])
         self.assertEquals('This message was not translated.', replies[1])
 
-        # now add a primary languge to our org
+        # now add a primary language to our org
         self.org.primary_language = spanish
         self.org.save()
 
