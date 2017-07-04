@@ -4,9 +4,12 @@ import calendar
 import itertools
 import json
 import logging
+import mimetypes
 import os
 import pycountry
 import random
+
+import re
 import regex
 import six
 import stripe
@@ -41,7 +44,6 @@ from temba.utils.email import send_template_email, send_simple_email, send_custo
 from temba.utils.models import SquashableModel
 from temba.utils.timezones import timezone_to_country_code
 from timezone_field import TimeZoneField
-from twilio.rest import TwilioRestClient
 from urlparse import urlparse
 from uuid import uuid4
 
@@ -431,16 +433,18 @@ class Org(SmartModel):
         """
         from temba.channels.models import Channel
 
-        channel = self.channels.filter(is_active=True, scheme=scheme, role__contains=role).order_by('-pk')
-        if country_code:
-            channel = channel.filter(country=country_code)
+        channels = self.channels.filter(is_active=True, role__contains=role).order_by('-pk')
 
-        channel = channel.first()
+        if scheme is not None:
+            channels = channels.filter(scheme=scheme)
+
+        channel = None
+        if country_code:
+            channel = channels.filter(country=country_code).first()
 
         # no channel? try without country
-        if not channel and country_code:
-            channel = self.channels.filter(is_active=True, scheme=scheme,
-                                           role__contains=role).order_by('-pk').first()
+        if not channel:
+            channel = channels.first()
 
         if channel and (role == Channel.ROLE_SEND or role == Channel.ROLE_CALL):
             return channel.get_delegate(role)
@@ -451,9 +455,6 @@ class Org(SmartModel):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import Channel
         from temba.contacts.models import ContactURN
-
-        if not scheme and not contact_urn:
-            raise ValueError("Must specify scheme or contact URN")
 
         if contact_urn:
             if contact_urn:
@@ -615,10 +616,10 @@ class Org(SmartModel):
         channel_country_codes = set(channel_country_codes.values_list('country', flat=True))
 
         for country_code in channel_country_codes:
-            country_obj = pycountry.countries.get(alpha2=country_code)
+            country_obj = pycountry.countries.get(alpha_2=country_code)
             country_name = country_obj.name
             currency = currency_for_country(country_code)
-            channel_countries.append(dict(code=country_code, name=country_name, currency_code=currency.letter,
+            channel_countries.append(dict(code=country_code, name=country_name, currency_code=currency.alpha_3,
                                           currency_name=currency.name))
 
         return sorted(channel_countries, key=lambda k: k['name'])
@@ -801,28 +802,7 @@ class Org(SmartModel):
         return config.get(NEXMO_UUID, None)
 
     def connect_twilio(self, account_sid, account_token, user):
-        client = TwilioRestClient(account_sid, account_token)
-        app_name = "%s/%d" % (settings.TEMBA_HOST.lower(), self.pk)
-        apps = client.applications.list(friendly_name=app_name)
-        if apps:
-            temba_app = apps[0]
-        else:  # pragma: needs cover
-            app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler')
-
-            # the the twiml to run when the voice app fails
-            fallback_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/voice_unavailable.xml"
-
-            temba_app = client.applications.create(friendly_name=app_name,
-                                                   voice_url=app_url,
-                                                   voice_fallback_url=fallback_url,
-                                                   voice_fallback_method='GET',
-                                                   status_callback=app_url,
-                                                   status_callback_method='POST',
-                                                   sms_url=app_url,
-                                                   sms_method="POST")
-
-        application_sid = temba_app.sid
-        twilio_config = {ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token, APPLICATION_SID: application_sid}
+        twilio_config = {ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token}
 
         config = self.config_json()
         config.update(twilio_config)
@@ -849,13 +829,17 @@ class Org(SmartModel):
             config = self.config_json()
             account_sid = config.get(ACCOUNT_SID, None)
             account_token = config.get(ACCOUNT_TOKEN, None)
-            application_sid = config.get(APPLICATION_SID, None)
-            if account_sid and account_token and application_sid:
+            if account_sid and account_token:
                 return True
         return False
 
     def remove_nexmo_account(self, user):
         if self.config:
+            # release any nexmo channels
+            from temba.channels.models import Channel
+            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_NEXMO):  # pragma: needs cover
+                channel.release()
+
             config = self.config_json()
             config[NEXMO_KEY] = ''
             config[NEXMO_SECRET] = ''
@@ -863,17 +847,16 @@ class Org(SmartModel):
             self.modified_by = user
             self.save()
 
-            # release any nexmo channels
-            from temba.channels.models import Channel
-            channels = self.channels.filter(is_active=True, channel_type=Channel.TYPE_NEXMO)
-            for channel in channels:  # pragma: needs cover
-                channel.release()
-
             # clear all our channel configurations
             self.clear_channel_caches()
 
     def remove_twilio_account(self, user):
         if self.config:
+            # release any twilio channels
+            from temba.channels.models import Channel
+            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_TWILIO):
+                channel.release()
+
             config = self.config_json()
             config[ACCOUNT_SID] = ''
             config[ACCOUNT_TOKEN] = ''
@@ -881,12 +864,6 @@ class Org(SmartModel):
             self.config = json.dumps(config)
             self.modified_by = user
             self.save()
-
-            # release any twilio channels
-            from temba.channels.models import Channel
-            channels = self.channels.filter(is_active=True, channel_type=Channel.TYPE_TWILIO)
-            for channel in channels:
-                channel.release()
 
             # clear all our channel configurations
             self.clear_channel_caches()
@@ -944,7 +921,7 @@ class Org(SmartModel):
             try:
                 country = pycountry.countries.get(name=self.country.name)
                 if country:
-                    return country.alpha2
+                    return country.alpha_2
             except KeyError:  # pragma: no cover
                 # pycountry blows up if we pass it a country name it doesn't know
                 pass
@@ -1853,6 +1830,32 @@ class Org(SmartModel):
             raise Exception("Received non-200 response (%s) for request: %s" % (response.status_code, response.content))
 
         return self.save_media(File(temp), extension)
+
+    def save_response_media(self, response):
+        disposition = response.headers.get('Content-Disposition', None)
+        content_type = response.headers.get('Content-Type', None)
+
+        downloaded = None
+
+        if content_type:
+            extension = None
+            if disposition == 'inline':
+                extension = mimetypes.guess_extension(content_type)
+                extension = extension.strip('.')
+            elif disposition:
+                filename = re.findall("filename=\"(.+)\"", disposition)[0]
+                extension = filename.rpartition('.')[2]
+            elif content_type == 'audio/x-wav':
+                extension = 'wav'
+
+            temp = NamedTemporaryFile(delete=True)
+            temp.write(response.content)
+            temp.flush()
+
+            # save our file off
+            downloaded = self.save_media(File(temp), extension)
+
+        return content_type, downloaded
 
     def save_media(self, file, extension):
         """

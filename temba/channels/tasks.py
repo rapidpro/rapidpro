@@ -95,6 +95,11 @@ def send_alert_task(alert_id, resolved):
     alert.send_email(resolved)
 
 
+@task(track_started=True, name='refresh_jiochat_access_tokens')
+def refresh_jiochat_access_tokens(channel_id=None):
+    Channel.refresh_all_jiochat_access_token(channel_id=channel_id)
+
+
 @nonoverlapping_task(track_started=True, name='trim_channel_log_task')
 def trim_channel_log_task():  # pragma: needs cover
     """
@@ -126,8 +131,6 @@ def notify_mage_task(channel_uuid, action):
 
     if action == MageStreamAction.activate:
         mage.activate_twitter_stream(channel_uuid)
-    elif action == MageStreamAction.refresh:
-        mage.refresh_twitter_stream(channel_uuid)
     elif action == MageStreamAction.deactivate:
         mage.deactivate_twitter_stream(channel_uuid)
     else:  # pragma: no cover

@@ -4,7 +4,6 @@ import json
 import urlparse
 
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils.translation import ugettext_lazy as _
@@ -13,7 +12,7 @@ from django.views.generic import RedirectView, View
 from random import randint
 from smartmin.views import SmartCRUDL, SmartReadView, SmartFormView, SmartCreateView, SmartListView, SmartTemplateView
 from temba.public.models import Lead, Video
-from temba.utils import analytics, random_string
+from temba.utils import analytics, random_string, get_anonymous_user
 from urllib import urlencode
 
 
@@ -125,7 +124,7 @@ class LeadCRUDL(SmartCRUDL):
             return HttpResponseRedirect(url + "?errors=%s" % email)
 
         def pre_save(self, obj):
-            anon = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+            anon = get_anonymous_user()
             obj = super(LeadCRUDL.Create, self).pre_save(obj)
             obj.created_by = anon
             obj.modified_by = anon

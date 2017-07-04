@@ -666,10 +666,8 @@ class TriggerCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            trigger = Trigger.objects.create(created_by=user, modified_by=user, org=org, trigger_type=Trigger.TYPE_REFERRAL,
-                                             flow=form.cleaned_data['flow'], channel=form.cleaned_data['channel'],
-                                             referrer_id=form.cleaned_data['referrer_id'])
-            trigger.archive_conflicts(user)
+            self.object = Trigger.create(org, user, Trigger.TYPE_REFERRAL, form.cleaned_data['flow'],
+                                         form.cleaned_data['channel'], referrer_id=form.cleaned_data['referrer_id'])
 
             analytics.track(self.request.user.username, 'temba.trigger_created_referral')
 
@@ -853,9 +851,8 @@ class TriggerCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            trigger = Trigger.objects.create(created_by=user, modified_by=user, org=org, trigger_type=Trigger.TYPE_FOLLOW,
-                                             flow=form.cleaned_data['flow'], channel=form.cleaned_data['channel'])
-            trigger.archive_conflicts(user)
+            self.object = Trigger.create(org, user, Trigger.TYPE_FOLLOW, form.cleaned_data['flow'],
+                                         form.cleaned_data['channel'])
 
             analytics.track(self.request.user.username, 'temba.trigger_created_follow')
 
@@ -875,11 +872,8 @@ class TriggerCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            trigger = Trigger.objects.create(created_by=user, modified_by=user, org=org, trigger_type=Trigger.TYPE_NEW_CONVERSATION,
-                                             flow=form.cleaned_data['flow'], channel=form.cleaned_data['channel'])
-            trigger.archive_conflicts(user)
-            if trigger.channel and trigger.channel.channel_type == Channel.TYPE_FACEBOOK:
-                trigger.channel.set_fb_call_to_action_payload(Channel.GET_STARTED)
+            self.object = Trigger.create(org, user, Trigger.TYPE_NEW_CONVERSATION, form.cleaned_data['flow'],
+                                         form.cleaned_data['channel'])
 
             analytics.track(self.request.user.username, 'temba.trigger_created_new_conversation')
 
@@ -894,10 +888,8 @@ class TriggerCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            trigger = Trigger.objects.create(created_by=user, modified_by=user, org=org,
-                                             keyword=form.cleaned_data['keyword'], trigger_type=Trigger.TYPE_USSD_PULL,
-                                             flow=form.cleaned_data['flow'], channel=form.cleaned_data['channel'])
-            trigger.archive_conflicts(user)
+            self.object = Trigger.create(org, user, Trigger.TYPE_USSD_PULL, form.cleaned_data['flow'],
+                                         form.cleaned_data['channel'], keyword=form.cleaned_data['keyword'])
 
             analytics.track(self.request.user.username, 'temba.trigger_created_ussd')
 

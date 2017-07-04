@@ -24,9 +24,9 @@ from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
-from ..models import APIToken
-from ..v1.serializers import StringDictField, StringArrayField, PhoneArrayField, ChannelField, DateTimeField
-from ..v1.serializers import MsgCreateSerializer
+from temba.api.models import APIToken
+from .serializers import StringDictField, StringArrayField, PhoneArrayField, ChannelField, DateTimeField
+from .serializers import MsgCreateSerializer
 
 
 class APITest(TembaTest):
