@@ -333,7 +333,7 @@ class FlowSession(ChannelSession):
 
         # convert attachment URLs to absolute URLs
         attachments = []
-        for attachment in event['attachments']:
+        for attachment in event.get('attachments', []):
             media_type, media_url = attachment.split(':', 1)
             attachments.append("%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url))
 
