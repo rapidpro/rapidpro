@@ -39,9 +39,14 @@ class BaseTriggerForm(forms.ModelForm):
         self.fields['flow'].queryset = flows.order_by('flow_type', 'name')
 
     def clean_keyword(self):
-        keyword = self.cleaned_data.get('keyword', '').strip()
+        keyword = self.cleaned_data.get('keyword')
 
-        if keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0):  # pragma: needs cover
+        if keyword is None:
+            keyword = ''
+
+        keyword = keyword.strip()
+
+        if keyword == '' or (keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0)):  # pragma: needs cover
             raise forms.ValidationError(_("Keywords must be a single word containing only letter and numbers"))
 
         # make sure it is unique on this org
@@ -139,14 +144,26 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
 
     def get_existing_triggers(self, cleaned_data):
         keyword = cleaned_data.get('keyword', '').strip()
+
+        if keyword is None:
+            keyword = ''
+
+        keyword = keyword.strip()
+
         existing = super(KeywordTriggerForm, self).get_existing_triggers(cleaned_data)
         if keyword:
             existing = existing.filter(keyword__iexact=keyword)
         return existing
 
     def clean_keyword(self):
-        keyword = self.cleaned_data.get('keyword', '').strip()
-        if keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0):
+        keyword = self.cleaned_data.get('keyword')
+
+        if keyword is None:
+            keyword = ''
+
+        keyword = keyword.strip()
+
+        if keyword == '' or (keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0)):
             raise forms.ValidationError(_("Keywords must be a single word containing only letter and numbers"))
         return keyword.lower()
 
@@ -350,9 +367,14 @@ class UssdTriggerForm(BaseTriggerForm):
                                                                  channel_type__in=Channel.USSD_CHANNELS)
 
     def clean_keyword(self):
-        keyword = self.cleaned_data.get('keyword', '').strip()
+        keyword = self.cleaned_data.get('keyword')
 
-        if keyword and not regex.match('^[\d\*\#]+$', keyword, flags=regex.UNICODE):
+        if keyword is None:
+            keyword = ''
+
+        keyword = keyword.strip()
+
+        if keyword == '' or (keyword and not regex.match('^[\d\*\#]+$', keyword, flags=regex.UNICODE)):
             raise forms.ValidationError(_("USSD code must contain only *,# and numbers"))
 
         return keyword

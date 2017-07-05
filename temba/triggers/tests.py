@@ -943,6 +943,11 @@ class TriggerTest(TembaTest):
 
         group = self.create_group("first", [])
 
+        # show validation error if keyword is None or not defined
+        post_data = dict(flow=flow.id, match_type='O', groups=[group.id])
+        response = self.client.post(update_url, post_data, follow=True)
+        self.assertEquals(1, len(response.context['form'].errors))
+
         post_data = dict(keyword='koko', flow=flow.id, match_type='O', groups=[group.id])
         self.client.post(update_url, post_data, follow=True)
 
