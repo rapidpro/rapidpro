@@ -81,7 +81,7 @@ pycodestyle==2.3.1        # via flake8
 pycountry==17.5.14
 pycparser==2.17           # via cffi
 pycrypto==2.6.1
-pyexcel-io==0.4.0         # via pyexcel, pyexcel-xls, pyexcel-xlsx
+pyexcel-io==0.4.2         # via pyexcel, pyexcel-xls, pyexcel-xlsx
 pyexcel-webio==0.0.11     # via django-excel
 pyexcel-xls==0.4.0
 pyexcel-xlsx==0.4.0
