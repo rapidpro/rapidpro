@@ -32,8 +32,7 @@ class TelegramTypeTest(TembaTest):
 
         # can fetch the claim page
         response = self.client.get(url)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, 'Telegram Bot')
+        self.assertContains(response, "Connect Telegram")
 
         # claim with an invalid token
         mock_get_me.side_effect = telegram.TelegramError('Boom')

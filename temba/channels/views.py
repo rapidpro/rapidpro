@@ -761,6 +761,9 @@ class ClaimViewMixin(OrgPermsMixin):
         self.template_name = 'channels/types/%s/claim.html' % channel_type.slug
         super(ClaimViewMixin, self).__init__()
 
+    def derive_title(self):
+        return _("Connect %(channel_type)s") % {'channel_type': self.channel_type.name}
+
     def get_form_kwargs(self):
         kwargs = super(ClaimViewMixin, self).get_form_kwargs()
         kwargs['request'] = self.request

@@ -48,8 +48,9 @@ class TwitterTypeTest(TembaTest):
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, url)
 
+        # can fetch the claim page
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Connect Twitter")
         self.assertEqual(response.context['twitter_auth_url'], 'http://example.com/auth')
         self.assertEqual(self.client.session['twitter_oauth_token'], 'abcde')
         self.assertEqual(self.client.session['twitter_oauth_token_secret'], '12345')
