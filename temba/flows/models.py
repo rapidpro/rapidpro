@@ -2871,6 +2871,9 @@ class FlowRun(models.Model):
                                      modified_on=modified_on,
                                      created_on=iso8601.parse_date(run_output['created_on']))
 
+        # update our expiration date
+        run.update_expiration(timezone.now())
+
         # generate set of ruleset UUIDs to help us resolve node types
         ruleset_uuids = {r.uuid for r in run.flow.rule_sets.all()}
 
