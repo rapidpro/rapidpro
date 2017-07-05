@@ -9,7 +9,6 @@ import hmac
 import json
 import pytz
 import six
-import telegram
 import time
 import urllib2
 import uuid
@@ -41,7 +40,6 @@ from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestVa
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, datetime_to_str, get_anonymous_user
 from temba.utils.twitter import generate_twitter_signature
-from telegram import User as TelegramUser
 from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
@@ -1870,54 +1868,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(config['app_secret'], 'AppSecret')
         self.assertEqual(config['app_id'], 'AppId')
         self.assertEqual(config['passphrase'], 'Passphrase')
-
-    def test_claim_telegram(self):
-
-        # disassociate all of our channels
-        self.org.channels.all().update(org=None, is_active=False)
-
-        self.login(self.admin)
-        claim_url = reverse('channels.channel_claim_telegram')
-
-        # can fetch the claim page
-        response = self.client.get(claim_url)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, 'Telegram Bot')
-
-        # claim with an invalid token
-        with patch('telegram.Bot.getMe') as get_me:
-            get_me.side_effect = telegram.TelegramError('Boom')
-            response = self.client.post(claim_url, dict(auth_token='invalid'))
-            self.assertEqual(200, response.status_code)
-            self.assertEqual('Your authentication token is invalid, please check and try again', response.context['form'].errors['auth_token'][0])
-
-        with patch('telegram.Bot.getMe') as get_me:
-            user = TelegramUser(123, 'Rapid')
-            user.last_name = 'Bot'
-            user.username = 'rapidbot'
-            get_me.return_value = user
-
-            with patch('telegram.Bot.setWebhook') as set_webhook:
-                set_webhook.return_value = ''
-
-                response = self.client.post(claim_url, dict(auth_token='184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'))
-                channel = Channel.objects.all().order_by('-pk').first()
-                self.assertIsNotNone(channel)
-                self.assertEqual(channel.channel_type, Channel.TYPE_TELEGRAM)
-                self.assertRedirect(response, reverse('channels.channel_read', args=[channel.uuid]))
-                self.assertEqual(302, response.status_code)
-
-                response = self.client.post(claim_url, dict(auth_token='184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'))
-                self.assertEqual('A telegram channel for this bot already exists on your account.', response.context['form'].errors['auth_token'][0])
-
-                contact = self.create_contact('Telegram User', urn=URN.from_telegram('1234'))
-
-                # make sure we our telegram channel satisfies as a send channel
-                self.login(self.admin)
-                response = self.client.get(reverse('contacts.contact_read', args=[contact.uuid]))
-                send_channel = response.context['send_channel']
-                self.assertIsNotNone(send_channel)
-                self.assertEqual(Channel.TYPE_TELEGRAM, send_channel.channel_type)
 
     def test_claim_line(self):
 
@@ -7410,7 +7360,7 @@ class TelegramTest(TembaTest):
 
         self.channel.delete()
 
-        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_TELEGRAM, None, 'RapidBot',
+        self.channel = Channel.create(self.org, self.user, None, 'TG', None, 'RapidBot',
                                       config=dict(auth_token='valid'),
                                       uuid='00000000-0000-0000-0000-000000001234')
 
