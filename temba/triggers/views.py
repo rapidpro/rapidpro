@@ -41,7 +41,7 @@ class BaseTriggerForm(forms.ModelForm):
     def clean_keyword(self):
         keyword = self.cleaned_data.get('keyword')
 
-        if keyword is None:
+        if keyword is None:  # pragma: no cover
             keyword = ''
 
         keyword = keyword.strip()
@@ -143,7 +143,7 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
         super(KeywordTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
     def get_existing_triggers(self, cleaned_data):
-        keyword = cleaned_data.get('keyword', '').strip()
+        keyword = cleaned_data.get('keyword')
 
         if keyword is None:
             keyword = ''
@@ -367,12 +367,7 @@ class UssdTriggerForm(BaseTriggerForm):
                                                                  channel_type__in=Channel.USSD_CHANNELS)
 
     def clean_keyword(self):
-        keyword = self.cleaned_data.get('keyword')
-
-        if keyword is None:
-            keyword = ''
-
-        keyword = keyword.strip()
+        keyword = self.cleaned_data.get('keyword', '').strip()
 
         if keyword == '' or (keyword and not regex.match('^[\d\*\#]+$', keyword, flags=regex.UNICODE)):
             raise forms.ValidationError(_("USSD code must contain only *,# and numbers"))
