@@ -15,11 +15,12 @@ class TelegramTypeTest(TembaTest):
         super(TelegramTypeTest, self).setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'TG', name="Telegram", address="12345",
-                                      role="SR", scheme='telegram', config={'auth_token': '09876543'})
+                                      role="SR", scheme='telegram',
+                                      config={'auth_token': '123456789:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'})
 
     @override_settings(IS_PROD=True)
-    @patch('telegram.Bot.getMe')
-    @patch('telegram.Bot.setWebhook')
+    @patch('telegram.Bot.get_me')
+    @patch('telegram.Bot.set_webhook')
     def test_claim(self, mock_set_webhook, mock_get_me):
         url = reverse('channels.claim_telegram')
 
@@ -70,10 +71,8 @@ class TelegramTypeTest(TembaTest):
         self.assertEqual(send_channel.channel_type, 'TG')
 
     @override_settings(IS_PROD=True)
-    @patch('requests.delete')
-    def test_release(self, mock_delete):
-        # mock_delete.return_value = MockResponse(200, json.dumps({'success': True}))
+    @patch('telegram.Bot.delete_webhook')
+    def test_release(self, mock_delete_webhook):
         self.channel.release()
 
-        # mock_delete.assert_called_once_with('https://graph.facebook.com/v2.5/me/subscribed_apps',
-        #                                     params={'access_token': '09876543'})
+        mock_delete_webhook.assert_called_once_with()

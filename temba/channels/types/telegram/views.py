@@ -26,7 +26,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
             try:
                 bot = telegram.Bot(token=value)
-                bot.getMe()
+                bot.get_me()
             except telegram.TelegramError:
                 raise ValidationError(_("Your authentication token is invalid, please check and try again"))
 
@@ -39,7 +39,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         auth_token = self.form.cleaned_data['auth_token']
 
         bot = telegram.Bot(auth_token)
-        me = bot.getMe()
+        me = bot.get_me()
 
         self.object = Channel.create(org, self.request.user, None, self.channel_type,
                                      name=me.first_name, address=me.username, config={'auth_token': auth_token})
