@@ -76,14 +76,14 @@ class FacebookType(ChannelType):
             raise SendException(six.text_type(e), event=event, start=start)
 
         # for now we only support sending one attachment per message but this could change in future
-        attachments = Msg.get_attachments(msg)
-        media_type, media_url = attachments[0] if attachments else (None, None)
+        attachments = Msg.Attachment.parse(msg.attachments)
+        attachment = attachments[0] if attachments else None
 
-        if media_type and media_url:
-            media_type = media_type.split('/')[0]
+        if attachment:
+            category = attachment.content_type.split('/')[0]
 
             payload = json.loads(payload)
-            payload['message'] = {'attachment': {'type': media_type, 'payload': {'url': media_url}}}
+            payload['message'] = {'attachment': {'type': category, 'payload': {'url': attachment.url}}}
             payload = json.dumps(payload)
 
             event = HttpEvent('POST', url, payload)

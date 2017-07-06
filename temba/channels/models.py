@@ -2624,8 +2624,8 @@ class Channel(TembaModel):
 
         if msg.attachments:
             # for now we only support sending one attachment per message but this could change in future
-            media_type, media_url = Msg.get_attachments(msg)[0]
-            media_urls = [media_url]
+            attachment = Msg.Attachment.parse(msg.attachments)[0]
+            media_urls = [attachment.url]
 
         if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
             config = channel.config
@@ -2984,9 +2984,8 @@ class Channel(TembaModel):
 
         if msg.attachments and not Channel.supports_media(channel):
             # for now we only support sending one attachment per message but this could change in future
-            media_type, media_url = Msg.get_attachments(msg)[0]
-            if media_type and media_url:
-                text = '%s\n%s' % (text, media_url)
+            attachment = Msg.Attachment.parse(msg.attachments)[0]
+            text = '%s\n%s' % (text, attachment.url)
 
             # don't send as media
             msg.attachments = None
