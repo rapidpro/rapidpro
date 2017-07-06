@@ -246,14 +246,15 @@ class TriggerTest(TembaTest):
         self.assertEqual(first_trigger.flow, flow)
         self.assertIsNone(first_trigger.channel)
 
+        # empty referrer_id should show a validation error for the field
+        post_data = dict(flow=flow.id, referrer_id='')
+        response = self.client.post(create_url, post_data)
+        self.assertEquals(response.context['form'].errors.keys(), ['referrer_id'])
+
         # try to create the same trigger, should fail as we can only have one per referrer
         post_data = dict(flow=flow.id, referrer_id='signup')
         response = self.client.post(create_url, post_data)
         self.assertEquals(response.context['form'].errors.keys(), ['__all__'])
-
-        post_data = dict(flow=flow.id, referrer_id='')
-        response = self.client.post(create_url, post_data)
-        self.assertEquals(response.context['form'].errors.keys(), ['referrer_id'])
 
         # should work if we specify a specific channel
         post_data['channel'] = self.fb_channel.id
