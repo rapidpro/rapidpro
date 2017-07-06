@@ -46,7 +46,7 @@ class BaseTriggerForm(forms.ModelForm):
 
         keyword = keyword.strip()
 
-        if keyword == '' or (keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0)):  # pragma: needs cover
+        if keyword == '' or (keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0)):
             raise forms.ValidationError(_("Keywords must be a single word containing only letter and numbers"))
 
         # make sure it is unique on this org
