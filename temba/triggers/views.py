@@ -323,13 +323,6 @@ class ReferralTriggerForm(BaseTriggerForm):
 
         return existing
 
-    def clean(self):
-        ref_id = self.cleaned_data.get('referrer_id', '').strip()
-        data = super(ReferralTriggerForm, self).clean()
-        if ref_id and self.get_existing_triggers(data):
-            raise forms.ValidationError(_("An active trigger uses this referrer id, referrer ids must be unique"))
-        return data
-
     class Meta(BaseTriggerForm.Meta):
         fields = ('channel', 'referrer_id', 'flow')
 

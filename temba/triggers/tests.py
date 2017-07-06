@@ -251,6 +251,10 @@ class TriggerTest(TembaTest):
         response = self.client.post(create_url, post_data)
         self.assertEquals(response.context['form'].errors.keys(), ['__all__'])
 
+        post_data = dict(flow=flow.id, referrer_id='')
+        response = self.client.post(create_url, post_data)
+        self.assertEquals(response.context['form'].errors.keys(), ['referrer_id'])
+
         # should work if we specify a specific channel
         post_data['channel'] = self.fb_channel.id
         response = self.client.post(create_url, post_data)
