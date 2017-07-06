@@ -600,6 +600,9 @@ class Msg(models.Model):
         def parse(cls, attachments):
             return [cls(*a.split(':', 1)) for a in attachments] if attachments else []
 
+        def as_json(self):
+            return {'content_type': self.content_type, 'url': self.url}
+
         def __eq__(self, other):
             return self.content_type == other.content_type and self.url == other.url
 

@@ -812,7 +812,7 @@ class MsgReadSerializer(ReadSerializer):
         return self.STATUSES.get(QUEUED if obj.status == PENDING else obj.status)
 
     def get_attachments(self, obj):
-        return [{'content_type': a.content_type, 'url': a.url} for a in obj.get_attachments()]
+        return [a.as_json() for a in obj.get_attachments()]
 
     def get_media(self, obj):
         return obj.attachments[0] if obj.attachments else None
