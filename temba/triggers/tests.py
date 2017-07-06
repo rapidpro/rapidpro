@@ -1165,8 +1165,8 @@ class TriggerTest(TembaTest):
         post_data = dict(channel=channel.pk, keyword='*111#', flow=flow.pk)
         response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
         self.assertEquals(1, len(response.context['form'].errors))
-        self.assertEquals(response.context['form'].errors['keyword'],
-                          [u'An active trigger already uses this keyword on this channel.'])
+        self.assertEquals(response.context['form'].errors['__all__'],
+                          [u'An active trigger already exists, triggers must be unique for each group'])
 
         # different code on same channel should work
         post_data = dict(channel=channel.pk, keyword='*112#', flow=flow.pk)
