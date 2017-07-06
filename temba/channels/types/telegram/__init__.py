@@ -17,7 +17,7 @@ from ...models import Channel, ChannelType, SendException
 
 class TelegramType(ChannelType):
     """
-    A Facebook channel
+    A Telegram bot channel
     """
     code = 'TG'
     category = ChannelType.Category.SOCIAL_MEDIA
