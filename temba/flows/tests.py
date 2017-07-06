@@ -3701,62 +3701,69 @@ class ActionTest(TembaTest):
         self.execute_action(action, run, None)
 
         # check webhook was called with correct payload
-        mock_requests_post.assert_called_once_with('http://example.com/callback.php',
-                                                   headers={'Authorization': 'Token 12345',
-                                                            'User-agent': 'RapidPro'},
-                                                   data={'run': run.pk,
-                                                         'phone': u'+250788382382',
-                                                         'contact': self.contact.uuid,
-                                                         'contact_name': self.contact.name,
-                                                         'urn': u'tel:+250788382382',
-                                                         'text': None,
-                                                         'flow': self.flow.pk,
-                                                         'flow_uuid': self.flow.uuid,
-                                                         'flow_name': self.flow.name,
-                                                         'flow_base_language': self.flow.base_language,
-                                                         'relayer': -1,
-                                                         'step': 'None',
-                                                         'values': '[]',
-                                                         'time': '2015-10-27T14:07:30.000006Z',
-                                                         'steps': '[]',
-                                                         'channel': -1,
-                                                         'channel_uuid': None,
-                                                         'header': {'Authorization': 'Token 12345'}
-                                                         },
-                                                   timeout=10)
+        mock_requests_post.assert_called_once_with(
+            'http://example.com/callback.php',
+            headers={'Authorization': 'Token 12345', 'User-agent': 'RapidPro'},
+            data={
+                'run': run.pk,
+                'phone': u'+250788382382',
+                'contact': self.contact.uuid,
+                'contact_name': self.contact.name,
+                'urn': u'tel:+250788382382',
+                'text': None,
+                'attachments': [],
+                'flow': self.flow.pk,
+                'flow_uuid': self.flow.uuid,
+                'flow_name': self.flow.name,
+                'flow_base_language': self.flow.base_language,
+                'relayer': -1,
+                'step': 'None',
+                'values': '[]',
+                'time': '2015-10-27T14:07:30.000006Z',
+                'steps': '[]',
+                'channel': -1,
+                'channel_uuid': None,
+                'header': {'Authorization': 'Token 12345'}
+            },
+            timeout=10
+        )
         mock_requests_post.reset_mock()
 
         # check that run @extra was updated
         self.assertEqual(json.loads(run.fields), {'coupon': "NEXUS4"})
 
         # test with an incoming message
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite",
+                              attachments=['image/jpeg:http://example.com/test.jpg'])
         self.execute_action(action, run, msg)
 
         # check webhook was called with correct payload
-        mock_requests_post.assert_called_once_with('http://example.com/callback.php',
-                                                   headers={'User-agent': 'RapidPro',
-                                                            'Authorization': 'Token 12345'},
-                                                   data={'run': run.pk,
-                                                         'phone': u'+250788382382',
-                                                         'contact': self.contact.uuid,
-                                                         'contact_name': self.contact.name,
-                                                         'urn': u'tel:+250788382382',
-                                                         'text': "Green is my favorite",
-                                                         'flow': self.flow.pk,
-                                                         'flow_uuid': self.flow.uuid,
-                                                         'flow_name': self.flow.name,
-                                                         'flow_base_language': self.flow.base_language,
-                                                         'relayer': msg.channel.pk,
-                                                         'step': 'None',
-                                                         'values': '[]',
-                                                         'time': '2015-10-27T14:07:30.000006Z',
-                                                         'steps': '[]',
-                                                         'channel': msg.channel.pk,
-                                                         'channel_uuid': msg.channel.uuid,
-                                                         'header': {'Authorization': 'Token 12345'}
-                                                         },
-                                                   timeout=10)
+        mock_requests_post.assert_called_once_with(
+            'http://example.com/callback.php',
+            headers={'User-agent': 'RapidPro', 'Authorization': 'Token 12345'},
+            data={
+                'run': run.pk,
+                'phone': u'+250788382382',
+                'contact': self.contact.uuid,
+                'contact_name': self.contact.name,
+                'urn': u'tel:+250788382382',
+                'text': "Green is my favorite",
+                'attachments': [{'content_type': "image/jpeg", 'url': "http://example.com/test.jpg"}],
+                'flow': self.flow.pk,
+                'flow_uuid': self.flow.uuid,
+                'flow_name': self.flow.name,
+                'flow_base_language': self.flow.base_language,
+                'relayer': msg.channel.pk,
+                'step': 'None',
+                'values': '[]',
+                'time': '2015-10-27T14:07:30.000006Z',
+                'steps': '[]',
+                'channel': msg.channel.pk,
+                'channel_uuid': msg.channel.uuid,
+                'header': {'Authorization': 'Token 12345'}
+            },
+            timeout=10
+        )
 
         # check simulator warns of webhook URL errors
         action = WebhookAction('http://example.com/callback.php?@contact.xyz')
