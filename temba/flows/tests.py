@@ -3748,7 +3748,7 @@ class ActionTest(TembaTest):
                 'contact_name': self.contact.name,
                 'urn': u'tel:+250788382382',
                 'text': "Green is my favorite",
-                'attachments': [{'content_type': "image/jpeg", 'url': "http://example.com/test.jpg"}],
+                'attachments': ["http://example.com/test.jpg"],
                 'flow': self.flow.pk,
                 'flow_uuid': self.flow.uuid,
                 'flow_name': self.flow.name,
