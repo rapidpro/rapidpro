@@ -2318,10 +2318,10 @@ class FlowTest(TembaTest):
         json_dict = response.json()['flow']
 
         # test setting the json
-        json_dict['action_sets'] = [dict(uuid=uuid(1), x=1, y=1, destination=None,
+        json_dict['action_sets'] = [dict(uuid=str(uuid4()), x=1, y=1, destination=None,
                                          actions=[dict(type='reply', msg=dict(base='This flow is more like a broadcast'))])]
         json_dict['rule_sets'] = []
-        json_dict['entry'] = uuid(1)
+        json_dict['entry'] = json_dict['action_sets'][0]['uuid']
 
         response = self.client.post(reverse('flows.flow_json', args=[flow.pk]), json.dumps(json_dict), content_type="application/json")
         self.assertEquals(200, response.status_code)
