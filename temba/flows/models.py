@@ -201,7 +201,7 @@ class FlowSession(ChannelSession):
         runs = []
         for contact in contacts:
 
-            start_request = {'flows': flows, 'contact': contact.as_engine_json()}
+            start_request = {'flows': flows, 'contact': contact.as_goflow_json()}
             if msg_in:
                 start_request['input'] = msg_in.as_input()
 
@@ -271,7 +271,7 @@ class FlowSession(ChannelSession):
         # build our flow request
         flow_resume = dict(flows=flow.as_json_with_dependencies(),
                            session=self.as_json(),
-                           contact=self.contact.as_engine_json(),
+                           contact=self.contact.as_goflow_json(),
                            event=msg_in.as_input())
 
         resp_json = flow_server.resume(flow_resume)

@@ -468,25 +468,32 @@ class Contact(TembaModel):
         """
         return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
-    def as_engine_json(self):
-
+    def as_goflow_json(self):
+        """
+        Generates a JSON represention for use with the goflow engine
+        """
+        # TODO include fields
         #   "fields": {
         #     "gender": {
         #       "field_uuid": "501d8dc4-3fb7-45c1-acb8-626f87535a99",
         #       "field_name": "Gender",
         #       "value": "Male"
         #     }
-        #
 
-        return dict(
-            uuid=self.uuid,
-            name=self.name,
-            urns=[urn.urn for urn in self.urns.all()],
-            groups=[{"uuid": group.uuid, "name": group.name} for group in self.user_groups.all()],
-            timezone="UTC",
-            language=self.language,
-            fields={}
-        )
+        # language should default to the org primary language if not set
+        language = self.language
+        if not language and self.org.primary_language:
+            language = self.org.primary_language.iso_code
+
+        return {
+            'uuid': self.uuid,
+            'name': self.name,
+            'urns': [urn.urn for urn in self.urns.all()],
+            'groups': [{"uuid": group.uuid, "name": group.name} for group in self.user_groups.all()],
+            'timezone': "UTC",
+            'language': language,
+            'fields': {}
+        }
 
     def as_json(self):
         obj = dict(id=self.pk, name=six.text_type(self), uuid=self.uuid)
