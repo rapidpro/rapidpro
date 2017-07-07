@@ -362,7 +362,8 @@ class FlowSession(ChannelSession):
                                        attachments=attachments,
                                        channel=msg.channel if msg else None,
                                        created_on=iso8601.parse_date(event['created_on']),
-                                       response_to=msg, session=self)
+                                       response_to=msg if msg.id else None,
+                                       session=self)
         except UnreachableException:
             return None
 
