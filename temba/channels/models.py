@@ -38,7 +38,6 @@ from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, 
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
 from temba.utils.http import HttpEvent
-from temba.utils.jiochat import JiochatClient
 from temba.utils.nexmo import NexmoClient, NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from time import sleep
@@ -810,7 +809,7 @@ class Channel(TembaModel):
         for channel in jiochat_channels:
             client = channel.get_jiochat_client()
             if client is not None:
-                client.refresh_access_token()
+                client.refresh_access_token(channel.id)
 
     @classmethod
     def add_line_channel(cls, org, user, credentials, name):
@@ -989,6 +988,7 @@ class Channel(TembaModel):
             app_secret = config.get(Channel.CONFIG_JIOCHAT_APP_SECRET, None)
 
             if app_id and app_secret:
+                from temba.utils.jiochat import JiochatClient
                 return JiochatClient(self.uuid, app_id, app_secret)
 
     def get_twiml_client(self):
@@ -1501,6 +1501,7 @@ class Channel(TembaModel):
     @classmethod
     def send_jiochat_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
+        from temba.utils.jiochat import JiochatClient
 
         data = dict(msgtype='text')
         data['touser'] = msg.urn_path
@@ -3379,6 +3380,21 @@ class ChannelLog(models.Model):
                                   is_error=is_error,
                                   response_status=event.status_code,
                                   description=description[:255])
+
+    @classmethod
+    def log_channel_request(cls, channel_id, description, event, start, is_error=False):
+        request_time = 0 if not start else time.time() - start
+        request_time_ms = request_time * 1000
+
+        ChannelLog.objects.create(channel_id=channel_id,
+                                  request=str(event.request_body),
+                                  response=str(event.response_body),
+                                  url=event.url,
+                                  method=event.method,
+                                  is_error=is_error,
+                                  response_status=event.status_code,
+                                  description=description[:255],
+                                  request_time=request_time_ms)
 
     def get_url_host(self):
         parsed = urlparse.urlparse(self.url)

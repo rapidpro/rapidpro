@@ -9936,7 +9936,13 @@ class JiochatTest(TembaTest):
     def test_refresh_jiochat_access_tokens_task(self):
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(400, '{ "error":"Failed" }')
+
+            self.assertFalse(ChannelLog.objects.all())
             refresh_jiochat_access_tokens()
+
+            self.assertEqual(ChannelLog.objects.all().count(), 1)
+            self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
+
             self.assertEqual(mock.call_count, 1)
             channel_client = self.channel.get_jiochat_client()
 
@@ -9946,6 +9952,10 @@ class JiochatTest(TembaTest):
             mock.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
 
             refresh_jiochat_access_tokens()
+
+            self.assertEqual(ChannelLog.objects.all().count(), 2)
+            self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
+            self.assertTrue(ChannelLog.objects.filter(is_error=False).count(), 1)
             self.assertEqual(mock.call_count, 1)
 
             self.assertEqual(channel_client.get_access_token(), 'ABC1234')
@@ -10103,8 +10113,13 @@ class JiochatTest(TembaTest):
             "Content": "Test",
         }
 
+        self.assertEqual(ChannelLog.objects.all().count(), 0)
+
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
         self.assertEqual(response.status_code, 400)
+
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(is_error=True).count(), 1)
 
         data = {
             'ToUsername': '12121212121212',
@@ -10116,9 +10131,13 @@ class JiochatTest(TembaTest):
         }
 
         Contact.objects.all().delete()
+        ChannelLog.objects.all().delete()
 
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
         self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(is_error=True).count(), 1)
 
         msg = Msg.objects.get()
         self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
@@ -10134,10 +10153,14 @@ class JiochatTest(TembaTest):
 
         Msg.objects.all().delete()
         Contact.objects.all().delete()
+        ChannelLog.objects.all().delete()
 
         mock_get.return_value = MockResponse(200, '{"nickname":"Shinonda"}')
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
         self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(is_error=False).count(), 1)
 
         msg = Msg.objects.get()
         self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
@@ -10153,10 +10176,13 @@ class JiochatTest(TembaTest):
 
         Msg.objects.all().delete()
         Contact.objects.all().delete()
+        ChannelLog.objects.all().delete()
 
         with AnonymousOrg(self.org):
             response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
             self.assertEqual(response.status_code, 200)
+
+            self.assertEqual(ChannelLog.objects.all().count(), 0)
 
             msg = Msg.objects.get()
             self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
@@ -10171,6 +10197,7 @@ class JiochatTest(TembaTest):
             self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
 
         Msg.objects.all().delete()
+        ChannelLog.objects.all().delete()
 
         data = {
             'ToUsername': '12121212121212',
@@ -10194,6 +10221,10 @@ class JiochatTest(TembaTest):
 
                 response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
                 self.assertEqual(response.status_code, 200)
+
+                self.assertEqual(ChannelLog.objects.all().count(), 2)
+                self.assertEqual(ChannelLog.objects.filter(is_error=False).count(), 1)
+                self.assertEqual(ChannelLog.objects.filter(is_error=True).count(), 1)
 
                 msg = Msg.objects.get()
                 self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
