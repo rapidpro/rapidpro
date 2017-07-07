@@ -16,7 +16,7 @@ from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
 from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, SystemLabelCount, UnreachableException
-from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
+from temba.msgs.models import Attachment, HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.orgs.models import Language, Debit, Org
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
@@ -712,7 +712,7 @@ class MsgTest(TembaTest):
         msg9 = self.create_msg(contact=self.joe, text="Hey out 9", direction='O', status=FAILED,
                                created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC))
 
-        self.assertEqual(msg5.get_attachments(), [Msg.Attachment('audio', 'http://rapidpro.io/audio/sound.mp3')])
+        self.assertEqual(msg5.get_attachments(), [Attachment('audio', 'http://rapidpro.io/audio/sound.mp3')])
 
         # label first message
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")

@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import TELEGRAM_SCHEME
-from temba.msgs.models import Msg, WIRED
+from temba.msgs.models import Attachment, WIRED
 from temba.utils.http import HttpEvent
 from .views import ClaimView
 from ...models import Channel, ChannelType, SendException
@@ -53,7 +53,7 @@ class TelegramType(ChannelType):
         start = time.time()
 
         # for now we only support sending one attachment per message but this could change in future
-        attachments = Msg.Attachment.parse(msg.attachments)
+        attachments = Attachment.parse_all(msg.attachments)
         attachment = attachments[0] if attachments else None
 
         if attachment:

@@ -2613,7 +2613,7 @@ class Channel(TembaModel):
 
     @classmethod
     def send_twilio_message(cls, channel, msg, text):
-        from temba.msgs.models import Msg, WIRED
+        from temba.msgs.models import Attachment, WIRED
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
         from temba.utils.twilio import TembaTwilioRestClient
 
@@ -2624,7 +2624,7 @@ class Channel(TembaModel):
 
         if msg.attachments:
             # for now we only support sending one attachment per message but this could change in future
-            attachment = Msg.Attachment.parse(msg.attachments)[0]
+            attachment = Attachment.parse_all(msg.attachments)[0]
             media_urls = [attachment.url]
 
         if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
@@ -2921,7 +2921,7 @@ class Channel(TembaModel):
 
     @classmethod
     def send_message(cls, msg):  # pragma: no cover
-        from temba.msgs.models import Msg, QUEUED, WIRED, MSG_SENT_KEY
+        from temba.msgs.models import Msg, Attachment, QUEUED, WIRED, MSG_SENT_KEY
         r = get_redis_connection()
 
         # check whether this message was already sent somehow
@@ -2984,7 +2984,7 @@ class Channel(TembaModel):
 
         if msg.attachments and not Channel.supports_media(channel):
             # for now we only support sending one attachment per message but this could change in future
-            attachment = Msg.Attachment.parse(msg.attachments)[0]
+            attachment = Attachment.parse_all(msg.attachments)[0]
             text = '%s\n%s' % (text, attachment.url)
 
             # don't send as media

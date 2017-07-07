@@ -570,6 +570,29 @@ class Broadcast(models.Model):
         return "%s (%s)" % (self.org.name, self.pk)
 
 
+class Attachment(object):
+    """
+    Represents a message attachment stored as type:url
+    """
+    def __init__(self, content_type, url):
+        self.content_type = content_type
+        self.url = url
+
+    @classmethod
+    def parse(cls, s):
+        return cls(*s.split(':', 1))
+
+    @classmethod
+    def parse_all(cls, attachments):
+        return [cls.parse(s) for s in attachments] if attachments else []
+
+    def as_json(self):
+        return {'content_type': self.content_type, 'url': self.url}
+
+    def __eq__(self, other):
+        return self.content_type == other.content_type and self.url == other.url
+
+
 @six.python_2_unicode_compatible
 class Msg(models.Model):
     """
@@ -587,25 +610,6 @@ class Msg(models.Model):
     Inbound messages are much simpler. They start as PENDING and the can be picked up by Triggers
     or Flows where they would get set to the HANDLED state once they've been dealt with.
     """
-
-    class Attachment(object):
-        """
-        Represents a message attachment stored as type:url
-        """
-        def __init__(self, content_type, url):
-            self.content_type = content_type
-            self.url = url
-
-        @classmethod
-        def parse(cls, attachments):
-            return [cls(*a.split(':', 1)) for a in attachments] if attachments else []
-
-        def as_json(self):
-            return {'content_type': self.content_type, 'url': self.url}
-
-        def __eq__(self, other):
-            return self.content_type == other.content_type and self.url == other.url
-
     STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
     VISIBILITY_VISIBLE = 'V'
@@ -1028,7 +1032,10 @@ class Msg(models.Model):
         return commands
 
     def get_attachments(self):
-        return Msg.Attachment.parse(self.attachments)
+        """
+        Gets this message's attachments parsed into actual attachment objects
+        """
+        return Attachment.parse_all(self.attachments)
 
     def get_last_log(self):
         """

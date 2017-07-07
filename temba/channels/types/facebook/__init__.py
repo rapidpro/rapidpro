@@ -7,7 +7,7 @@ import time
 
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import Contact, ContactURN, URN, FACEBOOK_SCHEME
-from temba.msgs.models import Msg, WIRED
+from temba.msgs.models import Attachment, WIRED
 from temba.orgs.models import Org
 from temba.triggers.models import Trigger
 from temba.utils.http import HttpEvent
@@ -76,7 +76,7 @@ class FacebookType(ChannelType):
             raise SendException(six.text_type(e), event=event, start=start)
 
         # for now we only support sending one attachment per message but this could change in future
-        attachments = Msg.Attachment.parse(msg.attachments)
+        attachments = Attachment.parse_all(msg.attachments)
         attachment = attachments[0] if attachments else None
 
         if attachment:
