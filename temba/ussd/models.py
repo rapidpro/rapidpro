@@ -81,6 +81,10 @@ class USSDSession(ChannelSession):
     def handle_incoming(cls, channel, urn, date, external_id, contact=None, message_id=None, status=None,
                         content=None, starcode=None, org=None, async=True):
 
+        # we require a channel to handle it
+        if not channel:
+            return None
+
         trigger = None
         contact_urn = None
 

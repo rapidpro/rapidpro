@@ -1408,7 +1408,12 @@ class FlowCRUDL(SmartCRUDL):
                             status = USSDSession.INTERRUPTED
                         else:
                             status = None
-                        USSDSession.handle_incoming(test_contact.org.get_ussd_channel(contact_urn=test_contact.get_urn(TEL_SCHEME)),
+
+                        channel = test_contact.org.get_ussd_channel(contact_urn=test_contact.get_urn(TEL_SCHEME))
+                        if not channel:
+                            raise Exception("No USSD channel, simulation cancelled")
+
+                        USSDSession.handle_incoming(channel,
                                                     test_contact.get_urn(TEL_SCHEME).path,
                                                     content=new_message,
                                                     contact=test_contact,
