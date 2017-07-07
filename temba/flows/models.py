@@ -148,17 +148,17 @@ class FlowServer:
 
     def _request(self, endpoint, payload):
         if self.debug:
-            print('=============== %s request ===============' % endpoint)
+            print('[GOFLOW]=============== %s request ===============' % endpoint)
             print(json.dumps(payload, indent=2))
-            print('=============== /%s request ===============' % endpoint)
+            print('[GOFLOW]=============== /%s request ===============' % endpoint)
 
         response = requests.post("%s/flow/%s" % (self.base_url, endpoint), json=payload)
         resp_json = response.json()
 
         if self.debug:
-            print('=============== %s response ===============' % endpoint)
+            print('[GOFLOW]=============== %s response ===============' % endpoint)
             print(json.dumps(resp_json, indent=2))
-            print('=============== /%s response ===============' % endpoint)
+            print('[GOFLOW]=============== /%s response ===============' % endpoint)
 
         if 400 <= response.status_code < 500:
             errors = "\n".join(resp_json['errors'])
@@ -1167,12 +1167,6 @@ class Flow(TembaModel):
             except FlowException:  # pragma: no cover
                 pass
         return changed
-
-    def is_runnable_in_goflow(self):
-        """
-        Returns true if this flow only uses features supported by GoFlow
-        """
-        return (self.feature_flag | Flow.FEATURE_FLAG_GOFLOW) == Flow.FEATURE_FLAG_GOFLOW
 
     def as_json_with_dependencies(self):
         """
@@ -2443,19 +2437,30 @@ class Flow(TembaModel):
                     path.popitem()
         return None
 
+    def is_runnable_in_goflow(self):
+        """
+        Returns true if this flow only uses features supported by GoFlow
+        """
+        features = flag_to_features(self.feature_flag)
+        unsupported = [f for f in features if f not in GOFLOW_FEATURES]
+
+        if unsupported:
+            print("[GOFLOW] won't run flow due to unsupported features: %s" % ', '.join(unsupported))
+
+        return not unsupported
+
     @classmethod
     def calculate_feature_flag(cls, action_types, ruleset_types, tests):
-        feature_flag = 0
-        feature_bits = {(feat[0], feat[1]): (1 << f) for f, feat in enumerate(FLOW_FEATURES)}
+        features = []
 
         for action_type in action_types:
-            feature_flag |= feature_bits.get(('A', action_type), 0)
+            features.append('A:' + action_type)
         for ruleset_type in ruleset_types:
-            feature_flag |= feature_bits.get(('R', ruleset_type), 0)
+            features.append('R:' + ruleset_type)
         for test_type in tests:
-            feature_flag |= feature_bits.get(('T', test_type), 0)
+            features.append('T:' + test_type)
 
-        return feature_flag
+        return features_to_flag(features)
 
     def ensure_current_version(self):
         """
@@ -7404,4 +7409,17 @@ FLOW_FEATURES = [
     ('T', WebhookStatusTest.TYPE, False),
 ]
 
-Flow.FEATURE_FLAG_GOFLOW = reduce(operator.or_, [(1 << f) for f, feat in enumerate(FLOW_FEATURES) if feat[2]])
+ALL_FEATURES = ['%s:%s' % (f[0], f[1]) for f in FLOW_FEATURES]
+GOFLOW_FEATURES = ['%s:%s' % (f[0], f[1]) for f in FLOW_FEATURES if f[2]]
+
+
+def features_to_flag(features):
+    feature_bits = {feat: (1 << f) for f, feat in enumerate(ALL_FEATURES)}
+    return reduce(operator.or_, [feature_bits.get(feat, 0) for feat in features], 0)
+
+
+def flag_to_features(flag):
+    return [feat for f, feat in enumerate(ALL_FEATURES) if flag & (1 << f)]
+
+
+Flow.FEATURE_FLAG_GOFLOW = features_to_flag(GOFLOW_FEATURES)
