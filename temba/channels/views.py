@@ -32,7 +32,7 @@ from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView, SmartModelActionView
-from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
+from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
@@ -499,25 +499,9 @@ def channel_status_processor(request):
     if allowed:
         # only care about channels that are older than an hour
         cutoff = timezone.now() - timedelta(hours=1)
-        send_channel = org.get_send_channel(scheme=TEL_SCHEME)
+        send_channel = org.get_send_channel()
         call_channel = org.get_call_channel()
         ussd_channel = org.get_ussd_channel()
-
-        # twitter is a suitable sender
-        if not send_channel:
-            send_channel = org.get_send_channel(scheme=TWITTER_SCHEME)
-
-        # as is telegram
-        if not send_channel:
-            send_channel = org.get_send_channel(scheme=TELEGRAM_SCHEME)
-
-        # and facebook
-        if not send_channel:
-            send_channel = org.get_send_channel(scheme=FACEBOOK_SCHEME)
-
-        # and viber
-        if not send_channel:
-            send_channel = org.get_send_channel(scheme=VIBER_SCHEME)
 
         status['send_channel'] = send_channel
         status['call_channel'] = call_channel
@@ -777,6 +761,9 @@ class ClaimViewMixin(OrgPermsMixin):
         self.template_name = 'channels/types/%s/claim.html' % channel_type.slug
         super(ClaimViewMixin, self).__init__()
 
+    def derive_title(self):
+        return _("Connect %(channel_type)s") % {'channel_type': self.channel_type.name}
+
     def get_form_kwargs(self):
         kwargs = super(ClaimViewMixin, self).get_form_kwargs()
         kwargs['request'] = self.request
@@ -784,7 +771,10 @@ class ClaimViewMixin(OrgPermsMixin):
         return kwargs
 
     def get_success_url(self):
-        return reverse('channels.channel_read', args=[self.object.uuid])
+        if self.channel_type.show_config_page:
+            return reverse('channels.channel_configuration', args=[self.object.id])
+        else:
+            return reverse('channels.channel_read', args=[self.object.uuid])
 
 
 class ClaimAndroidForm(forms.Form):
@@ -878,8 +868,8 @@ class ChannelCRUDL(SmartCRUDL):
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
-               'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
-               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
+               'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
+               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_globe',
                'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
                'claim_red_rabbit', 'claim_macrokiosk', 'claim_jiochat')
     permissions = True
@@ -922,7 +912,7 @@ class ChannelCRUDL(SmartCRUDL):
                                   js_class='remove-channel',
                                   href="#"))
 
-            if self.object.channel_type == Channel.TYPE_FACEBOOK and self.has_org_perm('channels.channel_facebook_whitelist'):
+            if self.object.channel_type == 'FB' and self.has_org_perm('channels.channel_facebook_whitelist'):
                 links.append(dict(title=_("Whitelist Domain"), js_class='facebook-whitelist', href='#'))
 
             return links
@@ -1841,48 +1831,6 @@ class ChannelCRUDL(SmartCRUDL):
         def get_submitted_country(self, data):
             return 'PH'
 
-    class ClaimTelegram(OrgPermsMixin, SmartFormView):
-        class TelegramForm(forms.Form):
-            auth_token = forms.CharField(label=_("Authentication Token"),
-                                         help_text=_("The Authentication token for your Telegram Bot"))
-
-            def __init__(self, *args, **kwargs):
-                self.org = kwargs.pop('org')
-                super(ChannelCRUDL.ClaimTelegram.TelegramForm, self).__init__(*args, **kwargs)
-
-            def clean_auth_token(self):
-                auth_token = self.cleaned_data['auth_token']
-
-                # does a bot already exist on this account with that auth token
-                for channel in Channel.objects.filter(org=self.org, is_active=True, channel_type=Channel.TYPE_TELEGRAM):
-                    if channel.config_json()[Channel.CONFIG_AUTH_TOKEN] == auth_token:
-                        raise ValidationError(_("A telegram channel for this bot already exists on your account."))
-
-                try:
-                    import telegram
-                    bot = telegram.Bot(token=auth_token)
-                    bot.getMe()
-                except telegram.TelegramError:
-                    raise ValidationError(_("Your authentication token is invalid, please check and try again"))
-
-                return self.cleaned_data['auth_token']
-
-        title = _("Claim Telegram")
-        form_class = TelegramForm
-        permission = 'channels.channel_claim'
-        success_url = 'uuid@channels.channel_read'
-        submit_button_name = _("Connect Telegram Bot")
-
-        def form_valid(self, form):
-            auth_token = self.form.cleaned_data['auth_token']
-            self.object = Channel.add_telegram_channel(self.request.user.get_org(), self.request.user, auth_token)
-            return super(ChannelCRUDL.ClaimTelegram, self).form_valid(form)
-
-        def get_form_kwargs(self):
-            kwargs = super(ChannelCRUDL.ClaimTelegram, self).get_form_kwargs()
-            kwargs['org'] = self.request.user.get_org()
-            return kwargs
-
     class ClaimYo(ClaimAuthenticatedExternal):
         class YoClaimForm(forms.Form):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
@@ -2392,35 +2340,6 @@ class ChannelCRUDL(SmartCRUDL):
             channel = Channel.add_jiochat_channel(self.request.user.get_org(), self.request.user,
                                                   cleaned_data.get('app_id'),
                                                   cleaned_data.get('app_secret'))
-
-            return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))
-
-    class ClaimFacebook(OrgPermsMixin, SmartFormView):
-        class FacebookForm(forms.Form):
-            page_access_token = forms.CharField(min_length=43, required=True,
-                                                help_text=_("The Page Access Token for your Application"))
-
-            def clean_page_access_token(self):
-                token = self.cleaned_data['page_access_token']
-
-                # hit the FB graph, see if we can load the page attributes
-                response = requests.get('https://graph.facebook.com/v2.5/me', params=dict(access_token=token))
-                response_json = response.json()
-                if response.status_code != 200:
-                    default_error = _("Invalid page access token, please check it and try again.")
-                    raise ValidationError(response_json.get('error', default_error).get('message', default_error))
-
-                self.cleaned_data['page'] = response_json
-                return token
-
-        form_class = FacebookForm
-        permission = 'channels.channel_claim'
-
-        def form_valid(self, form):
-            super(ChannelCRUDL.ClaimFacebook, self).form_valid(form)
-            page = form.cleaned_data['page']
-            channel = Channel.add_facebook_channel(self.request.user.get_org(), self.request.user,
-                                                   page['name'], page['id'], form.cleaned_data['page_access_token'])
 
             return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))
 

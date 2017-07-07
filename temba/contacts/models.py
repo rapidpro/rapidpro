@@ -67,6 +67,7 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (JIOCHAT_SCHEME, _("Jiochat identifier"), 'jiochat', JIOCHAT_SCHEME),
                      (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), 'fcm', FCM_SCHEME))
 
+
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
 
@@ -1419,7 +1420,7 @@ class Contact(TembaModel):
             raise ValueError("Can't block a test contact")
 
         self.clear_all_groups(user)
-        Trigger.archive_triggers_for_contact(self)
+        Trigger.archive_triggers_for_contact(self, user)
 
         self.is_blocked = True
         self.modified_by = user
@@ -1450,7 +1451,7 @@ class Contact(TembaModel):
 
         self.clear_all_groups(get_anonymous_user())
 
-        Trigger.archive_triggers_for_contact(self)
+        Trigger.archive_triggers_for_contact(self, user)
 
     def unstop(self, user):
         """

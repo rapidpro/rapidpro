@@ -9,7 +9,6 @@ import hmac
 import json
 import pytz
 import six
-import telegram
 import time
 import urllib2
 import uuid
@@ -41,7 +40,6 @@ from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestVa
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, datetime_to_str, get_anonymous_user
 from temba.utils.twitter import generate_twitter_signature
-from telegram import User as TelegramUser
 from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
@@ -253,9 +251,6 @@ class ChannelTest(TembaTest):
         contact = self.create_contact("Billy", number="+250722222222", twitter="billy_bob")
         twitter_urn = contact.get_urn(schemes=[TWITTER_SCHEME])
         self.assertEquals(self.twitter_channel, self.org.get_send_channel(contact_urn=twitter_urn))
-
-        # calling without scheme or urn should raise exception
-        self.assertRaises(ValueError, self.org.get_send_channel)
 
     def test_message_splitting(self):
         # external API requires messages to be <= 160 chars
@@ -1470,84 +1465,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(channel.channel_type, "TW")
         self.assertEqual(channel.config_json(), dict(ACCOUNT_TOKEN='abcd1234', send_url='https://twilio.com', ACCOUNT_SID='abcd1234'))
 
-    def test_claim_facebook(self):
-        self.login(self.admin)
-
-        # remove any existing channels
-        Channel.objects.all().delete()
-
-        claim_facebook_url = reverse('channels.channel_claim_facebook')
-        token = 'x' * 200
-
-        with patch('requests.get') as mock:
-            mock.return_value = MockResponse(400, json.dumps(dict(error=dict(message="Failed validation"))))
-
-            # try to claim facebook, should fail because our verification of the token fails
-            response = self.client.post(claim_facebook_url, dict(page_access_token=token))
-
-            # assert we got a normal 200 and it says our token is wrong
-            self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Failed validation")
-
-        # ok this time claim with a success
-        with patch('requests.get') as mock_get:
-            mock_get.return_value = MockResponse(200, json.dumps(dict(name='Temba', id=10)))
-            response = self.client.post(claim_facebook_url, dict(page_access_token=token), follow=True)
-
-            # assert our channel got created
-            channel = Channel.objects.get()
-            self.assertEqual(channel.config_json()[Channel.CONFIG_AUTH_TOKEN], token)
-            self.assertEqual(channel.config_json()[Channel.CONFIG_PAGE_NAME], 'Temba')
-            self.assertEqual(channel.address, '10')
-
-            # should be on our configuration page displaying our secret
-            self.assertContains(response, channel.secret)
-
-            # test validating our secret
-            handler_url = reverse('handlers.facebook_handler', args=['invalid'])
-            response = self.client.get(handler_url)
-            self.assertEqual(response.status_code, 400)
-
-            # test invalid token
-            handler_url = reverse('handlers.facebook_handler', args=[channel.uuid])
-            payload = {'hub.mode': 'subscribe', 'hub.verify_token': 'invalid', 'hub.challenge': 'challenge'}
-            response = self.client.get(handler_url, payload)
-            self.assertEqual(response.status_code, 400)
-
-            # test actual token
-            payload['hub.verify_token'] = channel.secret
-
-            # try with unsuccessful callback to subscribe (this fails silently)
-            with patch('requests.post') as mock_post:
-                mock_post.return_value = MockResponse(400, json.dumps(dict(success=False)))
-
-                response = self.client.get(handler_url, payload)
-                self.assertEqual(response.status_code, 200)
-                self.assertContains(response, 'challenge')
-
-                # assert we subscribed to events
-                self.assertEqual(mock_post.call_count, 1)
-
-            # but try again and we should try again
-            with patch('requests.post') as mock_post:
-                mock_post.return_value = MockResponse(200, json.dumps(dict(success=True)))
-
-                response = self.client.get(handler_url, payload)
-                self.assertEqual(response.status_code, 200)
-                self.assertContains(response, 'challenge')
-
-                # assert we subscribed to events
-                self.assertEqual(mock_post.call_count, 1)
-
-            # release the channel
-            with self.settings(IS_PROD=True):
-                with patch('requests.delete') as mock_delete:
-                    mock_delete.return_value = MockResponse(200, json.dumps(dict(success=True)))
-                    channel.release()
-
-                    mock_delete.assert_called_once_with('https://graph.facebook.com/v2.5/me/subscribed_apps',
-                                                        params=dict(access_token=channel.config_json()[Channel.CONFIG_AUTH_TOKEN]))
-
     def test_claim_viber_public(self):
         self.login(self.admin)
 
@@ -1951,54 +1868,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(config['app_secret'], 'AppSecret')
         self.assertEqual(config['app_id'], 'AppId')
         self.assertEqual(config['passphrase'], 'Passphrase')
-
-    def test_claim_telegram(self):
-
-        # disassociate all of our channels
-        self.org.channels.all().update(org=None, is_active=False)
-
-        self.login(self.admin)
-        claim_url = reverse('channels.channel_claim_telegram')
-
-        # can fetch the claim page
-        response = self.client.get(claim_url)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, 'Telegram Bot')
-
-        # claim with an invalid token
-        with patch('telegram.Bot.getMe') as get_me:
-            get_me.side_effect = telegram.TelegramError('Boom')
-            response = self.client.post(claim_url, dict(auth_token='invalid'))
-            self.assertEqual(200, response.status_code)
-            self.assertEqual('Your authentication token is invalid, please check and try again', response.context['form'].errors['auth_token'][0])
-
-        with patch('telegram.Bot.getMe') as get_me:
-            user = TelegramUser(123, 'Rapid')
-            user.last_name = 'Bot'
-            user.username = 'rapidbot'
-            get_me.return_value = user
-
-            with patch('telegram.Bot.setWebhook') as set_webhook:
-                set_webhook.return_value = ''
-
-                response = self.client.post(claim_url, dict(auth_token='184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'))
-                channel = Channel.objects.all().order_by('-pk').first()
-                self.assertIsNotNone(channel)
-                self.assertEqual(channel.channel_type, Channel.TYPE_TELEGRAM)
-                self.assertRedirect(response, reverse('channels.channel_read', args=[channel.uuid]))
-                self.assertEqual(302, response.status_code)
-
-                response = self.client.post(claim_url, dict(auth_token='184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'))
-                self.assertEqual('A telegram channel for this bot already exists on your account.', response.context['form'].errors['auth_token'][0])
-
-                contact = self.create_contact('Telegram User', urn=URN.from_telegram('1234'))
-
-                # make sure we our telegram channel satisfies as a send channel
-                self.login(self.admin)
-                response = self.client.get(reverse('contacts.contact_read', args=[contact.uuid]))
-                send_channel = response.context['send_channel']
-                self.assertIsNotNone(send_channel)
-                self.assertEqual(Channel.TYPE_TELEGRAM, send_channel.channel_type)
 
     def test_claim_line(self):
 
@@ -3361,6 +3230,14 @@ class ChannelClaimTest(TembaTest):
 
         self.assertContains(response, reverse('handlers.jiochat_handler', args=[channel.uuid]))
         self.assertContains(response, channel.secret)
+
+        contact = self.create_contact('Jiochat User', urn=URN.from_jiochat('1234'))
+
+        # make sure we our jiochat channel satisfies as a send channel
+        response = self.client.get(reverse('contacts.contact_read', args=[contact.uuid]))
+        send_channel = response.context['send_channel']
+        self.assertIsNotNone(send_channel)
+        self.assertEqual(Channel.TYPE_JIOCHAT, send_channel.channel_type)
 
     def test_claim_macrokiosk(self):
         Channel.objects.all().delete()
@@ -7483,7 +7360,7 @@ class TelegramTest(TembaTest):
 
         self.channel.delete()
 
-        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_TELEGRAM, None, 'RapidBot',
+        self.channel = Channel.create(self.org, self.user, None, 'TG', None, 'RapidBot',
                                       config=dict(auth_token='valid'),
                                       uuid='00000000-0000-0000-0000-000000001234')
 
@@ -10058,11 +9935,18 @@ class JiochatTest(TembaTest):
 
     def test_refresh_jiochat_access_tokens_task(self):
         with patch('requests.post') as mock:
+            mock.return_value = MockResponse(400, '{ "error":"Failed" }')
+            refresh_jiochat_access_tokens()
+            self.assertEqual(mock.call_count, 1)
+            channel_client = self.channel.get_jiochat_client()
+
+            self.assertIsNone(channel_client.get_access_token())
+
+            mock.reset_mock()
             mock.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
 
             refresh_jiochat_access_tokens()
             self.assertEqual(mock.call_count, 1)
-            channel_client = self.channel.get_jiochat_client()
 
             self.assertEqual(channel_client.get_access_token(), 'ABC1234')
             self.assertEqual(mock.call_args_list[0][1]['data'], {'client_secret': u'app-secret',
