@@ -258,7 +258,7 @@ class WebHookEvent(SmartModel):
                     flow_base_language=flow.base_language,
                     run=run.id,
                     text=text,
-                    attachments=[a.as_json() for a in attachments],
+                    attachments=[a.url for a in attachments],
                     step=six.text_type(node_uuid),
                     phone=contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=contact.uuid,
@@ -387,7 +387,7 @@ class WebHookEvent(SmartModel):
                     contact_name=msg.contact.name,
                     urn=six.text_type(msg.contact_urn),
                     text=msg.text,
-                    attachments=[a.as_json() for a in msg.get_attachments()],
+                    attachments=[a.url for a in msg.get_attachments()],
                     time=json_time,
                     status=msg.status,
                     direction=msg.direction)
