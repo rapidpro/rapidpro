@@ -96,10 +96,10 @@ class JiochatClient:
                 attempts += 1
                 time.sleep(.250)
 
-        if response and response.status_code != 200:
+        if response:
             event.status_code = response.status_code
 
-        if event.status_code != 200:
+        if not event.status_code or event.status_code != 200:
             ChannelLog.log_channel_request(channel_id, "Failed to get media from Jiochat", event, start, True)
         else:
             ChannelLog.log_channel_request(channel_id, "Successfully got media from Jiochat", event, start)

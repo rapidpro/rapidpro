@@ -9963,6 +9963,11 @@ class JiochatTest(TembaTest):
                                                                  'grant_type': 'client_credentials',
                                                                  'client_id': u'app-id'})
 
+            self.login(self.admin)
+            response = self.client.get(reverse("channels.channellog_list") + '?channel=%d&others=1' % self.channel.id,
+                                       follow=True)
+            self.assertEqual(len(response.context['object_list']), 2)
+
     @patch('temba.utils.jiochat.JiochatClient.refresh_access_token')
     def test_url_verification(self, mock_refresh_access_token):
         mock_refresh_access_token.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
@@ -10223,8 +10228,7 @@ class JiochatTest(TembaTest):
                 self.assertEqual(response.status_code, 200)
 
                 self.assertEqual(ChannelLog.objects.all().count(), 2)
-                self.assertEqual(ChannelLog.objects.filter(is_error=False).count(), 1)
-                self.assertEqual(ChannelLog.objects.filter(is_error=True).count(), 1)
+                self.assertEqual(ChannelLog.objects.filter(is_error=False).count(), 2)
 
                 msg = Msg.objects.get()
                 self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
@@ -10239,6 +10243,21 @@ class JiochatTest(TembaTest):
                 self.assertEqual(msg.attachments[0], 'image/jpeg:<MEDIA_SAVED_URL>')
 
                 self.assertEqual(mock_get.call_count, 3)
+
+        Msg.objects.all().delete()
+        ChannelLog.objects.all().delete()
+
+        with patch('requests.get') as mock_get:
+            mock_get.return_value = MockResponse(400, 'Error')
+
+            with patch('temba.orgs.models.Org.save_media') as mock_save_media:
+                mock_save_media.return_value = '<MEDIA_SAVED_URL>'
+
+                response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+                self.assertEqual(response.status_code, 200)
+
+                self.assertEqual(ChannelLog.objects.all().count(), 2)
+                self.assertEqual(ChannelLog.objects.filter(is_error=True).count(), 2)
 
 
 class GlobeTest(TembaTest):
