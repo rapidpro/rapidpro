@@ -36,7 +36,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
-from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING
+from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils import chunk_list, on_transaction_commit
@@ -321,8 +321,9 @@ class FlowSession(ChannelSession):
         for event in events:
             if event['type'] == Event.TYPE_SEND_MSG:
                 msg = self.apply_send_msg(event, msg_in)
-                msgs_to_send.append(msg)
-                msgs_by_step[event["step_uuid"]].append(msg)
+                if msg:
+                    msgs_to_send.append(msg)
+                    msgs_by_step[event["step_uuid"]].append(msg)
             elif event['type'] == Event.TYPE_MSG_RECEIVED:
                 if msg_in:
                     msgs_by_step[event["step_uuid"]].append(msg_in)
@@ -355,13 +356,15 @@ class FlowSession(ChannelSession):
             media_type, media_url = attachment.split(':', 1)
             attachments.append("%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url))
 
-        return Msg.create_outgoing(self.org, user, recipient,
-                                   text=event['text'],
-                                   attachments=attachments,
-                                   channel=msg.channel if msg else None,
-                                   created_on=iso8601.parse_date(event['created_on']),
-                                   response_to=msg,
-                                   session=self)
+        try:
+            return Msg.create_outgoing(self.org, user, recipient,
+                                       text=event['text'],
+                                       attachments=attachments,
+                                       channel=msg.channel if msg else None,
+                                       created_on=iso8601.parse_date(event['created_on']),
+                                       response_to=msg, session=self)
+        except UnreachableException:
+            return None
 
     def apply_update_contact(self, event, msg):
         """
