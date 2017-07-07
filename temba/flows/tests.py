@@ -6723,7 +6723,7 @@ class FlowMigrationTest(FlowFileTest):
         # pretend our current ruleset was stopped at a webhook with a passive rule
         ruleset = RuleSet.objects.get(flow=flow, uuid=step.step_uuid)
         ruleset.webhook_url = 'http://www.mywebhook.com/lookup'
-        ruleset.webhook_action = 'POST'
+        ruleset.webhook_action = 'GET'
         ruleset.operand = '@extra.value'
         ruleset.save()
 
@@ -6744,7 +6744,7 @@ class FlowMigrationTest(FlowFileTest):
         webhook = RuleSet.objects.get(flow=flow, uuid=ruleset.get_rules()[0].destination)
         self.assertEquals('webhook', webhook.ruleset_type)
         self.assertEquals('http://www.mywebhook.com/lookup', webhook.config_json()[RuleSet.CONFIG_WEBHOOK])
-        self.assertEquals('POST', webhook.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION])
+        self.assertEquals('GET', webhook.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION])
         self.assertEquals('@step.value', webhook.operand)
         self.assertEquals('Color Webhook', webhook.label)
 
@@ -6773,11 +6773,10 @@ class FlowMigrationTest(FlowFileTest):
         expression.operand = '@step.value'
         expression.save()
 
-        with patch('requests.post') as mock:
+        with patch('requests.get') as mock:
             mock.return_value = MockResponse(200, '{ "status": "valid" }')
 
             # now move our straggler forward with a message, should get a reply
-
             first_response = ActionSet.objects.get(flow=flow, x=131)
             actions = first_response.get_actions_dict()
             actions[0]['msg'][flow.base_language] = 'I like @flow.color.category too! What is your favorite beer? @flow.color_webhook'

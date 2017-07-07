@@ -125,7 +125,14 @@ def edit_distance(s1, s2):  # pragma: no cover
     return d[lenstr1 - 1, lenstr2 - 1]
 
 
+class FlowServerException(Exception):
+    pass
+
+
 class FlowServer:
+    """
+    Basic client for GoFlow's flow server
+    """
     def __init__(self, base_url, debug=False):
         self.base_url = base_url
         self.debug = debug
@@ -146,13 +153,18 @@ class FlowServer:
             print('=============== /%s request ===============' % endpoint)
 
         response = requests.post("%s/flow/%s" % (self.base_url, endpoint), json=payload)
-        response.raise_for_status()
         resp_json = response.json()
 
         if self.debug:
             print('=============== %s response ===============' % endpoint)
             print(json.dumps(resp_json, indent=2))
             print('=============== /%s response ===============' % endpoint)
+
+        if 400 <= response.status_code < 500:
+            errors = "\n".join(resp_json['errors'])
+            raise FlowServerException("Invalid request: " + errors)
+
+        response.raise_for_status()
 
         return resp_json
 
@@ -207,7 +219,7 @@ class FlowSession(ChannelSession):
 
             start_response = flow_server.start(start_request)
             output = start_response['session']
-            events = start_response['events']
+            events = start_response.get('events', [])
 
             # see if we are still active
             active = False
@@ -268,19 +280,25 @@ class FlowSession(ChannelSession):
             self.save(update_fields=['is_active'])
             return
 
-        # build our flow request
-        flow_resume = dict(flows=flow.as_json_with_dependencies(),
-                           session=self.as_json(),
-                           contact=self.contact.as_goflow_json(),
-                           event=msg_in.as_input())
+        flows = flow.as_json_with_dependencies()
+        if not flows:
+            raise ValueError("Session flows have been modified and are no longer supported by goflow")
 
-        resp_json = flow_server.resume(flow_resume)
+        resume_response = flow_server.resume({
+            'flows': flows,
+            'session': self.as_json(),
+            'contact': self.contact.as_goflow_json(),
+            'event': msg_in.as_input()
+        })
+
+        output = resume_response['session']
+        events = resume_response.get('events', [])
 
         # apply our events
-        msgs_by_step = self.apply_events(resp_json['events'], msg_in)
+        msgs_by_step = self.apply_events(events, msg_in)
 
         # update our session
-        self.update(resp_json['session'], msgs_by_step)
+        self.update(output, msgs_by_step)
 
         return msgs_by_step
 
