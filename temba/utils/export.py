@@ -197,8 +197,10 @@ class TableExporter(object):
         """
         Saves our data to a file, returning the file saved to and the extension
         """
-        # have to flush the XLS file
+        gc.collect()  # force garbage collection
+
         if not self.is_csv:
+            print("Writing Excel workbook...")
             self.workbook.save(self.file)
 
         self.file.flush()

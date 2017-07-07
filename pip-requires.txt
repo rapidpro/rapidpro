@@ -35,6 +35,7 @@ uservoice
 
 ########################## file types ##########################
 geojson
+lxml
 markdown
 openpyxl
 pisa
