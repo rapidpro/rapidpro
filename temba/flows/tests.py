@@ -2318,10 +2318,10 @@ class FlowTest(TembaTest):
         json_dict = response.json()['flow']
 
         # test setting the json
-        json_dict['action_sets'] = [dict(uuid=uuid(1), x=1, y=1, destination=None,
+        json_dict['action_sets'] = [dict(uuid=str(uuid4()), x=1, y=1, destination=None,
                                          actions=[dict(type='reply', msg=dict(base='This flow is more like a broadcast'))])]
         json_dict['rule_sets'] = []
-        json_dict['entry'] = uuid(1)
+        json_dict['entry'] = json_dict['action_sets'][0]['uuid']
 
         response = self.client.post(reverse('flows.flow_json', args=[flow.pk]), json.dumps(json_dict), content_type="application/json")
         self.assertEquals(200, response.status_code)
@@ -2922,8 +2922,7 @@ class ActionTest(TembaTest):
     def test_ussd_action(self):
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
-                                      role=Channel.ROLE_USSD,
-                                      uuid='00000000-0000-0000-0000-000000001234')
+                                      role=Channel.ROLE_USSD)
 
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
@@ -2963,8 +2962,7 @@ class ActionTest(TembaTest):
     def test_multilanguage_ussd_menu_partly_translated(self):
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
-                                      role=Channel.ROLE_USSD,
-                                      uuid='00000000-0000-0000-0000-000000001234')
+                                      role=Channel.ROLE_USSD)
 
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
@@ -3866,8 +3864,7 @@ class FlowRunTest(TembaTest):
         self.channel.delete()
         # Create a USSD channel type to test USSDSession.INTERRUPTED status
         self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
-                                      role=Channel.ROLE_USSD,
-                                      uuid='00000000-0000-0000-0000-000000001234')
+                                      role=Channel.ROLE_USSD)
 
         flow = self.get_flow('ussd_example')
         flow.start([], [self.contact])
@@ -4292,8 +4289,7 @@ class SimulationTest(FlowFileTest):
     def test_ussd_simulation(self, handle_incoming):
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
-                                      role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE,
-                                      uuid='00000000-0000-0000-0000-000000001234')
+                                      role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE)
         flow = self.get_flow('ussd_example')
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
@@ -4319,8 +4315,7 @@ class SimulationTest(FlowFileTest):
     def test_ussd_simulation_interrupt(self, handle_incoming):
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
-                                      role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE,
-                                      uuid='00000000-0000-0000-0000-000000001234')
+                                      role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE)
         flow = self.get_flow('ussd_example')
 
         simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
@@ -6062,8 +6057,7 @@ class FlowsTest(FlowFileTest):
         self.channel.delete()
         # Create a USSD channel type to test USSDSession.INTERRUPTED status
         self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
-                                      role=Channel.ROLE_USSD,
-                                      uuid='00000000-0000-0000-0000-000000001234')
+                                      role=Channel.ROLE_USSD)
 
         flow = self.get_flow('ussd_interrupt_example')
 
@@ -6087,8 +6081,7 @@ class FlowsTest(FlowFileTest):
         self.channel.delete()
         # Create a USSD channel type to test USSDSession.INTERRUPTED status
         self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
-                                      role=Channel.ROLE_USSD,
-                                      uuid='00000000-0000-0000-0000-000000001234')
+                                      role=Channel.ROLE_USSD)
 
         flow = self.get_flow('ussd_interrupt_example')
 
@@ -7102,7 +7095,7 @@ class OrderingTest(FlowFileTest):
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', scheme='tel',
-                                      config=dict(send_url='https://google.com'), uuid='00000000-0000-0000-0000-000000001234')
+                                      config=dict(send_url='https://google.com'))
 
     def tearDown(self):
         super(OrderingTest, self).tearDown()
@@ -7497,8 +7490,7 @@ class StackedExitsTest(FlowFileTest):
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', scheme='tel',
-                                      config=dict(send_url='https://google.com'),
-                                      uuid='00000000-0000-0000-0000-000000001234')
+                                      config=dict(send_url='https://google.com'))
 
     def test_stacked_exits(self):
         self.get_flow('stacked_exits')
@@ -7574,7 +7566,7 @@ class ParentChildOrderingTest(FlowFileTest):
         super(ParentChildOrderingTest, self).setUp()
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', scheme='tel',
-                                      config=dict(send_url='https://google.com'), uuid='00000000-0000-0000-0000-000000001234')
+                                      config=dict(send_url='https://google.com'))
 
     def test_parent_child_ordering(self):
         from temba.channels.tasks import send_msg_task
@@ -7596,8 +7588,7 @@ class AndroidChildStatus(FlowFileTest):
     def setUp(self):
         super(AndroidChildStatus, self).setUp()
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', 'A', None, '+250788123123', scheme='tel',
-                                      uuid='00000000-0000-0000-0000-000000001234')
+        self.channel = Channel.create(self.org, self.user, 'RW', 'A', None, '+250788123123', scheme='tel')
 
     def test_split_first(self):
         self.get_flow('split_first_child_msg')
