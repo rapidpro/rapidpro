@@ -341,21 +341,26 @@ class FlowSession(ChannelSession):
         """
         A message being sent to a contact (not necessarily this contact)
         """
-        contact_uuid = event['contact_uuid']
-        if self.contact.uuid == contact_uuid:
-            contact = self.contact
-        else:
-            contact = Contact.objects.get(uuid=contact_uuid, org=self.org)
+        urn = event.get('urn')
+        contact_uuid = event.get('contact_uuid')
+        if contact_uuid:
+            if self.contact.uuid == contact_uuid:
+                contact = self.contact
+            else:
+                contact = Contact.objects.get(uuid=contact_uuid, org=self.org)
+
+        # use our urn if we have one specified in the event
+        recipient = urn
+        if not recipient:
+            recipient = msg.contact_urn if msg else contact
 
         user = get_flow_user(self.org)
-        recipient = msg.contact_urn if msg else contact
 
         # convert attachment URLs to absolute URLs
         attachments = []
         for attachment in event.get('attachments', []):
             media_type, media_url = attachment.split(':', 1)
             attachments.append("%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url))
-
         try:
             return Msg.create_outgoing(self.org, user, recipient,
                                        text=event['text'],
