@@ -1,3 +1,14 @@
+v3.0.167
+----------
+ * Fix inclusion of attachment urls in webhook payloads and add tests
+ * Install lxml to improve performance of large Excel exports
+ * Add proper deactivation of Telegram channels
+ * Converted Facebook and Telegram to dynamic channel types
+ * Add nullable uuid field to FlowRun
+ * Make sure we consider all URN schemes we can send to when looking up the if we have a send channel
+ * Split Twitter and Twitter Beta into separate channel types
+ * Remove support for old-style Twilio endpoints
+
 v3.0.166
 ----------
  * Release channels before Twilio/Nexmo configs are cleared
