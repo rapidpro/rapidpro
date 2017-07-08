@@ -1842,7 +1842,7 @@ class APITest(TembaTest):
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
         self.assertEqual(msg_json, {
-            'id': msg.pk,
+            'id': msg.id,
             'broadcast': msg.broadcast,
             'contact': {'uuid': msg.contact.uuid, 'name': msg.contact.name},
             'urn': msg.contact_urn.urn,
@@ -1854,10 +1854,11 @@ class APITest(TembaTest):
             'visibility': msg_visibility,
             'text': msg.text,
             'labels': [dict(name=l.name, uuid=l.uuid) for l in msg.labels.all()],
-            'media': msg.attachments[0] if msg.attachments else None,
+            'attachments': [{'content_type': a.content_type, 'url': a.url} for a in msg.get_attachments()],
             'created_on': format_datetime(msg.created_on),
             'sent_on': format_datetime(msg.sent_on),
-            'modified_on': format_datetime(msg.modified_on)
+            'modified_on': format_datetime(msg.modified_on),
+            'media': msg.attachments[0] if msg.attachments else None
         })
 
     def test_messages(self):
@@ -1876,7 +1877,8 @@ class APITest(TembaTest):
         frank_msg1 = self.create_msg(direction='I', msg_type='I', text="Bonjour", contact=self.frank, channel=self.twitter)
         joe_msg2 = self.create_msg(direction='O', msg_type='I', text="How are you?", contact=self.joe, status='Q')
         frank_msg2 = self.create_msg(direction='O', msg_type='I', text="Ça va?", contact=self.frank, status='D')
-        joe_msg3 = self.create_msg(direction='I', msg_type='F', text="Good", contact=self.joe)
+        joe_msg3 = self.create_msg(direction='I', msg_type='F', text="Good", contact=self.joe,
+                                   attachments=['image/jpeg:https://example.com/test.jpg'])
         frank_msg3 = self.create_msg(direction='I', msg_type='I', text="Bien", contact=self.frank, channel=self.twitter, visibility='A')
 
         # add a surveyor message (no URN etc)

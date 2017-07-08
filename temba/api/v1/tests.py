@@ -569,13 +569,11 @@ class APITest(TembaTest):
         msg = step.messages.all().first()
         self.assertTrue(msg.attachments[0].startswith('image/jpeg:http'))
         self.assertTrue(msg.attachments[0].endswith('.jpg'))
-        self.assertTrue(msg.is_media_type_image())
 
         step = FlowStep.objects.filter(step_uuid=ruleset_video.uuid).first()
         msg = step.messages.all().first()
         self.assertTrue(msg.attachments[0].startswith('video/mp4:http'))
         self.assertTrue(msg.attachments[0].endswith('.mp4'))
-        self.assertTrue(msg.is_media_type_video())
 
     def test_api_steps(self):
         url = reverse('api.v1.steps')
