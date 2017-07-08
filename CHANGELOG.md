@@ -1,3 +1,7 @@
+v3.0.168
+----------
+ * Migration to populate FlowRun.uuid. Advise faking this and running manually.
+
 v3.0.167
 ----------
  * Fix inclusion of attachment urls in webhook payloads and add tests
