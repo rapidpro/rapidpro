@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import TELEGRAM_SCHEME
-from temba.msgs.models import Msg, WIRED
+from temba.msgs.models import Attachment, WIRED
 from temba.utils.http import HttpEvent
 from .views import ClaimView
 from ...models import Channel, ChannelType, SendException
@@ -53,24 +53,24 @@ class TelegramType(ChannelType):
         start = time.time()
 
         # for now we only support sending one attachment per message but this could change in future
-        attachments = Msg.get_attachments(msg)
-        media_type, media_url = attachments[0] if attachments else (None, None)
+        attachments = Attachment.parse_all(msg.attachments)
+        attachment = attachments[0] if attachments else None
 
-        if media_type and media_url:
-            media_type = media_type.split('/')[0]
-            if media_type == 'image':
+        if attachment:
+            category = attachment.content_type.split('/')[0]
+            if category == 'image':
                 send_url = 'https://api.telegram.org/bot%s/sendPhoto' % auth_token
-                post_body['photo'] = media_url
+                post_body['photo'] = attachment.url
                 post_body['caption'] = text
                 del post_body['text']
-            elif media_type == 'video':
+            elif category == 'video':
                 send_url = 'https://api.telegram.org/bot%s/sendVideo' % auth_token
-                post_body['video'] = media_url
+                post_body['video'] = attachment.url
                 post_body['caption'] = text
                 del post_body['text']
-            elif media_type == 'audio':
+            elif category == 'audio':
                 send_url = 'https://api.telegram.org/bot%s/sendAudio' % auth_token
-                post_body['audio'] = media_url
+                post_body['audio'] = attachment.url
                 post_body['caption'] = text
                 del post_body['text']
 

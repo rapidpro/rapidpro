@@ -901,7 +901,8 @@ class Flow(TembaModel):
             # this node doesn't exist anymore, mark it as left so they leave the flow
             if not destination:  # pragma: no cover
                 step.run.set_completed(final_step=step)
-                continue
+                Msg.mark_handled(msg)
+                return True, []
 
             (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
                                                       user_input=user_input, triggered_start=triggered_start,
