@@ -890,7 +890,11 @@ class Flow(TembaModel):
         # fire off request to flow server
         session = FlowSession.get_last_active_session(contact=msg.contact)
         if session:
-            return True, session.resume(msg)
+            try:
+                return True, session.resume(msg)
+            except ValueError:
+                # if we can't resume our session, let the legacy path handle it
+                pass
 
         steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=FlowStep.TYPE_RULE_SET)
         for step in steps:
