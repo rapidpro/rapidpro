@@ -54,7 +54,7 @@ class JiochatClient:
 
                 response_json = response.json()
                 event.response_body = json.dumps(response_json)
-                ChannelLog.log_channel_request(channel_id, "Successfully got access token from Jiochat", event, start)
+                ChannelLog.log_channel_request(channel_id, "Successfully fetched access token from Jiochat", event, start)
 
                 access_token = response_json['access_token']
                 cache.set(key, access_token, timeout=7200)
@@ -102,7 +102,7 @@ class JiochatClient:
         if not event.status_code or event.status_code != 200:
             ChannelLog.log_channel_request(channel_id, "Failed to get media from Jiochat", event, start, True)
         else:
-            ChannelLog.log_channel_request(channel_id, "Successfully got media from Jiochat", event, start)
+            ChannelLog.log_channel_request(channel_id, "Successfully fetched media from Jiochat", event, start)
 
         return response
 
@@ -127,7 +127,7 @@ class JiochatClient:
         data = response.json()
 
         event.response_body = json.dumps(data)
-        ChannelLog.log_channel_request(channel_id, "Successfully got User detail from Jiochat", event, start)
+        ChannelLog.log_channel_request(channel_id, "Successfully fetched user detail from Jiochat", event, start)
 
         return data
 

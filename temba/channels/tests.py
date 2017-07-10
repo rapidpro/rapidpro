@@ -10214,7 +10214,7 @@ class JiochatTest(TembaTest):
         }
 
         with patch('requests.get') as mock_get:
-            mock_get.side_effect = [MockResponse(200, '{"nickname":"Shinonda"}'),
+            mock_get.side_effect = [MockResponse(200, '{"nickname": "Shinonda. ☺"}'),
                                     MockResponse(400, 'Error'),
                                     MockResponse(200, "IMG_BITS",
                                                  headers={"Content-Type": "image/jpeg",
@@ -10229,6 +10229,7 @@ class JiochatTest(TembaTest):
 
                 self.assertEqual(ChannelLog.objects.all().count(), 2)
                 self.assertEqual(ChannelLog.objects.filter(is_error=False).count(), 2)
+                self.assertEqual(ChannelLog.objects.all().first().response, '{"nickname": "Shinonda. \\u263a"}')
 
                 msg = Msg.objects.get()
                 self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)

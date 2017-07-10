@@ -3373,8 +3373,8 @@ class ChannelLog(models.Model):
     def log_ivr_interaction(cls, call, description, event, is_error=False):
         ChannelLog.objects.create(channel_id=call.channel_id,
                                   session_id=call.id,
-                                  request=str(event.request_body),
-                                  response=str(event.response_body),
+                                  request=six.text_type(event.request_body),
+                                  response=six.text_type(event.response_body),
                                   url=event.url,
                                   method=event.method,
                                   is_error=is_error,
@@ -3387,8 +3387,8 @@ class ChannelLog(models.Model):
         request_time_ms = request_time * 1000
 
         ChannelLog.objects.create(channel_id=channel_id,
-                                  request=str(event.request_body),
-                                  response=str(event.response_body),
+                                  request=six.text_type(event.request_body),
+                                  response=six.text_type(event.response_body),
                                   url=event.url,
                                   method=event.method,
                                   is_error=is_error,
