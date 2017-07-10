@@ -5651,7 +5651,7 @@ class FlowsTest(FlowFileTest):
         self.org.primary_language = spanish
         self.org.save()
 
-        flow = Flow.objects.get(pk=flow.pk)
+        flow.refresh_from_db()
 
         # with our org in spanish, we should get the spanish version
         self.assertEquals('\xa1Hola amigo! \xbfCu\xe1l es tu color favorito?',
@@ -5659,7 +5659,7 @@ class FlowsTest(FlowFileTest):
 
         self.org.primary_language = None
         self.org.save()
-        flow = Flow.objects.get(pk=flow.pk)
+        flow.refresh_from_db()
 
         # no longer spanish on our org
         self.assertEquals('Hello friend! What is your favorite color?',
@@ -5668,7 +5668,7 @@ class FlowsTest(FlowFileTest):
         # back to spanish
         self.org.primary_language = spanish
         self.org.save()
-        flow = Flow.objects.get(pk=flow.pk)
+        flow.refresh_from_db()
 
         # but set our contact's language explicitly should keep us at english
         self.contact.language = 'eng'

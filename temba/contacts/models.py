@@ -472,6 +472,7 @@ class Contact(TembaModel):
         """
         Generates a JSON represention for use with the goflow engine
         """
+
         # TODO include fields
         #   "fields": {
         #     "gender": {
@@ -480,10 +481,17 @@ class Contact(TembaModel):
         #       "value": "Male"
         #     }
 
-        # language should default to the org primary language if not set
-        language = self.language
-        if not language and self.org.primary_language:
-            language = self.org.primary_language.iso_code
+        # only include language if it's valid org language
+        if self.language and self.language in self.org.get_language_codes():
+            language = self.language
+        else:
+            language = None
+
+        # org primary language is a backdown language if needed
+        if self.org.primary_language and self.org.primary_language.iso_code != language:
+            other_languages = [self.org.primary_language.iso_code]
+        else:
+            other_languages = []
 
         return {
             'uuid': self.uuid,
@@ -492,6 +500,7 @@ class Contact(TembaModel):
             'groups': [{"uuid": group.uuid, "name": group.name} for group in self.user_groups.all()],
             'timezone': "UTC",
             'language': language,
+            'other_languages': other_languages,
             'fields': {}
         }
 
