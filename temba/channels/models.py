@@ -1611,7 +1611,11 @@ class Channel(TembaModel):
 
         if is_ussd:
             session = USSDSession.objects.get_session_with_status_only(msg.session_id)
-            external_id = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
+            # make sure USSD responses are only valid for a short window
+            response_window = timedelta(minutes=5)
+            external_id = None
+            if msg.response_to_id and msg.created_on > timezone.now() - response_window:
+                external_id = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
             # NOTE: Only one of `to` or `reply_to` may be specified, use external_id if we have it.
             if external_id:
                 payload['reply_to'] = external_id
