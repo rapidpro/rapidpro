@@ -182,6 +182,8 @@ MIDDLEWARE_CLASSES = (
     'temba.middleware.FlowSimulationMiddleware',
     'temba.middleware.ActivateLanguageMiddleware',
     'temba.middleware.OrgHeaderMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 )
 
 ROOT_URLCONF = 'temba.urls'
@@ -205,7 +207,8 @@ INSTALLED_APPS = (
     'django.contrib.gis',
     'django.contrib.sitemaps',
     'django.contrib.postgres',
-
+    #AJAX
+    'corsheaders',
     # Haml-like templates
     'hamlpy',
 
@@ -1271,3 +1274,11 @@ VALUE_FIELD_SIZE = 640
 # -----------------------------------------------------------------------------------
 SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
+
+# ----------------------------------------------------------------------------------- 
+# Ajax
+# -----------------------------------------------------------------------------------
+CORS_ORIGIN_ALLOW_ALL = True 
+#CORS_ORIGIN_WHITELIST = (
+#    'localhost:8000',
+#)
