@@ -211,6 +211,7 @@ class Channel(TembaModel):
     CONFIG_MAX_LENGTH = 'max_length'
     CONFIG_MACROKIOSK_SENDER_ID = 'macrokiosk_sender_id'
     CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
+    CONFIG_RP_HOSTNAME_OVERRIDE = 'rp_hostname_override'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -1413,9 +1414,12 @@ class Channel(TembaModel):
 
         session = None
 
+        # if the channel config has specified and override hostname use that, otherwise use settings
+        event_hostname = channel.config.get(Channel.CONFIG_RP_HOSTNAME_OVERRIDE, settings.HOSTNAME)
+
         # the event url Junebug will relay events to
-        event_url = 'https://%s%s' % (
-            settings.HOSTNAME,
+        event_url = 'http://%s%s' % (
+            event_hostname,
             reverse('handlers.junebug_handler',
                     args=['event', channel.uuid]))
 
