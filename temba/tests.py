@@ -36,6 +36,10 @@ from twilio.util import RequestValidator
 
 
 class ExcludeTestRunner(DiscoverRunner):
+
+    NEW_ENGINE_RUNS = 0.0
+    LEGACY_ENGINE_RUNS = 0.0
+
     def __init__(self, *args, **kwargs):
         from django.conf import settings
         settings.TESTING = True
@@ -52,6 +56,13 @@ class ExcludeTestRunner(DiscoverRunner):
                     tests.append(case)
             suite._tests = tests
         return suite
+
+    def run_suite(self, suite, **kwargs):
+        results = super(ExcludeTestRunner, self).run_suite(suite, **kwargs)
+        total_runs = ExcludeTestRunner.LEGACY_ENGINE_RUNS + ExcludeTestRunner.NEW_ENGINE_RUNS
+        pct = "{0:.1f}".format((ExcludeTestRunner.NEW_ENGINE_RUNS / total_runs) * 100)
+        print ("%d / %d (%s%%)" % (ExcludeTestRunner.NEW_ENGINE_RUNS, total_runs, pct))
+        return results
 
 
 def add_testing_flag_to_context(*args):

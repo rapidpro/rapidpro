@@ -1933,8 +1933,14 @@ class Flow(TembaModel):
 
         # try to start the session against our flow server
         runs = FlowSession.start(Contact.objects.filter(id__in=all_contact_ids), self, start_msg)
+
+        from temba.tests import ExcludeTestRunner
+
         if len(runs):
+            ExcludeTestRunner.NEW_ENGINE_RUNS += 1
             return runs
+
+        ExcludeTestRunner.LEGACY_ENGINE_RUNS += 1
 
         start_msg_id = start_msg.id if start_msg else None
         flow_start_id = flow_start.id if flow_start else None
@@ -7367,12 +7373,12 @@ class InterruptTest(Test):
 FLOW_FEATURES = [
     ('A', ReplyAction.TYPE, True),
     ('A', SendAction.TYPE, False),
-    ('A', AddToGroupAction.TYPE, False),
-    ('A', DeleteFromGroupAction.TYPE, False),
+    ('A', AddToGroupAction.TYPE, True),
+    ('A', DeleteFromGroupAction.TYPE, True),
     ('A', AddLabelAction.TYPE, False),
-    ('A', EmailAction.TYPE, False),
+    ('A', EmailAction.TYPE, True),
     ('A', WebhookAction.TYPE, False),
-    ('A', SaveToContactAction.TYPE, False),
+    ('A', SaveToContactAction.TYPE, True),
     ('A', SetLanguageAction.TYPE, False),
     ('A', SetChannelAction.TYPE, False),
     ('A', StartFlowAction.TYPE, False),
@@ -7390,8 +7396,8 @@ FLOW_FEATURES = [
     ('R', RuleSet.TYPE_WEBHOOK, False),
     ('R', RuleSet.TYPE_RESTHOOK, False),
     ('R', RuleSet.TYPE_AIRTIME, False),
-    ('R', RuleSet.TYPE_FLOW_FIELD, False),
-    ('R', RuleSet.TYPE_FORM_FIELD, False),
+    ('R', RuleSet.TYPE_FLOW_FIELD, True),
+    ('R', RuleSet.TYPE_FORM_FIELD, True),
     ('R', RuleSet.TYPE_CONTACT_FIELD, True),
     ('R', RuleSet.TYPE_EXPRESSION, True),
     ('R', RuleSet.TYPE_SUBFLOW, False),
@@ -7401,7 +7407,7 @@ FLOW_FEATURES = [
     ('T', ContainsAnyTest.TYPE, True),
     ('T', ContainsOnlyPhraseTest.TYPE, True),
     ('T', ContainsPhraseTest.TYPE, True),
-    ('T', ContainsTest.TYPE, False),
+    ('T', ContainsTest.TYPE, True),
     ('T', DateAfterTest.TYPE, False),
     ('T', DateBeforeTest.TYPE, False),
     ('T', DateEqualTest.TYPE, False),
