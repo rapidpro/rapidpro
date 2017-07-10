@@ -1,13 +1,11 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import time
-import requests
 import json
 
 from celery.task import task
 from datetime import timedelta
 from django.utils import timezone
-from django.conf import settings
 from django.core.cache import cache
 from temba.utils.queues import nonoverlapping_task
 from .models import CreditAlert, Invitation, Org, TopUpCredits
