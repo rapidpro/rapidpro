@@ -2716,6 +2716,7 @@ class Flow(TembaModel):
 
                     del existing_rulesets[existing.uuid]
                     existing.delete()
+
                 else:
                     ruleset_types.add(existing.ruleset_type)
                     for rule in existing.get_rules():
@@ -2907,6 +2908,12 @@ class FlowRun(models.Model):
                                      is_active=is_active,
                                      modified_on=modified_on,
                                      created_on=iso8601.parse_date(run_output['created_on']))
+
+            # old flow engine appends a list of start messages on run creation
+            start_msgs = []
+            for uuid, msgs in six.iteritems(msgs_by_step):
+                start_msgs.extend(msgs)
+            run.start_msgs = start_msgs
 
         # update our expiration date
         run.update_expiration(timezone.now())
