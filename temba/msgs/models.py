@@ -26,7 +26,8 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit, datetime_to_ms, dict_to_json
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
+from temba.utils import datetime_to_ms, dict_to_json, get_anonymous_user, clean_string
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField
@@ -1026,9 +1027,11 @@ class Msg(models.Model):
             sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
         return sorted_logs[0] if sorted_logs else None
 
+    def get_attachment_urls(self):
+        return [a.split(':', 1)[1] for a in self.attachments] if self.attachments else []
+
     def get_media_path(self):
-        if self.attachments and ':' in self.attachments[0]:
-            return self.attachments[0].split(':', 1)[1]
+        return self.get_attachment_urls()[0] if self.attachments else None
 
     def get_media_type(self):
         if self.attachments and ':' in self.attachments[0]:
@@ -1119,10 +1122,14 @@ class Msg(models.Model):
 
     def build_expressions_context(self, contact_context=None):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
+        value = six.text_type(self)
+        attachments = {six.text_type(a): url for a, url in enumerate(self.get_attachment_urls())}
 
         return {
-            '__default__': self.text,
-            'value': self.text,
+            '__default__': value,
+            'value': value,
+            'text': self.text,
+            'attachments': attachments,
             'contact': contact_context or self.contact.build_expressions_context(),
             'time': datetime_to_str(self.created_on, format=date_format, tz=self.org.timezone)
         }
@@ -1181,7 +1188,11 @@ class Msg(models.Model):
         return data
 
     def __str__(self):
-        return self.text
+        if self.attachments:
+            parts = ([self.text] if self.text else []) + self.get_attachment_urls()
+            return "\n".join(parts)
+        else:
+            return self.text
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
@@ -1195,7 +1206,7 @@ class Msg(models.Model):
             raise Exception(_("Can't create an incoming message without an org"))
 
         if not user:
-            user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+            user = get_anonymous_user()
 
         if not date:
             date = timezone.now()  # no date?  set it to now
@@ -1214,6 +1225,10 @@ class Msg(models.Model):
         if contact_urn:
             contact_urn.update_affinity(channel)
 
+        # we limit our text message length and remove any invalid chars
+        if text:
+            text = clean_string(text[:cls.MAX_TEXT_LEN])
+
         existing = Msg.objects.filter(text=text, sent_on=date, contact=contact, direction='I').first()
         if existing:
             return existing
@@ -1224,10 +1239,6 @@ class Msg(models.Model):
             topup_id = topup.pk
         elif not contact.is_test:
             (topup_id, amount) = org.decrement_credit()
-
-        # we limit our text message length
-        if text:
-            text = text[:cls.MAX_TEXT_LEN]
 
         now = timezone.now()
 

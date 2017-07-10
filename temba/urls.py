@@ -63,6 +63,7 @@ def init_analytics():
     if librato_user and librato_token:  # pragma: needs cover
         init_librato(librato_user, librato_token)
 
+
 # initialize our analytics (the signal below will initialize each worker)
 init_analytics()
 
@@ -96,6 +97,7 @@ def track_user(self):  # pragma: no cover
 
     return True
 
+
 User.track_user = track_user
 AnonymousUser.track_user = track_user
 
@@ -107,8 +109,8 @@ def handler500(request):
     Templates: `500.html`
     Context: None
     """
-    from django.template import Context, loader
+    from django.template import loader
     from django.http import HttpResponseServerError
 
     t = loader.get_template('500.html')
-    return HttpResponseServerError(t.render(Context({'request': request})))  # pragma: needs cover
+    return HttpResponseServerError(t.render({'request': request}))  # pragma: needs cover

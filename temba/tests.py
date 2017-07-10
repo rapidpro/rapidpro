@@ -30,7 +30,7 @@ from temba.locations.models import AdminBoundary
 from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
-from temba.utils import dict_to_struct
+from temba.utils import dict_to_struct, get_anonymous_user
 from temba.values.models import Value
 from twilio.util import RequestValidator
 
@@ -596,7 +596,7 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
         self.click('#form-two-submit')
 
         # set up our channel for claiming
-        anon = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
+        anon = get_anonymous_user()
         channel = Channel.create(None, anon, 'RW', 'A', name="Test Channel", address="0785551212",
                                  claim_code='AAABBBCCC', secret="12345", gcm_id="123")
 
@@ -759,8 +759,14 @@ class MockTwilioClient(TwilioClient):
         def __init__(self, *args):
             pass
 
+        def create(self, **kwargs):
+            return MockTwilioClient.MockApplication('temba.io/1234')
+
         def list(self, friendly_name=None):
             return [MockTwilioClient.MockApplication(friendly_name)]
+
+        def delete(self, **kwargs):
+            return True
 
     class MockCalls(object):
         def __init__(self):

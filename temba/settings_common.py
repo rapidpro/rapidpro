@@ -202,9 +202,6 @@ INSTALLED_APPS = (
     # Redis cache
     'redis',
 
-    # mo-betta permission management
-    'guardian',
-
     # rest framework for api access
     'rest_framework',
     'rest_framework.authtoken',
@@ -411,49 +408,9 @@ PERMISSIONS = {
 
     'orgs.usersettings': ('phone',),
 
-
     'channels.channel': ('api',
                          'bulk_sender_options',
                          'claim',
-                         'claim_africas_talking',
-                         'claim_android',
-                         'claim_blackmyna',
-                         'claim_chikka',
-                         'claim_clickatell',
-                         'claim_dart_media',
-                         'claim_external',
-                         'claim_facebook',
-                         'claim_fcm',
-                         'claim_globe',
-                         'claim_high_connection',
-                         'claim_hub9',
-                         'claim_infobip',
-                         'claim_jasmin',
-                         'claim_junebug',
-                         'claim_kannel',
-                         'claim_line',
-                         'claim_macrokiosk',
-                         'claim_m3tech',
-                         'claim_mblox',
-                         'claim_nexmo',
-                         'claim_plivo',
-                         'claim_red_rabbit',
-                         'claim_shaqodoon',
-                         'claim_smscentral',
-                         'claim_start',
-                         'claim_telegram',
-                         'claim_twilio',
-                         'claim_twiml_api',
-                         'claim_twilio_messaging_service',
-                         'claim_twitter',
-                         'claim_verboice',
-                         'claim_viber',
-                         'claim_viber_public',
-                         'create_viber',
-                         'claim_vumi',
-                         'claim_vumi_ussd',
-                         'claim_yo',
-                         'claim_zenvia',
                          'configuration',
                          'create_bulk_sender',
                          'create_caller',
@@ -659,48 +616,9 @@ GROUP_PERMISSIONS = {
         'orgs.usersettings_phone',
         'orgs.usersettings_update',
 
-        'channels.channel_claim_nexmo',
         'channels.channel_api',
         'channels.channel_bulk_sender_options',
         'channels.channel_claim',
-        'channels.channel_claim_africas_talking',
-        'channels.channel_claim_android',
-        'channels.channel_claim_blackmyna',
-        'channels.channel_claim_chikka',
-        'channels.channel_claim_clickatell',
-        'channels.channel_claim_dart_media',
-        'channels.channel_claim_external',
-        'channels.channel_claim_facebook',
-        'channels.channel_claim_fcm',
-        'channels.channel_claim_globe',
-        'channels.channel_claim_high_connection',
-        'channels.channel_claim_hub9',
-        'channels.channel_claim_infobip',
-        'channels.channel_claim_jasmin',
-        'channels.channel_claim_junebug',
-        'channels.channel_claim_kannel',
-        'channels.channel_claim_line',
-        'channels.channel_claim_macrokiosk',
-        'channels.channel_claim_mblox',
-        'channels.channel_claim_m3tech',
-        'channels.channel_claim_plivo',
-        'channels.channel_claim_red_rabbit',
-        'channels.channel_claim_shaqodoon',
-        'channels.channel_claim_smscentral',
-        'channels.channel_claim_start',
-        'channels.channel_claim_telegram',
-        'channels.channel_claim_twilio',
-        'channels.channel_claim_twiml_api',
-        'channels.channel_claim_twilio_messaging_service',
-        'channels.channel_claim_twitter',
-        'channels.channel_claim_verboice',
-        'channels.channel_claim_viber',
-        'channels.channel_claim_viber_public',
-        'channels.channel_create_viber',
-        'channels.channel_claim_vumi',
-        'channels.channel_claim_vumi_ussd',
-        'channels.channel_claim_yo',
-        'channels.channel_claim_zenvia',
         'channels.channel_configuration',
         'channels.channel_create',
         'channels.channel_create_bulk_sender',
@@ -810,44 +728,6 @@ GROUP_PERMISSIONS = {
         'channels.channel_api',
         'channels.channel_bulk_sender_options',
         'channels.channel_claim',
-        'channels.channel_claim_africas_talking',
-        'channels.channel_claim_android',
-        'channels.channel_claim_blackmyna',
-        'channels.channel_claim_chikka',
-        'channels.channel_claim_clickatell',
-        'channels.channel_claim_dart_media',
-        'channels.channel_claim_external',
-        'channels.channel_claim_facebook',
-        'channels.channel_claim_fcm',
-        'channels.channel_claim_globe',
-        'channels.channel_claim_high_connection',
-        'channels.channel_claim_hub9',
-        'channels.channel_claim_infobip',
-        'channels.channel_claim_jasmin',
-        'channels.channel_claim_junebug',
-        'channels.channel_claim_kannel',
-        'channels.channel_claim_line',
-        'channels.channel_claim_mblox',
-        'channels.channel_claim_macrokiosk',
-        'channels.channel_claim_m3tech',
-        'channels.channel_claim_plivo',
-        'channels.channel_claim_red_rabbit',
-        'channels.channel_claim_shaqodoon',
-        'channels.channel_claim_smscentral',
-        'channels.channel_claim_start',
-        'channels.channel_claim_telegram',
-        'channels.channel_claim_twilio',
-        'channels.channel_claim_twiml_api',
-        'channels.channel_claim_twilio_messaging_service',
-        'channels.channel_claim_twitter',
-        'channels.channel_claim_verboice',
-        'channels.channel_claim_viber',
-        'channels.channel_claim_viber_public',
-        'channels.channel_create_viber',
-        'channels.channel_claim_vumi',
-        'channels.channel_claim_vumi_ussd',
-        'channels.channel_claim_yo',
-        'channels.channel_claim_zenvia',
         'channels.channel_configuration',
         'channels.channel_create',
         'channels.channel_create_bulk_sender',
@@ -963,12 +843,8 @@ LOGOUT_URL = "/users/logout/"
 LOGIN_REDIRECT_URL = "/org/choose/"
 LOGOUT_REDIRECT_URL = "/"
 
-# -----------------------------------------------------------------------------------
-# Guardian Configuration
-# -----------------------------------------------------------------------------------
 AUTHENTICATION_BACKENDS = (
     'smartmin.backends.CaseInsensitiveBackend',
-    'guardian.backends.ObjectPermissionBackend',
 )
 
 ANONYMOUS_USER_NAME = 'AnonymousUser'
@@ -1081,6 +957,11 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_contactgroupcounts',
         'schedule': timedelta(seconds=300),
     },
+    "refresh-jiochat-access-tokens": {
+        'task': 'refresh_jiochat_access_tokens',
+        'schedule': timedelta(seconds=3600),
+    },
+
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
@@ -1213,10 +1094,17 @@ SEND_AIRTIME = False
 #         could cause calls in test environments
 SEND_CALLS = False
 
+MESSAGE_HANDLERS = [
+    'temba.triggers.handlers.TriggerHandler',
+    'temba.flows.handlers.FlowHandler',
+    'temba.triggers.handlers.CatchAllHandler'
+]
 
-MESSAGE_HANDLERS = ['temba.triggers.handlers.TriggerHandler',
-                    'temba.flows.handlers.FlowHandler',
-                    'temba.triggers.handlers.CatchAllHandler']
+CHANNEL_TYPES = [
+    'temba.channels.types.facebook.FacebookType',
+    'temba.channels.types.twitter.TwitterType',
+    'temba.channels.types.twitter_activity.TwitterActivityType'
+]
 
 # -----------------------------------------------------------------------------------
 # Store sessions in our cache

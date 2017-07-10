@@ -26,6 +26,7 @@ from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart, RuleSet
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, LabelCount, SystemLabel
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
+from uuid import UUID
 from .serializers import AdminBoundaryReadSerializer, BroadcastReadSerializer, BroadcastWriteSerializer
 from .serializers import CampaignReadSerializer, CampaignWriteSerializer, CampaignEventReadSerializer
 from .serializers import CampaignEventWriteSerializer, ChannelReadSerializer, ChannelEventReadSerializer
@@ -323,6 +324,13 @@ class BaseAPIView(generics.GenericAPIView):
             return int(param) if param is not None else None
         except ValueError:
             raise InvalidQueryError("Value for %s must be an integer" % name)
+
+    def get_uuid_param(self, name):
+        param = self.request.query_params.get(name)
+        try:
+            return UUID(param) if param is not None else None
+        except ValueError:
+            raise InvalidQueryError("Value for %s must be a valid UUID" % name)
 
     def get_serializer_context(self):
         context = super(BaseAPIView, self).get_serializer_context()
@@ -2816,6 +2824,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         queryset = queryset.prefetch_related(
             Prefetch('flow', queryset=Flow.objects.only('uuid', 'name', 'base_language')),
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name', 'language')),
+            Prefetch('start', queryset=FlowStart.objects.only('uuid')),
             Prefetch('values'),
             Prefetch('values__ruleset', queryset=RuleSet.objects.only('uuid', 'label')),
             Prefetch('steps', queryset=FlowStep.objects.only('run', 'step_uuid', 'arrived_on').order_by('arrived_on'))
@@ -2851,7 +2860,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     By making a `GET` request you can list all the manual flow starts on your organization, in the order of last
     modified. Each flow start has the following attributes:
 
-     * **id** - the id of this flow start (integer)
+     * **uuid** - the UUID of this flow start (string)
      * **flow** - the flow which was started (object)
      * **contacts** - the list of contacts that were started in the flow (objects)
      * **groups** - the list of groups that were started in the flow (objects)
@@ -2872,7 +2881,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "previous": null,
             "results": [
                 {
-                    "id": 150051,
+                    "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                     "flow": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Thrift Shop"},
                     "groups": [
                          {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Ryan & Macklemore"}
@@ -2920,7 +2929,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     Response is the created flow start:
 
         {
-            "id": 150051,
+            "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
             "flow": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Thrift Shop"},
             "groups": [
                  {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Ryan & Macklemore"}
@@ -2950,10 +2959,15 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         return self.model.objects.filter(flow__org=org, is_active=True)
 
     def filter_queryset(self, queryset):
-        # filter by id (optional)
+        # filter by id (optional and deprecated)
         start_id = self.get_int_param('id')
         if start_id:
             queryset = queryset.filter(id=start_id)
+
+        # filter by UUID (optional)
+        uuid = self.get_uuid_param('uuid')
+        if uuid:
+            queryset = queryset.filter(uuid=uuid)
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(

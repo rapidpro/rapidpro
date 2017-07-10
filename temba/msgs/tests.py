@@ -328,6 +328,10 @@ class MsgTest(TembaTest):
 
         self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
 
+        # test that invalid chars are stripped from message text
+        msg5 = Msg.create_incoming(self.channel, "tel:250788382382", "Don't be null!\x00")
+        self.assertEqual(msg5.text, "Don't be null!")
+
     def test_empty(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
         broadcast.send(True)
@@ -796,6 +800,11 @@ class MsgTest(TembaTest):
             [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming", "Media message", "", "Handled"],
         ], self.org.timezone)
 
+        # check sending an invalid date
+        response = self.client.post(reverse('msgs.msg_export') + '?l=I', {'export_all': 1, 'start_date': 'xyz'})
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, 'form', 'start_date', "Enter a valid date.")
+
         # test as anon org to check that URNs don't end up in exports
         with AnonymousOrg(self.org):
             joe_anon_id = "%010d" % self.joe.id
@@ -1233,12 +1242,33 @@ class BroadcastTest(TembaTest):
 
         self.assertEqual(context['__default__'], "keyword remainder-remainder")
         self.assertEqual(context['value'], "keyword remainder-remainder")
+        self.assertEqual(context['text'], "keyword remainder-remainder")
+        self.assertEqual(context['attachments'], {})
         self.assertEqual(context['contact']['__default__'], "Joe Blow")
         self.assertEqual(context['contact']['superhero_name'], "batman")
 
         # time should be in org format and timezone
-        msg_time = datetime_to_str(msg.created_on, '%d-%m-%Y %H:%M', tz=self.org.timezone)
-        self.assertEqual(msg_time, context['time'])
+        self.assertEqual(context['time'], datetime_to_str(msg.created_on, '%d-%m-%Y %H:%M', tz=self.org.timezone))
+
+        # add some attachments to this message
+        msg.attachments = ["image/jpeg:http://e.com/test.jpg", "audio/mp3:http://e.com/test.mp3"]
+        msg.save()
+        context = msg.build_expressions_context()
+
+        self.assertEqual(context['__default__'], "keyword remainder-remainder\nhttp://e.com/test.jpg\nhttp://e.com/test.mp3")
+        self.assertEqual(context['value'], "keyword remainder-remainder\nhttp://e.com/test.jpg\nhttp://e.com/test.mp3")
+        self.assertEqual(context['text'], "keyword remainder-remainder")
+        self.assertEqual(context['attachments'], {"0": "http://e.com/test.jpg", "1": "http://e.com/test.mp3"})
+
+        # clear the text of the message
+        msg.text = ""
+        msg.save()
+        context = msg.build_expressions_context()
+
+        self.assertEqual(context['__default__'], "http://e.com/test.jpg\nhttp://e.com/test.mp3")
+        self.assertEqual(context['value'], "http://e.com/test.jpg\nhttp://e.com/test.mp3")
+        self.assertEqual(context['text'], "")
+        self.assertEqual(context['attachments'], {"0": "http://e.com/test.jpg", "1": "http://e.com/test.mp3"})
 
     def test_variables_substitution(self):
         ContactField.get_or_create(self.org, self.admin, "sector", "sector")

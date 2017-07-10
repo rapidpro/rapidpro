@@ -8,6 +8,7 @@ from uuid import uuid4
 from mock import patch
 from datetime import timedelta
 from django.core.urlresolvers import reverse
+from django.test import override_settings
 from django.utils import timezone
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME, Contact
@@ -669,7 +670,8 @@ class TriggerTest(TembaTest):
         self.assertTrue(viber_channel in response.context['form'].fields['channel'].queryset.all())
 
         # create a facebook channel
-        fb_channel = Channel.add_facebook_channel(self.org, self.user, 'Temba', 1001, 'fb_token')
+        fb_channel = Channel.create(self.org, self.user, None, 'FB', address='1001',
+                                    config={'page_name': "Temba", 'auth_token': 'fb_token'})
 
         response = self.client.get(reverse('triggers.trigger_new_conversation', args=[]))
         self.assertEqual(response.context['form'].fields['channel'].queryset.count(), 2)
@@ -690,7 +692,9 @@ class TriggerTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response, 'form', 'channel', 'Trigger with this Channel already exists.')
 
-    def test_new_conversation_trigger(self):
+    @override_settings(IS_PROD=True)
+    @patch('requests.post')
+    def test_new_conversation_trigger(self, mock_post):
         self.login(self.admin)
         flow = self.create_flow()
         flow2 = self.create_flow()
@@ -701,20 +705,20 @@ class TriggerTest(TembaTest):
         self.assertNotContains(response, "conversation is started")
 
         # create a facebook channel
-        fb_channel = Channel.add_facebook_channel(self.org, self.user, 'Temba', 1001, 'fb_token')
+        fb_channel = Channel.create(self.org, self.user, None, 'FB', address='1001',
+                                    config={'page_name': "Temba", 'auth_token': 'fb_token'})
 
         # should now be able to create one
         response = self.client.get(create_trigger_url)
         self.assertContains(response, "conversation is started")
 
         # go create it
-        with patch('requests.post') as mock_post:
-            mock_post.return_value = MockResponse(200, '{"message": "Success"}')
+        mock_post.return_value = MockResponse(200, '{"message": "Success"}')
 
-            response = self.client.post(reverse('triggers.trigger_new_conversation', args=[]),
-                                        data=dict(channel=fb_channel.id, flow=flow.id))
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(mock_post.call_count, 1)
+        response = self.client.post(reverse('triggers.trigger_new_conversation', args=[]),
+                                    data=dict(channel=fb_channel.id, flow=flow.id))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(mock_post.call_count, 1)
 
         # check that it is right
         trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False)
@@ -1081,7 +1085,7 @@ class TriggerTest(TembaTest):
 
     def test_export_import(self):
         # tweak our current channel to be twitter so we can create a channel-based trigger
-        Channel.objects.filter(id=self.channel.id).update(channel_type=Channel.TYPE_TWITTER)
+        Channel.objects.filter(id=self.channel.id).update(channel_type='TT')
         flow = self.create_flow()
 
         group = self.create_group("Trigger Group", [])

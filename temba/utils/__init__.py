@@ -4,6 +4,7 @@ import calendar
 import json
 import datetime
 import locale
+
 import pytz
 import random
 import regex
@@ -494,3 +495,11 @@ def decode_base64(original):
         return original
 
     return decoded
+
+
+def get_anonymous_user():
+    """
+    Returns the anonymous user, originally created by django-guardian
+    """
+    from django.contrib.auth.models import User
+    return User.objects.get(username=settings.ANONYMOUS_USER_NAME)
