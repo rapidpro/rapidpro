@@ -1,3 +1,57 @@
+v3.0.166
+----------
+ * Release channels before Twilio/Nexmo configs are cleared
+ * Expose flow start UUID on runs from the runs endpoint
+
+v3.0.165
+----------
+ * Migration to populate FlowStart.uuid on existing objects (advise faking and run manually)
+
+v3.0.163
+----------
+ * Add uuid field to FlowStart
+ * Migration to convert TwiML apps
+
+v3.0.160
+----------
+ * Add support for Twitter channels using new beta Activity API
+
+v3.0.159
+----------
+ * Clean incoming message text to remove invalid chars
+
+v3.0.158
+----------
+ * Add more exception currencies for pycountry
+ * Support channel specific Twilio endpoints
+
+v3.0.156
+----------
+ * Clean up pip-requires and reset pip-freeze
+
+v3.0.155
+----------
+ * Reduce the rate limit for SMS central to 1 requests per second
+ * Display Jiochat on channel claim page
+ * Fix date pickers on modal forms
+ * Update channels to generate messages with multiple attachments
+
+v3.0.154
+----------
+ * Rate limit sending throught SMS central to 10 messages per second
+ * Fix some more uses of Context objects no longer supported in django 1.11
+ * Fix channel log list request time display
+ * Add @step.text and @step.attachments to message context
+
+v3.0.153
+----------
+ * Jiochat channels
+ * Django 1.11
+
+v3.0.151
+----------
+ * Convert all squashable and prunable models to use big primary keys
+
 v3.0.150
 ----------
  * Drop database-level length restrictions on msg and values

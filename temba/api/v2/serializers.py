@@ -639,9 +639,13 @@ class FlowRunReadSerializer(ReadSerializer):
 
     flow = fields.FlowField()
     contact = fields.ContactField()
+    start = serializers.SerializerMethodField()
     path = serializers.SerializerMethodField()
     values = serializers.SerializerMethodField()
     exit_type = serializers.SerializerMethodField()
+
+    def get_start(self, obj):
+        return {'uuid': str(obj.start.uuid)} if obj.start else None
 
     def get_path(self, obj):
         return [{'node': s.step_uuid, 'time': format_datetime(s.arrived_on)} for s in obj.steps.all()]
@@ -663,7 +667,7 @@ class FlowRunReadSerializer(ReadSerializer):
 
     class Meta:
         model = FlowRun
-        fields = ('id', 'flow', 'contact', 'responded', 'path', 'values',
+        fields = ('id', 'flow', 'contact', 'start', 'responded', 'path', 'values',
                   'created_on', 'modified_on', 'exited_on', 'exit_type')
 
 
@@ -692,7 +696,7 @@ class FlowStartReadSerializer(ReadSerializer):
 
     class Meta:
         model = FlowStart
-        fields = ('id', 'flow', 'status', 'groups', 'contacts', 'restart_participants', 'extra', 'created_on', 'modified_on')
+        fields = ('id', 'uuid', 'flow', 'status', 'groups', 'contacts', 'restart_participants', 'extra', 'created_on', 'modified_on')
 
 
 class FlowStartWriteSerializer(WriteSerializer):

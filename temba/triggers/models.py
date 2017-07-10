@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import regex
 import six
 
+from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
@@ -43,6 +44,8 @@ class Trigger(SmartModel):
                      (TYPE_USSD_PULL, _("USSD Pull Session Trigger")),
                      (TYPE_REFERRAL, _("Referral Trigger")))
 
+    KEYWORD_MAX_LEN = 16
+
     MATCH_FIRST_WORD = 'F'
     MATCH_ONLY_WORD = 'O'
 
@@ -51,7 +54,7 @@ class Trigger(SmartModel):
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The organization this trigger belongs to"))
 
-    keyword = models.CharField(verbose_name=_("Keyword"), max_length=16, null=True, blank=True,
+    keyword = models.CharField(verbose_name=_("Keyword"), max_length=KEYWORD_MAX_LEN, null=True, blank=True,
                                help_text=_("Word to match in the message text"))
 
     referrer_id = models.CharField(verbose_name=_("Referrer Id"), max_length=255, null=True, blank=True,
@@ -88,6 +91,20 @@ class Trigger(SmartModel):
     channel = models.ForeignKey(Channel, verbose_name=_("Channel"), null=True, related_name='triggers',
                                 help_text=_("The associated channel"))
 
+    @classmethod
+    def create(cls, org, user, trigger_type, flow, channel=None, **kwargs):
+        trigger = cls.objects.create(org=org, trigger_type=trigger_type, flow=flow, channel=channel,
+                                     created_by=user, modified_by=user, **kwargs)
+
+        # archive any conflicts
+        trigger.archive_conflicts(user)
+
+        if trigger.channel:
+            if settings.IS_PROD:
+                trigger.channel.get_type().activate_trigger(trigger)
+
+        return trigger
+
     def __str__(self):
         if self.trigger_type == Trigger.TYPE_KEYWORD:
             return self.keyword
@@ -110,6 +127,14 @@ class Trigger(SmartModel):
         groups = ['**'] if not self.groups else [str(g.id) for g in self.groups.all().order_by('id')]
         return ['%s_%s_%s_%s' % (self.trigger_type, str(self.channel_id), group, str(self.keyword)) for group in groups]
 
+    def archive(self, user):
+        self.modified_by = user
+        self.is_archived = True
+        self.save()
+
+        if settings.IS_PROD and self.channel:
+            self.channel.get_type().deactivate_trigger(self)
+
     def restore(self, user):
         self.modified_by = user
         self.is_archived = False
@@ -118,9 +143,8 @@ class Trigger(SmartModel):
         # archive any conflicts
         self.archive_conflicts(user)
 
-        # if this is new conversation trigger, register for the FB callback
-        if self.trigger_type == Trigger.TYPE_NEW_CONVERSATION:  # pragma: needs cover
-            self.channel.set_fb_call_to_action_payload(Channel.GET_STARTED)
+        if settings.IS_PROD and self.channel:
+            self.channel.get_type().activate_trigger(self)
 
     def archive_conflicts(self, user):
         """
@@ -149,15 +173,14 @@ class Trigger(SmartModel):
             matches.exclude(id=self.id).update(is_archived=True, modified_on=now, modified_by=user)
 
     @classmethod
-    def archive_triggers_for_contact(cls, contact):
+    def archive_triggers_for_contact(cls, contact, user):
         contact_triggers = list(contact.trigger_set.all())
 
         for trigger in contact_triggers:
             trigger.contacts.remove(contact)
 
-            if not trigger.groups.exists() and not trigger.contacts.exists():
-                trigger.is_archived = True
-                trigger.save()
+            if not trigger.groups.exists() and not trigger.contacts.exists() and not trigger.is_archived:
+                trigger.archive(user)
 
     @classmethod
     def import_triggers(cls, exported_json, org, user, same_site=False):
@@ -369,12 +392,8 @@ class Trigger(SmartModel):
 
     @classmethod
     def apply_action_archive(cls, user, triggers):
-        triggers.update(is_archived=True)
-
-        # for any new convo triggers, clear out the call to action payload
-        for trigger in triggers.filter(trigger_type=Trigger.TYPE_NEW_CONVERSATION):
-            if trigger.channel and trigger.channel.channel_type == Channel.TYPE_FACEBOOK:
-                trigger.channel.set_fb_call_to_action_payload(None)
+        for trigger in triggers:
+            trigger.archive(user)
 
         return [each_trigger.pk for each_trigger in triggers]
 

@@ -93,7 +93,7 @@
             %td
               Request time:
               %span
-                {{ log.request_time|default:"0"|intcomma }}ms
+                {{ obj.request_time|default:"0"|intcomma }}ms
 
             %td{ style:'text-align: right', nowrap:'true' }
               {{obj.created_on}}
