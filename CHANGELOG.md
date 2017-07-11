@@ -1,11 +1,7 @@
 v3.0.169
 ----------
- * Improve performance of migration to populate flowrun.uuid
- * More channel logs for Jiochat channel interactions
-
-v3.0.168
-----------
  * Migration to populate FlowRun.uuid. Advise faking this and running manually.
+ * More channel logs for Jiochat channel interactions
 
 v3.0.167
 ----------
