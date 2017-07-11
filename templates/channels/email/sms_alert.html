@@ -19,7 +19,7 @@
       {% endblocktrans %}
     </p>
 
-  {% elif channel.channel_type in free_credits_channel_types %}
+  {% elif channel.channel_type in free_sending_channel_types %}
     <p>
       {% blocktrans with org_name=org.name channel_type=channel.get_channel_type_name %}
         We've noticed that the {{ channel_type }} for {{ org_name }} is having trouble sending text messages.  This might be

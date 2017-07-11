@@ -361,7 +361,7 @@ class Channel(TembaModel):
         TYPE_VIBER: "icon-viber"
     }
 
-    FREE_CREDITS_CHANNEL_TYPES = [TYPE_JIOCHAT, TYPE_FCM, TYPE_VIBER, TYPE_VIBER_PUBLIC, TYPE_LINE,
+    FREE_SENDING_CHANNEL_TYPES = [TYPE_JIOCHAT, TYPE_FCM, TYPE_VIBER, TYPE_VIBER_PUBLIC, TYPE_LINE,
                                   'FB', 'TG', 'TT', 'TWT']
 
     # list of all USSD channels
