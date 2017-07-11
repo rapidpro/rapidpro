@@ -738,6 +738,15 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         return node.ruleset_type in ['wait_menu', 'wait_ussd']
       return false
 
+
+    isUssdLoopCheckNeeded: (node) ->
+      if not @isUssdRuleset(node)
+        return true
+      else if @isUssdRuleset(node) and window.ussd_push_enabled
+        return false
+      else
+        return true
+
     isPausingRulesetType: (ruleset_type) ->
       return ruleset_type in ['wait_message', 'wait_recording', 'wait_digit', 'wait_digits']
 
@@ -779,11 +788,11 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       node = @getNode(targetId)
 
       # can't go back on ourselves
-      if nodeId == targetId and (not @isUssdRuleset(node) or @isUssdRuleset(node) and not window.ussd_push_enabled)
+      if nodeId == targetId and @isUssdLoopCheckNeeded(node)
         throw new Error('Loop detected: ' + nodeId)
 
       # break out if our target is a pausing ruleset
-      if node and (@isPausingRuleset(node) or (@isUssdRuleset(node) and window.ussd_push_enabled))
+      if node and (@isPausingRuleset(node) or @isUssdRuleset(node))
         return false
 
       # check if we just ate our tail
