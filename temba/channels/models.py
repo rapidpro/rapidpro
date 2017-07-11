@@ -361,6 +361,9 @@ class Channel(TembaModel):
         TYPE_VIBER: "icon-viber"
     }
 
+    FREE_CREDITS_CHANNEL_TYPES = [TYPE_JIOCHAT, TYPE_FCM, TYPE_VIBER, TYPE_VIBER_PUBLIC, TYPE_LINE,
+                                  'FB', 'TG', 'TT', 'TWT']
+
     # list of all USSD channels
     USSD_CHANNELS = [TYPE_VUMI_USSD, TYPE_JUNEBUG_USSD]
 
@@ -3652,6 +3655,8 @@ class Alert(SmartModel):
                        last_seen=self.channel.last_seen, sync=self.sync_event)
         context['unsent_count'] = Msg.objects.filter(channel=self.channel, status__in=['Q', 'P'], contact__is_test=False).count()
         context['subject'] = subject
+
+        context['free_sending_channel_types'] = Channel.FREE_SENDING_CHANNEL_TYPES
 
         send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.get_branding())
 
