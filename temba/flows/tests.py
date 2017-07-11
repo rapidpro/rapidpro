@@ -2787,7 +2787,7 @@ class ActionTest(TembaTest):
         self.contact = self.create_contact('Eric', '+250788382382')
         self.contact2 = self.create_contact('Nic', '+250788383383')
 
-        self.flow = self.create_flow(name="Empty Flow", base_language='base')
+        self.flow = self.create_flow(name="Empty Flow", base_language='base', definition=self.COLOR_FLOW_DEFINITION)
 
         self.other_group = self.create_group("Other", [])
 
@@ -3016,7 +3016,7 @@ class ActionTest(TembaTest):
         Broadcast.objects.all().delete()
 
     def test_trigger_flow_action(self):
-        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+        flow = self.create_flow()
         run = FlowRun.create(self.flow, self.contact.pk)
 
         action = TriggerFlowAction(flow, [], [self.contact], [])
