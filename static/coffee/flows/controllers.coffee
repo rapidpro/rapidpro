@@ -680,6 +680,9 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     actionset.actions?.some (action) ->
       action.type == "end_ussd"
 
+  $scope.sourceIsInterrupt = (actionset) ->
+    return Flow.checkSourceForInterrupt(actionset)
+
   $scope.confirmRemoveAction = (event, actionset, action) ->
 
     if window.dragging or not window.mutable

@@ -772,7 +772,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         if rule.uuid == ruleId and rule.test.type == 'interrupted_status'
           return true
 
-    checkSourceForInterrupt: (actionset) ->
+    checkSourceForInterrupt: (actionset, removeConnection=false) ->
       connections = Plumb.getConnectionMap({ target: actionset.uuid })
 
       for source of connections
@@ -780,7 +780,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         sourceId = uuids[0]
         ruleId = uuids[1]
         if @detectInterruptRule(sourceId, ruleId)
-          @updateDestination(source, null)
+          @updateDestination(source, null) if removeConnection
+          return true
+      return false
 
     # check if a potential connection would result in an invalid loop
     detectLoop: (nodeId, targetId, path=[]) ->
@@ -1362,7 +1364,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       if action.type == "end_ussd"
         actionset.destination = null
         Plumb.updateConnection(actionset)
-        @checkSourceForInterrupt(actionset)
+        @checkSourceForInterrupt(actionset, true)
         @applyActivity(actionset, $rootScope.activity)
 
       found = false
@@ -1404,7 +1406,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         Flow.flow.action_sets.push(actionset)
 
       if Flow.flow.action_sets.length == 1
-        if not Flow.flow.action_sets[0].destination
+        if not Flow.flow.action_sets[0].destination and not @checkSourceForInterrupt(actionset)
           $timeout ->
             DragHelper.showSaveResponse($('#' + Flow.flow.action_sets[0].uuid + ' .source'))
           ,0
