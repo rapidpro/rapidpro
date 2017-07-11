@@ -1762,6 +1762,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.action_webhook_headers_name = []
   $scope.action_webhook_headers_value = []
 
+  $scope.actions_quick_responses_types = [{verbose_name:"Link", type:"link"},{verbose_name:"Button", type:"button"}, {verbose_name:"Another", type:"another"}]
+  $scope.actions_quick_responses = [{
+      title:"teste 2",
+      payload:"tsete",
+      type:"link"
+    }]
   if $scope.action.webhook_headers
     item_counter = 0
     for item in $scope.action.webhook_headers
@@ -1795,6 +1801,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     if $scope.action.webhook_headers.length == 0
       $scope.addNewActionWebhookHeader()
+
+  $scope.AddNewQuickResponse = () ->
+    $scope.actions_quick_responses.push({
+      title:"",
+      payload:"",
+      type:""
+    })
+   
 
   $scope.actionset = actionset
   $scope.flowId = window.flowId
