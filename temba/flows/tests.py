@@ -2047,7 +2047,7 @@ class FlowTest(TembaTest):
         flow = Flow.objects.get(name="USSD Flow 2")
         trigger = Trigger.objects.get(keyword="*112#")
 
-        # can't change trigger from update, need to go to trigger page
+        # update ussd code
         post_data['ussd_trigger'] = "*113#"
         post_data['ussd_push_enabled'] = True
         post_data['expires_after_minutes'] = 60 * 12
@@ -2057,7 +2057,20 @@ class FlowTest(TembaTest):
         trigger.refresh_from_db()
 
         self.assertTrue(flow.ussd_push_enabled)
-        self.assertEqual(trigger.keyword, "*112#")
+        self.assertEqual(trigger.keyword, "*113#")
+        self.assertFalse(Trigger.objects.filter(keyword="*112#").exists())
+        self.assertTrue(Trigger.objects.filter(keyword="*113#").exists())
+
+        # delete trigger
+        post_data['ussd_trigger'] = ""
+        post_data['ussd_push_enabled'] = True
+        post_data['expires_after_minutes'] = 60 * 12
+        self.client.post(reverse('flows.flow_update', args=[flow.pk]), post_data, follow=True)
+
+        flow.refresh_from_db()
+
+        self.assertTrue(flow.ussd_push_enabled)
+        self.assertFalse(Trigger.objects.filter(keyword="*112#").exists())
         self.assertFalse(Trigger.objects.filter(keyword="*113#").exists())
 
     def test_flow_create_on_update_ussd_trigger(self):
