@@ -58,11 +58,13 @@ def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
 
 
-def uuid(val):
-    return '00000000-0000-0000-0000-%012d' % val
-
-
 class TembaTest(SmartminTest):
+    @classmethod
+    def setUpClass(cls):
+        super(TembaTest, cls).setUpClass()
+
+        with open('%s/test_flows/color.json' % settings.MEDIA_ROOT, 'r') as f:
+            cls.COLOR_FLOW_DEFINITION = json.load(f)
 
     def setUp(self):
 
@@ -275,7 +277,7 @@ class TembaTest(SmartminTest):
 
         return Msg.objects.create(**kwargs)
 
-    def create_flow(self, uuid_start=None, **kwargs):
+    def create_flow(self, **kwargs):
         if 'org' not in kwargs:
             kwargs['org'] = self.org
         if 'user' not in kwargs:
@@ -284,40 +286,8 @@ class TembaTest(SmartminTest):
             kwargs['name'] = "Color Flow"
 
         flow = Flow.create(**kwargs)
-        flow.update(self.create_flow_definition(uuid_start))
-        return Flow.objects.get(pk=flow.pk)
-
-    def create_flow_definition(self, uuid_start=None):
-        """
-        Creates the "Color" flow definition
-        """
-        if uuid_start is None:
-            uuid_start = int(time.time() * 1000) % 1000000
-
-        return dict(version=8,
-                    action_sets=[dict(uuid=uuid(uuid_start + 1), x=1, y=1, destination=uuid(uuid_start + 5),
-                                      actions=[dict(type='reply', media=dict(), send_all=False, msg=dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))]),
-                                 dict(uuid=uuid(uuid_start + 2), x=2, y=2, destination=None,
-                                      actions=[dict(type='reply', media=dict(), send_all=False, msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow'))]),
-                                 dict(uuid=uuid(uuid_start + 3), x=3, y=3, destination=None,
-                                      actions=[dict(type='reply', media=dict(), send_all=False, msg=dict(base='Blue is sad. :('))]),
-                                 dict(uuid=uuid(uuid_start + 4), x=4, y=4, destination=uuid(uuid_start + 5),
-                                      actions=[dict(type='reply', media=dict(), send_all=False, msg=dict(base='That is a funny color. Try again.'))])],
-                    rule_sets=[dict(uuid=uuid(uuid_start + 5), x=5, y=5,
-                                    label='color',
-                                    finished_key=None,
-                                    operand=None,
-                                    response_type='',
-                                    ruleset_type='wait_message',
-                                    config={},
-                                    rules=[dict(uuid=uuid(uuid_start + 12), destination=uuid(uuid_start + 2), test=dict(type='contains', test=dict(base='orange')), category=dict(base="Orange")),
-                                           dict(uuid=uuid(uuid_start + 13), destination=uuid(uuid_start + 3), test=dict(type='contains', test=dict(base='blue')), category=dict(base="Blue")),
-                                           dict(uuid=uuid(uuid_start + 14), destination=uuid(uuid_start + 4), test=dict(type='true'), category=dict(base="Other")),
-                                           dict(uuid=uuid(uuid_start + 15), test=dict(type='true'), category=dict(base="Nothing"))])],  # test case with no destination
-                    entry=uuid(uuid_start + 1),
-                    base_language='base',
-                    flow_type='F',
-                    metadata=dict(author="Ryan Lewis"))
+        flow.update(self.COLOR_FLOW_DEFINITION)
+        return flow
 
     def update_destination(self, flow, source, destination):
         flow_json = flow.as_json()
