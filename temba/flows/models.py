@@ -2402,6 +2402,15 @@ class Flow(TembaModel):
             traceback.print_exc(e)
             raise e
 
+    def allows_start(self, has_flow_broadcast_perm):
+        if self.flow_type != Flow.SURVEY and has_flow_broadcast_perm and not self.is_archived:
+            if self.flow_type == Flow.USSD and not self.ussd_push_enabled:
+                return False
+            else:
+                return True
+        else:
+            return False
+
     def __str__(self):
         return self.name
 
