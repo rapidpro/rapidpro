@@ -59,7 +59,7 @@ class FlowTest(TembaTest):
         self.contact2 = self.create_contact('Nic', '+250788383383')
         self.contact3 = self.create_contact('Norbert', '+250788123456')
 
-        self.flow = self.create_flow(name="Color Flow", base_language='base')
+        self.flow = self.create_flow(name="Color Flow", base_language='base', definition=self.COLOR_FLOW_DEFINITION)
 
         self.other_group = self.create_group("Other", [])
 
@@ -132,7 +132,7 @@ class FlowTest(TembaTest):
 
             # use prefetch rather than select_related for foreign keys flow/contact to avoid joins
             runs = FlowRun.objects.filter(flow=self.flow).prefetch_related('flow', rulesets_prefetch, steps_prefetch,
-                                                                       'steps__messages', 'contact')
+                                                                           'steps__messages', 'contact')
             for run_elt in runs:
                 self.flow.get_results(contact=run_elt.contact, run=run_elt)
 
@@ -2787,7 +2787,7 @@ class ActionTest(TembaTest):
         self.contact = self.create_contact('Eric', '+250788382382')
         self.contact2 = self.create_contact('Nic', '+250788383383')
 
-        self.flow = Flow.create(self.org, self.admin, "Empty Flow", base_language='base')
+        self.flow = self.create_flow(name="Empty Flow", base_language='base')
 
         self.other_group = self.create_group("Other", [])
 
@@ -2900,8 +2900,10 @@ class ActionTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
-        ussd_ruleset = RuleSet.objects.create(flow=self.flow, uuid=uuid(100), x=0, y=0, ruleset_type=RuleSet.TYPE_WAIT_USSD_MENU)
-        ussd_ruleset.set_rules_dict([Rule(uuid(15), dict(base="All Responses"), uuid(200), 'R', TrueTest()).as_json()])
+        menu_uuid = str(uuid4())
+
+        ussd_ruleset = RuleSet.objects.create(flow=self.flow, uuid=str(uuid4()), x=0, y=0, ruleset_type=RuleSet.TYPE_WAIT_USSD_MENU)
+        ussd_ruleset.set_rules_dict([Rule(str(uuid4()), dict(base="All Responses"), menu_uuid, 'R', TrueTest()).as_json()])
         ussd_ruleset.save()
 
         # without USSD config we only get an empty UssdAction
@@ -2912,9 +2914,9 @@ class ActionTest(TembaTest):
         self.assertEquals(execution, [])
 
         # add menu rules
-        ussd_ruleset.set_rules_dict([Rule(uuid(15), dict(base="All Responses"), uuid(200), 'R', TrueTest()).as_json(),
-                                    Rule(uuid(15), dict(base="Test1"), uuid(200), 'R', EqTest(test="1"), dict(base="Test1")).as_json(),
-                                    Rule(uuid(15), dict(base="Test2"), uuid(200), 'R', EqTest(test="2"), dict(base="Test2")).as_json()])
+        ussd_ruleset.set_rules_dict([Rule(str(uuid4()), dict(base="All Responses"), menu_uuid, 'R', TrueTest()).as_json(),
+                                    Rule(str(uuid4()), dict(base="Test1"), None, 'R', EqTest(test="1"), dict(base="Test1")).as_json(),
+                                    Rule(str(uuid4()), dict(base="Test2"), None, 'R', EqTest(test="2"), dict(base="Test2")).as_json()])
         ussd_ruleset.save()
 
         # add ussd message
@@ -2940,8 +2942,10 @@ class ActionTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
-        ussd_ruleset = RuleSet.objects.create(flow=self.flow, uuid=uuid(100), x=0, y=0, ruleset_type=RuleSet.TYPE_WAIT_USSD_MENU)
-        ussd_ruleset.set_rules_dict([Rule(uuid(15), dict(base="All Responses"), uuid(200), 'R', TrueTest()).as_json()])
+        menu_uuid = str(uuid4())
+
+        ussd_ruleset = RuleSet.objects.create(flow=self.flow, uuid=str(uuid4()), x=0, y=0, ruleset_type=RuleSet.TYPE_WAIT_USSD_MENU)
+        ussd_ruleset.set_rules_dict([Rule(str(uuid4()), dict(base="All Responses"), menu_uuid, 'R', TrueTest()).as_json()])
         ussd_ruleset.save()
 
         english = Language.create(self.org, self.admin, "English", 'eng')
@@ -2950,9 +2954,9 @@ class ActionTest(TembaTest):
         self.flow.org.primary_language = english
 
         # add menu rules
-        ussd_ruleset.set_rules_dict([Rule(uuid(15), dict(base="All Responses"), uuid(200), 'R', TrueTest()).as_json(),
-                                    Rule(uuid(15), dict(base="Test1"), uuid(200), 'R', EqTest(test="1"), dict(eng="labelENG", hun="labelHUN")).as_json(),
-                                    Rule(uuid(15), dict(base="Test2"), uuid(200), 'R', EqTest(test="2"), dict(eng="label2ENG")).as_json()])
+        ussd_ruleset.set_rules_dict([Rule(str(uuid4()), dict(base="All Responses"), menu_uuid, 'R', TrueTest()).as_json(),
+                                    Rule(str(uuid4()), dict(base="Test1"), None, 'R', EqTest(test="1"), dict(eng="labelENG", hun="labelHUN")).as_json(),
+                                    Rule(str(uuid4()), dict(base="Test2"), None, 'R', EqTest(test="2"), dict(eng="label2ENG")).as_json()])
         ussd_ruleset.save()
 
         # add ussd message
@@ -3012,7 +3016,7 @@ class ActionTest(TembaTest):
         Broadcast.objects.all().delete()
 
     def test_trigger_flow_action(self):
-        flow = self.create_flow()
+        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
         run = FlowRun.create(self.flow, self.contact.pk)
 
         action = TriggerFlowAction(flow, [], [self.contact], [])
@@ -3384,7 +3388,7 @@ class ActionTest(TembaTest):
         self.assertIsNone(Contact.objects.get(pk=self.contact.pk).language)
 
     def test_start_flow_action(self):
-        self.flow.update(self.create_flow_definition())
+        self.flow.update(self.COLOR_FLOW_DEFINITION)
         self.flow.name = 'Parent'
         self.flow.save()
 
@@ -3831,6 +3835,7 @@ class FlowRunTest(TembaTest):
         self.assertEqual(run.field_dict(), {"0": "zero", "1": "one", "2": "two"})
 
     def test_is_completed(self):
+        self.flow.update(self.COLOR_FLOW_DEFINITION)
         self.flow.start([], [self.contact])
 
         self.assertFalse(FlowRun.objects.get(contact=self.contact).is_completed())
@@ -4010,24 +4015,27 @@ class WebhookTest(TembaTest):
             self.assertEqual('Honey, I triggered the flow! (I came from a webhook)', msg.text)
 
     def test_webhook(self):
-        self.flow = self.create_flow()
+        self.flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
         self.contact = self.create_contact("Ben Haggerty", '+250788383383')
 
         run = FlowRun.create(self.flow, self.contact.pk)
 
+        split_uuid = str(uuid4())
+        valid_uuid = str(uuid4())
+
         # webhook ruleset comes first
-        webhook = RuleSet.objects.create(flow=self.flow, uuid=uuid(100), x=0, y=0, ruleset_type=RuleSet.TYPE_WEBHOOK)
+        webhook = RuleSet.objects.create(flow=self.flow, uuid=str(uuid4()), x=0, y=0, ruleset_type=RuleSet.TYPE_WEBHOOK)
         config = {RuleSet.CONFIG_WEBHOOK: "http://ordercheck.com/check_order.php?phone=@step.contact.tel_e164",
                   RuleSet.CONFIG_WEBHOOK_ACTION: "GET",
                   RuleSet.CONFIG_WEBHOOK_HEADERS: [{"name": "Authorization", "value": "Token 12345"}]}
         webhook.config = json.dumps(config)
-        webhook.set_rules_dict([Rule(uuid(15), dict(base="All Responses"), uuid(200), 'R', TrueTest()).as_json()])
+        webhook.set_rules_dict([Rule(str(uuid4()), dict(base="All Responses"), split_uuid, 'R', TrueTest()).as_json()])
         webhook.save()
 
         # and a ruleset to split off the results
-        rules = RuleSet.objects.create(flow=self.flow, uuid=uuid(200), x=0, y=200, ruleset_type=RuleSet.TYPE_EXPRESSION)
-        rules.set_rules_dict([Rule("1c75fd71-027b-40e8-a819-151a0f8140e6", dict(base="Valid"), "7d40faea-723b-473d-8999-59fb7d3c3ca2", 'A', ContainsTest(dict(base="valid"))).as_json(),
-                              Rule("40cc7c36-b7c8-4f05-ae82-25275607e5aa", dict(base="Invalid"), "c12f37e2-8e6c-4c81-ba6d-941bb3caf93f", 'A', ContainsTest(dict(base="invalid"))).as_json()])
+        rules = RuleSet.objects.create(flow=self.flow, uuid=split_uuid, x=0, y=200, ruleset_type=RuleSet.TYPE_EXPRESSION)
+        rules.set_rules_dict([Rule(valid_uuid, dict(base="Valid"), "7d40faea-723b-473d-8999-59fb7d3c3ca2", 'A', ContainsTest(dict(base="valid"))).as_json(),
+                              Rule(str(uuid4()), dict(base="Invalid"), "c12f37e2-8e6c-4c81-ba6d-941bb3caf93f", 'A', ContainsTest(dict(base="invalid"))).as_json()])
         rules.save()
 
         webhook_step = FlowStep.objects.create(run=run, contact=run.contact, step_type=FlowStep.TYPE_RULE_SET,
@@ -4080,7 +4088,7 @@ class WebhookTest(TembaTest):
             (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
             (match, value) = rules.find_matching_rule(rule_step, run, incoming)
 
-            self.assertEquals("1c75fd71-027b-40e8-a819-151a0f8140e6", match.uuid)
+            self.assertEquals(valid_uuid, match.uuid)
             self.assertEquals("Valid", value)
             self.assertEquals(dict(text="Valid"), run.field_dict())
 
@@ -4089,7 +4097,7 @@ class WebhookTest(TembaTest):
 
             (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
             (match, value) = rules.find_matching_rule(rule_step, run, incoming)
-            self.assertEquals("1c75fd71-027b-40e8-a819-151a0f8140e6", match.uuid)
+            self.assertEquals(valid_uuid, match.uuid)
             self.assertEquals("Valid", value)
             self.assertEquals(dict(text="Valid", order_number="PX1001"), run.field_dict())
 
@@ -4101,7 +4109,7 @@ class WebhookTest(TembaTest):
 
             webhook.find_matching_rule(webhook_step, run, incoming)
             (match, value) = rules.find_matching_rule(rule_step, run, incoming)
-            self.assertEquals("1c75fd71-027b-40e8-a819-151a0f8140e6", match.uuid)
+            self.assertEquals(valid_uuid, match.uuid)
             self.assertEquals("Valid", value)
             self.assertEquals(dict(text="Valid", order_number="PX1002"), run.field_dict())
 
@@ -5652,9 +5660,9 @@ class FlowsTest(FlowFileTest):
         flow2 = self.create_flow()
 
         # create an action on flow1 to start flow2
-        flow1.update(dict(action_sets=[dict(uuid="d51ec25f-04e6-4349-a448-e7c4d93d4597", x=1, y=1,
+        flow1.update(dict(action_sets=[dict(uuid=str(uuid4()), x=1, y=1,
                                             actions=[dict(type='flow', flow=dict(uuid=flow2.uuid))])]))
-        flow2.update(dict(action_sets=[dict(uuid="7d40faea-723b-473d-8999-59fb7d3c3ca2", x=1, y=1,
+        flow2.update(dict(action_sets=[dict(uuid=str(uuid4()), x=1, y=1,
                                             actions=[dict(type='flow', flow=dict(uuid=flow1.uuid))])]))
 
         # start the flow, shouldn't get into a loop, but both should get started

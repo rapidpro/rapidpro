@@ -277,7 +277,7 @@ class TembaTest(SmartminTest):
 
         return Msg.objects.create(**kwargs)
 
-    def create_flow(self, **kwargs):
+    def create_flow(self, definition=None, **kwargs):
         if 'org' not in kwargs:
             kwargs['org'] = self.org
         if 'user' not in kwargs:
@@ -286,7 +286,8 @@ class TembaTest(SmartminTest):
             kwargs['name'] = "Color Flow"
 
         flow = Flow.create(**kwargs)
-        flow.update(self.COLOR_FLOW_DEFINITION)
+        if definition:
+            flow.update(definition)
         return flow
 
     def update_destination(self, flow, source, destination):
