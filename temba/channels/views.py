@@ -3011,8 +3011,12 @@ class ChannelLogCRUDL(SmartCRUDL):
 
                 if self.request.GET.get('errors'):
                     events = events.filter(status=ChannelSession.FAILED)
+
+            elif self.request.GET.get('others'):
+                events = ChannelLog.objects.filter(channel=channel, session=None, msg=None).order_by('-created_on')
+
             else:
-                events = ChannelLog.objects.filter(channel=channel, session=None).order_by('-created_on').select_related('msg__contact', 'msg')
+                events = ChannelLog.objects.filter(channel=channel, session=None).exclude(msg=None).order_by('-created_on').select_related('msg__contact', 'msg')
                 events.count = lambda: channel.get_non_ivr_log_count()
 
             return events
