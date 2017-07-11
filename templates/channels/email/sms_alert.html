@@ -23,7 +23,7 @@
     <p>
       {% blocktrans with org_name=org.name channel_type=channel.get_channel_type_name %}
         We've noticed that the {{ channel_type }} for {{ org_name }} is having trouble sending text messages.  This might be
-        a temporary problem due to network communication to {{ channel_type }}.
+        a temporary problem due to network communication to {{ channel_type }} or may indicate a change in configuration which required your action.
       {% endblocktrans %}
     </p>
 

@@ -5,7 +5,7 @@
 {% blocktrans with org_name=org.name %}
 Hi {{ org_name }},
 
-We've noticed that the Android phone for {{ org_name }} is having trouble sending text messages.  This might be a temporary problem due to your cellular network, or could be an indication that your phone is out of credit.
+We've noticed that the Android phone for {{ org_name }} is having trouble sending text messages.  This might be a temporary problem due to your cellular network, or could be an indication that your phone is out of credit or may indicate a change in configuration which required your action.
 {% endblocktrans %}
 
 {% blocktrans %}
