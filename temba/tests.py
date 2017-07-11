@@ -33,6 +33,7 @@ from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct, get_anonymous_user
 from temba.values.models import Value
 from twilio.util import RequestValidator
+from uuid import uuid4
 
 
 class ExcludeTestRunner(DiscoverRunner):
@@ -286,8 +287,33 @@ class TembaTest(SmartminTest):
             kwargs['name'] = "Color Flow"
 
         flow = Flow.create(**kwargs)
-        if definition:
-            flow.update(definition)
+        if not definition:
+            # if definition isn't provided, generate simple single message flow
+            node_uuid = str(uuid4())
+            definition = {
+                "version": 10,
+                "flow_type": "F",
+                "base_language": "eng",
+                "entry": node_uuid,
+                "action_sets": [
+                    {
+                        "uuid": node_uuid,
+                        "x": 0,
+                        "y": 0,
+                        "actions": [
+                            {
+                                "msg": {"eng": "Hey everybody!"},
+                                "media": {},
+                                "send_all": False,
+                                "type": "reply"
+                            }
+                        ],
+                        "destination": None
+                    }
+                ],
+                "rule_sets": [],
+            }
+        flow.update(definition)
         return flow
 
     def update_destination(self, flow, source, destination):
