@@ -678,7 +678,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
   $scope.hasEndUssd = (actionset) ->
     actionset.actions?.some (action) ->
-      action.type == "end_ussd"
+      action.type == 'end_ussd'
 
   $scope.sourceIsInterrupt = (actionset) ->
     return Flow.checkSourceForInterrupt(actionset)
