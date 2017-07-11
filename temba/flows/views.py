@@ -1016,17 +1016,11 @@ class FlowCRUDL(SmartCRUDL):
             links = []
             flow = self.get_object()
 
-            if flow.flow_type != Flow.SURVEY \
-                    and self.has_org_perm('flows.flow_broadcast') \
-                    and not flow.is_archived:
-
-                if flow.flow_type == Flow.USSD and not flow.ussd_push_enabled:
-                    pass
-                else:
-                    links.append(dict(title=_("Start Flow"),
-                                      style='btn-primary',
-                                      js_class='broadcast-rulesflow',
-                                      href='#'))
+            if flow.allows_start(self.has_org_perm('flows.flow_broadcast')):
+                links.append(dict(title=_("Start Flow"),
+                                  style='btn-primary',
+                                  js_class='broadcast-rulesflow',
+                                  href='#'))
 
             if self.has_org_perm('flows.flow_results'):
                 links.append(dict(title=_("Results"),
