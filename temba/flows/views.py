@@ -128,19 +128,15 @@ class UssdFlowForm(forms.ModelForm):
 
     ussd_push_enabled = forms.BooleanField(required=False, label=_("Enable USSD Push"), initial=False,
                                            help_text=_(
-                                               "Enable RapidPro initiated USSD flows. (Only works if your channel supports USSD Push.)"))
+                                               "Enable RapidPro initiated USSD flow (Make sure your channel supports USSD Push)"))
 
     def clean_ussd_trigger(self):
         flow_type = self.cleaned_data.get('flow_type') or self.instance and self.instance.flow_type
 
-        # This means we don't want to validate neither save a new one (for Update Flow)
-        if self.instance and self.fields['ussd_trigger'].widget.attrs.get('readonly'):
-            return None
-
         if flow_type == Flow.USSD:
             keyword = self.cleaned_data.get('ussd_trigger', '').strip()
 
-            if keyword and not regex.match('^[\d\*\#]+$', keyword, flags=regex.UNICODE):
+            if keyword and not regex.match('(^\*[\d\*]+\#)((?:\d+\#)*)$', keyword):
                 raise forms.ValidationError(_("USSD code must contain only *,# and numbers"))
 
             existing = Trigger.objects.filter(org=self.user.get_org(), keyword__iexact=keyword, is_archived=False,
@@ -634,8 +630,6 @@ class FlowCRUDL(SmartCRUDL):
                     ).first()
                     if ussd_trigger:
                         self.fields['ussd_trigger'].initial = ussd_trigger.keyword
-                        self.fields['ussd_trigger'].widget.attrs['readonly'] = True
-                        self.fields['ussd_trigger'].help_text = 'To change the USSD trigger code, go to Triggers'
                 else:
                     self.fields['keyword_triggers'] = forms.CharField(required=False,
                                                                       label=_("Global keyword triggers"),
@@ -714,10 +708,22 @@ class FlowCRUDL(SmartCRUDL):
                         Trigger.objects.create(org=org, keyword=keyword, trigger_type=Trigger.TYPE_KEYWORD,
                                                flow=obj, created_by=user, modified_by=user)
 
-            if self.form.cleaned_data.get('ussd_trigger'):
-                Trigger.objects.create(trigger_type=Trigger.TYPE_USSD_PULL, org=org,
-                                       keyword=self.form.cleaned_data['ussd_trigger'].strip(), flow=obj,
-                                       created_by=user, modified_by=user)
+            elif 'ussd_trigger' in self.form.cleaned_data:
+                ussd_code = self.form.cleaned_data['ussd_trigger'].strip()
+                ussd_trigger = Trigger.objects.filter(
+                    org=org, flow=obj, is_archived=False, groups=None,
+                    trigger_type=Trigger.TYPE_USSD_PULL
+                ).first()
+
+                if not ussd_code and ussd_trigger:
+                    ussd_trigger.delete()
+                elif ussd_code and ussd_trigger:
+                    ussd_trigger.keyword = ussd_code
+                    ussd_trigger.save()
+                else:
+                    Trigger.objects.create(trigger_type=Trigger.TYPE_USSD_PULL, org=org,
+                                           keyword=ussd_code, flow=obj,
+                                           created_by=user, modified_by=user)
 
             # run async task to update all runs
             from .tasks import update_run_expirations_task
