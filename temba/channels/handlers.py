@@ -17,11 +17,11 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
+from django.utils.crypto import constant_time_compare
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from django_redis import get_redis_connection
-from guardian.utils import get_anonymous_user
 from requests import Request
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelLog
@@ -31,12 +31,12 @@ from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, OUTGOING
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
-from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit
+from temba.utils import decode_base64, get_anonymous_user, json_date_to_datetime, ms_to_datetime, on_transaction_commit
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
-from temba.utils import decode_base64
+from temba.utils.twitter import generate_twitter_signature
 from twilio import twiml
-from .tasks import fb_channel_subscribe
+from .tasks import fb_channel_subscribe, refresh_jiochat_access_tokens
 
 
 class BaseChannelHandler(View):
@@ -92,6 +92,7 @@ class TwimlAPIHandler(BaseChannelHandler):
         signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
         url = "https://" + settings.TEMBA_HOST + "%s" % request.get_full_path()
 
+        channel_uuid = kwargs.get('uuid')
         call_sid = self.get_param('CallSid')
         direction = self.get_param('Direction')
         status = self.get_param('CallStatus')
@@ -107,7 +108,7 @@ class TwimlAPIHandler(BaseChannelHandler):
         if to_number and call_sid and direction == 'inbound' and status == 'ringing':
 
             # find a channel that knows how to answer twilio calls
-            channel = self.get_ringing_channel(to_number=to_number)
+            channel = self.get_ringing_channel(uuid=channel_uuid)
             if not channel:
                 response = twiml.Response()
                 response.say('Sorry, there is no channel configured to take this call. Goodbye.')
@@ -165,7 +166,6 @@ class TwimlAPIHandler(BaseChannelHandler):
                     return HttpResponse(six.text_type(response))
 
         action = request.GET.get('action', 'received')
-        channel_uuid = kwargs.get('uuid')
 
         # check for call progress events, these include post-call hangup notifications
         if request.POST.get('CallbackSource', None) == 'call-progress-events':
@@ -221,7 +221,7 @@ class TwimlAPIHandler(BaseChannelHandler):
             if not to_number:
                 return HttpResponse("Must provide To number for received messages", status=400)
 
-            channel = self.get_receive_channel(channel_uuid=channel_uuid, to_number=to_number)
+            channel = self.get_receive_channel(uuid=channel_uuid)
             if not channel:
                 return HttpResponse("No active channel found for number: %s" % to_number, status=400)
 
@@ -236,29 +236,26 @@ class TwimlAPIHandler(BaseChannelHandler):
             if not validator.validate(url, request.POST, signature):
                 return HttpResponse("Invalid request signature.", status=400)
 
-            body = request.POST['Body']
+            # Twilio sometimes sends concat sms as base64 encoded MMS
+            body = decode_base64(request.POST['Body'])
             urn = URN.from_tel(request.POST['From'])
+            attachments = []
 
-            # process any attached media
+            # download any attached media
             for i in range(int(request.POST.get('NumMedia', 0))):
-                media_url = client.download_media(request.POST['MediaUrl%d' % i])
-                path = media_url.partition(':')[2]
-                Msg.create_incoming(channel, urn, path, attachments=[media_url])
+                attachments.append(client.download_media(request.POST['MediaUrl%d' % i]))
 
-            if body:
-                # Twilio sometimes sends concat sms as base64 encoded MMS
-                body = decode_base64(body)
-                Msg.create_incoming(channel, urn, body)
+            Msg.create_incoming(channel, urn, body, attachments=attachments)
 
             return HttpResponse("", status=201)
 
         return HttpResponse("Not Handled, unknown action", status=400)  # pragma: no cover
 
-    def get_ringing_channel(self, to_number):
-        return Channel.objects.filter(address=to_number, channel_type=self.get_channel_type(), role__contains='A', is_active=True).exclude(org=None).first()
+    def get_ringing_channel(self, uuid):
+        return Channel.objects.filter(uuid=uuid, channel_type=self.get_channel_type(), role__contains='A', is_active=True).exclude(org=None).first()
 
-    def get_receive_channel(self, channel_uuid=None, to_number=None):
-        return Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
+    def get_receive_channel(self, uuid=None):
+        return Channel.objects.filter(uuid=uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
 
     def get_client(self, channel):
         if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
@@ -272,11 +269,8 @@ class TwimlAPIHandler(BaseChannelHandler):
 
 class TwilioHandler(TwimlAPIHandler):
 
-    url = r'^twilio/$'
+    url = r'^twilio/(?P<action>receive|status|voice)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.twilio_handler'
-
-    def get_receive_channel(self, channel_uuid=None, to_number=None):
-        return Channel.objects.filter(address=to_number, is_active=True).exclude(org=None).first()
 
     def get_channel_type(self):
         return Channel.TYPE_TWILIO
@@ -570,7 +564,7 @@ class TelegramHandler(BaseChannelHandler):
                     try:
                         m = magic.Magic(mime=True)
                         content_type = m.from_buffer(response.content)
-                    except:  # pragma: no cover
+                    except Exception:  # pragma: no cover
                         pass
 
                     # fallback on the content type in our response header
@@ -635,81 +629,53 @@ class TelegramHandler(BaseChannelHandler):
             if name:
                 Contact.get_or_create(channel.org, channel.created_by, name, urns=[urn])
 
+        text = ""
+        attachments = []
         msg_date = datetime.utcfromtimestamp(body['message']['date']).replace(tzinfo=pytz.utc)
 
-        def create_media_message(body, name):
-            msg = None
+        def fetch_attachment(media_type):
+            attachment = body['message'][media_type]
+            if isinstance(attachment, list):
+                attachment = attachment[-1]
+                if isinstance(attachment, list):  # pragma: needs cover
+                    attachment = attachment[0]
 
-            # if we have a caption add it
-            if 'caption' in body['message']:
-                msg = Msg.create_incoming(channel, urn, body['message']['caption'], date=msg_date)
-                log(msg, 'Inbound message', json.dumps(dict(description='Message accepted')))
+            # if we got a media URL for this attachment, save it away
+            media_url = TelegramHandler.download_file(channel, attachment['file_id'])
+            if media_url:
+                attachments.append(media_url)
 
-            # pull out the media body, download it and create our msg
-            if name in body['message']:
-                attachment = body['message'][name]
-                if isinstance(attachment, list):
-                    attachment = attachment[-1]
-                    if isinstance(attachment, list):  # pragma: needs cover
-                        attachment = attachment[0]
-
-                media_url = TelegramHandler.download_file(channel, attachment['file_id'])
-
-                # if we got a media URL for this attachment, save it away
-                if media_url:
-                    url = media_url.partition(':')[2]
-                    msg = Msg.create_incoming(channel, urn, url, date=msg_date, attachments=[media_url])
-                    log(msg, 'Incoming media', json.dumps(dict(description='Message accepted')))
-
-            # this one's a little kludgy cause we might create more than
-            # one message, so we need to log them both above instead
-            return make_response("Message accepted")
-
-        if 'sticker' in body['message']:
-            return create_media_message(body, 'sticker')
-
-        if 'video' in body['message']:
-            return create_media_message(body, 'video')
-
-        if 'voice' in body['message']:
-            return create_media_message(body, 'voice')
-
-        if 'document' in body['message']:  # pragma: needs cover
-            return create_media_message(body, 'document')
-
-        if 'location' in body['message']:
-            location = body['message']['location']
-            location = '%s,%s' % (location['latitude'], location['longitude'])
-
-            msg_text = location
-            if 'venue' in body['message']:
-                if 'title' in body['message']['venue']:
-                    msg_text = '%s (%s)' % (msg_text, body['message']['venue']['title'])
-            media_url = 'geo:%s' % location
-            msg = Msg.create_incoming(channel, urn, msg_text, date=msg_date, attachments=[media_url])
-            return make_response('Message accepted', msg)
-
-        if 'photo' in body['message']:
-            create_media_message(body, 'photo')
-
-        if 'contact' in body['message']:  # pragma: needs cover
+        if 'text' in body['message']:
+            text = body['message']['text']
+        elif 'caption' in body['message']:
+            text = body['message']['caption']
+        elif 'contact' in body['message']:  # pragma: needs cover
             contact = body['message']['contact']
 
             if 'first_name' in contact and 'phone_number' in contact:
-                body['message']['text'] = '%(first_name)s (%(phone_number)s)' % contact
-
+                text = '%(first_name)s (%(phone_number)s)' % contact
             elif 'first_name' in contact:
-                body['message']['text'] = '%(first_name)s' % contact
-
+                text = '%(first_name)s' % contact
             elif 'phone_number' in contact:
-                body['message']['text'] = '%(phone_number)s' % contact
+                text = '%(phone_number)s' % contact
+        elif 'venue' in body['message']:
+            if 'title' in body['message']['venue']:
+                text = body['message']['venue']['title']
 
-        # skip if there is no message block (could be a sticker or voice)
-        if 'text' in body['message']:
-            msg = Msg.create_incoming(channel, urn, body['message']['text'], date=msg_date)
+        for msg_type in ('sticker', 'video', 'voice', 'document', 'photo'):
+            if msg_type in body['message']:
+                fetch_attachment(msg_type)
+
+        if 'location' in body['message']:
+            location = body['message']['location']
+            attachments.append('geo:%s,%s' % (location['latitude'], location['longitude']))
+
+        if text or attachments:
+            msg = Msg.create_incoming(channel, urn, text, attachments=attachments, date=msg_date)
+            log(msg, 'Inbound message', json.dumps(dict(description='Message accepted')))
             return make_response('Message accepted', msg)
-
-        return make_response("Ignored, nothing provided in payload to create a message")
+        else:
+            return make_response("Ignored, nothing provided in payload to create a message")
 
 
 class InfobipHandler(BaseChannelHandler):
@@ -2206,6 +2172,90 @@ class MbloxHandler(BaseChannelHandler):
             return HttpResponse("Not handled, unknown type: %s" % body['type'], status=400)
 
 
+class JioChatHandler(BaseChannelHandler):
+
+    # Jiochat expected the URL to receive message on CONFIG_URL/rcv/msg/message
+    # and for event message on CONFIG_URL/rcv/event/menu
+    # and for follow event on CONFIG_URL/rcv/event/follow
+    url = r'^jiochat/(?P<uuid>[a-z0-9\-]+)(/rcv/msg/message|/rcv/event/menu|/rcv/event/follow)?/?$'
+    url_name = 'handlers.jiochat_handler'
+
+    def lookup_channel(self, kwargs):
+        # look up the channel
+        return Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
+                                      channel_type=Channel.TYPE_JIOCHAT).exclude(org=None).first()
+
+    def get(self, request, *args, **kwargs):
+        channel = self.lookup_channel(kwargs)
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
+
+        client = channel.get_jiochat_client()
+        if client:
+            verified, echostr = client.verify_request(request, channel.secret)
+
+            if verified:
+                refresh_jiochat_access_tokens.delay(channel.id)
+                return HttpResponse(echostr)
+
+        return JsonResponse(dict(error="Unknown request"), status=400)
+
+    def post(self, request, *args, **kwargs):
+        channel = self.lookup_channel(kwargs)
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
+
+        try:
+            body = json.loads(request.body)
+        except Exception as e:  # pragma: needs cover
+            return HttpResponse("Invalid JSON in POST body: %s" % str(e), status=400)
+
+        if 'FromUserName' not in body or 'MsgType' not in body or ('MsgId' not in body and 'Event' not in body):
+            return HttpResponse("Missing parameters", status=400)
+
+        client = channel.get_jiochat_client()
+
+        sender_id = body.get('FromUserName')
+        create_time = body.get('CreateTime', None)
+        msg_date = None
+        if create_time:
+            msg_date = datetime.utcfromtimestamp(float(unicode(create_time)[:10])).replace(tzinfo=pytz.utc)
+        msg_type = body.get('MsgType')
+        external_id = body.get('MsgId', None)
+
+        urn = URN.from_jiochat(sender_id)
+        contact_name = None
+        if not channel.org.is_anon:
+            contact_detail = client.get_user_detail(sender_id)
+            contact_name = contact_detail.get('nickname')
+
+        contact = Contact.get_or_create(channel.org, channel.created_by, name=contact_name,
+                                        urns=[urn], channel=channel)
+
+        if msg_type == 'event':
+            event = body.get('Event')
+            if event == 'subscribe':
+                Trigger.catch_triggers(contact, Trigger.TYPE_FOLLOW, channel)
+                return HttpResponse("New follow handled: %s" % sender_id)
+
+        text = ""
+        attachments = []
+
+        if msg_type == 'text':
+            text = body.get('Content', "")
+        elif msg_type in ['image', 'video', 'voice']:
+            media_response = client.request_media(body.get('MediaId'))
+            content_type, downloaded_url = channel.org.save_response_media(media_response)
+            attachments.append('%s:%s' % (content_type, downloaded_url))
+
+        if text or attachments:
+            msg = Msg.create_incoming(channel, urn, text, date=msg_date, contact=contact, attachments=attachments,
+                                      external_id=external_id)
+            return HttpResponse("Msgs Accepted: %s" % msg.id)
+
+        return HttpResponse("Not handled", status=400)
+
+
 class FacebookHandler(BaseChannelHandler):
 
     url = r'^facebook/(?P<uuid>[a-z0-9\-]+)/?$'
@@ -2214,7 +2264,7 @@ class FacebookHandler(BaseChannelHandler):
     def lookup_channel(self, kwargs):
         # look up the channel
         channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
-                                         channel_type=Channel.TYPE_FACEBOOK).exclude(org=None).first()
+                                         channel_type='FB').exclude(org=None).first()
         return channel
 
     def get(self, request, *args, **kwargs):
@@ -2381,7 +2431,7 @@ class FacebookHandler(BaseChannelHandler):
                             status.append("Msg %d accepted." % msg.id)
 
                         # a contact pressed "Get Started", trigger any new conversation triggers
-                        elif postback == Channel.GET_STARTED:
+                        elif postback == 'get_started':
                             Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
                             status.append("Postback handled.")
 
@@ -2747,38 +2797,26 @@ class ViberPublicHandler(BaseChannelHandler):
 
             message = body['message']
             msg_date = datetime.utcfromtimestamp(body['timestamp'] / 1000).replace(tzinfo=pytz.utc)
-            media = None
-            caption = None
+            text = message.get('text', "")
+            attachments = []
 
             # convert different messages types to the right thing
             message_type = message['type']
+
             if message_type == 'text':
-                # "text": "a message from pa"
-                text = message.get('text', None)
+                pass
 
             elif message_type == 'picture':
                 # "media": "http://www.images.com/img.jpg"
-                caption = message.get('text')
                 if message.get('media', None):  # pragma: needs cover
-                    media = '%s:%s' % (Msg.MEDIA_IMAGE, channel.org.download_and_save_media(Request('GET',
-                                                                                                    message['media'])))
-                else:
-                    # not media then make it the caption and ignore the caption
-                    media = caption
-                    caption = None
-                text = media
+                    downloaded_url = channel.org.download_and_save_media(Request('GET', message['media']))
+                    attachments.append('%s:%s' % (Msg.MEDIA_IMAGE, downloaded_url))
 
-            elif message_type == 'video':
-                caption = message.get('text')
+            elif message_type == 'video':  # pragma: needs cover
                 # "media": "http://www.images.com/video.mp4"
                 if message.get('media', None):  # pragma: needs cover
-                    media = '%s:%s' % (Msg.MEDIA_VIDEO, channel.org.download_and_save_media(Request('GET',
-                                                                                                    message['media'])))
-                else:
-                    # not media then make it the caption and ignore the caption
-                    media = caption
-                    caption = None
-                text = media
+                    downloaded_url = channel.org.download_and_save_media(Request('GET', message['media']))
+                    attachments.append('%s:%s' % (Msg.MEDIA_VIDEO, downloaded_url))
 
             elif message_type == 'contact':
                 # "contact": {
@@ -2793,14 +2831,13 @@ class ViberPublicHandler(BaseChannelHandler):
 
             elif message_type == 'location':
                 # "location": {"lat": "37.7898", "lon": "-122.3942"}
-                text = '%s:%s,%s' % (Msg.MEDIA_GPS, message['location']['lat'], message['location']['lon'])
-                media = text
+                attachments.append('%s:%s,%s' % (Msg.MEDIA_GPS, message['location']['lat'], message['location']['lon']))
 
             else:  # pragma: needs cover
                 return HttpResponse("Unknown message type: %s" % message_type, status=400)
 
-            if text is None:
-                return HttpResponse("Missing 'text' key in 'message' in request_body.", status=400)
+            if not text and not attachments:
+                return HttpResponse("Missing text or media in message in request body.", status=400)
 
             # get or create our contact with any name sent in
             urn = URN.from_viber(body['sender']['id'])
@@ -2808,12 +2845,8 @@ class ViberPublicHandler(BaseChannelHandler):
             contact_name = None if channel.org.is_anon else body['sender'].get('name')
             contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
 
-            # add our caption first if it is present
-            if caption:  # pragma: needs cover
-                Msg.create_incoming(channel, urn, caption, contact=contact, date=msg_date)
-
             msg = Msg.create_incoming(channel, urn, text, contact=contact, date=msg_date,
-                                      external_id=body['message_token'], attachments=[media] if media else None)
+                                      external_id=body['message_token'], attachments=attachments)
             return HttpResponse('Msg Accepted: %d' % msg.id)
 
         else:  # pragma: no cover
@@ -2878,3 +2911,62 @@ class FCMHandler(BaseChannelHandler):
 
         except Exception as e:  # pragma: no cover
             return HttpResponse(e.args, status=400)
+
+
+class TwitterHandler(BaseChannelHandler):
+
+    url = r'^twitter/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.twitter_handler'
+
+    def get(self, request, *args, **kwargs):
+        crc_token = request.GET['crc_token']
+
+        channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
+                                         channel_type='TT').exclude(org=None).first()
+        if not channel:
+            return HttpResponse("No such Twitter channel", status=400)
+
+        consumer_secret = channel.config_json()['api_secret']
+        resp_token = generate_twitter_signature(crc_token, consumer_secret)
+
+        return JsonResponse({'response_token': resp_token}, status=200)
+
+    def post(self, request, *args, **kwargs):
+        channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
+                                         channel_type='TT').exclude(org=None).first()
+        if not channel:
+            return HttpResponse("No such Twitter channel", status=400)
+
+        channel_config = channel.config_json()
+
+        # validate that request has come from Twitter
+        expected_signature = request.META['HTTP_X_TWITTER_WEBHOOKS_SIGNATURE']
+        calculated_signature = generate_twitter_signature(request.body, channel_config['api_secret'])
+
+        if not constant_time_compare(expected_signature, calculated_signature):
+            return HttpResponse("Invalid request signature", status=400)
+
+        body = json.loads(request.body)
+        dm_events = body.get('direct_message_events', [])
+        users = body.get('users', {})
+
+        msgs = []
+        for dm_event in dm_events:
+            if dm_event['type'] == 'message_create':
+                sender_id = dm_event['message_create']['sender_id']
+
+                # check that this isn't a message that we sent
+                if int(sender_id) == channel_config['handle_id']:
+                    continue
+
+                urn = URN.from_twitter(users[sender_id]['screen_name'])
+                name = None if channel.org.is_anon else users[sender_id]['name']
+                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
+
+                external_id = dm_event['id']
+                created_on = ms_to_datetime(int(dm_event['created_timestamp']))
+                text = dm_event['message_create']['message_data']['text']
+
+                msgs.append(Msg.create_incoming(channel, urn, text, date=created_on, contact=contact, external_id=external_id))
+
+        return HttpResponse("Accepted %d messages" % len(msgs), status=200)

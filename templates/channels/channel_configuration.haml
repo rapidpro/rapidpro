@@ -758,6 +758,26 @@
     %code
       {{ channel.secret }}
 
+  -elif object.channel_type == 'JC'
+    %h4
+      -blocktrans
+        To finish configuring your JioChat connection, you'll need to enter the following webhook URL and token on JioChat Developer Center configuration
+
+    %hr
+
+    %h4
+      -trans "Webhook URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.jiochat_handler' object.uuid %}
+
+    %h4
+      -trans "Token"
+
+    %code
+      {{ channel.secret }}
+
+
   -elif object.channel_type == 'VI'
     %h4
       -blocktrans

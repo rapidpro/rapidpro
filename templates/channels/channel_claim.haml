@@ -8,18 +8,11 @@
         -trans "Add a Channel"
       .instructions
         %p
-          -if perms.channels.channel_claim_twitter
-            -blocktrans with name=brand.name
-              To get started you need to add a channel to your account. A channel is a phone number or social network
-              account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
-              Android phone and your own cell phone plan, or we can connect you with a service provider in your country
-              directly.
-          -else
-            -blocktrans with name=brand.name
-              To get started you need to add a channel to your account. A channel is a phone number  which {{ name }}
-              can use to send and receive messages on your behalf. You can choose to use an
-              Android phone and your own cell phone plan, or we can connect you with a service provider in your country
-              directly.
+          -blocktrans with name=brand.name
+            To get started you need to add a channel to your account. A channel is a phone number or social network
+            account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
+            Android phone and your own cell phone plan, or we can connect you with a service provider in your country
+            directly.
 
 -block content
   .channel-options
@@ -640,96 +633,87 @@
             %div
               -trans "Use our pluggable API to connect an external service you already have."
 
-    -if org_perms.channels.channel_claim_twitter or org_perms.channels.channel_claim_telegram or org_perms.channels.channel_claim_facebook
-      %h3
-        -trans "Social Network Channels"
+    %h3
+      -trans "Social Network Channels"
 
-      -if org_perms.channels.channel_claim_facebook
-        .claim-row.facebook-channel
-          .row
-            .span3
-              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_facebook' %}"}
-                .btn-container
-                  .claim-glyph.icon-facebook-official
-                  %p.claim-text
-                    -trans "Facebook"
+    -for ch_type in channel_types.SOCIAL_MEDIA
+      .claim-row
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+              .btn-container
+                .claim-glyph{class:"{{ ch_type.icon }}"}
+                %p.claim-text= ch_type.name
+          .span9
+            .claim-description
+              %div= ch_type.get_claim_blurb
 
-            .span9
-              .claim-description
-                %div
-                  -blocktrans
-                    Add a <a href="http://facebook.com">Facebook</a> bot to send and receive messages on behalf
-                    of one of your Facebook pages for free. You will need to create a Facebook application on
-                    their <a href="http://developers.facebook.com">developers</a> site first.
+    .claim-row.telegram-channel
+      .row
+        .span3
+          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_telegram' %}"}
+            .btn-container
+              .claim-glyph.icon-telegram
+              %p.claim-text
+                -trans "Telegram"
 
-      -if org_perms.channels.channel_claim_twitter
-        .claim-row.twitter-channel
-          .row
-            .span3
-              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_twitter' %}"}
-                .btn-container
-                  .claim-glyph.icon-twitter
-                  %p.claim-text
-                    -trans "Twitter"
+        .span9
+          .claim-description
+            %div
+              -blocktrans
+                Add a <a href="https://telegram.org">Telegram</a> bot to send and receive messages to Telegram users
+                for free. Your users will need an Android, Windows or iOS device and a Telegram account to send
+                and receive messages.
 
-            .span9
-              .claim-description
-                %div
-                  -blocktrans
-                    Add a <a href="http://twitter.com">Twitter</a> account to send messages as direct messages.
+    .claim-row.viber-channel
+      .row
+        .span3
+          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_viber_public' %}"}
+            .btn-container
+              .claim-glyph.icon-viber
+              %p.claim-text
+                -trans "Viber"
 
-      -if org_perms.channels.channel_claim_telegram
-        .claim-row.twitter-channel
-          .row
-            .span3
-              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_telegram' %}"}
-                .btn-container
-                  .claim-glyph.icon-telegram
-                  %p.claim-text
-                    -trans "Telegram"
+        .span9
+          .claim-description
+            %div
+              -blocktrans
+                Connect a <a href="http://viber.com/en/">Viber</a> public channel to send and receive messages to Viber users
+                for free. Your users will need an Android, Windows or iOS device and a Viber account to send and receive messages.
 
-            .span9
-              .claim-description
-                %div
-                  -blocktrans
-                    Add a <a href="https://telegram.org">Telegram</a> bot to send and receive messages to Telegram users
-                    for free. Your users will need an Android, Windows or iOS device and a Telegram account to send
-                    and receive messages.
+    .claim-row.line-channel
+      .row
+        .span3
+          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_line' %}"}
+            .btn-container
+              .claim-glyph.icon-line
+              %p.claim-text
+                -trans "LINE"
 
-      -if org_perms.channels.channel_claim_viber_public
-        .claim-row.viber-channel
-          .row
-            .span3
-              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_viber_public' %}"}
-                .btn-container
-                  .claim-glyph.icon-viber
-                  %p.claim-text
-                    -trans "Viber"
+        .span9
+          .claim-description
+            %div
+              -blocktrans
+                Add a <a href="https://line.me">LINE</a> bot to send and receive messages to LINE users
+                for free. Your users will need an Android, Windows or iOS device and a LINE account to send
+                and receive messages.
 
-            .span9
-              .claim-description
-                %div
-                  -blocktrans
-                    Connect a <a href="http://viber.com/en/">Viber</a> public channel to send and receive messages to Viber users
-                    for free. Your users will need an Android, Windows or iOS device and a Viber account to send and receive messages.
+    .claim-row.jiochat-channel
+      .row
+        .span3
+          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_jiochat' %}"}
+            .btn-container
+              .claim-glyph.icon-jiochat
+              %p.claim-text
+                -trans "JioChat"
 
-      -if org_perms.channels.channel_claim_line
-        .claim-row.line-channel
-          .row
-            .span3
-              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_line' %}"}
-                .btn-container
-                  .claim-glyph.icon-line
-                  %p.claim-text
-                    -trans "LINE"
-
-            .span9
-              .claim-description
-                %div
-                  -blocktrans
-                    Add a <a href="https://line.me">LINE</a> bot to send and receive messages to LINE users
-                    for free. Your users will need an Android, Windows or iOS device and a LINE account to send
-                    and receive messages.
+        .span9
+          .claim-description
+            %div
+              -blocktrans
+                Add a <a href="https://jiochat.me">JioChat</a> bot to send and receive messages to JioChat users
+                for free. Your users will need an Android, Windows or iOS device and a JioChat account to send
+                and receive messages.
 
     %h3
       -trans "API Channels"

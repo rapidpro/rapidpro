@@ -1,8 +1,13 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
+import base64
+import hashlib
+import hmac
 import json
 import requests
 
+from django.conf import settings
+from django.db.models import Model
 from django.utils.http import urlencode
 from twython import Twython
 from twython import TwythonAuthError
@@ -18,6 +23,21 @@ class TembaTwython(Twython):  # pragma: no cover
     def __init__(self, *args, **kwargs):
         super(TembaTwython, self).__init__(*args, **kwargs)
         self.events = []
+
+    @classmethod
+    def from_channel(cls, channel):
+        # could be passed a ChannelStruct or a Channel model instance
+        config = channel.config_json() if isinstance(channel, Model) else channel.config
+
+        # Twitter channels come in new (i.e. user app, webhook API) and classic (shared app, streaming API) flavors
+        if 'api_key' in config:
+            api_key, api_secret = config['api_key'], config['api_secret']
+            access_token, access_token_secret = config['access_token'], config['access_token_secret']
+        else:
+            api_key, api_secret = settings.TWITTER_API_KEY, settings.TWITTER_API_SECRET
+            access_token, access_token_secret = config['oauth_token'], config['oauth_token_secret']
+
+        return TembaTwython(api_key, api_secret, access_token, access_token_secret)
 
     def _request(self, url, method='GET', params=None, api_call=None):
         """Internal request method"""
@@ -69,16 +89,17 @@ class TembaTwython(Twython):  # pragma: no cover
         #  Wrap the json loads in a try, and defer an error
         #  Twitter will return invalid json with an error code in the headers
         json_error = False
-        try:
+        if content:
             try:
-                # try to get json
-                content = content.json()
-            except AttributeError:
-                # if unicode detected
-                content = json.loads(content)
-        except ValueError:
-            json_error = True
-            content = {}
+                try:
+                    # try to get json
+                    content = content.json()
+                except AttributeError:
+                    # if unicode detected
+                    content = json.loads(content)
+            except ValueError:
+                json_error = True
+                content = {}
 
         if response.status_code > 304:
             # If there is no error message, use a default.
@@ -108,3 +129,49 @@ class TembaTwython(Twython):  # pragma: no cover
             raise TwythonError('Response was not valid JSON, unable to decode.')
 
         return content
+
+    def get_webhooks(self):  # pragma: no cover
+        """
+        Returns all URLs and their statuses for the given app.
+
+        Docs: https://dev.twitter.com/webhooks/reference/get/account_activity/webhooks
+        """
+        return self.get('account_activity/webhooks')
+
+    def recheck_webhook(self, webhook_id):  # pragma: no cover
+        """
+        Triggers the challenge response check (CRC) for the given webhook's URL.
+
+        Docs: https://dev.twitter.com/webhooks/reference/put/account_activity/webhooks
+        """
+        return self.request('account_activity/webhooks/%s' % webhook_id, method='PUT')
+
+    def register_webhook(self, url):
+        """
+        Registers a new webhook URL for the given application context.
+
+        Docs: https://dev.twitter.com/webhooks/reference/post/account_activity/webhooks
+        """
+        return self.post('account_activity/webhooks', params={'url': url})
+
+    def delete_webhook(self, webhook_id):
+        """
+        Removes the webhook from the provided application's configuration.
+
+        Docs: https://dev.twitter.com/webhooks/reference/del/account_activity/webhooks
+
+        """
+        return self.request('account_activity/webhooks/%s' % webhook_id, method='DELETE')
+
+    def subscribe_to_webhook(self, webhook_id):
+        """
+        Subscribes the provided app to events for the provided user context.
+
+        Docs: https://dev.twitter.com/webhooks/reference/post/account_activity/webhooks/subscriptions
+        """
+        return self.post('account_activity/webhooks/%s/subscriptions.json' % webhook_id)
+
+
+def generate_twitter_signature(content, consumer_secret):
+    token = hmac.new(bytes(consumer_secret.encode('ascii')), msg=content, digestmod=hashlib.sha256).digest()
+    return 'sha256=' + base64.standard_b64encode(token)
