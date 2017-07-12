@@ -37,14 +37,14 @@
              
         .modal-quick-response{ng-repeat:"response in actions_quick_responses", class:""}
           .modal-quick-response-type
-            %select{ng-options:"item.type as item.verbose_name for item in actions_quick_responses_types", ng-model:"response.type"}
+            %select{ng-options:"item.type as item.verbose_name for item in actions_quick_responses_types", ng-model:"response.type", style:"width:86px;",select2:"", ng-required:""}
           .modal-quick-response-value  
-            %input{ng-model:"response.title"} 
+            %input{ng-model:"response.title", ng-required:"true"} 
           .modal-quick-response-value 
-            %input{ng-model:"response.payload"}
+            %input{ng-model:"response.payload", ng-required:"true"}
 
         %a{ng-click:'AddNewQuickResponse()'}
-          -trans "Add New"
+          -trans "Add Button"
 
     %span{ng-if:'config.type == "end_ussd"'}
       %span{auto-complete:"",msg:"action.msg",type:"ussd",data-message:"message"}
@@ -243,6 +243,7 @@
   }
   .modal-quick-response input{
     width:180px;
+    height:30px;
   }
   .modal-quick-response-type{
     display:inline-block;

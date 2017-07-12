@@ -1763,7 +1763,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.action_webhook_headers_value = []
 
   $scope.actions_quick_responses_types = [{verbose_name:"Link", type:"link"},{verbose_name:"Button", type:"button"}, {verbose_name:"Another", type:"another"}]
-  console.log($scope.action)
+  
   if $scope.action.quick_responses
     $scope.actions_quick_responses = $scope.action.quick_responses
   else 
@@ -1807,7 +1807,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.actions_quick_responses.push({
       title:"",
       payload:"",
-      type:""
+      type:"button"
     })
    
 

@@ -2174,13 +2174,13 @@ class Flow(TembaModel):
             for actionset in json_dict.get(Flow.ACTION_SETS, []):
 
                 uuid = actionset.get(Flow.UUID)
-
+                
                 # validate our actions, normalizing them as JSON after reading them
                 actions = [_.as_json() for _ in Action.from_json_array(self.org, actionset.get(Flow.ACTIONS))]
-
+                
                 if actions:
                     current_actionsets[uuid] = actions
-
+                    
             for ruleset in json_dict.get(Flow.RULE_SETS, []):
                 uuid = ruleset.get(Flow.UUID)
                 current_rulesets[uuid] = ruleset
@@ -5021,11 +5021,13 @@ class ReplyAction(Action):
     MSG_TYPE = None
     MEDIA = 'media'
     SEND_ALL = 'send_all'
+    QUICK_RESPONSES = 'quick_responses'
 
-    def __init__(self, msg=None, media=None, send_all=False):
+    def __init__(self, msg=None, media=None, quick_responses=None, send_all=False):
         self.msg = msg
         self.media = media if media else {}
         self.send_all = send_all
+        self.quick_responses = quick_responses if quick_responses else []
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5039,12 +5041,12 @@ class ReplyAction(Action):
                 raise FlowException("Invalid reply action, missing at least one message")
         elif not msg:
             raise FlowException("Invalid reply action, no message")
-
-        return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None),
+        
+        return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None), quick_responses=json_obj.get(cls.QUICK_RESPONSES),
                    send_all=json_obj.get(cls.SEND_ALL, False))
 
     def as_json(self):
-        return dict(type=self.TYPE, msg=self.msg, media=self.media, send_all=self.send_all)
+        return dict(type=self.TYPE, msg=self.msg, media=self.media, quick_responses=self.quick_responses,send_all=self.send_all)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []
