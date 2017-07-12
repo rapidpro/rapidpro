@@ -1763,11 +1763,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.action_webhook_headers_value = []
 
   $scope.actions_quick_responses_types = [{verbose_name:"Link", type:"link"},{verbose_name:"Button", type:"button"}, {verbose_name:"Another", type:"another"}]
-  $scope.actions_quick_responses = [{
-      title:"teste 2",
-      payload:"tsete",
-      type:"link"
-    }]
+  console.log($scope.action)
+  if $scope.action.quick_responses
+    $scope.actions_quick_responses = $scope.action.quick_responses
+  else 
+    $scope.actions_quick_responses = []
+
   if $scope.action.webhook_headers
     item_counter = 0
     for item in $scope.action.webhook_headers
@@ -1864,6 +1865,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.action.msg = {}
     $scope.action.msg[$scope.base_language] = message
 
+    $scope.action.quick_responses = $scope.actions_quick_responses
+
     $scope.action.type = type
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
@@ -1914,7 +1917,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           name: msgLabel.text
 
     $scope.action.labels = labels
-
+    
     $scope.action.type = 'add_label'
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()

@@ -24,16 +24,28 @@
           .remove
             %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
               .icon-close
-   
-       %span{ng-repeat:"response in actions_quick_responses", class:""}
-        %select{ng-options:"item.type as item.verbose_name for item in actions_quick_responses_types", ng-model:"response.type", select2:""}
-        %input{ng-model:"response.title"} 
-        %input{ng-model:"response.payload"}
-
-       %a{ng-click:'AddNewQuickResponse()'}
-        -trans "Add New"
-   
+  
        %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
+      .quick-response
+        .modal-quick-response-header{ng-show:"actions_quick_responses.length"}
+          .modal-quick-response-type
+            -trans "Type"
+          .modal-quick-response-value
+            -trans "Text"
+          .modal-quick-response-value
+            -trans "Payload"
+             
+        .modal-quick-response{ng-repeat:"response in actions_quick_responses", class:""}
+          .modal-quick-response-type
+            %select{ng-options:"item.type as item.verbose_name for item in actions_quick_responses_types", ng-model:"response.type"}
+          .modal-quick-response-value  
+            %input{ng-model:"response.title"} 
+          .modal-quick-response-value 
+            %input{ng-model:"response.payload"}
+
+        %a{ng-click:'AddNewQuickResponse()'}
+          -trans "Add New"
+
     %span{ng-if:'config.type == "end_ussd"'}
       %span{auto-complete:"",msg:"action.msg",type:"ussd",data-message:"message"}
       %button{ng-click:'saveMessage(message, "end_ussd")',class:"submit hide"}
@@ -223,3 +235,23 @@
     -trans "Cancel"
   %button{ng-disabled:"action_editor.$invalid",ng-click:"ok()",class:"btn btn-primary",ng-model:"message"}
     -trans "Ok"
+
+:css
+  
+  .modal-quick-response{
+    display:inline-block;
+  }
+  .modal-quick-response input{
+    width:180px;
+  }
+  .modal-quick-response-type{
+    display:inline-block;
+    width:86px;
+  }
+  .modal-quick-response-type select{
+    width:86px;
+  }
+  .modal-quick-response-value{
+    display:inline-block;
+    width:200px;
+  }
