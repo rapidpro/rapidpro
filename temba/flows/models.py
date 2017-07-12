@@ -5022,12 +5022,14 @@ class ReplyAction(Action):
     MEDIA = 'media'
     SEND_ALL = 'send_all'
     QUICK_RESPONSES = 'quick_responses'
+    BUTTONS_REPLY = 'buttons_reply'
 
-    def __init__(self, msg=None, media=None, quick_responses=None, send_all=False):
+    def __init__(self, msg=None, media=None, quick_responses=None, buttons_reply=None, send_all=False):
         self.msg = msg
         self.media = media if media else {}
         self.send_all = send_all
         self.quick_responses = quick_responses if quick_responses else []
+        self.buttons_reply = buttons_reply if buttons_reply else []
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5042,11 +5044,11 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
         
-        return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None), quick_responses=json_obj.get(cls.QUICK_RESPONSES),
+        return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None), quick_responses=json_obj.get(cls.QUICK_RESPONSES), buttons_reply=json_obj.get(cls.BUTTONS_REPLY),
                    send_all=json_obj.get(cls.SEND_ALL, False))
 
     def as_json(self):
-        return dict(type=self.TYPE, msg=self.msg, media=self.media, quick_responses=self.quick_responses,send_all=self.send_all)
+        return dict(type=self.TYPE, msg=self.msg, media=self.media, quick_responses=self.quick_responses, buttons_reply=self.buttons_reply, send_all=self.send_all)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []

@@ -13,6 +13,7 @@
       %span{auto-complete:"",msg:"action.msg",type:"sms",data-message:"message"}
       %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
       %span{auto-complete:"",sms:"action.msg",type:"sms",data-message:"message"}
+
       .media{ng-hide:'action.uploading'}
 
         .icon-attachment.add-attachment{ng-show:'!action._media', ng-file-select:'onFileSelect($files, actionset, action);', ng-click:'$event.stopPropagation();' }
@@ -25,6 +26,12 @@
             %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
               .icon-close
   
+        %button{ng-click:'AddNewQuickResponse()', ng-disabled:"actions_buttons_reply.length"}
+          -trans "Add Quick Response"
+        
+        %button{ng-click:'AddNewButtonReply()', ng-disabled:"actions_quick_responses.length"}
+          -trans "Add Buttons" 
+
        %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
       .quick-response
         .modal-quick-response-header{ng-show:"actions_quick_responses.length"}
@@ -42,10 +49,32 @@
             %input{ng-model:"response.title", ng-required:"true"} 
           .modal-quick-response-value 
             %input{ng-model:"response.payload", ng-required:"true"}
+          
+          .icon.icon-close{ng-click:"actions_quick_responses.splice($index,1)"}
 
-        %a{ng-click:'AddNewQuickResponse()'}
-          -trans "Add Button"
 
+
+
+        .quick-response
+          .modal-quick-response-header{ng-show:"actions_buttons_reply.length"}
+            .modal-quick-response-type
+              -trans "Type"
+            .modal-quick-response-value
+              -trans "Text"
+            .modal-quick-response-value
+              -trans "Url"
+              
+          .modal-quick-response{ng-repeat:"response in actions_buttons_reply", class:""}
+            .modal-quick-response-type
+              %select{ng-options:"item.type as item.verbose_name for item in actions_quick_responses_types", ng-model:"response.type", style:"width:86px;",select2:"", ng-required:""}
+            .modal-quick-response-value  
+              %input{ng-model:"response.title", ng-required:"true"} 
+            .modal-quick-response-value 
+              %input{ng-model:"response.payload", ng-required:"true"} 
+              .icon.icon-close{ng-click:"actions_buttons_reply.splice($index,1)"}
+              
+              
+      
     %span{ng-if:'config.type == "end_ussd"'}
       %span{auto-complete:"",msg:"action.msg",type:"ussd",data-message:"message"}
       %button{ng-click:'saveMessage(message, "end_ussd")',class:"submit hide"}
@@ -237,12 +266,20 @@
     -trans "Ok"
 
 :css
-  
+  .icon{
+      display: none;
+      color: #ccc;
+      margin: 3px 0;
+      cursor: pointer;
+    }
   .modal-quick-response{
     display:inline-block;
   }
+  .modal-quick-response:hover .icon{
+    display:inline-block;
+  }
   .modal-quick-response input{
-    width:180px;
+    width:160px;
     height:30px;
   }
   .modal-quick-response-type{

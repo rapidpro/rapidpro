@@ -1763,7 +1763,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.action_webhook_headers_value = []
 
   $scope.actions_quick_responses_types = [{verbose_name:"Link", type:"link"},{verbose_name:"Button", type:"button"}, {verbose_name:"Another", type:"another"}]
-  
+
+  if $scope.action.buttons_reply
+    $scope.actions_buttons_reply = $scope.action.buttons_reply
+  else
+    $scope.actions_buttons_reply = []
+
   if $scope.action.quick_responses
     $scope.actions_quick_responses = $scope.action.quick_responses
   else 
@@ -1810,7 +1815,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       type:"button"
     })
    
-
+  $scope.AddNewButtonReply = () ->
+    $scope.actions_buttons_reply.push({
+      title:"",
+      payload:"",
+      type:"button"
+    })
   $scope.actionset = actionset
   $scope.flowId = window.flowId
 

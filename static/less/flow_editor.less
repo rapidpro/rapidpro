@@ -1665,16 +1665,36 @@
         }
       }
     }
-    /*.quick-response{
-      margin: 0;
-      &.modal-quick-response-header{
-        
-      }
-      &.modal-quick-response{
-        display: inline-block;
-      }
-    }*/
   }
+  .model-body{ 
+    .modal-quick-response{
+      display:inline-block;
+      input{
+        width:180px;
+        height:30px;
+      }
+      .modal-quick-response-type{
+        display:inline-block;
+        width:86px;
+        select{
+          width:86px;
+        }
+      }
+    .modal-quick-response-value{
+      display:inline-block;
+      width:200px;
+    }
+    .icon{
+      display: none;
+      color: #ccc;
+      margin: 8px 0;
+      cursor: pointer;
+    }
+
+    }
+            
+  }
+ 
   .modal-body input.url {
     width: 490px;
     margin-left:5px;
