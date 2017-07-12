@@ -222,7 +222,7 @@ class FlowSession(ChannelSession):
         for contact in contacts:
             # build request to flow server
             start_request = {
-                'env': cls.env_as_json(contact.org),
+                'environment': cls.env_as_json(contact.org),
                 'flows': flows,
                 'contact': contact.as_goflow_json()
             }
@@ -297,7 +297,7 @@ class FlowSession(ChannelSession):
             raise ValueError("Session flows have been modified and are no longer supported by goflow")
 
         resume_response = flow_server.resume({
-            'env': self.env_as_json(self.org),
+            'environment': self.env_as_json(self.org),
             'flows': flows,
             'session': self.as_json(),
             'contact': self.contact.as_goflow_json(),
