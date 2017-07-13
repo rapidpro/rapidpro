@@ -389,20 +389,18 @@ class FlowSession(ChannelSession):
         """
         Name or language being updated
         """
-        pass
-        # update_fields = []
-        #
-        # if event['field_name'].lower() == "language":
-        #     self.contact.language = event['value']
-        #     update_fields.append('language')
-        #
-        # elif event['field_name'] == "name":
-        #     self.contact.name = event['value']
-        #     update_fields.append("name")
-        #
-        # else:
-        #     raise Exception("Unknown field to update contact: %s" % event['field_name'])
-        # self.contact.save(update_fields=update_fields)
+        update_fields = []
+
+        if event['field_name'].lower() == "language":
+            self.contact.language = event['value']
+            update_fields.append('language')
+        elif event['field_name'] == "name":
+            self.contact.name = event['value']
+            update_fields.append("name")
+        else:
+            raise Exception("Unknown field to update contact: %s" % event['field_name'])
+
+        self.contact.save(update_fields=update_fields)
 
     def apply_save_contact_field(self, event, msg):
         """
