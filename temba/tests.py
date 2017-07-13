@@ -61,8 +61,9 @@ class ExcludeTestRunner(DiscoverRunner):
     def run_suite(self, suite, **kwargs):
         results = super(ExcludeTestRunner, self).run_suite(suite, **kwargs)
         total_runs = ExcludeTestRunner.LEGACY_ENGINE_RUNS + ExcludeTestRunner.NEW_ENGINE_RUNS
-        pct = "{0:.1f}".format((ExcludeTestRunner.NEW_ENGINE_RUNS / total_runs) * 100)
-        print ("%d / %d (%s%%)" % (ExcludeTestRunner.NEW_ENGINE_RUNS, total_runs, pct))
+        if total_runs:
+            pct = "{0:.1f}".format((ExcludeTestRunner.NEW_ENGINE_RUNS / total_runs) * 100)
+            print ("%d / %d (%s%%)" % (ExcludeTestRunner.NEW_ENGINE_RUNS, total_runs, pct))
         return results
 
 

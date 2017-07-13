@@ -415,11 +415,12 @@ class FlowSession(ChannelSession):
         """
         This contact being added to one or more groups
         """
-        pass
-        # for group in event['groups']:
-        #     group = ContactGroup.objects.filter(org=self.contact.org, uuid=group['uuid']).first()
-        #     if group:
-        #         self.contact.groups.add(group)
+        user = get_flow_user(self.org)
+        for group in event['groups']:
+            group = ContactGroup.get_or_create(self.contact.org, user, group['name'], group['uuid'])
+
+            if group:
+                group.update_contacts(user, [self.contact], True)
 
     def apply_remove_from_group(self, event, msg):
         """
