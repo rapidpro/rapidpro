@@ -1834,7 +1834,7 @@ class ConsoleTest(TembaTest):
         self.john = self.create_contact("John Doe", "0788123123")
 
         # create a flow and set "color" as its trigger
-        self.flow = self.create_flow()
+        self.flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
         Trigger.objects.create(flow=self.flow, keyword="color", created_by=self.admin, modified_by=self.admin, org=self.org)
 
     def assertEchoed(self, needle, clear=True):

@@ -487,12 +487,6 @@ class Contact(TembaModel):
         else:
             language = None
 
-        # org primary language is a backdown language if needed
-        if self.org.primary_language and self.org.primary_language.iso_code != language:
-            other_languages = [self.org.primary_language.iso_code]
-        else:
-            other_languages = []
-
         return {
             'uuid': self.uuid,
             'name': self.name,
@@ -500,7 +494,6 @@ class Contact(TembaModel):
             'groups': [{"uuid": group.uuid, "name": group.name} for group in self.user_groups.all()],
             'timezone': "UTC",
             'language': language,
-            'other_languages': other_languages,
             'fields': {}
         }
 

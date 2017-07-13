@@ -196,8 +196,16 @@ class FlowSession(ChannelSession):
         sessions.update(is_active=False, modified_on=timezone.now())
 
     @classmethod
-    def start(cls, contacts, flow, msg_in=None):
+    def env_as_json(cls, org):
+        languages = [org.primary_language.iso_code] if org.primary_language else []
 
+        return {'timezone': six.text_type(org.timezone), 'languages': languages}
+
+    @classmethod
+    def start(cls, contacts, flow, msg_in=None):
+        """
+        Starts a contact in the given flow
+        """
         if not settings.FLOW_SERVER_URL:
             return []
 
@@ -212,8 +220,12 @@ class FlowSession(ChannelSession):
 
         runs = []
         for contact in contacts:
-
-            start_request = {'flows': flows, 'contact': contact.as_goflow_json()}
+            # build request to flow server
+            start_request = {
+                'environment': cls.env_as_json(contact.org),
+                'flows': flows,
+                'contact': contact.as_goflow_json()
+            }
             if msg_in:
                 start_request['input'] = msg_in.as_input()
 
@@ -285,6 +297,7 @@ class FlowSession(ChannelSession):
             raise ValueError("Session flows have been modified and are no longer supported by goflow")
 
         resume_response = flow_server.resume({
+            'environment': self.env_as_json(self.org),
             'flows': flows,
             'session': self.as_json(),
             'contact': self.contact.as_goflow_json(),
