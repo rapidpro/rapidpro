@@ -11,6 +11,7 @@ from django.utils import timezone
 from temba.campaigns.tasks import check_campaigns_task
 from temba.contacts.models import ContactField
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet, FlowRevision
+from temba.msgs.models import Msg
 from temba.orgs.models import Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest
 from .models import Campaign, CampaignEvent, EventFire
@@ -291,6 +292,14 @@ class CampaignTest(TembaTest):
 
         self.assertTrue(response.context['form'].errors)
         self.assertTrue('A message is required' in six.text_type(response.context['form'].errors['__all__']))
+
+        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=-1, base='allo!' * 500, direction='A',
+                         offset=2, unit='D', event_type='M', flow_to_start=self.reminder_flow.pk)
+
+        response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
+
+        self.assertTrue(response.context['form'].errors)
+        self.assertTrue("Translation for &#39;Default&#39; exceeds the %d character limit." % Msg.MAX_TEXT_LEN in six.text_type(response.context['form'].errors['__all__']))
 
         post_data = dict(relative_to=self.planting_date.pk, delivery_hour=-1, base='', direction='A', offset=2, unit='D', event_type='F')
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
