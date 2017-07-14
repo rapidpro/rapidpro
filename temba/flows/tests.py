@@ -5928,7 +5928,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(run1.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
         self.assertFalse(run1.is_active)
 
-        self.assertEqual(run2.parent.id, run1.id)
+        self.assertIsNone(run2.parent)
 
     def test_translations_rule_first(self):
 

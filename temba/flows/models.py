@@ -1655,8 +1655,10 @@ class Flow(TembaModel):
         now = timezone.now()
 
         for contact_id in batch_contact_ids:
+            parent = parent_run if parent_run and contact_id == parent_run.contact.id else None
+
             run = FlowRun.create(self, contact_id, fields=run_fields, start=flow_start, created_on=now,
-                                 parent=parent_run, db_insert=False)
+                                 parent=parent, db_insert=False)
             batch.append(run)
         FlowRun.objects.bulk_create(batch)
 
