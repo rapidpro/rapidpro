@@ -344,6 +344,7 @@ class Channel(TembaModel):
         TYPE_TWILIO_MESSAGING_SERVICE: "icon-channel-twilio",
         TYPE_PLIVO: "icon-channel-plivo",
         TYPE_CLICKATELL: "icon-channel-clickatell",
+        TYPE_VIBER: "icon-viber"
     }
 
     # list of all USSD channels
