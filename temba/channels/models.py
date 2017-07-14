@@ -3656,8 +3656,6 @@ class Alert(SmartModel):
         context['unsent_count'] = Msg.objects.filter(channel=self.channel, status__in=['Q', 'P'], contact__is_test=False).count()
         context['subject'] = subject
 
-        context['free_sending_channel_types'] = Channel.FREE_SENDING_CHANNEL_TYPES
-
         send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.get_branding())
 
 
