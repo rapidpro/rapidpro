@@ -2617,7 +2617,7 @@ class LineHandler(BaseChannelHandler):
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_LINE).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='LN').exclude(org=None).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 

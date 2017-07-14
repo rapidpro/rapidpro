@@ -1869,43 +1869,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(config['app_id'], 'AppId')
         self.assertEqual(config['passphrase'], 'Passphrase')
 
-    def test_claim_line(self):
-
-        # disassociate all of our channels
-        self.org.channels.all().update(org=None, is_active=False)
-
-        self.login(self.admin)
-        claim_url = reverse('channels.channel_claim')
-        response = self.client.get(claim_url)
-        self.assertContains(response, 'LINE')
-
-        claim_line_url = reverse('channels.channel_claim_line')
-
-        with patch('requests.get') as mock:
-            mock.return_value = MockResponse(200, json.dumps(dict(channelId=123456789, mid='u1234567890')))
-
-            payload = dict(channel_access_token='abcdef123456', channel_secret='123456')
-
-            response = self.client.post(claim_line_url, payload, follow=True)
-            channel = Channel.objects.get(channel_type=Channel.TYPE_LINE)
-            self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
-            self.assertEqual(channel.channel_type, "LN")
-            self.assertEqual(channel.config_json()[Channel.CONFIG_AUTH_TOKEN], 'abcdef123456')
-            self.assertEqual(channel.config_json()[Channel.CONFIG_CHANNEL_SECRET], '123456')
-            self.assertEqual(channel.address, 'u1234567890')
-
-            response = self.client.post(claim_line_url, payload, follow=True)
-            self.assertContains(response, "A channel with this configuration already exists.")
-
-        self.org.channels.update(is_active=False, org=None)
-
-        with patch('requests.get') as mock:
-            mock.return_value = MockResponse(401, json.dumps(dict(error_desciption="invalid token")))
-            payload = dict(channel_auth_token='abcdef123456', channel_secret='123456')
-
-            response = self.client.post(claim_line_url, payload, follow=True)
-            self.assertContains(response, "invalid token")
-
     def test_claim_fcm(self):
 
         # disassociate all of our channels
@@ -10604,7 +10567,7 @@ class LineTest(TembaTest):
         super(LineTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_LINE, '123456789', '123456789',
+        self.channel = Channel.create(self.org, self.user, None, 'LN', '123456789', '123456789',
                                       config=dict(channel_id='1234', channel_secret='1234', channel_mid='1234', auth_token='abcdefgij'),
                                       uuid='00000000-0000-0000-0000-000000001234')
 

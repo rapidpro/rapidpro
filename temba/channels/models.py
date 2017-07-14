@@ -167,7 +167,6 @@ class Channel(TembaModel):
     TYPE_JUNEBUG = 'JN'
     TYPE_JUNEBUG_USSD = 'JNU'
     TYPE_KANNEL = 'KN'
-    TYPE_LINE = 'LN'
     TYPE_MACROKIOSK = 'MK'
     TYPE_M3TECH = 'M3'
     TYPE_MBLOX = 'MB'
@@ -286,7 +285,6 @@ class Channel(TembaModel):
         TYPE_JUNEBUG: dict(scheme='tel', max_length=1600),
         TYPE_JUNEBUG_USSD: dict(scheme='tel', max_length=1600),
         TYPE_KANNEL: dict(scheme='tel', max_length=1600),
-        TYPE_LINE: dict(scheme='line', max_length=1600),
         TYPE_MACROKIOSK: dict(scheme='tel', max_length=1600),
         TYPE_M3TECH: dict(scheme='tel', max_length=160),
         TYPE_NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
@@ -326,7 +324,6 @@ class Channel(TembaModel):
                     (TYPE_JUNEBUG, "Junebug"),
                     (TYPE_JUNEBUG_USSD, "Junebug USSD"),
                     (TYPE_KANNEL, "Kannel"),
-                    (TYPE_LINE, "Line"),
                     (TYPE_MACROKIOSK, "Macrokiosk"),
                     (TYPE_M3TECH, "M3 Tech"),
                     (TYPE_MBLOX, "Mblox"),
@@ -350,7 +347,6 @@ class Channel(TembaModel):
     TYPE_ICONS = {
         TYPE_ANDROID: "icon-channel-android",
         TYPE_KANNEL: "icon-channel-kannel",
-        TYPE_LINE: "icon-line",
         TYPE_NEXMO: "icon-channel-nexmo",
         TYPE_TWILIO: "icon-channel-twilio",
         TYPE_TWIML: "icon-channel-twilio",
@@ -810,15 +806,6 @@ class Channel(TembaModel):
             client = channel.get_jiochat_client()
             if client is not None:
                 client.refresh_access_token(channel.id)
-
-    @classmethod
-    def add_line_channel(cls, org, user, credentials, name):
-        channel_id = credentials.get('channel_id')
-        channel_secret = credentials.get('channel_secret')
-        channel_mid = credentials.get('channel_mid')
-        channel_access_token = credentials.get('channel_access_token')
-
-        return Channel.create(org, user, None, Channel.TYPE_LINE, name=name, address=channel_mid, config={Channel.CONFIG_AUTH_TOKEN: channel_access_token, Channel.CONFIG_CHANNEL_ID: channel_id, Channel.CONFIG_CHANNEL_SECRET: channel_secret, Channel.CONFIG_CHANNEL_MID: channel_mid})
 
     @classmethod
     def get_or_create_android(cls, registration_data, status):
@@ -1639,36 +1626,6 @@ class Channel(TembaModel):
                                                 request_body=json.dumps(json.dumps(payload)),
                                                 response_body=json.dumps(data)),
                                 start=start)
-
-    @classmethod
-    def send_line_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        channel_access_token = channel.config.get(Channel.CONFIG_AUTH_TOKEN)
-
-        data = json.dumps({'to': msg.urn_path, 'messages': [{'type': 'text', 'text': text}]})
-
-        start = time.time()
-        headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % channel_access_token}
-        headers.update(TEMBA_HEADERS)
-        send_url = 'https://api.line.me/v2/bot/message/push'
-
-        event = HttpEvent('POST', send_url, data)
-
-        try:
-            response = requests.post(send_url, data=data, headers=headers)
-            response.json()
-
-            event.status_code = response.status_code
-            event.response_body = response.text
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code not in [200, 201, 202]:  # pragma: needs cover
-            raise SendException("Got non-200 response [%d] from Line" % response.status_code,
-                                event=event, start=start)
-
-        Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
     def send_mblox_message(cls, channel, msg, text):
@@ -3116,7 +3073,6 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_JUNEBUG: Channel.send_junebug_message,
                   Channel.TYPE_JUNEBUG_USSD: Channel.send_junebug_message,
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,
-                  Channel.TYPE_LINE: Channel.send_line_message,
                   Channel.TYPE_M3TECH: Channel.send_m3tech_message,
                   Channel.TYPE_MACROKIOSK: Channel.send_macrokiosk_message,
                   Channel.TYPE_MBLOX: Channel.send_mblox_message,
