@@ -13,7 +13,7 @@ from .views import ClaimView
 from ...models import Channel, ChannelType, SendException, TEMBA_HEADERS
 
 
-class FirebaseCloundMessagingType(ChannelType):
+class FirebaseCloudMessagingType(ChannelType):
     """
     A Firebase Cloud Messaging channel (https://firebase.google.com/docs/cloud-messaging/)
     """
