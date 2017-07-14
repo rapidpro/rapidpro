@@ -1472,6 +1472,31 @@ class OrgTest(TembaTest):
         self.assertEquals(self.org.name, "Temba")
         self.assertTrue(self.org.has_smtp_config())
 
+        self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
+                                               smtp_host='smtp.example.com',
+                                               smtp_username='support@example.com',
+                                               smtp_password='',
+                                               smtp_port='465',
+                                               smtp_encryption='T',
+                                               disconnect='false'), follow=True)
+
+        # password shouldn't change
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.has_smtp_config())
+        self.assertEquals(self.org.config_json()['SMTP_PASSWORD'], 'secret')
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
+                                                          smtp_host='smtp.example.com',
+                                                          smtp_username='help@example.com',
+                                                          smtp_password='',
+                                                          smtp_port='465',
+                                                          smtp_encryption='T',
+                                                          disconnect='false'), follow=True)
+
+        # should have error for blank password
+        self.assertEquals('[{"message": "You must enter the SMTP password", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
         self.client.post(smtp_server_url, dict(disconnect='true'), follow=True)
 
         self.org.refresh_from_db()
