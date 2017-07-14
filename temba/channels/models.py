@@ -86,6 +86,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     max_length = -1
     max_tps = None
     attachment_support = False
+    free_sending = False
 
     def is_available_to(self, user):
         """
@@ -361,8 +362,7 @@ class Channel(TembaModel):
         TYPE_VIBER: "icon-viber"
     }
 
-    FREE_SENDING_CHANNEL_TYPES = [TYPE_JIOCHAT, TYPE_FCM, TYPE_VIBER, TYPE_VIBER_PUBLIC, TYPE_LINE,
-                                  'FB', 'TG', 'TT', 'TWT']
+    FREE_SENDING_CHANNEL_TYPES = [TYPE_JIOCHAT, TYPE_FCM, TYPE_VIBER, TYPE_VIBER_PUBLIC, TYPE_LINE]
 
     # list of all USSD channels
     USSD_CHANNELS = [TYPE_VUMI_USSD, TYPE_JUNEBUG_USSD]

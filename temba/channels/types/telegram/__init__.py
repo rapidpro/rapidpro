@@ -34,6 +34,7 @@ class TelegramType(ChannelType):
     scheme = TELEGRAM_SCHEME
     max_length = 1600
     attachment_support = True
+    free_sending = True
 
     def activate(self, channel):
         config = channel.config_json()
