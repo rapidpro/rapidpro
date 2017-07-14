@@ -648,22 +648,6 @@
             .claim-description
               %div= ch_type.get_claim_blurb
 
-    .claim-row.viber-channel
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_viber_public' %}"}
-            .btn-container
-              .claim-glyph.icon-viber
-              %p.claim-text
-                -trans "Viber"
-
-        .span9
-          .claim-description
-            %div
-              -blocktrans
-                Connect a <a href="http://viber.com/en/">Viber</a> public channel to send and receive messages to Viber users
-                for free. Your users will need an Android, Windows or iOS device and a Viber account to send and receive messages.
-
     .claim-row.jiochat-channel
       .row
         .span3

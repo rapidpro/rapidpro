@@ -32,9 +32,6 @@ class LineType(ChannelType):
     max_length = 1600
     attachment_support = False
 
-    def activate(self, channel):
-        pass
-
     def send(self, channel, msg, text):
         channel_access_token = channel.config.get(Channel.CONFIG_AUTH_TOKEN)
 

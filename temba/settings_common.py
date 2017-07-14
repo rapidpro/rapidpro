@@ -1106,6 +1106,7 @@ CHANNEL_TYPES = [
     'temba.channels.types.telegram.TelegramType',
     'temba.channels.types.twitter.TwitterType',
     'temba.channels.types.twitter_activity.TwitterActivityType',
+    'temba.channels.types.viber_public.ViberPublicType',
 ]
 
 # -----------------------------------------------------------------------------------

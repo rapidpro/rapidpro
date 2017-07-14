@@ -17,7 +17,7 @@ class LineTypeTest(TembaTest):
                                       config={'auth_token': 'abcdef098765', 'channel_secret': '87654'})
 
     @patch('requests.get')
-    def test_claim_line(self, mock_get):
+    def test_claim(self, mock_get):
         url = reverse('channels.claim_line')
 
         self.login(self.admin)

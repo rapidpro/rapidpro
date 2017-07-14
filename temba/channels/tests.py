@@ -1465,61 +1465,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(channel.channel_type, "TW")
         self.assertEqual(channel.config_json(), dict(ACCOUNT_TOKEN='abcd1234', send_url='https://twilio.com', ACCOUNT_SID='abcd1234'))
 
-    def test_claim_viber_public(self):
-        self.login(self.admin)
-
-        # remove any existing channels
-        Channel.objects.all().delete()
-        url = reverse('channels.channel_claim_viber_public')
-        token = "auth"
-
-        with patch('requests.post') as mock:
-            mock.side_effect = [MockResponse(400, json.dumps(dict(status=3, status_message="Invalid token")))]
-            response = self.client.post(url, dict(auth_token=token))
-
-            self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Error validating authentication token")
-
-        with patch('requests.post') as mock:
-            mock.side_effect = [MockResponse(200, json.dumps(dict(status=3, status_message="Invalid token")))]
-            response = self.client.post(url, dict(auth_token=token))
-
-            self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Error validating authentication token")
-
-        with patch('requests.post') as mock:
-            mock.side_effect = [MockResponse(200, json.dumps(dict(status=0, status_message="ok"))),
-                                MockResponse(400, json.dumps(dict(status=3, status_message="Invalid token")))]
-            response = self.client.post(url, dict(auth_token=token))
-
-            self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Invalid authentication token")
-
-        # ok this time claim with a success
-        with patch('requests.post') as mock:
-            mock.side_effect = [MockResponse(200, json.dumps(dict(status=0, status_message="ok"))),
-                                MockResponse(200, json.dumps(dict(status=0, status_message="ok", id="viberId", uri="viberName"))),
-                                MockResponse(200, json.dumps(dict(status=0, status_message="ok")))]
-
-            response = self.client.post(url, dict(auth_token=token), follow=True)
-
-            # assert our channel got created
-            channel = Channel.objects.get()
-            self.assertEqual(channel.config_json()[Channel.CONFIG_AUTH_TOKEN], token)
-            self.assertEqual(channel.address, 'viberId')
-            self.assertEqual(channel.name, 'viberName')
-
-            # should have been called with our webhook URL
-            self.assertEqual(mock.call_args[0][0], 'https://chatapi.viber.com/pa/set_webhook')
-
-        # remove the channel
-        with self.settings(IS_PROD=True):
-            with patch('requests.post') as mock:
-                mock.side_effect = [MockResponse(200, json.dumps(dict(status=0, status_message="ok")))]
-                channel.release()
-
-                self.assertEqual(mock.call_args[0][0], 'https://chatapi.viber.com/pa/set_webhook')
-
     def test_search_nexmo(self):
         self.login(self.admin)
         self.org.channels.update(is_active=False, org=None)
@@ -10709,7 +10654,7 @@ class ViberPublicTest(TembaTest):
         super(ViberPublicTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_VIBER_PUBLIC, None, '1001',
+        self.channel = Channel.create(self.org, self.user, None, 'VP', None, '1001',
                                       uuid='00000000-0000-0000-0000-000000001234',
                                       config={Channel.CONFIG_AUTH_TOKEN: "auth_token"})
 

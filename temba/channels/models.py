@@ -181,7 +181,6 @@ class Channel(TembaModel):
     TYPE_TWILIO_MESSAGING_SERVICE = 'TMS'
     TYPE_VERBOICE = 'VB'
     TYPE_VIBER = 'VI'
-    TYPE_VIBER_PUBLIC = 'VP'
     TYPE_VUMI = 'VM'
     TYPE_VUMI_USSD = 'VMU'
     TYPE_YO = 'YO'
@@ -299,7 +298,6 @@ class Channel(TembaModel):
         TYPE_TWILIO_MESSAGING_SERVICE: dict(scheme='tel', max_length=1600),
         TYPE_VERBOICE: dict(scheme='tel', max_length=1600),
         TYPE_VIBER: dict(scheme='tel', max_length=1000),
-        TYPE_VIBER_PUBLIC: dict(scheme='viber', max_length=7000),
         TYPE_VUMI: dict(scheme='tel', max_length=1600),
         TYPE_VUMI_USSD: dict(scheme='tel', max_length=182),
         TYPE_YO: dict(scheme='tel', max_length=1600),
@@ -338,7 +336,6 @@ class Channel(TembaModel):
                     (TYPE_TWILIO_MESSAGING_SERVICE, "Twilio Messaging Service"),
                     (TYPE_VERBOICE, "Verboice"),
                     (TYPE_VIBER, "Viber"),
-                    (TYPE_VIBER_PUBLIC, "Viber Public Channels"),
                     (TYPE_VUMI, "Vumi"),
                     (TYPE_VUMI_USSD, "Vumi USSD"),
                     (TYPE_YO, "Yo!"),
@@ -353,8 +350,7 @@ class Channel(TembaModel):
         TYPE_TWILIO_MESSAGING_SERVICE: "icon-channel-twilio",
         TYPE_PLIVO: "icon-channel-plivo",
         TYPE_CLICKATELL: "icon-channel-clickatell",
-        TYPE_FCM: "icon-fcm",
-        TYPE_VIBER: "icon-viber"
+        TYPE_FCM: "icon-fcm"
     }
 
     # list of all USSD channels
@@ -483,41 +479,6 @@ class Channel(TembaModel):
     @classmethod
     def add_viber_channel(cls, org, user, name):
         return Channel.create(org, user, None, Channel.TYPE_VIBER, name=name, address=Channel.VIBER_NO_SERVICE_ID)
-
-    @classmethod
-    def add_viber_public_channel(cls, org, user, auth_token):
-        from temba.contacts.models import VIBER_SCHEME
-        response = requests.post('https://chatapi.viber.com/pa/get_account_info', json=dict(auth_token=auth_token))
-        if response.status_code != 200:  # pragma: no cover
-            raise Exception(_("Invalid authentication token, please check."))
-
-        response_json = response.json()
-        if response_json['status'] != 0:  # pragma: no cover
-            raise Exception(_("Invalid authentication token: %s" % response_json['status_message']))
-
-        channel = Channel.create(org, user, None, Channel.TYPE_VIBER_PUBLIC,
-                                 name=response_json['uri'], address=response_json['id'],
-                                 config={Channel.CONFIG_AUTH_TOKEN: auth_token}, scheme=VIBER_SCHEME)
-
-        # set the webhook for the channel
-        # {
-        #   "auth_token": "4453b6ac1s345678-e02c5f12174805f9-daec9cbb5448c51r",
-        #   "url": "https://my.host.com",
-        #   "event_types": ["delivered", "seen", "failed", "conversation_started"]
-        # }
-        response = requests.post('https://chatapi.viber.com/pa/set_webhook',
-                                 json=dict(auth_token=auth_token,
-                                           url="https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.viber_public_handler', args=[channel.uuid]),
-                                           event_types=['delivered', 'failed', 'conversation_started']))
-        if response.status_code != 200:  # pragma: no cover
-            channel.delete()
-            raise Exception(_("Unable to set webhook for channel: %s", response.text))
-
-        response_json = response.json()
-        if response_json['status'] != 0:  # pragma: no cover
-            raise Exception(_("Unable to set Viber webhook: %s" % response_json['status_message']))
-
-        return channel
 
     @classmethod
     def add_fcm_channel(cls, org, user, data):
@@ -1250,11 +1211,6 @@ class Channel(TembaModel):
                     client.applications.delete(sid=config['application_sid'])
                 except TwilioRestException:  # pragma: no cover
                     pass
-
-            # unsubscribe from Viber events
-            elif self.channel_type == Channel.TYPE_VIBER_PUBLIC:
-                auth_token = self.config_json()[Channel.CONFIG_AUTH_TOKEN]
-                requests.post('https://chatapi.viber.com/pa/set_webhook', json=dict(auth_token=auth_token, url=''))
 
         # save off our org and gcm id before nullifying
         org = self.org
@@ -2812,45 +2768,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_viber_public_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        url = 'https://chatapi.viber.com/pa/send_message'
-        payload = dict(auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
-                       receiver=msg.urn_path,
-                       text=text,
-                       type='text',
-                       tracking_data=msg.id)
-
-        event = HttpEvent('POST', url, json.dumps(payload))
-
-        start = time.time()
-
-        headers = dict(Accept='application/json')
-        headers.update(TEMBA_HEADERS)
-
-        try:
-            response = requests.post(url, json=payload, headers=headers, timeout=5)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-            response_json = response.json()
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code not in [200, 201, 202]:
-            raise SendException("Got non-200 response [%d] from API" % response.status_code,
-                                event=event, start=start)
-
-        # success is 0, everything else is a failure
-        if response_json['status'] != 0:
-            raise SendException("Got non-0 status [%d] from API" % response_json['status'],
-                                event=event, fatal=True, start=start)
-
-        external_id = response.json().get('message_token', None)
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
-
-    @classmethod
     def get_pending_messages(cls, org):
         """
         We want all messages that are:
@@ -3086,7 +3003,6 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_TWIML: Channel.send_twilio_message,
                   Channel.TYPE_TWILIO_MESSAGING_SERVICE: Channel.send_twilio_message,
                   Channel.TYPE_VIBER: Channel.send_viber_message,
-                  Channel.TYPE_VIBER_PUBLIC: Channel.send_viber_public_message,
                   Channel.TYPE_VUMI: Channel.send_vumi_message,
                   Channel.TYPE_VUMI_USSD: Channel.send_vumi_message,
                   Channel.TYPE_YO: Channel.send_yo_message,
