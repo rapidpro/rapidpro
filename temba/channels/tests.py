@@ -1814,32 +1814,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(config['app_id'], 'AppId')
         self.assertEqual(config['passphrase'], 'Passphrase')
 
-    def test_claim_fcm(self):
-
-        # disassociate all of our channels
-        self.org.channels.all().update(org=None, is_active=False)
-
-        self.login(self.admin)
-        claim_url = reverse('channels.channel_claim_fcm')
-        response = self.client.get(claim_url)
-        self.assertContains(response, 'Firebase')
-
-        claim_fcm_url = reverse('channels.channel_claim_fcm')
-
-        with patch('requests.get') as mock:
-            mock.return_value = MockResponse(200, json.dumps(dict(title='FCM Channel', key='abcde12345',
-                                                                  send_notification='True')))
-
-            payload = dict(title='FCM Channel', key='abcde12345', send_notification='True')
-
-            response = self.client.post(claim_fcm_url, payload, follow=True)
-            channel = Channel.objects.get(channel_type=Channel.TYPE_FCM)
-            self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
-            self.assertEqual(channel.channel_type, "FCM")
-            self.assertEqual(channel.config_json()[Channel.CONFIG_FCM_KEY], 'abcde12345')
-            self.assertEqual(channel.config_json()[Channel.CONFIG_FCM_TITLE], 'FCM Channel')
-            self.assertEqual(channel.address, "abcde12345")
-
     def test_release(self):
         Channel.objects.all().delete()
         self.login(self.admin)
@@ -10985,7 +10959,7 @@ class FcmTest(TembaTest):
         super(FcmTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_FCM, 'FCM Channel', 'fcm-channel',
+        self.channel = Channel.create(self.org, self.user, None, 'FCM', 'FCM Channel', 'fcm-channel',
                                       config=dict(FCM_KEY='123456789', FCM_TITLE='FCM Channel',
                                                   FCM_NOTIFICATION=True),
                                       uuid='00000000-0000-0000-0000-000000001234')

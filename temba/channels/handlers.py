@@ -2866,7 +2866,7 @@ class FCMHandler(BaseChannelHandler):
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_FCM).exclude(
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='FCM').exclude(
             org=None).first()
 
         if not channel:

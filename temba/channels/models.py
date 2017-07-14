@@ -157,7 +157,6 @@ class Channel(TembaModel):
     TYPE_DARTMEDIA = 'DA'
     TYPE_DUMMY = 'DM'
     TYPE_EXTERNAL = 'EX'
-    TYPE_FCM = 'FCM'
     TYPE_GLOBE = 'GL'
     TYPE_HIGH_CONNECTION = 'HX'
     TYPE_HUB9 = 'H9'
@@ -211,9 +210,6 @@ class Channel(TembaModel):
     CONFIG_CHANNEL_SECRET = 'channel_secret'
     CONFIG_CHANNEL_MID = 'channel_mid'
     CONFIG_FCM_ID = 'FCM_ID'
-    CONFIG_FCM_KEY = 'FCM_KEY'
-    CONFIG_FCM_TITLE = 'FCM_TITLE'
-    CONFIG_FCM_NOTIFICATION = 'FCM_NOTIFICATION'
     CONFIG_MAX_LENGTH = 'max_length'
     CONFIG_MACROKIOSK_SENDER_ID = 'macrokiosk_sender_id'
     CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
@@ -274,7 +270,6 @@ class Channel(TembaModel):
         TYPE_DARTMEDIA: dict(scheme='tel', max_length=160),
         TYPE_DUMMY: dict(scheme='tel', max_length=160),
         TYPE_EXTERNAL: dict(max_length=160),
-        TYPE_FCM: dict(scheme='fcm', max_length=10000),
         TYPE_GLOBE: dict(scheme='tel', max_length=160),
         TYPE_HIGH_CONNECTION: dict(scheme='tel', max_length=1500),
         TYPE_HUB9: dict(scheme='tel', max_length=1600),
@@ -312,7 +307,6 @@ class Channel(TembaModel):
                     (TYPE_DARTMEDIA, "Dart Media"),
                     (TYPE_DUMMY, "Dummy"),
                     (TYPE_EXTERNAL, "External"),
-                    (TYPE_FCM, "Firebase Cloud Messaging"),
                     (TYPE_GLOBE, "Globe Labs"),
                     (TYPE_HIGH_CONNECTION, "High Connection"),
                     (TYPE_HUB9, "Hub9"),
@@ -350,7 +344,6 @@ class Channel(TembaModel):
         TYPE_TWILIO_MESSAGING_SERVICE: "icon-channel-twilio",
         TYPE_PLIVO: "icon-channel-plivo",
         TYPE_CLICKATELL: "icon-channel-clickatell",
-        TYPE_FCM: "icon-fcm"
     }
 
     # list of all USSD channels
@@ -479,19 +472,6 @@ class Channel(TembaModel):
     @classmethod
     def add_viber_channel(cls, org, user, name):
         return Channel.create(org, user, None, Channel.TYPE_VIBER, name=name, address=Channel.VIBER_NO_SERVICE_ID)
-
-    @classmethod
-    def add_fcm_channel(cls, org, user, data):
-        """
-        Creates a new Firebase Cloud Messaging channel
-        """
-        from temba.contacts.models import FCM_SCHEME
-
-        assert Channel.CONFIG_FCM_KEY in data and Channel.CONFIG_FCM_TITLE in data, "%s and %s are required" % (
-            Channel.CONFIG_FCM_KEY, Channel.CONFIG_FCM_TITLE)
-
-        return Channel.create(org, user, None, Channel.TYPE_FCM, name=data.get(Channel.CONFIG_FCM_TITLE),
-                              address=data.get(Channel.CONFIG_FCM_KEY), config=data, scheme=FCM_SCHEME)
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number,
@@ -1356,55 +1336,6 @@ class Channel(TembaModel):
                                       response=event.response_body,
                                       response_status=event.status_code,
                                       request_time=request_time_ms)
-
-    @classmethod
-    def send_fcm_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-        start = time.time()
-
-        url = 'https://fcm.googleapis.com/fcm/send'
-        title = channel.config.get(Channel.CONFIG_FCM_TITLE)
-        data = {
-            'data': {
-                'type': 'rapidpro',
-                'title': title,
-                'message': text,
-                'message_id': msg.id
-            },
-            'content_available': False,
-            'to': msg.auth,
-            'priority': 'high'
-        }
-
-        if channel.config.get(Channel.CONFIG_FCM_NOTIFICATION):
-            data['notification'] = {
-                'title': title,
-                'body': text
-            }
-            data['content_available'] = True
-
-        payload = json.dumps(data)
-        headers = {'Content-Type': 'application/json',
-                   'Authorization': 'key=%s' % channel.config.get(Channel.CONFIG_FCM_KEY)}
-        headers.update(TEMBA_HEADERS)
-
-        event = HttpEvent('POST', url, payload)
-
-        try:
-            response = requests.post(url, data=payload, headers=headers, timeout=5)
-            result = json.loads(response.text) if response.status_code == 200 else None
-
-            event.status_code = response.status_code
-            event.response_body = response.text
-        except Exception as e:  # pragma: no cover
-            raise SendException(unicode(e), event, start=start)
-
-        if result and 'success' in result and result.get('success') == 1:
-            external_id = result.get('multicast_id')
-            Channel.success(channel, msg, WIRED, start, events=[event], external_id=external_id)
-        else:
-            raise SendException("Got non-200 response [%d] from Firebase Cloud Messaging" % response.status_code,
-                                event, start=start)
 
     @classmethod
     def send_red_rabbit_message(cls, channel, msg, text):
@@ -2980,7 +2911,6 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_DARTMEDIA: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
                   Channel.TYPE_EXTERNAL: Channel.send_external_message,
-                  Channel.TYPE_FCM: Channel.send_fcm_message,
                   Channel.TYPE_GLOBE: Channel.send_globe_message,
                   Channel.TYPE_HIGH_CONNECTION: Channel.send_high_connection_message,
                   Channel.TYPE_HUB9: Channel.send_hub9_or_dartmedia_message,
