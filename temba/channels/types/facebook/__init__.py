@@ -52,13 +52,36 @@ class FacebookType(ChannelType):
 
     def send(self, channel, msg, text):
         # build our payload
-        payload = {'message': {'text': text}}
+        payload = {}
+        payload['message'] = {}
+        if len(msg.additional_params.get('quick_responses')):
+            # setting data to quick replies
+            payload['message']["text"] = text
+            payload['message']["quick_replies"] = msg.additional_params.get('quick_responses')
+
+        elif len(msg.additional_params.get('buttons_reply')):
+            # setting data to buttons replys with url
+            buttons = msg.additional_params.get('buttons_reply')
+            payload['message']['attachment'] = {}
+            payload['message']['attachment']["type"] = "template"
+            payload['message']['attachment']["payload"] = {
+                "template_type":"button",
+                "text":text,
+                "buttons":buttons
+            }
+
+        else:
+            #continue flow if not have additional data
+            payload['message']['text'] = text
+
 
         # this is a ref facebook id, temporary just for this message
         if URN.is_path_fb_ref(msg.urn_path):
             payload['recipient'] = dict(user_ref=URN.fb_ref_from_path(msg.urn_path))
         else:
             payload['recipient'] = dict(id=msg.urn_path)
+
+
 
         url = "https://graph.facebook.com/v2.5/me/messages"
         params = {'access_token': channel.config[Channel.CONFIG_AUTH_TOKEN]}
@@ -67,20 +90,23 @@ class FacebookType(ChannelType):
 
         payload = json.dumps(payload)
         event = HttpEvent('POST', url, json.dumps(payload))
-
+   
         try:
             response = requests.post(url, payload, params=params, headers=headers, timeout=15)
             event.status_code = response.status_code
             event.response_body = response.text
+            print(response.text)
+
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
 
         # for now we only support sending one attachment per message but this could change in future
         attachments = Msg.get_attachments(msg)
         media_type, media_url = attachments[0] if attachments else (None, None)
-
+        
         if media_type and media_url:
             media_type = media_type.split('/')[0]
+
 
             payload = json.loads(payload)
             payload['message'] = {'attachment': {'type': media_type, 'payload': {'url': media_url}}}

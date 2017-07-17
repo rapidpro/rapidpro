@@ -5059,7 +5059,9 @@ class ReplyAction(Action):
             text = ''
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
-
+            additional_params = dict()
+            additional_params['quick_responses'] = self.quick_responses
+            additional_params['buttons_reply'] = self.buttons_reply
             attachments = None
             if self.media:
                 # localize our media attachment
@@ -5077,11 +5079,11 @@ class ReplyAction(Action):
 
             if msg:
                 replies = msg.reply(text, user, trigger_send=False, message_context=context,
-                                    session=run.session, msg_type=self.MSG_TYPE, attachments=attachments,
+                                    session=run.session, msg_type=self.MSG_TYPE, additional_params=additional_params, attachments=attachments,
                                     send_all=self.send_all, created_on=created_on)
             else:
                 replies = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                           session=run.session, msg_type=self.MSG_TYPE, attachments=attachments,
+                                           session=run.session, msg_type=self.MSG_TYPE, additional_params=additional_params, attachments=attachments,
                                            created_on=created_on, all_urns=self.send_all)
         return replies
 

@@ -35,16 +35,12 @@
        %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
       .quick-response
         .modal-quick-response-header{ng-show:"actions_quick_responses.length"}
-          .modal-quick-response-type
-            -trans "Type"
           .modal-quick-response-value
             -trans "Text"
           .modal-quick-response-value
             -trans "Payload"
              
         .modal-quick-response{ng-repeat:"response in actions_quick_responses", class:""}
-          .modal-quick-response-type
-            %select{ng-options:"item.type as item.verbose_name for item in actions_quick_responses_types", ng-model:"response.type", style:"width:86px;",select2:"", ng-required:""}
           .modal-quick-response-value  
             %input{ng-model:"response.title", ng-required:"true"} 
           .modal-quick-response-value 
@@ -57,20 +53,16 @@
 
         .quick-response
           .modal-quick-response-header{ng-show:"actions_buttons_reply.length"}
-            .modal-quick-response-type
-              -trans "Type"
             .modal-quick-response-value
               -trans "Text"
             .modal-quick-response-value
               -trans "Url"
               
           .modal-quick-response{ng-repeat:"response in actions_buttons_reply", class:""}
-            .modal-quick-response-type
-              %select{ng-options:"item.type as item.verbose_name for item in actions_quick_responses_types", ng-model:"response.type", style:"width:86px;",select2:"", ng-required:""}
             .modal-quick-response-value  
               %input{ng-model:"response.title", ng-required:"true"} 
             .modal-quick-response-value 
-              %input{ng-model:"response.payload", ng-required:"true"} 
+              %input{ng-model:"response.url", ng-required:"true"} 
               .icon.icon-close{ng-click:"actions_buttons_reply.splice($index,1)"}
               
               

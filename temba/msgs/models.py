@@ -701,6 +701,8 @@ class Msg(models.Model):
     attachments = ArrayField(models.URLField(max_length=255), null=True,
                              help_text=_("The media attachments on this message if any"))
 
+    additional_params = models.TextField(null=True, help_text=_("The additional params for any type msgs"))
+
     session = models.ForeignKey('channels.ChannelSession', null=True,
                                 help_text=_("The session this message was a part of if any"))
 
@@ -1049,11 +1051,11 @@ class Msg(models.Model):
     def is_media_type_image(self):
         return Msg.MEDIA_IMAGE == self.get_media_type()
 
-    def reply(self, text, user, trigger_send=False, message_context=None, session=None, attachments=None, msg_type=None,
+    def reply(self, text, user, trigger_send=False, message_context=None, session=None, attachments=None, additional_params=None, msg_type=None,
               send_all=False, created_on=None):
-
+              
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None, session=session, attachments=attachments,
+                                 response_to=self if self.id else None, session=session, additional_params=additional_params, attachments=attachments,
                                  msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all)
 
     def update(self, cmd):
@@ -1174,7 +1176,7 @@ class Msg(models.Model):
         Used internally to serialize to JSON when queueing messages in Redis
         """
         data = dict(id=self.id, org=self.org_id, channel=self.channel_id, broadcast=self.broadcast_id,
-                    text=self.text, urn_path=self.contact_urn.path,
+                    text=self.text, additional_params=self.additional_params, urn_path=self.contact_urn.path,
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
                     status=self.status, direction=self.direction, attachments=self.attachments,
@@ -1327,7 +1329,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
-                        created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
+                        created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True, additional_params=None,
                         attachments=None, topup_id=None, msg_type=INBOX, session=None):
 
         if not org or not user:  # pragma: no cover
@@ -1438,6 +1440,7 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         priority=priority,
                         attachments=attachments,
+                        additional_params=additional_params,
                         session=session,
                         has_template_error=len(errors) > 0)
 
