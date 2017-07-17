@@ -25,12 +25,16 @@
           .remove
             %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
               .icon-close
-  
-        %button{ng-click:'AddNewQuickResponse()', ng-disabled:"actions_buttons_reply.length"}
-          -trans "Add Quick Response"
         
-        %button{ng-click:'AddNewButtonReply()', ng-disabled:"actions_quick_responses.length"}
-          -trans "Add Buttons" 
+
+        
+        %span{class:"", ng-click:'AddNewQuickResponse()', ng-disabled:"actions_buttons_reply.length"}
+          .icon-button-quick-response.add-attachment{style:"font-size:17px; margin-top:5px; padding-bottom:5px; margin-left:5px;"}
+          
+        %span{class:"", ng-click:'AddNewButtonReply()', ng-disabled:"actions_quick_responses.length"}
+          .icon-button-response.add-attachment{style:"font-size:20px; margin-top:2px; padding-bottom:5px; margin-left:5px;"}
+
+         
 
        %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
       .quick-response
@@ -264,6 +268,9 @@
       margin: 3px 0;
       cursor: pointer;
     }
+  .quick-response{
+    margin-top:20px;
+  }
   .modal-quick-response{
     margin: 0 auto;
     display:inline-block;
