@@ -30,6 +30,7 @@ class FirebaseCloudMessagingType(ChannelType):
     scheme = FCM_SCHEME
     max_length = 10000
     attachment_support = False
+    free_sending = True
 
     def send(self, channel, msg, text):
         start = time.time()

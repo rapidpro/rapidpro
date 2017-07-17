@@ -31,6 +31,7 @@ class LineType(ChannelType):
     scheme = LINE_SCHEME
     max_length = 1600
     attachment_support = False
+    free_sending = True
 
     def send(self, channel, msg, text):
         channel_access_token = channel.config.get(Channel.CONFIG_AUTH_TOKEN)

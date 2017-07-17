@@ -33,6 +33,7 @@ class ViberPublicType(ChannelType):
     scheme = VIBER_SCHEME
     max_length = 7000
     attachment_support = False
+    free_sending = True
 
     def activate(self, channel):
         auth_token = channel.config_json()['auth_token']
