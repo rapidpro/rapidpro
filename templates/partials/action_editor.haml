@@ -63,7 +63,7 @@
               %input{ng-model:"response.title", ng-required:"true"} 
             .modal-quick-response-value 
               %input{ng-model:"response.url", ng-required:"true"} 
-              .icon.icon-close{ng-click:"actions_buttons_reply.splice($index,1)"}
+            .icon.icon-close{ng-click:"actions_buttons_reply.splice($index,1)"}
               
               
       
@@ -265,13 +265,15 @@
       cursor: pointer;
     }
   .modal-quick-response{
+    margin: 0 auto;
     display:inline-block;
+    width:100%;
   }
   .modal-quick-response:hover .icon{
     display:inline-block;
   }
   .modal-quick-response input{
-    width:160px;
+    width:100%;
     height:30px;
   }
   .modal-quick-response-type{
@@ -283,5 +285,8 @@
   }
   .modal-quick-response-value{
     display:inline-block;
-    width:200px;
+    width:43%;
+    margin-left:2%;
+    margin-right:10px;
+    margin-bottom:5px;
   }
