@@ -1761,6 +1761,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.action = utils.clone(action)
   $scope.action_webhook_headers_name = []
   $scope.action_webhook_headers_value = []
+  $scope.patternUrl = /((http|https)\:\/\/)?[a-zA-Z0-9\.\/\?\:@\-_=#]+\.([a-zA-Z0-9\&\.\/\?\:@\-_=#])*/
 
 
   if $scope.action.buttons_reply

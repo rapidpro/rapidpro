@@ -62,7 +62,7 @@
             .modal-quick-response-value  
               %input{ng-model:"response.title", ng-required:"true"} 
             .modal-quick-response-value 
-              %input{ng-model:"response.url", ng-required:"true"} 
+              %input{ng-model:"response.url", ng-required:"true", ng-pattern:"patternUrl"} 
             .icon.icon-close{ng-click:"actions_buttons_reply.splice($index,1)"}
               
               
