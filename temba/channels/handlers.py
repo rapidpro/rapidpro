@@ -597,7 +597,7 @@ class TelegramHandler(BaseChannelHandler):
             ChannelLog.log_message(msg, description, event)
 
         channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_TELEGRAM).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='TG').exclude(org=None).first()
 
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
@@ -2226,7 +2226,7 @@ class JioChatHandler(BaseChannelHandler):
         urn = URN.from_jiochat(sender_id)
         contact_name = None
         if not channel.org.is_anon:
-            contact_detail = client.get_user_detail(sender_id)
+            contact_detail = client.get_user_detail(sender_id, channel.id)
             contact_name = contact_detail.get('nickname')
 
         contact = Contact.get_or_create(channel.org, channel.created_by, name=contact_name,
@@ -2244,7 +2244,7 @@ class JioChatHandler(BaseChannelHandler):
         if msg_type == 'text':
             text = body.get('Content', "")
         elif msg_type in ['image', 'video', 'voice']:
-            media_response = client.request_media(body.get('MediaId'))
+            media_response = client.request_media(body.get('MediaId'), channel.id)
             content_type, downloaded_url = channel.org.save_response_media(media_response)
             attachments.append('%s:%s' % (content_type, downloaded_url))
 
