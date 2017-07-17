@@ -7,7 +7,6 @@ import phonenumbers
 import plivo
 import regex
 import requests
-import telegram
 import re
 import six
 
@@ -39,7 +38,6 @@ from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, 
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
 from temba.utils.http import HttpEvent
-from temba.utils.jiochat import JiochatClient
 from temba.utils.nexmo import NexmoClient, NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from time import sleep
@@ -88,6 +86,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     max_length = -1
     max_tps = None
     attachment_support = False
+    free_sending = False
 
     def is_available_to(self, user):
         """
@@ -179,7 +178,6 @@ class Channel(TembaModel):
     TYPE_SHAQODOON = 'SQ'
     TYPE_SMSCENTRAL = 'SC'
     TYPE_START = 'ST'
-    TYPE_TELEGRAM = 'TG'
     TYPE_TWILIO = 'T'
     TYPE_TWIML = 'TW'
     TYPE_TWILIO_MESSAGING_SERVICE = 'TMS'
@@ -299,7 +297,6 @@ class Channel(TembaModel):
         TYPE_SHAQODOON: dict(scheme='tel', max_length=1600),
         TYPE_SMSCENTRAL: dict(scheme='tel', max_length=1600, max_tps=1),
         TYPE_START: dict(scheme='tel', max_length=1600),
-        TYPE_TELEGRAM: dict(scheme='telegram', max_length=1600),
         TYPE_TWILIO: dict(scheme='tel', max_length=1600),
         TYPE_TWIML: dict(scheme='tel', max_length=1600),
         TYPE_TWILIO_MESSAGING_SERVICE: dict(scheme='tel', max_length=1600),
@@ -340,7 +337,6 @@ class Channel(TembaModel):
                     (TYPE_SHAQODOON, "Shaqodoon"),
                     (TYPE_SMSCENTRAL, "SMSCentral"),
                     (TYPE_START, "Start Mobile"),
-                    (TYPE_TELEGRAM, "Telegram"),
                     (TYPE_TWILIO, "Twilio"),
                     (TYPE_TWIML, "TwiML Rest API"),
                     (TYPE_TWILIO_MESSAGING_SERVICE, "Twilio Messaging Service"),
@@ -362,10 +358,11 @@ class Channel(TembaModel):
         TYPE_TWILIO_MESSAGING_SERVICE: "icon-channel-twilio",
         TYPE_PLIVO: "icon-channel-plivo",
         TYPE_CLICKATELL: "icon-channel-clickatell",
-        TYPE_TELEGRAM: "icon-telegram",
         TYPE_FCM: "icon-fcm",
         TYPE_VIBER: "icon-viber"
     }
+
+    FREE_SENDING_CHANNEL_TYPES = [TYPE_JIOCHAT, TYPE_FCM, TYPE_VIBER, TYPE_VIBER_PUBLIC, TYPE_LINE]
 
     # list of all USSD channels
     USSD_CHANNELS = [TYPE_VUMI_USSD, TYPE_JUNEBUG_USSD]
@@ -374,9 +371,9 @@ class Channel(TembaModel):
 
     NCCO_CHANNELS = [TYPE_NEXMO]
 
-    MEDIA_CHANNELS = [TYPE_TWILIO, TYPE_TWIML, TYPE_TWILIO_MESSAGING_SERVICE, TYPE_TELEGRAM]
+    MEDIA_CHANNELS = [TYPE_TWILIO, TYPE_TWIML, TYPE_TWILIO_MESSAGING_SERVICE]
 
-    HIDE_CONFIG_PAGE = [TYPE_TWILIO, TYPE_ANDROID, TYPE_TELEGRAM]
+    HIDE_CONFIG_PAGE = [TYPE_TWILIO, TYPE_ANDROID]
 
     VIBER_NO_SERVICE_ID = 'no_service_id'
 
@@ -489,22 +486,6 @@ class Channel(TembaModel):
 
     def get_type(self):
         return self.get_type_from_code(self.channel_type)
-
-    @classmethod
-    def add_telegram_channel(cls, org, user, auth_token):
-        """
-        Creates a new telegram channel from the passed in auth token
-        """
-        from temba.contacts.models import TELEGRAM_SCHEME
-        bot = telegram.Bot(auth_token)
-        me = bot.getMe()
-
-        channel = Channel.create(org, user, None, Channel.TYPE_TELEGRAM, name=me.first_name, address=me.username,
-                                 config={Channel.CONFIG_AUTH_TOKEN: auth_token}, scheme=TELEGRAM_SCHEME)
-
-        bot.setWebhook("https://" + settings.TEMBA_HOST +
-                       "%s" % reverse('handlers.telegram_handler', args=[channel.uuid]))
-        return channel
 
     @classmethod
     def add_viber_channel(cls, org, user, name):
@@ -831,7 +812,7 @@ class Channel(TembaModel):
         for channel in jiochat_channels:
             client = channel.get_jiochat_client()
             if client is not None:
-                client.refresh_access_token()
+                client.refresh_access_token(channel.id)
 
     @classmethod
     def add_line_channel(cls, org, user, credentials, name):
@@ -1010,6 +991,7 @@ class Channel(TembaModel):
             app_secret = config.get(Channel.CONFIG_JIOCHAT_APP_SECRET, None)
 
             if app_id and app_secret:
+                from temba.utils.jiochat import JiochatClient
                 return JiochatClient(self.uuid, app_id, app_secret)
 
     def get_twiml_client(self):
@@ -1522,6 +1504,7 @@ class Channel(TembaModel):
     @classmethod
     def send_jiochat_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
+        from temba.utils.jiochat import JiochatClient
 
         data = dict(msgtype='text')
         data['touser'] = msg.urn_path
@@ -2634,7 +2617,7 @@ class Channel(TembaModel):
 
     @classmethod
     def send_twilio_message(cls, channel, msg, text):
-        from temba.msgs.models import Msg, WIRED
+        from temba.msgs.models import Attachment, WIRED
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
         from temba.utils.twilio import TembaTwilioRestClient
 
@@ -2645,8 +2628,8 @@ class Channel(TembaModel):
 
         if msg.attachments:
             # for now we only support sending one attachment per message but this could change in future
-            media_type, media_url = Msg.get_attachments(msg)[0]
-            media_urls = [media_url]
+            attachment = Attachment.parse_all(msg.attachments)[0]
+            media_urls = [attachment.url]
 
         if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
             config = channel.config
@@ -2686,53 +2669,6 @@ class Channel(TembaModel):
 
         except Exception as e:
             raise SendException(six.text_type(e), events=client.messages.events)
-
-    @classmethod
-    def send_telegram_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        auth_token = channel.config[Channel.CONFIG_AUTH_TOKEN]
-        send_url = 'https://api.telegram.org/bot%s/sendMessage' % auth_token
-        post_body = dict(chat_id=msg.urn_path, text=text)
-
-        start = time.time()
-
-        # for now we only support sending one attachment per message but this could change in future
-        from temba.msgs.models import Msg
-        attachments = Msg.get_attachments(msg)
-        media_type, media_url = attachments[0] if attachments else (None, None)
-
-        if media_type and media_url:
-            media_type = media_type.split('/')[0]
-            if media_type == 'image':
-                send_url = 'https://api.telegram.org/bot%s/sendPhoto' % auth_token
-                post_body['photo'] = media_url
-                post_body['caption'] = text
-                del post_body['text']
-            elif media_type == 'video':
-                send_url = 'https://api.telegram.org/bot%s/sendVideo' % auth_token
-                post_body['video'] = media_url
-                post_body['caption'] = text
-                del post_body['text']
-            elif media_type == 'audio':
-                send_url = 'https://api.telegram.org/bot%s/sendAudio' % auth_token
-                post_body['audio'] = media_url
-                post_body['caption'] = text
-                del post_body['text']
-
-        event = HttpEvent('POST', send_url, urlencode(post_body))
-        external_id = None
-
-        try:
-            response = requests.post(send_url, post_body)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-            external_id = response.json()['result']['message_id']
-        except Exception as e:
-            raise SendException(str(e), event=event, start=start)
-
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
     def send_clickatell_message(cls, channel, msg, text):
@@ -2989,7 +2925,7 @@ class Channel(TembaModel):
 
     @classmethod
     def send_message(cls, msg):  # pragma: no cover
-        from temba.msgs.models import Msg, QUEUED, WIRED, MSG_SENT_KEY
+        from temba.msgs.models import Msg, Attachment, QUEUED, WIRED, MSG_SENT_KEY
         r = get_redis_connection()
 
         # check whether this message was already sent somehow
@@ -3052,9 +2988,8 @@ class Channel(TembaModel):
 
         if msg.attachments and not Channel.supports_media(channel):
             # for now we only support sending one attachment per message but this could change in future
-            media_type, media_url = Msg.get_attachments(msg)[0]
-            if media_type and media_url:
-                text = '%s\n%s' % (text, media_url)
+            attachment = Attachment.parse_all(msg.attachments)[0]
+            text = '%s\n%s' % (text, attachment.url)
 
             # don't send as media
             msg.attachments = None
@@ -3194,7 +3129,6 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_SHAQODOON: Channel.send_shaqodoon_message,
                   Channel.TYPE_SMSCENTRAL: Channel.send_smscentral_message,
                   Channel.TYPE_START: Channel.send_start_message,
-                  Channel.TYPE_TELEGRAM: Channel.send_telegram_message,
                   Channel.TYPE_TWILIO: Channel.send_twilio_message,
                   Channel.TYPE_TWIML: Channel.send_twilio_message,
                   Channel.TYPE_TWILIO_MESSAGING_SERVICE: Channel.send_twilio_message,
@@ -3441,13 +3375,28 @@ class ChannelLog(models.Model):
     def log_ivr_interaction(cls, call, description, event, is_error=False):
         ChannelLog.objects.create(channel_id=call.channel_id,
                                   session_id=call.id,
-                                  request=str(event.request_body),
-                                  response=str(event.response_body),
+                                  request=six.text_type(event.request_body),
+                                  response=six.text_type(event.response_body),
                                   url=event.url,
                                   method=event.method,
                                   is_error=is_error,
                                   response_status=event.status_code,
                                   description=description[:255])
+
+    @classmethod
+    def log_channel_request(cls, channel_id, description, event, start, is_error=False):
+        request_time = 0 if not start else time.time() - start
+        request_time_ms = request_time * 1000
+
+        ChannelLog.objects.create(channel_id=channel_id,
+                                  request=six.text_type(event.request_body),
+                                  response=six.text_type(event.response_body),
+                                  url=event.url,
+                                  method=event.method,
+                                  is_error=is_error,
+                                  response_status=event.status_code,
+                                  description=description[:255],
+                                  request_time=request_time_ms)
 
     def get_url_host(self):
         parsed = urlparse.urlparse(self.url)

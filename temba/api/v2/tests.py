@@ -348,7 +348,7 @@ class APITest(TembaTest):
         self.login(self.admin)
 
         # create 1255 test runs (5 full pages of 250 items + 1 partial with 5 items)
-        flow = self.create_flow(uuid_start=0)
+        flow = self.create_flow()
         FlowRun.objects.bulk_create([FlowRun(org=self.org, flow=flow, contact=self.joe) for r in range(1255)])
         actual_ids = list(FlowRun.objects.order_by('-pk').values_list('pk', flat=True))
 
@@ -1316,7 +1316,7 @@ class APITest(TembaTest):
         self.create_group("Developers", query="isdeveloper = YES")
 
         # start contacts in a flow
-        flow = self.create_flow()
+        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
         flow.start([], [contact1, contact2, contact3])
 
         self.create_msg(direction='I', contact=contact1, text="Hello")
@@ -1607,8 +1607,8 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        registration = self.create_flow(name="Registration", uuid_start=0)
-        survey = self.create_flow(name="Survey", uuid_start=1000)
+        registration = self.create_flow(name="Registration")
+        survey = self.create_flow(name="Survey", definition=self.COLOR_FLOW_DEFINITION)
 
         # add a flow label
         reporting = FlowLabel.objects.create(org=self.org, name="Reporting")
@@ -1619,7 +1619,7 @@ class APITest(TembaTest):
         self.create_msg(direction='I', contact=self.joe, text="it is blue").handle()
 
         # flow belong to other org
-        self.create_flow(org=self.org2, name="Other", uuid_start=2000)
+        self.create_flow(org=self.org2, name="Other")
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
@@ -1842,7 +1842,7 @@ class APITest(TembaTest):
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
         self.assertEqual(msg_json, {
-            'id': msg.pk,
+            'id': msg.id,
             'broadcast': msg.broadcast,
             'contact': {'uuid': msg.contact.uuid, 'name': msg.contact.name},
             'urn': msg.contact_urn.urn,
@@ -1854,10 +1854,11 @@ class APITest(TembaTest):
             'visibility': msg_visibility,
             'text': msg.text,
             'labels': [dict(name=l.name, uuid=l.uuid) for l in msg.labels.all()],
-            'media': msg.attachments[0] if msg.attachments else None,
+            'attachments': [{'content_type': a.content_type, 'url': a.url} for a in msg.get_attachments()],
             'created_on': format_datetime(msg.created_on),
             'sent_on': format_datetime(msg.sent_on),
-            'modified_on': format_datetime(msg.modified_on)
+            'modified_on': format_datetime(msg.modified_on),
+            'media': msg.attachments[0] if msg.attachments else None
         })
 
     def test_messages(self):
@@ -1876,7 +1877,8 @@ class APITest(TembaTest):
         frank_msg1 = self.create_msg(direction='I', msg_type='I', text="Bonjour", contact=self.frank, channel=self.twitter)
         joe_msg2 = self.create_msg(direction='O', msg_type='I', text="How are you?", contact=self.joe, status='Q')
         frank_msg2 = self.create_msg(direction='O', msg_type='I', text="Ça va?", contact=self.frank, status='D')
-        joe_msg3 = self.create_msg(direction='I', msg_type='F', text="Good", contact=self.joe)
+        joe_msg3 = self.create_msg(direction='I', msg_type='F', text="Good", contact=self.joe,
+                                   attachments=['image/jpeg:https://example.com/test.jpg'])
         frank_msg3 = self.create_msg(direction='I', msg_type='I', text="Bien", contact=self.frank, channel=self.twitter, visibility='A')
 
         # add a surveyor message (no URN etc)
@@ -2070,7 +2072,7 @@ class APITest(TembaTest):
         self.frank.language = 'fre'
         self.frank.save()
 
-        flow1 = self.create_flow(uuid_start=0)
+        flow1 = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
         flow2 = Flow.copy(flow1, self.user)
 
         start1 = FlowStart.create(flow1, self.admin, contacts=[self.joe], restart_participants=True)
@@ -2090,7 +2092,7 @@ class APITest(TembaTest):
         Contact.set_simulation(False)
 
         # add a run for another org
-        flow3 = self.create_flow(org=self.org2, user=self.admin2, uuid_start=10000)
+        flow3 = self.create_flow(org=self.org2, user=self.admin2)
         flow3.start([], [self.hans])
 
         # refresh runs which will have been modified by being interrupted
@@ -2118,8 +2120,8 @@ class APITest(TembaTest):
             'start': None,
             'responded': False,
             'path': [
-                {'node': "00000000-0000-0000-0000-000000000001", 'time': format_datetime(frank_run2_steps[0].arrived_on)},
-                {'node': "00000000-0000-0000-0000-000000000005", 'time': format_datetime(frank_run2_steps[1].arrived_on)}
+                {'node': "d51ec25f-04e6-4349-a448-e7c4d93d4597", 'time': format_datetime(frank_run2_steps[0].arrived_on)},
+                {'node': "bd531ace-911e-4722-8e53-6730d6122fe1", 'time': format_datetime(frank_run2_steps[1].arrived_on)}
             ],
             'values': {},
             'created_on': format_datetime(frank_run2.created_on),
@@ -2134,16 +2136,16 @@ class APITest(TembaTest):
             'start': {'uuid': str(joe_run1.start.uuid)},
             'responded': True,
             'path': [
-                {'node': "00000000-0000-0000-0000-000000000001", 'time': format_datetime(joe_run1_steps[0].arrived_on)},
-                {'node': "00000000-0000-0000-0000-000000000005", 'time': format_datetime(joe_run1_steps[1].arrived_on)},
-                {'node': "00000000-0000-0000-0000-000000000003", 'time': format_datetime(joe_run1_steps[2].arrived_on)}
+                {'node': "d51ec25f-04e6-4349-a448-e7c4d93d4597", 'time': format_datetime(joe_run1_steps[0].arrived_on)},
+                {'node': "bd531ace-911e-4722-8e53-6730d6122fe1", 'time': format_datetime(joe_run1_steps[1].arrived_on)},
+                {'node': "c12f37e2-8e6c-4c81-ba6d-941bb3caf93f", 'time': format_datetime(joe_run1_steps[2].arrived_on)}
             ],
             'values': {
                 'color': {
                     'value': "blue",
                     'category': "Blue",
-                    'node': "00000000-0000-0000-0000-000000000005",
-                    'time': format_datetime(self.joe.values.get(ruleset__uuid="00000000-0000-0000-0000-000000000005").modified_on)
+                    'node': "bd531ace-911e-4722-8e53-6730d6122fe1",
+                    'time': format_datetime(self.joe.values.get(ruleset__uuid="bd531ace-911e-4722-8e53-6730d6122fe1").modified_on)
                 }
             },
             'created_on': format_datetime(joe_run1.created_on),

@@ -570,6 +570,29 @@ class Broadcast(models.Model):
         return "%s (%s)" % (self.org.name, self.pk)
 
 
+class Attachment(object):
+    """
+    Represents a message attachment stored as type:url
+    """
+    def __init__(self, content_type, url):
+        self.content_type = content_type
+        self.url = url
+
+    @classmethod
+    def parse(cls, s):
+        return cls(*s.split(':', 1))
+
+    @classmethod
+    def parse_all(cls, attachments):
+        return [cls.parse(s) for s in attachments] if attachments else []
+
+    def as_json(self):
+        return {'content_type': self.content_type, 'url': self.url}
+
+    def __eq__(self, other):
+        return self.content_type == other.content_type and self.url == other.url
+
+
 @six.python_2_unicode_compatible
 class Msg(models.Model):
     """
@@ -936,16 +959,6 @@ class Msg(models.Model):
         else:
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
-    @classmethod
-    def get_attachments(cls, msg):
-        """
-        Returns the attachments on the given MsgStruct split into type and URL
-        """
-        if msg.attachments:
-            return [a.split(':', 1) for a in msg.attachments if ":" in a]
-        else:
-            return []
-
     def as_json(self):
         return dict(direction=self.direction,
                     text=self.text,
@@ -1018,6 +1031,12 @@ class Msg(models.Model):
 
         return commands
 
+    def get_attachments(self):
+        """
+        Gets this message's attachments parsed into actual attachment objects
+        """
+        return Attachment.parse_all(self.attachments)
+
     def get_last_log(self):
         """
         Gets the last channel log for this message. Performs sorting in Python to ease pre-fetching.
@@ -1026,28 +1045,6 @@ class Msg(models.Model):
         if self.channel and self.channel.is_active:
             sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
         return sorted_logs[0] if sorted_logs else None
-
-    def get_attachment_urls(self):
-        return [a.split(':', 1)[1] for a in self.attachments] if self.attachments else []
-
-    def get_media_path(self):
-        return self.get_attachment_urls()[0] if self.attachments else None
-
-    def get_media_type(self):
-        if self.attachments and ':' in self.attachments[0]:
-            type = self.attachments[0].split(':', 1)[0]
-            if type == 'application/octet-stream':  # pragma: needs cover
-                return 'audio'
-            return type.split('/', 1)[0]
-
-    def is_media_type_audio(self):
-        return Msg.MEDIA_AUDIO == self.get_media_type()
-
-    def is_media_type_video(self):
-        return Msg.MEDIA_VIDEO == self.get_media_type()
-
-    def is_media_type_image(self):
-        return Msg.MEDIA_IMAGE == self.get_media_type()
 
     def reply(self, text, user, trigger_send=False, message_context=None, session=None, attachments=None, msg_type=None,
               send_all=False, created_on=None):
@@ -1123,7 +1120,7 @@ class Msg(models.Model):
     def build_expressions_context(self, contact_context=None):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
         value = six.text_type(self)
-        attachments = {six.text_type(a): url for a, url in enumerate(self.get_attachment_urls())}
+        attachments = {six.text_type(a): attachment.url for a, attachment in enumerate(self.get_attachments())}
 
         return {
             '__default__': value,
@@ -1189,7 +1186,7 @@ class Msg(models.Model):
 
     def __str__(self):
         if self.attachments:
-            parts = ([self.text] if self.text else []) + self.get_attachment_urls()
+            parts = ([self.text] if self.text else []) + [a.url for a in self.get_attachments()]
             return "\n".join(parts)
         else:
             return self.text

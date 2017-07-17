@@ -29,6 +29,10 @@ class FacebookTypeTest(TembaTest):
         response = self.client.get(reverse('channels.channel_claim'))
         self.assertContains(response, url)
 
+        # can fetch the claim page
+        response = self.client.get(url)
+        self.assertContains(response, "Connect Facebook")
+
         token = 'x' * 200
         mock_get.return_value = MockResponse(400, json.dumps({'error': {'message': "Failed validation"}}))
 
