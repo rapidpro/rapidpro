@@ -3065,7 +3065,7 @@ class Channel(TembaModel):
             sent_count += 1
             try:
                 # never send in debug unless overridden
-                if settings.SEND_MESSAGES:
+                if not settings.SEND_MESSAGES:
                     Msg.mark_sent(r, msg, WIRED, -1)
                     print("FAKED SEND for [%d] - %s" % (msg.id, part))
                 else:
