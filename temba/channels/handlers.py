@@ -1723,7 +1723,7 @@ class PlivoHandler(BaseChannelHandler):
 
 class MageHandler(BaseChannelHandler):
 
-    url = r'^mage/(?P<action>handle_message|follow_notification)$'
+    url = r'^mage/(?P<action>handle_message|follow_notification|stop_contact)$'
     url_name = 'handlers.mage_handler'
 
     def get(self, request, *args, **kwargs):
@@ -1753,6 +1753,7 @@ class MageHandler(BaseChannelHandler):
 
             # fire an event off for this message
             WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, msg.created_on)
+
         elif action == 'follow_notification':
             try:
                 channel_id = int(request.POST.get('channel_id', ''))
@@ -1762,6 +1763,13 @@ class MageHandler(BaseChannelHandler):
 
             on_transaction_commit(lambda: fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact),
                                                                            queue='handler'))
+
+        elif action == 'stop_contact':
+            contact = Contact.objects.filter(id=request.POST.get('contact_id', '-1')).first()
+            if not contact:
+                return JsonResponse(dict(error="Invalid contact_id"), status=400)
+
+            contact.stop(contact.modified_by)
 
         return JsonResponse(dict(error=None))
 
