@@ -22,7 +22,6 @@ from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.core.validators import MaxValueValidator
 from django.core.validators import MinValueValidator
-from django.db import transaction
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -864,13 +863,13 @@ class UpdateTwitterForm(UpdateChannelForm):
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
-               'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration', 'claim_external', 'claim_fcm',
+               'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration', 'claim_external',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_globe',
-               'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
+               'claim_twiml_api', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
                'claim_red_rabbit', 'claim_macrokiosk', 'claim_jiochat')
     permissions = True
 
@@ -1414,40 +1413,6 @@ class ChannelCRUDL(SmartCRUDL):
             self.object.save()
 
             return super(ChannelCRUDL.ClaimViber, self).form_valid(form)
-
-    class ClaimViberPublic(OrgPermsMixin, SmartFormView):
-        class ViberClaimForm(forms.ModelForm):
-            auth_token = forms.CharField(help_text=_("The authentication token provided by Viber"))
-
-            def clean_auth_token(self):
-                auth_token = self.data['auth_token']
-                response = requests.post('https://chatapi.viber.com/pa/get_account_info', json=dict(auth_token=auth_token))
-                if response.status_code != 200 or response.json()['status'] != 0:
-                    raise ValidationError("Error validating authentication token: %s" % response.json()['status_message'])
-                return auth_token
-
-            class Meta:
-                model = Channel
-                fields = ('auth_token',)
-
-        title = _("Connect Public Viber Channel")
-        form_class = ViberClaimForm
-        permission = 'channels.channel_claim'
-        success_url = "id@channels.channel_configuration"
-
-        def form_valid(self, form):
-            data = form.cleaned_data
-            try:
-                self.object = Channel.add_viber_public_channel(self.request.user.get_org(), self.request.user, data['auth_token'])
-            except Exception as e:
-                form._errors['auth_token'] = form.error_class([six.text_type(e.message)])
-                return self.form_invalid(form)
-
-            return super(ChannelCRUDL.ClaimViberPublic, self).form_valid(form)
-
-        @transaction.non_atomic_requests
-        def dispatch(self, request, *args, **kwargs):
-            return super(ChannelCRUDL.ClaimViberPublic, self).dispatch(request, *args, **kwargs)
 
     class ClaimKannel(OrgPermsMixin, SmartFormView):
         class KannelClaimForm(forms.Form):
@@ -2292,36 +2257,6 @@ class ChannelCRUDL(SmartCRUDL):
 
             return org
 
-    class ClaimFcm(OrgPermsMixin, SmartFormView):
-        class ClaimFcmForm(forms.Form):
-            title = forms.CharField(label=_('Notification title'))
-            key = forms.CharField(label=_('FCM Key'), help_text=_("The key provided on the the Firebase Console "
-                                                                  "when you created your app."))
-            send_notification = forms.CharField(label=_('Send notification'), required=False,
-                                                help_text=_("Check if you want this channel to send notifications "
-                                                            "to contacts."),
-                                                widget=forms.CheckboxInput())
-
-        form_class = ClaimFcmForm
-        fields = ('title', 'key', 'send_notification',)
-        title = _("Connect Firebase Cloud Messaging")
-        permission = 'channels.channel_claim'
-        success_url = "id@channels.channel_configuration"
-
-        def form_valid(self, form):
-            cleaned_data = form.cleaned_data
-            data = {
-                Channel.CONFIG_FCM_TITLE: cleaned_data.get('title'),
-                Channel.CONFIG_FCM_KEY: cleaned_data.get('key')
-            }
-
-            if cleaned_data.get('send_notification') == 'True':
-                data[Channel.CONFIG_FCM_NOTIFICATION] = True
-
-            self.object = Channel.add_fcm_channel(org=self.request.user.get_org(), user=self.request.user, data=data)
-
-            return super(ChannelCRUDL.ClaimFcm, self).form_valid(form)
-
     class ClaimJiochat(OrgPermsMixin, SmartFormView):
         class JiochatForm(forms.Form):
             app_id = forms.CharField(min_length=32, required=True,
@@ -2342,68 +2277,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                   cleaned_data.get('app_secret'))
 
             return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))
-
-    class ClaimLine(OrgPermsMixin, SmartFormView):
-        class LineForm(forms.Form):
-            channel_secret = forms.CharField(label=_("Secret"), required=True, help_text=_("The Secret of the LINE Bot"))
-            channel_access_token = forms.CharField(label=_("Access Token"), required=True, help_text=_("The Access Token of the LINE Bot"))
-
-            def clean(self):
-                from django.db.models.query import Q
-                from .models import TEMBA_HEADERS
-
-                channel_secret = self.cleaned_data.get('channel_secret')
-                channel_access_token = self.cleaned_data.get('channel_access_token')
-
-                headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % channel_access_token}
-                headers.update(TEMBA_HEADERS)
-
-                response = requests.get('https://api.line.me/v1/oauth/verify', headers=headers)
-                content = response.json()
-
-                if response.status_code != 200:
-                    raise ValidationError(content.get('error_desciption'))
-                else:
-                    channel_id = content.get('channelId')
-                    channel_mid = content.get('mid')
-
-                    credentials = {
-                        'channel_id': channel_id,
-                        'channel_mid': channel_mid,
-                        'channel_secret': channel_secret,
-                        'channel_access_token': channel_access_token
-                    }
-
-                    existing = Channel.objects.filter(Q(config__contains=channel_id) | Q(config__contains=channel_secret) | Q(config__contains=channel_access_token), channel_type=Channel.TYPE_LINE, address=channel_mid, is_active=True).first()
-                    if existing:
-                        raise ValidationError(_("A channel with this configuration already exists."))
-
-                    headers.pop('Content-Type')
-                    response_profile = requests.get('https://api.line.me/v1/profile', headers=headers)
-                    content_profile = json.loads(response_profile.content)
-
-                    credentials['profile'] = {
-                        'picture_url': content_profile.get('pictureUrl'),
-                        'display_name': content_profile.get('displayName')
-                    }
-
-                    return credentials
-
-        form_class = LineForm
-        title = _("Line Channel")
-        fields = ('channel_secret', 'channel_access_token')
-        permission = 'channels.channel_claim'
-        success_url = "id@channels.channel_configuration"
-
-        def form_valid(self, form):
-
-            profile = form.cleaned_data.get('profile')
-            credentials = form.cleaned_data
-            credentials.pop('profile')
-
-            self.object = Channel.add_line_channel(org=self.request.user.get_org(), user=self.request.user, credentials=credentials, name=profile.get('display_name'))
-
-            return super(ChannelCRUDL.ClaimLine, self).form_valid(form)
 
     class List(OrgPermsMixin, SmartListView):
         title = _("Channels")
