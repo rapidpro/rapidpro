@@ -2617,7 +2617,7 @@ class LineHandler(BaseChannelHandler):
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_LINE).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='LN').exclude(org=None).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -2664,7 +2664,7 @@ class ViberPublicHandler(BaseChannelHandler):
         request_uuid = kwargs['uuid']
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_VIBER_PUBLIC).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='VP').exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=200)
 
@@ -2866,7 +2866,7 @@ class FCMHandler(BaseChannelHandler):
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_FCM).exclude(
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='FCM').exclude(
             org=None).first()
 
         if not channel:
