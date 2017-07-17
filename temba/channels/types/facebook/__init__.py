@@ -33,6 +33,7 @@ class FacebookType(ChannelType):
     scheme = FACEBOOK_SCHEME
     max_length = 320
     attachment_support = True
+    free_sending = True
 
     def deactivate(self, channel):
         config = channel.config_json()
