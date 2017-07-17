@@ -967,7 +967,7 @@ class Msg(models.Model):
                     created_on=self.created_on.strftime('%x %X'),
                     model="msg")
 
-    def as_input(self):
+    def as_goflow_json(self):
         """
         Msg in the format for our flow server
         """
@@ -978,7 +978,6 @@ class Msg(models.Model):
 
         return {
             'type': "msg_received",
-            'id': self.id,
             'urn': urn,
             'created_on': datetime_to_str(self.created_on),
             'text': self.text,

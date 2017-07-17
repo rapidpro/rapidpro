@@ -196,10 +196,15 @@ class FlowSession(ChannelSession):
         sessions.update(is_active=False, modified_on=timezone.now())
 
     @classmethod
-    def env_as_json(cls, org):
+    def create_server_request(cls, org, contact, msg_in):
         languages = [org.primary_language.iso_code] if org.primary_language else []
 
-        return {'timezone': six.text_type(org.timezone), 'languages': languages}
+        return {
+            'environment': {'timezone': six.text_type(org.timezone), 'languages': languages},
+            'channels': [ch.as_goflow_json() for ch in org.channels.filter(is_active=True)],
+            'contact': contact.as_goflow_json(),
+            'events': [msg_in.as_goflow_json()] if msg_in else []
+        }
 
     @classmethod
     def start(cls, contacts, flow, msg_in=None):
@@ -221,15 +226,10 @@ class FlowSession(ChannelSession):
         runs = []
         for contact in contacts:
             # build request to flow server
-            start_request = {
-                'environment': cls.env_as_json(contact.org),
-                'flows': flows,
-                'contact': contact.as_goflow_json()
-            }
-            if msg_in:
-                start_request['input'] = msg_in.as_input()
+            request = cls.create_server_request(contact.org, contact, msg_in)
+            request['flows'] = flows
 
-            start_response = flow_server.start(start_request)
+            start_response = flow_server.start(request)
             output = start_response['session']
             events = start_response.get('events', [])
 
@@ -245,15 +245,15 @@ class FlowSession(ChannelSession):
                                          modified_on=timezone.now(), created_on=timezone.now())
 
             # apply the events
-            msgs_by_step = session.apply_events(events, msg_in)
+            msgs_out_by_step = session.apply_events(events, msg_in)
 
             # create each of our runs
             for run in output['runs']:
-                runs.append(FlowRun.create_or_update_from_goflow(session, contact, run, msgs_by_step))
+                runs.append(FlowRun.create_or_update_from_goflow(session, contact, run, msg_in, msgs_out_by_step))
 
         return runs
 
-    def update(self, output, msgs_by_step):
+    def update(self, output, msg_in, msgs_out_by_step):
         active = False
         if len(output['runs']) > 0:
             active = output['runs'][0]['status'] == 'A'
@@ -266,7 +266,7 @@ class FlowSession(ChannelSession):
 
         # update each of our runs
         for run in output['runs']:
-            FlowRun.create_or_update_from_goflow(self, self.contact, run, msgs_by_step)
+            FlowRun.create_or_update_from_goflow(self, self.contact, run, msg_in, msgs_out_by_step)
 
     def resume(self, msg_in):
 
@@ -296,24 +296,22 @@ class FlowSession(ChannelSession):
         if not flows:
             raise ValueError("Session flows have been modified and are no longer supported by goflow")
 
-        resume_response = flow_server.resume({
-            'environment': self.env_as_json(self.org),
-            'flows': flows,
-            'session': self.as_json(),
-            'contact': self.contact.as_goflow_json(),
-            'event': msg_in.as_input()
-        })
+        request = self.create_server_request(self.org, self.contact, msg_in)
+        request['flows'] = flows
+        request['session'] = self.as_json()
+
+        resume_response = flow_server.resume(request)
 
         output = resume_response['session']
         events = resume_response.get('events', [])
 
         # apply our events
-        msgs_by_step = self.apply_events(events, msg_in)
+        msgs_out_by_step = self.apply_events(events, msg_in)
 
         # update our session
-        self.update(output, msgs_by_step)
+        self.update(output, msg_in, msgs_out_by_step)
 
-        return msgs_by_step
+        return msgs_out_by_step
 
     def get_root_flow(self):
         """
@@ -337,9 +335,6 @@ class FlowSession(ChannelSession):
                 if msg:
                     msgs_to_send.append(msg)
                     msgs_by_step[event["step_uuid"]].append(msg)
-            elif event['type'] == Event.TYPE_MSG_RECEIVED:
-                if msg_in:
-                    msgs_by_step[event["step_uuid"]].append(msg_in)
             else:
                 apply_func = getattr(self, 'apply_%s' % event['type'], None)
                 if apply_func:
@@ -363,9 +358,7 @@ class FlowSession(ChannelSession):
                 contact = Contact.objects.get(uuid=contact_uuid, org=self.org)
 
         # use our urn if we have one specified in the event
-        recipient = urn
-        if not recipient:
-            recipient = msg.contact_urn if msg else contact
+        recipient = urn or contact
 
         user = get_flow_user(self.org)
 
@@ -2884,7 +2877,7 @@ class FlowRun(models.Model):
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
 
     @classmethod
-    def create_or_update_from_goflow(cls, session, contact, run_output, msgs_by_step):
+    def create_or_update_from_goflow(cls, session, contact, run_output, msg_in, msgs_out_by_step):
         """
         Creates or updates a flow run from the given output returned from goflow
         """
@@ -2929,7 +2922,9 @@ class FlowRun(models.Model):
 
             # old flow engine appends a list of start messages on run creation
             start_msgs = []
-            for uuid, msgs in six.iteritems(msgs_by_step):
+            if msg_in:
+                start_msgs.append(msg_in)
+            for msgs in six.itervalues(msgs_out_by_step):
                 start_msgs.extend(msgs)
             run.start_msgs = start_msgs
 
@@ -2947,7 +2942,10 @@ class FlowRun(models.Model):
             next_item = path_to_update[p + 1] if p < len(path_to_update) - 1 else None
 
             step_type = FlowStep.TYPE_RULE_SET if path_item['node_uuid'] in ruleset_uuids else FlowStep.TYPE_ACTION_SET
-            step_messages = msgs_by_step[path_item['uuid']]
+            step_messages = msgs_out_by_step[path_item['uuid']]
+
+            if p == 0:
+                step_messages.append(msg_in)
 
             FlowStep.create_or_update_from_goflow(run, path_item, next_item, step_type, step_messages)
 
