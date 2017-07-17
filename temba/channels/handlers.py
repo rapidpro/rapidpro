@@ -1765,7 +1765,7 @@ class MageHandler(BaseChannelHandler):
                                                                            queue='handler'))
 
         elif action == 'stop_contact':
-            contact = Contact.objects.filter(id=request.POST.get('contact_id', '-1')).first()
+            contact = Contact.objects.filter(is_active=True, id=request.POST.get('contact_id', '-1')).first()
             if not contact:
                 return JsonResponse(dict(error="Invalid contact_id"), status=400)
 
