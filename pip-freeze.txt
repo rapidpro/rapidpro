@@ -62,6 +62,7 @@ kombu==4.0.2              # via celery
 librato-bg==1.0.6
 librato-metrics==0.8.5    # via librato-bg
 lml==0.0.1                # via pyexcel, pyexcel-io
+lxml==3.8.0
 markdown==2.6.8
 mccabe==0.6.1             # via flake8
 microsofttranslator==0.8  # via django-rosetta
@@ -80,7 +81,7 @@ pycodestyle==2.3.1        # via flake8
 pycountry==17.5.14
 pycparser==2.17           # via cffi
 pycrypto==2.6.1
-pyexcel-io==0.4.0         # via pyexcel, pyexcel-xls, pyexcel-xlsx
+pyexcel-io==0.4.2         # via pyexcel, pyexcel-xls, pyexcel-xlsx
 pyexcel-webio==0.0.11     # via django-excel
 pyexcel-xls==0.4.0
 pyexcel-xlsx==0.4.0

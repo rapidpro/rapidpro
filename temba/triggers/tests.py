@@ -246,6 +246,11 @@ class TriggerTest(TembaTest):
         self.assertEqual(first_trigger.flow, flow)
         self.assertIsNone(first_trigger.channel)
 
+        # empty referrer_id should show a validation error for the field
+        post_data = dict(flow=flow.id, referrer_id='')
+        response = self.client.post(create_url, post_data)
+        self.assertEquals(response.context['form'].errors.keys(), ['referrer_id'])
+
         # try to create the same trigger, should fail as we can only have one per referrer
         post_data = dict(flow=flow.id, referrer_id='signup')
         response = self.client.post(create_url, post_data)
@@ -537,6 +542,11 @@ class TriggerTest(TembaTest):
         self.login(self.admin)
         group = self.create_group(name='Chat', contacts=[])
 
+        # no keyword must show validation error
+        post_data = dict(action_join_group=group.pk, keyword='@#$')
+        response = self.client.post(reverse("triggers.trigger_register"), data=post_data)
+        self.assertEquals(1, len(response.context['form'].errors))
+
         # create a trigger that sets up a group join flow
         post_data = dict(action_join_group=group.pk, keyword=u'١٠٠')
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
@@ -784,7 +794,7 @@ class TriggerTest(TembaTest):
     def test_catch_all_trigger(self):
         self.login(self.admin)
         catch_all_trigger = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_CATCH_ALL).first()
-        flow = self.create_flow()
+        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
 
         contact = self.create_contact("Ali", "250788739305")
 
@@ -942,6 +952,11 @@ class TriggerTest(TembaTest):
         self.assertEquals(len(response.context['form'].fields), 5)
 
         group = self.create_group("first", [])
+
+        # show validation error if keyword is None or not defined
+        post_data = dict(flow=flow.id, match_type='O', groups=[group.id])
+        response = self.client.post(update_url, post_data, follow=True)
+        self.assertEquals(1, len(response.context['form'].errors))
 
         post_data = dict(keyword='koko', flow=flow.id, match_type='O', groups=[group.id])
         self.client.post(update_url, post_data, follow=True)
@@ -1155,8 +1170,8 @@ class TriggerTest(TembaTest):
         post_data = dict(channel=channel.pk, keyword='*111#', flow=flow.pk)
         response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
         self.assertEquals(1, len(response.context['form'].errors))
-        self.assertEquals(response.context['form'].errors['keyword'],
-                          [u'An active trigger already uses this keyword on this channel.'])
+        self.assertEquals(response.context['form'].errors['__all__'],
+                          [u'An active trigger already exists, triggers must be unique for each group'])
 
         # different code on same channel should work
         post_data = dict(channel=channel.pk, keyword='*112#', flow=flow.pk)

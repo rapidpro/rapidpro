@@ -6,10 +6,10 @@ import logging
 import numbers
 import phonenumbers
 import regex
+import six
 import time
 import urllib2
-import re
-import six
+import uuid
 
 from collections import OrderedDict
 from datetime import timedelta
@@ -573,7 +573,8 @@ class Flow(TembaModel):
             # this node doesn't exist anymore, mark it as left so they leave the flow
             if not destination:  # pragma: no cover
                 step.run.set_completed(final_step=step)
-                continue
+                Msg.mark_handled(msg)
+                return True, []
 
             (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
                                                       user_input=user_input, triggered_start=triggered_start,
@@ -2415,7 +2416,9 @@ class FlowRun(models.Model):
                          (EXIT_TYPE_INTERRUPTED, _("Interrupted")),
                          (EXIT_TYPE_EXPIRED, _("Expired")))
 
-    INVALID_EXTRA_KEY_CHARS = re.compile(r'[^a-zA-Z0-9_]')
+    INVALID_EXTRA_KEY_CHARS = regex.compile(r'[^a-zA-Z0-9_]')
+
+    uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
     org = models.ForeignKey(Org, related_name='runs', db_index=False)
 

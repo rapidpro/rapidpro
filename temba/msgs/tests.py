@@ -16,7 +16,7 @@ from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
 from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, SystemLabelCount, UnreachableException
-from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
+from temba.msgs.models import Attachment, HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.orgs.models import Language, Debit, Org
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
@@ -712,8 +712,7 @@ class MsgTest(TembaTest):
         msg9 = self.create_msg(contact=self.joe, text="Hey out 9", direction='O', status=FAILED,
                                created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC))
 
-        self.assertTrue(msg5.is_media_type_audio())
-        self.assertEqual('http://rapidpro.io/audio/sound.mp3', msg5.get_media_path())
+        self.assertEqual(msg5.get_attachments(), [Attachment('audio', 'http://rapidpro.io/audio/sound.mp3')])
 
         # label first message
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
@@ -1835,7 +1834,7 @@ class ConsoleTest(TembaTest):
         self.john = self.create_contact("John Doe", "0788123123")
 
         # create a flow and set "color" as its trigger
-        self.flow = self.create_flow()
+        self.flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
         Trigger.objects.create(flow=self.flow, keyword="color", created_by=self.admin, modified_by=self.admin, org=self.org)
 
     def assertEchoed(self, needle, clear=True):
