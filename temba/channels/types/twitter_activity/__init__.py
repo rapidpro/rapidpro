@@ -51,6 +51,6 @@ class TwitterActivityType(ChannelType):
 
         client.delete_webhook(config['webhook_id'])
 
-    def send(self, channel, msg, text):  # pragma: no cover
+    def send(self, channel, msg, text):
         # use regular Twitter channel sending
-        return Channel.get_type_for_code('TT').send(channel, msg, text)
+        return Channel.get_type_from_code('TT').send(channel, msg, text)
