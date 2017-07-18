@@ -487,6 +487,16 @@ class Contact(TembaModel):
         else:
             language = None
 
+        from temba.msgs.models import Msg
+        _contact, contact_urn = Msg.resolve_recipient(self.org, None, self, None)
+
+        # only populate channel if this contact can actually be reached (ie, has a URN)
+        channel_uuid = None
+        if contact_urn:
+            channel = self.org.get_send_channel(contact_urn=contact_urn)
+            if channel:
+                channel_uuid = channel.uuid
+
         return {
             'uuid': self.uuid,
             'name': self.name,
@@ -494,7 +504,8 @@ class Contact(TembaModel):
             'groups': [{"uuid": group.uuid, "name": group.name} for group in self.user_groups.all()],
             'timezone': "UTC",
             'language': language,
-            'fields': {}
+            'fields': {},
+            'channel_uuid': channel_uuid
         }
 
     def as_json(self):

@@ -2856,6 +2856,14 @@ class Channel(TembaModel):
         url = "https://" + settings.TEMBA_HOST + url + "?action=callback&id=%d" % sms_id
         return url
 
+    def as_goflow_json(self):
+        return {
+            'uuid': self.uuid,
+            'name': six.text_type(self.get_name()),
+            'type': self.channel_type,
+            'address': self.address
+        }
+
     def __str__(self):  # pragma: no cover
         if self.name:
             return self.name
