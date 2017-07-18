@@ -26,6 +26,7 @@ class TwitterActivityType(ChannelType):
     claim_view = ClaimView
 
     scheme = TWITTER_SCHEME
+    show_config_page = False
     free_sending = True
 
     def is_available_to(self, user):

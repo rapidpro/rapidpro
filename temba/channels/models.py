@@ -1,14 +1,15 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import json
-import time
-import urlparse
+import logging
 import phonenumbers
 import plivo
 import regex
 import requests
 import re
 import six
+import time
+import urlparse
 
 from abc import ABCMeta, abstractmethod
 from enum import Enum
@@ -45,6 +46,7 @@ from twilio import twiml, TwilioRestException
 from uuid import uuid4
 from xml.sax.saxutils import quoteattr, escape
 
+logger = logging.getLogger(__name__)
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
 
@@ -1145,7 +1147,7 @@ class Channel(TembaModel):
 
         org.normalize_contact_tels()
 
-    def release(self, trigger_sync=True, notify_mage=True):
+    def release(self, trigger_sync=True):
         """
         Releases this channel, removing it from the org and making it inactive
         """
@@ -1158,8 +1160,12 @@ class Channel(TembaModel):
 
         # only call out to external aggregator services if we are on prod servers
         if settings.IS_PROD:
-            # if channel is a new style type, deactivate it
-            channel_type.deactivate(self)
+            try:
+                # if channel is a new style type, deactivate it
+                channel_type.deactivate(self)
+            except Exception as e:
+                # proceed with removing this channel but log the problem
+                logger.exception(six.text_type(e))
 
             # hangup all its calls
             from temba.ivr.models import IVRCall

@@ -2922,7 +2922,7 @@ class TwitterHandler(BaseChannelHandler):
         crc_token = request.GET['crc_token']
 
         channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
-                                         channel_type='TT').exclude(org=None).first()
+                                         channel_type='TWT').exclude(org=None).first()
         if not channel:
             return HttpResponse("No such Twitter channel", status=400)
 
@@ -2933,7 +2933,7 @@ class TwitterHandler(BaseChannelHandler):
 
     def post(self, request, *args, **kwargs):
         channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
-                                         channel_type='TT').exclude(org=None).first()
+                                         channel_type='TWT').exclude(org=None).first()
         if not channel:
             return HttpResponse("No such Twitter channel", status=400)
 
