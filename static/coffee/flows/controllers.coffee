@@ -600,7 +600,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
     # if our warning is already visible, go ahead and delete
     if removeWarning.is(':visible')
-      Flow.removeRuleset(ruleset)
+      Flow.removeRuleset(ruleset.uuid)
 
     # otherwise warn the user first
     else
@@ -1641,6 +1641,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       flow = formData.flow
 
       # save whatever ruleset type they are setting us to
+      changedRulesetType = ruleset.ruleset_type != rulesetConfig.type
       ruleset.ruleset_type = rulesetConfig.type
 
       if rulesetConfig.type == 'subflow'
@@ -1713,6 +1714,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       if ruleset._switchedFromAction
         Flow.removeActionSet($scope.actionset)
 
+      # if the ruleset type changed, we should remove old one and create a new one
+      if changedRulesetType
+        connections = Plumb.getConnectionMap({ target: ruleset.uuid })
+        Flow.removeRuleset(ruleset.uuid)
+        ruleset.uuid = uuid()
+        for rule in ruleset.rules
+          rule.uuid = uuid()
+
       # save our new ruleset
       Flow.replaceRuleset(ruleset, false)
 
@@ -1722,7 +1731,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           Flow.updateDestination($scope.ruleset.uuid + '_' + rule.uuid, null)
 
       # steal the old connections if we are replacing an actionset with ourselves
-      if ruleset._switchedFromAction
+      if ruleset._switchedFromAction or changedRulesetType
         $timeout ->
           ruleset_uuid = ruleset.uuid
           for source of connections
@@ -2056,15 +2065,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     # switching from a ruleset means removing it and hijacking its connections
     if actionset._switchedFromRule
       connections = Plumb.getConnectionMap({ target: $scope.ruleset.uuid })
-      Flow.removeRuleset($scope.ruleset)
+      Flow.removeRuleset($scope.ruleset.uuid)
 
       $timeout ->
         for source of connections
-          # only rules can go to us, actions cant connect to actions
-          if source.split('_').length > 1
-            Flow.updateDestination(source, actionset.uuid)
-          else
-            Flow.updateDestination(source, null)
+          Flow.updateDestination(source, actionset.uuid)
       ,0
 
   $scope.cancel = ->

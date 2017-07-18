@@ -29,6 +29,7 @@ class TwitterType(ChannelType):
     scheme = TWITTER_SCHEME
     max_length = 10000
     show_config_page = False
+    free_sending = True
 
     FATAL_403S = ("messages to this user right now",  # handle is suspended
                   "users who are not following you")  # handle no longer follows us

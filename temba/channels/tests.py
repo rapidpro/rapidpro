@@ -9,7 +9,6 @@ import hmac
 import json
 import pytz
 import six
-import telegram
 import time
 import urllib2
 import uuid
@@ -41,7 +40,6 @@ from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestVa
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, datetime_to_str, get_anonymous_user
 from temba.utils.twitter import generate_twitter_signature
-from telegram import User as TelegramUser
 from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
@@ -1870,54 +1868,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(config['app_secret'], 'AppSecret')
         self.assertEqual(config['app_id'], 'AppId')
         self.assertEqual(config['passphrase'], 'Passphrase')
-
-    def test_claim_telegram(self):
-
-        # disassociate all of our channels
-        self.org.channels.all().update(org=None, is_active=False)
-
-        self.login(self.admin)
-        claim_url = reverse('channels.channel_claim_telegram')
-
-        # can fetch the claim page
-        response = self.client.get(claim_url)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, 'Telegram Bot')
-
-        # claim with an invalid token
-        with patch('telegram.Bot.getMe') as get_me:
-            get_me.side_effect = telegram.TelegramError('Boom')
-            response = self.client.post(claim_url, dict(auth_token='invalid'))
-            self.assertEqual(200, response.status_code)
-            self.assertEqual('Your authentication token is invalid, please check and try again', response.context['form'].errors['auth_token'][0])
-
-        with patch('telegram.Bot.getMe') as get_me:
-            user = TelegramUser(123, 'Rapid')
-            user.last_name = 'Bot'
-            user.username = 'rapidbot'
-            get_me.return_value = user
-
-            with patch('telegram.Bot.setWebhook') as set_webhook:
-                set_webhook.return_value = ''
-
-                response = self.client.post(claim_url, dict(auth_token='184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'))
-                channel = Channel.objects.all().order_by('-pk').first()
-                self.assertIsNotNone(channel)
-                self.assertEqual(channel.channel_type, Channel.TYPE_TELEGRAM)
-                self.assertRedirect(response, reverse('channels.channel_read', args=[channel.uuid]))
-                self.assertEqual(302, response.status_code)
-
-                response = self.client.post(claim_url, dict(auth_token='184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'))
-                self.assertEqual('A telegram channel for this bot already exists on your account.', response.context['form'].errors['auth_token'][0])
-
-                contact = self.create_contact('Telegram User', urn=URN.from_telegram('1234'))
-
-                # make sure we our telegram channel satisfies as a send channel
-                self.login(self.admin)
-                response = self.client.get(reverse('contacts.contact_read', args=[contact.uuid]))
-                send_channel = response.context['send_channel']
-                self.assertIsNotNone(send_channel)
-                self.assertEqual(Channel.TYPE_TELEGRAM, send_channel.channel_type)
 
     def test_claim_line(self):
 
@@ -7410,7 +7360,7 @@ class TelegramTest(TembaTest):
 
         self.channel.delete()
 
-        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_TELEGRAM, None, 'RapidBot',
+        self.channel = Channel.create(self.org, self.user, None, 'TG', None, 'RapidBot',
                                       config=dict(auth_token='valid'),
                                       uuid='00000000-0000-0000-0000-000000001234')
 
@@ -9986,7 +9936,13 @@ class JiochatTest(TembaTest):
     def test_refresh_jiochat_access_tokens_task(self):
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(400, '{ "error":"Failed" }')
+
+            self.assertFalse(ChannelLog.objects.all())
             refresh_jiochat_access_tokens()
+
+            self.assertEqual(ChannelLog.objects.all().count(), 1)
+            self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
+
             self.assertEqual(mock.call_count, 1)
             channel_client = self.channel.get_jiochat_client()
 
@@ -9996,12 +9952,21 @@ class JiochatTest(TembaTest):
             mock.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
 
             refresh_jiochat_access_tokens()
+
+            self.assertEqual(ChannelLog.objects.all().count(), 2)
+            self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
+            self.assertTrue(ChannelLog.objects.filter(is_error=False).count(), 1)
             self.assertEqual(mock.call_count, 1)
 
             self.assertEqual(channel_client.get_access_token(), 'ABC1234')
             self.assertEqual(mock.call_args_list[0][1]['data'], {'client_secret': u'app-secret',
                                                                  'grant_type': 'client_credentials',
                                                                  'client_id': u'app-id'})
+
+            self.login(self.admin)
+            response = self.client.get(reverse("channels.channellog_list") + '?channel=%d&others=1' % self.channel.id,
+                                       follow=True)
+            self.assertEqual(len(response.context['object_list']), 2)
 
     @patch('temba.utils.jiochat.JiochatClient.refresh_access_token')
     def test_url_verification(self, mock_refresh_access_token):
@@ -10153,8 +10118,13 @@ class JiochatTest(TembaTest):
             "Content": "Test",
         }
 
+        self.assertEqual(ChannelLog.objects.all().count(), 0)
+
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
         self.assertEqual(response.status_code, 400)
+
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(is_error=True).count(), 1)
 
         data = {
             'ToUsername': '12121212121212',
@@ -10166,9 +10136,13 @@ class JiochatTest(TembaTest):
         }
 
         Contact.objects.all().delete()
+        ChannelLog.objects.all().delete()
 
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
         self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(is_error=True).count(), 1)
 
         msg = Msg.objects.get()
         self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
@@ -10184,10 +10158,14 @@ class JiochatTest(TembaTest):
 
         Msg.objects.all().delete()
         Contact.objects.all().delete()
+        ChannelLog.objects.all().delete()
 
         mock_get.return_value = MockResponse(200, '{"nickname":"Shinonda"}')
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
         self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(is_error=False).count(), 1)
 
         msg = Msg.objects.get()
         self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
@@ -10203,10 +10181,13 @@ class JiochatTest(TembaTest):
 
         Msg.objects.all().delete()
         Contact.objects.all().delete()
+        ChannelLog.objects.all().delete()
 
         with AnonymousOrg(self.org):
             response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
             self.assertEqual(response.status_code, 200)
+
+            self.assertEqual(ChannelLog.objects.all().count(), 0)
 
             msg = Msg.objects.get()
             self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
@@ -10221,6 +10202,7 @@ class JiochatTest(TembaTest):
             self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
 
         Msg.objects.all().delete()
+        ChannelLog.objects.all().delete()
 
         data = {
             'ToUsername': '12121212121212',
@@ -10232,7 +10214,7 @@ class JiochatTest(TembaTest):
         }
 
         with patch('requests.get') as mock_get:
-            mock_get.side_effect = [MockResponse(200, '{"nickname":"Shinonda"}'),
+            mock_get.side_effect = [MockResponse(200, '{"nickname": "Shinonda. ☺"}'),
                                     MockResponse(400, 'Error'),
                                     MockResponse(200, "IMG_BITS",
                                                  headers={"Content-Type": "image/jpeg",
@@ -10244,6 +10226,10 @@ class JiochatTest(TembaTest):
 
                 response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
                 self.assertEqual(response.status_code, 200)
+
+                self.assertEqual(ChannelLog.objects.all().count(), 2)
+                self.assertEqual(ChannelLog.objects.filter(is_error=False).count(), 2)
+                self.assertEqual(ChannelLog.objects.all().first().response, '{"nickname": "Shinonda. \\u263a"}')
 
                 msg = Msg.objects.get()
                 self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
@@ -10258,6 +10244,21 @@ class JiochatTest(TembaTest):
                 self.assertEqual(msg.attachments[0], 'image/jpeg:<MEDIA_SAVED_URL>')
 
                 self.assertEqual(mock_get.call_count, 3)
+
+        Msg.objects.all().delete()
+        ChannelLog.objects.all().delete()
+
+        with patch('requests.get') as mock_get:
+            mock_get.return_value = MockResponse(400, 'Error')
+
+            with patch('temba.orgs.models.Org.save_media') as mock_save_media:
+                mock_save_media.return_value = '<MEDIA_SAVED_URL>'
+
+                response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+                self.assertEqual(response.status_code, 200)
+
+                self.assertEqual(ChannelLog.objects.all().count(), 2)
+                self.assertEqual(ChannelLog.objects.filter(is_error=True).count(), 2)
 
 
 class GlobeTest(TembaTest):

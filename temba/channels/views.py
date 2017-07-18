@@ -761,6 +761,9 @@ class ClaimViewMixin(OrgPermsMixin):
         self.template_name = 'channels/types/%s/claim.html' % channel_type.slug
         super(ClaimViewMixin, self).__init__()
 
+    def derive_title(self):
+        return _("Connect %(channel_type)s") % {'channel_type': self.channel_type.name}
+
     def get_form_kwargs(self):
         kwargs = super(ClaimViewMixin, self).get_form_kwargs()
         kwargs['request'] = self.request
@@ -865,7 +868,7 @@ class ChannelCRUDL(SmartCRUDL):
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
-               'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
+               'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_globe',
                'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
                'claim_red_rabbit', 'claim_macrokiosk', 'claim_jiochat')
@@ -1827,48 +1830,6 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_submitted_country(self, data):
             return 'PH'
-
-    class ClaimTelegram(OrgPermsMixin, SmartFormView):
-        class TelegramForm(forms.Form):
-            auth_token = forms.CharField(label=_("Authentication Token"),
-                                         help_text=_("The Authentication token for your Telegram Bot"))
-
-            def __init__(self, *args, **kwargs):
-                self.org = kwargs.pop('org')
-                super(ChannelCRUDL.ClaimTelegram.TelegramForm, self).__init__(*args, **kwargs)
-
-            def clean_auth_token(self):
-                auth_token = self.cleaned_data['auth_token']
-
-                # does a bot already exist on this account with that auth token
-                for channel in Channel.objects.filter(org=self.org, is_active=True, channel_type=Channel.TYPE_TELEGRAM):
-                    if channel.config_json()[Channel.CONFIG_AUTH_TOKEN] == auth_token:
-                        raise ValidationError(_("A telegram channel for this bot already exists on your account."))
-
-                try:
-                    import telegram
-                    bot = telegram.Bot(token=auth_token)
-                    bot.getMe()
-                except telegram.TelegramError:
-                    raise ValidationError(_("Your authentication token is invalid, please check and try again"))
-
-                return self.cleaned_data['auth_token']
-
-        title = _("Claim Telegram")
-        form_class = TelegramForm
-        permission = 'channels.channel_claim'
-        success_url = 'uuid@channels.channel_read'
-        submit_button_name = _("Connect Telegram Bot")
-
-        def form_valid(self, form):
-            auth_token = self.form.cleaned_data['auth_token']
-            self.object = Channel.add_telegram_channel(self.request.user.get_org(), self.request.user, auth_token)
-            return super(ChannelCRUDL.ClaimTelegram, self).form_valid(form)
-
-        def get_form_kwargs(self):
-            kwargs = super(ChannelCRUDL.ClaimTelegram, self).get_form_kwargs()
-            kwargs['org'] = self.request.user.get_org()
-            return kwargs
 
     class ClaimYo(ClaimAuthenticatedExternal):
         class YoClaimForm(forms.Form):
@@ -3050,8 +3011,12 @@ class ChannelLogCRUDL(SmartCRUDL):
 
                 if self.request.GET.get('errors'):
                     events = events.filter(status=ChannelSession.FAILED)
+
+            elif self.request.GET.get('others'):
+                events = ChannelLog.objects.filter(channel=channel, session=None, msg=None).order_by('-created_on')
+
             else:
-                events = ChannelLog.objects.filter(channel=channel, session=None).order_by('-created_on').select_related('msg__contact', 'msg')
+                events = ChannelLog.objects.filter(channel=channel, session=None).exclude(msg=None).order_by('-created_on').select_related('msg__contact', 'msg')
                 events.count = lambda: channel.get_non_ivr_log_count()
 
             return events
