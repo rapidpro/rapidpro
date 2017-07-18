@@ -1163,7 +1163,7 @@ class Channel(TembaModel):
             try:
                 # if channel is a new style type, deactivate it
                 channel_type.deactivate(self)
-            except Exception as e:
+            except Exception as e:  # pragma: no cover
                 # proceed with removing this channel but log the problem
                 logger.exception(six.text_type(e))
 
