@@ -1763,23 +1763,20 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.action_webhook_headers_value = []
   $scope.patternUrl = /((http|https)\:\/\/)?[a-zA-Z0-9\.\/\?\:@\-_=#]+\.([a-zA-Z0-9\&\.\/\?\:@\-_=#])*/
 
-
-  $scope.container_operation_visible = true
-
   if $scope.action.buttons_reply
     $scope.actions_buttons_reply = $scope.action.buttons_reply
-    $scope.container_operation_visible = false
   else
     $scope.actions_buttons_reply = []
 
   if $scope.action.quick_responses
     $scope.actions_quick_responses = $scope.action.quick_responses
-    $scope.container_operation_visible = false
   else 
     $scope.actions_quick_responses = []
 
-  if $scope.action._media == null
+  if $scope.action._media == null && $scope.action.quick_responses.length < 1 && $scope.action.buttons_reply < 1
     $scope.container_operation_visible = true
+  else
+    $scope.container_operation_visible = false
   
   if $scope.action.webhook_headers
     item_counter = 0
@@ -1824,7 +1821,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         content_type:"text"
       })
       return
-    
    
   $scope.AddNewButtonReply = ->
     if $scope.actions_buttons_reply.length < 1
@@ -1835,15 +1831,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         type:"web_url"
       })
       return
-    
-
 
   $scope.RemoveElementArray = (a, index) ->
     a.splice(index,1)
     if a.length == 0
       $scope.container_operation_visible = true
       
-
   $scope.actionset = actionset
   $scope.flowId = window.flowId
 
