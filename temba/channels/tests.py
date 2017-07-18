@@ -9972,7 +9972,18 @@ class FacebookTest(TembaTest):
 
     def test_send_quick_responses(self):
         joe = self.create_contact("Joe", urn="facebook:1234")
-        msg = joe.send("Facebook Msg", self.admin, trigger_send=False)[0]
+        additional_params = """
+        {
+            "quick_responses":[
+                {
+                    "content_type":"text",
+                    "payload":"Test quick reply is ok",
+                    "title":"Quick reply"
+                }
+            ]
+        }
+        """
+        msg = joe.send("Facebook Msg", self.admin, trigger_send=False, additional_params=additional_params)[0]
 
         settings.SEND_MESSAGES = True
 
@@ -9996,7 +10007,20 @@ class FacebookTest(TembaTest):
 
     def test_send_buttons_reply(self):
         joe = self.create_contact("Joe", urn="facebook:1234")
-        msg = joe.send("Facebook Msg", self.admin, trigger_send=False)[0]
+        additional_params = """
+        {
+            "":[
+                {
+                    "type":"web_url",
+                    "url":"https://petersapparel.parseapp.com",
+                    "title":"Show Website"
+                }
+            ]
+
+
+        }
+        """
+        msg = joe.send("Facebook Msg", self.admin, trigger_send=False, additional_params=additional_params)[0]
 
         settings.SEND_MESSAGES = True
 
