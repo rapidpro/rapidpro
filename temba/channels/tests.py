@@ -7826,7 +7826,7 @@ class TwitterTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000002345')
 
         # a new style Twitter channel configured for the Webhooks API
-        self.twitter_beta = Channel.create(self.org, self.user, None, 'TT', None, 'cuenca_facts',
+        self.twitter_beta = Channel.create(self.org, self.user, None, 'TWT', None, 'cuenca_facts',
                                            config={'handle_id': 10001,
                                                    'api_key': 'APIKEY',
                                                    'api_secret': 'APISECRET',
