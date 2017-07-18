@@ -1764,16 +1764,23 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.patternUrl = /((http|https)\:\/\/)?[a-zA-Z0-9\.\/\?\:@\-_=#]+\.([a-zA-Z0-9\&\.\/\?\:@\-_=#])*/
 
 
+  $scope.container_operation_visible = true
+
   if $scope.action.buttons_reply
     $scope.actions_buttons_reply = $scope.action.buttons_reply
+    $scope.container_operation_visible = false
   else
     $scope.actions_buttons_reply = []
 
   if $scope.action.quick_responses
     $scope.actions_quick_responses = $scope.action.quick_responses
+    $scope.container_operation_visible = false
   else 
     $scope.actions_quick_responses = []
 
+  if $scope.action._media == null
+    $scope.container_operation_visible = true
+  
   if $scope.action.webhook_headers
     item_counter = 0
     for item in $scope.action.webhook_headers
@@ -1808,20 +1815,28 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if $scope.action.webhook_headers.length == 0
       $scope.addNewActionWebhookHeader()
 
-  $scope.AddNewQuickResponse = () ->
+  $scope.AddNewQuickResponse = ->
+    $scope.container_operation_visible = false
     $scope.actions_quick_responses.push({
       title:"",
       payload:"",
       content_type:"text"
     })
    
-  $scope.AddNewButtonReply = () ->
+  $scope.AddNewButtonReply = ->
+    $scope.container_operation_visible = false
     $scope.actions_buttons_reply.push({
       title:"",
       url:"",
       type:"web_url"
     })
 
+
+  $scope.RemoveElementArray = (a, index) ->
+    a.splice(index,1)
+    if a.length == 0
+      $scope.container_operation_visible = true
+      
 
   $scope.actionset = actionset
   $scope.flowId = window.flowId
@@ -1869,6 +1884,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.removeAttachment = ->
     $scope.action.media = null
     $scope.action._media = null
+    $scope.container_operation_visible = true
 
   # Saving a reply message in the flow
   $scope.saveMessage = (message, type='reply') ->

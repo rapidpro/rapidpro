@@ -13,63 +13,62 @@
       %span{auto-complete:"",msg:"action.msg",type:"sms",data-message:"message"}
       %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
       %span{auto-complete:"",sms:"action.msg",type:"sms",data-message:"message"}
+      .container-operations{ng-show:"container_operation_visible"}
+        
+
+        .icon-attachment.add-attachment.cursor-pointer{ng-show:'!action._media', ng-file-select:'onFileSelect($files, actionset, action);', ng-click:'$event.stopPropagation();', style:"font-size:15px;"}
+
+        .icon-button-quick-response.cursor-pointer{style:"font-size:22px; margin-top:-2px; margin-left:2px;", ng-click:'AddNewQuickResponse()', ng-show:"!action._media"}
+      
+        .icon-button-response.cursor-pointer{style:"font-size:22px; margin-top:-3px; margin-left:7px;", ng-click:'AddNewButtonReply()', ng-show:"!action._media"}
+
+          
+
+      %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
 
       .media{ng-hide:'action.uploading'}
-
-        .icon-attachment.add-attachment{ng-show:'!action._media', ng-file-select:'onFileSelect($files, actionset, action);', ng-click:'$event.stopPropagation();' }
-
         .tag-button{ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
-          .viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}'}
-          .summary
-            [[action._media.type]] attachment
-          .remove
-            %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
-              .icon-close
-        
+              .viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}'}
+              .summary
+                [[action._media.type]] attachment
+              .remove
+                %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
+                  .icon-close
 
-        
-        %span{class:"", ng-click:'AddNewQuickResponse()', ng-disabled:"actions_buttons_reply.length"}
-          .icon-button-quick-response.add-attachment{style:"font-size:17px; margin-top:5px; padding-bottom:5px; margin-left:5px;"}
-          
-        %span{class:"", ng-click:'AddNewButtonReply()', ng-disabled:"actions_quick_responses.length"}
-          .icon-button-response.add-attachment{style:"font-size:20px; margin-top:2px; padding-bottom:5px; margin-left:5px;"}
-
-         
-
-       %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
-      .quick-response
-        .modal-quick-response-header{ng-show:"actions_quick_responses.length"}
+      .quick-response{ng-show:"actions_quick_responses.length"}
+        .modal-quick-response-header
           .modal-quick-response-value
             -trans "Text"
           .modal-quick-response-value
             -trans "Payload"
-             
+            
         .modal-quick-response{ng-repeat:"response in actions_quick_responses", class:""}
           .modal-quick-response-value  
             %input{ng-model:"response.title", ng-required:"true"} 
           .modal-quick-response-value 
             %input{ng-model:"response.payload", ng-required:"true"}
           
-          .icon.icon-close{ng-click:"actions_quick_responses.splice($index,1)"}
+          .icon.icon-close{ng-click:"RemoveElementArray(actions_quick_responses, $index)"}
+        %a{ng-click:"AddNewQuickResponse()", class:"cursor-pointer"}
+          -trans "Add new quick response"
 
-
-
-
-        .quick-response
-          .modal-quick-response-header{ng-show:"actions_buttons_reply.length"}
-            .modal-quick-response-value
-              -trans "Text"
-            .modal-quick-response-value
-              -trans "Url"
+      .quick-response{ng-show:"actions_buttons_reply.length"}
+        .modal-quick-response-header
+          .modal-quick-response-value
+            -trans "Text"
+          .modal-quick-response-value
+            -trans "Url"
+            
+        .modal-quick-response{ng-repeat:"response in actions_buttons_reply", class:""}
+          .modal-quick-response-value  
+            %input{ng-model:"response.title", ng-required:"true"} 
+          .modal-quick-response-value 
+            %input{ng-model:"response.url", ng-required:"true", ng-pattern:"patternUrl"} 
+          .icon.icon-close{ng-click:"RemoveElementArray(actions_buttons_reply, $index)"}
+        %a{ng-click:"AddNewButtonReply()", class:"cursor-pointer"}
+          -trans "Add new button url"
               
-          .modal-quick-response{ng-repeat:"response in actions_buttons_reply", class:""}
-            .modal-quick-response-value  
-              %input{ng-model:"response.title", ng-required:"true"} 
-            .modal-quick-response-value 
-              %input{ng-model:"response.url", ng-required:"true", ng-pattern:"patternUrl"} 
-            .icon.icon-close{ng-click:"actions_buttons_reply.splice($index,1)"}
-              
-              
+                
       
     %span{ng-if:'config.type == "end_ussd"'}
       %span{auto-complete:"",msg:"action.msg",type:"ussd",data-message:"message"}
@@ -296,4 +295,14 @@
     margin-left:2%;
     margin-right:10px;
     margin-bottom:5px;
+  }
+  .cursor-pointer{
+    cursor:pointer;
+  }
+  .cursor-pointer:hover{
+    opacity:0.7;
+  }
+  .container-operations *{
+    height:20px;
+
   }
