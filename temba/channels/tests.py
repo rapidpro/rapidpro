@@ -9970,6 +9970,54 @@ class FacebookTest(TembaTest):
             self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
                                                                               "referenced before assignment"))
 
+    def test_send_quick_responses(self):
+        joe = self.create_contact("Joe", urn="facebook:1234")
+        msg = joe.send("Facebook Msg", self.admin, trigger_send=False)[0]
+
+        settings.SEND_MESSAGES = True
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{"recipient_id":"1234", '
+                                                  '"message_id":"mid.external"}')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message is now sent
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.assertEqual(msg.external_id, 'mid.external')
+            self.clear_cache()
+
+            self.assertEqual(mock.call_args[0][0], 'https://graph.facebook.com/v2.5/me/messages')
+            self.assertEqual(json.loads(mock.call_args[0][1]),
+                             dict(recipient=dict(id="1234"), message=dict(text="Facebook Msg")))
+
+    def test_send_buttons_reply(self):
+        joe = self.create_contact("Joe", urn="facebook:1234")
+        msg = joe.send("Facebook Msg", self.admin, trigger_send=False)[0]
+
+        settings.SEND_MESSAGES = True
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{"recipient_id":"1234", '
+                                                  '"message_id":"mid.external"}')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message is now sent
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.assertEqual(msg.external_id, 'mid.external')
+            self.clear_cache()
+
+            self.assertEqual(mock.call_args[0][0], 'https://graph.facebook.com/v2.5/me/messages')
+            self.assertEqual(json.loads(mock.call_args[0][1]),
+                             dict(recipient=dict(id="1234"), message=dict(text="Facebook Msg")))
+
 
 class JiochatTest(TembaTest):
 

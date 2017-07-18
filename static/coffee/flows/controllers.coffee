@@ -829,7 +829,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       type: -> "attachment-viewer"
 
     $scope.dialog = utils.openModal("/partials/attachment_viewer", AttachmentViewerController , resolveObj)
-
+    
 ]
 
 # translating rules
@@ -1816,20 +1816,26 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.addNewActionWebhookHeader()
 
   $scope.AddNewQuickResponse = ->
-    $scope.container_operation_visible = false
-    $scope.actions_quick_responses.push({
-      title:"",
-      payload:"",
-      content_type:"text"
-    })
+    if $scope.actions_quick_responses.length < 3
+      $scope.container_operation_visible = false
+      $scope.actions_quick_responses.push({
+        title:"",
+        payload:"",
+        content_type:"text"
+      })
+      return
+    
    
   $scope.AddNewButtonReply = ->
-    $scope.container_operation_visible = false
-    $scope.actions_buttons_reply.push({
-      title:"",
-      url:"",
-      type:"web_url"
-    })
+    if $scope.actions_buttons_reply.length < 1
+      $scope.container_operation_visible = false
+      $scope.actions_buttons_reply.push({
+        title:"",
+        url:"",
+        type:"web_url"
+      })
+      return
+    
 
 
   $scope.RemoveElementArray = (a, index) ->

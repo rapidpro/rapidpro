@@ -49,7 +49,7 @@
             %input{ng-model:"response.payload", ng-required:"true"}
           
           .icon.icon-close{ng-click:"RemoveElementArray(actions_quick_responses, $index)"}
-        %a{ng-click:"AddNewQuickResponse()", class:"cursor-pointer"}
+        %a{ng-click:"AddNewQuickResponse()", class:"cursor-pointer", ng-hide:"actions_quick_responses.length == 3"}
           -trans "Add new quick response"
 
       .quick-response{ng-show:"actions_buttons_reply.length"}
@@ -65,9 +65,7 @@
           .modal-quick-response-value 
             %input{ng-model:"response.url", ng-required:"true", ng-pattern:"patternUrl"} 
           .icon.icon-close{ng-click:"RemoveElementArray(actions_buttons_reply, $index)"}
-        %a{ng-click:"AddNewButtonReply()", class:"cursor-pointer"}
-          -trans "Add new button url"
-              
+        
                 
       
     %span{ng-if:'config.type == "end_ussd"'}
