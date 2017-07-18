@@ -10017,7 +10017,6 @@ class FacebookTest(TembaTest):
                 }
             ]
 
-
         }
         """
         msg = joe.send("Facebook Msg", self.admin, trigger_send=False, additional_params=additional_params)[0]

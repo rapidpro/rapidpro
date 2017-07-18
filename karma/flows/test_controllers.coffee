@@ -765,3 +765,51 @@ describe 'Controllers:', ->
 
         for rule_test in rule_tests
           expect(scope.isRuleComplete(rule_test['rule'])).toBe(rule_test['complete'])
+
+          
+     it 'should generate json quick replies to send', ->
+      loadFavoritesFlow()
+
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+    
+      json_quick_responses = [{
+                    'title':'Quick reply',
+                    'payload':'Test quick reply is ok',
+                    'content_type':'text'
+                }]
+
+      editAction actionset, action, (scope) ->
+        scope.AddNewQuickResponse()
+        scope.actions_quick_responses[0]['payload'] = 'Test quick reply is ok'
+        scope.actions_quick_responses[0]['title'] = 'Quick reply'
+        scope.formData.msg = "test"
+        scope.saveMessage('test', type='reply')
+
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+      expect(JSON.stringify(action.quick_responses) ).toBe(JSON.stringify(json_quick_responses))
+
+    it 'should generate json button url replies to send', ->
+      loadFavoritesFlow()
+
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+    
+      json_buttons_reply = [{
+                    'title':'url tittle reply',
+                    'url':'url.com',
+                    'type':'web_url'
+                }]
+
+      editAction actionset, action, (scope) ->
+        scope.AddNewButtonReply()
+        scope.actions_buttons_reply[0]['url'] = 'url.com'
+        scope.actions_buttons_reply[0]['title'] = 'url tittle reply'
+        scope.formData.msg = "test"
+        scope.saveMessage('test', type='reply')
+
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+      
+      expect(JSON.stringify(action.buttons_reply)).toBe(JSON.stringify(json_buttons_reply))
