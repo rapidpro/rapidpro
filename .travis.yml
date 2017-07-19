@@ -17,7 +17,7 @@ cache:
 language: python
 
 node_js:
-  - "6.9.1"
+  - "6"
 
 python: 
   - "2.7.11"
