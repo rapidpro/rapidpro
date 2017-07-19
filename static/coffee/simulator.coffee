@@ -42,6 +42,20 @@ window.updateSimulator = (data) ->
     media_type = null
     media_viewer_elt = null
 
+    quick_responses = null
+    buttons_reply = null
+
+    if msg.additional_params
+      params = JSON.parse(msg.additional_params)
+      if params.quick_responses[0]
+        model = 'ilog'
+        quick_responses = "<div id='quick-response-content'>"
+        for QR in params.quick_responses
+          quick_responses += "<button class=\"btn quick-responses\" data-payload=\""+QR.payload+"\"> "+QR.title + "</button>"
+        quick_responses+= "</div>"
+      else if params.buttons_reply[0] 
+        buttons_reply = "<a class=\"btn btn-primary button-reply\"href='"+params.buttons_reply[0].url+"' target=\"_blank\"> "+params.buttons_reply[0].title + "</a><br>"
+
     if msg.attachments
       parts = msg.attachments[0].split(':')
 
@@ -67,18 +81,30 @@ window.updateSimulator = (data) ->
     ele = "<div class=\"" + model + " " + level + " " + direction + " " + ussd
     if media_type
       ele += " media-msg"
+
     ele += "\">"
-    ele += msg.text
+    if quick_responses
+      console.log(quick_responses)
+      ele += quick_responses
+    else
+      ele += msg.text
     
     if media_type and media_viewer_elt
       ele += media_viewer_elt
 
+    if buttons_reply
+      ele += buttons_reply
     ele += "</div>"
 
     $(".simulator-body").append(ele)
     i++
   $(".simulator-body").scrollTop $(".simulator-body")[0].scrollHeight
   $("#simulator textarea").val ""
+
+  $(".btn.quick-responses").on "click", (event) ->
+    payload = event.target.innerText
+    $("quick-response-content").remove()
+    sendMessage(payload)
 
   if window.simulation
 

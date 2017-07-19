@@ -6,6 +6,7 @@ import regex
 import six
 import time
 import traceback
+import json
 
 from datetime import datetime, timedelta
 from django.conf import settings
@@ -962,16 +963,20 @@ class Msg(models.Model):
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
     def as_json(self):
-        return dict(direction=self.direction,
+        data = dict(direction=self.direction,
                     text=self.text,
                     id=self.id,
                     attachments=self.attachments,
                     created_on=self.created_on.strftime('%x %X'),
                     model="msg")
 
+        if self.additional_params:
+            data.update(dict(additional_params=self.additional_params))
+            
+        return data
+
     def simulator_json(self):
         msg_json = self.as_json()
-        msg_json['text'] = escape(self.text).replace('\n', "<br/>")
         return msg_json
 
     @classmethod

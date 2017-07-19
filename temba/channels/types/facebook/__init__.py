@@ -50,30 +50,34 @@ class FacebookType(ChannelType):
         # for any new conversation triggers, clear out the call to action payload
         if trigger.trigger_type == Trigger.TYPE_NEW_CONVERSATION:
             self._set_call_to_action(trigger.channel, None)
+    
+    def setAdditionalParams(self, current_payload, params, text):
+        params = json.loads(params)
+        if params["quick_responses"]:
+            # setting data to quick replies
+            current_payload['message']["text"] = text
+            current_payload['message']["quick_replies"] = params["quick_responses"]
+        elif params["buttons_reply"]:
+            # setting data to buttons replys with url
+            buttons = params["buttons_reply"]
+            current_payload['message']['attachment'] = {}
+            current_payload['message']['attachment']["type"] = "template"
+            current_payload['message']['attachment']["payload"] = {
+                "template_type":"button",
+                "text":text,
+                "buttons":buttons
+            }
+        else:
+            #continue flow if not have additional data
+            current_payload['message']['text'] = text
+
+        return current_payload
 
     def send(self, channel, msg, text):
         # build our payload
         payload = {}
         payload['message'] = {}
-        if msg.additional_params.get('quick_responses'):
-            # setting data to quick replies
-            payload['message']["text"] = text
-            payload['message']["quick_replies"] = msg.additional_params.get('quick_responses')
-
-        elif msg.additional_params.get('buttons_reply'):
-            # setting data to buttons replys with url
-            buttons = msg.additional_params.get('buttons_reply')
-            payload['message']['attachment'] = {}
-            payload['message']['attachment']["type"] = "template"
-            payload['message']['attachment']["payload"] = {
-                "template_type":"button",
-                "text":text,
-                "buttons":buttons
-            }
-
-        else:
-            #continue flow if not have additional data
-            payload['message']['text'] = text
+        payload = self.setAdditionalParams(payload, msg.additional_params, text)
 
         # this is a ref facebook id, temporary just for this message
         if URN.is_path_fb_ref(msg.urn_path):

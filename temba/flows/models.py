@@ -5055,16 +5055,27 @@ class ReplyAction(Action):
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []
-
+        
         if self.msg or self.media:
             user = get_flow_user(run.org)
-
+            
             text = ''
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
-            additional_params = dict()
-            additional_params['quick_responses'] = self.quick_responses
-            additional_params['buttons_reply'] = self.buttons_reply
+            
+            additional_params = {}
+            additional_params['quick_responses'] = self.quick_responses if self.quick_responses else []
+            if self.buttons_reply:
+                for button in self.buttons_reply:
+                    if not (button['url'][:6] == "http://" or button['url'][:7] == "https://"):
+                        button['url'] = "http://"+button['url']
+                additional_params['buttons_reply'] = self.buttons_reply
+            else:
+                additional_params['buttons_reply'] = []
+
+            print(additional_params['buttons_reply'])
+            additional_params = json.dumps(additional_params)
+        
             attachments = None
             if self.media:
                 # localize our media attachment
@@ -5083,7 +5094,7 @@ class ReplyAction(Action):
             if msg:
                 replies = msg.reply(text, user, trigger_send=False, message_context=context,
                                     session=run.session, msg_type=self.MSG_TYPE, additional_params=additional_params, attachments=attachments,
-                                    send_all=self.send_all, created_on=created_on)
+                                    send_all=self.send_all, created_on=created_on)  
             else:
                 replies = run.contact.send(text, user, trigger_send=False, message_context=context,
                                            session=run.session, msg_type=self.MSG_TYPE, additional_params=additional_params, attachments=attachments,
