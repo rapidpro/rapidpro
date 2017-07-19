@@ -5072,8 +5072,7 @@ class ReplyAction(Action):
                 additional_params['buttons_reply'] = self.buttons_reply
             else:
                 additional_params['buttons_reply'] = []
-
-            print(additional_params['buttons_reply'])
+                
             additional_params = json.dumps(additional_params)
         
             attachments = None
