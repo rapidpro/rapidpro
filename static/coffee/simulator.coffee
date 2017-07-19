@@ -31,7 +31,6 @@ window.updateSimulator = (data) ->
     $('.simulator-footer .media-button').hide()
     $('.simulator-footer .imessage').show()
 
-
   while i < data.messages.length
     msg = data.messages[i]
 
@@ -75,8 +74,6 @@ window.updateSimulator = (data) ->
         else if media_type == 'audio'
           media_type = 'icon-mic'
           media_viewer_elt = "<span class=\"media-file\"><audio controls src=\"" + media_url + "\"></span>"
-
-
 
     ele = "<div class=\"" + model + " " + level + " " + direction + " " + ussd
     if media_type
