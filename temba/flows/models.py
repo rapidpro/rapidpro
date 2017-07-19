@@ -5047,7 +5047,13 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
         
-        return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None), quick_responses=json_obj.get(cls.QUICK_RESPONSES), buttons_reply=json_obj.get(cls.BUTTONS_REPLY),
+        buttons = json_obj.get(cls.BUTTONS_REPLY)
+        if buttons:
+            for button in buttons:
+                if not (button['url'][:7] == "http://" or button['url'][:8] == "https://"):
+                    button['url'] = "http://"+button['url']
+                
+        return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None), quick_responses=json_obj.get(cls.QUICK_RESPONSES), buttons_reply=buttons,
                    send_all=json_obj.get(cls.SEND_ALL, False))
 
     def as_json(self):
@@ -5065,13 +5071,7 @@ class ReplyAction(Action):
             
             additional_params = {}
             additional_params['quick_responses'] = self.quick_responses if self.quick_responses else []
-            if self.buttons_reply:
-                for button in self.buttons_reply:
-                    if not (button['url'][:6] == "http://" or button['url'][:7] == "https://"):
-                        button['url'] = "http://"+button['url']
-                additional_params['buttons_reply'] = self.buttons_reply
-            else:
-                additional_params['buttons_reply'] = []
+            additional_params['buttons_reply'] = self.buttons_reply if self.buttons_reply else []
                 
             additional_params = json.dumps(additional_params)
         
