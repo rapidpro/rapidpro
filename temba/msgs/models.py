@@ -1173,7 +1173,7 @@ class Msg(models.Model):
         Used internally to serialize to JSON when queueing messages in Redis
         """
         data = dict(id=self.id, org=self.org_id, channel=self.channel_id, broadcast=self.broadcast_id,
-                    text=self.text, additional_params=self.additional_params, urn_path=self.contact_urn.path,
+                    text=self.text, urn_path=self.contact_urn.path,
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
                     status=self.status, direction=self.direction, attachments=self.attachments,
@@ -1183,6 +1183,9 @@ class Msg(models.Model):
 
         if self.contact_urn.auth:
             data.update(dict(auth=self.contact_urn.auth))
+            
+        if self.additional_params:
+            data.update(dict(additional_params=self.additional_params))
 
         return data
 
