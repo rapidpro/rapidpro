@@ -19,6 +19,20 @@
       {% endblocktrans %}
     </p>
 
+  {% elif channel.get_type.free_sending %}
+    <p>
+      {% blocktrans with org_name=org.name channel_type=channel.get_channel_type_name %}
+        We've noticed that the {{ channel_type }} for {{ org_name }} is having trouble sending text messages.  This might be
+        a temporary problem due to network communication to {{ channel_type }} or may indicate a change in configuration which required your action.
+      {% endblocktrans %}
+    </p>
+
+    <p>
+      {% blocktrans with channel_type=channel.get_channel_type_name %}
+        Please check on your {{ channel_type }} to make sure it can send text messages.  Currently your {{ channel_type }} has <strong>{{ unsent_count }}</strong>
+        messages which haven't sent in over an hour.
+      {% endblocktrans %}
+    </p>
   {% else %}
     <p>
       {% blocktrans with org_name=org.name channel_type=channel.get_channel_type_name %}

@@ -230,12 +230,14 @@ class WebHookEvent(SmartModel):
 
         if msg:
             text = msg.text
+            attachments = msg.get_attachments()
             channel = msg.channel
             contact_urn = msg.contact_urn
         else:
             # if the action is on the first node we might not have an sms (or channel) yet
             channel = None
             text = None
+            attachments = []
             contact_urn = contact.get_urn()
 
         steps = []
@@ -256,6 +258,7 @@ class WebHookEvent(SmartModel):
                     flow_base_language=flow.base_language,
                     run=run.id,
                     text=text,
+                    attachments=[a.url for a in attachments],
                     step=six.text_type(node_uuid),
                     phone=contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=contact.uuid,
@@ -378,12 +381,13 @@ class WebHookEvent(SmartModel):
         api_user = get_api_user()
 
         json_time = time.strftime('%Y-%m-%dT%H:%M:%S.%f')
-        data = dict(sms=msg.pk,
+        data = dict(sms=msg.id,
                     phone=msg.contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=msg.contact.uuid,
                     contact_name=msg.contact.name,
                     urn=six.text_type(msg.contact_urn),
                     text=msg.text,
+                    attachments=[a.url for a in msg.get_attachments()],
                     time=json_time,
                     status=msg.status,
                     direction=msg.direction)

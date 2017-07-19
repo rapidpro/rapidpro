@@ -7,7 +7,7 @@ import time
 
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import Contact, ContactURN, URN, FACEBOOK_SCHEME
-from temba.msgs.models import Msg, WIRED
+from temba.msgs.models import Attachment, WIRED
 from temba.orgs.models import Org
 from temba.triggers.models import Trigger
 from temba.utils.http import HttpEvent
@@ -33,6 +33,7 @@ class FacebookType(ChannelType):
     scheme = FACEBOOK_SCHEME
     max_length = 320
     attachment_support = True
+    free_sending = True
 
     def deactivate(self, channel):
         config = channel.config_json()
@@ -87,25 +88,23 @@ class FacebookType(ChannelType):
 
         payload = json.dumps(payload)
         event = HttpEvent('POST', url, json.dumps(payload))
-   
+
         try:
             response = requests.post(url, payload, params=params, headers=headers, timeout=15)
             event.status_code = response.status_code
             event.response_body = response.text
-            print(response.text)
-
         except Exception as e:
             raise SendException(six.text_type(e), event=event, start=start)
 
         # for now we only support sending one attachment per message but this could change in future
-        attachments = Msg.get_attachments(msg)
-        media_type, media_url = attachments[0] if attachments else (None, None)
-        
-        if media_type and media_url:
-            media_type = media_type.split('/')[0]
+        attachments = Attachment.parse_all(msg.attachments)
+        attachment = attachments[0] if attachments else None
+
+        if attachment:
+            category = attachment.content_type.split('/')[0]
 
             payload = json.loads(payload)
-            payload['message'] = {'attachment': {'type': media_type, 'payload': {'url': media_url}}}
+            payload['message'] = {'attachment': {'type': category, 'payload': {'url': attachment.url}}}
             payload = json.dumps(payload)
 
             event = HttpEvent('POST', url, payload)
