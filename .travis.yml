@@ -1,3 +1,9 @@
+dist:
+  - trusty
+
+sudo:
+  - false
+
 language: python
 
 python:
@@ -7,12 +13,10 @@ services:
   - redis-server
 
 addons:
-  - postgresql: 9.6
+  - postgresql: 9.4
   - apt:
     - packages:
-      - postgresql-9.6-postgis-2.3
-
-sudo: false
+      - postgresql-9.4-postgis-2.3
 
 cache:
   - directories:
