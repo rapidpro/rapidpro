@@ -977,6 +977,7 @@ class Msg(models.Model):
 
     def simulator_json(self):
         msg_json = self.as_json()
+        msg_json['text'] = escape(self.text).replace('\n', "<br/>")
         return msg_json
 
     @classmethod
