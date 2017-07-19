@@ -274,22 +274,43 @@
 }
 
 .button-reply{
-  width: 70%;
+  display: block;
+  width: 100%;
+  margin-left:-20px;
+  margin-bottom:-30px;
   text-align: center;
   background-image: none !important;
-  border-radius: 10px;
   background-image: -webkit-linear-gradient(top, #005485, #004475);
   background: -moz-linear-gradient(top, #005485, #004475);
   color: rgb(51, 51, 51);
-  background-color: #ecf0f1;
+  background-color: #E5E4E9;
+  margin-top: 8px;
+  transition: color 0.8s ease;
+  border: none;
+  border-top:1px solid #2095FE;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  height: 22px;
+  
 }
 
 .button-reply:hover{
-
+  color:#2095FE;
+  background-color: #E5E4E9;
+  transition: background-color 0.5s ease;
+}
+.button-reply:focus{
+  background-color: #E5E4E9;
+  color: rgb(51, 51, 51);
 }
 
 .quick-responses{
   border-radius: 85px;
   margin-left:4px;
   margin-bottom:6px; 
+  transition: background-color 0.5s ease;
+}
+
+.quick-responses:hover{
+  transition: background-color 0.5s ease;
 }
