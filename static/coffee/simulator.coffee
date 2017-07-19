@@ -53,7 +53,7 @@ window.updateSimulator = (data) ->
           quick_responses += "<button class=\"btn quick-responses\" data-payload=\""+QR.payload+"\"> "+QR.title + "</button>"
         quick_responses+= "</div>"
       else if params.buttons_reply[0] 
-        buttons_reply = "<a class=\"btn btn-primary button-reply\"href='"+params.buttons_reply[0].url+"' target=\"_blank\"> "+params.buttons_reply[0].title + "</a><br>"
+        buttons_reply = "<a class=\"btn button-reply\"href='"+params.buttons_reply[0].url+"' target=\"_blank\"> "+params.buttons_reply[0].title + "</a><br>"
 
     if msg.attachments
       parts = msg.attachments[0].split(':')
