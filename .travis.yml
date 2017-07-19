@@ -49,7 +49,8 @@ script:
   - (! python manage.py compress --extension=".haml" --settings=temba.settings_travis | grep 'Error') || exit 1
   - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
   - coverage run manage.py test --noinput --verbosity=2
-  after_success:
+
+after_success:
   - coveralls --rcfile .coveragerc_failcheck
   - coverage report -i --rcfile .coveragerc
   - coverage report -i --rcfile .coveragerc_failcheck --fail-under=100
