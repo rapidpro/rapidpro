@@ -16,9 +16,6 @@ cache:
 
 language: python
 
-node_js:
-  - "6"
-
 python: 
   - "2.7.11"
 
@@ -34,6 +31,8 @@ install:
 - pip install -r pip-freeze.txt --upgrade
 - pip install setuptools==33.1.1  # Recent version breaks packaging.requirements, this is a temp fix: https://github.com/pypa/setuptools/issues/942
 - pip install coveralls
+- nvm install 6
+- nvm use 6
 - npm install
 
 before_script:
