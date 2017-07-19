@@ -100,7 +100,6 @@ window.updateSimulator = (data) ->
 
   $(".btn.quick-responses").on "click", (event) ->
     payload = event.target.innerText
-    $("quick-response-content").remove()
     sendMessage(payload)
 
   if window.simulation
