@@ -2665,7 +2665,7 @@ msgstr ""
 
 #: temba/flows/views.py:422 temba/flows/views.py:571
 msgid "When a user sends any of these keywords they will begin this flow"
-msgstr ""
+msgstr "When a user sends any of these keywords they will begin this flow. Two words triggers can be create on trigger tab"
 
 #: temba/flows/views.py:424
 msgid "Run flow over"

@@ -41,7 +41,9 @@ class BaseTriggerForm(forms.ModelForm):
     def clean_keyword(self):
         keyword = self.cleaned_data.get('keyword', '').strip()
 
-        if keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0):  # pragma: needs cover
+        if keyword and not (
+                regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0) or
+                regex.match('^\w+ \w+$', keyword, flags=regex.UNICODE | regex.V0)):  # pragma: needs cover
             raise forms.ValidationError(_("Keywords must be a single word containing only letter and numbers"))
 
         # make sure it is unique on this org
@@ -146,7 +148,9 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
 
     def clean_keyword(self):
         keyword = self.cleaned_data.get('keyword', '').strip()
-        if keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0):
+        if keyword and not (
+                regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0) or
+                regex.match('^\w+ \w+$', keyword, flags=regex.UNICODE | regex.V0) ):
             raise forms.ValidationError(_("Keywords must be a single word containing only letter and numbers"))
         return keyword.lower()
 

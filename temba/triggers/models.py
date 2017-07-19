@@ -309,12 +309,16 @@ class Trigger(SmartModel):
             return False
 
         # find a matching keyword trigger with an active flow
-        trigger = Trigger.objects.filter(org=msg.org, is_archived=False, is_active=True, trigger_type=cls.TYPE_KEYWORD,
+        trigger_selection = Trigger.objects.filter(org=msg.org, is_archived=False, is_active=True, trigger_type=cls.TYPE_KEYWORD,
                                          flow__is_archived=False, flow__is_active=True)
 
         # if message text is only one word, then we can match 'only-word' triggers too
         match_types = (cls.MATCH_FIRST_WORD, cls.MATCH_ONLY_WORD) if len(words) == 1 else (cls.MATCH_FIRST_WORD,)
-        trigger = trigger.filter(keyword__iexact=words[0], match_type__in=match_types)
+        #########################     MX CHANGE      #########################
+        #  NOW CHECK TWO WORDS TRIGGER
+        trigger = trigger_selection.filter(keyword__iexact=words[0], match_type__in=match_types)
+        if not trigger and len(words)>1:            
+            trigger = trigger_selection.filter(keyword__iexact=words[0]+" "+words[1], match_type__in=match_types)
 
         # trigger needs to match the contact's groups or be non-group specific
         trigger = trigger.filter(Q(groups__in=msg.contact.user_groups.all()) | Q(groups=None))
