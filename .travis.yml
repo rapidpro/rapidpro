@@ -1,10 +1,17 @@
 language: python
 python:
 - '2.7.11'
+
 services:
 - redis-server
+
 addons:
-  postgresql: '9.4'
+  addons:
+    postgresql: 9.6
+    apt:
+      packages:
+        - postgresql-9.6-postgis-2.3
+
 sudo: false
 cache:
   directories:
