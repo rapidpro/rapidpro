@@ -870,7 +870,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_globe',
                'claim_twiml_api', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
-               'claim_red_rabbit', 'claim_macrokiosk', 'claim_jiochat')
+               'claim_red_rabbit', 'claim_macrokiosk')
     permissions = True
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -2256,27 +2256,6 @@ class ChannelCRUDL(SmartCRUDL):
                 org = Org.objects.get(pk=org_id)
 
             return org
-
-    class ClaimJiochat(OrgPermsMixin, SmartFormView):
-        class JiochatForm(forms.Form):
-            app_id = forms.CharField(min_length=32, required=True,
-                                     help_text=_("The Jiochat App ID"))
-            app_secret = forms.CharField(min_length=32, required=True,
-                                         help_text=_("The Jiochat App secret"))
-
-        form_class = JiochatForm
-        fields = ('app_id', 'app_secret')
-        permission = 'channels.channel_claim'
-
-        def form_valid(self, form):
-            super(ChannelCRUDL.ClaimJiochat, self).form_valid(form)
-            cleaned_data = form.cleaned_data
-
-            channel = Channel.add_jiochat_channel(self.request.user.get_org(), self.request.user,
-                                                  cleaned_data.get('app_id'),
-                                                  cleaned_data.get('app_secret'))
-
-            return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))
 
     class List(OrgPermsMixin, SmartListView):
         title = _("Channels")

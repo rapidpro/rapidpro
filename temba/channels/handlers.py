@@ -34,6 +34,7 @@ from temba.ussd.models import USSDSession
 from temba.utils import decode_base64, get_anonymous_user, json_date_to_datetime, ms_to_datetime, on_transaction_commit
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
+from temba.utils.jiochat import JiochatClient
 from temba.utils.twitter import generate_twitter_signature
 from twilio import twiml
 from .tasks import fb_channel_subscribe, refresh_jiochat_access_tokens
@@ -2191,14 +2192,14 @@ class JioChatHandler(BaseChannelHandler):
     def lookup_channel(self, kwargs):
         # look up the channel
         return Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
-                                      channel_type=Channel.TYPE_JIOCHAT).exclude(org=None).first()
+                                      channel_type='JC').exclude(org=None).first()
 
     def get(self, request, *args, **kwargs):
         channel = self.lookup_channel(kwargs)
         if not channel:
             return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
 
-        client = channel.get_jiochat_client()
+        client = JiochatClient.from_channel(channel)
         if client:
             verified, echostr = client.verify_request(request, channel.secret)
 
@@ -2221,7 +2222,7 @@ class JioChatHandler(BaseChannelHandler):
         if 'FromUserName' not in body or 'MsgType' not in body or ('MsgId' not in body and 'Event' not in body):
             return HttpResponse("Missing parameters", status=400)
 
-        client = channel.get_jiochat_client()
+        client = JiochatClient.from_channel(channel)
 
         sender_id = body.get('FromUserName')
         create_time = body.get('CreateTime', None)
