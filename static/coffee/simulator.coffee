@@ -81,7 +81,6 @@ window.updateSimulator = (data) ->
 
     ele += "\">"
     if quick_responses
-      console.log(quick_responses)
       ele += quick_responses
     else
       ele += msg.text
