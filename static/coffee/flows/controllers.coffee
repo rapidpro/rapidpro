@@ -466,6 +466,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         type: defaultActionSetType()
         msg: msg
       ]
+      start_new_node: true
 
     @clickAction(actionset, actionset.actions[0])
 
@@ -726,7 +727,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
         fromText = action.msg[Flow.flow.base_language]
         fromButtons = action.buttons_reply[Flow.flow.base_language]
-        fromQuickReply = action.quick_responses[Flow.flow.base_language]
+        fromQuickReply = action.quick_reply[Flow.flow.base_language]
         
         resolveObj =
           languages: ->
@@ -910,7 +911,7 @@ TranslationController = ($scope, $modalInstance, languages, translation) ->
     $modalInstance.dismiss "cancel"
 
 NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow, flowController, Plumb, utils, options) ->
-
+ 
   # let our template know our editor type
   $scope.flow = Flow.flow
   $scope.nodeType = options.nodeType
@@ -1775,27 +1776,32 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.action_webhook_headers_name = []
   $scope.action_webhook_headers_value = []
   $scope.patternUrl = /((http|https)\:\/\/)?[a-zA-Z0-9\.\/\?\:@\-_=#]+\.([a-zA-Z0-9\&\.\/\?\:@\-_=#])*/
-
-  if $scope.action.buttons_reply
-    $scope.actions_buttons_reply = $scope.action.buttons_reply
+  currentLang = Flow.language.iso_code
+  if $scope.action.buttons_reply?
+    if $scope.action.buttons_reply[currentLang]?
+      $scope.actions_buttons_reply = $scope.action.buttons_reply[currentLang]
+    else 
+      $scope.actions_buttons_reply = []
   else 
     $scope.actions_buttons_reply = []
   
-  if $scope.action.quick_reply
-    $scope.actions_quick_reply = $scope.action.quick_reply
+  if $scope.action.quick_reply?
+    if $scope.action.quick_reply[currentLang]?
+      $scope.actions_quick_reply = $scope.action.quick_reply[currentLang]
+    else
+      $scope.actions_quick_reply = []
   else
     $scope.actions_quick_reply = []
-
-  if $scope.options.dragSource # if new dragdrop node
+  
+  console.log($scope.action.quick_reply[currentLang])
+  if $scope.options.dragSource || $scope.options.actionset.start_new_node? # if new dragdrop node or new flow first node
     $scope.container_operation_visible = true #show functions add quick and button
   else
     if $scope.action.quick_reply? && $scope.action.buttons_reply? #check all is none
-      if $scope.action._media == null && $scope.action.quick_reply.length < 1 && $scope.action.buttons_reply.length < 1
+      if $scope.action._media == null && $scope.action.quick_reply[currentLang].length < 1 && $scope.action.buttons_reply[currentLang].length < 1
         $scope.container_operation_visible = true 
       else
         $scope.container_operation_visible = false
-    else # start flow case
-      $scope.container_operation_visible = true 
 
   if $scope.action.webhook_headers
     item_counter = 0
@@ -1901,14 +1907,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.action.msg = {}
     $scope.action.msg[$scope.base_language] = message
 
-    if typeof($scope.action.quick_responses) != "object"
-      $scope.action.quick_responses = {}
+    if typeof($scope.action.quick_reply) != "object"
+      $scope.action.quick_reply = {}
 
     if typeof($scope.action.buttons_reply) != "object"
       $scope.action.buttons_reply = {}
 
-    # $scope.action.quick_responses[$scope.base_language] = $scope.actions_quick_responses
-    # $scope.action.buttons_reply[$scope.base_language] = $scope.actions_buttons_reply
+    $scope.action.quick_reply[$scope.base_language] = $scope.quick_reply
+    $scope.action.buttons_reply[$scope.base_language] = $scope.actions_buttons_reply
     
     $scope.action.type = type
     Flow.saveAction(actionset, $scope.action)

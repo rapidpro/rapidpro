@@ -5047,15 +5047,16 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
 
-        buttons = json_obj.get(cls.BUTTONS_REPLY)
-        if buttons:
-            for button in buttons:
-                button_url = '%s' % button.get('url')
-                if not button_url.startswith('http://') or not button_url.startswith('https://'):
-                    button['url'] = "http://%s" % button['url']
+        langs = json_obj.get(cls.BUTTONS_REPLY)
+        if langs:
+            for lang in langs:
+                for button in langs[lang]:
+                    button_url = '%s' % button.get('url')
+                    if not button_url.startswith('http://') or not button_url.startswith('https://'):
+                        button['url'] = "http://%s" % button['url']
 
         return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None),
-                   quick_reply=json_obj.get(cls.QUICK_REPLY), buttons_reply=buttons,
+                   quick_reply=json_obj.get(cls.QUICK_REPLY), buttons_reply=langs,
                    send_all=json_obj.get(cls.SEND_ALL, False))
 
     def as_json(self):
@@ -5072,9 +5073,12 @@ class ReplyAction(Action):
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
 
+            print('here------------')
+            print(run.flow.get_localized_text(self.buttons_reply, run.contact))
+            print('-------------end')
             metadata = dict(
                 quick_reply=self.quick_reply if self.quick_reply else [],
-                buttons_reply=self.buttons_reply if self.buttons_reply else []
+                buttons_reply=run.flow.get_localized_text(self.buttons_reply, run.contact) if self.buttons_reply else []
             )
 
             metadata = json.dumps(metadata)

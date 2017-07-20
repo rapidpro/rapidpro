@@ -75,7 +75,7 @@ class FacebookType(ChannelType):
         # build our payload
         payload = {}
         payload['message'] = {}
-        payload = self.set_additional_params(payload, msg.additional_params, text)
+        #payload = self.set_additional_params(payload, msg.additional_params, text)
 
         # this is a ref facebook id, temporary just for this message
         if URN.is_path_fb_ref(msg.urn_path):
