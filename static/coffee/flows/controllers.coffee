@@ -1790,6 +1790,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         $scope.container_operation_visible = true 
       else
         $scope.container_operation_visible = false
+    else # start flow case
+      $scope.container_operation_visible = true 
 
   
   
