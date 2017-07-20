@@ -5070,11 +5070,9 @@ class ReplyAction(Action):
                 text = run.flow.get_localized_text(self.msg, run.contact)
             
             additional_params = {} #setting additional params
-            if self.quick_responses:
-                additional_params['quick_responses'] = self.quick_responses if self.quick_responses else []
-            if self.buttons_reply:
-                additional_params['buttons_reply'] = self.buttons_reply if self.buttons_reply else []
-                
+            additional_params['quick_responses'] = self.quick_responses if self.quick_responses else []
+            additional_params['buttons_reply'] = self.buttons_reply if self.buttons_reply else []
+            
             additional_params = json.dumps(additional_params)
         
             attachments = None

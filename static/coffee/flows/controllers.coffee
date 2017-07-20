@@ -1774,17 +1774,17 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   if $scope.action.buttons_reply
     $scope.actions_buttons_reply = $scope.action.buttons_reply
-  else 
+  else
     $scope.actions_buttons_reply = []
   
   if $scope.action.quick_responses
     $scope.actions_quick_responses = $scope.action.quick_responses
   else
     $scope.actions_quick_responses = []
-
+  
   if $scope.options.dragSource
     $scope.container_operation_visible = true
-  else if $scope.action._media == null && $scope.action.quick_responses.length < 1 && $scope.action.buttons_reply < 1
+  else if $scope.action._media == null && $scope.actions_quick_responses.length < 1 && $scope.actions_buttons_reply.length < 1
     $scope.container_operation_visible = true
   else
     $scope.container_operation_visible = false
