@@ -1905,10 +1905,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.action.msg = {}
     $scope.action.msg[$scope.base_language] = message
 
-    $scope.action.quick_responses = $scope.actions_quick_responses
-    $scope.action.buttons_reply = $scope.actions_buttons_reply
+    # $scope.action.quick_responses[$scope.base_language] = $scope.actions_quick_responses
+    # $scope.action.buttons_reply[$scope.base_language] = $scope.actions_buttons_reply
     
     $scope.action.type = type
+    console.log(actionset)
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 
