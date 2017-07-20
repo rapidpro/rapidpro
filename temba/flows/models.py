@@ -199,8 +199,8 @@ class FlowSession(ChannelSession):
             # create each of our runs
             for run in output.session['runs']:
                 # filter our list of events by run
-                run_events = [event for event in output.log if step_to_run[event['step_uuid']] == run['uuid']]
-                run = FlowRun.create_or_update_from_goflow(session, contact, run, run_events, msg_in)
+                run_log = [entry for entry in output.log if step_to_run[entry['step_uuid']] == run['uuid']]
+                run = FlowRun.create_or_update_from_goflow(session, contact, run, run_log, msg_in)
                 runs.append(run)
 
             # old simulation needs an action log showing entering the flow
@@ -2754,7 +2754,7 @@ class FlowRun(models.Model):
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
 
     @classmethod
-    def create_or_update_from_goflow(cls, session, contact, run_output, events, msg_in):
+    def create_or_update_from_goflow(cls, session, contact, run_output, run_log, msg_in):
         """
         Creates or updates a flow run from the given output returned from goflow
         """
@@ -2785,7 +2785,7 @@ class FlowRun(models.Model):
             existing.save(update_fields=('is_active', 'modified_on', 'output', 'exited_on', 'exit_type'))
             run = existing
 
-            msgs_out_by_step = run.apply_events(events, msg_in)
+            msgs_out_by_step = run.apply_events(run_log, msg_in)
 
         else:
             prev_path = []
@@ -2800,7 +2800,7 @@ class FlowRun(models.Model):
                                      modified_on=modified_on,
                                      created_on=iso8601.parse_date(run_output['created_on']))
 
-            msgs_out_by_step = run.apply_events(events, msg_in)
+            msgs_out_by_step = run.apply_events(run_log, msg_in)
 
             # old flow engine appends a list of start messages on run creation
             start_msgs = []
@@ -2833,20 +2833,21 @@ class FlowRun(models.Model):
 
         return run
 
-    def apply_events(self, events, msg_in=None):
+    def apply_events(self, run_log, msg_in=None):
         msgs_to_send = []
         msgs_by_step = defaultdict(list)
 
-        for event in events:
-            if event['event']['type'] == Event.TYPE_SEND_MSG:
-                msg = self.apply_send_msg(event['event'], msg_in)
+        for item in run_log:
+            event = item['event']
+            if event['type'] == Event.TYPE_SEND_MSG:
+                msg = self.apply_send_msg(event, msg_in)
                 if msg:
                     msgs_to_send.append(msg)
-                    msgs_by_step[event["step_uuid"]].append(msg)
+                    msgs_by_step[item["step_uuid"]].append(msg)
             else:
-                apply_func = getattr(self, 'apply_%s' % event['event']['type'], None)
+                apply_func = getattr(self, 'apply_%s' % event['type'], None)
                 if apply_func:
-                    apply_func(event['event'], msg_in)
+                    apply_func(event, msg_in)
 
         # send our messages
         self.org.trigger_send(msgs_to_send)
