@@ -725,7 +725,9 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       if action.type in ["send", "reply", "say", "end_ussd"]
 
         fromText = action.msg[Flow.flow.base_language]
-
+        fromButtons = action.buttons_reply[Flow.flow.base_language]
+        fromQuickReply = action.quick_responses[Flow.flow.base_language]
+        
         resolveObj =
           languages: ->
             from: Flow.flow.base_language
@@ -733,6 +735,9 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           translation: ->
             from: fromText
             to: action.msg[Flow.language.iso_code]
+            fromButtons: fromButtons
+            fromQuickReply: fromQuickReply
+
 
         $scope.dialog = utils.openModal("/partials/translation_modal", TranslationController, resolveObj)
 
@@ -1905,15 +1910,21 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   # Saving a reply message in the flow
   $scope.saveMessage = (message, type='reply') ->
 
+    console.log('here')
     if typeof($scope.action.msg) != "object"
       $scope.action.msg = {}
     $scope.action.msg[$scope.base_language] = message
 
-    $scope.action.quick_responses[$scope.base_language] = $scope.actions_quick_responses
-    $scope.action.buttons_reply[$scope.base_language] = $scope.actions_buttons_reply
+    if typeof($scope.action.quick_responses) != "object"
+      $scope.action.quick_responses = {}
+
+    if typeof($scope.action.buttons_reply) != "object"
+      $scope.action.buttons_reply = {}
+
+    # $scope.action.quick_responses[$scope.base_language] = $scope.actions_quick_responses
+    # $scope.action.buttons_reply[$scope.base_language] = $scope.actions_buttons_reply
     
     $scope.action.type = type
-    console.log(actionset)
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 
