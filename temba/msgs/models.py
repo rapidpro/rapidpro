@@ -6,6 +6,7 @@ import regex
 import six
 import time
 import traceback
+import uuid
 
 from datetime import datetime, timedelta
 from django.conf import settings
@@ -21,6 +22,8 @@ from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
 from django_redis import get_redis_connection
 from temba_expressions.evaluator import EvaluationContext, DateStyle
+
+from temba.channels.courier import push_courier_msgs
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
 from temba.channels.models import Channel, ChannelEvent
@@ -646,6 +649,9 @@ class Msg(models.Model):
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
+    uuid = models.UUIDField(null=True, default=uuid.uuid4,
+                            help_text=_("The UUID for this message"))
+
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))
 
@@ -734,10 +740,6 @@ class Msg(models.Model):
         queued.
         :return:
         """
-        task_msgs = []
-        task_priority = None
-        last_contact = None
-
         # we send in chunks of 1,000 to help with contention
         for msg_chunk in chunk_list(all_msgs, 1000):
             # create a temporary list of our chunk so we can iterate more than once
@@ -748,6 +750,11 @@ class Msg(models.Model):
 
             with transaction.atomic():
                 queued_on = timezone.now()
+                courier_msgs = []
+                task_msgs = []
+                task_priority = None
+                last_contact = None
+                last_channel = None
 
                 # update them to queued
                 send_messages = Msg.objects.filter(id__in=msg_ids)\
@@ -759,16 +766,14 @@ class Msg(models.Model):
 
                 # now push each onto our queue
                 for msg in msgs:
-                    if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and \
-                            msg.topup and not msg.contact.is_test:
+                    if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and msg.topup and not msg.contact.is_test:
+                        if msg.channel.channel_type in settings.COURIER_CHANNELS:
+                            courier_msgs.append(msg)
+                            continue
 
-                        # if this is a different contact than our last, and we have msgs for that last contact, queue the task
+                        # if this is a different contact than our last, and we have msgs, queue the task
                         if task_msgs and last_contact != msg.contact_id:
-                            # if no priority was set, default to DEFAULT
-                            if task_priority is None:  # pragma: needs cover
-                                task_priority = DEFAULT_PRIORITY
-
-                            push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority)
+                            push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority if task_priority else DEFAULT_PRIORITY)
                             task_msgs = []
                             task_priority = None
 
@@ -785,11 +790,27 @@ class Msg(models.Model):
                         task_msgs.append(task)
                         last_contact = msg.contact_id
 
-        # send our last msgs
-        if task_msgs:
-            if task_priority is None:
-                task_priority = DEFAULT_PRIORITY
-            push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority)
+                # send any remaining msgs
+                if task_msgs:
+                    push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority if task_priority else DEFAULT_PRIORITY)
+                    task_msgs = []
+
+                # ok, now push our courier msgs
+                for msg in courier_msgs:
+                    if task_msgs and (last_contact != msg.contact_id or last_channel != msg.channel_id):
+                        push_courier_msgs(task_msgs[0].channel, task_msgs, task_priority != Msg.DEFAULT_PRIORITY)
+                        task_msgs = []
+
+                    if msg.priority != Msg.BULK_PRIORITY:
+                        task_priority = Msg.DEFAULT_PRIORITY
+
+                    last_contact = msg.contact_id
+                    last_channel = msg.channel_id
+                    task_msgs.append(msg)
+
+                # push any remaining courier msgs
+                if task_msgs:
+                    push_courier_msgs(task_msgs[0].channel, task_msgs, task_priority != Msg.DEFAULT_PRIORITY)
 
     @classmethod
     def process_message(cls, msg):

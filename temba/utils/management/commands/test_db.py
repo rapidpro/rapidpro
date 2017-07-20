@@ -166,7 +166,7 @@ class Command(BaseCommand):
         r.flushdb()
         self._log(self.style.SUCCESS("OK") + '\n')
 
-        superuser = User.objects.create_superuser("root", "root@example.com", "password")
+        superuser = User.objects.create_superuser("root", "root@example.com", USER_PASSWORD)
 
         country, locations = self.load_locations(LOCATIONS_DUMP)
         orgs = self.create_orgs(superuser, country, num_orgs)

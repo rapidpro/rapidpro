@@ -26,6 +26,7 @@ class TwitterActivityType(ChannelType):
     claim_view = ClaimView
 
     scheme = TWITTER_SCHEME
+    show_config_page = False
     free_sending = True
 
     def is_available_to(self, user):
@@ -50,6 +51,6 @@ class TwitterActivityType(ChannelType):
 
         client.delete_webhook(config['webhook_id'])
 
-    def send(self, channel, msg, text):  # pragma: no cover
+    def send(self, channel, msg, text):
         # use regular Twitter channel sending
-        return Channel.get_type_for_code('TT').send(channel, msg, text)
+        return Channel.get_type_from_code('TT').send(channel, msg, text)

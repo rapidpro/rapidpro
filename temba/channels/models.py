@@ -1,14 +1,15 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import json
-import time
-import urlparse
+import logging
 import phonenumbers
 import plivo
 import regex
 import requests
 import re
 import six
+import time
+import urlparse
 
 from abc import ABCMeta, abstractmethod
 from enum import Enum
@@ -45,6 +46,7 @@ from twilio import twiml, TwilioRestException
 from uuid import uuid4
 from xml.sax.saxutils import quoteattr, escape
 
+logger = logging.getLogger(__name__)
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
 
@@ -158,7 +160,6 @@ class Channel(TembaModel):
     TYPE_DARTMEDIA = 'DA'
     TYPE_DUMMY = 'DM'
     TYPE_EXTERNAL = 'EX'
-    TYPE_FCM = 'FCM'
     TYPE_GLOBE = 'GL'
     TYPE_HIGH_CONNECTION = 'HX'
     TYPE_HUB9 = 'H9'
@@ -168,7 +169,6 @@ class Channel(TembaModel):
     TYPE_JUNEBUG = 'JN'
     TYPE_JUNEBUG_USSD = 'JNU'
     TYPE_KANNEL = 'KN'
-    TYPE_LINE = 'LN'
     TYPE_MACROKIOSK = 'MK'
     TYPE_M3TECH = 'M3'
     TYPE_MBLOX = 'MB'
@@ -183,7 +183,6 @@ class Channel(TembaModel):
     TYPE_TWILIO_MESSAGING_SERVICE = 'TMS'
     TYPE_VERBOICE = 'VB'
     TYPE_VIBER = 'VI'
-    TYPE_VIBER_PUBLIC = 'VP'
     TYPE_VUMI = 'VM'
     TYPE_VUMI_USSD = 'VMU'
     TYPE_YO = 'YO'
@@ -214,9 +213,6 @@ class Channel(TembaModel):
     CONFIG_CHANNEL_SECRET = 'channel_secret'
     CONFIG_CHANNEL_MID = 'channel_mid'
     CONFIG_FCM_ID = 'FCM_ID'
-    CONFIG_FCM_KEY = 'FCM_KEY'
-    CONFIG_FCM_TITLE = 'FCM_TITLE'
-    CONFIG_FCM_NOTIFICATION = 'FCM_NOTIFICATION'
     CONFIG_MAX_LENGTH = 'max_length'
     CONFIG_MACROKIOSK_SENDER_ID = 'macrokiosk_sender_id'
     CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
@@ -267,6 +263,9 @@ class Channel(TembaModel):
                             (CONTENT_TYPE_JSON, _("JSON - application/json")),
                             (CONTENT_TYPE_XML, _("XML - text/xml; charset=utf-8")))
 
+    # our default max tps is 50
+    DEFAULT_TPS = 50
+
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
         TYPE_AFRICAS_TALKING: dict(scheme='tel', max_length=160),
@@ -277,7 +276,6 @@ class Channel(TembaModel):
         TYPE_DARTMEDIA: dict(scheme='tel', max_length=160),
         TYPE_DUMMY: dict(scheme='tel', max_length=160),
         TYPE_EXTERNAL: dict(max_length=160),
-        TYPE_FCM: dict(scheme='fcm', max_length=10000),
         TYPE_GLOBE: dict(scheme='tel', max_length=160),
         TYPE_HIGH_CONNECTION: dict(scheme='tel', max_length=1500),
         TYPE_HUB9: dict(scheme='tel', max_length=1600),
@@ -287,7 +285,6 @@ class Channel(TembaModel):
         TYPE_JUNEBUG: dict(scheme='tel', max_length=1600),
         TYPE_JUNEBUG_USSD: dict(scheme='tel', max_length=1600),
         TYPE_KANNEL: dict(scheme='tel', max_length=1600),
-        TYPE_LINE: dict(scheme='line', max_length=1600),
         TYPE_MACROKIOSK: dict(scheme='tel', max_length=1600),
         TYPE_M3TECH: dict(scheme='tel', max_length=160),
         TYPE_NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
@@ -302,7 +299,6 @@ class Channel(TembaModel):
         TYPE_TWILIO_MESSAGING_SERVICE: dict(scheme='tel', max_length=1600),
         TYPE_VERBOICE: dict(scheme='tel', max_length=1600),
         TYPE_VIBER: dict(scheme='tel', max_length=1000),
-        TYPE_VIBER_PUBLIC: dict(scheme='viber', max_length=7000),
         TYPE_VUMI: dict(scheme='tel', max_length=1600),
         TYPE_VUMI_USSD: dict(scheme='tel', max_length=182),
         TYPE_YO: dict(scheme='tel', max_length=1600),
@@ -317,7 +313,6 @@ class Channel(TembaModel):
                     (TYPE_DARTMEDIA, "Dart Media"),
                     (TYPE_DUMMY, "Dummy"),
                     (TYPE_EXTERNAL, "External"),
-                    (TYPE_FCM, "Firebase Cloud Messaging"),
                     (TYPE_GLOBE, "Globe Labs"),
                     (TYPE_HIGH_CONNECTION, "High Connection"),
                     (TYPE_HUB9, "Hub9"),
@@ -327,7 +322,6 @@ class Channel(TembaModel):
                     (TYPE_JUNEBUG, "Junebug"),
                     (TYPE_JUNEBUG_USSD, "Junebug USSD"),
                     (TYPE_KANNEL, "Kannel"),
-                    (TYPE_LINE, "Line"),
                     (TYPE_MACROKIOSK, "Macrokiosk"),
                     (TYPE_M3TECH, "M3 Tech"),
                     (TYPE_MBLOX, "Mblox"),
@@ -342,7 +336,6 @@ class Channel(TembaModel):
                     (TYPE_TWILIO_MESSAGING_SERVICE, "Twilio Messaging Service"),
                     (TYPE_VERBOICE, "Verboice"),
                     (TYPE_VIBER, "Viber"),
-                    (TYPE_VIBER_PUBLIC, "Viber Public Channels"),
                     (TYPE_VUMI, "Vumi"),
                     (TYPE_VUMI_USSD, "Vumi USSD"),
                     (TYPE_YO, "Yo!"),
@@ -351,18 +344,16 @@ class Channel(TembaModel):
     TYPE_ICONS = {
         TYPE_ANDROID: "icon-channel-android",
         TYPE_KANNEL: "icon-channel-kannel",
-        TYPE_LINE: "icon-line",
         TYPE_NEXMO: "icon-channel-nexmo",
         TYPE_TWILIO: "icon-channel-twilio",
         TYPE_TWIML: "icon-channel-twilio",
         TYPE_TWILIO_MESSAGING_SERVICE: "icon-channel-twilio",
         TYPE_PLIVO: "icon-channel-plivo",
         TYPE_CLICKATELL: "icon-channel-clickatell",
-        TYPE_FCM: "icon-fcm",
         TYPE_VIBER: "icon-viber"
     }
 
-    FREE_SENDING_CHANNEL_TYPES = [TYPE_JIOCHAT, TYPE_FCM, TYPE_VIBER, TYPE_VIBER_PUBLIC, TYPE_LINE]
+    FREE_SENDING_CHANNEL_TYPES = [TYPE_JIOCHAT, TYPE_VIBER]
 
     # list of all USSD channels
     USSD_CHANNELS = [TYPE_VUMI_USSD, TYPE_JUNEBUG_USSD]
@@ -429,6 +420,9 @@ class Channel(TembaModel):
     bod = models.TextField(verbose_name=_("Optional Data"), null=True,
                            help_text=_("Any channel specific state data"))
 
+    tps = models.IntegerField(verbose_name=_("Maximum Transactions per Second"), null=True,
+                              help_text=_("The max number of messages that will be sent per second"))
+
     @classmethod
     def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=DEFAULT_ROLE, scheme=None, **kwargs):
         if isinstance(channel_type, six.string_types):
@@ -490,54 +484,6 @@ class Channel(TembaModel):
     @classmethod
     def add_viber_channel(cls, org, user, name):
         return Channel.create(org, user, None, Channel.TYPE_VIBER, name=name, address=Channel.VIBER_NO_SERVICE_ID)
-
-    @classmethod
-    def add_viber_public_channel(cls, org, user, auth_token):
-        from temba.contacts.models import VIBER_SCHEME
-        response = requests.post('https://chatapi.viber.com/pa/get_account_info', json=dict(auth_token=auth_token))
-        if response.status_code != 200:  # pragma: no cover
-            raise Exception(_("Invalid authentication token, please check."))
-
-        response_json = response.json()
-        if response_json['status'] != 0:  # pragma: no cover
-            raise Exception(_("Invalid authentication token: %s" % response_json['status_message']))
-
-        channel = Channel.create(org, user, None, Channel.TYPE_VIBER_PUBLIC,
-                                 name=response_json['uri'], address=response_json['id'],
-                                 config={Channel.CONFIG_AUTH_TOKEN: auth_token}, scheme=VIBER_SCHEME)
-
-        # set the webhook for the channel
-        # {
-        #   "auth_token": "4453b6ac1s345678-e02c5f12174805f9-daec9cbb5448c51r",
-        #   "url": "https://my.host.com",
-        #   "event_types": ["delivered", "seen", "failed", "conversation_started"]
-        # }
-        response = requests.post('https://chatapi.viber.com/pa/set_webhook',
-                                 json=dict(auth_token=auth_token,
-                                           url="https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.viber_public_handler', args=[channel.uuid]),
-                                           event_types=['delivered', 'failed', 'conversation_started']))
-        if response.status_code != 200:  # pragma: no cover
-            channel.delete()
-            raise Exception(_("Unable to set webhook for channel: %s", response.text))
-
-        response_json = response.json()
-        if response_json['status'] != 0:  # pragma: no cover
-            raise Exception(_("Unable to set Viber webhook: %s" % response_json['status_message']))
-
-        return channel
-
-    @classmethod
-    def add_fcm_channel(cls, org, user, data):
-        """
-        Creates a new Firebase Cloud Messaging channel
-        """
-        from temba.contacts.models import FCM_SCHEME
-
-        assert Channel.CONFIG_FCM_KEY in data and Channel.CONFIG_FCM_TITLE in data, "%s and %s are required" % (
-            Channel.CONFIG_FCM_KEY, Channel.CONFIG_FCM_TITLE)
-
-        return Channel.create(org, user, None, Channel.TYPE_FCM, name=data.get(Channel.CONFIG_FCM_TITLE),
-                              address=data.get(Channel.CONFIG_FCM_KEY), config=data, scheme=FCM_SCHEME)
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number,
@@ -813,15 +759,6 @@ class Channel(TembaModel):
             client = channel.get_jiochat_client()
             if client is not None:
                 client.refresh_access_token(channel.id)
-
-    @classmethod
-    def add_line_channel(cls, org, user, credentials, name):
-        channel_id = credentials.get('channel_id')
-        channel_secret = credentials.get('channel_secret')
-        channel_mid = credentials.get('channel_mid')
-        channel_access_token = credentials.get('channel_access_token')
-
-        return Channel.create(org, user, None, Channel.TYPE_LINE, name=name, address=channel_mid, config={Channel.CONFIG_AUTH_TOKEN: channel_access_token, Channel.CONFIG_CHANNEL_ID: channel_id, Channel.CONFIG_CHANNEL_SECRET: channel_secret, Channel.CONFIG_CHANNEL_MID: channel_mid})
 
     @classmethod
     def get_or_create_android(cls, registration_data, status):
@@ -1216,7 +1153,7 @@ class Channel(TembaModel):
 
         org.normalize_contact_tels()
 
-    def release(self, trigger_sync=True, notify_mage=True):
+    def release(self, trigger_sync=True):
         """
         Releases this channel, removing it from the org and making it inactive
         """
@@ -1229,8 +1166,12 @@ class Channel(TembaModel):
 
         # only call out to external aggregator services if we are on prod servers
         if settings.IS_PROD:
-            # if channel is a new style type, deactivate it
-            channel_type.deactivate(self)
+            try:
+                # if channel is a new style type, deactivate it
+                channel_type.deactivate(self)
+            except Exception as e:  # pragma: no cover
+                # proceed with removing this channel but log the problem
+                logger.exception(six.text_type(e))
 
             # hangup all its calls
             from temba.ivr.models import IVRCall
@@ -1266,11 +1207,6 @@ class Channel(TembaModel):
                     client.applications.delete(sid=config['application_sid'])
                 except TwilioRestException:  # pragma: no cover
                     pass
-
-            # unsubscribe from Viber events
-            elif self.channel_type == Channel.TYPE_VIBER_PUBLIC:
-                auth_token = self.config_json()[Channel.CONFIG_AUTH_TOKEN]
-                requests.post('https://chatapi.viber.com/pa/set_webhook', json=dict(auth_token=auth_token, url=''))
 
         # save off our org and gcm id before nullifying
         org = self.org
@@ -1416,55 +1352,6 @@ class Channel(TembaModel):
                                       response=event.response_body,
                                       response_status=event.status_code,
                                       request_time=request_time_ms)
-
-    @classmethod
-    def send_fcm_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-        start = time.time()
-
-        url = 'https://fcm.googleapis.com/fcm/send'
-        title = channel.config.get(Channel.CONFIG_FCM_TITLE)
-        data = {
-            'data': {
-                'type': 'rapidpro',
-                'title': title,
-                'message': text,
-                'message_id': msg.id
-            },
-            'content_available': False,
-            'to': msg.auth,
-            'priority': 'high'
-        }
-
-        if channel.config.get(Channel.CONFIG_FCM_NOTIFICATION):
-            data['notification'] = {
-                'title': title,
-                'body': text
-            }
-            data['content_available'] = True
-
-        payload = json.dumps(data)
-        headers = {'Content-Type': 'application/json',
-                   'Authorization': 'key=%s' % channel.config.get(Channel.CONFIG_FCM_KEY)}
-        headers.update(TEMBA_HEADERS)
-
-        event = HttpEvent('POST', url, payload)
-
-        try:
-            response = requests.post(url, data=payload, headers=headers, timeout=5)
-            result = json.loads(response.text) if response.status_code == 200 else None
-
-            event.status_code = response.status_code
-            event.response_body = response.text
-        except Exception as e:  # pragma: no cover
-            raise SendException(unicode(e), event, start=start)
-
-        if result and 'success' in result and result.get('success') == 1:
-            external_id = result.get('multicast_id')
-            Channel.success(channel, msg, WIRED, start, events=[event], external_id=external_id)
-        else:
-            raise SendException("Got non-200 response [%d] from Firebase Cloud Messaging" % response.status_code,
-                                event, start=start)
 
     @classmethod
     def send_red_rabbit_message(cls, channel, msg, text):
@@ -1642,36 +1529,6 @@ class Channel(TembaModel):
                                                 request_body=json.dumps(json.dumps(payload)),
                                                 response_body=json.dumps(data)),
                                 start=start)
-
-    @classmethod
-    def send_line_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        channel_access_token = channel.config.get(Channel.CONFIG_AUTH_TOKEN)
-
-        data = json.dumps({'to': msg.urn_path, 'messages': [{'type': 'text', 'text': text}]})
-
-        start = time.time()
-        headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % channel_access_token}
-        headers.update(TEMBA_HEADERS)
-        send_url = 'https://api.line.me/v2/bot/message/push'
-
-        event = HttpEvent('POST', send_url, data)
-
-        try:
-            response = requests.post(send_url, data=data, headers=headers)
-            response.json()
-
-            event.status_code = response.status_code
-            event.response_body = response.text
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code not in [200, 201, 202]:  # pragma: needs cover
-            raise SendException("Got non-200 response [%d] from Line" % response.status_code,
-                                event=event, start=start)
-
-        Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
     def send_mblox_message(cls, channel, msg, text):
@@ -2858,45 +2715,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_viber_public_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        url = 'https://chatapi.viber.com/pa/send_message'
-        payload = dict(auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
-                       receiver=msg.urn_path,
-                       text=text,
-                       type='text',
-                       tracking_data=msg.id)
-
-        event = HttpEvent('POST', url, json.dumps(payload))
-
-        start = time.time()
-
-        headers = dict(Accept='application/json')
-        headers.update(TEMBA_HEADERS)
-
-        try:
-            response = requests.post(url, json=payload, headers=headers, timeout=5)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-            response_json = response.json()
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code not in [200, 201, 202]:
-            raise SendException("Got non-200 response [%d] from API" % response.status_code,
-                                event=event, start=start)
-
-        # success is 0, everything else is a failure
-        if response_json['status'] != 0:
-            raise SendException("Got non-0 status [%d] from API" % response_json['status'],
-                                event=event, fatal=True, start=start)
-
-        external_id = response.json().get('message_token', None)
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
-
-    @classmethod
     def get_pending_messages(cls, org):
         """
         We want all messages that are:
@@ -3109,7 +2927,6 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_DARTMEDIA: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
                   Channel.TYPE_EXTERNAL: Channel.send_external_message,
-                  Channel.TYPE_FCM: Channel.send_fcm_message,
                   Channel.TYPE_GLOBE: Channel.send_globe_message,
                   Channel.TYPE_HIGH_CONNECTION: Channel.send_high_connection_message,
                   Channel.TYPE_HUB9: Channel.send_hub9_or_dartmedia_message,
@@ -3119,7 +2936,6 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_JUNEBUG: Channel.send_junebug_message,
                   Channel.TYPE_JUNEBUG_USSD: Channel.send_junebug_message,
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,
-                  Channel.TYPE_LINE: Channel.send_line_message,
                   Channel.TYPE_M3TECH: Channel.send_m3tech_message,
                   Channel.TYPE_MACROKIOSK: Channel.send_macrokiosk_message,
                   Channel.TYPE_MBLOX: Channel.send_mblox_message,
@@ -3133,7 +2949,6 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_TWIML: Channel.send_twilio_message,
                   Channel.TYPE_TWILIO_MESSAGING_SERVICE: Channel.send_twilio_message,
                   Channel.TYPE_VIBER: Channel.send_viber_message,
-                  Channel.TYPE_VIBER_PUBLIC: Channel.send_viber_public_message,
                   Channel.TYPE_VUMI: Channel.send_vumi_message,
                   Channel.TYPE_VUMI_USSD: Channel.send_vumi_message,
                   Channel.TYPE_YO: Channel.send_yo_message,
