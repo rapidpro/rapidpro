@@ -231,7 +231,7 @@ class FlowSession(ChannelSession):
 
             start_response = flow_server.start(request)
             output = start_response['session']
-            events = start_response.get('events', [])
+            event_log = start_response.get('log', [])
 
             # see if we are still active
             active = False
@@ -245,7 +245,7 @@ class FlowSession(ChannelSession):
                                          modified_on=timezone.now(), created_on=timezone.now())
 
             # apply the events
-            msgs_out_by_step = session.apply_events(events, msg_in)
+            msgs_out_by_step = session.apply_events(event_log, msg_in)
 
             # create each of our runs
             for run in output['runs']:
@@ -303,10 +303,10 @@ class FlowSession(ChannelSession):
         resume_response = flow_server.resume(request)
 
         output = resume_response['session']
-        events = resume_response.get('events', [])
+        event_log = resume_response.get('log', [])
 
         # apply our events
-        msgs_out_by_step = self.apply_events(events, msg_in)
+        msgs_out_by_step = self.apply_events(event_log, msg_in)
 
         # update our session
         self.update(output, msg_in, msgs_out_by_step)
@@ -325,16 +325,19 @@ class FlowSession(ChannelSession):
 
         return None
 
-    def apply_events(self, events, msg_in=None):
+    def apply_events(self, event_log, msg_in=None):
         msgs_to_send = []
         msgs_by_step = defaultdict(list)
 
-        for event in events:
+        for log_entry in event_log:
+            event = log_entry['event']
+            step_uuid = log_entry["step_uuid"]
+
             if event['type'] == Event.TYPE_SEND_MSG:
                 msg = self.apply_send_msg(event, msg_in)
                 if msg:
                     msgs_to_send.append(msg)
-                    msgs_by_step[event["step_uuid"]].append(msg)
+                    msgs_by_step[step_uuid].append(msg)
             else:
                 apply_func = getattr(self, 'apply_%s' % event['type'], None)
                 if apply_func:
