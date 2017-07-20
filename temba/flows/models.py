@@ -8,7 +8,6 @@ import numbers
 import operator
 import phonenumbers
 import regex
-import requests
 import six
 import time
 import urllib2
@@ -38,8 +37,8 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
 from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
-from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime, slugify_with
-from temba.utils import chunk_list, on_transaction_commit
+from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
+from temba.utils import chunk_list, on_transaction_commit, goflow, slugify_with
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.models import SquashableModel, TembaModel, ChunkIterator, generate_uuid
@@ -125,53 +124,6 @@ def edit_distance(s1, s2):  # pragma: no cover
     return d[lenstr1 - 1, lenstr2 - 1]
 
 
-class FlowServerException(Exception):
-    pass
-
-
-class FlowServer:
-    """
-    Basic client for GoFlow's flow server
-    """
-    def __init__(self, base_url, debug=False):
-        self.base_url = base_url
-        self.debug = debug
-
-    def start(self, flow_start):
-        return self._request('start', flow_start)
-
-    def resume(self, flow_resume):
-        return self._request('resume', flow_resume)
-
-    def migrate(self, flow_migrate):
-        return self._request('migrate', flow_migrate)
-
-    def _request(self, endpoint, payload):
-        if self.debug:
-            print('[GOFLOW]=============== %s request ===============' % endpoint)
-            print(json.dumps(payload, indent=2))
-            print('[GOFLOW]=============== /%s request ===============' % endpoint)
-
-        response = requests.post("%s/flow/%s" % (self.base_url, endpoint), json=payload)
-        resp_json = response.json()
-
-        if self.debug:
-            print('[GOFLOW]=============== %s response ===============' % endpoint)
-            print(json.dumps(resp_json, indent=2))
-            print('[GOFLOW]=============== /%s response ===============' % endpoint)
-
-        if 400 <= response.status_code < 500:
-            errors = "\n".join(resp_json['errors'])
-            raise FlowServerException("Invalid request: " + errors)
-
-        response.raise_for_status()
-
-        return resp_json
-
-
-flow_server = FlowServer(settings.FLOW_SERVER_URL, settings.FLOW_SERVER_DEBUG)
-
-
 class FlowSessionManager(models.Manager):
     def create(self, *args, **kwargs):
         return super(FlowSessionManager, self).create(*args, session_type=FlowSession.GO, **kwargs)
@@ -182,9 +134,6 @@ class FlowSessionManager(models.Manager):
 
 class FlowSession(ChannelSession):
     objects = FlowSessionManager()
-
-    class Meta:
-        proxy = True
 
     @classmethod
     def get_last_active_session(cls, contact):
@@ -229,30 +178,28 @@ class FlowSession(ChannelSession):
             request = cls.create_server_request(contact.org, contact, msg_in)
             request['flows'] = flows
 
-            start_response = flow_server.start(request)
-            output = start_response['session']
-            events = start_response.get('events', [])
+            output = goflow.get_client().start(request)
 
             # see if we are still active
             active = False
-            if len(output['runs']) > 0:
-                active = output['runs'][0]['status'] == 'A'
+            if len(output.session['runs']) > 0:
+                active = output.session['runs'][0]['status'] == 'active'
 
             # create our session
             session = cls.objects.create(org=contact.org, contact=contact,
-                                         output=json.dumps(output), is_active=active,
+                                         output=json.dumps(output.session), is_active=active,
                                          created_by=flow.created_by, modified_by=flow.modified_by,
                                          modified_on=timezone.now(), created_on=timezone.now())
 
             step_to_run = {}
-            for run in output['runs']:
+            for run in output.session['runs']:
                 for step in run['path']:
                     step_to_run[step['uuid']] = run['uuid']
 
             # create each of our runs
-            for run in output['runs']:
+            for run in output.session['runs']:
                 # filter our list of events by run
-                run_events = [event for event in events if step_to_run[event['step_uuid']] == run['uuid']]
+                run_events = [event for event in output.log if step_to_run[event['step_uuid']] == run['uuid']]
                 run = FlowRun.create_or_update_from_goflow(session, contact, run, run_events, msg_in)
                 runs.append(run)
 
@@ -270,7 +217,11 @@ class FlowSession(ChannelSession):
 
         return runs
 
-    def update(self, output, events, msg_in):
+    def update(self, output, msg_in):
+
+        events = output.log
+        output = output.session
+
         active = False
         if len(output['runs']) > 0:
             active = output['runs'][0]['status'] == 'A'
@@ -310,7 +261,7 @@ class FlowSession(ChannelSession):
         if len(output['runs']) > 0:
             active_run = output['runs'][0]
 
-        if not active_run or active_run['status'] != 'A':
+        if not active_run or active_run['status'] != 'active':
             self.is_active = False
             self.save(update_fields=['is_active'])
             return
@@ -330,14 +281,11 @@ class FlowSession(ChannelSession):
         request['flows'] = flows
         request['session'] = self.as_json()
 
-        resume_response = flow_server.resume(request)
-
-        output = resume_response['session']
-        events = resume_response.get('events', [])
+        output = goflow.get_client().resume(request)
 
         # apply our events
         # update our session
-        self.update(output, events, msg_in)
+        self.update(output, msg_in)
 
     def get_root_flow(self):
         """
@@ -353,6 +301,9 @@ class FlowSession(ChannelSession):
 
     def as_json(self):
         return json.loads(self.output)
+
+    class Meta:
+        proxy = True
 
 
 @six.python_2_unicode_compatible
@@ -1118,7 +1069,7 @@ class Flow(TembaModel):
 
         # for now, lets call the server to migrate our flow to the new version
         # TODO: pass current flow_json to server and have it migrate as needed on the fly
-        return flow_server.migrate({'flows': flow_json})
+        return goflow.get_client().migrate({'flows': flow_json})
 
     def build_flow_context(self, contact, contact_context=None):
         """
@@ -2809,8 +2760,8 @@ class FlowRun(models.Model):
         """
         uuid = run_output['uuid']
         path = run_output['path']
-        is_active = (run_output['status'] == 'A')
-        is_error = (run_output['status'] == 'E')
+        is_active = (run_output['status'] == 'active')
+        is_error = (run_output['status'] == 'errored')
         modified_on = iso8601.parse_date(run_output['modified_on'])
 
         # does this run already exist?
@@ -2887,15 +2838,15 @@ class FlowRun(models.Model):
         msgs_by_step = defaultdict(list)
 
         for event in events:
-            if event['type'] == Event.TYPE_SEND_MSG:
-                msg = self.apply_send_msg(event, msg_in)
+            if event['event']['type'] == Event.TYPE_SEND_MSG:
+                msg = self.apply_send_msg(event['event'], msg_in)
                 if msg:
                     msgs_to_send.append(msg)
                     msgs_by_step[event["step_uuid"]].append(msg)
             else:
-                apply_func = getattr(self, 'apply_%s' % event['type'], None)
+                apply_func = getattr(self, 'apply_%s' % event['event']['type'], None)
                 if apply_func:
-                    apply_func(event, msg_in)
+                    apply_func(event['event'], msg_in)
 
         # send our messages
         self.org.trigger_send(msgs_to_send)
