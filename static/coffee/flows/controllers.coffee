@@ -725,7 +725,9 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       if action.type in ["send", "reply", "say", "end_ussd"]
 
         fromText = action.msg[Flow.flow.base_language]
-
+        fromButtons = action.buttons_reply[Flow.flow.base_language]
+        fromQuickReply = action.quick_responses[Flow.flow.base_language]
+        
         resolveObj =
           languages: ->
             from: Flow.flow.base_language
@@ -733,6 +735,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           translation: ->
             from: fromText
             to: action.msg[Flow.language.iso_code]
+            fromButtons: fromButtons
+            fromQuickReply: fromQuickReply
 
         $scope.dialog = utils.openModal("/partials/translation_modal", TranslationController, resolveObj)
 
@@ -1782,13 +1786,16 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   else
     $scope.actions_quick_reply = []
 
-  if $scope.options.dragSource
-    $scope.container_operation_visible = true
-  else if $scope.action._media == null && $scope.action.quick_reply && $scope.action.buttons_reply
-    if $scope.action.quick_reply.length < 1 && $scope.action.buttons_reply.length < 1
-        $scope.container_operation_visible = true 
+  if $scope.options.dragSource # if new dragdrop node
+    $scope.container_operation_visible = true #show functions add quick and button
   else
-    $scope.container_operation_visible = false
+    if $scope.action.quick_reply? && $scope.action.buttons_reply? #check all is none
+      if $scope.action._media == null && $scope.action.quick_reply.length < 1 && $scope.action.buttons_reply.length < 1
+        $scope.container_operation_visible = true 
+      else
+        $scope.container_operation_visible = false
+    else # start flow case
+      $scope.container_operation_visible = true 
 
   if $scope.action.webhook_headers
     item_counter = 0
@@ -1893,9 +1900,17 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if typeof($scope.action.msg) != "object"
       $scope.action.msg = {}
     $scope.action.msg[$scope.base_language] = message
+
+    if typeof($scope.action.quick_responses) != "object"
+      $scope.action.quick_responses = {}
+
+    if typeof($scope.action.buttons_reply) != "object"
+      $scope.action.buttons_reply = {}
+
+    # $scope.action.quick_responses[$scope.base_language] = $scope.actions_quick_responses
+    # $scope.action.buttons_reply[$scope.base_language] = $scope.actions_buttons_reply
     
     $scope.action.type = type
-    console.log(actionset)
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 
