@@ -725,7 +725,7 @@ class Msg(models.Model):
     attachments = ArrayField(models.URLField(max_length=255), null=True,
                              help_text=_("The media attachments on this message if any"))
 
-    additional_params = models.TextField(null=True, help_text=_("The additional params for any type msgs")) # created to use to save any additional params
+    metadata = models.TextField(null=True, help_text=_("The metadata for any type msgs"))
 
     session = models.ForeignKey('channels.ChannelSession', null=True,
                                 help_text=_("The session this message was a part of if any"))
