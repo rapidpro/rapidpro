@@ -5031,7 +5031,7 @@ class ReplyAction(Action):
         self.msg = msg
         self.media = media if media else {}
         self.send_all = send_all
-        self.quick_responses = quick_responses if quick_responses else []
+        self.quick_responses = quick_responses if quick_responses else [] # setting quicks and buttons responses to not null
         self.buttons_reply = buttons_reply if buttons_reply else []
 
     @classmethod
@@ -5047,7 +5047,7 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
         
-        buttons = json_obj.get(cls.BUTTONS_REPLY)
+        buttons = json_obj.get(cls.BUTTONS_REPLY) # check if url use http or https, if not have insert in string to save in action set
         if buttons:
             for button in buttons:
                 if not (button['url'][:7] == "http://" or button['url'][:8] == "https://"):
@@ -5069,7 +5069,7 @@ class ReplyAction(Action):
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
             
-            additional_params = {}
+            additional_params = {} #setting additional params
             additional_params['quick_responses'] = self.quick_responses if self.quick_responses else []
             additional_params['buttons_reply'] = self.buttons_reply if self.buttons_reply else []
                 

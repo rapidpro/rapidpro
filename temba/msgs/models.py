@@ -725,7 +725,7 @@ class Msg(models.Model):
     attachments = ArrayField(models.URLField(max_length=255), null=True,
                              help_text=_("The media attachments on this message if any"))
 
-    additional_params = models.TextField(null=True, help_text=_("The additional params for any type msgs"))
+    additional_params = models.TextField(null=True, help_text=_("The additional params for any type msgs")) # created to use to save any additional params
 
     session = models.ForeignKey('channels.ChannelSession', null=True,
                                 help_text=_("The session this message was a part of if any"))
@@ -970,7 +970,7 @@ class Msg(models.Model):
                     created_on=self.created_on.strftime('%x %X'),
                     model="msg")
 
-        if self.additional_params:
+        if self.additional_params: #if msg have additional params return this in json
             data.update(dict(additional_params=self.additional_params))
             
         return data
@@ -1055,7 +1055,7 @@ class Msg(models.Model):
         return sorted_logs[0] if sorted_logs else None
 
     def reply(self, text, user, trigger_send=False, message_context=None, session=None, attachments=None, msg_type=None,
-              send_all=False, created_on=None, additional_params=None):
+              send_all=False, created_on=None, additional_params=None): #additional params in reply
 
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
                                  response_to=self if self.id else None, session=session, additional_params=additional_params, attachments=attachments,
