@@ -963,17 +963,13 @@ class Msg(models.Model):
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
     def as_json(self):
-        data = dict(direction=self.direction,
-                    text=self.text,
-                    id=self.id,
-                    attachments=self.attachments,
-                    created_on=self.created_on.strftime('%x %X'),
-                    model="msg")
+        msg_json = dict(direction=self.direction, text=self.text, id=self.id, attachments=self.attachments, model="msg",
+                        created_on=self.created_on.strftime('%x %X'))
 
-        if self.additional_params: #if msg have additional params return this in json
-            data.update(dict(additional_params=self.additional_params))
-            
-        return data
+        if self.metadata:
+            msg_json['metadata'] = self.metadata
+
+        return msg_json
 
     def simulator_json(self):
         msg_json = self.as_json()
@@ -1055,11 +1051,12 @@ class Msg(models.Model):
         return sorted_logs[0] if sorted_logs else None
 
     def reply(self, text, user, trigger_send=False, message_context=None, session=None, attachments=None, msg_type=None,
-              send_all=False, created_on=None, additional_params=None): #additional params in reply
+              send_all=False, created_on=None, metadata=None):
 
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None, session=session, additional_params=additional_params, attachments=attachments,
-                                 msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all)
+                                 response_to=self if self.id else None, session=session, metadata=metadata,
+                                 attachments=attachments, msg_type=msg_type or self.msg_type, created_on=created_on,
+                                 all_urns=send_all)
 
     def update(self, cmd):
         """
@@ -1189,9 +1186,9 @@ class Msg(models.Model):
 
         if self.contact_urn.auth:
             data.update(dict(auth=self.contact_urn.auth))
-            
-        if self.additional_params:
-            data.update(dict(additional_params=self.additional_params))
+
+        if self.metadata:
+            data.update(dict(metadata=self.metadata))
 
         return data
 
@@ -1335,7 +1332,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
-                        created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True, additional_params=None,
+                        created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True, metadata=None,
                         attachments=None, topup_id=None, msg_type=INBOX, session=None):
 
         if not org or not user:  # pragma: no cover
@@ -1446,7 +1443,7 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         priority=priority,
                         attachments=attachments,
-                        additional_params=additional_params,
+                        metadata=metadata,
                         session=session,
                         has_template_error=len(errors) > 0)
 

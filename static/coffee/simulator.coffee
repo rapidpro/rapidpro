@@ -41,19 +41,19 @@ window.updateSimulator = (data) ->
     media_type = null
     media_viewer_elt = null
 
-    quick_responses = null
+    quick_reply = null
     buttons_reply = null
 
-    if msg.additional_params
-      params = JSON.parse(msg.additional_params)
-      if params.quick_responses[0]
+    if msg.metadata
+      params = JSON.parse(msg.metadata)
+      if params.quick_reply[0]
         model = 'ilog'
-        quick_responses = "<div id='quick-response-content'>"
-        for QR in params.quick_responses
-          quick_responses += "<button class=\"btn quick-responses\" data-payload=\""+QR.payload+"\"> "+QR.title + "</button>"
-        quick_responses+= "</div>"
+        quick_reply = "<div id='quick-response-content'>"
+        for reply in params.quick_reply
+          quick_reply += "<button class=\"btn quick-reply\" data-payload=\"" + reply.payload + "\"> " + reply.title + "</button>"
+        quick_reply += "</div>"
       else if params.buttons_reply[0] 
-        buttons_reply = "<a class=\"btn button-reply\"href='"+params.buttons_reply[0].url+"' target=\"_blank\"> "+params.buttons_reply[0].title + "</a><br>"
+        buttons_reply = "<a class=\"btn button-reply\"href='" + params.buttons_reply[0].url + "' target=\"_blank\"> " + params.buttons_reply[0].title + "</a><br>"
 
     if msg.attachments
       parts = msg.attachments[0].split(':')
@@ -97,7 +97,7 @@ window.updateSimulator = (data) ->
   $(".simulator-body").scrollTop $(".simulator-body")[0].scrollHeight
   $("#simulator textarea").val ""
 
-  $(".btn.quick-responses").on "click", (event) ->
+  $(".btn.quick-reply").on "click", (event) ->
     payload = event.target.innerText
     sendMessage(payload)
 

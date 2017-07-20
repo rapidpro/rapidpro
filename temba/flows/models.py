@@ -5024,14 +5024,14 @@ class ReplyAction(Action):
     MSG_TYPE = None
     MEDIA = 'media'
     SEND_ALL = 'send_all'
-    QUICK_RESPONSES = 'quick_responses'
+    QUICK_REPLY = 'quick_reply'
     BUTTONS_REPLY = 'buttons_reply'
 
-    def __init__(self, msg=None, media=None, quick_responses=None, buttons_reply=None, send_all=False):
+    def __init__(self, msg=None, media=None, quick_reply=None, buttons_reply=None, send_all=False):
         self.msg = msg
         self.media = media if media else {}
         self.send_all = send_all
-        self.quick_responses = quick_responses if quick_responses else [] # setting quicks and buttons responses to not null
+        self.quick_reply = quick_reply if quick_reply else []
         self.buttons_reply = buttons_reply if buttons_reply else []
 
     @classmethod
@@ -5047,33 +5047,37 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
         
-        buttons = json_obj.get(cls.BUTTONS_REPLY) # check if url use http or https, if not have insert in string to save in action set
+        buttons = json_obj.get(cls.BUTTONS_REPLY)
         if buttons:
             for button in buttons:
-                if not (button['url'][:7] == "http://" or button['url'][:8] == "https://"):
-                    button['url'] = "http://"+button['url']
+                button_url = '%s' % button.get('url')
+                if not button_url.startswith('http://') or not button_url.startswith('https://'):
+                    button['url'] = "http://%s" % button['url']
                 
-        return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None), quick_responses=json_obj.get(cls.QUICK_RESPONSES), buttons_reply=buttons,
+        return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None),
+                   quick_reply=json_obj.get(cls.QUICK_REPLY), buttons_reply=buttons,
                    send_all=json_obj.get(cls.SEND_ALL, False))
 
     def as_json(self):
-        return dict(type=self.TYPE, msg=self.msg, media=self.media, quick_responses=self.quick_responses, buttons_reply=self.buttons_reply, send_all=self.send_all)
+        return dict(type=self.TYPE, msg=self.msg, media=self.media, quick_reply=self.quick_reply,
+                    buttons_reply=self.buttons_reply, send_all=self.send_all)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []
         
-        if self.msg or self.media or self.quick_responses or self.buttons_reply:
+        if self.msg or self.media or self.quick_reply or self.buttons_reply:
             user = get_flow_user(run.org)
             
             text = ''
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
+
+            metadata = dict(
+                quick_reply=self.quick_reply if self.quick_reply else [],
+                buttons_reply=self.buttons_reply if self.buttons_reply else []
+            )
             
-            additional_params = {} #setting additional params
-            additional_params['quick_responses'] = self.quick_responses if self.quick_responses else []
-            additional_params['buttons_reply'] = self.buttons_reply if self.buttons_reply else []
-            
-            additional_params = json.dumps(additional_params)
+            metadata = json.dumps(metadata)
         
             attachments = None
             if self.media:
@@ -5092,12 +5096,12 @@ class ReplyAction(Action):
 
             if msg:
                 replies = msg.reply(text, user, trigger_send=False, message_context=context,
-                                    session=run.session, msg_type=self.MSG_TYPE, additional_params=additional_params, attachments=attachments,
-                                    send_all=self.send_all, created_on=created_on)  
+                                    session=run.session, msg_type=self.MSG_TYPE, metadata=metadata,
+                                    attachments=attachments, send_all=self.send_all, created_on=created_on)
             else:
                 replies = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                           session=run.session, msg_type=self.MSG_TYPE, additional_params=additional_params, attachments=attachments,
-                                           created_on=created_on, all_urns=self.send_all)
+                                           session=run.session, msg_type=self.MSG_TYPE, metadata=metadata,
+                                           attachments=attachments, created_on=created_on, all_urns=self.send_all)
         return replies
 
 

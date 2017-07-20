@@ -18,7 +18,7 @@
 
         .icon-attachment.add-attachment.cursor-pointer{ng-show:'!action._media', ng-file-select:'onFileSelect($files, actionset, action);', ng-click:'$event.stopPropagation();', style:"font-size:15px;"}
 
-        .icon-button-quick-response.cursor-pointer{style:"font-size:22px; margin-top:-2px; margin-left:2px;", ng-click:'addNewQuickResponse()', ng-show:"!action._media"}
+        .icon-button-quick-reply.cursor-pointer{style:"font-size:22px; margin-top:-2px; margin-left:2px;", ng-click:'addNewQuickResponse()', ng-show:"!action._media"}
       
         .icon-button-response.cursor-pointer{style:"font-size:22px; margin-top:-3px; margin-left:7px;", ng-click:'addNewButtonReply()', ng-show:"!action._media"}
 
@@ -28,41 +28,41 @@
 
       .media{ng-hide:'action.uploading'}
         .tag-button{ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
-              .viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}'}
-              .summary
-                [[action._media.type]] attachment
-              .remove
-                %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
-                  .icon-close
+          .viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}'}
+          .summary
+            [[action._media.type]] attachment
+          .remove
+            %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
+              .icon-close
 
-      .quick-response{ng-show:"actions_quick_reply.length"}
-        .modal-quick-response-header
-          .modal-quick-response-value
+      .quick-reply{ng-show:"actions_quick_reply.length"}
+        .modal-quick-reply-header
+          .modal-quick-reply-value
             -trans "Text"
-          .modal-quick-response-value
+          .modal-quick-reply-value
             -trans "Payload"
             
-        .modal-quick-response{ng-repeat:"response in actions_quick_reply", class:""}
-          .modal-quick-response-value  
+        .modal-quick-reply{ng-repeat:"response in actions_quick_reply", class:""}
+          .modal-quick-reply-value  
             %input{ng-model:"response.title", ng-required:"true"} 
-          .modal-quick-response-value 
+          .modal-quick-reply-value 
             %input{ng-model:"response.payload", ng-required:"true"}
           
           .icon.icon-close{ng-click:"removeElementArray(actions_quick_reply, $index)"}
         %a{ng-click:"addNewQuickResponse()", class:"cursor-pointer", ng-hide:"actions_quick_reply.length == 3"}
           -trans "Add new quick response"
 
-      .quick-response{ng-show:"actions_buttons_reply.length"}
-        .modal-quick-response-header
-          .modal-quick-response-value
+      .quick-reply{ng-show:"actions_buttons_reply.length"}
+        .modal-quick-reply-header
+          .modal-quick-reply-value
             -trans "Text"
-          .modal-quick-response-value
-            -trans "Url"
+          .modal-quick-reply-value
+            -trans "URL"
             
-        .modal-quick-response{ng-repeat:"response in actions_buttons_reply", class:""}
-          .modal-quick-response-value  
+        .modal-quick-reply{ng-repeat:"response in actions_buttons_reply", class:""}
+          .modal-quick-reply-value  
             %input{ng-model:"response.title", ng-required:"true"} 
-          .modal-quick-response-value 
+          .modal-quick-reply-value 
             %input{ng-model:"response.url", ng-required:"true", ng-pattern:"patternUrl"} 
           .icon.icon-close{ng-click:"removeElementArray(actions_buttons_reply, $index)"}
         

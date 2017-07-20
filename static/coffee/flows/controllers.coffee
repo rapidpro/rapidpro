@@ -1784,8 +1784,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   if $scope.options.dragSource
     $scope.container_operation_visible = true
-  else if $scope.action._media == null && $scope.action.quick_responses && $scope.action.buttons_reply
-    if $scope.action.quick_responses.length < 1 && $scope.action.buttons_reply.length < 1
+  else if $scope.action._media == null && $scope.action.quick_reply && $scope.action.buttons_reply
+    if $scope.action.quick_reply.length < 1 && $scope.action.buttons_reply.length < 1
         $scope.container_operation_visible = true 
   else
     $scope.container_operation_visible = false
@@ -1827,22 +1827,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.addNewQuickResponse = ->
     if $scope.actions_quick_reply.length < 3
       $scope.container_operation_visible = false
-      $scope.actions_quick_reply.push({
-        title:"",
-        payload:"",
-        content_type:"text"
-      })
-      return
+      $scope.actions_quick_reply.push({title:'', payload:''})
    
   $scope.addNewButtonReply = ->
     if $scope.actions_buttons_reply.length < 1
       $scope.container_operation_visible = false
-      $scope.actions_buttons_reply.push({
-        title:"",
-        url:"",
-        type:"web_url"
-      })
-      return
+      $scope.actions_buttons_reply.push({title:'', url:''})
 
   $scope.removeElementArray = (a, index) ->
     a.splice(index,1)
@@ -1903,9 +1893,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if typeof($scope.action.msg) != "object"
       $scope.action.msg = {}
     $scope.action.msg[$scope.base_language] = message
-
-    # $scope.action.quick_responses[$scope.base_language] = $scope.actions_quick_reply
-    # $scope.action.buttons_reply[$scope.base_language] = $scope.actions_buttons_reply
     
     $scope.action.type = type
     console.log(actionset)

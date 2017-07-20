@@ -773,22 +773,18 @@ describe 'Controllers:', ->
       actionset = flowService.flow.action_sets[0]
       action = actionset.actions[0]
     
-      json_quick_responses = [{
-                    'title':'Quick reply',
-                    'payload':'Test quick reply is ok',
-                    'content_type':'text'
-                }]
+      json_quick_reply = [{'title':'Quick reply', 'payload':'Test quick reply is ok'}]
 
       editAction actionset, action, (scope) ->
-        scope.AddNewQuickResponse()
-        scope.actions_quick_responses[0]['payload'] = 'Test quick reply is ok'
-        scope.actions_quick_responses[0]['title'] = 'Quick reply'
+        scope.addNewQuickResponse()
+        scope.actions_quick_reply[0]['payload'] = 'Test quick reply is ok'
+        scope.actions_quick_reply[0]['title'] = 'Quick reply'
         scope.formData.msg = "test"
         scope.saveMessage('test', type='reply')
 
       actionset = flowService.flow.action_sets[0]
       action = actionset.actions[0]
-      expect(JSON.stringify(action.quick_responses) ).toBe(JSON.stringify(json_quick_responses))
+      expect(JSON.stringify(action.quick_reply) ).toBe(JSON.stringify(json_quick_reply))
 
     it 'should generate json button url replies to send', ->
       loadFavoritesFlow()
@@ -796,16 +792,12 @@ describe 'Controllers:', ->
       actionset = flowService.flow.action_sets[0]
       action = actionset.actions[0]
     
-      json_buttons_reply = [{
-                    'title':'url tittle reply',
-                    'url':'url.com',
-                    'type':'web_url'
-                }]
+      json_buttons_reply = [{'title':'url tittle reply', 'url':'example.com'}]
 
       editAction actionset, action, (scope) ->
-        scope.AddNewButtonReply()
-        scope.actions_buttons_reply[0]['url'] = 'url.com'
-        scope.actions_buttons_reply[0]['title'] = 'url tittle reply'
+        scope.addNewButtonReply()
+        scope.actions_buttons_reply[0]['url'] = 'example.com'
+        scope.actions_buttons_reply[0]['title'] = 'URL title'
         scope.formData.msg = "test"
         scope.saveMessage('test', type='reply')
 
