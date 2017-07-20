@@ -224,7 +224,7 @@ class FlowSession(ChannelSession):
 
         active = False
         if len(output['runs']) > 0:
-            active = output['runs'][0]['status'] == 'A'
+            active = output['runs'][0]['status'] == 'active'
 
         # update our output
         self.output = json.dumps(output)
@@ -1805,16 +1805,6 @@ class Flow(TembaModel):
 
     def start_msg_flow(self, all_contact_ids, started_flows=None, start_msg=None, extra=None,
                        flow_start=None, parent_run=None):
-
-        # try to start the session against our flow server
-        # runs = FlowSession.start(Contact.objects.filter(id__in=all_contact_ids), self, start_msg)
-
-        # from temba.tests import ExcludeTestRunner
-
-        # if len(runs):
-        #    ExcludeTestRunner.NEW_ENGINE_RUNS += 1
-        #    return runs
-        # ExcludeTestRunner.LEGACY_ENGINE_RUNS += 1
 
         start_msg_id = start_msg.id if start_msg else None
         flow_start_id = flow_start.id if flow_start else None
