@@ -1777,10 +1777,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   else 
     $scope.actions_buttons_reply = []
   
-  if $scope.action.quick_responses
-    $scope.actions_quick_responses = $scope.action.quick_responses
+  if $scope.action.quick_reply
+    $scope.actions_quick_reply = $scope.action.quick_reply
   else
-    $scope.actions_quick_responses = []
+    $scope.actions_quick_reply = []
 
   if $scope.options.dragSource
     $scope.container_operation_visible = true
@@ -1790,8 +1790,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   else
     $scope.container_operation_visible = false
 
-  
-  
   if $scope.action.webhook_headers
     item_counter = 0
     for item in $scope.action.webhook_headers
@@ -1826,17 +1824,17 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if $scope.action.webhook_headers.length == 0
       $scope.addNewActionWebhookHeader()
 
-  $scope.AddNewQuickResponse = ->
-    if $scope.actions_quick_responses.length < 3
+  $scope.addNewQuickResponse = ->
+    if $scope.actions_quick_reply.length < 3
       $scope.container_operation_visible = false
-      $scope.actions_quick_responses.push({
+      $scope.actions_quick_reply.push({
         title:"",
         payload:"",
         content_type:"text"
       })
       return
    
-  $scope.AddNewButtonReply = ->
+  $scope.addNewButtonReply = ->
     if $scope.actions_buttons_reply.length < 1
       $scope.container_operation_visible = false
       $scope.actions_buttons_reply.push({
@@ -1846,7 +1844,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       })
       return
 
-  $scope.RemoveElementArray = (a, index) ->
+  $scope.removeElementArray = (a, index) ->
     a.splice(index,1)
     if a.length == 0
       $scope.container_operation_visible = true
@@ -1906,7 +1904,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.action.msg = {}
     $scope.action.msg[$scope.base_language] = message
 
-    # $scope.action.quick_responses[$scope.base_language] = $scope.actions_quick_responses
+    # $scope.action.quick_responses[$scope.base_language] = $scope.actions_quick_reply
     # $scope.action.buttons_reply[$scope.base_language] = $scope.actions_buttons_reply
     
     $scope.action.type = type

@@ -18,9 +18,9 @@
 
         .icon-attachment.add-attachment.cursor-pointer{ng-show:'!action._media', ng-file-select:'onFileSelect($files, actionset, action);', ng-click:'$event.stopPropagation();', style:"font-size:15px;"}
 
-        .icon-button-quick-response.cursor-pointer{style:"font-size:22px; margin-top:-2px; margin-left:2px;", ng-click:'AddNewQuickResponse()', ng-show:"!action._media"}
+        .icon-button-quick-response.cursor-pointer{style:"font-size:22px; margin-top:-2px; margin-left:2px;", ng-click:'addNewQuickResponse()', ng-show:"!action._media"}
       
-        .icon-button-response.cursor-pointer{style:"font-size:22px; margin-top:-3px; margin-left:7px;", ng-click:'AddNewButtonReply()', ng-show:"!action._media"}
+        .icon-button-response.cursor-pointer{style:"font-size:22px; margin-top:-3px; margin-left:7px;", ng-click:'addNewButtonReply()', ng-show:"!action._media"}
 
           
 
@@ -35,21 +35,21 @@
                 %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
                   .icon-close
 
-      .quick-response{ng-show:"actions_quick_responses.length"}
+      .quick-response{ng-show:"actions_quick_reply.length"}
         .modal-quick-response-header
           .modal-quick-response-value
             -trans "Text"
           .modal-quick-response-value
             -trans "Payload"
             
-        .modal-quick-response{ng-repeat:"response in actions_quick_responses", class:""}
+        .modal-quick-response{ng-repeat:"response in actions_quick_reply", class:""}
           .modal-quick-response-value  
             %input{ng-model:"response.title", ng-required:"true"} 
           .modal-quick-response-value 
             %input{ng-model:"response.payload", ng-required:"true"}
           
-          .icon.icon-close{ng-click:"RemoveElementArray(actions_quick_responses, $index)"}
-        %a{ng-click:"AddNewQuickResponse()", class:"cursor-pointer", ng-hide:"actions_quick_responses.length == 3"}
+          .icon.icon-close{ng-click:"removeElementArray(actions_quick_reply, $index)"}
+        %a{ng-click:"addNewQuickResponse()", class:"cursor-pointer", ng-hide:"actions_quick_reply.length == 3"}
           -trans "Add new quick response"
 
       .quick-response{ng-show:"actions_buttons_reply.length"}
@@ -64,7 +64,7 @@
             %input{ng-model:"response.title", ng-required:"true"} 
           .modal-quick-response-value 
             %input{ng-model:"response.url", ng-required:"true", ng-pattern:"patternUrl"} 
-          .icon.icon-close{ng-click:"RemoveElementArray(actions_buttons_reply, $index)"}
+          .icon.icon-close{ng-click:"removeElementArray(actions_buttons_reply, $index)"}
         
                 
       
