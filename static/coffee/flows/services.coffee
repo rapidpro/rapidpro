@@ -525,6 +525,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'district', name: 'Has a district', verbose_name:'has a district', operands: 1, auto_complete: true, placeholder:'@flow.state', filter: ALL_TEXT }
         { type: 'ward', name: 'Has a ward', verbose_name:'has a ward', operands: 2, operand_required: false, auto_complete: true, filter: ALL_TEXT}
         { type: 'regex', name: 'Regex', verbose_name:'matches regex', operands: 1, localized:true, filter: ALL }
+        { type: 'emoji', name: 'Emoji', verbose_name:'has an emoji', operands: 0, localized:true, filter: ALL }
         { type: 'subflow', name: 'Subflow', verbose_name:'subflow', operands: 0, filter: NONE }
         { type: 'in_group', name:'Is in group', verbose_name:'is in group', operands:0, filter: NONE }
         { type: 'airtime_status', name: 'Airtime Status', verbose_name:'airtime', operands: 0, filter: NONE }

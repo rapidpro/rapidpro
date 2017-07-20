@@ -5793,6 +5793,7 @@ class Test(object):
                 OrTest.TYPE: OrTest,
                 PhoneTest.TYPE: PhoneTest,
                 RegexTest.TYPE: RegexTest,
+                EmojiTest.TYPE: EmojiTest,
                 StartsWithTest.TYPE: StartsWithTest,
                 SubflowTest.TYPE: SubflowTest,
                 TimeoutTest.TYPE: TimeoutTest,
@@ -6782,6 +6783,37 @@ class RegexTest(Test):  # pragma: needs cover
 
         return False, None
 
+class EmojiTest(Test):
+    """
+    Test for whether a response contains a phone number
+    """
+    TYPE = 'emoji'
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls()
+
+    def as_json(self):  # pragma: needs cover
+        return dict(type=self.TYPE)
+
+
+    def text_has_emoji(self,complete_text):
+        import emoji
+        for text in complete_text.split():
+            for character in text:
+                if character in emoji.UNICODE_EMOJI:
+                    return True
+        return False
+
+
+    def evaluate(self, run, sms, context, text):
+        text = text.replace(',', '')
+        if self.text_has_emoji(text):
+            return 1, text
+        return 0, None
 
 class InterruptTest(Test):
     """
