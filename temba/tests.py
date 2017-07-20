@@ -63,7 +63,7 @@ class ExcludeTestRunner(DiscoverRunner):
         total_runs = ExcludeTestRunner.LEGACY_ENGINE_RUNS + ExcludeTestRunner.NEW_ENGINE_RUNS
         if total_runs:
             pct = "{0:.1f}".format((ExcludeTestRunner.NEW_ENGINE_RUNS / total_runs) * 100)
-            print ("%d / %d (%s%%)" % (ExcludeTestRunner.NEW_ENGINE_RUNS, total_runs, pct))
+            print("%d / %d (%s%%)" % (ExcludeTestRunner.NEW_ENGINE_RUNS, total_runs, pct))
         return results
 
 
@@ -417,7 +417,6 @@ class TembaTest(SmartminTest):
 
 
 class FlowFileTest(TembaTest):
-
     def setUp(self):
         super(FlowFileTest, self).setUp()
         self.contact = self.create_contact('Ben Haggerty', '+12065552020')
@@ -504,7 +503,6 @@ class MLStripper(HTMLParser):  # pragma: no cover
 
 
 class BrowserTest(LiveServerTestCase):  # pragma: no cover
-
     @classmethod
     def setUpClass(cls):
         cls.driver = WebDriver()
@@ -677,7 +675,6 @@ class AnonymousOrg(object):
 
 
 class MockRequestValidator(RequestValidator):
-
     def __init__(self, token):
         pass
 
@@ -686,7 +683,6 @@ class MockRequestValidator(RequestValidator):
 
 
 class MockTwilioClient(TwilioClient):
-
     def __init__(self, sid, token, org=None, base=None):
         self.org = org
         self.base = base

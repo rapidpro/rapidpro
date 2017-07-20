@@ -38,7 +38,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAILED, INITIALIZING, HANDLED, Label
 from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
-from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
+from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime, slugify_with
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
@@ -207,7 +207,7 @@ class FlowSession(ChannelSession):
         }
 
     @classmethod
-    def start(cls, contacts, flow, msg_in=None):
+    def start(cls, contacts, flow, broadcasts=None, msg_in=None):
         """
         Starts a contact in the given flow
         """
@@ -244,16 +244,33 @@ class FlowSession(ChannelSession):
                                          created_by=flow.created_by, modified_by=flow.modified_by,
                                          modified_on=timezone.now(), created_on=timezone.now())
 
-            # apply the events
-            msgs_out_by_step = session.apply_events(events, msg_in)
+            step_to_run = {}
+            for run in output['runs']:
+                for step in run['path']:
+                    step_to_run[step['uuid']] = run['uuid']
 
             # create each of our runs
             for run in output['runs']:
-                runs.append(FlowRun.create_or_update_from_goflow(session, contact, run, msg_in, msgs_out_by_step))
+                # filter our list of events by run
+                run_events = [event for event in events if step_to_run[event['step_uuid']] == run['uuid']]
+                run = FlowRun.create_or_update_from_goflow(session, contact, run, run_events, msg_in)
+                runs.append(run)
+
+            # old simulation needs an action log showing entering the flow
+            if len(runs) > 0 and contact.is_test:
+                start_log = ActionLog.create(runs[0], '%s has entered the "%s" flow' % (
+                    contact.get_display(contact.org, short=True), flow.name))
+
+                start_log.created_on = runs[0].created_on
+                start_log.save(update_fields=['created_on'])
+
+        first_run = runs[0]
+        if first_run.contact.is_test and not first_run.is_active:
+            ActionLog.create(first_run, '%s has exited this flow' % first_run.contact.get_display(first_run.org, short=True))
 
         return runs
 
-    def update(self, output, msg_in, msgs_out_by_step):
+    def update(self, output, events, msg_in):
         active = False
         if len(output['runs']) > 0:
             active = output['runs'][0]['status'] == 'A'
@@ -264,9 +281,22 @@ class FlowSession(ChannelSession):
         self.modified_on = timezone.now()
         self.save(update_fields=['output', 'is_active', 'modified_on'])
 
-        # update each of our runs
+        step_to_run = {}
         for run in output['runs']:
-            FlowRun.create_or_update_from_goflow(self, self.contact, run, msg_in, msgs_out_by_step)
+            for step in run['path']:
+                step_to_run[step['uuid']] = run['uuid']
+
+        # update each of our runs
+        first_run = None
+        for run in output['runs']:
+            run_events = [event for event in events if step_to_run[event['step_uuid']] == run['uuid']]
+            run = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_events, msg_in)
+
+            if not first_run:
+                first_run = run
+
+        if self.contact.is_test and not active:
+            ActionLog.create(first_run, '%s has exited this flow' % self.contact.get_display(self.org, short=True))
 
     def resume(self, msg_in):
 
@@ -306,12 +336,8 @@ class FlowSession(ChannelSession):
         events = resume_response.get('events', [])
 
         # apply our events
-        msgs_out_by_step = self.apply_events(events, msg_in)
-
         # update our session
-        self.update(output, msg_in, msgs_out_by_step)
-
-        return msgs_out_by_step
+        self.update(output, events, msg_in)
 
     def get_root_flow(self):
         """
@@ -324,113 +350,6 @@ class FlowSession(ChannelSession):
                 return Flow.objects.filter(org=self.org, is_active=True, uuid=run['flow_uuid']).first()
 
         return None
-
-    def apply_events(self, events, msg_in=None):
-        msgs_to_send = []
-        msgs_by_step = defaultdict(list)
-
-        for event in events:
-            if event['type'] == Event.TYPE_SEND_MSG:
-                msg = self.apply_send_msg(event, msg_in)
-                if msg:
-                    msgs_to_send.append(msg)
-                    msgs_by_step[event["step_uuid"]].append(msg)
-            else:
-                apply_func = getattr(self, 'apply_%s' % event['type'], None)
-                if apply_func:
-                    apply_func(event, msg_in)
-
-        # send our messages
-        self.org.trigger_send(msgs_to_send)
-
-        return msgs_by_step
-
-    def apply_send_msg(self, event, msg):
-        """
-        A message being sent to a contact (not necessarily this contact)
-        """
-        urn = event.get('urn')
-        contact_uuid = event.get('contact_uuid')
-        if contact_uuid:
-            if self.contact.uuid == contact_uuid:
-                contact = self.contact
-            else:
-                contact = Contact.objects.get(uuid=contact_uuid, org=self.org)
-
-        # use our urn if we have one specified in the event
-        recipient = urn or contact
-
-        user = get_flow_user(self.org)
-
-        # convert attachment URLs to absolute URLs
-        attachments = []
-        for attachment in event.get('attachments', []):
-            media_type, media_url = attachment.split(':', 1)
-            attachments.append("%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url))
-        try:
-            return Msg.create_outgoing(self.org, user, recipient,
-                                       text=event['text'],
-                                       attachments=attachments,
-                                       channel=msg.channel if msg else None,
-                                       created_on=iso8601.parse_date(event['created_on']),
-                                       response_to=msg if msg and msg.id else None,
-                                       session=self)
-        except UnreachableException:
-            return None
-
-    def apply_update_contact(self, event, msg):
-        """
-        Name or language being updated
-        """
-        update_fields = []
-
-        if event['field_name'].lower() == "language":
-            self.contact.language = event['value']
-            update_fields.append('language')
-        elif event['field_name'] == "name":
-            self.contact.name = event['value']
-            update_fields.append("name")
-        else:
-            raise Exception("Unknown field to update contact: %s" % event['field_name'])
-
-        self.contact.save(update_fields=update_fields)
-
-    def apply_save_contact_field(self, event, msg):
-        """
-        Properties of this contact being updated
-        """
-        pass
-        # from flowbase.contacts.models import ContactField
-        # field = ContactField.get_or_create(self.org, self.org.created_by, event['field_name'], uuid=event['field_uuid'])
-        # self.contact.set_field_value(field, event['value'])
-
-    def apply_add_to_group(self, event, msg):
-        """
-        This contact being added to one or more groups
-        """
-        user = get_flow_user(self.org)
-        for group in event['groups']:
-            group = ContactGroup.get_or_create(self.contact.org, user, group['name'], group['uuid'])
-
-            if group:
-                group.update_contacts(user, [self.contact], True)
-
-    def apply_remove_from_group(self, event, msg):
-        """
-        This contact being removed from one or more groups
-        """
-        pass
-        # for group in event['groups']:
-        #     group = ContactGroup.objects.filter(org=self.contact.org, uuid=group['uuid']).first()
-        #     if group:
-        #         self.contact.groups.remove(group)
-
-    def apply_send_email(self, event, msg):
-        """
-        Email being sent out
-        """
-        pass
-        # send_raw_email([event['email']], event['subject'], event['body'])
 
     def as_json(self):
         return json.loads(self.output)
@@ -1937,15 +1856,14 @@ class Flow(TembaModel):
                        flow_start=None, parent_run=None):
 
         # try to start the session against our flow server
-        runs = FlowSession.start(Contact.objects.filter(id__in=all_contact_ids), self, start_msg)
+        # runs = FlowSession.start(Contact.objects.filter(id__in=all_contact_ids), self, start_msg)
 
-        from temba.tests import ExcludeTestRunner
+        # from temba.tests import ExcludeTestRunner
 
-        if len(runs):
-            ExcludeTestRunner.NEW_ENGINE_RUNS += 1
-            return runs
-
-        ExcludeTestRunner.LEGACY_ENGINE_RUNS += 1
+        # if len(runs):
+        #    ExcludeTestRunner.NEW_ENGINE_RUNS += 1
+        #    return runs
+        # ExcludeTestRunner.LEGACY_ENGINE_RUNS += 1
 
         start_msg_id = start_msg.id if start_msg else None
         flow_start_id = flow_start.id if flow_start else None
@@ -2005,6 +1923,14 @@ class Flow(TembaModel):
 
     def start_msg_flow_batch(self, batch_contact_ids, broadcasts, started_flows, start_msg=None,
                              extra=None, flow_start=None, parent_run=None):
+
+        # try to start the session against our flow server
+        runs = FlowSession.start(Contact.objects.filter(id__in=batch_contact_ids), self, broadcasts, start_msg)
+        from temba.tests import ExcludeTestRunner
+        if len(runs):
+            ExcludeTestRunner.NEW_ENGINE_RUNS += 1
+            return runs
+        ExcludeTestRunner.LEGACY_ENGINE_RUNS += 1
 
         simulation = False
         if len(batch_contact_ids) == 1:
@@ -2877,7 +2803,7 @@ class FlowRun(models.Model):
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
 
     @classmethod
-    def create_or_update_from_goflow(cls, session, contact, run_output, msg_in, msgs_out_by_step):
+    def create_or_update_from_goflow(cls, session, contact, run_output, events, msg_in):
         """
         Creates or updates a flow run from the given output returned from goflow
         """
@@ -2898,7 +2824,7 @@ class FlowRun(models.Model):
             exit_type = None
 
         if existing:
-            prev_path = json.loads(existing.output)['path']
+            prev_path = json.loads(existing.output)['path'] if existing.output else []
 
             existing.output = json.dumps(run_output)
             existing.exited_on = exited_on
@@ -2907,6 +2833,9 @@ class FlowRun(models.Model):
             existing.modified_on = modified_on
             existing.save(update_fields=('is_active', 'modified_on', 'output', 'exited_on', 'exit_type'))
             run = existing
+
+            msgs_out_by_step = run.apply_events(events, msg_in)
+
         else:
             prev_path = []
 
@@ -2919,6 +2848,8 @@ class FlowRun(models.Model):
                                      is_active=is_active,
                                      modified_on=modified_on,
                                      created_on=iso8601.parse_date(run_output['created_on']))
+
+            msgs_out_by_step = run.apply_events(events, msg_in)
 
             # old flow engine appends a list of start messages on run creation
             start_msgs = []
@@ -2950,6 +2881,117 @@ class FlowRun(models.Model):
             FlowStep.create_or_update_from_goflow(run, path_item, next_item, step_type, step_messages)
 
         return run
+
+    def apply_events(self, events, msg_in=None):
+        msgs_to_send = []
+        msgs_by_step = defaultdict(list)
+
+        for event in events:
+            if event['type'] == Event.TYPE_SEND_MSG:
+                msg = self.apply_send_msg(event, msg_in)
+                if msg:
+                    msgs_to_send.append(msg)
+                    msgs_by_step[event["step_uuid"]].append(msg)
+            else:
+                apply_func = getattr(self, 'apply_%s' % event['type'], None)
+                if apply_func:
+                    apply_func(event, msg_in)
+
+        # send our messages
+        self.org.trigger_send(msgs_to_send)
+        return msgs_by_step
+
+    def apply_send_msg(self, event, msg):
+        """
+        A message being sent to a contact (not necessarily this contact)
+        """
+        urn = event.get('urn')
+        contact_uuid = event.get('contact_uuid')
+        if contact_uuid:
+            if self.contact.uuid == contact_uuid:
+                contact = self.contact
+            else:
+                contact = Contact.objects.get(uuid=contact_uuid, org=self.org)
+
+        # use our urn if we have one specified in the event
+        recipient = urn or contact
+
+        user = get_flow_user(self.org)
+
+        # convert attachment URLs to absolute URLs
+        attachments = []
+        for attachment in event.get('attachments', []):
+            media_type, media_url = attachment.split(':', 1)
+            attachments.append("%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url))
+        try:
+            return Msg.create_outgoing(self.org, user, recipient,
+                                       text=event['text'],
+                                       attachments=attachments,
+                                       channel=msg.channel if msg else None,
+                                       created_on=iso8601.parse_date(event['created_on']),
+                                       response_to=msg if msg and msg.id else None,
+                                       session=self.session)
+        except UnreachableException:
+            return None
+
+    def apply_update_contact(self, event, msg):
+        """
+        Name or language being updated
+        """
+        update_fields = []
+
+        if event['field_name'].lower() == "language":
+            self.contact.language = event['value']
+            update_fields.append('language')
+        elif event['field_name'] == "name":
+            self.contact.name = event['value']
+            update_fields.append("name")
+        else:
+            raise Exception("Unknown field to update contact: %s" % event['field_name'])
+
+        self.contact.save(update_fields=update_fields)
+
+    def apply_save_contact_field(self, event, msg):
+        """
+        Properties of this contact being updated
+        """
+        pass
+        # from flowbase.contacts.models import ContactField
+        # field = ContactField.get_or_create(self.org, self.org.created_by, event['field_name'], uuid=event['field_uuid'])
+        # self.contact.set_field_value(field, event['value'])
+
+    def apply_save_flow_result(self, event, msg):
+        ActionLog.create(self, "Saved '%s' as @flow.%s" % (event['value'], slugify_with(event['result_name'])),
+                         created_on=iso8601.parse_date(event['created_on']))
+
+    def apply_add_to_group(self, event, msg):
+        """
+        This contact being added to one or more groups
+        """
+        user = get_flow_user(self.org)
+        for group in event['groups']:
+            group = ContactGroup.get_or_create(self.contact.org, user, group['name'], group['uuid'])
+
+            if group:
+                if not self.contact.is_stopped:
+                    group.update_contacts(user, [self.contact], True)
+
+    def apply_remove_from_group(self, event, msg):
+        """
+        This contact being removed from one or more groups
+        """
+        pass
+        # for group in event['groups']:
+        #     group = ContactGroup.objects.filter(org=self.contact.org, uuid=group['uuid']).first()
+        #     if group:
+        #         self.contact.groups.remove(group)
+
+    def apply_send_email(self, event, msg):
+        """
+        Email being sent out
+        """
+        pass
+        # send_raw_email([event['email']], event['subject'], event['body'])
 
     @classmethod
     def create(cls, flow, contact_id, start=None, session=None, fields=None,
@@ -4878,17 +4920,20 @@ class ActionLog(models.Model):
 
     level = models.CharField(max_length=1, choices=LEVEL_CHOICES, default=LEVEL_INFO, help_text=_("Log event level"))
 
-    created_on = models.DateTimeField(auto_now_add=True, help_text=_("When this log event occurred"))
+    created_on = models.DateTimeField(help_text=_("When this log event occurred"))
 
     @classmethod
-    def create(cls, run, text, level=LEVEL_INFO, safe=False):
+    def create(cls, run, text, level=LEVEL_INFO, safe=False, created_on=None):
         if not safe:
             text = escape(text)
 
         text = text.replace('\n', "<br/>")
 
+        if not created_on:
+            created_on = timezone.now()
+
         try:
-            return ActionLog.objects.create(run=run, text=text, level=level)
+            return ActionLog.objects.create(run=run, text=text, level=level, created_on=created_on)
         except Exception:  # pragma: no cover
             return None  # it's possible our test run can be deleted out from under us
 
@@ -7389,7 +7434,7 @@ FLOW_FEATURES = [
     ('A', EmailAction.TYPE, True),
     ('A', WebhookAction.TYPE, False),
     ('A', SaveToContactAction.TYPE, True),
-    ('A', SetLanguageAction.TYPE, False),
+    ('A', SetLanguageAction.TYPE, True),
     ('A', SetChannelAction.TYPE, False),
     ('A', StartFlowAction.TYPE, False),
     ('A', SayAction.TYPE, False),
@@ -7402,7 +7447,6 @@ FLOW_FEATURES = [
     ('R', RuleSet.TYPE_WAIT_RECORDING, False),
     ('R', RuleSet.TYPE_WAIT_DIGIT, False),
     ('R', RuleSet.TYPE_WAIT_DIGITS, False),
-    ('R', RuleSet.TYPE_SUBFLOW, False),
     ('R', RuleSet.TYPE_WEBHOOK, False),
     ('R', RuleSet.TYPE_RESTHOOK, False),
     ('R', RuleSet.TYPE_AIRTIME, False),
@@ -7410,32 +7454,32 @@ FLOW_FEATURES = [
     ('R', RuleSet.TYPE_FORM_FIELD, True),
     ('R', RuleSet.TYPE_CONTACT_FIELD, True),
     ('R', RuleSet.TYPE_EXPRESSION, True),
-    ('R', RuleSet.TYPE_SUBFLOW, False),
+    ('R', RuleSet.TYPE_SUBFLOW, True),
     ('R', RuleSet.TYPE_RANDOM, False),
     ('T', AirtimeStatusTest.TYPE, False),
-    ('T', BetweenTest.TYPE, False),
+    ('T', BetweenTest.TYPE, True),
     ('T', ContainsAnyTest.TYPE, True),
     ('T', ContainsOnlyPhraseTest.TYPE, True),
     ('T', ContainsPhraseTest.TYPE, True),
     ('T', ContainsTest.TYPE, True),
-    ('T', DateAfterTest.TYPE, False),
-    ('T', DateBeforeTest.TYPE, False),
-    ('T', DateEqualTest.TYPE, False),
+    ('T', DateAfterTest.TYPE, True),
+    ('T', DateBeforeTest.TYPE, True),
+    ('T', DateEqualTest.TYPE, True),
     ('T', EqTest.TYPE, True),
-    ('T', GtTest.TYPE, False),
-    ('T', GteTest.TYPE, False),
-    ('T', HasDateTest.TYPE, False),
+    ('T', GtTest.TYPE, True),
+    ('T', GteTest.TYPE, True),
+    ('T', HasDateTest.TYPE, True),
     ('T', HasDistrictTest.TYPE, False),
-    ('T', HasEmailTest.TYPE, False),
+    ('T', HasEmailTest.TYPE, True),
     ('T', HasStateTest.TYPE, False),
     ('T', HasWardTest.TYPE, False),
     ('T', InGroupTest.TYPE, False),
     ('T', InterruptTest.TYPE, False),
-    ('T', LtTest.TYPE, False),
-    ('T', LteTest.TYPE, False),
+    ('T', LtTest.TYPE, True),
+    ('T', LteTest.TYPE, True),
     ('T', NotEmptyTest.TYPE, False),
-    ('T', NumberTest.TYPE, False),
-    ('T', PhoneTest.TYPE, False),
+    ('T', NumberTest.TYPE, True),
+    ('T', PhoneTest.TYPE, True),
     ('T', RegexTest.TYPE, False),
     ('T', StartsWithTest.TYPE, True),
     ('T', SubflowTest.TYPE, False),

@@ -976,6 +976,11 @@ class Msg(models.Model):
         if self.contact_urn:
             urn = self.contact_urn.urn
 
+        # simulation doesn't have a channel
+        channel_uuid = None
+        if self.channel:
+            channel_uuid = str(self.channel.uuid)
+
         return {
             'type': "msg_received",
             'urn': urn,
@@ -983,7 +988,7 @@ class Msg(models.Model):
             'text': self.text,
             'attachments': [],
             'contact_uuid': str(self.contact.uuid),
-            'channel_uuid': str(self.channel.uuid)
+            'channel_uuid': channel_uuid
         }
 
     def simulator_json(self):

@@ -26,6 +26,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.ivr.models import IVRCall
 from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
+
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, WIRED, OUTGOING, FAILED
 from temba.orgs.models import Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest, MockResponse, FlowFileTest
@@ -4243,6 +4244,7 @@ class SimulationTest(FlowFileTest):
         self.assertEquals(200, response.status_code)
         json_dict = response.json()
 
+        print (json.dumps(json_dict["messages"], indent=2))
         self.assertEquals(len(json_dict['messages']), 6)
         self.assertEquals("3", json_dict['messages'][2]['text'])
         self.assertEquals("Saved &#39;3&#39; as @flow.number", json_dict['messages'][3]['text'])
@@ -6992,14 +6994,17 @@ class FlowBatchTest(FlowFileTest):
         flow.start([], contacts)
 
         # ensure 11 flow runs were created
-        self.assertEquals(11, FlowRun.objects.all().count())
+        self.assertEqual(11, FlowRun.objects.all().count())
 
         # ensure 20 outgoing messages were created (2 for each successful run)
-        self.assertEquals(20, Msg.objects.all().exclude(contact=stopped).count())
+        self.assertEqual(20, Msg.objects.all().exclude(contact=stopped).count())
 
         # but only one broadcast
-        self.assertEquals(1, Broadcast.objects.all().count())
+        self.assertEqual(1, Broadcast.objects.all().count())
         broadcast = Broadcast.objects.get()
+
+        # make sure it has the right number of messages attached to it
+        self.assertEqual(11, broadcast.msgs.all().count())
 
         # ensure that our flowsteps all have the broadcast set on them
         for step in FlowStep.objects.filter(step_type=FlowStep.TYPE_ACTION_SET).exclude(run__contact=stopped):
