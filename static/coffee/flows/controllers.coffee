@@ -1782,13 +1782,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   else
     $scope.actions_quick_responses = []
 
-  if $scope.options.dragSource
-    $scope.container_operation_visible = true
-  else if $scope.action._media == null && $scope.action.quick_responses && $scope.action.buttons_reply
-    if $scope.action.quick_responses.length < 1 && $scope.action.buttons_reply.length < 1
-        $scope.container_operation_visible = true 
+  if $scope.options.dragSource # if new dragdrop node
+    $scope.container_operation_visible = true #show functions add quick and button
   else
-    $scope.container_operation_visible = false
+    if $scope.action.quick_responses? && $scope.action.buttons_reply? #check all is none
+      if $scope.action._media == null && $scope.action.quick_responses.length < 1 && $scope.action.buttons_reply.length < 1
+        $scope.container_operation_visible = true 
+      else
+        $scope.container_operation_visible = false
 
   
   
@@ -1906,8 +1907,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.action.msg = {}
     $scope.action.msg[$scope.base_language] = message
 
-    # $scope.action.quick_responses[$scope.base_language] = $scope.actions_quick_responses
-    # $scope.action.buttons_reply[$scope.base_language] = $scope.actions_buttons_reply
+    $scope.action.quick_responses[$scope.base_language] = $scope.actions_quick_responses
+    $scope.action.buttons_reply[$scope.base_language] = $scope.actions_buttons_reply
     
     $scope.action.type = type
     console.log(actionset)
