@@ -2004,6 +2004,13 @@ class JunebugHandler(BaseChannelHandler):
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
+        authorization = request.META.get('AUTHORIZATION', '').split(' ')
+
+        if channel.secret is not None and (
+                len(authorization) != 2 or authorization[0] != 'Token' or
+                authorization[1] != channel.secret):
+            return JsonResponse(dict(error="Incorrect authentication token"), status=401)
+
         # Junebug is sending an event
         if action == 'event':
             expected_keys = ["event_type", "message_id", "timestamp"]
