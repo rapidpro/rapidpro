@@ -8,7 +8,6 @@ import numbers
 import operator
 import phonenumbers
 import regex
-import requests
 import six
 import time
 import urllib2
@@ -39,7 +38,7 @@ from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAI
 from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
-from temba.utils import chunk_list, on_transaction_commit
+from temba.utils import chunk_list, on_transaction_commit, goflow
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.models import SquashableModel, TembaModel, ChunkIterator, generate_uuid
@@ -125,53 +124,6 @@ def edit_distance(s1, s2):  # pragma: no cover
     return d[lenstr1 - 1, lenstr2 - 1]
 
 
-class FlowServerException(Exception):
-    pass
-
-
-class FlowServer:
-    """
-    Basic client for GoFlow's flow server
-    """
-    def __init__(self, base_url, debug=False):
-        self.base_url = base_url
-        self.debug = debug
-
-    def start(self, flow_start):
-        return self._request('start', flow_start)
-
-    def resume(self, flow_resume):
-        return self._request('resume', flow_resume)
-
-    def migrate(self, flow_migrate):
-        return self._request('migrate', flow_migrate)
-
-    def _request(self, endpoint, payload):
-        if self.debug:
-            print('[GOFLOW]=============== %s request ===============' % endpoint)
-            print(json.dumps(payload, indent=2))
-            print('[GOFLOW]=============== /%s request ===============' % endpoint)
-
-        response = requests.post("%s/flow/%s" % (self.base_url, endpoint), json=payload)
-        resp_json = response.json()
-
-        if self.debug:
-            print('[GOFLOW]=============== %s response ===============' % endpoint)
-            print(json.dumps(resp_json, indent=2))
-            print('[GOFLOW]=============== /%s response ===============' % endpoint)
-
-        if 400 <= response.status_code < 500:
-            errors = "\n".join(resp_json['errors'])
-            raise FlowServerException("Invalid request: " + errors)
-
-        response.raise_for_status()
-
-        return resp_json
-
-
-flow_server = FlowServer(settings.FLOW_SERVER_URL, settings.FLOW_SERVER_DEBUG)
-
-
 class FlowSessionManager(models.Manager):
     def create(self, *args, **kwargs):
         return super(FlowSessionManager, self).create(*args, session_type=FlowSession.GO, **kwargs)
@@ -182,9 +134,6 @@ class FlowSessionManager(models.Manager):
 
 class FlowSession(ChannelSession):
     objects = FlowSessionManager()
-
-    class Meta:
-        proxy = True
 
     @classmethod
     def get_last_active_session(cls, contact):
@@ -229,26 +178,24 @@ class FlowSession(ChannelSession):
             request = cls.create_server_request(contact.org, contact, msg_in)
             request['flows'] = flows
 
-            start_response = flow_server.start(request)
-            output = start_response['session']
-            event_log = start_response.get('log', [])
+            output = goflow.get_client().start(request)
 
             # see if we are still active
             active = False
-            if len(output['runs']) > 0:
-                active = output['runs'][0]['status'] == 'A'
+            if len(output.session['runs']) > 0:
+                active = output.session['runs'][0]['status'] == 'A'
 
             # create our session
             session = cls.objects.create(org=contact.org, contact=contact,
-                                         output=json.dumps(output), is_active=active,
+                                         output=json.dumps(output.session), is_active=active,
                                          created_by=flow.created_by, modified_by=flow.modified_by,
                                          modified_on=timezone.now(), created_on=timezone.now())
 
             # apply the events
-            msgs_out_by_step = session.apply_events(event_log, msg_in)
+            msgs_out_by_step = session.apply_events(output.log, msg_in)
 
             # create each of our runs
-            for run in output['runs']:
+            for run in output.session['runs']:
                 runs.append(FlowRun.create_or_update_from_goflow(session, contact, run, msg_in, msgs_out_by_step))
 
         return runs
@@ -300,16 +247,13 @@ class FlowSession(ChannelSession):
         request['flows'] = flows
         request['session'] = self.as_json()
 
-        resume_response = flow_server.resume(request)
-
-        output = resume_response['session']
-        event_log = resume_response.get('log', [])
+        output = goflow.get_client().resume(request)
 
         # apply our events
-        msgs_out_by_step = self.apply_events(event_log, msg_in)
+        msgs_out_by_step = self.apply_events(output.log, msg_in)
 
         # update our session
-        self.update(output, msg_in, msgs_out_by_step)
+        self.update(output.session, msg_in, msgs_out_by_step)
 
         return msgs_out_by_step
 
@@ -437,6 +381,9 @@ class FlowSession(ChannelSession):
 
     def as_json(self):
         return json.loads(self.output)
+
+    class Meta:
+        proxy = True
 
 
 @six.python_2_unicode_compatible
@@ -1202,7 +1149,7 @@ class Flow(TembaModel):
 
         # for now, lets call the server to migrate our flow to the new version
         # TODO: pass current flow_json to server and have it migrate as needed on the fly
-        return flow_server.migrate({'flows': flow_json})
+        return goflow.get_client().migrate({'flows': flow_json})
 
     def build_flow_context(self, contact, contact_context=None):
         """
