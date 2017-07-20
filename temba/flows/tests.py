@@ -2891,27 +2891,25 @@ class ActionTest(TembaTest):
         self.assertEquals("We love green too!", response.text)
         self.assertEquals(response.attachments, ["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg')])
         self.assertEquals(self.contact, response.contact)
-    
-    def test_quick_response_action(self):
+
+    def test_quick_reply_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
         quick_resp = """
-            "quick_responses":[
+            "quick_reply":[
                 {
-                    "content_type":"text",
                     "payload":"Test quick reply is ok",
                     "title":"Quick reply"
                 },
                 {
-                    "content_type":"text",
                     "payload":"Test quick reply is ok",
                     "title":"Quick reply"
                 }
             ]
         """
 
-        action = ReplyAction(dict(base="Testing..."), quick_responses=quick_resp)
+        action = ReplyAction(dict(base="Testing..."), quick_reply=quick_resp)
         action_json = action.as_json()
         action = ReplyAction.from_json(self.org, action_json)
 
@@ -2926,7 +2924,6 @@ class ActionTest(TembaTest):
         buttons_reply = """
             "buttons_reply":[
                 {
-                    "type":"text",
                     "url":"test.com",
                     "title":"button reply"
                 }

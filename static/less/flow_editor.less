@@ -1666,33 +1666,39 @@
       }
     }
   }
-  .model-body{ 
-    .modal-quick-response{
-      display:inline-block;
-      input{
-        width:180px;
-        height:30px;
-      }
-      .modal-quick-response-type{
+
+  .modal-body{
+    .quick-reply{
+      .modal-quick-reply{
         display:inline-block;
-        width:86px;
-        select{
+        input{
+          width:180px;
+          height:30px;
+        }
+        .modal-quick-reply-type{
+          display:inline-block;
           width:86px;
+          select{
+            width:86px;
+          }
+        }
+        .modal-quick-reply-value{
+          display:inline-block;
+          width:200px;
+        }
+        .icon{
+          display: none;
+          color: #ccc;
+          margin: 8px 0;
+          cursor: pointer;
+        }
+        &:hover{
+          .icon{
+            display: inline-block;
+          }
         }
       }
-    .modal-quick-response-value{
-      display:inline-block;
-      width:200px;
     }
-    .icon{
-      display: none;
-      color: #ccc;
-      margin: 8px 0;
-      cursor: pointer;
-    }
-
-    }
-            
   }
  
   .modal-body input.url {
@@ -2270,22 +2276,22 @@ div.modal[role="dialog"] {
   }
 }
 
-.quick-response{
+.quick-reply{
   margin-top:20px;
 
-  .modal-quick-response{
+  .modal-quick-reply{
     margin: 0 auto;
     display:inline-block;
     width:100%;
   }
-  .modal-quick-response:hover .icon{
+  .modal-quick-reply:hover .icon{
     display:inline-block;
   }
-  .modal-quick-response input{
+  .modal-quick-reply input{
     width:100%;
     height:30px;
   }
-  .modal-quick-response-value{
+  .modal-quick-reply-value{
     display:inline-block;
     width:43%;
     margin-left:2%;

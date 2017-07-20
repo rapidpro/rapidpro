@@ -2175,13 +2175,13 @@ class Flow(TembaModel):
             for actionset in json_dict.get(Flow.ACTION_SETS, []):
 
                 uuid = actionset.get(Flow.UUID)
-                
+
                 # validate our actions, normalizing them as JSON after reading them
                 actions = [_.as_json() for _ in Action.from_json_array(self.org, actionset.get(Flow.ACTIONS))]
-                
+
                 if actions:
                     current_actionsets[uuid] = actions
-                    
+
             for ruleset in json_dict.get(Flow.RULE_SETS, []):
                 uuid = ruleset.get(Flow.UUID)
                 current_rulesets[uuid] = ruleset
@@ -5046,14 +5046,14 @@ class ReplyAction(Action):
                 raise FlowException("Invalid reply action, missing at least one message")
         elif not msg:
             raise FlowException("Invalid reply action, no message")
-        
+
         buttons = json_obj.get(cls.BUTTONS_REPLY)
         if buttons:
             for button in buttons:
                 button_url = '%s' % button.get('url')
                 if not button_url.startswith('http://') or not button_url.startswith('https://'):
                     button['url'] = "http://%s" % button['url']
-                
+
         return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None),
                    quick_reply=json_obj.get(cls.QUICK_REPLY), buttons_reply=buttons,
                    send_all=json_obj.get(cls.SEND_ALL, False))
@@ -5064,10 +5064,10 @@ class ReplyAction(Action):
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []
-        
+
         if self.msg or self.media or self.quick_reply or self.buttons_reply:
             user = get_flow_user(run.org)
-            
+
             text = ''
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
@@ -5076,9 +5076,9 @@ class ReplyAction(Action):
                 quick_reply=self.quick_reply if self.quick_reply else [],
                 buttons_reply=self.buttons_reply if self.buttons_reply else []
             )
-            
+
             metadata = json.dumps(metadata)
-        
+
             attachments = None
             if self.media:
                 # localize our media attachment

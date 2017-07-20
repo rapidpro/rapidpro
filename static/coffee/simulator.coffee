@@ -48,7 +48,7 @@ window.updateSimulator = (data) ->
       params = JSON.parse(msg.metadata)
       if params.quick_reply[0]
         model = 'ilog'
-        quick_reply = "<div id='quick-response-content'>"
+        quick_reply = "<div id='quick-reply-content'>"
         for reply in params.quick_reply
           quick_reply += "<button class=\"btn quick-reply\" data-payload=\"" + reply.payload + "\"> " + reply.title + "</button>"
         quick_reply += "</div>"
@@ -80,8 +80,8 @@ window.updateSimulator = (data) ->
       ele += " media-msg"
 
     ele += "\">"
-    if quick_responses
-      ele += quick_responses
+    if quick_reply
+      ele += quick_reply
     else
       ele += msg.text
     

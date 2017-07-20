@@ -6,7 +6,6 @@ import regex
 import six
 import time
 import traceback
-import json
 
 from datetime import datetime, timedelta
 from django.conf import settings
@@ -1332,8 +1331,8 @@ class Msg(models.Model):
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
-                        created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True, metadata=None,
-                        attachments=None, topup_id=None, msg_type=INBOX, session=None):
+                        created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
+                        metadata=None, attachments=None, topup_id=None, msg_type=INBOX, session=None):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")

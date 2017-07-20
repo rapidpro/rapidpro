@@ -50,25 +50,23 @@ class FacebookType(ChannelType):
         # for any new conversation triggers, clear out the call to action payload
         if trigger.trigger_type == Trigger.TYPE_NEW_CONVERSATION:
             self._set_call_to_action(trigger.channel, None)
-    
-    def setAdditionalParams(self, current_payload, params, text):
+
+    def set_additional_params(self, current_payload, params, text):
         params = json.loads(params)
-        if params["quick_responses"]:
-            # setting data to quick replies
+        if params["quick_reply"]:
             current_payload['message']["text"] = text
-            current_payload['message']["quick_replies"] = params["quick_responses"]
+            current_payload['message']["quick_replies"] = params["quick_reply"]
         elif params["buttons_reply"]:
             # setting data to buttons replys with url
             buttons = params["buttons_reply"]
             current_payload['message']['attachment'] = {}
             current_payload['message']['attachment']["type"] = "template"
             current_payload['message']['attachment']["payload"] = {
-                "template_type":"button",
-                "text":text,
-                "buttons":buttons
+                "template_type": "button",
+                "text": text,
+                "buttons": buttons
             }
         else:
-            #continue flow if not have additional data
             current_payload['message']['text'] = text
 
         return current_payload
@@ -77,7 +75,7 @@ class FacebookType(ChannelType):
         # build our payload
         payload = {}
         payload['message'] = {}
-        payload = self.setAdditionalParams(payload, msg.additional_params, text)
+        payload = self.set_additional_params(payload, msg.additional_params, text)
 
         # this is a ref facebook id, temporary just for this message
         if URN.is_path_fb_ref(msg.urn_path):
