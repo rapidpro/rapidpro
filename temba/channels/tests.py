@@ -7826,7 +7826,7 @@ class TwitterTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000002345')
 
         # a new style Twitter channel configured for the Webhooks API
-        self.twitter_beta = Channel.create(self.org, self.user, None, 'TT', None, 'cuenca_facts',
+        self.twitter_beta = Channel.create(self.org, self.user, None, 'TWT', None, 'cuenca_facts',
                                            config={'handle_id': 10001,
                                                    'api_key': 'APIKEY',
                                                    'api_secret': 'APISECRET',
@@ -8247,6 +8247,24 @@ class MageHandlerTest(TembaTest):
         # check contact count updated
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(contact_counts[ContactGroup.TYPE_ALL], 3)
+
+    def test_stop_contact(self):
+        url = reverse('handlers.mage_handler', args=['stop_contact'])
+        headers = dict(HTTP_AUTHORIZATION='Token %s' % settings.MAGE_AUTH_TOKEN)
+        contact = self.create_contact("Mary Jo", twitter='mary_jo')
+
+        response = self.client.post(url, dict(contact_id=contact.id), **headers)
+        self.assertEqual(200, response.status_code)
+
+        # check the contact got stopped
+        contact.refresh_from_db()
+        self.assertTrue(contact.is_stopped)
+
+        # try with invalid id
+        response = self.client.post(url, dict(contact_id=-1), **headers)
+
+        # should get a 401
+        self.assertEqual(400, response.status_code)
 
 
 class StartMobileTest(TembaTest):
