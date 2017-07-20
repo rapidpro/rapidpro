@@ -1153,4 +1153,4 @@ ALL_LOGS_TRIM_TIME = 24 * 30
 # -----------------------------------------------------------------------------------
 # Which channel types will be sent using Courier instead of RapidPro
 # -----------------------------------------------------------------------------------
-COURIER_CHANNELS = set('TG')
+COURIER_CHANNELS = set()
