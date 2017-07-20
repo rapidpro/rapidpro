@@ -1101,6 +1101,7 @@ MESSAGE_HANDLERS = [
 ]
 
 CHANNEL_TYPES = [
+    'temba.channels.types.external.ExternalType',
     'temba.channels.types.facebook.FacebookType',
     'temba.channels.types.firebase.FirebaseCloudMessagingType',
     'temba.channels.types.jiochat.JioChatType',

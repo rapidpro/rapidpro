@@ -159,7 +159,6 @@ class Channel(TembaModel):
     TYPE_CLICKATELL = 'CT'
     TYPE_DARTMEDIA = 'DA'
     TYPE_DUMMY = 'DM'
-    TYPE_EXTERNAL = 'EX'
     TYPE_GLOBE = 'GL'
     TYPE_HIGH_CONNECTION = 'HX'
     TYPE_HUB9 = 'H9'
@@ -265,7 +264,6 @@ class Channel(TembaModel):
         TYPE_CLICKATELL: dict(scheme='tel', max_length=420),
         TYPE_DARTMEDIA: dict(scheme='tel', max_length=160),
         TYPE_DUMMY: dict(scheme='tel', max_length=160),
-        TYPE_EXTERNAL: dict(max_length=160),
         TYPE_GLOBE: dict(scheme='tel', max_length=160),
         TYPE_HIGH_CONNECTION: dict(scheme='tel', max_length=1500),
         TYPE_HUB9: dict(scheme='tel', max_length=1600),
@@ -301,7 +299,6 @@ class Channel(TembaModel):
                     (TYPE_CLICKATELL, "Clickatell"),
                     (TYPE_DARTMEDIA, "Dart Media"),
                     (TYPE_DUMMY, "Dummy"),
-                    (TYPE_EXTERNAL, "External"),
                     (TYPE_GLOBE, "Globe Labs"),
                     (TYPE_HIGH_CONNECTION, "High Connection"),
                     (TYPE_HUB9, "Hub9"),
@@ -1661,57 +1658,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_external_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        payload = {
-            'id': str(msg.id),
-            'text': text,
-            'to': msg.urn_path,
-            'to_no_plus': msg.urn_path.lstrip('+'),
-            'from': channel.address,
-            'from_no_plus': channel.address.lstrip('+'),
-            'channel': str(channel.id)
-        }
-
-        # build our send URL
-        url = Channel.replace_variables(channel.config[Channel.CONFIG_SEND_URL], payload)
-        start = time.time()
-
-        method = channel.config.get(Channel.CONFIG_SEND_METHOD, 'POST')
-
-        headers = TEMBA_HEADERS.copy()
-        content_type = channel.config.get(Channel.CONFIG_CONTENT_TYPE, Channel.CONTENT_TYPE_URLENCODED)
-        headers['Content-Type'] = Channel.CONTENT_TYPES[content_type]
-
-        event = HttpEvent(method, url)
-
-        if method in ('POST', 'PUT'):
-            body = channel.config.get(Channel.CONFIG_SEND_BODY, Channel.CONFIG_DEFAULT_SEND_BODY)
-            body = Channel.replace_variables(body, payload, content_type)
-            event.request_body = body
-
-        try:
-            if method == 'POST':
-                response = requests.post(url, data=body.encode('utf8'), headers=headers, timeout=5)
-            elif method == 'PUT':
-                response = requests.put(url, data=body.encode('utf8'), headers=headers, timeout=5)
-            else:
-                response = requests.get(url, headers=headers, timeout=5)
-
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
-            raise SendException("Got non-200 response [%d] from API" % response.status_code,
-                                event=event, start=start)
-
-        Channel.success(channel, msg, WIRED, start, event=event)
-
-    @classmethod
     def send_chikka_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
@@ -2876,7 +2822,6 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_CLICKATELL: Channel.send_clickatell_message,
                   Channel.TYPE_DARTMEDIA: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
-                  Channel.TYPE_EXTERNAL: Channel.send_external_message,
                   Channel.TYPE_GLOBE: Channel.send_globe_message,
                   Channel.TYPE_HIGH_CONNECTION: Channel.send_high_connection_message,
                   Channel.TYPE_HUB9: Channel.send_hub9_or_dartmedia_message,

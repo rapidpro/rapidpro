@@ -447,7 +447,7 @@ class ExternalHandler(BaseChannelHandler):
     url_name = 'handlers.external_handler'
 
     def get_channel_type(self):
-        return Channel.TYPE_EXTERNAL
+        return 'EX'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
