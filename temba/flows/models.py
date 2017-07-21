@@ -163,6 +163,9 @@ class FlowSession(ChannelSession):
         if not settings.FLOW_SERVER_URL:
             return []
 
+        if not flow.is_active or flow.is_archived:
+            return []
+
         cls.close_active_sessions(contacts)
 
         flows = flow.as_json_with_dependencies()
@@ -252,7 +255,7 @@ class FlowSession(ChannelSession):
     def resume(self, msg_in):
 
         if not settings.FLOW_SERVER_URL:
-            return
+            return False, []
 
         # look up our active run
         active_run = None
@@ -264,14 +267,14 @@ class FlowSession(ChannelSession):
         if not active_run or active_run['status'] != 'active':
             self.is_active = False
             self.save(update_fields=['is_active'])
-            return
+            return False, []
 
         # get our root flow
         flow = self.get_root_flow()
-        if flow is None:
+        if flow is None or flow.is_archived or not flow.is_active:
             self.is_active = False
             self.save(update_fields=['is_active'])
-            return
+            return False, []
 
         flows = flow.as_json_with_dependencies()
         if not flows:
@@ -286,6 +289,8 @@ class FlowSession(ChannelSession):
         # apply our events
         # update our session
         self.update(output, msg_in)
+
+        return True, []
 
     def get_root_flow(self):
         """
@@ -766,7 +771,7 @@ class Flow(TembaModel):
         session = FlowSession.get_last_active_session(contact=msg.contact)
         if session:
             try:
-                return True, session.resume(msg)
+                return session.resume(msg)
             except ValueError:
                 # if we can't resume our session, let the legacy path handle it
                 pass
