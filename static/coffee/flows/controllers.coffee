@@ -771,7 +771,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
         $scope.dialog.result.then (translation) ->
           action = utils.clone(action)
-          console.log(translation)
           if translation.to and translation.to.strip().length > 0
             action.msg[Flow.language.iso_code] = translation.to
           else
@@ -787,7 +786,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             else
               delete action.quick_reply[Flow.language.iso_code]
           catch
-            console.log('none')
+            console.log('another translation')
 
           Flow.saveAction(actionset, action)
         , (-> $log.info "Modal dismissed at: " + new Date())
