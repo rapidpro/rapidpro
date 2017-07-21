@@ -1849,7 +1849,7 @@ class Contact(TembaModel):
 
     def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None,
              attachments=None, msg_type=None, created_on=None, all_urns=False):
-        from temba.msgs.models import Msg, INBOX, PENDING, SENT, UnreachableException
+        from temba.msgs.models import Msg, INBOX, PENDING, FAILED, SENT, UnreachableException
 
         status = SENT if created_on else PENDING
 
@@ -1857,6 +1857,9 @@ class Contact(TembaModel):
             recipients = [((u.contact, u) if status == SENT else u) for u in self.get_urns()]
         else:
             recipients = [(self, None)] if status == SENT else [self]
+
+        if status == PENDING and (self.is_blocked or self.is_stopped):
+            status = FAILED
 
         msgs = []
         for recipient in recipients:

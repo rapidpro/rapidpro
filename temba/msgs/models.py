@@ -228,6 +228,8 @@ class Broadcast(models.Model):
     send_all = models.BooleanField(default=False,
                                    help_text="Whether this broadcast should send to all URNs for each contact")
 
+    action_uuid = models.UUIDField(null=True, blank=True, help_text=_("Optional action that created this broadcast"))
+
     @classmethod
     def create(cls, org, user, text, recipients, base_language=None, channel=None, media=None, send_all=False, **kwargs):
         # for convenience broadcasts can still be created with single translation and no base_language
@@ -470,6 +472,9 @@ class Broadcast(models.Model):
                             from temba.flows.models import Flow
                             message_context = message_context.copy()
                             message_context.update(dict(parent=Flow.build_flow_context(run.parent.flow, run.parent.contact)))
+
+            if status == INITIALIZING and (contact.is_stopped or contact.is_blocked):
+                status = FAILED
 
             try:
                 msg = Msg.create_outgoing(org,

@@ -7001,20 +7001,21 @@ class FlowBatchTest(FlowFileTest):
         broadcast = Broadcast.objects.get()
 
         # make sure it has the right number of messages attached to it
-        self.assertEqual(11, broadcast.msgs.all().count())
+        self.assertEqual(10, broadcast.msgs.all().exclude(contact=stopped).count())
+        self.assertEqual(1, broadcast.msgs.all().filter(contact=stopped).count())
 
         # ensure that our flowsteps all have the broadcast set on them
         for step in FlowStep.objects.filter(step_type=FlowStep.TYPE_ACTION_SET).exclude(run__contact=stopped):
             self.assertEqual(broadcast, step.broadcasts.all().get())
 
-        # make sure that adding a msg more than once doesn't blow up
-        step.add_message(step.messages.all()[0])
-        self.assertEqual(step.messages.all().count(), 2)
-        self.assertEqual(step.broadcasts.all().count(), 1)
+            # make sure that adding a msg more than once doesn't blow up
+            step.add_message(step.messages.all()[0])
+            self.assertEqual(step.messages.all().count(), 2)
+            self.assertEqual(step.broadcasts.all().count(), 1)
 
-        # our stopped contact should have only received one msg before blowing up
-        self.assertEqual(1, Msg.objects.filter(contact=stopped, status=FAILED).count())
-        self.assertEqual(1, FlowRun.objects.filter(contact=stopped, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count())
+        # our stopped contact keeps going in the flow, but has failed messages
+        self.assertEqual(2, Msg.objects.filter(contact=stopped, status=FAILED).count())
+        self.assertEqual(1, FlowRun.objects.filter(contact=stopped, exit_type=FlowRun.EXIT_TYPE_COMPLETED).count())
 
 
 class TwoInRowTest(FlowFileTest):
