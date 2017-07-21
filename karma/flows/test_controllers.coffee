@@ -773,10 +773,12 @@ describe 'Controllers:', ->
       actionset = flowService.flow.action_sets[0]
       action = actionset.actions[0]
     
-      json_quick_reply = [{'title':'Quick reply', 'payload':'Test quick reply is ok'}]
+      json_quick_reply = 'base':[{'title':'Quick reply', 'payload':'Test quick reply is ok'}]
 
       editAction actionset, action, (scope) ->
-        scope.addNewQuickResponse()
+        scope.actions_buttons_reply = []
+        scope.actions_quick_reply = []
+        scope.addNewQuickReply()
         scope.actions_quick_reply[0]['payload'] = 'Test quick reply is ok'
         scope.actions_quick_reply[0]['title'] = 'Quick reply'
         scope.formData.msg = "test"
@@ -792,12 +794,14 @@ describe 'Controllers:', ->
       actionset = flowService.flow.action_sets[0]
       action = actionset.actions[0]
     
-      json_buttons_reply = [{'title':'url tittle reply', 'url':'example.com'}]
+      json_buttons_reply = 'base':[{'title':'URL title', 'url':'example.com'}]
 
       editAction actionset, action, (scope) ->
+        scope.actions_buttons_reply = []
+        scope.actions_quick_reply = []
         scope.addNewButtonReply()
-        scope.actions_buttons_reply[0]['url'] = 'example.com'
         scope.actions_buttons_reply[0]['title'] = 'URL title'
+        scope.actions_buttons_reply[0]['url'] = 'example.com'
         scope.formData.msg = "test"
         scope.saveMessage('test', type='reply')
 

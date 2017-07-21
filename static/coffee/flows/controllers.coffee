@@ -466,9 +466,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         type: defaultActionSetType()
         msg: msg
       ]
-      start_new_node: true
 
-    @clickAction(actionset, actionset.actions[0])
+    @clickAction(actionset, actionset.actions[0], startNewNode=true)
 
   $scope.createFirstUssd = ->
 
@@ -713,7 +712,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
     $('#' + action_uuid + "_audio")[0].play()
 
-  $scope.clickAction = (actionset, action, dragSource=null) ->
+  $scope.clickAction = (actionset, action, dragSource=null, startNewNode=null) ->
     if window.dragging or not window.mutable
       return
 
@@ -795,6 +794,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           actionset: actionset
           action: action
           dragSource: dragSource
+          startNewNode: startNewNode
         flowController: -> $scope
 
       $scope.dialog = utils.openModal("/partials/node_editor", NodeEditorController, resolveObj)
@@ -1810,10 +1810,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.action = utils.clone(action)
   $scope.action_webhook_headers_name = []
   $scope.action_webhook_headers_value = []
-  $scope.patternUrl = /((http|https)\:\/\/)?[a-zA-Z0-9\.\/\?\:@\-_=#]+\.([a-zA-Z0-9\&\.\/\?\:@\-_=#])*/
   currentLang = Flow.language.iso_code
 
-  if $scope.options.dragSource? || $scope.options.actionset.start_new_node? # if new dragdrop node or new flow first node
+  if $scope.options.dragSource? || $scope.options.startNewNode? # if new dragdrop node or new flow first node
     $scope.container_operation_visible = true #show functions add quick and button
     $scope.actions_buttons_reply = []
     $scope.actions_quick_reply = []
@@ -1868,7 +1867,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if $scope.action.webhook_headers.length == 0
       $scope.addNewActionWebhookHeader()
 
-  $scope.addNewQuickResponse = ->
+  $scope.addNewQuickReply = ->
     if $scope.actions_quick_reply.length < 3
       $scope.container_operation_visible = false
       $scope.actions_quick_reply.push({title:'', payload:''})
@@ -1933,7 +1932,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   # Saving a reply message in the flow
   $scope.saveMessage = (message, type='reply') ->
-    console.log('heeere')
     if typeof($scope.action.msg) != "object"
       $scope.action.msg = {}
     $scope.action.msg[$scope.base_language] = message
