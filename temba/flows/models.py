@@ -200,7 +200,7 @@ class FlowSession(ChannelSession):
             for run in output.session['runs']:
                 # filter our list of events by run
                 run_log = [entry for entry in output.log if step_to_run[entry['step_uuid']] == run['uuid']]
-                run = FlowRun.create_or_update_from_goflow(session, contact, run, run_log, msg_in)
+                run = FlowRun.create_or_update_from_goflow(session, contact, run, run_log, msg_in, broadcasts)
                 runs.append(run)
 
             # old simulation needs an action log showing entering the flow
@@ -903,7 +903,7 @@ class Flow(TembaModel):
         # send any messages generated
         if msgs and trigger_send:
             msgs.sort(key=lambda message: message.created_on)
-            Msg.objects.filter(id__in=[m.id for m in msgs]).exclude(status=DELIVERED).update(status=PENDING)
+            Msg.objects.filter(id__in=[m.id for m in msgs]).exclude(status__in=[DELIVERED, FAILED]).update(status=PENDING)
             run.flow.org.trigger_send(msgs)
 
         return handled, msgs
@@ -1251,7 +1251,6 @@ class Flow(TembaModel):
             preferred_languages.append(self.org.primary_language.iso_code)
 
         preferred_languages.append(self.base_language)
-
         return Language.get_localized_text(text_translations, preferred_languages, default_text)
 
     def import_definition(self, flow_json):
@@ -1823,7 +1822,7 @@ class Flow(TembaModel):
                 broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
                                              media=send_action.media,
                                              base_language=self.base_language,
-                                             send_all=send_action.send_all)
+                                             send_all=send_action.send_all, action_uuid=send_action.uuid)
                 broadcast.update_contacts(all_contact_ids)
 
                 # manually set our broadcast status to QUEUED, our sub processes will send things off for us
@@ -2025,7 +2024,7 @@ class Flow(TembaModel):
         if msgs and not parent_run:
             # then send them off
             msgs.sort(key=lambda message: (message.contact_id, message.created_on))
-            Msg.objects.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
+            Msg.objects.filter(id__in=[m.id for m in msgs]).exclude(status__in=[DELIVERED, FAILED]).update(status=PENDING)
 
             # trigger a sync
             self.org.trigger_send(msgs)
@@ -2744,7 +2743,7 @@ class FlowRun(models.Model):
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
 
     @classmethod
-    def create_or_update_from_goflow(cls, session, contact, run_output, run_log, msg_in):
+    def create_or_update_from_goflow(cls, session, contact, run_output, run_log, msg_in, broadcasts=[]):
         """
         Creates or updates a flow run from the given output returned from goflow
         """
@@ -2775,7 +2774,7 @@ class FlowRun(models.Model):
             existing.save(update_fields=('is_active', 'modified_on', 'output', 'exited_on', 'exit_type'))
             run = existing
 
-            msgs_out_by_step = run.apply_events(run_log, msg_in)
+            msgs_out_by_step = run.apply_events(run_log, msg_in, broadcasts)
 
         else:
             prev_path = []
@@ -2790,7 +2789,7 @@ class FlowRun(models.Model):
                                      modified_on=modified_on,
                                      created_on=iso8601.parse_date(run_output['created_on']))
 
-            msgs_out_by_step = run.apply_events(run_log, msg_in)
+            msgs_out_by_step = run.apply_events(run_log, msg_in, broadcasts)
 
             # old flow engine appends a list of start messages on run creation
             start_msgs = []
@@ -2823,7 +2822,7 @@ class FlowRun(models.Model):
 
         return run
 
-    def apply_events(self, run_log, msg_in=None):
+    def apply_events(self, run_log, msg_in=None, broadcasts=[]):
         msgs_to_send = []
         msgs_by_step = defaultdict(list)
 
@@ -2832,6 +2831,12 @@ class FlowRun(models.Model):
             if event['type'] == Event.TYPE_SEND_MSG:
                 msg = self.apply_send_msg(event, msg_in)
                 if msg:
+                    # filter our broadcasts by action uuid that generated us
+                    action_uuid = item.get('action_uuid', None)
+                    if action_uuid and broadcasts:
+                        for broadcast in [b for b in broadcasts if six.text_type(b.action_uuid) == action_uuid]:
+                            broadcast.msgs.add(msg)
+
                     msgs_to_send.append(msg)
                     msgs_by_step[item["step_uuid"]].append(msg)
             else:
@@ -2873,6 +2878,7 @@ class FlowRun(models.Model):
                                        created_on=iso8601.parse_date(event['created_on']),
                                        response_to=msg if msg and msg.id else None,
                                        session=self.session)
+
         except UnreachableException:
             return None
 
@@ -5322,7 +5328,7 @@ class AddToGroupAction(Action):
         add = AddToGroupAction.TYPE == self.get_type()
         user = get_flow_user(run.org)
 
-        if contact:
+        if contact and not (contact.is_stopped or contact.is_blocked):
             for group in self.groups:
                 if not isinstance(group, ContactGroup):
                     (value, errors) = Msg.substitute_variables(group, context, org=run.flow.org)
@@ -5578,15 +5584,20 @@ class ReplyAction(Action):
     Simple action for sending back a message
     """
     TYPE = 'reply'
+    UUID = 'uuid'
     MESSAGE = 'msg'
     MSG_TYPE = None
     MEDIA = 'media'
     SEND_ALL = 'send_all'
 
-    def __init__(self, msg=None, media=None, send_all=False):
+    def __init__(self, uuid=None, msg=None, media=None, send_all=False):
+        self.uuid = uuid
         self.msg = msg
         self.media = media if media else {}
         self.send_all = send_all
+
+        if not uuid:
+            self.uuid = six.text_type(uuid4())
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5601,15 +5612,14 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
 
-        return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None),
+        return cls(uuid=json_obj.get(cls.UUID), msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None),
                    send_all=json_obj.get(cls.SEND_ALL, False))
 
     def as_json(self):
-        return dict(type=self.TYPE, msg=self.msg, media=self.media, send_all=self.send_all)
+        return dict(uuid=self.uuid, type=self.TYPE, msg=self.msg, media=self.media, send_all=self.send_all)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []
-
         if self.msg or self.media:
             user = get_flow_user(run.org)
 
@@ -5658,13 +5668,14 @@ class UssdAction(ReplyAction):
     It builds localised text with localised USSD menu support
     """
     TYPE = 'ussd'
+    UUID = 'uuid'
     MESSAGE = 'ussd_message'
     TYPE_WAIT_USSD_MENU = 'wait_menu'
     TYPE_WAIT_USSD = 'wait_ussd'
     MSG_TYPE = MSG_TYPE_USSD
 
-    def __init__(self, msg=None, base_language=None, languages=None, primary_language=None):
-        super(UssdAction, self).__init__(msg)
+    def __init__(self, uuid=None, msg=None, base_language=None, languages=None, primary_language=None):
+        super(UssdAction, self).__init__(uuid, msg)
         self.languages = languages
         if msg and base_language and primary_language:
             self.base_language = base_language if base_language in msg else primary_language
@@ -5678,6 +5689,7 @@ class UssdAction(ReplyAction):
             obj = json.loads(ruleset.config)
             rules = json.loads(ruleset.rules)
             msg = obj.get(cls.MESSAGE, '')
+            uuid = obj.get(cls.UUID, six.text_type(uuid4()))
             org = run.flow.org
 
             # define languages
@@ -5686,7 +5698,7 @@ class UssdAction(ReplyAction):
             primary_language = getattr(getattr(org, 'primary_language', None), 'iso_code', None)
 
             # initialize UssdAction
-            ussd_action = cls(msg=msg, base_language=base_language, languages=org_languages,
+            ussd_action = cls(uuid=uuid, msg=msg, base_language=base_language, languages=org_languages,
                               primary_language=primary_language)
 
             ussd_action.substitute_missing_languages()

@@ -228,6 +228,8 @@ class Broadcast(models.Model):
     send_all = models.BooleanField(default=False,
                                    help_text="Whether this broadcast should send to all URNs for each contact")
 
+    action_uuid = models.UUIDField(null=True, blank=True, help_text=_("Optional action that created this broadcast"))
+
     @classmethod
     def create(cls, org, user, text, recipients, base_language=None, channel=None, media=None, send_all=False, **kwargs):
         # for convenience broadcasts can still be created with single translation and no base_language
@@ -448,9 +450,9 @@ class Broadcast(models.Model):
             contact = recipient if isinstance(recipient, Contact) else recipient.contact
 
             # get the appropriate translation for this contact
-            text = self.get_translated_text(contact)
+            text = self.get_translated_text(contact, org)
 
-            media = self.get_translated_media(contact)
+            media = self.get_translated_media(contact, org)
             if media:
                 media_type, media_url = media.split(':')
 
@@ -470,6 +472,9 @@ class Broadcast(models.Model):
                             from temba.flows.models import Flow
                             message_context = message_context.copy()
                             message_context.update(dict(parent=Flow.build_flow_context(run.parent.flow, run.parent.contact)))
+
+            if status == INITIALIZING and (contact.is_stopped or contact.is_blocked):
+                status = FAILED
 
             try:
                 msg = Msg.create_outgoing(org,
@@ -1444,6 +1449,9 @@ class Msg(models.Model):
         # track this if we have a channel
         if channel:
             analytics.gauge('temba.msg_outgoing_%s' % channel.channel_type.lower())
+
+        if contact.is_stopped or contact.is_blocked:
+            status = FAILED
 
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,

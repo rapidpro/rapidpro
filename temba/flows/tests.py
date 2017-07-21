@@ -1222,7 +1222,7 @@ class FlowTest(TembaTest):
         orange = ActionSet.objects.get(uuid="7d40faea-723b-473d-8999-59fb7d3c3ca2")
         actions = orange.get_actions()
         self.assertEquals(1, len(actions))
-        self.assertEquals(ReplyAction(dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow')).as_json(), actions[0].as_json())
+        self.assertEquals(ReplyAction(actions[0].uuid, dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow')).as_json(), actions[0].as_json())
 
         self.assertEquals(1, RuleSet.objects.all().count())
         ruleset = RuleSet.objects.get(uuid="bd531ace-911e-4722-8e53-6730d6122fe1")
@@ -1280,7 +1280,7 @@ class FlowTest(TembaTest):
         orange = ActionSet.objects.get(uuid="7d40faea-723b-473d-8999-59fb7d3c3ca2")
         actions = orange.get_actions()
         self.assertEquals(1, len(actions))
-        self.assertEquals(ReplyAction(dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow')).as_json(), actions[0].as_json())
+        self.assertEquals(ReplyAction(actions[0].uuid, dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow')).as_json(), actions[0].as_json())
 
         self.assertEquals(1, RuleSet.objects.all().count())
         ruleset = RuleSet.objects.get(uuid="bd531ace-911e-4722-8e53-6730d6122fe1")
@@ -2809,7 +2809,7 @@ class ActionTest(TembaTest):
         with self.assertRaises(FlowException):
             ReplyAction.from_json(self.org, {'type': ReplyAction.TYPE, ReplyAction.MESSAGE: dict(base="")})
 
-        action = ReplyAction(dict(base="We love green too!"))
+        action = ReplyAction(six.text_type(uuid4()), dict(base="We love green too!"))
         self.execute_action(action, run, msg)
         msg = Msg.objects.get(contact=self.contact, direction='O')
         self.assertEquals("We love green too!", msg.text)
@@ -2831,7 +2831,7 @@ class ActionTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
-        action = ReplyAction(dict(base="We love green too!"), None, send_all=True)
+        action = ReplyAction(six.text_type(uuid4()), dict(base="We love green too!"), None, send_all=True)
         action_replies = self.execute_action(action, run, msg)
         self.assertEqual(len(action_replies), 1)
         for action_reply in action_replies:
@@ -2871,7 +2871,7 @@ class ActionTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
-        action = ReplyAction(dict(base="We love green too!"), 'image/jpeg:path/to/media.jpg')
+        action = ReplyAction(six.text_type(uuid4()), dict(base="We love green too!"), 'image/jpeg:path/to/media.jpg')
         self.execute_action(action, run, msg)
         reply_msg = Msg.objects.get(contact=self.contact, direction='O')
         self.assertEquals("We love green too!", reply_msg.text)
@@ -7001,20 +7001,21 @@ class FlowBatchTest(FlowFileTest):
         broadcast = Broadcast.objects.get()
 
         # make sure it has the right number of messages attached to it
-        self.assertEqual(11, broadcast.msgs.all().count())
+        self.assertEqual(10, broadcast.msgs.all().exclude(contact=stopped).count())
+        self.assertEqual(1, broadcast.msgs.all().filter(contact=stopped).count())
 
         # ensure that our flowsteps all have the broadcast set on them
         for step in FlowStep.objects.filter(step_type=FlowStep.TYPE_ACTION_SET).exclude(run__contact=stopped):
             self.assertEqual(broadcast, step.broadcasts.all().get())
 
-        # make sure that adding a msg more than once doesn't blow up
-        step.add_message(step.messages.all()[0])
-        self.assertEqual(step.messages.all().count(), 2)
-        self.assertEqual(step.broadcasts.all().count(), 1)
+            # make sure that adding a msg more than once doesn't blow up
+            step.add_message(step.messages.all()[0])
+            self.assertEqual(step.messages.all().count(), 2)
+            self.assertEqual(step.broadcasts.all().count(), 1)
 
-        # our stopped contact should have only received one msg before blowing up
-        self.assertEqual(1, Msg.objects.filter(contact=stopped, status=FAILED).count())
-        self.assertEqual(1, FlowRun.objects.filter(contact=stopped, exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).count())
+        # our stopped contact keeps going in the flow, but has failed messages
+        self.assertEqual(2, Msg.objects.filter(contact=stopped, status=FAILED).count())
+        self.assertEqual(1, FlowRun.objects.filter(contact=stopped, exit_type=FlowRun.EXIT_TYPE_COMPLETED).count())
 
 
 class TwoInRowTest(FlowFileTest):
