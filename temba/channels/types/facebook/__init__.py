@@ -4,6 +4,7 @@ import json
 import requests
 import six
 import time
+import re
 
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import Contact, ContactURN, URN, FACEBOOK_SCHEME
@@ -52,7 +53,15 @@ class FacebookType(ChannelType):
 
     def send(self, channel, msg, text):
         # build our payload
+        # Now we build an option  message
         payload = {'message': {'text': text}}
+        if 'pruebaprueba' in txt:
+            options = re.compile("(?<!^)\s+(?=[0-9])(?!.\s)").split(s)
+            if len(options) > 1:
+                list_dic = [{"content_type":"text",
+                            "title":t,
+                            "payload":t} for t in options[1:]]
+                payload = {'message': {'text': text,'quick_replies' : list_dic}}
 
         # this is a ref facebook id, temporary just for this message
         if URN.is_path_fb_ref(msg.urn_path):
