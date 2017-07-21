@@ -1251,7 +1251,6 @@ class Flow(TembaModel):
             preferred_languages.append(self.org.primary_language.iso_code)
 
         preferred_languages.append(self.base_language)
-
         return Language.get_localized_text(text_translations, preferred_languages, default_text)
 
     def import_definition(self, flow_json):
@@ -5628,7 +5627,6 @@ class ReplyAction(Action):
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []
-
         if self.msg or self.media:
             user = get_flow_user(run.org)
 
@@ -5710,7 +5708,7 @@ class UssdAction(ReplyAction):
             ussd_action = cls(uuid=uuid, msg=msg, base_language=base_language, languages=org_languages,
                               primary_language=primary_language)
 
-            ussd_action.substitute_missing_languages()
+            ussd_action.substitute_missianguages()
 
             if ruleset.ruleset_type == cls.TYPE_WAIT_USSD_MENU:
                 ussd_action.add_menu_to_msg(rules)

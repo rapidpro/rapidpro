@@ -450,9 +450,9 @@ class Broadcast(models.Model):
             contact = recipient if isinstance(recipient, Contact) else recipient.contact
 
             # get the appropriate translation for this contact
-            text = self.get_translated_text(contact)
+            text = self.get_translated_text(contact, org)
 
-            media = self.get_translated_media(contact)
+            media = self.get_translated_media(contact, org)
             if media:
                 media_type, media_url = media.split(':')
 
