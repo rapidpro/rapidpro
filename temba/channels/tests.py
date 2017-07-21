@@ -39,6 +39,7 @@ from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLI
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, AnonymousOrg
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, datetime_to_str, get_anonymous_user
+from temba.utils.jiochat import JiochatClient
 from temba.utils.twitter import generate_twitter_signature
 from twilio import TwilioRestException
 from twilio.util import RequestValidator
@@ -2486,78 +2487,6 @@ class ChannelAlertTest(TembaTest):
 
 class ChannelClaimTest(TembaTest):
 
-    def test_external(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-
-        # should see the general channel claim page
-        response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, reverse('channels.channel_claim_external'))
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_external'))
-        post_data = response.context['form'].initial
-
-        url = 'http://test.com/send.php?from={{from}}&text={{text}}&to={{to}}'
-
-        post_data['number'] = '12345'
-        post_data['country'] = 'RW'
-        post_data['url'] = url
-        post_data['method'] = 'GET'
-        post_data['scheme'] = 'tel'
-        post_data['content_type'] = Channel.CONTENT_TYPE_JSON
-        post_data['max_length'] = 180
-
-        response = self.client.post(reverse('channels.channel_claim_external'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('RW', channel.country)
-        self.assertTrue(channel.uuid)
-        self.assertEquals(post_data['number'], channel.address)
-        self.assertEquals(post_data['url'], channel.config_json()[Channel.CONFIG_SEND_URL])
-        self.assertEquals(post_data['method'], channel.config_json()[Channel.CONFIG_SEND_METHOD])
-        self.assertEquals(post_data['content_type'], channel.config_json()[Channel.CONFIG_CONTENT_TYPE])
-        self.assertEquals(180, channel.config_json()[Channel.CONFIG_MAX_LENGTH])
-        self.assertEquals(Channel.TYPE_EXTERNAL, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('handlers.external_handler', args=['sent', channel.uuid]))
-        self.assertContains(response, reverse('handlers.external_handler', args=['delivered', channel.uuid]))
-        self.assertContains(response, reverse('handlers.external_handler', args=['failed', channel.uuid]))
-        self.assertContains(response, reverse('handlers.external_handler', args=['received', channel.uuid]))
-
-        # test substitution in our url
-        self.assertEqual('http://test.com/send.php?from=5080&text=test&to=%2B250788383383',
-                         channel.replace_variables(url, {'from': "5080", 'text': "test", 'to': "+250788383383"}))
-
-        # test substitution with unicode
-        self.assertEqual('http://test.com/send.php?from=5080&text=Reply+%E2%80%9C1%E2%80%9D+for+good&to=%2B250788383383',
-                         channel.replace_variables(url, {
-                             'from': "5080",
-                             'text': "Reply “1” for good",
-                             'to': "+250788383383"
-                         }))
-
-        # test substitution with XML encoding
-        body = "<xml>{{text}}</xml>"
-        self.assertEquals("<xml>Hello &amp; World</xml>",
-                          channel.replace_variables(body, dict(text="Hello & World"), Channel.CONTENT_TYPE_XML))
-
-        self.assertEquals("<xml>التوطين</xml>",
-                          channel.replace_variables(body, dict(text="التوطين"), Channel.CONTENT_TYPE_XML))
-
-        # test substitution with JSON encoding
-        body = "{ body: {{text}} }"
-        self.assertEquals("{ body: \"this is \\\"quote\\\"\" }",
-                          channel.replace_variables(body, dict(text="this is \"quote\""), Channel.CONTENT_TYPE_JSON))
-
     def test_clickatell(self):
         Channel.objects.all().delete()
 
@@ -3081,45 +3010,6 @@ class ChannelClaimTest(TembaTest):
         text = text_template.render(context)
 
         self.assertEquals(mail.outbox[1].body, text)
-
-    def test_claim_jiochat(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-        response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, reverse('channels.channel_claim_jiochat'))
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_jiochat'))
-        post_data = response.context['form'].initial
-
-        post_data['app_id'] = 'foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo'
-        post_data['app_secret'] = 'barbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbar'
-
-        response = self.client.post(reverse('channels.channel_claim_jiochat'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals(channel.config_json()[Channel.CONFIG_JIOCHAT_APP_ID], post_data['app_id'])
-        self.assertEquals(channel.config_json()[Channel.CONFIG_JIOCHAT_APP_SECRET], post_data['app_secret'])
-        self.assertEquals(channel.channel_type, Channel.TYPE_JIOCHAT)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('handlers.jiochat_handler', args=[channel.uuid]))
-        self.assertContains(response, channel.secret)
-
-        contact = self.create_contact('Jiochat User', urn=URN.from_jiochat('1234'))
-
-        # make sure we our jiochat channel satisfies as a send channel
-        response = self.client.get(reverse('contacts.contact_read', args=[contact.uuid]))
-        send_channel = response.context['send_channel']
-        self.assertIsNotNone(send_channel)
-        self.assertEqual(Channel.TYPE_JIOCHAT, send_channel.channel_type)
 
     def test_claim_macrokiosk(self):
         Channel.objects.all().delete()
@@ -9827,9 +9717,9 @@ class JiochatTest(TembaTest):
         super(JiochatTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_JIOCHAT, None, '1212',
-                                      config={Channel.CONFIG_JIOCHAT_APP_ID: 'app-id',
-                                              Channel.CONFIG_JIOCHAT_APP_SECRET: 'app-secret'},
+        self.channel = Channel.create(self.org, self.user, None, 'JC', None, '1212',
+                                      config={'jiochat_app_id': 'app-id',
+                                              'jiochat_app_secret': 'app-secret'},
                                       uuid='00000000-0000-0000-0000-000000001234',
                                       secret=Channel.generate_secret(32))
 
@@ -9844,7 +9734,7 @@ class JiochatTest(TembaTest):
             self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
 
             self.assertEqual(mock.call_count, 1)
-            channel_client = self.channel.get_jiochat_client()
+            channel_client = JiochatClient.from_channel(self.channel)
 
             self.assertIsNone(channel_client.get_access_token())
 
