@@ -144,6 +144,11 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         return self.attachment_support
 
+    def get_quick_replies(self, current_payload, params, text):
+        """
+        Method to get the payload to quick replies
+        """
+
     def __str__(self):
         return self.name
 

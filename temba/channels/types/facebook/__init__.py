@@ -51,20 +51,20 @@ class FacebookType(ChannelType):
         if trigger.trigger_type == Trigger.TYPE_NEW_CONVERSATION:
             self._set_call_to_action(trigger.channel, None)
 
-    def set_additional_params(self, current_payload, params, text):
+    def get_quick_replies(self, current_payload, params, text):
         params = json.loads(params)
         if params["quick_reply"]:
             current_payload['message']["text"] = text
             current_payload['message']["quick_replies"] = params["quick_reply"]
         elif params["buttons_reply"]:
-            # setting data to buttons replys with url
             buttons = params["buttons_reply"]
-            current_payload['message']['attachment'] = {}
-            current_payload['message']['attachment']["type"] = "template"
-            current_payload['message']['attachment']["payload"] = {
-                "template_type": "button",
-                "text": text,
-                "buttons": buttons
+            current_payload['message']['attachment'] = {
+                "type": "template",
+                "payload": {
+                    "template_type": "button",
+                    "text": text,
+                    "buttons": buttons
+                }
             }
         else:
             current_payload['message']['text'] = text
@@ -73,9 +73,10 @@ class FacebookType(ChannelType):
 
     def send(self, channel, msg, text):
         # build our payload
-        payload = {}
-        payload['message'] = {}
-        payload = self.set_additional_params(payload, msg.additional_params, text)
+        payload = {
+            'message': {}
+        }
+        payload = self.get_quick_replies(payload, msg.metadata, text)
 
         # this is a ref facebook id, temporary just for this message
         if URN.is_path_fb_ref(msg.urn_path):
