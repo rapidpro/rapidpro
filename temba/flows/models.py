@@ -5047,16 +5047,8 @@ class ReplyAction(Action):
         elif not msg:
             raise FlowException("Invalid reply action, no message")
 
-        langs = json_obj.get(cls.BUTTONS_REPLY)
-        if langs:
-            for lang in langs:
-                for button in langs[lang]:
-                    button_url = '%s' % button.get('url')
-                    if not button_url.startswith('http://') or not button_url.startswith('https://'):
-                        button['url'] = "http://%s" % button['url']
-
         return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None),
-                   quick_reply=json_obj.get(cls.QUICK_REPLY), buttons_reply=langs,
+                   quick_reply=json_obj.get(cls.QUICK_REPLY), buttons_reply=json_obj.get(cls.BUTTONS_REPLY),
                    send_all=json_obj.get(cls.SEND_ALL, False))
 
     def as_json(self):
