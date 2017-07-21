@@ -5677,13 +5677,14 @@ class UssdAction(ReplyAction):
     It builds localised text with localised USSD menu support
     """
     TYPE = 'ussd'
+    UUID = 'uuid'
     MESSAGE = 'ussd_message'
     TYPE_WAIT_USSD_MENU = 'wait_menu'
     TYPE_WAIT_USSD = 'wait_ussd'
     MSG_TYPE = MSG_TYPE_USSD
 
-    def __init__(self, msg=None, base_language=None, languages=None, primary_language=None):
-        super(UssdAction, self).__init__(msg)
+    def __init__(self, uuid=None, msg=None, base_language=None, languages=None, primary_language=None):
+        super(UssdAction, self).__init__(uuid, msg)
         self.languages = languages
         if msg and base_language and primary_language:
             self.base_language = base_language if base_language in msg else primary_language
@@ -5697,6 +5698,7 @@ class UssdAction(ReplyAction):
             obj = json.loads(ruleset.config)
             rules = json.loads(ruleset.rules)
             msg = obj.get(cls.MESSAGE, '')
+            uuid = obj.get(cls.UUID, six.text_type(uuid4()))
             org = run.flow.org
 
             # define languages
@@ -5705,7 +5707,7 @@ class UssdAction(ReplyAction):
             primary_language = getattr(getattr(org, 'primary_language', None), 'iso_code', None)
 
             # initialize UssdAction
-            ussd_action = cls(msg=msg, base_language=base_language, languages=org_languages,
+            ussd_action = cls(uuid=uuid, msg=msg, base_language=base_language, languages=org_languages,
                               primary_language=primary_language)
 
             ussd_action.substitute_missing_languages()
