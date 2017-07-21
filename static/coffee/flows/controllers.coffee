@@ -725,23 +725,24 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       if action.type in ["send", "reply", "say", "end_ussd"]
 
         fromText = action.msg[Flow.flow.base_language]
-        
 
         try 
           fromButtonsReply = action.buttons_reply[Flow.flow.base_language]
           fromQuickReply = action.quick_reply[Flow.flow.base_language] 
+
           toButtonsReply = action.buttons_reply[Flow.language.iso_code]
           toQuickReply = action.quick_reply[Flow.language.iso_code]
-                  
-          if typeof toButtonsReply == "undefined"
+
+          if typeof toButtonsReply == "undefined" && (fromButtonsReply != [] && fromButtonsReply?)
             toButtonsReply = []
             for obj in fromButtonsReply
               toButtonsReply.push({  url:obj.url, title:obj.title })
     
-          if typeof toQuickReply == "undefined"
+        
+          if typeof toQuickReply == "undefined" && (fromQuickReply != [] && fromQuickReply?)
             toQuickReply = []
             for obj in fromQuickReply
-              toQuickReply.push({  payload:obj.payload, title:obj.title })
+              toQuickReply.push({  title:obj.title, payload:obj.payload })
 
         catch 
           console.log('no have buttons and quicks')
@@ -749,8 +750,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           fromQuickReply = null
           toButtonsReply = null
           toQuickReply = null
-                  
-          
 
         resolveObj =
           languages: ->
@@ -775,18 +774,16 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             action.msg[Flow.language.iso_code] = translation.to
           else
             delete action.msg[Flow.language.iso_code]
-          try 
-            if translation.toButtonsReply.length > 0
-              action.buttons_reply[Flow.language.iso_code] = translation.toButtonsReply
-            else
-              delete action.buttons_reply[Flow.language.iso_code]
-
-            if translation.toQuickReply.length > 0
+          
+          if translation.toButtonsReply? && translation.toButtonsReply != []
+            action.buttons_reply[Flow.language.iso_code] = translation.toButtonsReply
+          else
+            action.buttons_reply[Flow.language.iso_code] = []
+            if translation.toQuickReply? && translation.toQuickReply != []
               action.quick_reply[Flow.language.iso_code] = translation.toQuickReply
             else
-              delete action.quick_reply[Flow.language.iso_code]
-          catch
-            console.log('another translation')
+              action.quick_reply[Flow.language.iso_code] = []
+          
 
           Flow.saveAction(actionset, action)
         , (-> $log.info "Modal dismissed at: " + new Date())
@@ -941,8 +938,6 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
 TranslationController = ($scope, $modalInstance, languages, translation) ->
   $scope.translation = translation
   $scope.languages = languages
-
-  $scope.patternUrl = /((http|https)\:\/\/)?[a-zA-Z0-9\.\/\?\:@\-_=#]+\.([a-zA-Z0-9\&\.\/\?\:@\-_=#])*/
 
   $scope.ok = (translation) ->
     $modalInstance.close translation
@@ -1938,7 +1933,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   # Saving a reply message in the flow
   $scope.saveMessage = (message, type='reply') ->
-  
+    console.log('heeere')
     if typeof($scope.action.msg) != "object"
       $scope.action.msg = {}
     $scope.action.msg[$scope.base_language] = message
@@ -1948,9 +1943,13 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     if typeof($scope.action.buttons_reply) != "object"
       $scope.action.buttons_reply = {}
-    
-    $scope.action.quick_reply[$scope.base_language] = $scope.actions_quick_reply
-    $scope.action.buttons_reply[$scope.base_language] = $scope.actions_buttons_reply
+
+    if $scope.actions_quick_reply.length > 0
+      $scope.action.quick_reply[$scope.base_language] = $scope.actions_quick_reply
+      $scope.action.buttons_reply= {}
+    else if $scope.actions_buttons_reply.length > 0
+      $scope.action.buttons_reply[$scope.base_language] = $scope.actions_buttons_reply
+      $scope.action.quick_reply = {}
       
     $scope.action.type = type
     Flow.saveAction(actionset, $scope.action)

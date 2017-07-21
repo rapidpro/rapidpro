@@ -60,7 +60,7 @@
           .modal-quick-reply-value  
             %input{ng-model:"response.title", ng-required:"true"} 
           .modal-quick-reply-value 
-            %input{ng-model:"response.url", ng-required:"true", ng-pattern:"patternUrl"} 
+            %input{ng-model:"response.url", ng-required:"true", ng-pattern:"/^(http[s]?:\/\/){0,1}(www\.){0,1}[a-zA-Z0-9\.\-]+\.[a-zA-Z]{2,5}[\.]{0,1}/"} 
           .icon.icon-close{ng-click:"removeElementArray(actions_buttons_reply, $index)"}
 
     %span{ng-if:'config.type == "end_ussd"'}

@@ -5073,9 +5073,8 @@ class ReplyAction(Action):
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
 
-            
             metadata = dict(
-                quick_reply=self.quick_reply if self.quick_reply else [],
+                quick_reply=run.flow.get_localized_text(self.quick_reply, run.contact) if self.quick_reply else [],
                 buttons_reply=run.flow.get_localized_text(self.buttons_reply, run.contact) if self.buttons_reply else []
             )
 

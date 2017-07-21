@@ -53,9 +53,13 @@ class FacebookType(ChannelType):
 
     def get_quick_replies(self, current_payload, params, text):
         params = json.loads(params)
+        
         if params["quick_reply"]:
             current_payload['message']["text"] = text
-            current_payload['message']["quick_replies"] = params["quick_reply"]
+            current_payload['message']["quick_replies"] = []
+            for reply in params["quick_reply"]:
+                current_payload['message']["quick_replies"].append(dict(title=reply.title, payload=reply.payload, content_type='text'))
+
         elif params["buttons_reply"]:
             buttons = params["buttons_reply"]
             current_payload['message']['attachment'] = {
@@ -63,9 +67,15 @@ class FacebookType(ChannelType):
                 "payload": {
                     "template_type": "button",
                     "text": text,
-                    "buttons": buttons
+                    "buttons": []
                 }
             }
+            for button in buttons:
+                current_payload['message']['attachment']["payload"]["buttons"].append({
+                    "title": button["title"],
+                    "url": button["url"],
+                    "type": "web_url"
+                })
         else:
             current_payload['message']['text'] = text
 

@@ -1328,6 +1328,13 @@ class Msg(models.Model):
 
         # returns tuple of output and errors
         return evaluate_template(text, context, url_encode, partial_vars)
+   
+    def get_translated_metadata(cls, contact, org=None):
+        """
+        Gets the appropriate metadata for the given contact
+        """
+        preferred_languages = Broadcast.get_preferred_languages(contact, org)
+        return Language.get_localized_text(cls.metadata, preferred_languages)
 
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,

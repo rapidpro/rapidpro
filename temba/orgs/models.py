@@ -2035,7 +2035,8 @@ class Language(SmartModel):
             localized = text_translations.get(lang)
             if localized is not None:
                 return localized
-
+            
+        print(default_text)
         return default_text
 
     def __str__(self):  # pragma: needs cover
