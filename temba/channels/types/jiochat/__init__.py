@@ -1,3 +1,3 @@
 from __future__ import unicode_literals, absolute_import
 
-from .type import LineType  # noqa
+from .type import JioChatType  # noqa

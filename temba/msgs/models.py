@@ -1450,6 +1450,9 @@ class Msg(models.Model):
         if channel:
             analytics.gauge('temba.msg_outgoing_%s' % channel.channel_type.lower())
 
+        if contact.is_stopped or contact.is_blocked:
+            status = FAILED
+
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,
                         org=org,

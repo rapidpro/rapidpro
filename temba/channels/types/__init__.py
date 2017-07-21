@@ -13,7 +13,7 @@ def register_channel_type(type_class):
     Registers a channel type
     """
     if not type_class.slug:
-        type_class.slug = type_class.__module__.split('.')[-1]
+        type_class.slug = type_class.__module__.split('.')[-2]
 
     if type_class.code in TYPES:  # pragma: no cover
         raise ValueError("More than channel type with code: %s" % type_class.code)
