@@ -2382,6 +2382,8 @@ class FacebookHandler(BaseChannelHandler):
 
                         content = None
                         postback = None
+                        referrer_id = None
+                        trigger_extra = None
 
                         if 'message' in envelope:
                             if 'text' in envelope['message']:
@@ -2400,6 +2402,9 @@ class FacebookHandler(BaseChannelHandler):
 
                         elif 'postback' in envelope:
                             postback = envelope['postback']['payload']
+                            if 'referral' in envelope['postback']:
+                                trigger_extra = envelope['postback']['referral']
+                                referrer_id = trigger_extra['ref']
 
                         # if we have some content, load the contact
                         if content or postback:
@@ -2431,8 +2436,17 @@ class FacebookHandler(BaseChannelHandler):
                                 contact = Contact.get_or_create(channel.org, channel.created_by,
                                                                 name=name, urns=[urn], channel=channel)
 
+                        if referrer_id:
+                            caught = Trigger.catch_triggers(contact, Trigger.TYPE_REFERRAL, channel,
+                                                            referrer_id=referrer_id, extra=trigger_extra)
+
+                            if caught:
+                                status.append("Triggered flow for ref: %s" % referrer_id)
+                            else:
+                                status.append("Ignored referral, no trigger for ref: %s" % referrer_id)
+
                         # we received a new message, create and handle it
-                        if content:
+                        elif content:
                             msg_date = datetime.fromtimestamp(envelope['timestamp'] / 1000.0).replace(tzinfo=pytz.utc)
                             msg = Msg.create_incoming(channel, urn, content, date=msg_date, contact=contact)
                             Msg.objects.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
