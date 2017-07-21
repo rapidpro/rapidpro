@@ -5708,7 +5708,7 @@ class UssdAction(ReplyAction):
             ussd_action = cls(uuid=uuid, msg=msg, base_language=base_language, languages=org_languages,
                               primary_language=primary_language)
 
-            ussd_action.substitute_missianguages()
+            ussd_action.substitute_missing_languages()
 
             if ruleset.ruleset_type == cls.TYPE_WAIT_USSD_MENU:
                 ussd_action.add_menu_to_msg(rules)
