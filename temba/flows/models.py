@@ -2871,16 +2871,9 @@ class FlowRun(models.Model):
             media_type, media_url = attachment.split(':', 1)
             attachments.append("%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url))
         try:
-
-            # stopped or blocked have their messages immediately failed
-            status = PENDING
-            if contact.is_stopped or contact.is_blocked:
-                status = FAILED
-
             return Msg.create_outgoing(self.org, user, recipient,
                                        text=event['text'],
                                        attachments=attachments,
-                                       status=status,
                                        channel=msg.channel if msg else None,
                                        created_on=iso8601.parse_date(event['created_on']),
                                        response_to=msg if msg and msg.id else None,
