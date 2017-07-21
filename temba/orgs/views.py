@@ -850,7 +850,9 @@ class OrgCRUDL(SmartCRUDL):
                                               help_text=_("The from email address, can contain a name: ex: Jane Doe <jane@example.org>"))
             smtp_host = forms.CharField(max_length=128, label=_("SMTP Host"), required=False)
             smtp_username = forms.CharField(max_length=128, label=_("Username"), required=False)
-            smtp_password = forms.CharField(max_length=128, label=_("Password"), required=False)
+            smtp_password = forms.CharField(max_length=128, label=_("Password"), required=False,
+                                            help_text=_("Leave blank to keep the existing set password if one exists"),
+                                            widget=forms.PasswordInput)
             smtp_port = forms.CharField(max_length=128, label=_("Port"), required=False)
             smtp_encryption = forms.ChoiceField(choices=(('', _("No encryption")),
                                                          ('T', _("Use TLS"))),
@@ -865,6 +867,11 @@ class OrgCRUDL(SmartCRUDL):
                     smtp_username = self.cleaned_data.get('smtp_username', None)
                     smtp_password = self.cleaned_data.get('smtp_password', None)
                     smtp_port = self.cleaned_data.get('smtp_port', None)
+
+                    config = self.instance.config_json()
+                    existing_username = config.get(SMTP_USERNAME, '')
+                    if not smtp_password and existing_username == smtp_username:
+                        smtp_password = config.get(SMTP_PASSWORD, '')
 
                     if not smtp_from_email:
                         raise ValidationError(_("You must enter a from email"))
@@ -885,6 +892,7 @@ class OrgCRUDL(SmartCRUDL):
                     if not smtp_port:
                         raise ValidationError(_("You must enter the SMTP port"))
 
+                    self.cleaned_data['smtp_password'] = smtp_password
                 return self.cleaned_data
 
             class Meta:

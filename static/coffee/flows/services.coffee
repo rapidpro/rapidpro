@@ -935,7 +935,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     # Updates a single source to a given target. Expects a source id and a target id.
     # Source can be a rule or an actionset id.
     updateDestination: (source, target) ->
-
       source = source.split('_')
 
       sourceNode = Flow.getNode(source[0])
@@ -1190,7 +1189,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     removeConnection: (connection) ->
       @updateDestination(connection.sourceId, null)
 
-    removeRuleset: (ruleset) ->
+    removeRuleset: (uuid) ->
 
       DragHelper.hide()
 
@@ -1201,13 +1200,13 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       $timeout ->
 
         # update our model to nullify rules that point to us
-        connections = Plumb.getConnectionMap({ target: ruleset.uuid })
+        connections = Plumb.getConnectionMap({ target: uuid })
         for source of connections
           Flow.updateDestination(source, null)
 
         # then remove us
         for rs, idx in flow.rule_sets
-          if rs.uuid == ruleset.uuid
+          if rs.uuid == uuid
             flow.rule_sets.splice(idx, 1)
             break
       ,0
