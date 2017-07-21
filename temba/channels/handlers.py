@@ -2307,13 +2307,21 @@ class FacebookHandler(BaseChannelHandler):
                 status = []
 
                 for envelope in entry['messaging']:
-                    if 'optin' in envelope:
+                    if 'optin' in envelope or 'referral' in envelope:
                         # check that the recipient is correct for this channel
                         channel_address = str(envelope['recipient']['id'])
                         if channel_address != channel.address:  # pragma: needs cover
                             return HttpResponse("Msg Ignored for recipient id: %s" % channel_address, status=200)
 
-                        referrer_id = envelope['optin'].get('ref')
+                        referrer_id = None
+                        trigger_extra = None
+
+                        if 'optin' in envelope:
+                            referrer_id = envelope['optin'].get('ref')
+                            trigger_extra = envelope['optin']
+                        elif 'referral' in envelope:
+                            referrer_id = envelope['referral'].get('ref')
+                            trigger_extra = envelope['referral']
 
                         # This is a standard opt in, we know the sender id:
                         #   https://developers.facebook.com/docs/messenger-platform/webhook-reference/optins
@@ -2354,7 +2362,7 @@ class FacebookHandler(BaseChannelHandler):
                                                             urns=[urn], channel=channel)
 
                         caught = Trigger.catch_triggers(contact, Trigger.TYPE_REFERRAL, channel,
-                                                        referrer_id=referrer_id, extra=envelope['optin'])
+                                                        referrer_id=referrer_id, extra=trigger_extra)
 
                         if caught:
                             status.append("Triggered flow for ref: %s" % referrer_id)
