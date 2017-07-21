@@ -2443,8 +2443,8 @@ class FlowTest(TembaTest):
         start = FlowStart.objects.get(flow=self.flow)
 
         # should be in a completed state
-        self.assertEquals(FlowStart.STATUS_COMPLETE, start.status)
         self.assertEquals(1, start.contact_count)
+        self.assertEquals(FlowStart.STATUS_COMPLETE, start.status)
 
         # do so again but don't restart the participants
         del post_data['restart_participants']

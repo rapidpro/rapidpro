@@ -1869,6 +1869,9 @@ class Flow(TembaModel):
         from temba.tests import ExcludeTestRunner
         if len(runs):
             ExcludeTestRunner.NEW_ENGINE_RUNS += 1
+            if flow_start:
+                flow_start.runs.add(*runs)
+                flow_start.update_status()
             return runs
         ExcludeTestRunner.LEGACY_ENGINE_RUNS += 1
 
