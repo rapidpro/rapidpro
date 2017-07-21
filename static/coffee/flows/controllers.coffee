@@ -714,7 +714,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     $('#' + action_uuid + "_audio")[0].play()
 
   $scope.clickAction = (actionset, action, dragSource=null) ->
-
     if window.dragging or not window.mutable
       return
 
@@ -726,9 +725,23 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       if action.type in ["send", "reply", "say", "end_ussd"]
 
         fromText = action.msg[Flow.flow.base_language]
-        fromButtons = action.buttons_reply[Flow.flow.base_language]
+        fromButtonsReply = action.buttons_reply[Flow.flow.base_language]
         fromQuickReply = action.quick_reply[Flow.flow.base_language]
-        
+
+
+        toButtonsReply: action.buttons_reply[Flow.language.iso_code]
+        toQuickReply: action.quick_reply[Flow.language.iso_code]
+
+        if typeof toButtonsReply == "undefined"
+          toButtonsReply = []
+          for obj in fromButtonsReply
+            toButtonsReply.push({  url:obj.url, title:obj.title })
+  
+        if typeof toQuickReply == "undefined"
+          toQuickReply = []
+          for obj in fromQuickReply
+            toQuickReply.push({  payload:obj.payload, title:obj.title })
+
         resolveObj =
           languages: ->
             from: Flow.flow.base_language
@@ -736,8 +749,10 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           translation: ->
             from: fromText
             to: action.msg[Flow.language.iso_code]
-            fromButtons: fromButtons
+            fromButtonsReply: fromButtonsReply
+            toButtonsReply: toButtonsReply
             fromQuickReply: fromQuickReply
+            toQuickReply: toQuickReply
 
         $scope.dialog = utils.openModal("/partials/translation_modal", TranslationController, resolveObj)
 
@@ -746,10 +761,22 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
         $scope.dialog.result.then (translation) ->
           action = utils.clone(action)
-          if translation and translation.strip().length > 0
-             action.msg[Flow.language.iso_code] = translation
+          console.log(translation)
+          if translation.to and translation.to.strip().length > 0
+            action.msg[Flow.language.iso_code] = translation.to
           else
             delete action.msg[Flow.language.iso_code]
+
+          if translation.toButtonsReply.length > 0
+            action.buttons_reply[Flow.language.iso_code] = translation.toButtonsReply
+          else
+            delete action.buttons_reply[Flow.language.iso_code]
+
+          if translation.toQuickReply.length > 0
+            action.quick_reply[Flow.language.iso_code] = translation.toQuickReply
+          else
+            delete action.quick_reply[Flow.language.iso_code]
+
           Flow.saveAction(actionset, action)
         , (-> $log.info "Modal dismissed at: " + new Date())
 
@@ -904,8 +931,10 @@ TranslationController = ($scope, $modalInstance, languages, translation) ->
   $scope.translation = translation
   $scope.languages = languages
 
-  $scope.ok = (translationText) ->
-    $modalInstance.close translationText
+  $scope.patternUrl = /((http|https)\:\/\/)?[a-zA-Z0-9\.\/\?\:@\-_=#]+\.([a-zA-Z0-9\&\.\/\?\:@\-_=#])*/
+
+  $scope.ok = (translation) ->
+    $modalInstance.close translation
 
   $scope.cancel = ->
     $modalInstance.dismiss "cancel"
@@ -1898,7 +1927,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   # Saving a reply message in the flow
   $scope.saveMessage = (message, type='reply') ->
-
+  
     if typeof($scope.action.msg) != "object"
       $scope.action.msg = {}
     $scope.action.msg[$scope.base_language] = message
@@ -1908,10 +1937,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     if typeof($scope.action.buttons_reply) != "object"
       $scope.action.buttons_reply = {}
-
+    
     $scope.action.quick_reply[$scope.base_language] = $scope.actions_quick_reply
     $scope.action.buttons_reply[$scope.base_language] = $scope.actions_buttons_reply
-    
+      
     $scope.action.type = type
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
@@ -2171,9 +2200,10 @@ TerminalWarningController = ($scope, $modalInstance, $log, actionset, flowContro
     $modalInstance.dismiss "cancel"
 
 
-AttachmentViewerController = ($scope, $modalInstance, action, type) ->
+AttachmentViewerController = ($scope, $modalInstance, action, type, Flow) ->
   $scope.action = action
   $scope.type = type
+  $scope.currentLang = Flow.language.iso_code
 
   $scope.cancel = ->
     $modalInstance.dismiss "cancel"

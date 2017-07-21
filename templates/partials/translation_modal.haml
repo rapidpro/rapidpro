@@ -17,44 +17,35 @@
         %label
           %textarea{ng-model:"translation.to",auto-complete:"",class:"translation"}
 
-
-        .quick-response{ng-show:"fromQuickReply.length"}
-          .modal-quick-response-header
-            .modal-quick-response-value
+          
+        .quick-reply{ng-show:"translation.toQuickReply.length"}
+          .modal-quick-reply-header
+            .modal-quick-reply-value
               -trans "Text"
-            .modal-quick-response-value
+            .modal-quick-reply-value
               -trans "Payload"
               
-          .modal-quick-response{ng-repeat:"response in translate.frofromQuickReply", class:""}
-            .translate-text.translate-from{ng-show:"translation.from"}
-              [[translation.from]]
-            .translate-text.translate-from{ng-show:"translation.from"}
-              [[translation.from]]  
-            .modal-quick-response-value  
+          .modal-quick-reply{ng-repeat:"response in translation.toQuickReply", class:""}
+            .modal-quick-reply-value  
               %input{ng-model:"response.title", ng-required:"true"} 
-            .modal-quick-response-value 
+            .modal-quick-reply-value 
               %input{ng-model:"response.payload", ng-required:"true"}
-            
-            .icon.icon-close{ng-click:"RemoveElementArray(actions_quick_responses, $index)"}
-          %a{ng-click:"AddNewQuickResponse()", class:"cursor-pointer", ng-hide:"actions_quick_responses.length == 3"}
-            -trans "Add new quick response"
-
-        // .quick-response{ng-show:"actions_buttons_reply.length"}
-        //   .modal-quick-response-header
-        //     .modal-quick-response-value
-        //       -trans "Text"
-        //     .modal-quick-response-value
-        //       -trans "Url"
               
-        //   .modal-quick-response{ng-repeat:"response in actions_buttons_reply", class:""}
-        //     .modal-quick-response-value  
-        //       %input{ng-model:"response.title", ng-required:"true"} 
-        //     .modal-quick-response-value 
-        //       %input{ng-model:"response.url", ng-required:"true", ng-pattern:"patternUrl"} 
-        //     .icon.icon-close{ng-click:"RemoveElementArray(actions_buttons_reply, $index)"}
+        .quick-reply{ng-show:"translation.toButtonsReply.length"}
+          .modal-quick-reply-header
+            .modal-quick-reply-value
+              -trans "Text"
+            .modal-quick-reply-value
+              -trans "Url"
+              
+          .modal-quick-reply{ng-repeat:"response in translation.toButtonsReply", class:""}
+            .modal-quick-reply-value  
+              %input{ng-model:"response.title", ng-required:"true"} 
+            .modal-quick-reply-value 
+              %input{ng-model:"response.url", ng-required:"true", ng-pattern:"patternUrl"} 
         
       .modal-footer
         %button{ng-click:"cancel()",class:"btn btn-secondary"}
           -trans "Cancel"
-        %button{ng-click:"ok(translation.to)",class:"btn btn-primary"}
+        %button{ng-click:"ok(translation)",class:"btn btn-primary"}
           -trans "Ok"
