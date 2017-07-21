@@ -7,6 +7,6 @@ if [ -z "$CELERY_BEAT" ]; then
 else
   nohup celery  --beat --app=temba  worker --loglevel=INFO --queues=celery --concurrency=$CELERY_WORKERS --logfile=/cel.out  &
   echo "Celery beat"
-  celery -A temba flower --port=5555
+  celery -A temba flower --port=5555 --url_prefix=flower
 fi
 #################       End Celery       #################
