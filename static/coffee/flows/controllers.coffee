@@ -725,22 +725,32 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       if action.type in ["send", "reply", "say", "end_ussd"]
 
         fromText = action.msg[Flow.flow.base_language]
-        fromButtonsReply = action.buttons_reply[Flow.flow.base_language]
-        fromQuickReply = action.quick_reply[Flow.flow.base_language]
+        
 
+        try 
+          fromButtonsReply = action.buttons_reply[Flow.flow.base_language]
+          fromQuickReply = action.quick_reply[Flow.flow.base_language] 
+          toButtonsReply = action.buttons_reply[Flow.language.iso_code]
+          toQuickReply = action.quick_reply[Flow.language.iso_code]
+                  
+          if typeof toButtonsReply == "undefined"
+            toButtonsReply = []
+            for obj in fromButtonsReply
+              toButtonsReply.push({  url:obj.url, title:obj.title })
+    
+          if typeof toQuickReply == "undefined"
+            toQuickReply = []
+            for obj in fromQuickReply
+              toQuickReply.push({  payload:obj.payload, title:obj.title })
 
-        toButtonsReply: action.buttons_reply[Flow.language.iso_code]
-        toQuickReply: action.quick_reply[Flow.language.iso_code]
-
-        if typeof toButtonsReply == "undefined"
-          toButtonsReply = []
-          for obj in fromButtonsReply
-            toButtonsReply.push({  url:obj.url, title:obj.title })
-  
-        if typeof toQuickReply == "undefined"
-          toQuickReply = []
-          for obj in fromQuickReply
-            toQuickReply.push({  payload:obj.payload, title:obj.title })
+        catch 
+          console.log('no have buttons and quicks')
+          fromButtonsReply = null
+          fromQuickReply = null
+          toButtonsReply = null
+          toQuickReply = null
+                  
+          
 
         resolveObj =
           languages: ->
@@ -766,16 +776,18 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             action.msg[Flow.language.iso_code] = translation.to
           else
             delete action.msg[Flow.language.iso_code]
+          try 
+            if translation.toButtonsReply.length > 0
+              action.buttons_reply[Flow.language.iso_code] = translation.toButtonsReply
+            else
+              delete action.buttons_reply[Flow.language.iso_code]
 
-          if translation.toButtonsReply.length > 0
-            action.buttons_reply[Flow.language.iso_code] = translation.toButtonsReply
-          else
-            delete action.buttons_reply[Flow.language.iso_code]
-
-          if translation.toQuickReply.length > 0
-            action.quick_reply[Flow.language.iso_code] = translation.toQuickReply
-          else
-            delete action.quick_reply[Flow.language.iso_code]
+            if translation.toQuickReply.length > 0
+              action.quick_reply[Flow.language.iso_code] = translation.toQuickReply
+            else
+              delete action.quick_reply[Flow.language.iso_code]
+          catch
+            console.log('none')
 
           Flow.saveAction(actionset, action)
         , (-> $log.info "Modal dismissed at: " + new Date())
