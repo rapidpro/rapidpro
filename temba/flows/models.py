@@ -1597,7 +1597,8 @@ class Flow(TembaModel):
                 broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
                                              media=send_action.media,
                                              base_language=self.base_language,
-                                             send_all=send_action.send_all)
+                                             send_all=send_action.send_all,
+                                             metadata=json.dumps(send_action.metadata))
                 broadcast.update_contacts(all_contact_ids)
 
                 # manually set our broadcast status to QUEUED, our sub processes will send things off for us
@@ -1692,7 +1693,7 @@ class Flow(TembaModel):
                 # create the sms messages
                 created_on = timezone.now()
                 broadcast.send(message_context=message_context, trigger_send=False,
-                               response_to=start_msg, status=INITIALIZING, msg_type=FLOW,
+                               response_to=start_msg, status=INITIALIZING, msg_type=FLOW, metadata=broadcast.metadata,
                                created_on=created_on, partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
@@ -5026,13 +5027,16 @@ class ReplyAction(Action):
     SEND_ALL = 'send_all'
     QUICK_REPLY = 'quick_reply'
     BUTTONS_REPLY = 'buttons_reply'
+    METADATA = 'metadata'
 
-    def __init__(self, msg=None, media=None, quick_reply=None, buttons_reply=None, send_all=False):
+    def __init__(self, msg=None, media=None, quick_reply=None, buttons_reply=None, send_all=False, metadata=None):
         self.msg = msg
         self.media = media if media else {}
         self.send_all = send_all
         self.quick_reply = quick_reply if quick_reply else []
         self.buttons_reply = buttons_reply if buttons_reply else []
+        self.metadata = dict(buttons_reply=self.buttons_reply, quick_reply=self.quick_reply) \
+            if buttons_reply or quick_reply else {}
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5056,11 +5060,11 @@ class ReplyAction(Action):
 
         return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None),
                    quick_reply=json_obj.get(cls.QUICK_REPLY), buttons_reply=buttons,
-                   send_all=json_obj.get(cls.SEND_ALL, False))
+                   send_all=json_obj.get(cls.SEND_ALL, False), metadata=json_obj.get(cls.METADATA))
 
     def as_json(self):
         return dict(type=self.TYPE, msg=self.msg, media=self.media, quick_reply=self.quick_reply,
-                    buttons_reply=self.buttons_reply, send_all=self.send_all)
+                    buttons_reply=self.buttons_reply, send_all=self.send_all, metadata=self.metadata)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []
@@ -5071,13 +5075,6 @@ class ReplyAction(Action):
             text = ''
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
-
-            metadata = dict(
-                quick_reply=self.quick_reply if self.quick_reply else [],
-                buttons_reply=self.buttons_reply if self.buttons_reply else []
-            )
-
-            metadata = json.dumps(metadata)
 
             attachments = None
             if self.media:
@@ -5096,12 +5093,13 @@ class ReplyAction(Action):
 
             if msg:
                 replies = msg.reply(text, user, trigger_send=False, message_context=context,
-                                    session=run.session, msg_type=self.MSG_TYPE, metadata=metadata,
+                                    session=run.session, msg_type=self.MSG_TYPE, metadata=json.dumps(self.metadata),
                                     attachments=attachments, send_all=self.send_all, created_on=created_on)
             else:
                 replies = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                           session=run.session, msg_type=self.MSG_TYPE, metadata=metadata,
-                                           attachments=attachments, created_on=created_on, all_urns=self.send_all)
+                                           session=run.session, msg_type=self.MSG_TYPE,
+                                           metadata=json.dumps(self.metadata), attachments=attachments,
+                                           created_on=created_on, all_urns=self.send_all)
         return replies
 
 

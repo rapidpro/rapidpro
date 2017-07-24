@@ -228,8 +228,11 @@ class Broadcast(models.Model):
     send_all = models.BooleanField(default=False,
                                    help_text="Whether this broadcast should send to all URNs for each contact")
 
+    metadata = models.TextField(null=True, help_text=_("The metadata for any type msgs"))
+
     @classmethod
-    def create(cls, org, user, text, recipients, base_language=None, channel=None, media=None, send_all=False, **kwargs):
+    def create(cls, org, user, text, recipients, base_language=None, channel=None, media=None, send_all=False,
+               metadata=None, **kwargs):
         # for convenience broadcasts can still be created with single translation and no base_language
         if isinstance(text, six.string_types):
             base_language = org.primary_language.iso_code if org.primary_language else 'base'
@@ -242,7 +245,7 @@ class Broadcast(models.Model):
 
         broadcast = cls.objects.create(org=org, channel=channel, send_all=send_all,
                                        base_language=base_language, text=text, media=media,
-                                       created_by=user, modified_by=user, **kwargs)
+                                       created_by=user, modified_by=user, metadata=metadata, **kwargs)
         broadcast.update_recipients(recipients)
         return broadcast
 
@@ -388,7 +391,7 @@ class Broadcast(models.Model):
         return Language.get_localized_text(self.media, preferred_languages)
 
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
-             created_on=None, partial_recipients=None, run_map=None):
+             created_on=None, partial_recipients=None, run_map=None, metadata=None):
         """
         Sends this broadcast by creating outgoing messages for each recipient.
         """
@@ -485,7 +488,8 @@ class Broadcast(models.Model):
                                           insert_object=False,
                                           attachments=[media] if media else None,
                                           priority=priority,
-                                          created_on=created_on)
+                                          created_on=created_on,
+                                          metadata=metadata)
 
             except UnreachableException:
                 # there was no way to reach this contact, do not create a message
