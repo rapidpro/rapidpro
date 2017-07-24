@@ -2436,21 +2436,17 @@ class FacebookHandler(BaseChannelHandler):
                                 contact = Contact.get_or_create(channel.org, channel.created_by,
                                                                 name=name, urns=[urn], channel=channel)
 
-                        if referrer_id:
-                            caught = Trigger.catch_triggers(contact, Trigger.TYPE_REFERRAL, channel,
-                                                            referrer_id=referrer_id, extra=trigger_extra)
-
-                            if caught:
-                                status.append("Triggered flow for ref: %s" % referrer_id)
-                            else:
-                                status.append("Ignored referral, no trigger for ref: %s" % referrer_id)
-
                         # we received a new message, create and handle it
-                        elif content:
+                        if content:
                             msg_date = datetime.fromtimestamp(envelope['timestamp'] / 1000.0).replace(tzinfo=pytz.utc)
                             msg = Msg.create_incoming(channel, urn, content, date=msg_date, contact=contact)
                             Msg.objects.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
                             status.append("Msg %d accepted." % msg.id)
+
+                        # conversation started with a referrer_id that catches a trigger
+                        elif referrer_id and Trigger.catch_triggers(contact, Trigger.TYPE_REFERRAL, channel,
+                                                                    referrer_id=referrer_id, extra=trigger_extra):
+                            status.append("Triggered flow for ref: %s" % referrer_id)
 
                         # a contact pressed "Get Started", trigger any new conversation triggers
                         elif postback == 'get_started':
