@@ -13,6 +13,7 @@ from django_redis import get_redis_connection
 from django.db import transaction
 from django.test import TransactionTestCase
 from django.contrib.auth.models import User
+from celery import current_app
 from mock import patch
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME, URN
@@ -30,6 +31,8 @@ from .management.commands.msg_console import MessageConsole
 from .tasks import squash_labelcounts, clear_old_msg_external_ids, purge_broadcasts_task
 from .templatetags.sms import as_icon
 from temba.locations.models import AdminBoundary
+from temba.msgs import models
+from temba.utils.queues import DEFAULT_PRIORITY
 
 
 class MsgTest(TembaTest):
@@ -2189,9 +2192,8 @@ class CeleryTaskTest(TransactionTestCase):
             self.fail(fullmsg)
 
     def test_reply_task_added(self):
-        from celery import current_app
         send_task_orig = current_app.send_task
-        orig_push_tasks = Msg.push_tasks
+        orig_push_task = models.push_task
 
         settings.CELERY_ALWAYS_EAGER = False
         settings.SEND_MESSAGES = True
@@ -2203,14 +2205,13 @@ class CeleryTaskTest(TransactionTestCase):
             # monkey patch the regular send_task with our method
             current_app.send_task = new_send_task
 
-            @classmethod
-            def new_push_tasks(cls, tasks_to_push):
-                orig_push_tasks(tasks_to_push)
+            def new_push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
+                orig_push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY)
 
                 self.assertInDB(msg1)
                 self.assert_task_sent('send_msg_task')
 
-            Msg.push_tasks = new_push_tasks
+            models.push_task = new_push_task
 
             with transaction.atomic():
                 msg1 = Msg.create_outgoing(self.org, self.user, self.joe, "Hello, we heard from you.", channel=self.channel)
@@ -2219,8 +2220,8 @@ class CeleryTaskTest(TransactionTestCase):
 
         finally:
             # Reset the monkey patch to the original method
-            Msg.push_tasks = orig_push_tasks
             current_app.send_task = send_task_orig
+            models.push_task = orig_push_task
 
             settings.CELERY_ALWAYS_EAGER = True
             settings.SEND_MESSAGES = False
