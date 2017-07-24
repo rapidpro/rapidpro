@@ -53,7 +53,6 @@ class FacebookType(ChannelType):
 
     def get_quick_replies(self, current_payload, params, text):
         params = json.loads(params)
-        
         if params["quick_reply"]:
             current_payload['message']["text"] = text
             current_payload['message']["quick_replies"] = []

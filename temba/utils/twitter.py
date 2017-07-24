@@ -171,6 +171,14 @@ class TembaTwython(Twython):  # pragma: no cover
         """
         return self.post('account_activity/webhooks/%s/subscriptions.json' % webhook_id)
 
+    def send_direct_message_with_events(self, params):
+        """
+        Send a direct message with events for the provided user context.
+
+        Docs: https://dev.twitter.com/rest/reference/post/direct_messages/events/new
+        """
+        return self.post('direct_messages/events/new.json', params=params)
+
 
 def generate_twitter_signature(content, consumer_secret):
     token = hmac.new(bytes(consumer_secret.encode('ascii')), msg=content, digestmod=hashlib.sha256).digest()
