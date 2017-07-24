@@ -1594,11 +1594,14 @@ class Flow(TembaModel):
             # check that we either have text or media, available for the base language
             if (send_action.msg and send_action.msg.get(self.base_language)) or (send_action.media and send_action.media.get(self.base_language)):
 
+                metadata = json.dumps(dict(buttons_reply=send_action.buttons_reply,
+                                           quick_reply=send_action.quick_reply))
+
                 broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
                                              media=send_action.media,
                                              base_language=self.base_language,
                                              send_all=send_action.send_all,
-                                             metadata=json.dumps(send_action.metadata))
+                                             metadata=metadata)
                 broadcast.update_contacts(all_contact_ids)
 
                 # manually set our broadcast status to QUEUED, our sub processes will send things off for us
@@ -5027,16 +5030,13 @@ class ReplyAction(Action):
     SEND_ALL = 'send_all'
     QUICK_REPLY = 'quick_reply'
     BUTTONS_REPLY = 'buttons_reply'
-    METADATA = 'metadata'
 
-    def __init__(self, msg=None, media=None, quick_reply=None, buttons_reply=None, send_all=False, metadata=None):
+    def __init__(self, msg=None, media=None, quick_reply=None, buttons_reply=None, send_all=False):
         self.msg = msg
         self.media = media if media else {}
         self.send_all = send_all
         self.quick_reply = quick_reply if quick_reply else []
         self.buttons_reply = buttons_reply if buttons_reply else []
-        self.metadata = dict(buttons_reply=self.buttons_reply, quick_reply=self.quick_reply) \
-            if buttons_reply or quick_reply else {}
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5053,11 +5053,11 @@ class ReplyAction(Action):
 
         return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None),
                    quick_reply=json_obj.get(cls.QUICK_REPLY), buttons_reply=json_obj.get(cls.BUTTONS_REPLY),
-                   send_all=json_obj.get(cls.SEND_ALL, False), metadata=json_obj.get(cls.METADATA))
+                   send_all=json_obj.get(cls.SEND_ALL, False))
 
     def as_json(self):
         return dict(type=self.TYPE, msg=self.msg, media=self.media, quick_reply=self.quick_reply,
-                    buttons_reply=self.buttons_reply, send_all=self.send_all, metadata=self.metadata)
+                    buttons_reply=self.buttons_reply, send_all=self.send_all)
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []
