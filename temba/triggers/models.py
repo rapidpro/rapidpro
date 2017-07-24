@@ -275,7 +275,11 @@ class Trigger(SmartModel):
             triggers = triggers.filter(models.Q(channel=channel) | models.Q(channel=None))
 
         if referrer_id is not None:
-            triggers = triggers.filter(referrer_id=referrer_id)
+            triggers = triggers.filter(models.Q(referrer_id=referrer_id) | models.Q(referrer_id=''))
+
+            # if we catch more than one trigger with a referrer_id, ignore the catchall
+            if len(triggers) > 1:
+                triggers = triggers.exclude(referrer_id='')
 
         # is there a match for a group specific trigger?
         group_ids = contact.user_groups.values_list('pk', flat=True)
