@@ -11,14 +11,13 @@ class FlowServerException(Exception):
 
 
 class Output(object):
-    def __init__(self, contact, session, log):
-        self.contact = contact
+    def __init__(self, session, log):
         self.session = session
         self.log = log
 
     @classmethod
     def from_json(cls, output_json):
-        return cls(output_json['contact'], output_json['session'], output_json.get('log', []))
+        return cls(output_json['session'], output_json.get('log', []))
 
 
 class FlowServerClient:

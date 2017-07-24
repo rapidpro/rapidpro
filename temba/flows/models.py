@@ -145,13 +145,15 @@ class FlowSession(ChannelSession):
         sessions.update(is_active=False, modified_on=timezone.now())
 
     @classmethod
-    def create_server_request(cls, org, contact, msg_in):
+    def create_server_request(cls, org, flows, msg_in):
         languages = [org.primary_language.iso_code] if org.primary_language else []
 
         return {
             'environment': {'timezone': six.text_type(org.timezone), 'languages': languages},
-            'channels': [ch.as_goflow_json() for ch in org.channels.filter(is_active=True)],
-            'contact': contact.as_goflow_json(),
+            'assets': {
+                'channels': [ch.as_goflow_json() for ch in org.channels.filter(is_active=True)],
+                'flows': flows
+            },
             'events': [msg_in.as_goflow_json()] if msg_in else []
         }
 
@@ -178,10 +180,13 @@ class FlowSession(ChannelSession):
         runs = []
         for contact in contacts:
             # build request to flow server
-            request = cls.create_server_request(contact.org, contact, msg_in)
-            request['flows'] = flows
+            request = cls.create_server_request(contact.org, flows, msg_in)
+
+            request['contact'] = contact.as_goflow_json()
+            request['flow_uuid'] = str(flow.uuid)
 
             output = goflow.get_client().start(request)
+            del output.session['contact']
 
             # see if we are still active
             active = False
@@ -280,11 +285,13 @@ class FlowSession(ChannelSession):
         if not flows:
             raise ValueError("Session flows have been modified and are no longer supported by goflow")
 
-        request = self.create_server_request(self.org, self.contact, msg_in)
-        request['flows'] = flows
+        request = self.create_server_request(self.org, flows, msg_in)
+
         request['session'] = self.as_json()
+        request['session']['contact'] = self.contact.as_goflow_json()  # put contact back in the session
 
         output = goflow.get_client().resume(request)
+        del output.session['contact']
 
         # apply our events
         # update our session
@@ -2751,7 +2758,7 @@ class FlowRun(models.Model):
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
 
     @classmethod
-    def create_or_update_from_goflow(cls, session, contact, run_output, run_log, msg_in, broadcasts=[]):
+    def create_or_update_from_goflow(cls, session, contact, run_output, run_log, msg_in, broadcasts=()):
         """
         Creates or updates a flow run from the given output returned from goflow
         """
@@ -2830,7 +2837,7 @@ class FlowRun(models.Model):
 
         return run
 
-    def apply_events(self, run_log, msg_in=None, broadcasts=[]):
+    def apply_events(self, run_log, msg_in=None, broadcasts=()):
         msgs_to_send = []
         msgs_by_step = defaultdict(list)
 
