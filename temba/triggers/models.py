@@ -169,8 +169,8 @@ class Trigger(SmartModel):
             if self.referrer_id:
                 matches = matches.filter(referrer_id=self.referrer_id)
 
-            # if this trigger has a channel, only archive others with the same channel except for referral type
-            if self.channel and not self.trigger_type == Trigger.TYPE_REFERRAL:
+            # if this trigger has a channel, only archive others with the same channel
+            if self.channel:
                 matches = matches.filter(channel=self.channel)
 
             # archive any conflicting triggers
