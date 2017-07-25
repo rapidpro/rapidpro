@@ -56,7 +56,7 @@ class FacebookType(ChannelType):
         # Now we build an option  message
         payload = {'message': {'text': text}}
         #if 'pruebaprueba' in text:
-        options = re.compile("(?<!^)\s+(?=[0-9])(?!.\s)").split(text)
+        options = re.compile("(?<!^)\s+(?=[0-9]+[:\)\.])(?!.\s)").split(text)
         if len(options) > 1:
             list_dic = [{"content_type":"text",
                         "title":t,
