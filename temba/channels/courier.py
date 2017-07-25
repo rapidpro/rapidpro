@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import time
+import json
 from django_redis import get_redis_connection
+from temba.utils import datetime_to_str
 
 
 def push_courier_msgs(channel, msgs, is_bulk=False):
@@ -9,6 +11,7 @@ def push_courier_msgs(channel, msgs, is_bulk=False):
     """
     r = get_redis_connection('default')
     priority = COURIER_BULK_PRIORITY if is_bulk else COURIER_DEFAULT_PRIORITY
+    tps = channel.tps if channel.tps else COURIER_DEFAULT_TPS
 
     # create our payload
     payload = []
@@ -16,7 +19,19 @@ def push_courier_msgs(channel, msgs, is_bulk=False):
         payload.append(msg_as_task(msg))
 
     # call our lua script
-    r.eval(LUA_PUSH, 6, int(round(time.time() * 1000)), 'msgs', channel.uuid, channel.tps, priority, payload)
+    get_script(r)(keys=(time.time(), 'msgs', channel.uuid, tps, priority, json.dumps(payload)), client=r)
+
+
+_script = None
+
+
+def get_script(r):
+    global _script
+    if _script:
+        return _script
+
+    _script = r.register_script(LUA_PUSH)
+    return _script
 
 
 def msg_as_task(msg):
@@ -41,11 +56,11 @@ def msg_as_task(msg):
                     response_to_id=msg.response_to_id,
                     external_id=msg.external_id,
 
-                    next_attempt=msg.next_attempt,
-                    created_on=msg.created_on,
-                    modified_on=msg.modified_on,
-                    queued_on=msg.queued_on,
-                    sent_on=msg.sent_on)
+                    next_attempt=datetime_to_str(msg.next_attempt, ms=True),
+                    created_on=datetime_to_str(msg.created_on, ms=True),
+                    modified_on=datetime_to_str(msg.modified_on, ms=True),
+                    queued_on=datetime_to_str(msg.queued_on, ms=True),
+                    sent_on=datetime_to_str(msg.sent_on, ms=True))
 
     if msg.contact_urn.auth:
         msg_json['contact_urn_auth'] = msg.contact_urn.auth
@@ -55,6 +70,7 @@ def msg_as_task(msg):
 
 COURIER_DEFAULT_PRIORITY = 1
 COURIER_BULK_PRIORITY = 0
+COURIER_DEFAULT_TPS = 50
 
 
 # Our lua script for properly inserting items to a courier queue

@@ -796,13 +796,14 @@ class Msg(models.Model):
                     task_msgs = []
 
                 # ok, now push our courier msgs
+                task_priority = None
                 for msg in courier_msgs:
                     if task_msgs and (last_contact != msg.contact_id or last_channel != msg.channel_id):
-                        push_courier_msgs(task_msgs[0].channel, task_msgs, task_priority != Msg.DEFAULT_PRIORITY)
+                        push_courier_msgs(task_msgs[0].channel, task_msgs, task_priority != Msg.PRIORITY_NORMAL)
                         task_msgs = []
 
-                    if msg.priority != Msg.BULK_PRIORITY:
-                        task_priority = Msg.DEFAULT_PRIORITY
+                    if msg.priority != Msg.PRIORITY_BULK:
+                        task_priority = Msg.PRIORITY_NORMAL
 
                     last_contact = msg.contact_id
                     last_channel = msg.channel_id
@@ -810,7 +811,7 @@ class Msg(models.Model):
 
                 # push any remaining courier msgs
                 if task_msgs:
-                    push_courier_msgs(task_msgs[0].channel, task_msgs, task_priority != Msg.DEFAULT_PRIORITY)
+                    push_courier_msgs(task_msgs[0].channel, task_msgs, task_priority != Msg.PRIORITY_NORMAL)
 
     @classmethod
     def process_message(cls, msg):
