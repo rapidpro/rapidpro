@@ -170,7 +170,11 @@ class FlowSession(ChannelSession):
         runs = []
         for contact in contacts:
             # build request to flow server
-            request = client.request_builder().include_channels(channels).include_flows(flows).set_contact(contact)
+            request = client.request_builder()\
+                .include_channels(channels)\
+                .include_flows(flows)\
+                .set_environment(flow.org)\
+                .set_contact(contact)
             if msg_in:
                 request = request.set_input(msg_in)
 
@@ -278,12 +282,15 @@ class FlowSession(ChannelSession):
         client = goflow.get_client()
 
         # build request to flow server
-        request = client.request_builder().include_channels(channels).include_flows(flows)
+        request = client.request_builder()\
+            .include_channels(channels)\
+            .include_flows(flows)
         if msg_in:
             request = request.set_input(msg_in)
 
-        # TODO determine if contact has changed
+        # TODO determine if contact or environment has changed
         request = request.set_contact(self.contact)
+        request = request.set_environment(self.org)
 
         output = request.resume(self.as_json())
 

@@ -32,7 +32,14 @@ class RequestBuilder(object):
     def set_environment(self, org):
         languages = [org.primary_language.iso_code] if org.primary_language else []
 
-        self.request['environment'] = {'timezone': six.text_type(org.timezone), 'languages': languages}
+        self.request['events'].append({
+            'type': "set_environment",
+            'created_on': datetime_to_str(now()),
+            'date_format': "dd-MM-yyyy" if org.date_format == 'D' else "MM-dd-yyyy",
+            'time_format': "hh:mm",
+            'timezone': six.text_type(org.timezone),
+            'languages': languages
+        })
         return self
 
     def set_input(self, msg):
