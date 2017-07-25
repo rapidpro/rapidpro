@@ -104,6 +104,14 @@ class RequestBuilder(object):
         })
         return self
 
+    def set_extra(self, extra):
+        self.request['events'].append({
+            'type': "set_extra",
+            'created_on': datetime_to_str(now()),
+            'extra': extra
+        })
+        return self
+
     def start(self, flow):
         self.request['flow_uuid'] = str(flow.uuid)
 
