@@ -55,13 +55,14 @@ class FacebookType(ChannelType):
         # build our payload
         # Now we build an option  message
         payload = {'message': {'text': text}}
-        if 'pruebaprueba' in text:
-            options = re.compile("(?<!^)\s+(?=[0-9])(?!.\s)").split(text)
-            if len(options) > 1:
-                list_dic = [{"content_type":"text",
-                            "title":t,
-                            "payload":t} for t in options[1:]]
-                payload = {'message': {'text': text,'quick_replies' : list_dic}}
+        #if 'pruebaprueba' in text:
+        options = re.compile("(?<!^)\s+(?=[0-9])(?!.\s)").split(text)
+        if len(options) > 1:
+            list_dic = [{"content_type":"text",
+                        "title":t,
+                        "payload":re.findall(r'^\D*(\d+)', t)
+                        } for t in options[1:]]
+            payload = {'message': {'text': options[0],'quick_replies' : list_dic}}
 
         # this is a ref facebook id, temporary just for this message
         if URN.is_path_fb_ref(msg.urn_path):
