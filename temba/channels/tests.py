@@ -9638,11 +9638,15 @@ class FacebookTest(TembaTest):
 
     def test_referrals_params(self):
         # create two triggers for referrals
-        flow = self.get_flow('favorites')
+        favorites = self.get_flow('favorites')
+        pick = self.get_flow('pick_a_number')
+
         Trigger.objects.create(org=self.org, trigger_type=Trigger.TYPE_REFERRAL, referrer_id='join',
-                               flow=flow, created_by=self.admin, modified_by=self.admin)
+                               flow=favorites, created_by=self.admin, modified_by=self.admin)
         Trigger.objects.create(org=self.org, trigger_type=Trigger.TYPE_REFERRAL, referrer_id='signup',
-                               flow=flow, created_by=self.admin, modified_by=self.admin)
+                               flow=favorites, created_by=self.admin, modified_by=self.admin)
+        Trigger.objects.create(org=self.org, trigger_type=Trigger.TYPE_REFERRAL, referrer_id='',
+                               flow=pick, created_by=self.admin, modified_by=self.admin)
 
         callback_url = reverse('handlers.facebook_handler', args=[self.channel.uuid])
 
@@ -9671,6 +9675,27 @@ class FacebookTest(TembaTest):
         contact1 = Contact.objects.get(org=self.org, urns__path='1122')
         self.assertEqual("What is your favorite color?", contact1.msgs.all().first().text)
 
+        # check if catchall trigger starts a different flow
+        referral = """
+        {
+          "referral": {
+            "ref": "not_handled",
+            "source": "SHORTLINK",
+            "type": "OPEN_THREAD"
+          }
+        }
+        """
+        del data['entry'][0]['messaging'][0]['referral']
+        data['entry'][0]['messaging'][0].update(json.loads(referral))
+        response = self.client.post(callback_url, json.dumps(data).replace('PAGE_ID', '1234'),
+                                    content_type='application/json')
+        self.assertEqual(200, response.status_code)
+        self.assertEqual('{"status": ["Triggered flow for ref: not_handled"]}', response.content)
+
+        # check that the user started the flow
+        contact1 = Contact.objects.get(org=self.org, urns__path='1122')
+        self.assertEqual("Pick a number between 1-10.", contact1.msgs.all().first().text)
+
         # check referral params in postback
         postback = """
         {
@@ -9686,8 +9711,6 @@ class FacebookTest(TembaTest):
         """
         del data['entry'][0]['messaging'][0]['referral']
         data['entry'][0]['messaging'][0].update(json.loads(postback))
-
-        print(json.dumps(data))
         response = self.client.post(callback_url, json.dumps(data).replace('PAGE_ID', '1234'), content_type='application/json')
         self.assertEqual(200, response.status_code)
         self.assertEqual('{"status": ["Triggered flow for ref: signup"]}', response.content)
