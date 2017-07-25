@@ -65,7 +65,8 @@ class TwitterType(ChannelType):
         if metadata.get('quick_reply'):
             quick_replies = metadata.get('quick_reply')
             for quick_reply in quick_replies:
-                data["event"]["message_create"]["message_data"]["quick_reply"]["options"].append({ "label": quick_reply["title"], "metadata": quick_reply["payload"] })
+                data["event"]["message_create"]["message_data"]["quick_reply"]["options"].append(
+                    { "label": quick_reply["title"], "metadata": quick_reply["payload"] })
         else:
             pass
             

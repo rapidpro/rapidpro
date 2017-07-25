@@ -2861,17 +2861,39 @@ class Channel(TembaModel):
 
         external_id = response.json().get('message_token', None)
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
+    
+    def get_context_metadata(msg, text):
+        metadata = json.loads(msg.metadata)
+        data = dict(auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
+                        receiver=msg.urn_path,
+                        text=text,
+                        type='text',
+                        tracking_data=msg.id,
+                        keyboard=dict(Type="keyboard", DefaultHeight=True, Buttons=list())
+                        )
+        if metadata.get('quick_reply'):
+            quick_replies = metadata.get('quick_reply')
+            for quick_reply in quick_replies:
+                data["keyboad"]["Buttons"]["message_data"]["quick_reply"]["options"].append(
+                    { "Text": quick_reply["title"], "ActionBody": quick_reply["payload"], "ActionType":"reply", "TextSize":"regular" })
+        else:
+            pass
+            
+        return data
 
     @classmethod
     def send_viber_public_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         url = 'https://chatapi.viber.com/pa/send_message'
-        payload = dict(auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
-                       receiver=msg.urn_path,
-                       text=text,
-                       type='text',
-                       tracking_data=msg.id)
+        if hasattr(msg, 'metadata'):
+            payload = cls.get_context_metadata(msg, text)
+        else:
+            payload = dict(auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
+                        receiver=msg.urn_path,
+                        text=text,
+                        type='text',
+                        tracking_data=msg.id)
 
         event = HttpEvent('POST', url, json.dumps(payload))
 
