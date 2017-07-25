@@ -6341,6 +6341,20 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEquals(5, len(flow_json['action_sets']))
         self.assertEquals(1, len(flow_json['rule_sets']))
 
+    def test_migrate_to_11(self):
+        favorites = self.get_flow('favorites')
+
+        # make sure all of our actions have uuids set
+        for actionset in favorites.action_sets.all():
+            for action in actionset.get_actions():
+                self.assertIsNotNone(action.uuid)
+
+        # since actions can generate their own uuids, lets make sure fetching from the databse yields the same uuids
+        exported = favorites.as_json()
+        flow = Flow.objects.filter(name='Favorites').first()
+        self.assertEqual(exported, flow.as_json())
+        self.assertTrue(flow.version_number >= 11)
+
     @override_settings(SEND_WEBHOOKS=True)
     def test_migrate_to_10(self):
         # this is really just testing our rewriting of webhook rulesets

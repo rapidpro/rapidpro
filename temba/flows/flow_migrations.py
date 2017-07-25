@@ -11,11 +11,24 @@ from temba.utils.expressions import migrate_template
 from uuid import uuid4
 
 
+def migrate_to_version_11(json_flow, flow):
+    """
+    Ensures all actions have uuids
+    """
+    for actionset in json_flow['action_sets']:
+        for action in actionset['actions']:
+            uuid = action.get('uuid', None)
+            if not uuid:
+                action['uuid'] = six.text_type(uuid4())
+    return json_flow
+
+
 def migrate_to_version_10(json_flow, flow):
     """
     Looks for webhook ruleset_types, adding success and failure cases and moving
     webhook_action and webhook to config
     """
+
     def replace_webhook_ruleset(ruleset, base_lang):
         # not a webhook? delete any turds of webhook or webhook_action
         if ruleset.get('ruleset_type', None) != 'webhook':
@@ -41,10 +54,12 @@ def migrate_to_version_10(json_flow, flow):
         rules = []
         for status in ['success', 'failure']:
             # maintain our rule uuid for the success case
-            rule_uuid = old_rule_uuid if status == 'success' else six.text_type(uuid4())
-            new_rule = dict(test=dict(status=status, type='webhook_status'),
-                            category={base_lang: status.capitalize()},
-                            uuid=rule_uuid)
+            rule_uuid = old_rule_uuid if status == 'success' else six.text_type(
+                uuid4())
+            new_rule = dict(
+                test=dict(status=status, type='webhook_status'),
+                category={base_lang: status.capitalize()},
+                uuid=rule_uuid)
 
             if destination:
                 new_rule['destination'] = destination
@@ -75,7 +90,8 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     """
 
     def replace(str, match, replace):
-        rexp = regex.compile(match, flags=regex.MULTILINE | regex.UNICODE | regex.V0)
+        rexp = regex.compile(
+            match, flags=regex.MULTILINE | regex.UNICODE | regex.V0)
 
         # replace until no matches found
         matches = 1
@@ -88,11 +104,14 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
 
     # any references to @extra.flow are now just @parent
     exported_string = replace(exported_string, '@(extra\.flow)', '@parent')
-    exported_string = replace(exported_string, '(@\(.*?)extra\.flow(.*?\))', r'\1parent\2')
+    exported_string = replace(exported_string, '(@\(.*?)extra\.flow(.*?\))',
+                              r'\1parent\2')
 
     # any references to @extra.contact are now @parent.contact
-    exported_string = replace(exported_string, '@(extra\.contact)', '@parent.contact')
-    exported_string = replace(exported_string, '(@\(.*?)extra\.contact(.*?\))', r'\1parent.contact\2')
+    exported_string = replace(exported_string, '@(extra\.contact)',
+                              '@parent.contact')
+    exported_string = replace(exported_string, '(@\(.*?)extra\.contact(.*?\))',
+                              r'\1parent.contact\2')
 
     exported_json = json.loads(exported_string)
 
@@ -110,7 +129,12 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
             id_map[obj_id] = uuid
         return uuid
 
-    def replace_with_uuid(ele, manager, id_map, nested_name=None, obj=None, create_dict=False):
+    def replace_with_uuid(ele,
+                          manager,
+                          id_map,
+                          nested_name=None,
+                          obj=None,
+                          create_dict=False):
         # deal with case of having only a string and no name
         if isinstance(ele, six.string_types) and create_dict:
             # variable references should just stay put
@@ -153,7 +177,8 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
 
     def remap_group(ele):
         from temba.contacts.models import ContactGroup
-        return replace_with_uuid(ele, ContactGroup.user_groups, group_id_map, create_dict=True)
+        return replace_with_uuid(
+            ele, ContactGroup.user_groups, group_id_map, create_dict=True)
 
     def remap_campaign(ele):
         from temba.campaigns.models import Campaign
@@ -163,8 +188,10 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
         from temba.campaigns.models import CampaignEvent
         event = None
         if same_site:
-            event = CampaignEvent.objects.filter(pk=ele['id'], campaign__org=org).first()
-        replace_with_uuid(ele, CampaignEvent.objects, campaign_event_id_map, obj=event)
+            event = CampaignEvent.objects.filter(
+                pk=ele['id'], campaign__org=org).first()
+        replace_with_uuid(
+            ele, CampaignEvent.objects, campaign_event_id_map, obj=event)
 
     def remap_contact(ele):
         from temba.contacts.models import Contact
@@ -185,7 +212,8 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     for flow in exported_json.get('flows', []):
         for action_set in flow['action_sets']:
             for action in action_set['actions']:
-                if action['type'] in ('add_group', 'del_group', 'send', 'trigger-flow'):
+                if action['type'] in ('add_group', 'del_group', 'send',
+                                      'trigger-flow'):
                     groups = []
                     for group_json in action.get('groups', []):
                         groups.append(remap_group(group_json))
@@ -234,13 +262,15 @@ def migrate_to_version_9(json_flow, flow):
     from temba.flows.models import Flow
     if Flow.METADATA not in json_flow:
         json_flow[Flow.METADATA] = flow.get_metadata()
-    return migrate_export_to_version_9(dict(flows=[json_flow]), flow.org)['flows'][0]
+    return migrate_export_to_version_9(
+        dict(flows=[json_flow]), flow.org)['flows'][0]
 
 
 def migrate_to_version_8(json_flow, flow=None):
     """
     Migrates any expressions found in the flow definition to use the new @(...) syntax
     """
+
     def migrate_node(node):
         if isinstance(node, six.string_types):
             return migrate_template(node)
@@ -328,19 +358,24 @@ def migrate_to_version_6(json_flow, flow=None):
                 # betweens haven't always required a category name, create one
                 rule_test = rule['test']
                 if rule_test['type'] == 'between' and 'category' not in rule:
-                    rule['category'] = '%s-%s' % (rule_test['min'], rule_test['max'])
+                    rule['category'] = '%s-%s' % (rule_test['min'],
+                                                  rule_test['max'])
 
                 # convert the category name
                 convert_to_dict(rule, 'category')
 
                 # convert our localized types
-                if (rule['test']['type'] in [ContainsTest.TYPE, ContainsAnyTest.TYPE,
-                                             StartsWithTest.TYPE, RegexTest.TYPE]):
+                if (rule['test']['type'] in [
+                        ContainsTest.TYPE, ContainsAnyTest.TYPE,
+                        StartsWithTest.TYPE, RegexTest.TYPE
+                ]):
                     convert_to_dict(rule['test'], 'test')
 
         for actionset in definition.get('action_sets'):
             for action in actionset.get('actions'):
-                if action['type'] in [SendAction.TYPE, ReplyAction.TYPE, SayAction.TYPE]:
+                if action['type'] in [
+                        SendAction.TYPE, ReplyAction.TYPE, SayAction.TYPE
+                ]:
                     convert_to_dict(action, 'msg')
                 if action['type'] == SayAction.TYPE:
                     if 'recording' in action:
@@ -413,7 +448,8 @@ def migrate_to_version_5(json_flow, flow=None):
                         # if it's not a plain split, make us wait and create
                         # an expression split node to handle our response
                         pausing_ruleset = copy.deepcopy(ruleset)
-                        pausing_ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
+                        pausing_ruleset[
+                            'ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
                         pausing_ruleset['operand'] = '@step.value'
                         pausing_ruleset['label'] = label + ' Response'
                         remove_extra_rules(definition, pausing_ruleset)
@@ -456,6 +492,7 @@ def migrate_to_version_5(json_flow, flow=None):
 
 
 # ================================ Helper methods for flow migrations ===================================
+
 
 def get_entry(json_flow):
     """
