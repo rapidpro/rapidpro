@@ -972,30 +972,6 @@ class Msg(models.Model):
                     created_on=self.created_on.strftime('%x %X'),
                     model="msg")
 
-    def as_goflow_json(self):
-        """
-        Msg in the format for our flow server
-        """
-
-        urn = None
-        if self.contact_urn:
-            urn = self.contact_urn.urn
-
-        # simulation doesn't have a channel
-        channel_uuid = None
-        if self.channel:
-            channel_uuid = str(self.channel.uuid)
-
-        return {
-            'type': "msg_received",
-            'urn': urn,
-            'created_on': datetime_to_str(self.created_on),
-            'text': self.text,
-            'attachments': [],
-            'contact_uuid': str(self.contact.uuid),
-            'channel_uuid': channel_uuid
-        }
-
     def simulator_json(self):
         msg_json = self.as_json()
         msg_json['text'] = escape(self.text).replace('\n', "<br/>")

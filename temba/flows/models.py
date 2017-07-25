@@ -145,19 +145,6 @@ class FlowSession(ChannelSession):
         sessions.update(is_active=False, modified_on=timezone.now())
 
     @classmethod
-    def create_server_request(cls, org, flows, msg_in):
-        languages = [org.primary_language.iso_code] if org.primary_language else []
-
-        return {
-            'environment': {'timezone': six.text_type(org.timezone), 'languages': languages},
-            'assets': {
-                'channels': [ch.as_goflow_json() for ch in org.channels.filter(is_active=True)],
-                'flows': flows
-            },
-            'events': [msg_in.as_goflow_json()] if msg_in else []
-        }
-
-    @classmethod
     def start(cls, contacts, flow, broadcasts=None, msg_in=None):
         """
         Starts a contact in the given flow
@@ -177,16 +164,17 @@ class FlowSession(ChannelSession):
         Contact.bulk_cache_initialize(flow.org, contacts)
         # fields = ContactField.objects.filter(org=flow.org)
 
+        channels = list(flow.org.channels.filter(is_active=True))
+        client = goflow.get_client()
+
         runs = []
         for contact in contacts:
             # build request to flow server
-            request = cls.create_server_request(contact.org, flows, msg_in)
+            request = client.request_builder().include_channels(channels).include_flows(flows).set_contact(contact)
+            if msg_in:
+                request = request.set_input(msg_in)
 
-            request['contact'] = contact.as_goflow_json()
-            request['flow_uuid'] = str(flow.uuid)
-
-            output = goflow.get_client().start(request)
-            del output.session['contact']
+            output = request.start(flow)
 
             # see if we are still active
             active = False
@@ -226,29 +214,28 @@ class FlowSession(ChannelSession):
         return runs
 
     def update(self, output, msg_in):
-
-        events = output.log
-        output = output.session
-
+        """
+        Resumes an existing flow session
+        """
         active = False
-        if len(output['runs']) > 0:
-            active = output['runs'][0]['status'] == 'active'
+        if len(output.session['runs']) > 0:
+            active = output.session['runs'][0]['status'] == 'active'
 
         # update our output
-        self.output = json.dumps(output)
+        self.output = json.dumps(output.session)
         self.is_active = active
         self.modified_on = timezone.now()
         self.save(update_fields=['output', 'is_active', 'modified_on'])
 
         step_to_run = {}
-        for run in output['runs']:
+        for run in output.session['runs']:
             for step in run['path']:
                 step_to_run[step['uuid']] = run['uuid']
 
         # update each of our runs
         first_run = None
-        for run in output['runs']:
-            run_events = [event for event in events if step_to_run[event['step_uuid']] == run['uuid']]
+        for run in output.session['runs']:
+            run_events = [event for event in output.log if step_to_run[event['step_uuid']] == run['uuid']]
             run = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_events, msg_in)
 
             if not first_run:
@@ -258,7 +245,9 @@ class FlowSession(ChannelSession):
             ActionLog.create(first_run, '%s has exited this flow' % self.contact.get_display(self.org, short=True))
 
     def resume(self, msg_in):
-
+        """
+        Resumes an existing flow session
+        """
         if not settings.FLOW_SERVER_URL:
             return False, []
 
@@ -285,15 +274,19 @@ class FlowSession(ChannelSession):
         if not flows:
             raise ValueError("Session flows have been modified and are no longer supported by goflow")
 
-        request = self.create_server_request(self.org, flows, msg_in)
+        channels = list(flow.org.channels.filter(is_active=True))
+        client = goflow.get_client()
 
-        request['session'] = self.as_json()
-        request['session']['contact'] = self.contact.as_goflow_json()  # put contact back in the session
+        # build request to flow server
+        request = client.request_builder().include_channels(channels).include_flows(flows)
+        if msg_in:
+            request = request.set_input(msg_in)
 
-        output = goflow.get_client().resume(request)
-        del output.session['contact']
+        # TODO determine if contact has changed
+        request = request.set_contact(self.contact)
 
-        # apply our events
+        output = request.resume(self.as_json())
+
         # update our session
         self.update(output, msg_in)
 
