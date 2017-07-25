@@ -1427,7 +1427,7 @@ class Channel(TembaModel):
         payload['content'] = text
 
         if channel.secret is not None:
-            payload['event_auth'] = {"Authorization": "Token %s" % channel.secret}
+            payload['event_auth_token'] = channel.secret
 
         if is_ussd:
             session = USSDSession.objects.get_session_with_status_only(msg.session_id)

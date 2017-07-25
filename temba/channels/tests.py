@@ -9087,8 +9087,8 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 
             # manually send it off
             self.channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-            self.assertEqual(mock.call_args[1]['json']['event_auth'],
-                             {"Authorization": "Token UjOq8ATo2PDS6L08t6vlqSoK"})
+            self.assertEqual(mock.call_args[1]['json']['event_auth_token'],
+                             "UjOq8ATo2PDS6L08t6vlqSoK")
 
 
 class MbloxTest(TembaTest):
