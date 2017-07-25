@@ -29,7 +29,7 @@ from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, \
     LINE_SCHEME, JIOCHAT_SCHEME
-from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING
+from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING, QUEUED
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME, FCM_SCHEME
 from temba.ivr.models import IVRCall
@@ -11139,3 +11139,30 @@ class FcmTest(TembaTest):
                                              timeout=5)
 
                 self.clear_cache()
+
+
+class CourierTest(TembaTest):
+    def test_queue_to_courier(self):
+        with self.settings(COURIER_CHANNELS=['TG']):
+            self.channel.channel_type = 'TG'
+            self.channel.scheme = TELEGRAM_SCHEME
+            self.channel.save()
+
+            # create some outgoing messages for our channel
+            msg = Msg.create_outgoing(self.org, self.admin, 'telegram:12345', "Outgoing message")
+            Msg.send_messages([msg])
+
+            # we should have been queued to our courier queues and our msg should be marked as such
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, QUEUED)
+
+            # check against redis
+            r = get_redis_connection()
+
+            # should have our channel in the active queue
+            queue_name = "msgs:" + self.channel.uuid + "|50"
+            self.assertEqual(1, r.zcard("msgs:active"))
+            self.assertEqual(0, r.zrank("msgs:active", queue_name))
+
+            # and our msg added to the channel queue
+            self.assertEqual(1, r.zcard(queue_name + "/1"))
