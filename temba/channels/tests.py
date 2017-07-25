@@ -9670,7 +9670,7 @@ class FacebookTest(TembaTest):
         # check that the user started the flow
         contact1 = Contact.objects.get(org=self.org, urns__path='1122')
         self.assertEqual("What is your favorite color?", contact1.msgs.all().first().text)
-        
+
         # check referral params in postback
         postback = """
         {
