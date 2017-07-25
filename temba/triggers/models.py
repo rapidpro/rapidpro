@@ -275,7 +275,7 @@ class Trigger(SmartModel):
             triggers = triggers.filter(models.Q(channel=channel) | models.Q(channel=None))
 
         if referrer_id is not None:
-            triggers = triggers.filter(models.Q(referrer_id=referrer_id) | models.Q(referrer_id=''))
+            triggers = triggers.filter(models.Q(referrer_id__iexact=referrer_id) | models.Q(referrer_id=''))
 
             # if we catch more than one trigger with a referrer_id, ignore the catchall
             if len(triggers) > 1:

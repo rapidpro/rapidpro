@@ -314,7 +314,7 @@ class ReferralTriggerForm(BaseTriggerForm):
         ref_id = cleaned_data.get('referrer_id', '').strip()
         channel = cleaned_data.get('channel')
         existing = Trigger.objects.filter(org=self.user.get_org(), trigger_type=Trigger.TYPE_REFERRAL,
-                                          is_active=True, is_archived=False, referrer_id=ref_id)
+                                          is_active=True, is_archived=False, referrer_id__iexact=ref_id)
         if self.instance:
             existing = existing.exclude(pk=self.instance.pk)
 

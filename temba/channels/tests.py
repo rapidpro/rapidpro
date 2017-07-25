@@ -9656,7 +9656,7 @@ class FacebookTest(TembaTest):
           "recipient": { "id": "PAGE_ID" },
           "timestamp": 1234567890,
           "referral": {
-            "ref": "join",
+            "ref": "JOIN",
             "source": "SHORTLINK",
             "type": "OPEN_THREAD"
           }
