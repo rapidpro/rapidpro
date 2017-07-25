@@ -468,46 +468,6 @@ class Contact(TembaModel):
         """
         return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
-    def as_goflow_json(self):
-        """
-        Generates a JSON represention for use with the goflow engine
-        """
-
-        # TODO include fields
-        #   "fields": {
-        #     "gender": {
-        #       "field_uuid": "501d8dc4-3fb7-45c1-acb8-626f87535a99",
-        #       "field_name": "Gender",
-        #       "value": "Male"
-        #     }
-
-        # only include language if it's valid org language
-        if self.language and self.language in self.org.get_language_codes():
-            language = self.language
-        else:
-            language = None
-
-        from temba.msgs.models import Msg
-        _contact, contact_urn = Msg.resolve_recipient(self.org, None, self, None)
-
-        # only populate channel if this contact can actually be reached (ie, has a URN)
-        channel_uuid = None
-        if contact_urn:
-            channel = self.org.get_send_channel(contact_urn=contact_urn)
-            if channel:
-                channel_uuid = channel.uuid
-
-        return {
-            'uuid': self.uuid,
-            'name': self.name,
-            'urns': [urn.urn for urn in self.urns.all()],
-            'groups': [{"uuid": group.uuid, "name": group.name} for group in self.user_groups.all()],
-            'timezone': "UTC",
-            'language': language,
-            'fields': {},
-            'channel_uuid': channel_uuid
-        }
-
     def as_json(self):
         obj = dict(id=self.pk, name=six.text_type(self), uuid=self.uuid)
 
