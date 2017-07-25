@@ -5117,7 +5117,7 @@ class UssdAction(ReplyAction):
     TYPE_WAIT_USSD = 'wait_ussd'
     MSG_TYPE = MSG_TYPE_USSD
 
-    def __init__(self, uuid, msg=None, base_language=None, languages=None, primary_language=None):
+    def __init__(self, uuid=None, msg=None, base_language=None, languages=None, primary_language=None):
         super(UssdAction, self).__init__(uuid, msg)
         self.languages = languages
         if msg and base_language and primary_language:
