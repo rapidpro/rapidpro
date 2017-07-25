@@ -201,7 +201,7 @@ class FlowSession(ChannelSession):
             # create each of our runs
             for run in output.session['runs']:
                 # filter our list of events by run
-                run_log = [entry for entry in output.log if step_to_run[entry['step_uuid']] == run['uuid']]
+                run_log = [entry for entry in output.log if step_to_run[entry.step_uuid] == run['uuid']]
                 run = FlowRun.create_or_update_from_goflow(session, contact, run, run_log, msg_in, broadcasts)
                 runs.append(run)
 
@@ -241,7 +241,7 @@ class FlowSession(ChannelSession):
         # update each of our runs
         first_run = None
         for run in output.session['runs']:
-            run_events = [event for event in output.log if step_to_run[event['step_uuid']] == run['uuid']]
+            run_events = [event for event in output.log if step_to_run[event.step_uuid] == run['uuid']]
             run = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_events, msg_in)
 
             if not first_run:
@@ -2843,23 +2843,22 @@ class FlowRun(models.Model):
         msgs_to_send = []
         msgs_by_step = defaultdict(list)
 
-        for item in run_log:
-            event = item['event']
-            if event['type'] == Event.TYPE_SEND_MSG:
-                msg = self.apply_send_msg(event, msg_in)
+        for entry in run_log:
+            if entry.event['type'] == Event.TYPE_SEND_MSG:
+                msg = self.apply_send_msg(entry.event, msg_in)
                 if msg:
                     # filter our broadcasts by action uuid that generated us
-                    action_uuid = item.get('action_uuid', None)
+                    action_uuid = entry.action_uuid
                     if action_uuid and broadcasts:
                         for broadcast in [b for b in broadcasts if six.text_type(b.action_uuid) == action_uuid]:
                             broadcast.msgs.add(msg)
 
                     msgs_to_send.append(msg)
-                    msgs_by_step[item["step_uuid"]].append(msg)
+                    msgs_by_step[entry.step_uuid].append(msg)
             else:
-                apply_func = getattr(self, 'apply_%s' % event['type'], None)
+                apply_func = getattr(self, 'apply_%s' % entry.event['type'], None)
                 if apply_func:
-                    apply_func(event, msg_in)
+                    apply_func(entry.event, msg_in)
 
         # send our messages
         self.org.trigger_send(msgs_to_send)
