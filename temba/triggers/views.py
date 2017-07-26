@@ -350,13 +350,11 @@ class UssdTriggerForm(BaseTriggerForm):
 
         return keyword
 
-    def clean(self):
-        data = super(UssdTriggerForm, self).clean()
-        keyword = data.get('keyword', '').strip()
-        existing = Trigger.objects.filter(org=self.user.get_org(), keyword__iexact=keyword, is_archived=False, is_active=True)
-        channel = data.get('channel')
-        if channel:
-            existing = existing.filter(channel=channel)
+    def get_existing_triggers(self, cleaned_data):
+        keyword = cleaned_data.get('keyword', '').strip()
+        existing = Trigger.objects.filter(org=self.user.get_org(), keyword__iexact=keyword, is_archived=False,
+                                          is_active=True)
+        existing = existing.filter(channel=cleaned_data['channel'])
 
         if self.instance:
             existing = existing.exclude(id=self.instance.id)
