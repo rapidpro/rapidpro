@@ -25,7 +25,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.flows.models import Flow, ActionSet
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
@@ -1472,6 +1472,31 @@ class OrgTest(TembaTest):
         self.assertEquals(self.org.name, "Temba")
         self.assertTrue(self.org.has_smtp_config())
 
+        self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
+                                               smtp_host='smtp.example.com',
+                                               smtp_username='support@example.com',
+                                               smtp_password='',
+                                               smtp_port='465',
+                                               smtp_encryption='T',
+                                               disconnect='false'), follow=True)
+
+        # password shouldn't change
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.has_smtp_config())
+        self.assertEquals(self.org.config_json()['SMTP_PASSWORD'], 'secret')
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
+                                                          smtp_host='smtp.example.com',
+                                                          smtp_username='help@example.com',
+                                                          smtp_password='',
+                                                          smtp_port='465',
+                                                          smtp_encryption='T',
+                                                          disconnect='false'), follow=True)
+
+        # should have error for blank password
+        self.assertEquals('[{"message": "You must enter the SMTP password", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
         self.client.post(smtp_server_url, dict(disconnect='true'), follow=True)
 
         self.org.refresh_from_db()
@@ -1873,8 +1898,6 @@ class AnonOrgTest(TembaTest):
         self.org.save()
 
     def test_contacts(self):
-        from temba.contacts.models import ContactURN
-
         # are there real phone numbers on the contact list page?
         contact = self.create_contact(None, "+250788123123")
         self.login(self.admin)
@@ -1897,7 +1920,7 @@ class AnonOrgTest(TembaTest):
         self.assertNotContains(response, "123123")
 
         # create a flow
-        flow = self.create_flow()
+        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
 
         # start the contact down it
         flow.start([], [contact])

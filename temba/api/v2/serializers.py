@@ -791,11 +791,12 @@ class MsgReadSerializer(ReadSerializer):
     channel = fields.ChannelField()
     direction = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
-    media = serializers.SerializerMethodField()
+    attachments = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     archived = serializers.SerializerMethodField()
     visibility = serializers.SerializerMethodField()
     labels = fields.LabelField(many=True)
+    media = serializers.SerializerMethodField()  # deprecated
 
     def get_broadcast(self, obj):
         return obj.broadcast_id
@@ -810,6 +811,9 @@ class MsgReadSerializer(ReadSerializer):
         # PENDING and QUEUED are same as far as users are concerned
         return self.STATUSES.get(QUEUED if obj.status == PENDING else obj.status)
 
+    def get_attachments(self, obj):
+        return [a.as_json() for a in obj.get_attachments()]
+
     def get_media(self, obj):
         return obj.attachments[0] if obj.attachments else None
 
@@ -823,7 +827,7 @@ class MsgReadSerializer(ReadSerializer):
         model = Msg
         fields = ('id', 'broadcast', 'contact', 'urn', 'channel',
                   'direction', 'type', 'status', 'archived', 'visibility', 'text', 'labels',
-                  'media', 'created_on', 'sent_on', 'modified_on')
+                  'attachments', 'created_on', 'sent_on', 'modified_on', 'media')
 
 
 class MsgBulkActionSerializer(WriteSerializer):

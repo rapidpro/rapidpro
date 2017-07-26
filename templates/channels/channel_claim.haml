@@ -648,23 +648,6 @@
             .claim-description
               %div= ch_type.get_claim_blurb
 
-    .claim-row.telegram-channel
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_telegram' %}"}
-            .btn-container
-              .claim-glyph.icon-telegram
-              %p.claim-text
-                -trans "Telegram"
-
-        .span9
-          .claim-description
-            %div
-              -blocktrans
-                Add a <a href="https://telegram.org">Telegram</a> bot to send and receive messages to Telegram users
-                for free. Your users will need an Android, Windows or iOS device and a Telegram account to send
-                and receive messages.
-
     .claim-row.viber-channel
       .row
         .span3
