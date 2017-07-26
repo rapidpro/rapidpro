@@ -667,7 +667,7 @@ class TriggerTest(TembaTest):
         self.assertNotContains(response, "conversation is started")
 
         # add a viber public channel
-        viber_channel = Channel.create(self.org, self.user, None, Channel.TYPE_VIBER_PUBLIC, None, '1001',
+        viber_channel = Channel.create(self.org, self.user, None, 'VP', None, '1001',
                                        uuid='00000000-0000-0000-0000-000000001234',
                                        config={Channel.CONFIG_AUTH_TOKEN: "auth_token"})
 
@@ -794,7 +794,7 @@ class TriggerTest(TembaTest):
     def test_catch_all_trigger(self):
         self.login(self.admin)
         catch_all_trigger = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_CATCH_ALL).first()
-        flow = self.create_flow()
+        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
 
         contact = self.create_contact("Ali", "250788739305")
 

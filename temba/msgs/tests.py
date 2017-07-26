@@ -985,7 +985,7 @@ class BroadcastTest(TembaTest):
     def test_send(self):
         # remove all channels first
         for channel in Channel.objects.all():
-            channel.release(notify_mage=False)
+            channel.release()
 
         send_url = reverse('msgs.broadcast_send')
         self.login(self.admin)
@@ -1032,7 +1032,7 @@ class BroadcastTest(TembaTest):
 
         # test with one channel now
         for channel in Channel.objects.all():
-            channel.release(notify_mage=False)
+            channel.release()
 
         Channel.create(self.org, self.user, None, 'A', None, secret="12345", gcm_id="123")
 
@@ -1103,7 +1103,7 @@ class BroadcastTest(TembaTest):
         self.assertTrue(msgs[0].contact, twitter_contact)
 
         # remove twitter relayer
-        self.twitter.release(trigger_sync=False, notify_mage=False)
+        self.twitter.release(trigger_sync=False)
 
         # send another broadcast to all
         broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", recipients)
@@ -1834,7 +1834,7 @@ class ConsoleTest(TembaTest):
         self.john = self.create_contact("John Doe", "0788123123")
 
         # create a flow and set "color" as its trigger
-        self.flow = self.create_flow()
+        self.flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
         Trigger.objects.create(flow=self.flow, keyword="color", created_by=self.admin, modified_by=self.admin, org=self.org)
 
     def assertEchoed(self, needle, clear=True):

@@ -25,7 +25,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.flows.models import Flow, ActionSet
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
@@ -1472,6 +1472,31 @@ class OrgTest(TembaTest):
         self.assertEquals(self.org.name, "Temba")
         self.assertTrue(self.org.has_smtp_config())
 
+        self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
+                                               smtp_host='smtp.example.com',
+                                               smtp_username='support@example.com',
+                                               smtp_password='',
+                                               smtp_port='465',
+                                               smtp_encryption='T',
+                                               disconnect='false'), follow=True)
+
+        # password shouldn't change
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.has_smtp_config())
+        self.assertEquals(self.org.config_json()['SMTP_PASSWORD'], 'secret')
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
+                                                          smtp_host='smtp.example.com',
+                                                          smtp_username='help@example.com',
+                                                          smtp_password='',
+                                                          smtp_port='465',
+                                                          smtp_encryption='T',
+                                                          disconnect='false'), follow=True)
+
+        # should have error for blank password
+        self.assertEquals('[{"message": "You must enter the SMTP password", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
+
         self.client.post(smtp_server_url, dict(disconnect='true'), follow=True)
 
         self.org.refresh_from_db()
@@ -1873,8 +1898,6 @@ class AnonOrgTest(TembaTest):
         self.org.save()
 
     def test_contacts(self):
-        from temba.contacts.models import ContactURN
-
         # are there real phone numbers on the contact list page?
         contact = self.create_contact(None, "+250788123123")
         self.login(self.admin)
@@ -1897,7 +1920,7 @@ class AnonOrgTest(TembaTest):
         self.assertNotContains(response, "123123")
 
         # create a flow
-        flow = self.create_flow()
+        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
 
         # start the contact down it
         flow.start([], [contact])
@@ -3050,10 +3073,14 @@ class TestStripeCredits(TembaTest):
         self.assertEqual(1, self.org.topups.all().count())
         self.assertEqual(1000, self.org.get_credits_total())
 
+    @patch('stripe.Customer.create')
     @patch('stripe.Customer.retrieve')
     @patch('stripe.Charge.create')
     @override_settings(SEND_EMAILS=True)
-    def test_add_credits_existing_customer(self, charge_create, customer_retrieve):
+    def test_add_credits_existing_customer(self, charge_create, customer_retrieve, customer_create):
+        self.admin2 = self.create_user("Administrator 2")
+        self.org.administrators.add(self.admin2)
+
         self.org.stripe_customer = 'stripe-cust-1'
         self.org.save()
 
@@ -3072,14 +3099,17 @@ class TestStripeCredits(TembaTest):
                 return MockCard()
 
         class MockCustomer(object):
-            def __init__(self):
-                self.id = 'stripe-cust-1'
+            def __init__(self, id, email):
+                self.id = id
+                self.email = email
                 self.cards = MockCards()
 
             def save(self):
                 pass
 
-        customer_retrieve.return_value = MockCustomer()
+        customer_retrieve.return_value = MockCustomer(id='stripe-cust-1', email=self.admin.email)
+        customer_create.return_value = MockCustomer(id='stripe-cust-2', email=self.admin2.email)
+
         charge_create.return_value = \
             dict_to_struct('Charge', dict(id='stripe-charge-1',
                                           card=dict_to_struct('Card', dict(last4='1234', type='Visa', name='Rudolph'))))
@@ -3097,13 +3127,21 @@ class TestStripeCredits(TembaTest):
         org = Org.objects.get(id=self.org.id)
         self.assertEqual('stripe-cust-1', org.stripe_customer)
 
-        # assert we sent our confirmation emai
+        # assert we sent our confirmation email
         self.assertEqual(1, len(mail.outbox))
         email = mail.outbox[0]
         self.assertEquals("RapidPro Receipt", email.subject)
         self.assertTrue('Rudolph' in email.body)
         self.assertTrue('Visa' in email.body)
         self.assertTrue('$20' in email.body)
+
+        # do it again with a different user, should create a new stripe customer
+        self.org.add_credits('2000', 'stripe-token', self.admin2)
+        self.assertTrue(4000, self.org.get_credits_total())
+
+        # should have a different customer now
+        org = Org.objects.get(id=self.org.id)
+        self.assertEqual('stripe-cust-2', org.stripe_customer)
 
 
 class ParsingTest(TembaTest):

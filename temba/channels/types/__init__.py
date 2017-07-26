@@ -13,7 +13,7 @@ def register_channel_type(type_class):
     Registers a channel type
     """
     if not type_class.slug:
-        type_class.slug = type_class.__module__.split('.')[-1]
+        type_class.slug = type_class.__module__.split('.')[-2]
 
     if type_class.code in TYPES:  # pragma: no cover
         raise ValueError("More than channel type with code: %s" % type_class.code)
@@ -40,6 +40,7 @@ def reload_channel_types():
             max_length=type_settings.get('max_length'),
             max_tps=type_settings.get('max_tps'),
             attachment_support=code in Channel.MEDIA_CHANNELS,
+            free_sending=code in Channel.FREE_SENDING_CHANNEL_TYPES,
             send=SEND_FUNCTIONS.get(code)
         ))
         register_channel_type(dyn_type_class)

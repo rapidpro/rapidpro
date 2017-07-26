@@ -1,3 +1,19 @@
+v3.0.171
+----------
+ * Fixes for Twitter Activity channels
+ * Add stop contact command to mage handler
+ * Convert Firebase Cloud Messaging to a dynamic channel type
+ * Convert Viber Public to a dynamic channel type
+ * Change to the correct way for dynamic channel
+ * Convert LINE to a dynamic channel type
+ * Better message in SMS alert email
+
+v3.0.170
+----------
+ * Hide SMTP config password and do not change the set password if blank is submitted
+ * Validate the length of message campaigns for better user feedback
+ * Make FlowRun.uuid unique and non-null (advise faking this and building index concurrently)
+
 v3.0.169
 ----------
  * Migration to populate FlowRun.uuid. Advise faking this and running manually.
