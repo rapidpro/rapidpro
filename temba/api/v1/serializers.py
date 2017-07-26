@@ -260,7 +260,8 @@ class ContactWriteSerializer(WriteSerializer):
             for urn in value:
                 try:
                     normalized = URN.normalize(urn)
-                    scheme, path = URN.to_parts(normalized)
+                    scheme, path, display = URN.to_parts(normalized)
+
                     # for backwards compatibility we don't validate phone numbers here
                     if scheme != TEL_SCHEME and not URN.validate(normalized):  # pragma: needs cover
                         raise ValueError()
@@ -797,7 +798,7 @@ class MsgCreateSerializer(WriteSerializer):
             country = channel.country
             for urn in phones:
                 try:
-                    tel, phone = URN.to_parts(urn)
+                    tel, phone, display = URN.to_parts(urn)
                     normalized = phonenumbers.parse(phone, country.code)
                     if not phonenumbers.is_possible_number(normalized):  # pragma: needs cover
                         raise serializers.ValidationError("Invalid phone number: '%s'" % phone)

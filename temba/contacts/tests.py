@@ -4151,13 +4151,14 @@ class URNTest(TembaTest):
         self.assertRaises(ValueError, URN.from_parts, "xxx", "12345")
 
     def test_to_parts(self):
-        self.assertEqual(URN.to_parts("tel:12345"), ("tel", "12345"))
-        self.assertEqual(URN.to_parts("tel:+12345"), ("tel", "+12345"))
-        self.assertEqual(URN.to_parts("twitter:abc_123"), ("twitter", "abc_123"))
-        self.assertEqual(URN.to_parts("mailto:a_b+c@d.com"), ("mailto", "a_b+c@d.com"))
-        self.assertEqual(URN.to_parts("facebook:12345"), ("facebook", "12345"))
-        self.assertEqual(URN.to_parts("telegram:12345"), ("telegram", "12345"))
-        self.assertEqual(URN.to_parts("ext:Aa0()+,-.:=@;$_!*'"), ("ext", "Aa0()+,-.:=@;$_!*'"))
+        self.assertEqual(URN.to_parts("tel:12345"), ("tel", "12345", None))
+        self.assertEqual(URN.to_parts("tel:+12345"), ("tel", "+12345", None))
+        self.assertEqual(URN.to_parts("twitter:abc_123"), ("twitter", "abc_123", None))
+        self.assertEqual(URN.to_parts("mailto:a_b+c@d.com"), ("mailto", "a_b+c@d.com", None))
+        self.assertEqual(URN.to_parts("facebook:12345"), ("facebook", "12345", None))
+        self.assertEqual(URN.to_parts("facebook:12345#rapidpro"), ("facebook", "12345", "rapidpro"))
+        self.assertEqual(URN.to_parts("telegram:12345"), ("telegram", "12345", None))
+        self.assertEqual(URN.to_parts("ext:Aa0()+,-.:=@;$_!*'"), ("ext", "Aa0()+,-.:=@;$_!*'", None))
 
         self.assertRaises(ValueError, URN.to_parts, "tel")
         self.assertRaises(ValueError, URN.to_parts, "tel:")  # missing scheme
@@ -4188,6 +4189,7 @@ class URNTest(TembaTest):
 
         # twitter handles remove @
         self.assertEqual(URN.normalize("twitter: @jimmyJO"), "twitter:jimmyjo")
+        self.assertEqual(URN.normalize("twitter:12345#jimmyJO"), "twitter:12345#jimmyjo")
 
         # email addresses
         self.assertEqual(URN.normalize("mailto: nAme@domAIN.cOm "), "mailto:name@domain.com")
@@ -4215,6 +4217,7 @@ class URNTest(TembaTest):
         self.assertTrue(URN.validate("twitter:billy_bob"))
         self.assertFalse(URN.validate("twitter:jimmyjo!@"))
         self.assertFalse(URN.validate("twitter:billy bob"))
+        self.assertFalse(URN.validate("twitter:12345#jimmyJO"))
 
         # emil addresses
         self.assertTrue(URN.validate("mailto:abcd+label@x.y.z.com"))

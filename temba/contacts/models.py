@@ -85,7 +85,7 @@ class URN(object):
         raise ValueError("Class shouldn't be instantiated")
 
     @classmethod
-    def from_parts(cls, scheme, path):
+    def from_parts(cls, scheme, path, display=None):
         """
         Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
         """
@@ -95,12 +95,18 @@ class URN(object):
         if not path:
             raise ValueError("Invalid path component: '%s'" % path)
 
-        return '%s:%s' % (scheme, path)
+        urn = '%s:%s' % (scheme, path)
+
+        if display is not None:
+            urn += "#" + display
+
+        return urn
 
     @classmethod
     def to_parts(cls, urn):
         """
-        Parses a URN string (e.g. tel:+250783835665) into a tuple of scheme and path
+        Parses a URN string (e.g. tel:+250783835665) into a tuple of scheme and path. If the URN contains a display
+        component then it is discarded.
         """
         try:
             scheme, path = urn.split(':', 1)
@@ -113,7 +119,9 @@ class URN(object):
         if not path:
             raise ValueError("URN contains an invalid path component: '%s'" % path)
 
-        return scheme, path
+        path_parts = path.split('#')
+
+        return scheme, path_parts[0], path_parts[1] if len(path_parts) > 1 else None
 
     @classmethod
     def validate(cls, urn, country_code=None):
@@ -121,7 +129,7 @@ class URN(object):
         Validates a normalized URN
         """
         try:
-            scheme, path = cls.to_parts(urn)
+            scheme, path, display = cls.to_parts(urn)
         except ValueError:
             return False
 
@@ -177,7 +185,7 @@ class URN(object):
         """
         Normalizes the path of a URN string. Should be called anytime looking for a URN match.
         """
-        scheme, path = cls.to_parts(urn)
+        scheme, path, display = cls.to_parts(urn)
 
         norm_path = six.text_type(path).strip()
 
@@ -191,7 +199,7 @@ class URN(object):
         elif scheme == EMAIL_SCHEME:
             norm_path = norm_path.lower()
 
-        return cls.from_parts(scheme, norm_path)
+        return cls.from_parts(scheme, norm_path, display)
 
     @classmethod
     def normalize_number(cls, number, country_code):
@@ -248,24 +256,24 @@ class URN(object):
         return cls.from_parts(TEL_SCHEME, path)
 
     @classmethod
-    def from_twitter(cls, path):
-        return cls.from_parts(TWITTER_SCHEME, path)
+    def from_twitter(cls, path, display=None):
+        return cls.from_parts(TWITTER_SCHEME, path, display)
 
     @classmethod
     def from_email(cls, path):
         return cls.from_parts(EMAIL_SCHEME, path)
 
     @classmethod
-    def from_facebook(cls, path):
-        return cls.from_parts(FACEBOOK_SCHEME, path)
+    def from_facebook(cls, path, display=None):
+        return cls.from_parts(FACEBOOK_SCHEME, path, display)
 
     @classmethod
     def from_line(cls, path):
         return cls.from_parts(LINE_SCHEME, path)
 
     @classmethod
-    def from_telegram(cls, path):
-        return cls.from_parts(TELEGRAM_SCHEME, path)
+    def from_telegram(cls, path, display=None):
+        return cls.from_parts(TELEGRAM_SCHEME, path, display)
 
     @classmethod
     def from_external(cls, path):
@@ -934,7 +942,7 @@ class Contact(TembaModel):
             # assign them property names with added count
             urns_for_scheme_counts = defaultdict(int)
             for urn in urn_objects.keys():
-                scheme, path = URN.to_parts(urn)
+                scheme, path, display = URN.to_parts(urn)
                 urns_for_scheme_counts[scheme] += 1
                 params["%s%d" % (scheme, urns_for_scheme_counts[scheme])] = path
 
@@ -1913,7 +1921,7 @@ class ContactURN(models.Model):
 
     @classmethod
     def create(cls, org, contact, urn_as_string, channel=None, priority=None, auth=None):
-        scheme, path = URN.to_parts(urn_as_string)
+        scheme, path, display = URN.to_parts(urn_as_string)
 
         if not priority:
             priority = cls.PRIORITY_DEFAULTS.get(scheme, cls.PRIORITY_STANDARD)
