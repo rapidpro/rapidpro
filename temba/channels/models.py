@@ -2861,8 +2861,9 @@ class Channel(TembaModel):
 
         external_id = response.json().get('message_token', None)
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
-    
-    def get_context_metadata(msg, text):
+
+    @classmethod
+    def get_context_metadata(cls, msg, text, channel):
         metadata = json.loads(msg.metadata)
         data = dict(auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
                         receiver=msg.urn_path,
@@ -2871,14 +2872,20 @@ class Channel(TembaModel):
                         tracking_data=msg.id,
                         keyboard=dict(Type="keyboard", DefaultHeight=True, Buttons=list())
                         )
+
         if metadata.get('quick_reply'):
             quick_replies = metadata.get('quick_reply')
             for quick_reply in quick_replies:
-                data["keyboad"]["Buttons"]["message_data"]["quick_reply"]["options"].append(
-                    { "Text": quick_reply["title"], "ActionBody": quick_reply["payload"], "ActionType":"reply", "TextSize":"regular" })
+                data["keyboard"]["Buttons"].append(
+                    { "Text": quick_reply["title"], "ActionBody": quick_reply["payload"], 
+                    "ActionType":"reply", "TextSize":"regular" })
         else:
-            pass
-            
+            buttons_reply = metadata.get('buttons_reply')
+            for button_reply in buttons_reply:
+                data["keyboard"]["Buttons"].append(
+                    { "Text": button_reply["title"], "ActionBody": button_reply["url"], 
+                    "ActionType":"open-url", "TextSize":"regular" })
+                    
         return data
 
     @classmethod
@@ -2887,7 +2894,8 @@ class Channel(TembaModel):
 
         url = 'https://chatapi.viber.com/pa/send_message'
         if hasattr(msg, 'metadata'):
-            payload = cls.get_context_metadata(msg, text)
+            payload = cls.get_context_metadata(msg, text, channel)
+            print(payload)
         else:
             payload = dict(auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
                         receiver=msg.urn_path,
