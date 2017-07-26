@@ -63,8 +63,8 @@ class FacebookType(ChannelType):
                     content_type='text'
                 ))
 
-        elif params.get('buttons_reply'):
-            url_buttons = params.get('buttons_reply')
+        elif params.get('url_buttons'):
+            url_buttons = params.get('url_buttons')
             current_payload['message']['attachment'] = dict(
                 type='template',
                 payload=dict(
