@@ -9920,7 +9920,7 @@ class FacebookTest(TembaTest):
             self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
                                                                               "referenced before assignment"))
 
-    def test_send_quick_reply(self):
+    def test_send_quick_replies(self):
         joe = self.create_contact("Joe", urn="facebook:1234")
         metadata = """
         {
@@ -9963,11 +9963,11 @@ class FacebookTest(TembaTest):
                 self.assertEqual(json.loads(mock.call_args[0][1])['message']['quick_replies'][0]['title'], 'Yes')
                 self.assertEqual(json.loads(mock.call_args[0][1])['message']['quick_replies'][1]['title'], 'No')
 
-    def test_send_buttons_reply(self):
+    def test_send_url_buttons(self):
         joe = self.create_contact("Joe", urn="facebook:1234")
         metadata = """
         {
-            "buttons_reply":[
+            "url_buttons":[
                 {
                     "url": "https://example.com",
                     "title": "Show Website",
