@@ -4189,7 +4189,8 @@ class URNTest(TembaTest):
 
         # twitter handles remove @
         self.assertEqual(URN.normalize("twitter: @jimmyJO"), "twitter:jimmyjo")
-        self.assertEqual(URN.normalize("twitter:12345#jimmyJO"), "twitter:12345#jimmyjo")
+        self.assertEqual(URN.normalize("twitter:12345#jimmyJO"), "twitter:12345#jimmyJO")
+        self.assertEqual(URN.normalize("twitter:12345#"), "twitter:12345#")
 
         # email addresses
         self.assertEqual(URN.normalize("mailto: nAme@domAIN.cOm "), "mailto:name@domain.com")
@@ -4215,11 +4216,11 @@ class URNTest(TembaTest):
         # twitter handles
         self.assertTrue(URN.validate("twitter:jimmyjo"))
         self.assertTrue(URN.validate("twitter:billy_bob"))
+        self.assertTrue(URN.validate("twitter:12345#billy_bob"))
         self.assertFalse(URN.validate("twitter:jimmyjo!@"))
         self.assertFalse(URN.validate("twitter:billy bob"))
-        self.assertFalse(URN.validate("twitter:12345#jimmyJO"))
 
-        # emil addresses
+        # email addresses
         self.assertTrue(URN.validate("mailto:abcd+label@x.y.z.com"))
         self.assertFalse(URN.validate("mailto:@@@"))
 
