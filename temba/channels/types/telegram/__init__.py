@@ -78,7 +78,7 @@ class TelegramType(ChannelType):
 
         if hasattr(msg, 'metadata'):
             quick_replies = json.loads(msg.metadata)
-            quick_replies = quick_replies.get('quick_reply', [])
+            quick_replies = quick_replies.get('quick_replies', [])
             replies = []
             for reply in quick_replies:
                 replies.append([dict(text=reply.get('title'), callback_data=reply.get('payload'))])
