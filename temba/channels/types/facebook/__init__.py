@@ -53,39 +53,38 @@ class FacebookType(ChannelType):
 
     def get_quick_replies(self, current_payload, params, text):
         params = json.loads(params)
-        if params["quick_reply"]:
-            current_payload['message']["text"] = text
-            current_payload['message']["quick_replies"] = []
-            for reply in params["quick_reply"]:
-                current_payload['message']["quick_replies"].append(dict(title=reply.title, payload=reply.payload, content_type='text'))
+        quick_replies = params.get('quick_replies')
+        if quick_replies:
+            current_payload['message']['quick_replies'] = []
+            for reply in quick_replies:
+                current_payload['message']['quick_replies'].append(dict(
+                    title=reply.get('title'),
+                    payload=reply.get('payload'),
+                    content_type='text'
+                ))
 
-        elif params["buttons_reply"]:
-            buttons = params["buttons_reply"]
-            current_payload['message']['attachment'] = {
-                "type": "template",
-                "payload": {
-                    "template_type": "button",
-                    "text": text,
-                    "buttons": []
-                }
-            }
-            for button in buttons:
-                current_payload['message']['attachment']["payload"]["buttons"].append({
-                    "title": button["title"],
-                    "url": button["url"],
-                    "type": "web_url"
-                })
-        else:
-            current_payload['message']['text'] = text
+        elif params.get('buttons_reply'):
+            url_buttons = params.get('buttons_reply')
+            current_payload['message']['attachment'] = dict(
+                type='template',
+                payload=dict(
+                    template_type='button',
+                    text=text,
+                    buttons=[]
+                )
+            )
+            for button in url_buttons:
+                button_obj = dict(title=button.get('title'), url=button.get('url'), type='web_url')
+                current_payload['message']['attachment']['payload']['buttons'].append(button_obj)
 
         return current_payload
 
     def send(self, channel, msg, text):
         # build our payload
-        payload = {
-            'message': {}
-        }
-        payload = self.get_quick_replies(payload, msg.metadata, text)
+        payload = dict(message=dict(text=text))
+
+        if hasattr(msg, 'metadata'):
+            payload = self.get_quick_replies(payload, msg.metadata, text)
 
         # this is a ref facebook id, temporary just for this message
         if URN.is_path_fb_ref(msg.urn_path):

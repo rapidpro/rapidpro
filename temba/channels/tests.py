@@ -9924,14 +9924,21 @@ class FacebookTest(TembaTest):
         joe = self.create_contact("Joe", urn="facebook:1234")
         metadata = """
         {
-            "quick_reply":[
+            "quick_replies": [
                 {
-                    "payload":"Test quick reply is ok",
-                    "title":"Quick reply"
+                    "payload": "yes",
+                    "title": "Yes",
+                    "content_type": "text"
+                },
+                {
+                    "payload": "no",
+                    "title": "No",
+                    "content_type": "text"
                 }
             ]
         }
         """
+
         msg = joe.send("Facebook Msg", self.admin, trigger_send=False, metadata=metadata)[0]
 
         with self.settings(SEND_MESSAGES=True):
@@ -9950,8 +9957,11 @@ class FacebookTest(TembaTest):
                 self.clear_cache()
 
                 self.assertEqual(mock.call_args[0][0], 'https://graph.facebook.com/v2.5/me/messages')
-                self.assertEqual(json.loads(mock.call_args[0][1]),
-                                 dict(recipient=dict(id="1234"), message=dict(text="Facebook Msg")))
+
+                self.assertEqual(json.loads(mock.call_args[0][1])['recipient']['id'], '1234')
+                self.assertEqual(json.loads(mock.call_args[0][1])['message']['text'], 'Facebook Msg')
+                self.assertEqual(json.loads(mock.call_args[0][1])['message']['quick_replies'][0]['title'], 'Yes')
+                self.assertEqual(json.loads(mock.call_args[0][1])['message']['quick_replies'][1]['title'], 'No')
 
     def test_send_buttons_reply(self):
         joe = self.create_contact("Joe", urn="facebook:1234")
@@ -9959,11 +9969,11 @@ class FacebookTest(TembaTest):
         {
             "buttons_reply":[
                 {
-                    "url":"https://example.com",
-                    "title":"Show Website"
+                    "url": "https://example.com",
+                    "title": "Show Website",
+                    "type": "web_url"
                 }
             ]
-
         }
         """
         msg = joe.send("Facebook Msg", self.admin, trigger_send=False, metadata=metadata)[0]
@@ -9984,8 +9994,11 @@ class FacebookTest(TembaTest):
                 self.clear_cache()
 
                 self.assertEqual(mock.call_args[0][0], 'https://graph.facebook.com/v2.5/me/messages')
-                self.assertEqual(json.loads(mock.call_args[0][1]),
-                                 dict(recipient=dict(id="1234"), message=dict(text="Facebook Msg")))
+                mock_call_args = json.loads(mock.call_args[0][1])
+
+                self.assertEqual(mock_call_args['recipient']['id'], '1234')
+                self.assertEqual(mock_call_args['message']['attachment']['payload']['buttons'][0]['url'],
+                                 'https://example.com')
 
 
 class JiochatTest(TembaTest):
