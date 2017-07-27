@@ -45,12 +45,12 @@ class TembaTwython(Twython):  # pragma: no cover
         params = params or {}
 
         func = getattr(self.client, method)
-        if params["event"]: # TODO: CHANGE THIS LINE BEFORE SEND
+        if params["event"]:   # TODO: CHANGE THIS LINE BEFORE SEND
             params = params
             files = None
         else:
             params, files = _transparent_params(params)
-        
+
         requests_args = {}
         for k, v in self.client_args.items():
             # Maybe this should be set as a class variable and only done once?
@@ -60,7 +60,7 @@ class TembaTwython(Twython):  # pragma: no cover
         if method == 'get':
             requests_args['params'] = params
         else:
-            if params["event"]: # TODO: CHANGE THIS LINE BEFORE SEND
+            if params["event"]:   # TODO: CHANGE THIS LINE BEFORE SEND
                 requests_args.update({
                     'data': json.dumps(params),
                     'files': files,
