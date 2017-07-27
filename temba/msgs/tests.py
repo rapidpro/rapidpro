@@ -13,7 +13,6 @@ from django_redis import get_redis_connection
 from django.db import transaction
 from django.contrib.auth.models import User
 from django.test import override_settings
-from celery import current_app
 from mock import patch
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
@@ -2160,29 +2159,18 @@ class CeleryTaskTest(TembaTest):
 
     @override_settings(CELERY_ALWAYS_EAGER=False, SEND_MESSAGES=True)
     def test_reply_task_added(self):
-        send_task_orig = current_app.send_task
         orig_push_task = models.push_task
 
-        try:
-            def new_send_task(name, args=(), kwargs={}, **opts):
-                self.handle_push_task(name)
+        def new_send_task(name, args=(), kwargs={}, **opts):
+            self.handle_push_task(name)
 
-            # monkey patch the regular send_task with our method
-            current_app.send_task = new_send_task
+        def new_push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
+            orig_push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY)
 
-            def new_push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
-                orig_push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY)
+            self.assertInDB(msg1)
+            self.assert_task_sent('send_msg_task')
 
-                self.assertInDB(msg1)
-                self.assert_task_sent('send_msg_task')
+        with patch('celery.current_app.send_task', new_send_task), patch('temba.msgs.models.push_task', new_push_task), transaction.atomic():
+            msg1 = Msg.create_outgoing(self.org, self.user, self.joe, "Hello, we heard from you.", channel=self.channel2)
 
-            models.push_task = new_push_task
-
-            with transaction.atomic():
-                msg1 = Msg.create_outgoing(self.org, self.user, self.joe, "Hello, we heard from you.", channel=self.channel2)
-
-                Msg.send_messages([msg1])
-        finally:
-            # Reset the monkey patch to the original method
-            current_app.send_task = send_task_orig
-            models.push_task = orig_push_task
+            Msg.send_messages([msg1])
