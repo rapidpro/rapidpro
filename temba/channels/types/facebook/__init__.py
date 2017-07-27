@@ -64,6 +64,7 @@ class FacebookType(ChannelType):
                 ))
 
         elif params.get('url_buttons'):
+            current_payload = dict(message=dict())
             url_buttons = params.get('url_buttons')
             current_payload['message']['attachment'] = dict(
                 type='template',
@@ -124,6 +125,7 @@ class FacebookType(ChannelType):
                 response = requests.post(url, payload, params=params, headers=headers, timeout=15)
                 event.status_code = response.status_code
                 event.response_body = response.text
+                print(response.text)
             except Exception as e:
                 raise SendException(six.text_type(e), event=event, start=start)
 
