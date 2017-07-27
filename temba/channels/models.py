@@ -2873,17 +2873,17 @@ class Channel(TembaModel):
                         keyboard=dict(Type="keyboard", DefaultHeight=True, Buttons=list())
                         )
 
-        if metadata.get('quick_reply'):
-            quick_replies = metadata.get('quick_reply')
+        if metadata.get('quick_replies'):
+            quick_replies = metadata.get('quick_replies')
             for quick_reply in quick_replies:
                 data["keyboard"]["Buttons"].append(
                     { "Text": quick_reply["title"], "ActionBody": quick_reply["payload"], 
                     "ActionType":"reply", "TextSize":"regular" })
         else:
-            buttons_reply = metadata.get('buttons_reply')
-            for button_reply in buttons_reply:
+            url_buttons = metadata.get('url_buttons')
+            for url_button in url_buttons:
                 data["keyboard"]["Buttons"].append(
-                    { "Text": button_reply["title"], "ActionBody": button_reply["url"], 
+                    { "Text": url_button["title"], "ActionBody": url_button["url"], 
                     "ActionType":"open-url", "TextSize":"regular" })
                     
         return data
@@ -2895,7 +2895,6 @@ class Channel(TembaModel):
         url = 'https://chatapi.viber.com/pa/send_message'
         if hasattr(msg, 'metadata'):
             payload = cls.get_context_metadata(msg, text, channel)
-            print(payload)
         else:
             payload = dict(auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
                         receiver=msg.urn_path,
