@@ -786,7 +786,7 @@ describe 'Controllers:', ->
 
       actionset = flowService.flow.action_sets[0]
       action = actionset.actions[0]
-      expect(JSON.stringify(action.quick_reply) ).toBe(JSON.stringify(json_quick_reply))
+      expect(JSON.stringify(action.quick_replies)).toBe(JSON.stringify(json_quick_reply))
 
     it 'should generate json button url replies to send', ->
       loadFavoritesFlow()
@@ -808,4 +808,4 @@ describe 'Controllers:', ->
       actionset = flowService.flow.action_sets[0]
       action = actionset.actions[0]
       
-      expect(JSON.stringify(action.buttons_reply)).toBe(JSON.stringify(json_buttons_reply))
+      expect(JSON.stringify(action.url_buttons)).toBe(JSON.stringify(json_buttons_reply))
