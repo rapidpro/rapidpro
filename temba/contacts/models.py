@@ -199,6 +199,9 @@ class URN(object):
         elif scheme == EMAIL_SCHEME:
             norm_path = norm_path.lower()
 
+        if display:
+            display = display.lower()
+
         return cls.from_parts(scheme, norm_path, display)
 
     @classmethod
@@ -236,6 +239,14 @@ class URN(object):
 
         # this must be a local number of some kind, just lowercase and save
         return regex.sub('[^0-9a-z]', '', number.lower(), regex.V0), False
+
+    @classmethod
+    def identity(cls, urn):
+        """
+        Returns the identity portion of the passed in URN, IE, how we should look it up
+        """
+        pieces = urn.split("#")
+        return pieces[0]
 
     @classmethod
     def fb_ref_from_path(cls, path):
@@ -1697,7 +1708,8 @@ class Contact(TembaModel):
 
             for urn_as_string in urns:
                 normalized = URN.normalize(urn_as_string, country)
-                urn = ContactURN.objects.filter(org=self.org, urn=normalized).first()
+                identity = URN.identity(normalized)
+                urn = ContactURN.objects.filter(org=self.org, identity=identity).first()
                 if not urn:
                     urn = ContactURN.create(self.org, self, normalized, priority=priority)
                     urns_created.append(urn)
@@ -1888,17 +1900,20 @@ class ContactURN(models.Model):
     contact = models.ForeignKey(Contact, null=True, blank=True, related_name='urns',
                                 help_text="The contact that this URN is for, can be null")
 
-    urn = models.CharField(max_length=255, choices=SCHEME_CHOICES,
-                           help_text="The Universal Resource Name as a string. ex: tel:+250788383383")
+    identity = models.CharField(max_length=255,
+                                help_text="The identity portion of the URN (excludes fragments) ex: tel:+250788383383")
 
     path = models.CharField(max_length=255,
                             help_text="The path component of our URN. ex: +250788383383")
 
-    scheme = models.CharField(max_length=128,
+    scheme = models.CharField(max_length=128, choices=SCHEME_CHOICES,
                               help_text="The scheme for this URN, broken out for optimization reasons, ex: tel")
 
+    display = models.CharField(max_length=255, null=True,
+                               help_text="Any display property of the URN, these are stored as fragments in our string representation")
+
     org = models.ForeignKey(Org,
-                            help_text="The organization for this URN, can be null")
+                            help_text="The organization for this URN")
 
     priority = models.IntegerField(default=PRIORITY_STANDARD,
                                    help_text="The priority of this URN for the contact it is associated with")
@@ -1922,12 +1937,13 @@ class ContactURN(models.Model):
     @classmethod
     def create(cls, org, contact, urn_as_string, channel=None, priority=None, auth=None):
         scheme, path, display = URN.to_parts(urn_as_string)
+        identity = URN.identity(urn_as_string)
 
         if not priority:
             priority = cls.PRIORITY_DEFAULTS.get(scheme, cls.PRIORITY_STANDARD)
 
         return cls.objects.create(org=org, contact=contact, priority=priority, channel=channel,
-                                  scheme=scheme, path=path, urn=urn_as_string, auth=auth)
+                                  scheme=scheme, path=path, display=display, identity=identity, auth=auth)
 
     @classmethod
     def lookup(cls, org, urn_as_string, country_code=None, normalize=True):
@@ -1936,8 +1952,9 @@ class ContactURN(models.Model):
         """
         if normalize:
             urn_as_string = URN.normalize(urn_as_string, country_code)
+        identity = URN.identity(urn_as_string)
 
-        return cls.objects.filter(org=org, urn=urn_as_string).select_related('contact').first()
+        return cls.objects.filter(org=org, identity=identity).select_related('contact').first()
 
     def update_auth(self, auth):
         if auth and auth != self.auth:
@@ -1964,8 +1981,8 @@ class ContactURN(models.Model):
 
             # don't trounce existing contacts with that country code already
             norm_urn = URN.from_tel(norm_number)
-            if not ContactURN.objects.filter(urn=norm_urn, org_id=self.org_id).exclude(id=self.id):
-                self.urn = norm_urn
+            if not ContactURN.objects.filter(identity=norm_urn, org_id=self.org_id).exclude(id=self.id):
+                self.identity = norm_urn
                 self.path = norm_number
                 self.save()
 
@@ -1992,6 +2009,9 @@ class ContactURN(models.Model):
         if org.is_anon:
             return self.ANON_MASK
 
+        if self.display:
+            return self.display
+
         if self.scheme == TEL_SCHEME and formatted:
             # if we don't want a full tell, see if we can show the national format instead
             try:
@@ -2008,10 +2028,10 @@ class ContactURN(models.Model):
         return self.path
 
     def __str__(self):  # pragma: no cover
-        return self.urn
+        return URN.from_parts(self.scheme, self.path, self.display)
 
     class Meta:
-        unique_together = ('urn', 'org')
+        unique_together = ('identity', 'org')
         ordering = ('-priority', 'id')
 
 

@@ -34,8 +34,12 @@
                 %a{href:"{{urn}}"}
                   {{urn|format_urn:user_org}}
               -elif urn.scheme == 'twitter'
-                %a{href:'http://twitter.com/{{urn.path}}'}
-                  {{urn|format_urn:user_org}}
+                -if urn.display
+                  %a{href:'http://twitter.com/{{urn.display}}'}
+                    {{urn|format_urn:user_org}}
+                -else
+                  %a{href:'http://twitter.com/{{urn.path}}'}
+                    {{urn|format_urn:user_org}}
               -else
                 {{urn|format_urn:user_org}}
 

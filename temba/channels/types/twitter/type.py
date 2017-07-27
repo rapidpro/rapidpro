@@ -10,6 +10,7 @@ from temba.utils.twitter import TembaTwython
 from .views import ClaimView
 from ...models import Channel, ChannelType, SendException
 from ...tasks import MageStreamAction, notify_mage_task
+from .tasks import resolve_twitter_ids
 
 
 class TwitterType(ChannelType):
@@ -34,6 +35,10 @@ class TwitterType(ChannelType):
     FATAL_403S = ("messages to this user right now",  # handle is suspended
                   "users who are not following you")  # handle no longer follows us
 
+    def setup_periodic_tasks(self, sender):
+        # automatically try to resolve any missing twitter ids every 15 minutes
+        sender.add_periodic_task(900, resolve_twitter_ids)
+
     def activate(self, channel):
         # tell Mage to activate this channel
         notify_mage_task.delay(channel.uuid, MageStreamAction.activate.name)
@@ -47,7 +52,14 @@ class TwitterType(ChannelType):
         start = time.time()
 
         try:
-            dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
+            # this is a legacy URN (no display), the path is our screen name
+            if msg.urn.display is None:
+                dm = twitter.send_direct_message(screen_name=msg.urn.path, text=text)
+
+            # this is a new twitter URN, our path is our user id
+            else:
+                dm = twitter.send_direct_message(user_id=msg.urn.path, text=text)
+
         except Exception as e:
             error_code = getattr(e, 'error_code', 400)
             fatal = False
