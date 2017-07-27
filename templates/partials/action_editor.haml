@@ -10,8 +10,8 @@
   %select{ng-change:"updateActionForm(config)", ng-model:"config", ng-options:"action as action.verbose_name for action in actionConfigs | filter:validActionFilter",style:"height:34px",class:"action-type",select2:""}
   <ng-form name="action_editor">
     %span{ng-if:'config.type == "reply"'}
-      %span{auto-complete:"",msg:"action.msg",type:"sms",data-message:"message"}
       %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
+      %span{auto-complete:"",msg:"action.msg",type:"sms",data-message:"message"}
       %span{auto-complete:"",sms:"action.msg",type:"sms",data-message:"message"}
       .container-operations{ng-show:"container_operation_visible"}
 
@@ -20,8 +20,6 @@
         .icon-button-quick-reply.cursor-pointer{style:"font-size:22px; margin-top:-2px; margin-left:2px;", ng-click:'addNewQuickReply()', ng-show:"!action._media"}
       
         .icon-button-response.cursor-pointer{style:"font-size:22px; margin-top:-3px; margin-left:7px;", ng-click:'addNewButtonReply()', ng-show:"!action._media"}
-
-      %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
 
       .media{ng-hide:'action.uploading'}
         .tag-button{ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}

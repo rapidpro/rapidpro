@@ -1948,6 +1948,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     else if $scope.actions_buttons_reply.length > 0
       $scope.action.url_buttons[$scope.base_language] = $scope.actions_buttons_reply
       $scope.action.quick_replies = {}
+    else 
+      $scope.action.quick_replies = {}
+      $scope.action.url_buttons = {}
       
     $scope.action.type = type
     Flow.saveAction(actionset, $scope.action)
