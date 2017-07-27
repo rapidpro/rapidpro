@@ -6,6 +6,7 @@ import regex
 import six
 import time
 import traceback
+import json
 
 from datetime import datetime, timedelta
 from django.conf import settings
@@ -383,6 +384,17 @@ class Broadcast(models.Model):
         preferred_languages = self.get_preferred_languages(contact, org)
         return Language.get_localized_text(self.text, preferred_languages)
 
+    def get_translated_metadata(self, contact, metadata_type='quick_replies', org=None):
+        """
+        Gets the appropriate metadata translation for the given contact
+        """
+        if self.metadata:
+            preferred_languages = self.get_preferred_languages(contact, org)
+            metadata = json.loads(self.metadata)
+            return Language.get_localized_text(metadata.get(metadata_type), preferred_languages)
+        else:
+            return None
+
     def get_translated_media(self, contact, org=None):
         """
         Gets the appropriate media for the given contact
@@ -453,6 +465,14 @@ class Broadcast(models.Model):
             # get the appropriate translation for this contact
             text = self.get_translated_text(contact)
 
+            if metadata:
+                _metadata = json.dumps(dict(
+                    quick_replies=self.get_translated_metadata(contact, 'quick_replies'),
+                    url_buttons=self.get_translated_metadata(contact, 'url_buttons')
+                ))
+            else:
+                _metadata = None
+
             media = self.get_translated_media(contact)
             if media:
                 media_type, media_url = media.split(':')
@@ -489,7 +509,7 @@ class Broadcast(models.Model):
                                           attachments=[media] if media else None,
                                           priority=priority,
                                           created_on=created_on,
-                                          metadata=metadata)
+                                          metadata=_metadata)
 
             except UnreachableException:
                 # there was no way to reach this contact, do not create a message

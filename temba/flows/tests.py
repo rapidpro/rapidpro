@@ -2892,51 +2892,51 @@ class ActionTest(TembaTest):
         self.assertEquals(response.attachments, ["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg')])
         self.assertEquals(self.contact, response.contact)
 
-    def test_quick_reply_action(self):
+    def test_quick_replies_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
-        quick_resp = """
-            "quick_reply":[
+        payload = """
+            "quick_replies": [
                 {
-                    "payload":"Test quick reply is ok",
-                    "title":"Quick reply"
+                    "payload": "yes",
+                    "title": "Yes"
                 },
                 {
-                    "payload":"Test quick reply is ok",
-                    "title":"Quick reply"
+                    "payload": "no",
+                    "title": "No"
                 }
             ]
         """
 
-        action = ReplyAction(dict(base="Testing..."), quick_reply=quick_resp)
+        action = ReplyAction(msg=dict(base="Are you fine?"), quick_replies=payload)
         action_json = action.as_json()
         action = ReplyAction.from_json(self.org, action_json)
 
         self.execute_action(action, run, msg)
-        self.assertEquals(action.msg, dict(base="Testing..."))
-        self.assertEquals(action.quick_responses, quick_resp)
+        self.assertEquals(action.msg, dict(base="Are you fine?"))
+        self.assertEquals(action.quick_replies, payload)
 
-    def test_quick_buttons_reply(self):
+    def test_url_buttons_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
-        buttons_reply = """
-            "buttons_reply":[
+        url_buttons = """
+            "url_buttons": [
                 {
-                    "url":"test.com",
-                    "title":"button reply"
+                    "url": "http://example.com",
+                    "title": "Website"
                 }
             ]
         """
 
-        action = ReplyAction(dict(base="Testing buttons..."), buttons_reply=buttons_reply)
+        action = ReplyAction(dict(base="Testing buttons..."), url_buttons=url_buttons)
         action_json = action.as_json()
         action = ReplyAction.from_json(self.org, action_json)
 
         self.execute_action(action, run, msg)
         self.assertEquals(action.msg, dict(base="Testing buttons..."))
-        self.assertEquals(action.buttons_reply, buttons_reply)
+        self.assertEquals(action.url_buttons, url_buttons)
 
     def test_ussd_action(self):
         self.channel.delete()
