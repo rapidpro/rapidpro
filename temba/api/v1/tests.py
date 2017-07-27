@@ -967,7 +967,7 @@ class APITest(TembaTest):
         self.assertEquals(201, response.status_code)
 
         contact = Contact.objects.get()
-        contact_urns = [urn.urn() for urn in contact.urns.all().order_by('scheme', 'path')]
+        contact_urns = [urn.urn for urn in contact.urns.all().order_by('scheme', 'path')]
         self.assertEquals(["tel:+250788123456", "twitter:drdre"], contact_urns)
         self.assertEquals("Dr Dre", contact.name)
         self.assertEquals(self.org, contact.org)
@@ -1080,7 +1080,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         jay_z = Contact.objects.get(pk=jay_z.pk)
-        self.assertEqual([u.urn() for u in jay_z.urns.all()], ['tel:+250785555555'])
+        self.assertEqual([u.urn for u in jay_z.urns.all()], ['tel:+250785555555'])
 
         # fetch all with blank query
         self.clear_cache()

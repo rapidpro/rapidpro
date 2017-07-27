@@ -1741,7 +1741,7 @@ class Contact(TembaModel):
         self.save(update_fields=('modified_on', 'modified_by'))
 
         # trigger updates based all urns created or detached
-        self.handle_update(urns=[u.urn() for u in (urns_created + urns_attached + urns_detached)])
+        self.handle_update(urns=[u.urn for u in (urns_created + urns_attached + urns_detached)])
 
         # clear URN cache
         if hasattr(self, '__urns'):
@@ -2028,6 +2028,7 @@ class ContactURN(models.Model):
 
         return self.path
 
+    @property
     def urn(self):
         """
         Returns a full representation of this contact URN as a string
@@ -2035,7 +2036,7 @@ class ContactURN(models.Model):
         return URN.from_parts(self.scheme, self.path, self.display)
 
     def __str__(self):  # pragma: no cover
-        return self.urn()
+        return self.urn
 
     class Meta:
         unique_together = ('identity', 'org')

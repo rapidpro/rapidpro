@@ -5541,7 +5541,7 @@ class SaveToContactAction(Action):
                     ActionLog.warn(run, _('Contact not updated, missing connection for contact'))
 
             if new_urn:
-                urns = [urn.urn() for urn in contact.urns.all()]
+                urns = [urn.urn for urn in contact.urns.all()]
                 urns += [new_urn]
 
                 # don't really update URNs on test contacts
