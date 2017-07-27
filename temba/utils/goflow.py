@@ -57,7 +57,7 @@ class RequestBuilder(object):
             'created_on': datetime_to_str(msg.created_on),
             'urn': urn,
             'text': msg.text,
-            'attachments': [],
+            'attachments': msg.attachments or [],
             'contact_uuid': str(msg.contact.uuid),
             'channel_uuid': channel_uuid
         })
@@ -72,7 +72,7 @@ class RequestBuilder(object):
         #       "value": "Male"
         #     }
 
-        # only include language if it's valid org language
+        # only include language if it's a valid org language
         if contact.language and contact.language in contact.org.get_language_codes():
             language = contact.language
         else:
