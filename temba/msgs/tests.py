@@ -317,7 +317,7 @@ class MsgTest(TembaTest):
         contact = self.create_contact("Blocked contact", "250728739305")
         contact.is_blocked = True
         contact.save()
-        ignored_msg = Msg.create_incoming(self.channel, contact.get_urn().urn, "My msg should be archived")
+        ignored_msg = Msg.create_incoming(self.channel, contact.get_urn().identity, "My msg should be archived")
         ignored_msg = Msg.objects.get(pk=ignored_msg.pk)
         self.assertEqual(ignored_msg.visibility, Msg.VISIBILITY_ARCHIVED)
         self.assertEqual(ignored_msg.status, HANDLED)
@@ -435,7 +435,7 @@ class MsgTest(TembaTest):
     def test_inbox(self):
         inbox_url = reverse('msgs.msg_inbox')
 
-        joe_tel = self.joe.get_urn(TEL_SCHEME).urn
+        joe_tel = self.joe.get_urn(TEL_SCHEME).identity
         msg1 = Msg.create_incoming(self.channel, joe_tel, "message number 1")
         msg2 = Msg.create_incoming(self.channel, joe_tel, "message number 2")
         msg3 = Msg.create_incoming(self.channel, joe_tel, "message number 3")
@@ -555,7 +555,7 @@ class MsgTest(TembaTest):
 
         # messages from test contact are not included in the inbox
         test_contact = Contact.get_test_contact(self.admin)
-        Msg.create_incoming(self.channel, test_contact.get_urn().urn, 'Bla Blah')
+        Msg.create_incoming(self.channel, test_contact.get_urn().identity, 'Bla Blah')
 
         response = self.client.get(inbox_url)
         self.assertEqual(Msg.objects.all().count(), 7)
@@ -604,7 +604,7 @@ class MsgTest(TembaTest):
     def test_flows(self):
         url = reverse('msgs.msg_flow')
 
-        msg1 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "test 1", msg_type='F')
+        msg1 = Msg.create_incoming(self.channel, self.joe.get_urn().identity, "test 1", msg_type='F')
 
         # user not in org can't access
         self.login(self.non_org_user)
@@ -684,7 +684,7 @@ class MsgTest(TembaTest):
         self.joe.save()
 
         # create some messages...
-        # joe_urn = self.joe.get_urn(TEL_SCHEME).urn
+        # joe_urn = self.joe.get_urn(TEL_SCHEME).identity
 
         msg1 = self.create_msg(contact=self.joe, text="hello 1", direction='I', status=HANDLED,
                                msg_type='I', created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
@@ -2079,19 +2079,19 @@ class TagsTest(TembaTest):
         # default cause is pending sent
         self.assertHasClass(as_icon(None), 'icon-bubble-dots-2 green')
 
-        in_call = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
+        in_call = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).identity,
                                       ChannelEvent.TYPE_CALL_IN, timezone.now(), 5)
         self.assertHasClass(as_icon(in_call), 'icon-call-incoming green')
 
-        in_miss = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
+        in_miss = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).identity,
                                       ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 5)
         self.assertHasClass(as_icon(in_miss), 'icon-call-incoming red')
 
-        out_call = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
+        out_call = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).identity,
                                        ChannelEvent.TYPE_CALL_OUT, timezone.now(), 5)
         self.assertHasClass(as_icon(out_call), 'icon-call-outgoing green')
 
-        out_miss = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
+        out_miss = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).identity,
                                        ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), 5)
         self.assertHasClass(as_icon(out_miss), 'icon-call-outgoing red')
 

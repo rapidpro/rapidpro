@@ -764,7 +764,7 @@ class ChannelTest(TembaTest):
         self.assertEquals(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
 
         # send messages with a test contact
-        Msg.create_incoming(self.tel_channel, test_contact.get_urn().urn, 'This incoming message will not be counted')
+        Msg.create_incoming(self.tel_channel, test_contact.get_urn().identity, 'This incoming message will not be counted')
         Msg.create_outgoing(self.org, self.user, test_contact, 'This outgoing message will not be counted')
 
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
@@ -782,7 +782,7 @@ class ChannelTest(TembaTest):
         self.assertEquals(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
 
         # send messages with a normal contact
-        Msg.create_incoming(self.tel_channel, joe.get_urn(TEL_SCHEME).urn, 'This incoming message will be counted')
+        Msg.create_incoming(self.tel_channel, joe.get_urn(TEL_SCHEME).identity, 'This incoming message will be counted')
         Msg.create_outgoing(self.org, self.user, joe, 'This outgoing message will be counted')
 
         # now we have an inbound message and two outbounds
@@ -805,7 +805,7 @@ class ChannelTest(TembaTest):
         self.tel_channel.save()
 
         from temba.msgs.models import IVR
-        Msg.create_incoming(self.tel_channel, test_contact.get_urn().urn, 'incoming ivr as a test contact', msg_type=IVR)
+        Msg.create_incoming(self.tel_channel, test_contact.get_urn().identity, 'incoming ivr as a test contact', msg_type=IVR)
         Msg.create_outgoing(self.org, self.user, test_contact, 'outgoing ivr as a test contact', msg_type=IVR)
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
 
@@ -819,7 +819,7 @@ class ChannelTest(TembaTest):
         self.assertEquals(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
 
         # now let's create an ivr interaction from a real contact
-        Msg.create_incoming(self.tel_channel, joe.get_urn().urn, 'incoming ivr', msg_type=IVR)
+        Msg.create_incoming(self.tel_channel, joe.get_urn().identity, 'incoming ivr', msg_type=IVR)
         Msg.create_outgoing(self.org, self.user, joe, 'outgoing ivr', msg_type=IVR)
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
 
@@ -2412,7 +2412,7 @@ class ChannelEventTest(TembaTest):
         event = ChannelEvent.create(self.channel, "tel:+250783535665", ChannelEvent.TYPE_CALL_OUT, now, 300)
 
         contact = Contact.objects.get()
-        self.assertEqual(contact.get_urn().urn, "tel:+250783535665")
+        self.assertEqual(contact.get_urn().identity, "tel:+250783535665")
 
         self.assertEqual(event.org, self.org)
         self.assertEqual(event.channel, self.channel)
@@ -10901,7 +10901,7 @@ class FcmTest(TembaTest):
         # load our message
         msg = Msg.objects.get()
         self.assertEquals("12345678901qwertyuiopq", msg.contact.get_urn(FCM_SCHEME).auth)
-        self.assertEquals("fcm:12345abcde", msg.contact.get_urn(FCM_SCHEME).urn)
+        self.assertEquals("fcm:12345abcde", msg.contact.get_urn(FCM_SCHEME).identity)
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
         self.assertEquals("Hello World!", msg.text)

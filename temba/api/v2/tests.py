@@ -602,7 +602,7 @@ class APITest(TembaTest):
 
         broadcast = Broadcast.objects.get(pk=response.json()['id'])
         self.assertEqual(broadcast.text, {'base': "Hello"})
-        self.assertEqual(set(broadcast.urns.values_list('urn', flat=True)), {"twitter:franky"})
+        self.assertEqual(set(broadcast.urns.values_list('identity', flat=True)), {"twitter:franky"})
         self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
         self.assertEqual(set(broadcast.groups.all()), {reporters})
         self.assertEqual(broadcast.channel, self.channel)
@@ -1147,7 +1147,7 @@ class APITest(TembaTest):
 
         # URNs will be normalized
         jean = Contact.objects.filter(name="Jean", language='fre').order_by('-pk').first()
-        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {"tel:+250783333333", "twitter:jean"})
+        self.assertEqual(set(jean.urns.values_list('identity', flat=True)), {"tel:+250783333333", "twitter:jean"})
         self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
         self.assertEqual(jean.get_field('nickname').string_value, "Jado")
 
@@ -1172,7 +1172,7 @@ class APITest(TembaTest):
         jean = Contact.objects.get(pk=jean.pk)
         self.assertEqual(jean.name, "Jean")
         self.assertEqual(jean.language, "fre")
-        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {"tel:+250783333333", "twitter:jean"})
+        self.assertEqual(set(jean.urns.values_list('identity', flat=True)), {"tel:+250783333333", "twitter:jean"})
         self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
         self.assertEqual(jean.get_field('nickname').string_value, "Jado")
 
@@ -1189,7 +1189,7 @@ class APITest(TembaTest):
         jean = Contact.objects.get(pk=jean.pk)
         self.assertEqual(jean.name, "Jean II")
         self.assertEqual(jean.language, "eng")
-        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {'tel:+250784444444'})
+        self.assertEqual(set(jean.urns.values_list('identity', flat=True)), {'tel:+250784444444'})
         self.assertEqual(set(jean.user_groups.all()), set())
         self.assertEqual(jean.get_field('nickname').string_value, "John")
 
@@ -1210,7 +1210,7 @@ class APITest(TembaTest):
 
         # URN should be normalized
         bobby = Contact.objects.get(name="Bobby")
-        self.assertEqual(set(bobby.urns.values_list('urn', flat=True)), {'tel:+250785555555'})
+        self.assertEqual(set(bobby.urns.values_list('identity', flat=True)), {'tel:+250785555555'})
 
         # try to create a contact with a URN belonging to another contact
         response = self.postJSON(url, None, {'name': "Robert", 'urns': ["tel:+250-78-5555555"]})
@@ -1267,7 +1267,7 @@ class APITest(TembaTest):
             # TODO should UUID be masked in response??
 
             xavier = Contact.objects.get(name="Xavier")
-            self.assertEqual(set(xavier.urns.values_list('urn', flat=True)), {"tel:+250787777777", "twitter:xavier"})
+            self.assertEqual(set(xavier.urns.values_list('identity', flat=True)), {"tel:+250787777777", "twitter:xavier"})
 
         # try an empty delete request
         response = self.deleteJSON(url, None)
@@ -1845,7 +1845,7 @@ class APITest(TembaTest):
             'id': msg.id,
             'broadcast': msg.broadcast,
             'contact': {'uuid': msg.contact.uuid, 'name': msg.contact.name},
-            'urn': msg.contact_urn.urn,
+            'urn': msg.contact_urn.urn(),
             'channel': {'uuid': msg.channel.uuid, 'name': msg.channel.name},
             'direction': "in" if msg.direction == 'I' else "out",
             'type': msg_type,

@@ -1709,6 +1709,7 @@ class Contact(TembaModel):
             for urn_as_string in urns:
                 normalized = URN.normalize(urn_as_string, country)
                 identity = URN.identity(normalized)
+
                 urn = ContactURN.objects.filter(org=self.org, identity=identity).first()
                 if not urn:
                     urn = ContactURN.create(self.org, self, normalized, priority=priority)
@@ -1740,7 +1741,7 @@ class Contact(TembaModel):
         self.save(update_fields=('modified_on', 'modified_by'))
 
         # trigger updates based all urns created or detached
-        self.handle_update(urns=[u.urn for u in (urns_created + urns_attached + urns_detached)])
+        self.handle_update(urns=[u.urn() for u in (urns_created + urns_attached + urns_detached)])
 
         # clear URN cache
         if hasattr(self, '__urns'):
@@ -2027,8 +2028,14 @@ class ContactURN(models.Model):
 
         return self.path
 
-    def __str__(self):  # pragma: no cover
+    def urn(self):
+        """
+        Returns a full representation of this contact URN as a string
+        """
         return URN.from_parts(self.scheme, self.path, self.display)
+
+    def __str__(self):  # pragma: no cover
+        return self.urn()
 
     class Meta:
         unique_together = ('identity', 'org')

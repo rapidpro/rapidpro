@@ -414,7 +414,7 @@ class Flow(TembaModel):
             if saved_media_url and ':' in saved_media_url:
                 text = saved_media_url.partition(':')[2]
 
-            msg = Msg.create_incoming(call.channel, call.contact_urn.urn,
+            msg = Msg.create_incoming(call.channel, call.contact_urn.identity,
                                       text, status=PENDING, msg_type=IVR,
                                       attachments=[saved_media_url] if saved_media_url else None,
                                       session=run.session)
@@ -5541,7 +5541,7 @@ class SaveToContactAction(Action):
                     ActionLog.warn(run, _('Contact not updated, missing connection for contact'))
 
             if new_urn:
-                urns = [urn.urn for urn in contact.urns.all()]
+                urns = [urn.urn() for urn in contact.urns.all()]
                 urns += [new_urn]
 
                 # don't really update URNs on test contacts
