@@ -842,11 +842,12 @@ class Contact(TembaModel):
             # if contact already exists try to figured if it has all the urn to skip the lock
             if contact:
                 contact_has_all_urns = True
-                contact_urns = set(contact.get_urns().values_list('urn', flat=True))
+                contact_urns = set(contact.get_urns().values_list('identity', flat=True))
                 if len(urns) <= len(contact_urns):
                     for urn in urns:
                         normalized = URN.normalize(urn, country)
-                        if normalized not in contact_urns:
+                        identity = URN.identity(normalized)
+                        if identity not in contact_urns:
                             contact_has_all_urns = False
 
                         existing_urn = ContactURN.lookup(org, normalized, normalize=False)
