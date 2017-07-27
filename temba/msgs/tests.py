@@ -2131,7 +2131,7 @@ class CeleryTaskTest(TembaTest):
         AdminBoundary.objects.all().delete()
         Org.objects.all().delete()
         Contact.objects.all().delete()
-        User.objects.all().delete()
+        User.objects.all().exclude(username=settings.ANONYMOUS_USER_NAME).delete()
 
     @classmethod
     def _enter_atomics(cls):
