@@ -815,6 +815,7 @@ class FlowTest(TembaTest):
 
     def test_export_results(self):
         # setup flow and start both contacts
+        self.contact.update_urns(self.admin, ['tel:+250788382382', 'twitter:erictweets'])
 
         self.create_group('Devs', [self.contact])
 
@@ -1001,8 +1002,9 @@ class FlowTest(TembaTest):
                                                 "color (Value) - Color Flow",
                                                 "color (Text) - Color Flow"])
 
-        self.assertExcelRow(sheet_contacts, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "Devs", "", "",
-                                                "36", c1_run1_first, c1_run2_last, "Blue", "blue", " blue "], tz)
+        self.assertExcelRow(sheet_contacts, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "Devs",
+                                                "erictweets", "", "36", c1_run1_first, c1_run2_last, "Blue",
+                                                "blue", " blue "], tz)
 
         self.assertExcelRow(sheet_contacts, 2, [contact2_run1.contact.uuid, "+250788383383", "Nic", "", "", "",
                                                 "", c2_run1_first, c2_run1_last, "Other", "green", "green"], tz)
@@ -1017,8 +1019,9 @@ class FlowTest(TembaTest):
                                             "color (Value) - Color Flow",
                                             "color (Text) - Color Flow"])
 
-        self.assertExcelRow(sheet_runs, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "Devs", "", "",
-                                            "36", c1_run1_first, c1_run1_last, "Orange", "orange", "orange"], tz)
+        self.assertExcelRow(sheet_runs, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "Devs",
+                                            "erictweets", "", "36", c1_run1_first, c1_run1_last, "Orange", "orange",
+                                            "orange"], tz)
 
     def test_export_results_list_messages_once(self):
         contact1_run1 = self.flow.start([], [self.contact])[0]
