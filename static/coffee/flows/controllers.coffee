@@ -1816,6 +1816,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.container_operation_visible = true #show functions add quick and button
     $scope.actions_buttons_reply = []
     $scope.actions_quick_reply = []
+    $scope.action.quick_replies = {}
+    $scope.action.url_buttons = {}
   else
     if $scope.action.quick_replies?
       if $scope.action.quick_replies[currentLang]?
@@ -1879,7 +1881,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           $scope.action.quick_replies[lang].push({title:'', payload:''})
 
    
-  $scope.addNewButtonReply = ->
+  $scope.addNewUrlButton = ->
     if $scope.actions_buttons_reply.length < 1
       $scope.container_operation_visible = false
       if Object.keys($scope.action.url_buttons).length < 1

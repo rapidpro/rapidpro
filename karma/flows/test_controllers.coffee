@@ -799,7 +799,7 @@ describe 'Controllers:', ->
       editAction actionset, action, (scope) ->
         scope.actions_buttons_reply = []
         scope.actions_quick_reply = []
-        scope.addNewButtonReply()
+        scope.addNewUrlButton()
         scope.actions_buttons_reply[0]['title'] = 'URL title'
         scope.actions_buttons_reply[0]['url'] = 'example.com'
         scope.formData.msg = "test"
