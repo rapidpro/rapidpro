@@ -7397,16 +7397,16 @@ class InterruptTest(Test):
 # test types (and/or/true/false) to keep the number under 64.
 FLOW_FEATURES = [
     ('A', ReplyAction.TYPE, True),
-    ('A', SendAction.TYPE, False),
-    ('A', AddToGroupAction.TYPE, True),
-    ('A', DeleteFromGroupAction.TYPE, True),
-    ('A', AddLabelAction.TYPE, False),
+    ('A', SendAction.TYPE, False),               # https://github.com/nyaruka/goflow/issues/67
+    ('A', AddToGroupAction.TYPE, False),         # https://github.com/nyaruka/goflow/issues/66
+    ('A', DeleteFromGroupAction.TYPE, False),    # https://github.com/nyaruka/goflow/issues/66
+    ('A', AddLabelAction.TYPE, False),           # https://github.com/nyaruka/goflow/issues/66
     ('A', EmailAction.TYPE, True),
-    ('A', WebhookAction.TYPE, False),
+    ('A', WebhookAction.TYPE, False),            # https://github.com/nyaruka/goflow/issues/70
     ('A', SaveToContactAction.TYPE, True),
     ('A', SetLanguageAction.TYPE, True),
-    ('A', SetChannelAction.TYPE, False),
-    ('A', StartFlowAction.TYPE, False),
+    ('A', SetChannelAction.TYPE, True),
+    ('A', StartFlowAction.TYPE, True),
     ('A', SayAction.TYPE, False),
     ('A', PlayAction.TYPE, False),
     ('A', TriggerFlowAction.TYPE, False),
@@ -7439,20 +7439,20 @@ FLOW_FEATURES = [
     ('T', GtTest.TYPE, True),
     ('T', GteTest.TYPE, True),
     ('T', HasDateTest.TYPE, True),
-    ('T', HasDistrictTest.TYPE, False),
+    ('T', HasDistrictTest.TYPE, False),          # https://github.com/nyaruka/goflow/issues/71
     ('T', HasEmailTest.TYPE, True),
-    ('T', HasStateTest.TYPE, False),
-    ('T', HasWardTest.TYPE, False),
-    ('T', InGroupTest.TYPE, False),
+    ('T', HasStateTest.TYPE, False),             # https://github.com/nyaruka/goflow/issues/71
+    ('T', HasWardTest.TYPE, False),              # https://github.com/nyaruka/goflow/issues/71
+    ('T', InGroupTest.TYPE, True),
     ('T', InterruptTest.TYPE, False),
     ('T', LtTest.TYPE, True),
     ('T', LteTest.TYPE, True),
-    ('T', NotEmptyTest.TYPE, False),
+    ('T', NotEmptyTest.TYPE, True),
     ('T', NumberTest.TYPE, True),
     ('T', PhoneTest.TYPE, True),
-    ('T', RegexTest.TYPE, False),
+    ('T', RegexTest.TYPE, False),                # https://github.com/nyaruka/goflow/issues/69
     ('T', StartsWithTest.TYPE, True),
-    ('T', SubflowTest.TYPE, False),
+    ('T', SubflowTest.TYPE, True),
     ('T', TimeoutTest.TYPE, False),
     ('T', WebhookStatusTest.TYPE, False),
 ]
