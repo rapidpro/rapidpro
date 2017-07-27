@@ -1885,10 +1885,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if $scope.actions_buttons_reply.length < 1
       $scope.container_operation_visible = false
       if Object.keys($scope.action.url_buttons).length < 1
-        $scope.actions_buttons_reply.push({title:'', payload:''})
+        $scope.actions_buttons_reply.push({title:'', url:''})
       else
         for lang of $scope.action.url_buttons
-          $scope.action.url_buttons[lang].push({title:'', payload:''})
+          $scope.action.url_buttons[lang].push({title:'', url:''})
 
   $scope.removeElementArrayQuickReply = (a, index) ->
     for lang of $scope.action.quick_replies

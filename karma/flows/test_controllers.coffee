@@ -778,6 +778,7 @@ describe 'Controllers:', ->
       editAction actionset, action, (scope) ->
         scope.actions_buttons_reply = []
         scope.actions_quick_reply = []
+        scope.action.quick_replies = {}
         scope.addNewQuickReply()
         scope.actions_quick_reply[0]['payload'] = 'Test quick reply is ok'
         scope.actions_quick_reply[0]['title'] = 'Quick reply'
@@ -799,6 +800,7 @@ describe 'Controllers:', ->
       editAction actionset, action, (scope) ->
         scope.actions_buttons_reply = []
         scope.actions_quick_reply = []
+        scope.action.url_buttons = {}
         scope.addNewUrlButton()
         scope.actions_buttons_reply[0]['title'] = 'URL title'
         scope.actions_buttons_reply[0]['url'] = 'example.com'
