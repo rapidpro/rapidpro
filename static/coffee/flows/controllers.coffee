@@ -1817,12 +1817,13 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.actions_buttons_reply = []
     $scope.actions_quick_reply = []
   else
-    if $scope.action.quick_replies? 
+    if $scope.action.quick_replies?
       if $scope.action.quick_replies[currentLang]?
         $scope.container_operation_visible = false
         $scope.actions_quick_reply = $scope.action.quick_replies[currentLang]
       else
         $scope.actions_quick_reply = []
+        $scope.container_operation_visible = true
 
     if $scope.action.url_buttons? #check all is none
       if $scope.action.url_buttons[currentLang]?
@@ -1830,6 +1831,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         $scope.actions_buttons_reply = $scope.action.url_buttons[currentLang]
       else
         $scope.actions_buttons_reply = []
+
     if $scope.action._media?
       $scope.container_operation_visible = false
 
@@ -1870,18 +1872,36 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.addNewQuickReply = ->
     if $scope.actions_quick_reply.length < 3
       $scope.container_operation_visible = false
-      $scope.actions_quick_reply.push({title:'', payload:''})
+      if Object.keys($scope.action.quick_replies).length < 1
+        $scope.actions_quick_reply.push({title:'', payload:''})
+      else
+        for lang of $scope.action.quick_replies
+          $scope.action.quick_replies[lang].push({title:'', payload:''})
+
    
   $scope.addNewButtonReply = ->
     if $scope.actions_buttons_reply.length < 1
       $scope.container_operation_visible = false
-      $scope.actions_buttons_reply.push({title:'', url:''})
+      if Object.keys($scope.action.url_buttons).length < 1
+        $scope.actions_buttons_reply.push({title:'', payload:''})
+      else
+        for lang of $scope.action.url_buttons
+          $scope.action.url_buttons[lang].push({title:'', payload:''})
 
-  $scope.removeElementArray = (a, index) ->
-    a.splice(index,1)
+  $scope.removeElementArrayQuickReply = (a, index) ->
+    for lang of $scope.action.quick_replies
+      $scope.action.quick_replies[lang].splice(index, 1)
+
     if a.length == 0
       $scope.container_operation_visible = true
-      
+
+  $scope.removeElementArrayUrlButton = (a, index) ->
+    for lang of $scope.action.url_buttons
+      $scope.action.url_buttons[lang].splice(index, 1)
+
+    if a.length == 0
+      $scope.container_operation_visible = true
+
   $scope.actionset = actionset
   $scope.flowId = window.flowId
 
@@ -1936,12 +1956,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.action.msg = {}
     $scope.action.msg[$scope.base_language] = message
 
-    if typeof($scope.action.quick_replies) != "object"
+    if ! $scope.action.quick_replies instanceof Object
       $scope.action.quick_replies = {}
 
-    if typeof($scope.action.url_buttons) != "object"
+    if ! $scope.action.url_buttons instanceof Object
       $scope.action.url_buttons = {}
-
+      
     if $scope.actions_quick_reply.length > 0
       $scope.action.quick_replies[$scope.base_language] = $scope.actions_quick_reply
       $scope.action.url_buttons = {}
@@ -1951,7 +1971,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     else 
       $scope.action.quick_replies = {}
       $scope.action.url_buttons = {}
-      
+
     $scope.action.type = type
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
