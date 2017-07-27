@@ -2865,27 +2865,28 @@ class Channel(TembaModel):
     @classmethod
     def get_context_metadata(cls, msg, text, channel):
         metadata = json.loads(msg.metadata)
-        data = dict(auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
-                        receiver=msg.urn_path,
-                        text=text,
-                        type='text',
-                        tracking_data=msg.id,
-                        keyboard=dict(Type="keyboard", DefaultHeight=True, Buttons=list())
-                        )
+        data = dict(
+            auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
+            receiver=msg.urn_path,
+            text=text,
+            type='text',
+            tracking_data=msg.id,
+            keyboard=dict(Type="keyboard", DefaultHeight=True, Buttons=list())
+        )
 
         if metadata.get('quick_replies'):
             quick_replies = metadata.get('quick_replies')
             for quick_reply in quick_replies:
-                data["keyboard"]["Buttons"].append(
-                    { "Text": quick_reply["title"], "ActionBody": quick_reply["payload"], 
-                    "ActionType":"reply", "TextSize":"regular" })
+                data["keyboard"]["Buttons"].append({
+                    "Text": quick_reply["title"], "ActionBody": quick_reply["payload"],
+                    "ActionType": "reply", "TextSize": "regular"})
         else:
             url_buttons = metadata.get('url_buttons')
             for url_button in url_buttons:
-                data["keyboard"]["Buttons"].append(
-                    { "Text": url_button["title"], "ActionBody": url_button["url"], 
-                    "ActionType":"open-url", "TextSize":"regular" })
-                    
+                data["keyboard"]["Buttons"].append({
+                    "Text": url_button["title"], "ActionBody": url_button["url"],
+                    "ActionType": "open-url", "TextSize": "regular"})
+
         return data
 
     @classmethod
@@ -2896,11 +2897,13 @@ class Channel(TembaModel):
         if hasattr(msg, 'metadata'):
             payload = cls.get_context_metadata(msg, text, channel)
         else:
-            payload = dict(auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
-                        receiver=msg.urn_path,
-                        text=text,
-                        type='text',
-                        tracking_data=msg.id)
+            payload = dict(
+                auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
+                receiver=msg.urn_path,
+                text=text,
+                type='text',
+                tracking_data=msg.id
+            )
 
         event = HttpEvent('POST', url, json.dumps(payload))
 

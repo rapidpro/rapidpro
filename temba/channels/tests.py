@@ -11141,7 +11141,7 @@ class ViberPublicTest(TembaTest):
                                           'auth_token': u'auth_token',
                                           'tracking_data': msg.id,
                                           'type': u'text',
-                                          'receiver': u'xy5/5y6O81+/kbWHpLhBoA==',},
+                                          'receiver': u'xy5/5y6O81+/kbWHpLhBoA==', },
                                     timeout=5)
 
             msg.refresh_from_db()
@@ -11170,30 +11170,29 @@ class ViberPublicTest(TembaTest):
             mock.return_value = MockResponse(200, '{ "status":0, "status_message": "ok", "message_token": "999" }')
 
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-            
+
             mock.assert_called_with('https://chatapi.viber.com/pa/send_message',
                                     headers={'Accept': u'application/json', u'User-agent': u'RapidPro'},
-                                    json= dict(
+                                    json=dict(
                                         auth_token='auth_token',
                                         receiver="FXLP/JstS7kDuoiUGihkgA==",
                                         text="Hello, world!",
                                         type='text',
                                         tracking_data=msg.id,
                                         keyboard=dict(
-                                            Type="keyboard", 
-                                            DefaultHeight=True, 
+                                            Type="keyboard",
+                                            DefaultHeight=True,
                                             Buttons=[
-                                                { 
-                                                    "Text": "Show Website", 
-                                                    "ActionBody": "https://example.com", 
-                                                    "ActionType":"open-url",
-                                                    "TextSize":"regular" 
+                                                {
+                                                    "Text": "Show Website",
+                                                    "ActionBody": "https://example.com",
+                                                    "ActionType": "open-url",
+                                                    "TextSize": "regular"
                                                 }
                                             ]
                                         )
                                     ),
                                     timeout=5)
-            
             msg.refresh_from_db()
             self.assertEqual(msg.status, WIRED)
             self.assertTrue(msg.sent_on)
@@ -11227,36 +11226,36 @@ class ViberPublicTest(TembaTest):
             mock.return_value = MockResponse(200, '{ "status":0, "status_message": "ok", "message_token": "999" }')
 
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-            
+
             mock.assert_called_with('https://chatapi.viber.com/pa/send_message',
                                     headers={'Accept': u'application/json', u'User-agent': u'RapidPro'},
-                                    json= dict(
+                                    json=dict(
                                         auth_token='auth_token',
                                         receiver="FXLP/JstS7kDuoiUGihkgA==",
                                         text="Hello, world!",
                                         type='text',
                                         tracking_data=msg.id,
                                         keyboard=dict(
-                                            Type="keyboard", 
-                                            DefaultHeight=True, 
+                                            Type="keyboard",
+                                            DefaultHeight=True,
                                             Buttons=[
-                                                { 
-                                                    "Text": "Yes", 
-                                                    "ActionBody": "yes", 
-                                                    "ActionType":"reply",
-                                                    "TextSize":"regular" 
+                                                {
+                                                    "Text": "Yes",
+                                                    "ActionBody": "yes",
+                                                    "ActionType": "reply",
+                                                    "TextSize": "regular"
                                                 },
                                                 {
-                                                    "Text": "No", 
-                                                    "ActionBody": "no", 
-                                                    "ActionType":"reply",
-                                                    "TextSize":"regular"          
+                                                    "Text": "No",
+                                                    "ActionBody": "no",
+                                                    "ActionType": "reply",
+                                                    "TextSize": "regular"
                                                 }
                                             ]
                                         )
                                     ),
                                     timeout=5)
-            
+
             msg.refresh_from_db()
             self.assertEqual(msg.status, WIRED)
             self.assertTrue(msg.sent_on)
@@ -11265,6 +11264,7 @@ class ViberPublicTest(TembaTest):
             self.clear_cache()
             self.assertEqual(mock.call_args[1]['json']['keyboard']['Buttons'][0]['Text'], 'Yes')
             self.assertEqual(mock.call_args[1]['json']['keyboard']['Buttons'][1]['Text'], 'No')
+
 
 class FcmTest(TembaTest):
 
