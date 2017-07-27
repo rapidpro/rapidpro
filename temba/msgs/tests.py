@@ -11,12 +11,11 @@ from django.core.urlresolvers import reverse
 from django.utils import timezone
 from django_redis import get_redis_connection
 from django.db import transaction
-from django.test import TransactionTestCase
 from django.contrib.auth.models import User
 from celery import current_app
 from mock import patch
 from openpyxl import load_workbook
-from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME, URN
+from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
 from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, SystemLabelCount, UnreachableException
@@ -2112,28 +2111,16 @@ class TagsTest(TembaTest):
         self.assertRaises(ValueError, self.render_template, '{% load sms %}{% render as %}{% endrender %}')
 
 
-class CeleryTaskTest(TransactionTestCase):
+class CeleryTaskTest(TembaTest):
 
     def setUp(self):
         super(CeleryTaskTest, self).setUp()
 
         self.applied_tasks = []
 
-        self.country = AdminBoundary.objects.create(osm_id='171126', name='Rwanda', level=0)
-        self.user = self.create_user("User")
-
-        self.org = Org.objects.create(name="Temba", timezone=pytz.timezone("Africa/Kigali"), country=self.country,
-                                      brand=settings.DEFAULT_BRAND, created_by=self.user, modified_by=self.user)
-
-        self.org.initialize(topup_size=1000)
-
-        # add users to the org
-        self.user.set_org(self.org)
-        self.org.viewers.add(self.user)
-
         self.joe = self.create_contact("Joe", "+250788383444")
 
-        self.channel = Channel.create(
+        self.channel2 = Channel.create(
             self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '1234',
             config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
             uuid='00000000-0000-0000-0000-000000001234', role=Channel.ROLE_USSD)
@@ -2144,36 +2131,15 @@ class CeleryTaskTest(TransactionTestCase):
         AdminBoundary.objects.all().delete()
         Org.objects.all().delete()
         Contact.objects.all().delete()
-        self.user.delete()
+        User.objects.all().delete()
 
-    def create_user(self, username):
-        return User.objects.create(username=username)
+    @classmethod
+    def _enter_atomics(cls):
+        return {}
 
-    def create_contact(self, name=None, number=None, twitter=None, urn=None, is_test=False, **kwargs):
-        """
-        Create a contact in the master test org
-        """
-        urns = []
-        if number:
-            urns.append(URN.from_tel(number))
-        if twitter:
-            urns.append(URN.from_twitter(twitter))
-        if urn:
-            urns.append(urn)
-
-        if not name and not urns:  # pragma: no cover
-            raise ValueError("Need a name or URN to create a contact")
-
-        kwargs['name'] = name
-        kwargs['urns'] = urns
-        kwargs['is_test'] = is_test
-
-        if 'org' not in kwargs:
-            kwargs['org'] = self.org
-        if 'user' not in kwargs:
-            kwargs['user'] = self.user
-
-        return Contact.get_or_create(**kwargs)
+    @classmethod
+    def _rollback_atomics(cls, atomics):
+        pass
 
     def handle_push_task(self, task_name):
         self.applied_tasks.append(task_name)
@@ -2214,10 +2180,9 @@ class CeleryTaskTest(TransactionTestCase):
             models.push_task = new_push_task
 
             with transaction.atomic():
-                msg1 = Msg.create_outgoing(self.org, self.user, self.joe, "Hello, we heard from you.", channel=self.channel)
+                msg1 = Msg.create_outgoing(self.org, self.user, self.joe, "Hello, we heard from you.", channel=self.channel2)
 
                 Msg.send_messages([msg1])
-
         finally:
             # Reset the monkey patch to the original method
             current_app.send_task = send_task_orig
