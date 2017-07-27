@@ -77,12 +77,19 @@ class TelegramType(ChannelType):
                 del post_body['text']
 
         if hasattr(msg, 'metadata'):
-            quick_replies = json.loads(msg.metadata)
-            quick_replies = quick_replies.get('quick_replies', [])
-            replies = []
-            for reply in quick_replies:
-                replies.append([dict(text=reply.get('title'), callback_data=reply.get('payload'))])
-            post_body['reply_markup'] = json.dumps(dict(keyboard=replies, resize_keyboard=True, one_time_keyboard=True))
+            metadata = json.loads(msg.metadata)
+            if hasattr(metadata, 'quick_replies'):
+                quick_replies = metadata.get('quick_replies', [])
+                replies = []
+                for reply in quick_replies:
+                    replies.append([dict(text=reply.get('title'), callback_data=reply.get('payload'))])
+                post_body['reply_markup'] = json.dumps(dict(keyboard=replies, resize_keyboard=True, one_time_keyboard=True))
+            elif hasattr(metadata, 'url_buttons'):
+                url_buttons = metadata.get('url_buttons', [])
+                replies = []
+                for url_button in url_buttons:
+                    replies.append([dict(text=url_button.get('title'), url=url_button.get('url'))])
+                post_body['inline_keyboard'] = json.dumps(replies)
 
         event = HttpEvent('POST', send_url, urlencode(post_body))
 
