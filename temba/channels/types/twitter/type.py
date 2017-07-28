@@ -53,7 +53,7 @@ class TwitterType(ChannelType):
 
         try:
             # this is a legacy URN (no display), the path is our screen name
-            if msg.get('urn_display') is None:
+            if getattr(msg, 'urn_display', None) is None:
                 dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
 
             # this is a new twitter URN, our path is our user id
