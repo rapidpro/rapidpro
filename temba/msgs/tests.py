@@ -10,6 +10,9 @@ from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from django_redis import get_redis_connection
+from django.db import transaction
+from django.contrib.auth.models import User
+from django.test import override_settings
 from mock import patch
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
@@ -26,6 +29,9 @@ from temba.values.models import Value
 from .management.commands.msg_console import MessageConsole
 from .tasks import squash_labelcounts, clear_old_msg_external_ids, purge_broadcasts_task
 from .templatetags.sms import as_icon
+from temba.locations.models import AdminBoundary
+from temba.msgs import models
+from temba.utils.queues import DEFAULT_PRIORITY
 
 
 class MsgTest(TembaTest):
@@ -2103,3 +2109,68 @@ class TagsTest(TembaTest):
         # exception if tag not used correctly
         self.assertRaises(ValueError, self.render_template, '{% load sms %}{% render with bob %}{% endrender %}')
         self.assertRaises(ValueError, self.render_template, '{% load sms %}{% render as %}{% endrender %}')
+
+
+class CeleryTaskTest(TembaTest):
+
+    def setUp(self):
+        super(CeleryTaskTest, self).setUp()
+
+        self.applied_tasks = []
+
+        self.joe = self.create_contact("Joe", "+250788383444")
+
+        self.channel2 = Channel.create(
+            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '1234',
+            config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
+            uuid='00000000-0000-0000-0000-000000001234', role=Channel.ROLE_USSD)
+
+    def _fixture_teardown(self):
+        Msg.objects.all().delete()
+        Channel.objects.all().delete()
+        AdminBoundary.objects.all().delete()
+        Org.objects.all().delete()
+        Contact.objects.all().delete()
+        User.objects.all().exclude(username=settings.ANONYMOUS_USER_NAME).delete()
+
+    @classmethod
+    def _enter_atomics(cls):
+        return {}
+
+    @classmethod
+    def _rollback_atomics(cls, atomics):
+        pass
+
+    def handle_push_task(self, task_name):
+        self.applied_tasks.append(task_name)
+
+    def assert_task_sent(self, task_name):
+        was_sent = task_name in self.applied_tasks
+        self.assertTrue(was_sent, 'Task not called w/class %s' % (task_name))
+
+    def assertInDB(self, obj, msg=None):
+        """Test for obj's presence in the database."""
+        fullmsg = "Object %r unexpectedly not found in the database" % obj
+        fullmsg += ": " + msg if msg else ""
+        try:
+            type(obj).objects.using('default2').get(pk=obj.pk)
+        except obj.DoesNotExist:
+            self.fail(fullmsg)
+
+    @override_settings(CELERY_ALWAYS_EAGER=False, SEND_MESSAGES=True)
+    def test_reply_task_added(self):
+        orig_push_task = models.push_task
+
+        def new_send_task(name, args=(), kwargs={}, **opts):
+            self.handle_push_task(name)
+
+        def new_push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
+            orig_push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY)
+
+            self.assertInDB(msg1)
+            self.assert_task_sent('send_msg_task')
+
+        with patch('celery.current_app.send_task', new_send_task), patch('temba.msgs.models.push_task', new_push_task), transaction.atomic():
+            msg1 = Msg.create_outgoing(self.org, self.user, self.joe, "Hello, we heard from you.", channel=self.channel2)
+
+            Msg.send_messages([msg1])
