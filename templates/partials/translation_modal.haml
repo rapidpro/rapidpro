@@ -23,14 +23,14 @@
             .modal-quick-reply-value
               -trans "Text"
             .modal-quick-reply-value
-              -trans "Payload"
+              -trans "Value"
               
           .modal-quick-reply{ng-repeat:"response in translation.toQuickReply", class:""}
-            .modal-quick-reply-value  
+            .modal-quick-reply-value.center-translate
               .translate-from{ng-show:"translation.fromQuickReply[$index].title"}
                 -trans "[[translation.fromQuickReply[$index].title]]"
               %input{ng-model:"response.title", ng-required:"true"} 
-            .modal-quick-reply-value 
+            .modal-quick-reply-value.center-translate
               .translate-from{ng-show:"translation.fromQuickReply[$index].payload"}
                 -trans "[[translation.fromQuickReply[$index].payload]]"
               %input{ng-model:"response.payload", ng-required:"true"}
@@ -40,14 +40,14 @@
             .modal-quick-reply-value
               -trans "Text"
             .modal-quick-reply-value
-              -trans "Url"
+              -trans "URL"
               
           .modal-quick-reply{ng-repeat:"response in translation.toButtonsReply", class:""}
-            .modal-quick-reply-value
+            .modal-quick-reply-value.center-translate
               .translate-from{ng-show:"translation.fromButtonsReply[$index].title"}  
                 -trans "[[translation.fromButtonsReply[$index].title]]"                
               %input{ng-model:"response.title", ng-required:"true"} 
-            .modal-quick-reply-value 
+            .modal-quick-reply-value.center-translate 
               .translate-from{ng-show:"translation.fromButtonsReply[$index].url"}
                 -trans "[[translation.fromButtonsReply[$index].url]]"           
               %input{ng-model:"response.url", ng-required:"true", ng-pattern:"/^(http[s]?:\/\/){0,1}(www\.){0,1}[a-zA-Z0-9\.\-]+\.[a-zA-Z]{2,5}[\.]{0,1}/"} 

@@ -35,7 +35,7 @@
           .modal-quick-reply-value
             -trans "Text"
           .modal-quick-reply-value
-            -trans "Payload"
+            -trans "Value"
             
         .modal-quick-reply{ng-repeat:"response in actions_quick_reply", class:""}
           .modal-quick-reply-value  
@@ -44,7 +44,7 @@
             %input{ng-model:"response.payload", ng-required:"true"}
           
           .icon.icon-close{ng-click:"removeElementArrayQuickReply(actions_quick_reply, $index)"}
-        %a{ng-click:"addNewQuickReply()", class:"cursor-pointer", ng-hide:"actions_quick_reply.length == 3"}
+        %a{ng-click:"addNewQuickReply()", class:"cursor-pointer", ng-hide:"actions_quick_reply.length == 11"}
           -trans "Add new quick reply"
 
       .quick-reply{ng-show:"actions_buttons_reply.length"}
@@ -60,6 +60,8 @@
           .modal-quick-reply-value 
             %input{ng-model:"response.url", ng-required:"true", ng-pattern:"/^(http[s]?:\/\/){1,1}(www\.){0,1}[a-zA-Z0-9\.\-]+\.[a-zA-Z]{2,5}[\.]{0,1}/"} 
           .icon.icon-close{ng-click:"removeElementArrayUrlButton(actions_buttons_reply, $index)"}
+        %a{ng-click:"addNewUrlButton()", class:"cursor-pointer", ng-hide:"actions_buttons_reply.length == 3"}
+          -trans "Add new url button"
 
     %span{ng-if:'config.type == "end_ussd"'}
       %span{auto-complete:"",msg:"action.msg",type:"ussd",data-message:"message"}
