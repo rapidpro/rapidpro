@@ -53,12 +53,12 @@ class TwitterType(ChannelType):
 
         try:
             # this is a legacy URN (no display), the path is our screen name
-            if msg.urn.display is None:
-                dm = twitter.send_direct_message(screen_name=msg.urn.path, text=text)
+            if msg.urn_display is None:
+                dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
 
             # this is a new twitter URN, our path is our user id
             else:
-                dm = twitter.send_direct_message(user_id=msg.urn.path, text=text)
+                dm = twitter.send_direct_message(user_id=msg.urn_path, text=text)
 
         except Exception as e:
             error_code = getattr(e, 'error_code', 400)

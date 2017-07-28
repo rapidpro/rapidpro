@@ -1172,7 +1172,7 @@ class Msg(models.Model):
         """
         data = dict(id=self.id, org=self.org_id, channel=self.channel_id, broadcast=self.broadcast_id,
                     text=self.text, urn_path=self.contact_urn.path, urn_display=self.contact_urn.display,
-                    contact=self.contact_id, contact_urn=self.contact_urn_id,
+                    urn=self.contact_urn.urn, contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
                     status=self.status, direction=self.direction, attachments=self.attachments,
                     external_id=self.external_id, response_to_id=self.response_to_id,
