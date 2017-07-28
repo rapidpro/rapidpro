@@ -768,7 +768,7 @@ class Msg(models.Model):
                             if task_priority is None:  # pragma: needs cover
                                 task_priority = DEFAULT_PRIORITY
 
-                            push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority)
+                            on_transaction_commit(lambda: push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority))
                             task_msgs = []
                             task_priority = None
 
@@ -789,7 +789,8 @@ class Msg(models.Model):
         if task_msgs:
             if task_priority is None:
                 task_priority = DEFAULT_PRIORITY
-            push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority)
+
+            on_transaction_commit(lambda: push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority))
 
     @classmethod
     def process_message(cls, msg):
