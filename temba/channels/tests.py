@@ -7820,7 +7820,7 @@ class TelegramTest(TembaTest):
         }
         """
         joe = self.create_contact("Ernie", urn='telegram:1234')
-        msg = joe.send("Test message", self.admin, trigger_send=False, metadata=metadata)[0]
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, metadata=metadata)[0]
 
         settings.SEND_MESSAGES = True
 
@@ -7836,10 +7836,11 @@ class TelegramTest(TembaTest):
             self.assertTrue(msg.sent_on)
             self.clear_cache()
 
-            mock_json = json.loads(mock.call_args[0]['inline_keyboard'])
+            self.assertEqual(mock.call_args[0][0], "https://api.telegram.org/botvalid/sendMessage")
 
-            self.assertEqual(mock_json['keyboard'][0]['text'], "Show Website")
-            self.assertEqual(mock_json['keyboard'][0]['url'], "https://example.com")
+            mock_json = json.loads(mock.call_args[0][1]['reply_markup'])
+            self.assertEqual(mock_json['inline_keyboard'][0][0]['url'], 'https://example.com')
+            self.assertEqual(mock_json['inline_keyboard'][0][0]['text'], 'Show Website')
 
 
 class PlivoTest(TembaTest):
