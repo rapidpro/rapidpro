@@ -1871,7 +1871,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.addNewActionWebhookHeader()
 
   $scope.addNewQuickReply = ->
-    if $scope.actions_quick_reply.length < 3
+    if $scope.actions_quick_reply.length < 11
       $scope.container_operation_visible = false
       if Object.keys($scope.action.quick_replies).length < 1
         $scope.actions_quick_reply.push({title:'', payload:''})
@@ -1881,7 +1881,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
    
   $scope.addNewUrlButton = ->
-    if $scope.actions_buttons_reply.length < 1
+    if $scope.actions_buttons_reply.length < 3
       $scope.container_operation_visible = false
       if Object.keys($scope.action.url_buttons).length < 1
         $scope.actions_buttons_reply.push({title:'', url:''})
