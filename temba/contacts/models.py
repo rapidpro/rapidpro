@@ -1956,7 +1956,16 @@ class ContactURN(models.Model):
             urn_as_string = URN.normalize(urn_as_string, country_code)
         identity = URN.identity(urn_as_string)
 
-        return cls.objects.filter(org=org, identity=identity).select_related('contact').first()
+        found_urn = cls.objects.filter(org=org, identity=identity).select_related('contact').first()
+
+        # if it wasn't found, try looking up by display if this is twitter
+        if not found_urn:
+            scheme, path, display = URN.to_parts(urn_as_string)
+            if scheme == TWITTER_SCHEME and display:
+                # try to look up using old twitter format
+                found_urn = cls.objects.filter(org=org, identity=URN.from_parts(scheme, display), display=None).select_related('contact').first()
+
+        return found_urn
 
     def update_auth(self, auth):
         if auth and auth != self.auth:

@@ -2367,6 +2367,14 @@ class ContactTest(TembaTest):
         contact = Contact.from_urn(self.org, 'tel:+447531669966')
         self.assertEqual("Marshal Mathers", contact.name)
 
+    def test_twitter_lookup(self):
+        joe = self.create_contact(name="Joe", twitter="therealjoe")
+        urn = joe.get_urns()[0]
+
+        # try to lookup this URN using new format
+        urn_lookup = ContactURN.lookup(joe.org, "twitter:12345#therealjoe")
+        self.assertEqual(urn.id, urn_lookup.id)
+
     def test_contact_model(self):
         contact1 = self.create_contact(name=None, number="123456")
 

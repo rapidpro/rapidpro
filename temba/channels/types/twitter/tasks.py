@@ -41,7 +41,8 @@ def resolve_twitter_ids():
                 for twitter_user in resp:
                     screen_name = twitter_user['screen_name']
                     twitter_id = twitter_user['id']
-                    new_identity = URN.from_parts(TWITTER_SCHEME, twitter_id)
+                    new_identity = URN.normalize(URN.from_parts(TWITTER_SCHEME, twitter_id))
+
                     if screen_name in screen_map and twitter_user['id']:
                         contact_urn = screen_map[screen_name]
 

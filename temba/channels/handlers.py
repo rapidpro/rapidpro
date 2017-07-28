@@ -2968,7 +2968,7 @@ class TwitterHandler(BaseChannelHandler):
                 if int(sender_id) == channel_config['handle_id']:
                     continue
 
-                urn = URN.from_twitter(users[sender_id]['screen_name'])
+                urn = URN.from_twitter(sender_id, display=users[sender_id]['screen_name'])
                 name = None if channel.org.is_anon else users[sender_id]['name']
                 contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
 
