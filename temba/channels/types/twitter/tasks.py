@@ -14,7 +14,7 @@ def resolve_twitter_ids():
     r = get_redis_connection()
 
     # TODO: we can't use our non-overlapping task decorator as it creates a loop in the celery resolver when registering
-    if r.get('resolve_twitter_ids_task'):
+    if r.get('resolve_twitter_ids_task'):  # pragma: no cover
         return
 
     with r.lock('resolve_twitter_ids_task', 900):
@@ -68,7 +68,7 @@ def resolve_twitter_ids():
 
                 missing += len(screen_map)
 
-            except Exception as e:
+            except Exception as e:  # pragma: no cover
                 # exit, we'll try again later
                 print("exiting resolve_twitter_ids due to exception: %s" % e)
                 break

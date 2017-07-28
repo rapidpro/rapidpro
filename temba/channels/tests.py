@@ -7841,6 +7841,32 @@ class TwitterTest(TembaTest):
 
                 # assert we were only called once
                 self.assertEquals(1, mock.call_count)
+                self.assertEquals("joe81", mock.call_args[1]['data']['screen_name'])
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(WIRED, msg.status)
+                self.assertEquals('1234567890', msg.external_id)
+                self.assertTrue(msg.sent_on)
+                self.assertEqual(mock.call_args[1]['data']['text'], msg.text)
+
+                self.clear_cache()
+
+            ChannelLog.objects.all().delete()
+            msg.contact_urn.display = "joe81"
+            msg.contact_urn.path = "12345"
+            msg.contact_urn.identity = "twitter:12345"
+            msg.contact_urn.save()
+
+            with patch('requests.sessions.Session.post') as mock:
+                mock.return_value = MockResponse(200, json.dumps(dict(id=1234567890)))
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # assert we were only called once
+                self.assertEquals(1, mock.call_count)
+                self.assertEquals("12345", mock.call_args[1]['data']['user_id'])
 
                 # check the status of the message is now sent
                 msg.refresh_from_db()
