@@ -3725,13 +3725,16 @@ class ContactURNTest(TembaTest):
         self.assertEqual(urn.priority, 50)
 
     def test_get_display(self):
-        urn = ContactURN.objects.create(org=self.org, scheme='tel', path='+250788383383', identity='tel:+250788383383', priority=50)
+        urn = ContactURN.objects.create(org=self.org, scheme=TEL_SCHEME, path='+250788383383', identity='tel:+250788383383', priority=50)
         self.assertEqual(urn.get_display(self.org), '0788 383 383')
         self.assertEqual(urn.get_display(self.org, formatted=False), '+250788383383')
         self.assertEqual(urn.get_display(self.org, international=True), '+250 788 383 383')
         self.assertEqual(urn.get_display(self.org, formatted=False, international=True), '+250788383383')
 
-        urn = ContactURN.objects.create(org=self.org, scheme='twitter', path='billy_bob', identity='twitter:billy_bob', priority=50)
+        urn = ContactURN.objects.create(org=self.org, scheme=TWITTER_SCHEME, path='billy_bob', identity='twitter:billy_bob', priority=50)
+        self.assertEqual(urn.get_display(self.org), 'billy_bob')
+
+        urn = ContactURN.objects.create(org=self.org, scheme=TWITTER_SCHEME, path='12345', identity='twitter:12345', display="billy_bob", priority=50)
         self.assertEqual(urn.get_display(self.org), 'billy_bob')
 
 
