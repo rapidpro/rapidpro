@@ -10,40 +10,40 @@
         %img.attachment-media{ng-if:'action._media && action._media.type == "image"', id:'[[action.uuid]]_image', ng-src:'[[action._media.url]]'}
         %video.attachment-media{ng-if:'action._media && action._media.type == "video"', controls:'', id:'[[action.uuid]]_video', ng-src:'[[action._media.url]]'}
         %audio.attachment-media{ng-if:'action._media && action._media.type == "audio"', controls:'', id:'[[action.uuid]]_audio', ng-src:'[[action._media.url]]'}
-        .show-quick-response.attachment-media{ng-if:'action.quick_responses.length > 0', controls:'', class:""}
+        .show-quick-reply.attachment-media{ng-if:'action.quick_replies[currentLang].length > 0', controls:'', class:""}
           .row
 
-            .show-quick-response-value  
+            .show-quick-reply-value  
               %span 
                 -trans "Title"
 
-            .show-quick-response-value 
+            .show-quick-reply-value 
               %span  
                 -trans "Payload"
 
-          .row{ng-repeat:"response in action.quick_responses"}
+          .row{ng-repeat:"response in action.quick_replies[currentLang]"}
 
-            .show-quick-response-value  
+            .show-quick-reply-value  
               -trans "[[response.title]]"
 
-            .show-quick-response-value 
+            .show-quick-reply-value 
               -trans "[[response.payload]]"
 
-        .show-quick-response.attachment-media{ng-if:'action.buttons_reply.length > 0', controls:'', class:""}
+        .show-quick-reply.attachment-media{ng-if:'action.url_buttons[currentLang].length > 0', controls:'', class:""}
           .row
 
-            .show-quick-response-value  
+            .show-quick-reply-value  
               %span 
                 -trans "Title"
 
-            .show-quick-response-value
+            .show-quick-reply-value
               %span   
-                -trans "Url"
+                -trans "URL"
 
-          .row{ng-repeat:"response in action.buttons_reply"}
+          .row{ng-repeat:"response in action.url_buttons[currentLang]"}
 
-            .show-quick-response-value  
+            .show-quick-reply-value  
               -trans "[[response.title]]"
 
-            .show-quick-response-value 
+            .show-quick-reply-value 
               -trans "[[response.url]]"

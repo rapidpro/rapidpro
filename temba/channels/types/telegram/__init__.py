@@ -3,6 +3,7 @@ from __future__ import unicode_literals, absolute_import
 import requests
 import telegram
 import time
+import json
 
 from django.conf import settings
 from django.urls import reverse
@@ -74,6 +75,27 @@ class TelegramType(ChannelType):
                 post_body['audio'] = attachment.url
                 post_body['caption'] = text
                 del post_body['text']
+
+        if hasattr(msg, 'metadata'):
+            metadata = json.loads(msg.metadata)
+            quick_replies = metadata.get('quick_replies', None)
+            url_buttons = metadata.get('url_buttons', None)
+            replies = []
+            keyboard_type = None
+
+            if quick_replies:
+                for reply in quick_replies:
+                    replies.append([dict(text=reply.get('title'), callback_data=reply.get('payload'))])
+                keyboard_type = 'keyboard'
+            elif url_buttons:
+                for url_button in url_buttons:
+                    replies.append([dict(text=url_button.get('title'), url=url_button.get('url'))])
+                keyboard_type = 'inline_keyboard'
+
+            if keyboard_type:
+                keyboard_json = dict(resize_keyboard=True, one_time_keyboard=True)
+                keyboard_json[keyboard_type] = replies
+                post_body['reply_markup'] = json.dumps(keyboard_json)
 
         event = HttpEvent('POST', send_url, urlencode(post_body))
 

@@ -25,7 +25,7 @@ class TembaTwython(Twython):  # pragma: no cover
         self.events = []
 
     @classmethod
-    def from_channel(cls, channel):
+    def from_channel(cls, channel, headers=None):
         # could be passed a ChannelStruct or a Channel model instance
         config = channel.config_json() if isinstance(channel, Model) else channel.config
 
@@ -37,7 +37,7 @@ class TembaTwython(Twython):  # pragma: no cover
             api_key, api_secret = settings.TWITTER_API_KEY, settings.TWITTER_API_SECRET
             access_token, access_token_secret = config['oauth_token'], config['oauth_token_secret']
 
-        return TembaTwython(api_key, api_secret, access_token, access_token_secret)
+        return TembaTwython(api_key, api_secret, access_token, access_token_secret, client_args=headers)
 
     def _request(self, url, method='GET', params=None, api_call=None):
         """Internal request method"""
@@ -45,7 +45,11 @@ class TembaTwython(Twython):  # pragma: no cover
         params = params or {}
 
         func = getattr(self.client, method)
-        params, files = _transparent_params(params)
+        if params["event"]:   # TODO: CHANGE THIS LINE BEFORE SEND
+            params = params
+            files = None
+        else:
+            params, files = _transparent_params(params)
 
         requests_args = {}
         for k, v in self.client_args.items():
@@ -56,17 +60,22 @@ class TembaTwython(Twython):  # pragma: no cover
         if method == 'get':
             requests_args['params'] = params
         else:
-            requests_args.update({
-                'data': params,
-                'files': files,
-            })
+            if params["event"]:   # TODO: CHANGE THIS LINE BEFORE SEND
+                requests_args.update({
+                    'data': json.dumps(params),
+                    'files': files,
+                })
+            else:
+                requests_args.update({
+                    'data': params,
+                    'files': files,
+                })
         try:
             if method == 'get':
                 event = HttpEvent(method, url + '?' + urlencode(params))
             else:
                 event = HttpEvent(method, url, urlencode(params))
             self.events.append(event)
-
             response = func(url, **requests_args)
             event.status_code = response.status_code
             event.response_body = response.text
@@ -170,6 +179,15 @@ class TembaTwython(Twython):  # pragma: no cover
         Docs: https://dev.twitter.com/webhooks/reference/post/account_activity/webhooks/subscriptions
         """
         return self.post('account_activity/webhooks/%s/subscriptions.json' % webhook_id)
+
+    def send_direct_message_with_events(self, params):
+        """
+        Send a direct message with events for the provided user context.
+
+        Docs: https://dev.twitter.com/rest/reference/post/direct_messages/events/new
+        """
+        # this method was implemented because twython can't set headers with easy format
+        return self.post('direct_messages/events/new', params=params)
 
 
 def generate_twitter_signature(content, consumer_secret):

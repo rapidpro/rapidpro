@@ -1817,7 +1817,7 @@ class Contact(TembaModel):
             recipients = [((u.contact, u) if status == SENT else u) for u in self.get_urns()]
         else:
             recipients = [(self, None)] if status == SENT else [self]
-            
+
         msgs = []
         for recipient in recipients:
             try:

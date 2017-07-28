@@ -2,6 +2,7 @@ from __future__ import unicode_literals, absolute_import
 
 import six
 import time
+import json
 
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import Contact, TWITTER_SCHEME
@@ -42,12 +43,45 @@ class TwitterType(ChannelType):
         # tell Mage to deactivate this channel
         notify_mage_task.delay(channel.uuid, MageStreamAction.deactivate.name)
 
-    def send(self, channel, msg, text):
-        twitter = TembaTwython.from_channel(channel)
-        start = time.time()
+    def get_context_metadata(self, msg, text):
+        data = {
+            "event": {
+                "type": "message_create",
+                "message_create": {
+                    "target": {
+                        "recipient_id": msg.urn_path
+                    },
+                    "message_data": {
+                        "text": text,
+                        "quick_reply": {
+                            "type": "options",
+                            "options": []
+                        }
+                    }
+                }
+            }
+        }
+        metadata = json.loads(msg.metadata)
+        if metadata.get('quick_reply'):
+            quick_replies = metadata.get('quick_reply')
+            for quick_reply in quick_replies:
+                data["event"]["message_create"]["message_data"]["quick_reply"]["options"].append({
+                    "label": quick_reply["title"], "metadata": quick_reply["payload"]})
+        else:
+            pass
 
+        return data
+
+    def send(self, channel, msg, text):
+        start = time.time()
         try:
-            dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
+            if hasattr(msg, 'metadata'):
+                headers = {'headers': {str('Content-Type'): str('application/json')}}
+                twitter = TembaTwython.from_channel(channel, headers=headers)
+                dm = twitter.send_direct_message_with_events(self.get_context_metadata(msg, text))
+            else:
+                twitter = TembaTwython.from_channel(channel)
+                dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
         except Exception as e:
             error_code = getattr(e, 'error_code', 400)
             fatal = False

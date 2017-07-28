@@ -41,19 +41,19 @@ window.updateSimulator = (data) ->
     media_type = null
     media_viewer_elt = null
 
-    quick_reply = null
-    buttons_reply = null
+    quick_replies = null
+    url_buttons = null
 
     if msg.metadata
       params = JSON.parse(msg.metadata)
-      if params.quick_reply[0]
+      if params.quick_replies[0]
         model = 'ilog'
-        quick_reply = "<div id='quick-response-content'>"
-        for reply in params.quick_reply
-          quick_reply += "<button class=\"btn quick-reply\" data-payload=\"" + reply.payload + "\"> " + reply.title + "</button>"
-        quick_reply += "</div>"
-      else if params.buttons_reply[0] 
-        buttons_reply = "<a class=\"btn button-reply\"href='" + params.buttons_reply[0].url + "' target=\"_blank\"> " + params.buttons_reply[0].title + "</a><br>"
+        quick_replies = "<div id='quick-reply-content'>"
+        for reply in params.quick_replies
+          quick_replies += "<button class=\"btn quick-reply\" data-payload=\"" + reply.payload + "\"> " + reply.title + "</button>"
+        quick_replies += "</div>"
+      else if params.url_buttons[0] 
+        url_buttons = "<a class=\"btn button-reply\"href='" + params.url_buttons[0].url + "' target=\"_blank\"> " + params.url_buttons[0].title + "</a><br>"
 
     if msg.attachments
       parts = msg.attachments[0].split(':')
@@ -80,16 +80,16 @@ window.updateSimulator = (data) ->
       ele += " media-msg"
 
     ele += "\">"
-    if quick_responses
-      ele += quick_responses
+    if quick_replies
+      ele += quick_replies
     else
       ele += msg.text
     
     if media_type and media_viewer_elt
       ele += media_viewer_elt
 
-    if buttons_reply
-      ele += buttons_reply
+    if url_buttons
+      ele += url_buttons
     ele += "</div>"
 
     $(".simulator-body").append(ele)

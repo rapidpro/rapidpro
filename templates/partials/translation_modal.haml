@@ -16,8 +16,44 @@
           -trans "[[language.name]] Translation"
         %label
           %textarea{ng-model:"translation.to",auto-complete:"",class:"translation"}
+
+          
+        .quick-reply{ng-show:"translation.toQuickReply.length"}
+          .modal-quick-reply-header
+            .modal-quick-reply-value
+              -trans "Text"
+            .modal-quick-reply-value
+              -trans "Payload"
+              
+          .modal-quick-reply{ng-repeat:"response in translation.toQuickReply", class:""}
+            .modal-quick-reply-value  
+              .translate-from{ng-show:"translation.fromQuickReply[$index].title"}
+                -trans "[[translation.fromQuickReply[$index].title]]"
+              %input{ng-model:"response.title", ng-required:"true"} 
+            .modal-quick-reply-value 
+              .translate-from{ng-show:"translation.fromQuickReply[$index].payload"}
+                -trans "[[translation.fromQuickReply[$index].payload]]"
+              %input{ng-model:"response.payload", ng-required:"true"}
+              
+        .quick-reply{ng-show:"translation.toButtonsReply.length"}
+          .modal-quick-reply-header
+            .modal-quick-reply-value
+              -trans "Text"
+            .modal-quick-reply-value
+              -trans "Url"
+              
+          .modal-quick-reply{ng-repeat:"response in translation.toButtonsReply", class:""}
+            .modal-quick-reply-value
+              .translate-from{ng-show:"translation.fromButtonsReply[$index].title"}  
+                -trans "[[translation.fromButtonsReply[$index].title]]"                
+              %input{ng-model:"response.title", ng-required:"true"} 
+            .modal-quick-reply-value 
+              .translate-from{ng-show:"translation.fromButtonsReply[$index].url"}
+                -trans "[[translation.fromButtonsReply[$index].url]]"           
+              %input{ng-model:"response.url", ng-required:"true", ng-pattern:"/^(http[s]?:\/\/){0,1}(www\.){0,1}[a-zA-Z0-9\.\-]+\.[a-zA-Z]{2,5}[\.]{0,1}/"} 
+        
       .modal-footer
         %button{ng-click:"cancel()",class:"btn btn-secondary"}
           -trans "Cancel"
-        %button{ng-click:"ok(translation.to)",class:"btn btn-primary"}
+        %button{ng-click:"ok(translation)",class:"btn btn-primary"}
           -trans "Ok"
