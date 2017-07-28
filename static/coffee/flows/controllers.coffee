@@ -735,13 +735,13 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           if typeof toButtonsReply == "undefined" && (fromButtonsReply != [] && fromButtonsReply?)
             toButtonsReply = []
             for obj in fromButtonsReply
-              toButtonsReply.push({  url:obj.url, title:obj.title })
+              toButtonsReply.push({  url:'', title:'' })
     
         
           if typeof toQuickReply == "undefined" && (fromQuickReply != [] && fromQuickReply?)
             toQuickReply = []
             for obj in fromQuickReply
-              toQuickReply.push({  title:obj.title, payload:obj.payload })
+              toQuickReply.push({  title:'', payload:'' })
 
         catch 
           console.log('no have buttons and quicks')
@@ -938,7 +938,6 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
 TranslationController = ($scope, $modalInstance, languages, translation) ->
   $scope.translation = translation
   $scope.languages = languages
-
   $scope.ok = (translation) ->
     $modalInstance.close translation
 
