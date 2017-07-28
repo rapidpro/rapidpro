@@ -4189,7 +4189,7 @@ class URNTest(TembaTest):
 
         # twitter handles remove @
         self.assertEqual(URN.normalize("twitter: @jimmyJO"), "twitter:jimmyjo")
-        self.assertEqual(URN.normalize("twitter:12345#jimmyJO"), "twitter:12345#jimmyJO")
+        self.assertEqual(URN.normalize("twitter:12345#jimmyJO"), "twitter:12345#jimmyjo")
         self.assertEqual(URN.normalize("twitter:12345#"), "twitter:12345#")
 
         # email addresses

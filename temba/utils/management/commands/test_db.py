@@ -491,10 +491,10 @@ class Command(BaseCommand):
 
             if c['tel']:
                 c['urns'].append(ContactURN(org=org, contact=c['object'], priority=50, scheme=TEL_SCHEME,
-                                            path=c['tel'], urn=URN.from_tel(c['tel'])))
+                                            path=c['tel'], identity=URN.from_tel(c['tel'])))
             if c['twitter']:
                 c['urns'].append(ContactURN(org=org, contact=c['object'], priority=50, scheme=TWITTER_SCHEME,
-                                            path=c['twitter'], urn=URN.from_twitter(c['twitter'])))
+                                            path=c['twitter'], identity=URN.from_twitter(c['twitter'])))
             if c['gender']:
                 batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['gender'],
                                           string_value=c['gender']))
