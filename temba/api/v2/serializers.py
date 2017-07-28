@@ -792,6 +792,7 @@ class MsgReadSerializer(ReadSerializer):
     direction = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
     attachments = serializers.SerializerMethodField()
+    metadata = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     archived = serializers.SerializerMethodField()
     visibility = serializers.SerializerMethodField()
@@ -814,6 +815,9 @@ class MsgReadSerializer(ReadSerializer):
     def get_attachments(self, obj):
         return [a.as_json() for a in obj.get_attachments()]
 
+    def get_metadata(self, obj):
+        return json.loads(obj.metadata) if obj.metadata else []
+
     def get_media(self, obj):
         return obj.attachments[0] if obj.attachments else None
 
@@ -827,7 +831,7 @@ class MsgReadSerializer(ReadSerializer):
         model = Msg
         fields = ('id', 'broadcast', 'contact', 'urn', 'channel',
                   'direction', 'type', 'status', 'archived', 'visibility', 'text', 'labels',
-                  'attachments', 'created_on', 'sent_on', 'modified_on', 'media')
+                  'attachments', 'metadata','created_on', 'sent_on', 'modified_on', 'media')
 
 
 class MsgBulkActionSerializer(WriteSerializer):

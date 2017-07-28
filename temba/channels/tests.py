@@ -11506,3 +11506,135 @@ class FcmTest(TembaTest):
                                              timeout=5)
 
                 self.clear_cache()
+
+    def test_send_quick_replies(self):
+        metadata = """
+        {
+            "quick_replies": [
+                {
+                    "payload": "yes",
+                    "title": "Yes"
+                },
+                {
+                    "payload": "no",
+                    "title": "No"
+                }
+            ]
+        }
+        """
+        joe = self.create_contact("Joe", urn="fcm:12345abcde", auth="123456abcdef")
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, metadata=metadata)[0]
+
+        with self.settings(SEND_MESSAGES=True):
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, '{ "success": 1, "multicast_id": 123456, "failures": 0 }')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEqual(msg.status, WIRED)
+                self.assertTrue(msg.sent_on)
+
+                data = json.dumps({
+                    'data': {
+                        'type': 'rapidpro',
+                        'title': 'FCM Channel',
+                        'message': 'Hello, world!',
+                        'message_id': msg.id,
+                        'metadata': {
+                            "quick_replies": [
+                                {
+                                    "payload": "yes",
+                                    "title": "Yes"
+                                },
+                                {
+                                    "payload": "no",
+                                    "title": "No"
+                                }
+                            ]
+                        }
+                    },
+                    'content_available': True,
+                    'to': '123456abcdef',
+                    'priority': 'high',
+                    'notification': {
+                        'title': 'FCM Channel',
+                        'body': 'Hello, world!'
+                    }
+                })
+
+                mock.assert_called_once_with('https://fcm.googleapis.com/fcm/send',
+                                             data=data,
+                                             headers={
+                                                 'Content-Type': 'application/json',
+                                                 'Authorization': 'key=123456789',
+                                                 'User-agent': 'RapidPro'
+                                             },
+                                             timeout=5)
+
+                self.clear_cache()
+
+    def test_send_url_buttons(self):
+        metadata = """
+        {
+            "url_buttons":[
+                {
+                    "url": "https://example.com",
+                    "title": "Show Website"
+                }
+            ]
+        }
+        """
+        joe = self.create_contact("Joe", urn="fcm:12345abcde", auth="123456abcdef")
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, metadata=metadata)[0]
+
+        with self.settings(SEND_MESSAGES=True):
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, '{ "success": 1, "multicast_id": 123456, "failures": 0 }')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEqual(msg.status, WIRED)
+                self.assertTrue(msg.sent_on)
+
+                data = json.dumps({
+                    'data': {
+                        'type': 'rapidpro',
+                        'title': 'FCM Channel',
+                        'message': 'Hello, world!',
+                        'message_id': msg.id,
+                        'metadata': {
+                            "url_buttons": [
+                                {
+                                    "url": "https://example.com",
+                                    "title": "Show Website"
+                                }
+                            ]
+                        }
+                    },
+                    'content_available': True,
+                    'to': '123456abcdef',
+                    'priority': 'high',
+                    'notification': {
+                        'title': 'FCM Channel',
+                        'body': 'Hello, world!'
+                    }
+                })
+
+                mock.assert_called_once_with('https://fcm.googleapis.com/fcm/send',
+                                             data=data,
+                                             headers={
+                                                 'Content-Type': 'application/json',
+                                                 'Authorization': 'key=123456789',
+                                                 'User-agent': 'RapidPro'
+                                             },
+                                             timeout=5)
+
+                self.clear_cache()

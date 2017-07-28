@@ -1440,6 +1440,14 @@ class Channel(TembaModel):
             'to': msg.auth,
             'priority': 'high'
         }
+        if hasattr(msg, 'metadata'):
+            metadata = json.loads(msg.metadata)
+            quick_replies = metadata.get('quick_replies') if metadata.get('quick_replies') else None
+            url_buttons = metadata.get('url_buttons') if metadata.get('url_buttons') else None
+            if quick_replies:
+                data['data']['metadata'] = dict(quick_replies=quick_replies)
+            elif url_buttons:
+                data['data']['metadata'] = dict(url_buttons=url_buttons)
 
         if channel.config.get(Channel.CONFIG_FCM_NOTIFICATION):
             data['notification'] = {
