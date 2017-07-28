@@ -26,6 +26,12 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterField(
             model_name='contacturn',
+            name='identity',
+            field=models.CharField(
+                help_text='The identity portion of the URN (excludes fragments) ex: tel:+250788383383', max_length=255),
+        ),
+        migrations.AlterField(
+            model_name='contacturn',
             name='org',
             field=models.ForeignKey(help_text='The organization for this URN', on_delete=django.db.models.deletion.CASCADE, to='orgs.Org'),
         ),

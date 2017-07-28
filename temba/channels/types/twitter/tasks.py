@@ -17,8 +17,6 @@ def resolve_twitter_ids():
     if r.get('resolve_twitter_ids_task'):
         return
 
-    print("resolving twitter ids")
-
     with r.lock('resolve_twitter_ids_task', 900):
         # look up all twitter contact URNs without a display, limiting to 30k since that's the most our API would allow anyways
         twitter_urns = ContactURN.objects.filter(scheme=TWITTER_SCHEME, display=None)[:30000].values('org_id', 'contact_id', 'id', 'path')
@@ -43,7 +41,7 @@ def resolve_twitter_ids():
                 for twitter_user in resp:
                     screen_name = twitter_user['screen_name']
                     twitter_id = twitter_user['id']
-                    new_identity = URN.from_parts(TWITTER_SCHEME, id)
+                    new_identity = URN.from_parts(TWITTER_SCHEME, twitter_id)
                     if screen_name in screen_map and twitter_user['id']:
                         contact_urn = screen_map[screen_name]
 
@@ -74,4 +72,5 @@ def resolve_twitter_ids():
                 print("exiting resolve_twitter_ids due to exception: %s" % e)
                 break
 
-        print("updated %d twitter urns, %d missing" % (updated, missing))
+        if len(twitter_urns) > 0:
+            print("updated %d twitter urns, %d missing" % (updated, missing))
