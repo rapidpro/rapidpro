@@ -7769,6 +7769,78 @@ class TelegramTest(TembaTest):
             self.assertEqual(mock.call_args[0][1]['caption'], "Test message")
             self.assertEqual(mock.call_args[0][1]['chat_id'], "1234")
 
+    def test_send_quick_replies(self):
+        metadata = """
+        {
+            "quick_replies": [
+                {
+                    "payload": "yes",
+                    "title": "Yes"
+                },
+                {
+                    "payload": "no",
+                    "title": "No"
+                }
+            ]
+        }
+        """
+        joe = self.create_contact("Ernie", urn='telegram:1234')
+        msg = joe.send("Test message", self.admin, trigger_send=False, metadata=metadata)[0]
+
+        settings.SEND_MESSAGES = True
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, json.dumps({"result": {"message_id": 1234}}))
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message is now sent
+            msg.refresh_from_db()
+            self.assertEquals(WIRED, msg.status)
+            self.assertTrue(msg.sent_on)
+            self.clear_cache()
+
+            mock_json = json.loads(mock.call_args[0][1]['reply_markup'])
+
+            self.assertEqual(mock_json['keyboard'][0][0]['callback_data'], "yes")
+            self.assertEqual(mock_json['keyboard'][0][0]['text'], "Yes")
+            self.assertEqual(mock_json['keyboard'][1][0]['callback_data'], "no")
+            self.assertEqual(mock_json['keyboard'][1][0]['text'], "No")
+
+    def test_send_url_buttons(self):
+        metadata = """
+        {
+            "url_buttons":[
+                {
+                    "url": "https://example.com",
+                    "title": "Show Website"
+                }
+            ]
+        }
+        """
+        joe = self.create_contact("Ernie", urn='telegram:1234')
+        msg = joe.send("Test message", self.admin, trigger_send=False, metadata=metadata)[0]
+
+        settings.SEND_MESSAGES = True
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, json.dumps({"result": {"message_id": 1234}}))
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message is now sent
+            msg.refresh_from_db()
+            self.assertEquals(WIRED, msg.status)
+            self.assertTrue(msg.sent_on)
+            self.clear_cache()
+
+            mock_json = json.loads(mock.call_args[0]['inline_keyboard'])
+
+            self.assertEqual(mock_json['keyboard'][0]['text'], "Show Website")
+            self.assertEqual(mock_json['keyboard'][0]['url'], "https://example.com")
+
 
 class PlivoTest(TembaTest):
 
