@@ -11213,7 +11213,7 @@ class ViberPublicTest(TembaTest):
                                           'auth_token': u'auth_token',
                                           'tracking_data': msg.id,
                                           'type': u'text',
-                                          'receiver': u'xy5/5y6O81+/kbWHpLhBoA=='},
+                                          'receiver': u'xy5/5y6O81+/kbWHpLhBoA==', },
                                     timeout=5)
 
             msg.refresh_from_db()
@@ -11221,6 +11221,121 @@ class ViberPublicTest(TembaTest):
             self.assertTrue(msg.sent_on)
             self.assertEqual(msg.external_id, "4987381194038857789")
             self.clear_cache()
+
+    def test_send_url_buttons(self):
+        metadata = """
+        {
+            "url_buttons":[
+                {
+                    "url": "https://example.com",
+                    "title": "Show Website",
+                    "type": "web_url"
+                }
+            ]
+        }
+        """
+        joe = self.create_contact("Joe", urn="viber:FXLP/JstS7kDuoiUGihkgA==")
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, metadata=metadata)[0]
+
+        settings.SEND_MESSAGES = True
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{ "status":0, "status_message": "ok", "message_token": "999" }')
+
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            mock.assert_called_with('https://chatapi.viber.com/pa/send_message',
+                                    headers={'Accept': u'application/json', u'User-agent': u'RapidPro'},
+                                    json=dict(
+                                        auth_token='auth_token',
+                                        receiver="FXLP/JstS7kDuoiUGihkgA==",
+                                        text="Hello, world!",
+                                        type='text',
+                                        tracking_data=msg.id,
+                                        keyboard=dict(
+                                            Type="keyboard",
+                                            DefaultHeight=True,
+                                            Buttons=[
+                                                {
+                                                    "Text": "Show Website",
+                                                    "ActionBody": "https://example.com",
+                                                    "ActionType": "open-url",
+                                                    "TextSize": "regular"
+                                                }
+                                            ]
+                                        )
+                                    ),
+                                    timeout=5)
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.assertEqual(msg.external_id, "999")
+            self.assertEqual(msg.metadata, metadata)
+            self.clear_cache()
+            self.assertEqual(mock.call_args[1]['json']['keyboard']['Buttons'][0]['Text'], 'Show Website')
+
+    def test_send_quick_replies(self):
+        metadata = """
+        {
+            "quick_replies": [
+                {
+                    "payload": "yes",
+                    "title": "Yes",
+                    "content_type": "text"
+                },
+                {
+                    "payload": "no",
+                    "title": "No",
+                    "content_type": "text"
+                }
+            ]
+        }
+        """
+        joe = self.create_contact("Joe", urn="viber:FXLP/JstS7kDuoiUGihkgA==")
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, metadata=metadata)[0]
+
+        settings.SEND_MESSAGES = True
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{ "status":0, "status_message": "ok", "message_token": "999" }')
+
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            mock.assert_called_with('https://chatapi.viber.com/pa/send_message',
+                                    headers={'Accept': u'application/json', u'User-agent': u'RapidPro'},
+                                    json=dict(
+                                        auth_token='auth_token',
+                                        receiver="FXLP/JstS7kDuoiUGihkgA==",
+                                        text="Hello, world!",
+                                        type='text',
+                                        tracking_data=msg.id,
+                                        keyboard=dict(
+                                            Type="keyboard",
+                                            DefaultHeight=True,
+                                            Buttons=[
+                                                {
+                                                    "Text": "Yes",
+                                                    "ActionBody": "yes",
+                                                    "ActionType": "reply",
+                                                    "TextSize": "regular"
+                                                },
+                                                {
+                                                    "Text": "No",
+                                                    "ActionBody": "no",
+                                                    "ActionType": "reply",
+                                                    "TextSize": "regular"
+                                                }
+                                            ]
+                                        )
+                                    ),
+                                    timeout=5)
+
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.assertEqual(msg.external_id, "999")
+            self.assertEqual(msg.metadata, metadata)
+            self.clear_cache()
+            self.assertEqual(mock.call_args[1]['json']['keyboard']['Buttons'][0]['Text'], 'Yes')
+            self.assertEqual(mock.call_args[1]['json']['keyboard']['Buttons'][1]['Text'], 'No')
 
 
 class FcmTest(TembaTest):

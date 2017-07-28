@@ -2863,15 +2863,47 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
+    def get_context_metadata(cls, msg, text, channel):
+        metadata = json.loads(msg.metadata)
+        data = dict(
+            auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
+            receiver=msg.urn_path,
+            text=text,
+            type='text',
+            tracking_data=msg.id,
+            keyboard=dict(Type="keyboard", DefaultHeight=True, Buttons=list())
+        )
+
+        if metadata.get('quick_replies'):
+            quick_replies = metadata.get('quick_replies')
+            for quick_reply in quick_replies:
+                data["keyboard"]["Buttons"].append({
+                    "Text": quick_reply["title"], "ActionBody": quick_reply["payload"],
+                    "ActionType": "reply", "TextSize": "regular"})
+        else:
+            url_buttons = metadata.get('url_buttons')
+            for url_button in url_buttons:
+                data["keyboard"]["Buttons"].append({
+                    "Text": url_button["title"], "ActionBody": url_button["url"],
+                    "ActionType": "open-url", "TextSize": "regular"})
+
+        return data
+
+    @classmethod
     def send_viber_public_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
         url = 'https://chatapi.viber.com/pa/send_message'
-        payload = dict(auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
-                       receiver=msg.urn_path,
-                       text=text,
-                       type='text',
-                       tracking_data=msg.id)
+        if hasattr(msg, 'metadata'):
+            payload = cls.get_context_metadata(msg, text, channel)
+        else:
+            payload = dict(
+                auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
+                receiver=msg.urn_path,
+                text=text,
+                type='text',
+                tracking_data=msg.id
+            )
 
         event = HttpEvent('POST', url, json.dumps(payload))
 
