@@ -34,6 +34,7 @@ from temba.ussd.models import USSDSession
 from temba.utils import decode_base64, get_anonymous_user, json_date_to_datetime, ms_to_datetime, on_transaction_commit
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
+from temba.utils.jiochat import JiochatClient
 from temba.utils.twitter import generate_twitter_signature
 from twilio import twiml
 from .tasks import fb_channel_subscribe, refresh_jiochat_access_tokens
@@ -446,7 +447,7 @@ class ExternalHandler(BaseChannelHandler):
     url_name = 'handlers.external_handler'
 
     def get_channel_type(self):
-        return Channel.TYPE_EXTERNAL
+        return 'EX'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -1723,7 +1724,7 @@ class PlivoHandler(BaseChannelHandler):
 
 class MageHandler(BaseChannelHandler):
 
-    url = r'^mage/(?P<action>handle_message|follow_notification)$'
+    url = r'^mage/(?P<action>handle_message|follow_notification|stop_contact)$'
     url_name = 'handlers.mage_handler'
 
     def get(self, request, *args, **kwargs):
@@ -1753,6 +1754,7 @@ class MageHandler(BaseChannelHandler):
 
             # fire an event off for this message
             WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, msg.created_on)
+
         elif action == 'follow_notification':
             try:
                 channel_id = int(request.POST.get('channel_id', ''))
@@ -1762,6 +1764,13 @@ class MageHandler(BaseChannelHandler):
 
             on_transaction_commit(lambda: fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact),
                                                                            queue='handler'))
+
+        elif action == 'stop_contact':
+            contact = Contact.objects.filter(is_active=True, id=request.POST.get('contact_id', '-1')).first()
+            if not contact:
+                return JsonResponse(dict(error="Invalid contact_id"), status=400)
+
+            contact.stop(contact.modified_by)
 
         return JsonResponse(dict(error=None))
 
@@ -2183,14 +2192,14 @@ class JioChatHandler(BaseChannelHandler):
     def lookup_channel(self, kwargs):
         # look up the channel
         return Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
-                                      channel_type=Channel.TYPE_JIOCHAT).exclude(org=None).first()
+                                      channel_type='JC').exclude(org=None).first()
 
     def get(self, request, *args, **kwargs):
         channel = self.lookup_channel(kwargs)
         if not channel:
             return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
 
-        client = channel.get_jiochat_client()
+        client = JiochatClient.from_channel(channel)
         if client:
             verified, echostr = client.verify_request(request, channel.secret)
 
@@ -2213,7 +2222,7 @@ class JioChatHandler(BaseChannelHandler):
         if 'FromUserName' not in body or 'MsgType' not in body or ('MsgId' not in body and 'Event' not in body):
             return HttpResponse("Missing parameters", status=400)
 
-        client = channel.get_jiochat_client()
+        client = JiochatClient.from_channel(channel)
 
         sender_id = body.get('FromUserName')
         create_time = body.get('CreateTime', None)
@@ -2511,7 +2520,7 @@ class GlobeHandler(BaseChannelHandler):
                     return HttpResponse("Missing one of dateTime, senderAddress, message, messageId or destinationAddress in message", status=400)
 
                 try:
-                    scheme, destination = URN.to_parts(inbound_msg['destinationAddress'])
+                    scheme, destination, display = URN.to_parts(inbound_msg['destinationAddress'])
                 except ValueError as v:
                     return HttpResponse("Error parsing destination address: " + str(v), status=400)
 
@@ -2521,7 +2530,7 @@ class GlobeHandler(BaseChannelHandler):
 
                 # parse our sender address out, it is a URN looking thing
                 try:
-                    scheme, sender_tel = URN.to_parts(inbound_msg['senderAddress'])
+                    scheme, sender_tel, display = URN.to_parts(inbound_msg['senderAddress'])
                 except ValueError as v:
                     return HttpResponse("Error parsing sender address: " + str(v), status=400)
 
@@ -2617,7 +2626,7 @@ class LineHandler(BaseChannelHandler):
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_LINE).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='LN').exclude(org=None).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -2664,7 +2673,7 @@ class ViberPublicHandler(BaseChannelHandler):
         request_uuid = kwargs['uuid']
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_VIBER_PUBLIC).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='VP').exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=200)
 
@@ -2866,7 +2875,7 @@ class FCMHandler(BaseChannelHandler):
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_FCM).exclude(
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='FCM').exclude(
             org=None).first()
 
         if not channel:
@@ -2922,7 +2931,7 @@ class TwitterHandler(BaseChannelHandler):
         crc_token = request.GET['crc_token']
 
         channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
-                                         channel_type='TT').exclude(org=None).first()
+                                         channel_type='TWT').exclude(org=None).first()
         if not channel:
             return HttpResponse("No such Twitter channel", status=400)
 
@@ -2933,7 +2942,7 @@ class TwitterHandler(BaseChannelHandler):
 
     def post(self, request, *args, **kwargs):
         channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
-                                         channel_type='TT').exclude(org=None).first()
+                                         channel_type='TWT').exclude(org=None).first()
         if not channel:
             return HttpResponse("No such Twitter channel", status=400)
 
@@ -2959,7 +2968,7 @@ class TwitterHandler(BaseChannelHandler):
                 if int(sender_id) == channel_config['handle_id']:
                     continue
 
-                urn = URN.from_twitter(users[sender_id]['screen_name'])
+                urn = URN.from_twitter(sender_id, display=users[sender_id]['screen_name'])
                 name = None if channel.org.is_anon else users[sender_id]['name']
                 contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
 

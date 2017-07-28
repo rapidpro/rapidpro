@@ -60,6 +60,7 @@ def add_testing_flag_to_context(*args):
 
 
 class TembaTest(SmartminTest):
+
     @classmethod
     def setUpClass(cls):
         super(TembaTest, cls).setUpClass()
@@ -68,7 +69,6 @@ class TembaTest(SmartminTest):
             cls.COLOR_FLOW_DEFINITION = json.load(f)
 
     def setUp(self):
-
         # if we are super verbose, turn on debug for sql queries
         if self.get_verbosity() > 2:
             settings.DEBUG = True

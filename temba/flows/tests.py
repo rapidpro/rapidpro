@@ -4431,9 +4431,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(response.get('status'), 'unsaved')
 
     def test_flow_results(self):
-
         favorites = self.get_flow('favorites')
-
         FlowCRUDL.RunTable.paginate_by = 1
 
         pete = self.create_contact('Pete', '+12065553027')
@@ -4535,7 +4533,7 @@ class FlowsTest(FlowFileTest):
         response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
         self.assertEqual(len(response.context['runs']), 2)
 
-        rulesets = favorites.rule_sets.all()
+        rulesets = favorites.rule_sets.all().order_by('-y')
         results0 = Value.get_value_summary(ruleset=rulesets[0])[0]
         results1 = Value.get_value_summary(ruleset=rulesets[1])[0]
         results2 = Value.get_value_summary(ruleset=rulesets[2])[0]

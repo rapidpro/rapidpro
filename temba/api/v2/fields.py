@@ -181,7 +181,7 @@ class ChannelField(TembaModelField):
 
 class ContactField(TembaModelField):
     model = Contact
-    lookup_fields = ('uuid', 'urns__urn')
+    lookup_fields = ('uuid', 'urns__identity')
 
     def get_queryset(self):
         return self.model.objects.filter(org=self.context['org'], is_active=True, is_test=False)
@@ -193,7 +193,7 @@ class ContactField(TembaModelField):
         except ValueError:
             as_urn = value
 
-        return self.get_queryset().filter(Q(uuid=value) | Q(urns__urn=as_urn)).first()
+        return self.get_queryset().filter(Q(uuid=value) | Q(urns__identity=as_urn)).first()
 
 
 class ContactFieldField(TembaModelField):
