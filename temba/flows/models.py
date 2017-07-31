@@ -200,17 +200,10 @@ class FlowSession(ChannelSession):
         if not settings.FLOW_SERVER_URL:
             return False, []
 
+        current_output = self.as_json()
+
         # look up our active run
-        active_run = None
-        output = self.as_json()
-
-        if len(output['runs']) > 0:
-            active_run = output['runs'][0]
-
-        if not active_run or active_run['status'] != 'active':
-            self.is_active = False
-            self.save(update_fields=['is_active'])
-            return False, []
+        active_run = current_output['runs'][-1] if len(current_output['runs']) > 0 else None
 
         # get our root flow
         flow = self.get_root_flow()
@@ -249,11 +242,11 @@ class FlowSession(ChannelSession):
         self.save(update_fields=['output', 'is_active', 'modified_on'])
 
         # update our session
-        self.sync_runs(output, msg_in, (), active)
+        self.sync_runs(output, msg_in, (), active, active_run)
 
         return True, []
 
-    def sync_runs(self, output, msg_in, broadcasts, active):
+    def sync_runs(self, output, msg_in, broadcasts, active, prev_active_run=None):
         """
         Update our runs with the session output
         """
@@ -263,12 +256,18 @@ class FlowSession(ChannelSession):
             for step in run['path']:
                 step_to_run[step['uuid']] = run['uuid']
 
+        run_receiving_input = prev_active_run or output.session['runs'][0]
+
         # update each of our runs
         runs = []
         first_run = None
         for run in output.session['runs']:
-            run_events = [event for event in output.log if step_to_run[event.step_uuid] == run['uuid']]
-            run = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_events, msg_in, broadcasts)
+            run_log = [event for event in output.log if step_to_run[event.step_uuid] == run['uuid']]
+
+            # currently outgoing messages are only have response_to set if sent from same run
+            run_input = msg_in if run['uuid'] == run_receiving_input['uuid'] else None
+
+            run = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_log, run_input, broadcasts)
             runs.append(run)
 
             if not first_run:
