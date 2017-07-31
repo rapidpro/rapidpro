@@ -167,7 +167,7 @@ class Trigger(SmartModel):
 
             # if this trigger has a referrer_id, only archive others with the same referrer_id
             if self.referrer_id is not None:
-                matches = matches.filter(referrer_id=self.referrer_id)
+                matches = matches.filter(referrer_id__iexact=self.referrer_id)
 
             # if this trigger has a channel, only archive others with the same channel
             if self.channel:
