@@ -4431,9 +4431,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(response.get('status'), 'unsaved')
 
     def test_flow_results(self):
-
         favorites = self.get_flow('favorites')
-
         FlowCRUDL.RunTable.paginate_by = 1
 
         pete = self.create_contact('Pete', '+12065553027')
@@ -4535,7 +4533,7 @@ class FlowsTest(FlowFileTest):
         response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
         self.assertEqual(len(response.context['runs']), 2)
 
-        rulesets = favorites.rule_sets.all()
+        rulesets = favorites.rule_sets.all().order_by('-y')
         results0 = Value.get_value_summary(ruleset=rulesets[0])[0]
         results1 = Value.get_value_summary(ruleset=rulesets[1])[0]
         results2 = Value.get_value_summary(ruleset=rulesets[2])[0]
@@ -5536,7 +5534,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('Thank you! I like blue.', replies[0])
         self.assertEquals('This message was not translated.', replies[1])
 
-        # now add a primary languge to our org
+        # now add a primary language to our org
         self.org.primary_language = spanish
         self.org.save()
 
@@ -5943,7 +5941,7 @@ class FlowsTest(FlowFileTest):
         reply = json_dict['action_sets'][1]['actions'][0]
         self.assertEquals('Good choice, I like @flow.color.category too! What is your favorite beer?', reply['msg']['base'])
 
-        # now interact with the flow and make sure we get an appropriate resonse
+        # now interact with the flow and make sure we get an appropriate response
         FlowRun.objects.all().delete()
 
         self.assertEquals("What is your favorite color?", self.send_message(favorites, "favorites", initiate_flow=True))

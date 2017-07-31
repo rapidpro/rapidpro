@@ -1019,7 +1019,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         # add uuids for the individual actions, need this for the UI
         for actionset in flow.action_sets
           for action in actionset.actions
-            action.uuid = uuid()
+            if not action.uuid
+              action.uuid = uuid()
 
         # save the channel countries
         Flow.channel_countries = data.channel_countries
