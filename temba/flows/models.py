@@ -149,10 +149,7 @@ class FlowSession(ChannelSession):
         """
         Starts a contact in the given flow
         """
-        if not settings.FLOW_SERVER_URL:
-            return []
-
-        if not flow.is_active or flow.is_archived:
+        if not settings.FLOW_SERVER_URL or not flow.is_active or flow.is_archived:
             return []
 
         cls.close_active_sessions(contacts)
@@ -182,10 +179,8 @@ class FlowSession(ChannelSession):
 
             output = request.start(flow)
 
-            # see if we are still active
-            active = False
-            if len(output.session['runs']) > 0:
-                active = output.session['runs'][0]['status'] == 'active'
+            # determine if we're still active
+            active = len(output.session['runs']) > 0 and output.session['runs'][0]['status'] == 'active'
 
             # create our session
             session = cls.objects.create(org=contact.org, contact=contact,
@@ -193,62 +188,10 @@ class FlowSession(ChannelSession):
                                          created_by=flow.created_by, modified_by=flow.modified_by,
                                          modified_on=timezone.now(), created_on=timezone.now())
 
-            step_to_run = {}
-            for run in output.session['runs']:
-                for step in run['path']:
-                    step_to_run[step['uuid']] = run['uuid']
-
-            # create each of our runs
-            for run in output.session['runs']:
-                # filter our list of events by run
-                run_log = [entry for entry in output.log if step_to_run[entry.step_uuid] == run['uuid']]
-                run = FlowRun.create_or_update_from_goflow(session, contact, run, run_log, msg_in, broadcasts)
-                runs.append(run)
-
-            # old simulation needs an action log showing entering the flow
-            if len(runs) > 0 and contact.is_test:
-                start_log = ActionLog.create(runs[0], '%s has entered the "%s" flow' % (
-                    contact.get_display(contact.org, short=True), flow.name))
-
-                start_log.created_on = runs[0].created_on
-                start_log.save(update_fields=['created_on'])
-
-        first_run = runs[0]
-        if first_run.contact.is_test and not first_run.is_active:
-            ActionLog.create(first_run, '%s has exited this flow' % first_run.contact.get_display(first_run.org, short=True))
+            contact_runs = session.sync_runs(output, msg_in, broadcasts, active)
+            runs.append(contact_runs[0])
 
         return runs
-
-    def update(self, output, msg_in):
-        """
-        Resumes an existing flow session
-        """
-        active = False
-        if len(output.session['runs']) > 0:
-            active = output.session['runs'][0]['status'] == 'active'
-
-        # update our output
-        self.output = json.dumps(output.session)
-        self.is_active = active
-        self.modified_on = timezone.now()
-        self.save(update_fields=['output', 'is_active', 'modified_on'])
-
-        step_to_run = {}
-        for run in output.session['runs']:
-            for step in run['path']:
-                step_to_run[step['uuid']] = run['uuid']
-
-        # update each of our runs
-        first_run = None
-        for run in output.session['runs']:
-            run_events = [event for event in output.log if step_to_run[event.step_uuid] == run['uuid']]
-            run = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_events, msg_in)
-
-            if not first_run:
-                first_run = run
-
-        if self.contact.is_test and not active:
-            ActionLog.create(first_run, '%s has exited this flow' % self.contact.get_display(self.org, short=True))
 
     def resume(self, msg_in):
         """
@@ -296,10 +239,46 @@ class FlowSession(ChannelSession):
 
         output = request.resume(self.as_json())
 
+        # determine if we're still active
+        active = len(output.session['runs']) > 0 and output.session['runs'][0]['status'] == 'active'
+
+        # update our output
+        self.output = json.dumps(output.session)
+        self.is_active = active
+        self.modified_on = timezone.now()
+        self.save(update_fields=['output', 'is_active', 'modified_on'])
+
         # update our session
-        self.update(output, msg_in)
+        self.sync_runs(output, msg_in, (), active)
 
         return True, []
+
+    def sync_runs(self, output, msg_in, broadcasts, active):
+        """
+        Update our runs with the session output
+        """
+        # make a map of steps to runs
+        step_to_run = {}
+        for run in output.session['runs']:
+            for step in run['path']:
+                step_to_run[step['uuid']] = run['uuid']
+
+        # update each of our runs
+        runs = []
+        first_run = None
+        for run in output.session['runs']:
+            run_events = [event for event in output.log if step_to_run[event.step_uuid] == run['uuid']]
+            run = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_events, msg_in, broadcasts)
+            runs.append(run)
+
+            if not first_run:
+                first_run = run
+
+        # if we're no longer active and we're in a simulation, create an action log to show we've left the flow
+        if self.contact.is_test and not active:
+            ActionLog.create(first_run, '%s has exited this flow' % self.contact.get_display(self.org, short=True))
+
+        return runs
 
     def get_root_flow(self):
         """
@@ -2795,6 +2774,7 @@ class FlowRun(models.Model):
 
         else:
             prev_path = []
+            created_on = iso8601.parse_date(run_output['created_on'])
 
             flow = Flow.objects.get(org=contact.org, uuid=run_output['flow_uuid'])
             run = cls.objects.create(org=contact.org, uuid=uuid,
@@ -2804,7 +2784,12 @@ class FlowRun(models.Model):
                                      session=session,
                                      is_active=is_active,
                                      modified_on=modified_on,
-                                     created_on=iso8601.parse_date(run_output['created_on']))
+                                     created_on=created_on)
+
+            # old simulation needs an action log showing we entered the flow
+            if contact.is_test:
+                log_text = '%s has entered the "%s" flow' % (contact.get_display(contact.org, short=True), flow.name)
+                ActionLog.create(run, log_text, created_on=created_on)
 
             msgs_out_by_step = run.apply_events(run_log, msg_in, broadcasts)
 
@@ -7417,7 +7402,7 @@ FLOW_FEATURES = [
     ('R', RuleSet.TYPE_WAIT_RECORDING, False),
     ('R', RuleSet.TYPE_WAIT_DIGIT, False),
     ('R', RuleSet.TYPE_WAIT_DIGITS, False),
-    ('R', RuleSet.TYPE_WEBHOOK, False),
+    ('R', RuleSet.TYPE_WEBHOOK, True),
     ('R', RuleSet.TYPE_RESTHOOK, False),
     ('R', RuleSet.TYPE_AIRTIME, False),
     ('R', RuleSet.TYPE_FLOW_FIELD, True),
