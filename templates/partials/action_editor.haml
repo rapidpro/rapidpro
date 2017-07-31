@@ -17,9 +17,9 @@
 
         .icon-attachment.add-attachment.cursor-pointer{ng-show:'!action._media', ng-file-select:'onFileSelect($files, actionset, action);', ng-click:'$event.stopPropagation();', style:"font-size:15px;"}
 
-        .icon-button-quick-reply.cursor-pointer{style:"font-size:22px; margin-top:-2px; margin-left:2px;", ng-click:'addNewQuickReply()', ng-show:"!action._media"}
+        .icon-button-quick-reply.cursor-pointer{style:"font-size:22px; margin-top:-2px; margin-left:2px;", ng-click:'addNewQuickReply()', ng-show:'(!action._media && flow.flow_type=="F")'}
       
-        .icon-button-response.cursor-pointer{style:"font-size:22px; margin-top:-3px; margin-left:7px;", ng-click:'addNewUrlButton()', ng-show:"!action._media"}
+        .icon-button-response.cursor-pointer{style:"font-size:22px; margin-top:-3px; margin-left:7px;", ng-click:'addNewUrlButton()', ng-show:'(!action._media && flow.flow_type=="F")'}
 
       .media{ng-hide:'action.uploading'}
         .tag-button{ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
