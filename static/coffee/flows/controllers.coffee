@@ -1879,7 +1879,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         for lang of $scope.action.quick_replies
           $scope.action.quick_replies[lang].push({title:'', payload:''})
 
-   
   $scope.addNewUrlButton = ->
     if $scope.actions_buttons_reply.length < 3
       $scope.container_operation_visible = false
@@ -1893,12 +1892,18 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     for lang of $scope.action.quick_replies
       $scope.action.quick_replies[lang].splice(index, 1)
 
+    if Object.getOwnPropertyNames($scope.action.quick_replies).length == 0 || $scope.action.quick_replies.length == 0
+      $scope.actions_quick_reply.splice(index, 1)
+
     if a.length == 0
       $scope.container_operation_visible = true
 
   $scope.removeElementArrayUrlButton = (a, index) ->
     for lang of $scope.action.url_buttons
       $scope.action.url_buttons[lang].splice(index, 1)
+
+    if Object.getOwnPropertyNames($scope.action.url_buttons).length == 0 || $scope.action.url_buttons.length == 0
+      $scope.actions_buttons_reply.splice(index, 1)
 
     if a.length == 0
       $scope.container_operation_visible = true
