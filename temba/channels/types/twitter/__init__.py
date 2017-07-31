@@ -75,13 +75,8 @@ class TwitterType(ChannelType):
     def send(self, channel, msg, text):
         start = time.time()
         try:
-            if hasattr(msg, 'metadata'):
-                headers = {'headers': {str('Content-Type'): str('application/json')}}
-                twitter = TembaTwython.from_channel(channel, headers=headers)
-                dm = twitter.send_direct_message_with_events(self.get_context_metadata(msg, text))
-            else:
-                twitter = TembaTwython.from_channel(channel)
-                dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
+            twitter = TembaTwython.from_channel(channel)
+            dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
         except Exception as e:
             error_code = getattr(e, 'error_code', 400)
             fatal = False
