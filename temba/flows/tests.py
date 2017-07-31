@@ -5534,7 +5534,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('Thank you! I like blue.', replies[0])
         self.assertEquals('This message was not translated.', replies[1])
 
-        # now add a primary languge to our org
+        # now add a primary language to our org
         self.org.primary_language = spanish
         self.org.save()
 
@@ -5941,7 +5941,7 @@ class FlowsTest(FlowFileTest):
         reply = json_dict['action_sets'][1]['actions'][0]
         self.assertEquals('Good choice, I like @flow.color.category too! What is your favorite beer?', reply['msg']['base'])
 
-        # now interact with the flow and make sure we get an appropriate resonse
+        # now interact with the flow and make sure we get an appropriate response
         FlowRun.objects.all().delete()
 
         self.assertEquals("What is your favorite color?", self.send_message(favorites, "favorites", initiate_flow=True))
