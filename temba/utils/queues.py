@@ -23,7 +23,7 @@ def push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
     """
     Adds a task to queue_name with the supplied arguments.
 
-    Ex: add_task(nyaruka, 'flows', 'start_flow', [1,2,3,4,5,6,7,8,9,10])
+    Ex: push_task(nyaruka, 'flows', 'start_flow', [1,2,3,4,5,6,7,8,9,10])
     """
     r = get_redis_connection('default')
 
@@ -57,7 +57,7 @@ def start_task(task_name):
     """
     Pops the next 'random' task off our queue, returning the arguments that were saved
 
-    Ex: pop_next_task('start_flow')
+    Ex: start_task('start_flow')
     <<< {flow=5, contacts=[1,2,3,4,5,6,7,8,9,10]}
     """
     r = get_redis_connection('default')
