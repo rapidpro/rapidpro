@@ -5889,6 +5889,26 @@ class FlowsTest(FlowFileTest):
         self.assertEqual('Welcome message.', msgs[8].text)
         self.assertEqual('Have you heard of show X? Yes or No?', msgs[9].text)
 
+    def test_trigger_flow_complete(self):
+        contact2 = self.create_contact(name='Jason Tatum', number='+250788123123')
+
+        self.get_flow('trigger_flow_complete', dict(contact2_uuid=contact2.uuid))
+
+        parent = Flow.objects.get(org=self.org, name='Flow A')
+
+        parent.start(groups=[], contacts=[self.contact], restart_participants=True)
+
+        self.assertEqual(1, FlowRun.objects.filter(contact=self.contact).count())
+        self.assertEqual(1, FlowRun.objects.filter(contact=contact2).count())
+
+        run1 = FlowRun.objects.filter(contact=self.contact).first()
+        run2 = FlowRun.objects.filter(contact=contact2).first()
+
+        self.assertEqual(run1.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+        self.assertFalse(run1.is_active)
+
+        self.assertEqual(run2.parent.id, run1.id)
+
     def test_translations_rule_first(self):
 
         # import a rule first flow that already has language dicts
