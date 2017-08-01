@@ -64,13 +64,19 @@ class RequestBuilder(object):
         return self
 
     def set_contact(self, contact):
-        # TODO include fields
-        #   "fields": {
-        #     "gender": {
-        #       "field_uuid": "501d8dc4-3fb7-45c1-acb8-626f87535a99",
-        #       "field_name": "Gender",
-        #       "value": "Male"
-        #     }
+        from temba.msgs.models import Msg
+        from temba.values.models import Value
+
+        org_fields = {f.id: f for f in contact.org.contactfields.filter(is_active=True)}
+        values = Value.objects.filter(contact=contact, contact_field_id__in=org_fields.keys())
+        field_values = {}
+        for v in values:
+            field = org_fields[v.contact_field_id]
+            field_values[field.key] = {
+                'field_uuid': str(field.uuid),
+                'field_name': field.label,
+                'value': v.string_value
+            }
 
         # only include language if it's a valid org language
         if contact.language and contact.language in contact.org.get_language_codes():
@@ -78,7 +84,6 @@ class RequestBuilder(object):
         else:
             language = None
 
-        from temba.msgs.models import Msg
         _contact, contact_urn = Msg.resolve_recipient(contact.org, None, contact, None)
 
         # only populate channel if this contact can actually be reached (ie, has a URN)
@@ -98,7 +103,7 @@ class RequestBuilder(object):
                 'groups': [{"uuid": group.uuid, "name": group.name} for group in contact.user_groups.all()],
                 'timezone': "UTC",
                 'language': language,
-                'fields': {},
+                'fields': field_values,
                 'channel_uuid': channel_uuid
             }
         })
