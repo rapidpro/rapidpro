@@ -39,7 +39,7 @@
             
         .modal-quick-reply{ng-repeat:"response in actions_quick_reply", class:""}
           .modal-quick-reply-value.quick_reply-title
-            %input{type:"text", name:"quick-reply-title", ng-model:"response.title", ng-required:"true"}
+            %input{type:"text", name:"quick-reply-title", ng-model:"response.title", ng-required:"true", ng-maxlength:"20", maxlength:"20"}
           .modal-quick-reply-value 
             %input{type:"text", name:"quick-reply-value", ng-model:"response.payload", ng-required:"true"}
           
@@ -56,7 +56,7 @@
             
         .modal-quick-reply{ng-repeat:"response in actions_buttons_reply", class:""}
           .modal-quick-reply-value.quick_reply-title
-            %input{type:"text", name:"quick-reply-title", ng-model:"response.title", ng-required:"true"}
+            %input{type:"text", name:"quick-reply-title", ng-model:"response.title", ng-required:"true", ng-maxlength:"20", maxlength:"20"}
           .modal-quick-reply-value 
             %input{type:"text", name:"quick-reply-value", ng-model:"response.url", ng-required:"true", ng-pattern:"/^(http[s]?:\/\/){1,1}(www\.){0,1}[a-zA-Z0-9\.\-]+\.[a-zA-Z]{2,5}[\.]{0,1}/"}
           .icon.icon-close{ng-click:"removeElementArrayUrlButton(actions_buttons_reply, $index)"}
