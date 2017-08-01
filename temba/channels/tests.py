@@ -8877,7 +8877,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
                         args=['event', self.channel.uuid]),
                 data=json.dumps(data),
                 content_type='application/json',
-                AUTHORIZATION="Token UjOq8ATo2PDS6L08t6vlqSoK")
+                HTTP_AUTHORIZATION="Token UjOq8ATo2PDS6L08t6vlqSoK")
             self.assertEquals(200, response.status_code)
             sms = Msg.objects.get(pk=sms.id)
             self.assertEquals(assert_status, sms.status)
@@ -8898,7 +8898,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
                     args=['event', self.channel.uuid]),
             data=json.dumps(data),
             content_type='application/json',
-            AUTHORIZATION="Token Not_token")
+            HTTP_AUTHORIZATION="Token Not_token")
         self.assertEquals(401, response.status_code)
 
     def test_receive_with_invalid_message(self):
@@ -8936,7 +8936,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
                                args=['inbound', self.channel.uuid])
         response = self.client.post(callback_url, json.dumps(data),
                                     content_type='application/json',
-                                    AUTHORIZATION="Token UjOq8ATo2PDS6L08t6vlqSoK")
+                                    HTTP_AUTHORIZATION="Token UjOq8ATo2PDS6L08t6vlqSoK")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['status'], 'ack')
@@ -8958,7 +8958,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
                                args=['inbound', self.channel.uuid])
         response = self.client.post(callback_url, json.dumps(data),
                                     content_type='application/json',
-                                    AUTHORIZATION="Token Not_token")
+                                    HTTP_AUTHORIZATION="Token Not_token")
 
         self.assertEqual(response.status_code, 401)
 

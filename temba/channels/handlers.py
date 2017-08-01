@@ -2004,7 +2004,7 @@ class JunebugHandler(BaseChannelHandler):
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
-        authorization = request.META.get('AUTHORIZATION', '').split(' ')
+        authorization = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
 
         if channel.secret is not None and (
                 len(authorization) != 2 or authorization[0] != 'Token' or
