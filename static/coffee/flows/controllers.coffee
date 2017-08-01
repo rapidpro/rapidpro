@@ -655,7 +655,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           DragHelper.showSendReply($('#' + category.sources[0] + ' .source'))
         ,0
 
-  $scope.addAction = (actionset) ->
+  $scope.addAction = (actionset, innerAction=null) ->
 
     if window.dragging or not window.mutable
       return
@@ -666,6 +666,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         action:
           type: defaultActionSetType()
           uuid: uuid()
+        innerAction: innerAction
+
       flowController: -> $scope
 
     $scope.dialog = utils.openModal("/partials/node_editor", NodeEditorController, resolveObj)
@@ -1811,8 +1813,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.action_webhook_headers_value = []
   currentLang = Flow.language.iso_code
 
-  if $scope.options.dragSource? || $scope.options.startNewNode? # if new dragdrop node or new flow first node
-    $scope.container_operation_visible = true #show functions add quick and button
+  if $scope.options.dragSource? || $scope.options.startNewNode? || $scope.options.innerAction?
+    $scope.container_operation_visible = true
     $scope.actions_buttons_reply = []
     $scope.actions_quick_reply = []
     $scope.action.quick_replies = {}
@@ -1826,7 +1828,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         $scope.actions_quick_reply = []
         $scope.container_operation_visible = true
 
-    if $scope.action.url_buttons? #check all is none
+    if $scope.action.url_buttons?
       if $scope.action.url_buttons[currentLang]?
         $scope.container_operation_visible = false
         $scope.actions_buttons_reply = $scope.action.url_buttons[currentLang]
