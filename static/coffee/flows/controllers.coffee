@@ -1899,6 +1899,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     if a.length == 0
       $scope.container_operation_visible = true
+      $scope.actions_quick_reply = []
+      $scope.action.quick_replies = {}
+      $scope.actions_buttons_reply = []
+      $scope.action.url_buttons = {}
 
   $scope.removeElementArrayUrlButton = (a, index) ->
     for lang of $scope.action.url_buttons
@@ -1909,6 +1913,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     if a.length == 0
       $scope.container_operation_visible = true
+      $scope.actions_quick_reply = []
+      $scope.action.quick_replies = {}
+      $scope.actions_buttons_reply = []
+      $scope.action.url_buttons = {}
 
   $scope.actionset = actionset
   $scope.flowId = window.flowId
@@ -1976,7 +1984,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     else if $scope.actions_buttons_reply.length > 0
       $scope.action.url_buttons[$scope.base_language] = $scope.actions_buttons_reply
       $scope.action.quick_replies = {}
-    else 
+    else
       $scope.action.quick_replies = {}
       $scope.action.url_buttons = {}
 
