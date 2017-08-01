@@ -4017,15 +4017,15 @@ class ExportFlowResultsTask(BaseExportTask):
                 sheet_row.append("URN")
                 col_widths.append(self.WIDTH_SMALL)
 
+            for extra_urn in extra_urn_columns:
+                sheet_row.append(extra_urn['label'])
+                col_widths.append(self.WIDTH_SMALL)
+
             sheet_row.append("Name")
             col_widths.append(self.WIDTH_MEDIUM)
 
             sheet_row.append("Groups")
             col_widths.append(self.WIDTH_MEDIUM)
-
-            for extra_urn in extra_urn_columns:
-                sheet_row.append(extra_urn['label'])
-                col_widths.append(self.WIDTH_SMALL)
 
             # add our contact fields
             for cf in contact_fields:
@@ -4187,26 +4187,29 @@ class ExportFlowResultsTask(BaseExportTask):
                             runs_sheet_row[padding + 1] = run_step.contact.id
                         else:
                             runs_sheet_row[padding + 1] = contact_urn_display
-                        runs_sheet_row[padding + 2] = contact_name
-                        runs_sheet_row[padding + 3] = groups
 
                     merged_sheet_row[padding + 0] = contact_uuid
                     if org.is_anon:
                         merged_sheet_row[padding + 1] = run_step.contact.id
                     else:
                         merged_sheet_row[padding + 1] = contact_urn_display
-                    merged_sheet_row[padding + 2] = contact_name
-                    merged_sheet_row[padding + 3] = groups
 
                     extra_urn_padding = 0
 
                     for extra_urn_column in extra_urn_columns:
                         urn_value = get_contact_urn_display(run_step.contact, extra_urn_column['scheme'])
 
-                        merged_sheet_row[padding + 4 + extra_urn_padding] = urn_value
+                        merged_sheet_row[padding + 2 + extra_urn_padding] = urn_value
                         if include_runs:
-                            runs_sheet_row[padding + 4 + extra_urn_padding] = urn_value
+                            runs_sheet_row[padding + 2 + extra_urn_padding] = urn_value
                         extra_urn_padding += 1
+
+                    if include_runs:
+                        runs_sheet_row[padding + extra_urn_padding + 2] = contact_name
+                        runs_sheet_row[padding + extra_urn_padding + 3] = groups
+
+                    merged_sheet_row[padding + extra_urn_padding + 2] = contact_name
+                    merged_sheet_row[padding + extra_urn_padding + 3] = groups
 
                     cf_padding = 0
 
