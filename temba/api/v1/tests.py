@@ -810,6 +810,41 @@ class APITest(TembaTest):
             self.assertEquals(201, response.status_code)
             self.assertIsNotNone(self.joe.urns.filter(path='+13605551212').first())
 
+            data = dict(flow=flow.uuid,
+                        revision=2,
+                        contact=self.joe.uuid,
+                        started='2015-08-25T11:09:29.088Z',
+                        submitted_by=self.admin.username,
+                        steps=[
+                            dict(node='bd531ace-911e-4722-8e53-6730d6122fe1',
+                                 arrived_on='2015-08-25T11:11:30.088Z',
+                                 rule=dict(uuid='abc5fd71-027b-40e8-a819-151a0f8140e6',
+                                           value="orange",
+                                           category="Orange",
+                                           text="I like orange")),
+                            dict(node='7d40faea-723b-473d-8999-59fb7d3c3ca2',
+                                 arrived_on='2015-08-25T11:13:30.088Z',
+                                 actions=[
+                                     dict(type="reply", msg="I love orange too!")
+                                 ]),
+                            dict(node=new_node_uuid,
+                                 arrived_on='2015-08-25T11:15:30.088Z',
+                                 actions=[
+                                     dict(type="save", field="tel_e164", value="+12065551212"),
+                                     dict(type="del_group", group=dict(name="Remove Me"))
+                                 ]),
+                        ],
+                        completed=True)
+
+            response = self.postJSON(url, data)
+            self.assertEquals(201, response.status_code)
+
+            with patch('temba.flows.models.RuleSet.find_matching_rule') as mock_find_matching_rule:
+                mock_find_matching_rule.return_value = None, None
+
+                with self.assertRaises(ValueError):
+                    self.postJSON(url, data)
+
     def test_api_contacts(self):
         url = reverse('api.v1.contacts')
 
