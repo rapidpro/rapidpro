@@ -260,6 +260,7 @@ class FlowSession(ChannelSession):
 
         # update each of our runs
         runs = []
+        msgs_to_send = []
         first_run = None
         for run in output.session['runs']:
             run_log = [event for event in output.log if step_to_run[event.step_uuid] == run['uuid']]
@@ -267,8 +268,9 @@ class FlowSession(ChannelSession):
             # currently outgoing messages are only have response_to set if sent from same run
             run_input = msg_in if run['uuid'] == run_receiving_input['uuid'] else None
 
-            run = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_log, run_input, broadcasts)
+            run, msgs = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_log, run_input, broadcasts)
             runs.append(run)
+            msgs_to_send += msgs
 
             if not first_run:
                 first_run = run
@@ -276,6 +278,10 @@ class FlowSession(ChannelSession):
         # if we're no longer active and we're in a simulation, create an action log to show we've left the flow
         if self.contact.is_test and not active:
             ActionLog.create(first_run, '%s has exited this flow' % self.contact.get_display(self.org, short=True))
+
+        # trigger message sending
+        if msgs_to_send:
+            self.org.trigger_send(msgs_to_send)
 
         return runs
 
@@ -2769,7 +2775,7 @@ class FlowRun(models.Model):
             existing.save(update_fields=('is_active', 'modified_on', 'output', 'exited_on', 'exit_type'))
             run = existing
 
-            msgs_out_by_step = run.apply_events(run_log, msg_in, broadcasts)
+            msgs_to_send, msgs_out_by_step = run.apply_events(run_log, msg_in, broadcasts)
 
         else:
             prev_path = []
@@ -2790,7 +2796,7 @@ class FlowRun(models.Model):
                 log_text = '%s has entered the "%s" flow' % (contact.get_display(contact.org, short=True), flow.name)
                 ActionLog.create(run, log_text, created_on=created_on)
 
-            msgs_out_by_step = run.apply_events(run_log, msg_in, broadcasts)
+            msgs_to_send, msgs_out_by_step = run.apply_events(run_log, msg_in, broadcasts)
 
             # old flow engine appends a list of start messages on run creation
             start_msgs = []
@@ -2821,7 +2827,7 @@ class FlowRun(models.Model):
 
             FlowStep.create_or_update_from_goflow(run, path_item, next_item, step_type, step_messages)
 
-        return run
+        return run, msgs_to_send
 
     def apply_events(self, run_log, msg_in=None, broadcasts=()):
         msgs_to_send = []
@@ -2844,9 +2850,7 @@ class FlowRun(models.Model):
                 if apply_func:
                     apply_func(entry.event, msg_in)
 
-        # send our messages
-        self.org.trigger_send(msgs_to_send)
-        return msgs_by_step
+        return msgs_to_send, msgs_by_step
 
     def apply_send_msg(self, event, msg):
         """
