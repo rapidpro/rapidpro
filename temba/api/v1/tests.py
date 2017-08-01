@@ -810,6 +810,7 @@ class APITest(TembaTest):
             self.assertEquals(201, response.status_code)
             self.assertIsNotNone(self.joe.urns.filter(path='+13605551212').first())
 
+            # rule uuid not existing we should find the actual matching rule
             data = dict(flow=flow.uuid,
                         revision=2,
                         contact=self.joe.uuid,
