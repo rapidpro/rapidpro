@@ -293,7 +293,7 @@ class ContactField(SmartModel):
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
 
-    uuid = models.UUIDField(null=True, default=uuid.uuid4)
+    uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="contactfields")
 
