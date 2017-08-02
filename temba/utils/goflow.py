@@ -42,27 +42,6 @@ class RequestBuilder(object):
         })
         return self
 
-    def set_input(self, msg):
-        urn = None
-        if msg.contact_urn:
-            urn = msg.contact_urn.urn
-
-        # simulation doesn't have a channel
-        channel_uuid = None
-        if msg.channel:
-            channel_uuid = str(msg.channel.uuid)
-
-        self.request['events'].append({
-            'type': "msg_received",
-            'created_on': datetime_to_str(msg.created_on),
-            'urn': urn,
-            'text': msg.text,
-            'attachments': msg.attachments or [],
-            'contact_uuid': str(msg.contact.uuid),
-            'channel_uuid': channel_uuid
-        })
-        return self
-
     def set_contact(self, contact):
         from temba.msgs.models import Msg
         from temba.values.models import Value
@@ -114,6 +93,37 @@ class RequestBuilder(object):
             'type': "set_extra",
             'created_on': datetime_to_str(now()),
             'extra': extra
+        })
+        return self
+
+    def msg_received(self, msg):
+        urn = None
+        if msg.contact_urn:
+            urn = msg.contact_urn.urn
+
+        # simulation doesn't have a channel
+        channel_uuid = None
+        if msg.channel:
+            channel_uuid = str(msg.channel.uuid)
+
+        self.request['events'].append({
+            'type': "msg_received",
+            'created_on': datetime_to_str(msg.created_on),
+            'urn': urn,
+            'text': msg.text,
+            'attachments': msg.attachments or [],
+            'contact_uuid': str(msg.contact.uuid),
+            'channel_uuid': channel_uuid
+        })
+        return self
+
+    def flow_exited(self, run):
+        self.request['events'].append({
+            'type': "flow_exited",
+            'created_on': datetime_to_str(run.exited_on),
+            'flow_uuid': str(run.flow.uuid),
+            'contact_uuid': str(run.contact.uuid),
+            'status': "expired" if run.exit_type == 'E' else "interrupted"
         })
         return self
 

@@ -173,7 +173,7 @@ class FlowSession(ChannelSession):
                 .set_environment(flow.org)\
                 .set_contact(contact)
             if msg_in:
-                request = request.set_input(msg_in)
+                request = request.msg_received(msg_in)
             if extra:
                 request = request.set_extra(extra)
 
@@ -193,7 +193,7 @@ class FlowSession(ChannelSession):
 
         return runs
 
-    def resume(self, msg_in):
+    def resume(self, msg_in=None, exited_child_run=None):
         """
         Resumes an existing flow session
         """
@@ -223,8 +223,11 @@ class FlowSession(ChannelSession):
         request = client.request_builder()\
             .include_channels(channels)\
             .include_flows(flows)
+
         if msg_in:
-            request = request.set_input(msg_in)
+            request = request.msg_received(msg_in)
+        if exited_child_run:
+            request = request.flow_exited(exited_child_run)
 
         # TODO determine if contact or environment has changed
         request = request.set_contact(self.contact)
@@ -760,14 +763,10 @@ class Flow(TembaModel):
         if started_flows is None:
             started_flows = []
 
-        # fire off request to flow server
+        # resume via goflow if this run using the new engine
         session = FlowSession.get_last_active_session(contact=msg.contact)
         if session:
-            try:
-                return session.resume(msg)
-            except ValueError:
-                # if we can't resume our session, let the legacy path handle it
-                pass
+            return session.resume(msg_in=msg)
 
         steps = FlowStep.get_active_steps_for_contact(msg.contact, step_type=FlowStep.TYPE_RULE_SET)
         for step in steps:
@@ -2752,6 +2751,7 @@ class FlowRun(models.Model):
         path = run_output['path']
         is_active = (run_output['status'] == 'active')
         is_error = (run_output['status'] == 'errored')
+        expires_on = iso8601.parse_date(run_output['expires_on']) if run_output['expires_on'] else None
         modified_on = iso8601.parse_date(run_output['modified_on'])
 
         # does this run already exist?
@@ -2768,11 +2768,12 @@ class FlowRun(models.Model):
             prev_path = json.loads(existing.output)['path'] if existing.output else []
 
             existing.output = json.dumps(run_output)
+            existing.expires_on = expires_on
+            existing.modified_on = modified_on
             existing.exited_on = exited_on
             existing.exit_type = exit_type
             existing.is_active = is_active
-            existing.modified_on = modified_on
-            existing.save(update_fields=('is_active', 'modified_on', 'output', 'exited_on', 'exit_type'))
+            existing.save(update_fields=('output', 'expires_on', 'modified_on', 'exited_on', 'exit_type', 'is_active'))
             run = existing
 
             msgs_to_send, msgs_out_by_step = run.apply_events(run_log, msg_in, broadcasts)
@@ -2788,6 +2789,7 @@ class FlowRun(models.Model):
                                      exited_on=exited_on, exit_type=exit_type,
                                      session=session,
                                      is_active=is_active,
+                                     expires_on=expires_on,
                                      modified_on=modified_on,
                                      created_on=created_on)
 
@@ -2805,9 +2807,6 @@ class FlowRun(models.Model):
             for msgs in six.itervalues(msgs_out_by_step):
                 start_msgs.extend(msgs)
             run.start_msgs = start_msgs
-
-        # update our expiration date
-        run.update_expiration(timezone.now())
 
         # generate set of ruleset UUIDs to help us resolve node types
         ruleset_uuids = {r.uuid for r in run.flow.rule_sets.all()}
@@ -3053,6 +3052,10 @@ class FlowRun(models.Model):
 
     @classmethod
     def continue_parent_flow_run(cls, run, trigger_send=True, continue_parent=True):
+        # resume via goflow if this run using the new engine
+        if run.parent.session:
+            return run.parent.session.resume(exited_child_run=run)
+
         msgs = []
 
         steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
