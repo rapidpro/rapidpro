@@ -8866,7 +8866,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
 
         data = self.mk_event()
         joe = self.create_contact("Joe Biden", "+254788383383")
-        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
         msg.external_id = data['message_id']
         msg.save(update_fields=('external_id',))
 
@@ -9074,7 +9074,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         self.channel.save()
 
         joe = self.create_contact("Joe", "+250788383383")
-        msg = joe.send("événement", self.admin, trigger_send=False)
+        msg = joe.send("événement", self.admin, trigger_send=False)[0]
 
         settings.SEND_MESSAGES = True
 
