@@ -2921,8 +2921,17 @@ class FlowStep(models.Model):
                         rule = r
                         break
 
-                if not rule:  # pragma: needs cover
-                    raise ValueError("No such rule with UUID %s" % rule_uuid)
+                if not rule:
+                    # the user updated the rules try to match the new rules
+                    msg = Msg(org=run.org, contact=run.contact, text=json_obj['rule']['text'], id=0)
+                    rule, value = ruleset.find_matching_rule(step, run, msg)
+
+                    if not rule:
+                        raise ValueError("No such rule with UUID %s" % rule_uuid)
+
+                    rule_uuid = rule.uuid
+                    rule_category = rule.category
+                    rule_value = value
 
                 rule.category = rule_category
                 ruleset.save_run_value(run, rule, rule_value)
