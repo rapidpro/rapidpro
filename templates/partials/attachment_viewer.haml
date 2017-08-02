@@ -14,30 +14,30 @@
           .row
 
             .show-quick-reply-value  
-              %span 
+              %span
                 -trans "Title"
 
             .show-quick-reply-value
-              %span  
+              %span
                 -trans "Value"
 
           .row{ng-repeat:"response in action.quick_replies[currentLang]"}
 
-            .show-quick-reply-value  
+            .show-quick-reply-value
               -trans "[[response.title]]"
 
-            .show-quick-reply-value 
+            .show-quick-reply-value
               -trans "[[response.payload]]"
 
         .show-quick-reply.attachment-media{ng-if:'action.url_buttons[currentLang].length > 0', controls:'', class:""}
           .row
 
-            .show-quick-reply-value  
-              %span 
+            .show-quick-reply-value
+              %span
                 -trans "Title"
 
             .show-quick-reply-value
-              %span   
+              %span
                 -trans "URL"
 
           .row{ng-repeat:"response in action.url_buttons[currentLang]"}
