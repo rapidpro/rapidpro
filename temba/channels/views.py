@@ -1175,13 +1175,12 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_form_class(self):
             channel_type = self.object.channel_type
-            scheme = self.object.scheme
 
             if channel_type == Channel.TYPE_ANDROID:
                 return UpdateAndroidForm
             elif channel_type == Channel.TYPE_NEXMO:
                 return UpdateNexmoForm
-            elif scheme == TWITTER_SCHEME:
+            elif TWITTER_SCHEME in self.object.schemes:
                 return UpdateTwitterForm
             else:
                 return UpdateChannelForm
@@ -1201,7 +1200,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             # update our delegate channels with the new number
-            if not obj.parent and obj.scheme == TEL_SCHEME:
+            if not obj.parent and TEL_SCHEME in obj.schemes:
                 e164_phone_number = None
                 try:
                     parsed = phonenumbers.parse(obj.address, None)

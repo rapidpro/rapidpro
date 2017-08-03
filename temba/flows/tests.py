@@ -4324,7 +4324,7 @@ class SimulationTest(FlowFileTest):
     def test_ussd_simulation_session_end(self):
         self.ussd_channel = Channel.create(
             self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
-            scheme='tel', uuid='00000000-0000-0000-0000-000000002222',
+            schemes=['tel'], uuid='00000000-0000-0000-0000-000000002222',
             role=Channel.ROLE_USSD)
 
         flow = self.get_flow('ussd_session_end')
@@ -7092,7 +7092,7 @@ class OrderingTest(FlowFileTest):
         self.contact2 = self.create_contact('Ryan Lewis', '+12065552121')
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', scheme='tel',
+        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', schemes=['tel'],
                                       config=dict(send_url='https://google.com'))
 
     def tearDown(self):
@@ -7487,7 +7487,7 @@ class StackedExitsTest(FlowFileTest):
         super(StackedExitsTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', scheme='tel',
+        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', schemes=['tel'],
                                       config=dict(send_url='https://google.com'))
 
     def test_stacked_exits(self):
@@ -7563,7 +7563,7 @@ class ParentChildOrderingTest(FlowFileTest):
     def setUp(self):
         super(ParentChildOrderingTest, self).setUp()
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', scheme='tel',
+        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', schemes=['tel'],
                                       config=dict(send_url='https://google.com'))
 
     def test_parent_child_ordering(self):
@@ -7586,7 +7586,7 @@ class AndroidChildStatus(FlowFileTest):
     def setUp(self):
         super(AndroidChildStatus, self).setUp()
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', 'A', None, '+250788123123', scheme='tel')
+        self.channel = Channel.create(self.org, self.user, 'RW', 'A', None, '+250788123123', schemes=['tel'])
 
     def test_split_first(self):
         self.get_flow('split_first_child_msg')
@@ -7614,11 +7614,11 @@ class FlowChannelSelectionTest(FlowFileTest):
         self.channel.delete()
         self.sms_channel = Channel.create(
             self.org, self.user, 'RW', Channel.TYPE_JUNEBUG, None, '+250788123123',
-            scheme='tel', uuid='00000000-0000-0000-0000-000000001111',
+            schemes=['tel'], uuid='00000000-0000-0000-0000-000000001111',
             role=Channel.DEFAULT_ROLE)
         self.ussd_channel = Channel.create(
             self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
-            scheme='tel', uuid='00000000-0000-0000-0000-000000002222',
+            schemes=['tel'], uuid='00000000-0000-0000-0000-000000002222',
             role=Channel.ROLE_USSD)
 
     def test_sms_channel_selection(self):

@@ -64,7 +64,7 @@ class ChannelTest(TembaTest):
                                           role="SR", secret="12345", gcm_id="123")
 
         self.twitter_channel = Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
-                                              address="billy_bob", role="SR", scheme='twitter')
+                                              address="billy_bob", role="SR", schemes=['twitter'])
 
         self.released_channel = Channel.create(None, self.user, None, 'NX', name="Released Channel", address=None,
                                                secret=None, gcm_id="000")
@@ -297,19 +297,19 @@ class ChannelTest(TembaTest):
             Channel.create(self.org, self.user, 'KE', 'AT', None, '+250788123123',
                            config=dict(username='at-user', api_key='africa-key'),
                            uuid='00000000-0000-0000-0000-000000001234',
-                           scheme='fb')
+                           schemes=['fb'])
 
         # a scheme is required
         with self.assertRaises(ValueError):
             Channel.create(self.org, self.user, 'US', 'EX', None, '+12065551212',
                            uuid='00000000-0000-0000-0000-000000001234',
-                           scheme=None)
+                           schemes=[])
 
         # country channels can't have scheme
         with self.assertRaises(ValueError):
             Channel.create(self.org, self.user, 'US', 'EX', None, '+12065551212',
                            uuid='00000000-0000-0000-0000-000000001234',
-                           scheme='fb')
+                           schemes=['fb'])
 
     def test_delete(self):
         self.org.administrators.add(self.user)
@@ -3503,7 +3503,7 @@ class RedRabbitTest(TembaTest):
         super(RedRabbitTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'BR', 'RR', None, '+250788123123', scheme='tel',
+        self.channel = Channel.create(self.org, self.user, 'BR', 'RR', None, '+250788123123', schemes=['tel'],
                                       config={Channel.CONFIG_USERNAME: 'username', Channel.CONFIG_PASSWORD: 'password'},
                                       uuid='00000000-0000-0000-0000-000000001234')
 
@@ -3559,7 +3559,7 @@ class ExternalTest(TembaTest):
         super(ExternalTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'BR', 'EX', None, '+250788123123', scheme='tel',
+        self.channel = Channel.create(self.org, self.user, 'BR', 'EX', None, '+250788123123', schemes=['tel'],
                                       config={Channel.CONFIG_SEND_URL: 'http://foo.com/send', Channel.CONFIG_SEND_METHOD: 'POST'},
                                       uuid='00000000-0000-0000-0000-000000001234')
 
@@ -7980,7 +7980,7 @@ class MageHandlerTest(TembaTest):
                                          modified_by=self.user, created_by=self.user,
                                          modified_on=timezone.now(), created_on=timezone.now())
         urn = ContactURN.objects.create(org=self.org, contact=contact,
-                                        urn="twitter:%s" % twitter, scheme="twitter", path=twitter, priority="90")
+                                        urn="twitter:%s" % twitter, schemes=["twitter"], path=twitter, priority="90")
         return contact, urn
 
     def create_message_like_mage(self, text, contact, contact_urn=None):

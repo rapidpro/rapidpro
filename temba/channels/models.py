@@ -17,6 +17,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.conf.urls import url
 from django.contrib.auth.models import User, Group
+from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
 from django.core.urlresolvers import reverse
 from django.core.validators import URLValidator
@@ -79,7 +80,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 
     name = None
     icon = 'icon-channel-external'
-    scheme = None
+    schemes = None
     show_config_page = True
 
     claim_blurb = None
@@ -257,39 +258,39 @@ class Channel(TembaModel):
 
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
-        TYPE_AFRICAS_TALKING: dict(scheme='tel', max_length=160),
-        TYPE_ANDROID: dict(scheme='tel', max_length=-1),
-        TYPE_BLACKMYNA: dict(scheme='tel', max_length=1600),
-        TYPE_CHIKKA: dict(scheme='tel', max_length=160),
-        TYPE_CLICKATELL: dict(scheme='tel', max_length=420),
-        TYPE_DARTMEDIA: dict(scheme='tel', max_length=160),
-        TYPE_DUMMY: dict(scheme='tel', max_length=160),
-        TYPE_GLOBE: dict(scheme='tel', max_length=160),
-        TYPE_HIGH_CONNECTION: dict(scheme='tel', max_length=1500),
-        TYPE_HUB9: dict(scheme='tel', max_length=1600),
-        TYPE_INFOBIP: dict(scheme='tel', max_length=1600),
-        TYPE_JASMIN: dict(scheme='tel', max_length=1600),
-        TYPE_JUNEBUG: dict(scheme='tel', max_length=1600),
-        TYPE_JUNEBUG_USSD: dict(scheme='tel', max_length=1600),
-        TYPE_KANNEL: dict(scheme='tel', max_length=1600),
-        TYPE_MACROKIOSK: dict(scheme='tel', max_length=1600),
-        TYPE_M3TECH: dict(scheme='tel', max_length=160),
-        TYPE_NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
-        TYPE_MBLOX: dict(scheme='tel', max_length=459),
-        TYPE_PLIVO: dict(scheme='tel', max_length=1600),
-        TYPE_RED_RABBIT: dict(scheme='tel', max_length=1600),
-        TYPE_SHAQODOON: dict(scheme='tel', max_length=1600),
-        TYPE_SMSCENTRAL: dict(scheme='tel', max_length=1600, max_tps=1),
-        TYPE_START: dict(scheme='tel', max_length=1600),
-        TYPE_TWILIO: dict(scheme='tel', max_length=1600),
-        TYPE_TWIML: dict(scheme='tel', max_length=1600),
-        TYPE_TWILIO_MESSAGING_SERVICE: dict(scheme='tel', max_length=1600),
-        TYPE_VERBOICE: dict(scheme='tel', max_length=1600),
-        TYPE_VIBER: dict(scheme='tel', max_length=1000),
-        TYPE_VUMI: dict(scheme='tel', max_length=1600),
-        TYPE_VUMI_USSD: dict(scheme='tel', max_length=182),
-        TYPE_YO: dict(scheme='tel', max_length=1600),
-        TYPE_ZENVIA: dict(scheme='tel', max_length=150),
+        TYPE_AFRICAS_TALKING: dict(schemes=['tel'], max_length=160),
+        TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
+        TYPE_BLACKMYNA: dict(schemes=['tel'], max_length=1600),
+        TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
+        TYPE_CLICKATELL: dict(schemes=['tel'], max_length=420),
+        TYPE_DARTMEDIA: dict(schemes=['tel'], max_length=160),
+        TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
+        TYPE_GLOBE: dict(schemes=['tel'], max_length=160),
+        TYPE_HIGH_CONNECTION: dict(schemes=['tel'], max_length=1500),
+        TYPE_HUB9: dict(schemes=['tel'], max_length=1600),
+        TYPE_INFOBIP: dict(schemes=['tel'], max_length=1600),
+        TYPE_JASMIN: dict(schemes=['tel'], max_length=1600),
+        TYPE_JUNEBUG: dict(schemes=['tel'], max_length=1600),
+        TYPE_JUNEBUG_USSD: dict(schemes=['tel'], max_length=1600),
+        TYPE_KANNEL: dict(schemes=['tel'], max_length=1600),
+        TYPE_MACROKIOSK: dict(schemes=['tel'], max_length=1600),
+        TYPE_M3TECH: dict(schemes=['tel'], max_length=160),
+        TYPE_NEXMO: dict(schemes=['tel'], max_length=1600, max_tps=1),
+        TYPE_MBLOX: dict(schemes=['tel'], max_length=459),
+        TYPE_PLIVO: dict(schemes=['tel'], max_length=1600),
+        TYPE_RED_RABBIT: dict(schemes=['tel'], max_length=1600),
+        TYPE_SHAQODOON: dict(schemes=['tel'], max_length=1600),
+        TYPE_SMSCENTRAL: dict(schemes=['tel'], max_length=1600, max_tps=1),
+        TYPE_START: dict(schemes=['tel'], max_length=1600),
+        TYPE_TWILIO: dict(schemes=['tel'], max_length=1600),
+        TYPE_TWIML: dict(schemes=['tel'], max_length=1600),
+        TYPE_TWILIO_MESSAGING_SERVICE: dict(schemes=['tel'], max_length=1600),
+        TYPE_VERBOICE: dict(schemes=['tel'], max_length=1600),
+        TYPE_VIBER: dict(schemes=['tel'], max_length=1000),
+        TYPE_VUMI: dict(schemes=['tel'], max_length=1600),
+        TYPE_VUMI_USSD: dict(schemes=['tel'], max_length=182),
+        TYPE_YO: dict(schemes=['tel'], max_length=1600),
+        TYPE_ZENVIA: dict(schemes=['tel'], max_length=150),
     }
 
     TYPE_CHOICES = ((TYPE_AFRICAS_TALKING, "Africa's Talking"),
@@ -396,6 +397,9 @@ class Channel(TembaModel):
     scheme = models.CharField(verbose_name="URN Scheme", max_length=8, default='tel',
                               help_text=_("The URN scheme this channel can handle"))
 
+    schemes = ArrayField(models.CharField(max_length=8), default=['tel'],
+                         verbose_name="URN Schemes", help_text=_("The URN schemes this channel supports"))
+
     role = models.CharField(verbose_name="Channel Role", max_length=4, default=DEFAULT_ROLE,
                             help_text=_("The roles this channel can fulfill"))
 
@@ -406,20 +410,20 @@ class Channel(TembaModel):
                            help_text=_("Any channel specific state data"))
 
     @classmethod
-    def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=DEFAULT_ROLE, scheme=None, **kwargs):
+    def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=DEFAULT_ROLE, schemes=None, **kwargs):
         if isinstance(channel_type, six.string_types):
             channel_type = cls.get_type_from_code(channel_type)
 
-        if scheme:
-            if channel_type.scheme and channel_type.scheme != scheme:
-                raise ValueError("Channel type '%s' cannot support scheme %s" % (channel_type, scheme))
+        if schemes:
+            if channel_type.schemes and channel_type.schemes != schemes:
+                raise ValueError("Channel type '%s' cannot support scheme %s" % (channel_type, schemes))
         else:
-            scheme = channel_type.scheme
+            schemes = channel_type.schemes
 
-        if not scheme:
-            raise ValueError("Cannot create channel without scheme")
+        if not schemes:
+            raise ValueError("Cannot create channel without schemes")
 
-        if country and scheme != 'tel':
+        if country and schemes != ['tel']:
             raise ValueError("Only channels handling phone numbers can be country specific")
 
         if config is None:
@@ -430,7 +434,7 @@ class Channel(TembaModel):
                            channel_type=channel_type.code,
                            name=name, address=address,
                            config=json.dumps(config),
-                           role=role, scheme=scheme)
+                           role=role, schemes=schemes, scheme=schemes[0])
         create_args.update(kwargs)
 
         if 'uuid' not in create_args:
@@ -483,9 +487,9 @@ class Channel(TembaModel):
 
     @classmethod
     def add_config_external_channel(cls, org, user, country, address, channel_type, config, role=DEFAULT_ROLE,
-                                    scheme='tel', parent=None):
+                                    schemes=['tel'], parent=None):
         return Channel.create(org, user, country, channel_type, name=address, address=address,
-                              config=config, role=role, scheme=scheme, parent=parent)
+                              config=config, role=role, schemes=schemes, parent=parent)
 
     @classmethod
     def add_plivo_channel(cls, org, user, country, phone_number, auth_id, auth_token):
@@ -939,7 +943,7 @@ class Channel(TembaModel):
         if not self.address:
             return ''
 
-        if self.address and self.scheme == TEL_SCHEME and self.country:
+        if self.address and TEL_SCHEME in self.schemes and self.country:
             # assume that a number not starting with + is a short code and return as is
             if self.address[0] != '+':
                 return self.address
@@ -952,10 +956,10 @@ class Channel(TembaModel):
                 # the number may be alphanumeric in the case of short codes
                 pass
 
-        elif self.scheme == TWITTER_SCHEME:
+        elif TWITTER_SCHEME in self.schemes:
             return '@%s' % self.address
 
-        elif self.scheme == FACEBOOK_SCHEME:
+        elif FACEBOOK_SCHEME in self.schemes:
             return "%s (%s)" % (self.config_json().get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
 
         return self.address
@@ -967,7 +971,7 @@ class Channel(TembaModel):
         default = address if address else six.text_type(self)
 
         # for backwards compatibility
-        if self.scheme == TEL_SCHEME:
+        if TEL_SCHEME in self.schemes:
             tel = address
             tel_e164 = self.get_address_display(e164=True)
         else:
