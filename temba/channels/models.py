@@ -1168,10 +1168,11 @@ class Channel(TembaModel):
                         if matching:
                             client.phone_numbers.update(matching[0].sid, **number_update_args)
 
-                try:
-                    client.applications.delete(sid=config['application_sid'])
-                except TwilioRestException:  # pragma: no cover
-                    pass
+                if 'application_sid' in config:
+                    try:
+                        client.applications.delete(sid=config['application_sid'])
+                    except TwilioRestException:  # pragma: no cover
+                        pass
 
         # save off our org and gcm id before nullifying
         org = self.org
