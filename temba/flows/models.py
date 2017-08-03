@@ -2752,7 +2752,6 @@ class FlowRun(models.Model):
         is_active = (run_output['status'] == 'active')
         is_error = (run_output['status'] == 'errored')
         expires_on = iso8601.parse_date(run_output['expires_on']) if run_output['expires_on'] else None
-        modified_on = iso8601.parse_date(run_output['modified_on'])
 
         # does this run already exist?
         existing = cls.objects.filter(org=contact.org, contact=contact, uuid=uuid).select_related('flow').first()
@@ -2769,7 +2768,7 @@ class FlowRun(models.Model):
 
             existing.output = json.dumps(run_output)
             existing.expires_on = expires_on
-            existing.modified_on = modified_on
+            existing.modified_on = timezone.now()
             existing.exited_on = exited_on
             existing.exit_type = exit_type
             existing.is_active = is_active
@@ -2780,7 +2779,7 @@ class FlowRun(models.Model):
 
         else:
             prev_path = []
-            created_on = iso8601.parse_date(run_output['created_on'])
+            created_on = timezone.now()
 
             flow = Flow.objects.get(org=contact.org, uuid=run_output['flow_uuid'])
             run = cls.objects.create(org=contact.org, uuid=uuid,
@@ -2790,7 +2789,7 @@ class FlowRun(models.Model):
                                      session=session,
                                      is_active=is_active,
                                      expires_on=expires_on,
-                                     modified_on=modified_on,
+                                     modified_on=created_on,
                                      created_on=created_on)
 
             # old simulation needs an action log showing we entered the flow
