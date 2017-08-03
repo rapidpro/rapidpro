@@ -1488,9 +1488,9 @@ class Org(SmartModel):
         # for our purposes, #1 and #2 are treated the same, we just always update the default card
 
         try:
-            if not customer:
+            if not customer or customer.email != user.email:
                 # then go create a customer object for this user
-                customer = stripe.Customer.create(card=token, email=user,
+                customer = stripe.Customer.create(card=token, email=user.email,
                                                   description="{ org: %d }" % self.pk)
 
                 stripe_customer = customer.id

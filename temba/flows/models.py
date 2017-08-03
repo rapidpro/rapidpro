@@ -6,10 +6,10 @@ import logging
 import numbers
 import phonenumbers
 import regex
+import six
 import time
 import urllib2
-import re
-import six
+import uuid
 
 from collections import OrderedDict
 from datetime import timedelta
@@ -573,7 +573,8 @@ class Flow(TembaModel):
             # this node doesn't exist anymore, mark it as left so they leave the flow
             if not destination:  # pragma: no cover
                 step.run.set_completed(final_step=step)
-                continue
+                Msg.mark_handled(msg)
+                return True, []
 
             (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
                                                       user_input=user_input, triggered_start=triggered_start,
@@ -2415,7 +2416,9 @@ class FlowRun(models.Model):
                          (EXIT_TYPE_INTERRUPTED, _("Interrupted")),
                          (EXIT_TYPE_EXPIRED, _("Expired")))
 
-    INVALID_EXTRA_KEY_CHARS = re.compile(r'[^a-zA-Z0-9_]')
+    INVALID_EXTRA_KEY_CHARS = regex.compile(r'[^a-zA-Z0-9_]')
+
+    uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
     org = models.ForeignKey(Org, related_name='runs', db_index=False)
 
@@ -2941,7 +2944,8 @@ class FlowStep(models.Model):
     @classmethod
     def get_active_steps_for_contact(cls, contact, step_type=None):
 
-        steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__contact=contact, left_on=None)
+        steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__contact=contact,
+                                        left_on=None)
 
         # don't consider voice steps, those are interactive
         steps = steps.exclude(run__flow__flow_type=Flow.VOICE)
@@ -3083,7 +3087,7 @@ class RuleSet(models.Model):
                     (TYPE_FORM_FIELD, "Split by message form"),
                     (TYPE_CONTACT_FIELD, "Split on contact field"),
                     (TYPE_EXPRESSION, "Split by expression"),
-                    (TYPE_SUBFLOW, "Split Randomly"))
+                    (TYPE_RANDOM, "Split Randomly"))
 
     uuid = models.CharField(max_length=36, unique=True)
 
@@ -3133,7 +3137,7 @@ class RuleSet(models.Model):
 
     @property
     def is_messaging(self):
-        return self.ruleset_type in (self.TYPE_USSD + (self.TYPE_WAIT_MESSAGE, ))
+        return self.ruleset_type in (self.TYPE_USSD + (self.TYPE_WAIT_MESSAGE,))
 
     @classmethod
     def contains_step(cls, text):  # pragma: needs cover
@@ -3445,7 +3449,7 @@ class RuleSet(models.Model):
         if self.label:
             return "RuleSet: %s - %s" % (self.uuid, self.label)
         else:
-            return "RuleSet: %s" % (self.uuid, )
+            return "RuleSet: %s" % (self.uuid,)
 
 
 @six.python_2_unicode_compatible
@@ -3531,7 +3535,7 @@ class ActionSet(models.Model):
         return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination, actions=self.get_actions_dict())
 
     def __str__(self):  # pragma: no cover
-        return "ActionSet: %s" % (self.uuid, )
+        return "ActionSet: %s" % (self.uuid,)
 
 
 class FlowRevision(SmartModel):
@@ -3542,7 +3546,8 @@ class FlowRevision(SmartModel):
 
     definition = models.TextField(help_text=_("The JSON flow definition"))
 
-    spec_version = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
+    spec_version = models.IntegerField(default=CURRENT_EXPORT_VERSION,
+                                       help_text=_("The flow version this definition is in"))
 
     revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
 

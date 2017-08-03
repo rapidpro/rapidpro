@@ -45,6 +45,6 @@ urlpatterns = [
         url(r'^smscentral/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$', SMSCentralHandler.as_view()),
         url(r'^m3tech/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$', M3TechHandler.as_view()),
         url(r'^yo/(?P<action>received)/(?P<uuid>[a-z0-9\-]+)/?$', YoHandler.as_view()),
-        url(r'^mage/(?P<action>handle_message|follow_notification)$', MageHandler.as_view())
+        url(r'^mage/(?P<action>handle_message|follow_notification|stop_contact)$', MageHandler.as_view())
     ]))
 ]

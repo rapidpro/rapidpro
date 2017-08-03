@@ -44,6 +44,8 @@ class TwitterActivityTypeTest(TembaTest):
 
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Connect Twitter Activity API")
+
         self.assertEqual(list(response.context['form'].fields.keys()),
                          ['api_key', 'api_secret', 'access_token', 'access_token_secret', 'loc'])
 
