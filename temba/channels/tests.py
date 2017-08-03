@@ -643,6 +643,7 @@ class ChannelTest(TembaTest):
 
         # change channel type to Twitter
         channel.channel_type = 'TT'
+        channel.schemes = [TWITTER_SCHEME]
         channel.address = 'billy_bob'
         channel.scheme = 'twitter'
         channel.config = json.dumps({'handle_id': 12345, 'oauth_token': 'abcdef', 'oauth_token_secret': '23456'})

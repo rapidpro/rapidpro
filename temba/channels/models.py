@@ -443,7 +443,7 @@ class Channel(TembaModel):
         channel = cls.objects.create(**create_args)
 
         # normalize any telephone numbers that we may now have a clue as to country
-        if org:
+        if org and country:
             org.normalize_contact_tels()
 
         if settings.IS_PROD:

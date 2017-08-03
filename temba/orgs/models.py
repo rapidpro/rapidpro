@@ -436,7 +436,7 @@ class Org(SmartModel):
         channels = self.channels.filter(is_active=True, role__contains=role).order_by('-pk')
 
         if scheme is not None:
-            channels = channels.filter(schemes__contains=scheme)
+            channels = channels.filter(schemes__contains=[scheme])
 
         channel = None
         if country_code:
@@ -487,7 +487,7 @@ class Org(SmartModel):
 
                 # no country specific channel, try to find any channel at all
                 if not channels:
-                    channels = [c for c in self.channels.filter(schemes__contains=TEL_SCHEME)]
+                    channels = [c for c in self.channels.filter(schemes__contains=[TEL_SCHEME])]
 
                 # filter based on role and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
                 senders = []
@@ -535,7 +535,7 @@ class Org(SmartModel):
     def get_call_channel(self, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import Channel
-        return self.get_channel_for_role(Channel.ROLE_CALL, schemes=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
+        return self.get_channel_for_role(Channel.ROLE_CALL, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
     def get_answer_channel(self, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
