@@ -388,10 +388,26 @@ class Broadcast(models.Model):
         """
         Gets the appropriate metadata translation for the given contact
         """
+        if metadata_type == 'quick_replies':
+            value_key = 'payload'
+        else:
+            value_key = 'url'
+
         if self.metadata:
             preferred_languages = self.get_preferred_languages(contact, org)
             metadata = json.loads(self.metadata)
-            return Language.get_localized_text(metadata.get(metadata_type), preferred_languages)
+            language_metadata = Language.get_localized_text(metadata.get(metadata_type), preferred_languages)
+            base_metadata = Language.get_localized_text(metadata.get(metadata_type), [self.base_language])
+
+            if language_metadata:
+                for i, item in enumerate(language_metadata):
+                    if not item.get('title'):
+                        item['title'] = base_metadata[i]['title']
+
+                    if not item.get(value_key):
+                        item[value_key] = base_metadata[i][value_key]
+
+            return language_metadata
         else:
             return None
 

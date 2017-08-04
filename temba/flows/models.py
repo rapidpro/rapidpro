@@ -5062,6 +5062,34 @@ class ReplyAction(Action):
         return dict(type=self.TYPE, msg=self.msg, media=self.media, quick_replies=self.quick_replies,
                     url_buttons=self.url_buttons, send_all=self.send_all)
 
+    def get_translated_metadata(self, run, metadata_type='quick_replies'):
+        """
+        Gets the appropriate metadata translation for the given contact
+        """
+
+        if metadata_type == 'quick_replies':
+            value_key = 'payload'
+            metadata = self.quick_replies
+        else:
+            value_key = 'url'
+            metadata = self.url_buttons
+
+        if metadata:
+            language_metadata = Language.get_localized_text(metadata, [run.contact.language])
+            base_metadata = Language.get_localized_text(metadata, [run.flow.base_language])
+
+            if language_metadata:
+                for i, item in enumerate(language_metadata):
+                    if not item.get('title'):
+                        item['title'] = base_metadata[i]['title']
+
+                    if not item.get(value_key):
+                        item[value_key] = base_metadata[i][value_key]
+
+            return language_metadata
+        else:
+            return None
+
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []
 
@@ -5072,12 +5100,10 @@ class ReplyAction(Action):
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
 
-            metadata = dict(
-                quick_replies=run.flow.get_localized_text(self.quick_replies, run.contact) if self.quick_replies else [],
-                url_buttons=run.flow.get_localized_text(self.url_buttons, run.contact) if self.url_buttons else []
-            )
-
-            metadata = json.dumps(metadata)
+            metadata = json.dumps(dict(
+                quick_replies=self.get_translated_metadata(run, 'quick_replies'),
+                url_buttons=self.get_translated_metadata(run, 'url_buttons')
+            ))
 
             attachments = None
             if self.media:
