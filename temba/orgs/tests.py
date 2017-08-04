@@ -3154,10 +3154,14 @@ class TestStripeCredits(TembaTest):
         self.assertEqual(1, self.org.topups.all().count())
         self.assertEqual(1000, self.org.get_credits_total())
 
+    @patch('stripe.Customer.create')
     @patch('stripe.Customer.retrieve')
     @patch('stripe.Charge.create')
     @override_settings(SEND_EMAILS=True)
-    def test_add_credits_existing_customer(self, charge_create, customer_retrieve):
+    def test_add_credits_existing_customer(self, charge_create, customer_retrieve, customer_create):
+        self.admin2 = self.create_user("Administrator 2")
+        self.org.administrators.add(self.admin2)
+
         self.org.stripe_customer = 'stripe-cust-1'
         self.org.save()
 
@@ -3176,14 +3180,17 @@ class TestStripeCredits(TembaTest):
                 return MockCard()
 
         class MockCustomer(object):
-            def __init__(self):
-                self.id = 'stripe-cust-1'
+            def __init__(self, id, email):
+                self.id = id
+                self.email = email
                 self.cards = MockCards()
 
             def save(self):
                 pass
 
-        customer_retrieve.return_value = MockCustomer()
+        customer_retrieve.return_value = MockCustomer(id='stripe-cust-1', email=self.admin.email)
+        customer_create.return_value = MockCustomer(id='stripe-cust-2', email=self.admin2.email)
+
         charge_create.return_value = \
             dict_to_struct('Charge', dict(id='stripe-charge-1',
                                           card=dict_to_struct('Card', dict(last4='1234', type='Visa', name='Rudolph'))))
@@ -3201,13 +3208,21 @@ class TestStripeCredits(TembaTest):
         org = Org.objects.get(id=self.org.id)
         self.assertEqual('stripe-cust-1', org.stripe_customer)
 
-        # assert we sent our confirmation emai
+        # assert we sent our confirmation email
         self.assertEqual(1, len(mail.outbox))
         email = mail.outbox[0]
         self.assertEquals("RapidPro Receipt", email.subject)
         self.assertTrue('Rudolph' in email.body)
         self.assertTrue('Visa' in email.body)
         self.assertTrue('$20' in email.body)
+
+        # do it again with a different user, should create a new stripe customer
+        self.org.add_credits('2000', 'stripe-token', self.admin2)
+        self.assertTrue(4000, self.org.get_credits_total())
+
+        # should have a different customer now
+        org = Org.objects.get(id=self.org.id)
+        self.assertEqual('stripe-cust-2', org.stripe_customer)
 
 
 class ParsingTest(TembaTest):
