@@ -727,7 +727,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
         fromText = action.msg[Flow.flow.base_language]
 
-        try 
+        try
           fromButtonsReply = action.url_buttons[Flow.flow.base_language]
           fromQuickReply = action.quick_replies[Flow.flow.base_language] 
 
@@ -737,20 +737,17 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           if typeof toButtonsReply == "undefined" && (fromButtonsReply != [] && fromButtonsReply?)
             toButtonsReply = []
             for obj in fromButtonsReply
-              toButtonsReply.push({  url:'', title:'' })
-    
-        
+              toButtonsReply.push({title:'', url:''})
           if typeof toQuickReply == "undefined" && (fromQuickReply != [] && fromQuickReply?)
             toQuickReply = []
             for obj in fromQuickReply
-              toQuickReply.push({  title:'', payload:'' })
+              toQuickReply.push({title:'', payload:''})
 
-        catch 
-          console.log('no have buttons and quicks')
-          fromButtonsReply = null
-          fromQuickReply = null
-          toButtonsReply = null
-          toQuickReply = null
+        catch
+          fromButtonsReply = []
+          fromQuickReply = []
+          toButtonsReply = []
+          toQuickReply = []
 
         resolveObj =
           languages: ->
@@ -779,13 +776,13 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           if translation.toButtonsReply? && translation.toButtonsReply != []
             action.url_buttons[Flow.language.iso_code] = translation.toButtonsReply
           else
-            action.url_buttons[Flow.language.iso_code] = []
+            delete action.url_buttons[Flow.language.iso_code]
             if translation.toQuickReply? && translation.toQuickReply != []
               action.quick_replies[Flow.language.iso_code] = translation.toQuickReply
             else
-              action.quick_replies[Flow.language.iso_code] = []
-          
+              delete action.quick_replies[Flow.language.iso_code]
 
+          action.is_translation = true
           Flow.saveAction(actionset, action)
         , (-> $log.info "Modal dismissed at: " + new Date())
 
