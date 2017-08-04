@@ -512,7 +512,7 @@ class ContactTest(TembaTest):
         self.voldemort = self.create_contact(number="+250768383383")
 
         # create an orphaned URN
-        ContactURN.objects.create(org=self.org, scheme='tel', path='+250788888888', urn='tel:+250788888888', priority=50)
+        ContactURN.objects.create(org=self.org, scheme='tel', path='+250788888888', identity='tel:+250788888888', urn='tel:+250788888888', priority=50)
 
         # create an deleted contact
         self.jim = self.create_contact(name="Jim")
@@ -3720,13 +3720,13 @@ class ContactURNTest(TembaTest):
         self.assertEqual(urn.priority, 50)
 
     def test_get_display(self):
-        urn = ContactURN.objects.create(org=self.org, scheme='tel', path='+250788383383', urn='tel:+250788383383', priority=50)
+        urn = ContactURN.objects.create(org=self.org, scheme='tel', path='+250788383383', identity='tel:+250788383383', urn='tel:+250788383383', priority=50)
         self.assertEqual(urn.get_display(self.org), '0788 383 383')
         self.assertEqual(urn.get_display(self.org, formatted=False), '+250788383383')
         self.assertEqual(urn.get_display(self.org, international=True), '+250 788 383 383')
         self.assertEqual(urn.get_display(self.org, formatted=False, international=True), '+250788383383')
 
-        urn = ContactURN.objects.create(org=self.org, scheme='twitter', path='billy_bob', urn='twitter:billy_bob', priority=50)
+        urn = ContactURN.objects.create(org=self.org, scheme='twitter', path='billy_bob', identity='twitter:billy_bob', urn='twitter:billy_bob', priority=50)
         self.assertEqual(urn.get_display(self.org), 'billy_bob')
 
 
