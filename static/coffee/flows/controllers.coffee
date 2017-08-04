@@ -782,7 +782,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             else
               delete action.quick_replies[Flow.language.iso_code]
 
-          action.is_translation = true
           Flow.saveAction(actionset, action)
         , (-> $log.info "Modal dismissed at: " + new Date())
 
