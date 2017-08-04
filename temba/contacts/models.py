@@ -1906,7 +1906,7 @@ class ContactURN(models.Model):
     urn = models.CharField(max_length=255,
                            help_text="The Universal Resource Name as a string. ex: tel:+250788383383")
 
-    identity = models.CharField(max_length=255, null=True,
+    identity = models.CharField(max_length=255,
                                 help_text="The Universal Resource Name as a string, excluding display if present. ex: tel:+250788383383")
 
     path = models.CharField(max_length=255,
@@ -2034,7 +2034,7 @@ class ContactURN(models.Model):
         return self.urn
 
     class Meta:
-        unique_together = ('urn', 'org')
+        unique_together = (('urn', 'org'), ('identity', 'org'))
         ordering = ('-priority', 'id')
 
 
