@@ -9,6 +9,8 @@
   %h2.header-margin
     -if request.GET.sessions and channel.supports_ivr
       -trans "Call Log"
+    -elif request.GET.others
+      -trans "Other Interactions Log"
     -else
       -trans "Recent Channel Events"
   %h5.header-margin
@@ -18,13 +20,18 @@
       {{ channel }}
 
 -block gear-menu
-  -if request.GET.sessions
+  -if request.GET.sessions or request.GET.others
     %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list'%}?channel={{channel.pk}}"}
       -trans "Message Log"
-  -else
+
+  -if not request.GET.sessions
     -if channel.supports_ivr
       %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list'%}?channel={{channel.pk}}&sessions=1"}
         -trans "Call Log"
+
+  -if not request.GET.others
+    %a.btn.btn-secondary{ href:"{% url 'channels.channellog_list'%}?channel={{channel.pk}}&others=1"}
+      -trans "Other Interactions Log"
 
 -block table
 
@@ -78,6 +85,24 @@
 
             %td{ style:'text-align: right', nowrap:'true' }
               {{obj.created_on|date:"M d, Y, H:m:s"}}
+        -elif request.GET.others
+          %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
+            %td
+              -trans "Channel interaction"
+            %td.clickable
+              -if not user_org.is_anon or perms.contacts.contact_break_anon
+                %a{ href:'{% url "channels.channellog_read" obj.pk %}' }= obj.description
+              -else
+                {{obj.description}}
+
+            %td
+              Request time:
+              %span
+                {{ obj.request_time|default:"0"|intcomma }}ms
+
+            %td{ style:'text-align: right', nowrap:'true' }
+              {{obj.created_on}}
+
         -else
           %tr{ class:"{% if obj.is_error %}warning{% endif %}" }
             %td.clickable

@@ -9,7 +9,6 @@ import hmac
 import json
 import pytz
 import six
-import telegram
 import time
 import urllib2
 import uuid
@@ -40,8 +39,8 @@ from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLI
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, AnonymousOrg
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, datetime_to_str, get_anonymous_user
+from temba.utils.jiochat import JiochatClient
 from temba.utils.twitter import generate_twitter_signature
-from telegram import User as TelegramUser
 from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
@@ -1467,61 +1466,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(channel.channel_type, "TW")
         self.assertEqual(channel.config_json(), dict(ACCOUNT_TOKEN='abcd1234', send_url='https://twilio.com', ACCOUNT_SID='abcd1234'))
 
-    def test_claim_viber_public(self):
-        self.login(self.admin)
-
-        # remove any existing channels
-        Channel.objects.all().delete()
-        url = reverse('channels.channel_claim_viber_public')
-        token = "auth"
-
-        with patch('requests.post') as mock:
-            mock.side_effect = [MockResponse(400, json.dumps(dict(status=3, status_message="Invalid token")))]
-            response = self.client.post(url, dict(auth_token=token))
-
-            self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Error validating authentication token")
-
-        with patch('requests.post') as mock:
-            mock.side_effect = [MockResponse(200, json.dumps(dict(status=3, status_message="Invalid token")))]
-            response = self.client.post(url, dict(auth_token=token))
-
-            self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Error validating authentication token")
-
-        with patch('requests.post') as mock:
-            mock.side_effect = [MockResponse(200, json.dumps(dict(status=0, status_message="ok"))),
-                                MockResponse(400, json.dumps(dict(status=3, status_message="Invalid token")))]
-            response = self.client.post(url, dict(auth_token=token))
-
-            self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Invalid authentication token")
-
-        # ok this time claim with a success
-        with patch('requests.post') as mock:
-            mock.side_effect = [MockResponse(200, json.dumps(dict(status=0, status_message="ok"))),
-                                MockResponse(200, json.dumps(dict(status=0, status_message="ok", id="viberId", uri="viberName"))),
-                                MockResponse(200, json.dumps(dict(status=0, status_message="ok")))]
-
-            response = self.client.post(url, dict(auth_token=token), follow=True)
-
-            # assert our channel got created
-            channel = Channel.objects.get()
-            self.assertEqual(channel.config_json()[Channel.CONFIG_AUTH_TOKEN], token)
-            self.assertEqual(channel.address, 'viberId')
-            self.assertEqual(channel.name, 'viberName')
-
-            # should have been called with our webhook URL
-            self.assertEqual(mock.call_args[0][0], 'https://chatapi.viber.com/pa/set_webhook')
-
-        # remove the channel
-        with self.settings(IS_PROD=True):
-            with patch('requests.post') as mock:
-                mock.side_effect = [MockResponse(200, json.dumps(dict(status=0, status_message="ok")))]
-                channel.release()
-
-                self.assertEqual(mock.call_args[0][0], 'https://chatapi.viber.com/pa/set_webhook')
-
     def test_search_nexmo(self):
         self.login(self.admin)
         self.org.channels.update(is_active=False, org=None)
@@ -1870,117 +1814,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(config['app_secret'], 'AppSecret')
         self.assertEqual(config['app_id'], 'AppId')
         self.assertEqual(config['passphrase'], 'Passphrase')
-
-    def test_claim_telegram(self):
-
-        # disassociate all of our channels
-        self.org.channels.all().update(org=None, is_active=False)
-
-        self.login(self.admin)
-        claim_url = reverse('channels.channel_claim_telegram')
-
-        # can fetch the claim page
-        response = self.client.get(claim_url)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, 'Telegram Bot')
-
-        # claim with an invalid token
-        with patch('telegram.Bot.getMe') as get_me:
-            get_me.side_effect = telegram.TelegramError('Boom')
-            response = self.client.post(claim_url, dict(auth_token='invalid'))
-            self.assertEqual(200, response.status_code)
-            self.assertEqual('Your authentication token is invalid, please check and try again', response.context['form'].errors['auth_token'][0])
-
-        with patch('telegram.Bot.getMe') as get_me:
-            user = TelegramUser(123, 'Rapid')
-            user.last_name = 'Bot'
-            user.username = 'rapidbot'
-            get_me.return_value = user
-
-            with patch('telegram.Bot.setWebhook') as set_webhook:
-                set_webhook.return_value = ''
-
-                response = self.client.post(claim_url, dict(auth_token='184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'))
-                channel = Channel.objects.all().order_by('-pk').first()
-                self.assertIsNotNone(channel)
-                self.assertEqual(channel.channel_type, Channel.TYPE_TELEGRAM)
-                self.assertRedirect(response, reverse('channels.channel_read', args=[channel.uuid]))
-                self.assertEqual(302, response.status_code)
-
-                response = self.client.post(claim_url, dict(auth_token='184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'))
-                self.assertEqual('A telegram channel for this bot already exists on your account.', response.context['form'].errors['auth_token'][0])
-
-                contact = self.create_contact('Telegram User', urn=URN.from_telegram('1234'))
-
-                # make sure we our telegram channel satisfies as a send channel
-                self.login(self.admin)
-                response = self.client.get(reverse('contacts.contact_read', args=[contact.uuid]))
-                send_channel = response.context['send_channel']
-                self.assertIsNotNone(send_channel)
-                self.assertEqual(Channel.TYPE_TELEGRAM, send_channel.channel_type)
-
-    def test_claim_line(self):
-
-        # disassociate all of our channels
-        self.org.channels.all().update(org=None, is_active=False)
-
-        self.login(self.admin)
-        claim_url = reverse('channels.channel_claim')
-        response = self.client.get(claim_url)
-        self.assertContains(response, 'LINE')
-
-        claim_line_url = reverse('channels.channel_claim_line')
-
-        with patch('requests.get') as mock:
-            mock.return_value = MockResponse(200, json.dumps(dict(channelId=123456789, mid='u1234567890')))
-
-            payload = dict(channel_access_token='abcdef123456', channel_secret='123456')
-
-            response = self.client.post(claim_line_url, payload, follow=True)
-            channel = Channel.objects.get(channel_type=Channel.TYPE_LINE)
-            self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
-            self.assertEqual(channel.channel_type, "LN")
-            self.assertEqual(channel.config_json()[Channel.CONFIG_AUTH_TOKEN], 'abcdef123456')
-            self.assertEqual(channel.config_json()[Channel.CONFIG_CHANNEL_SECRET], '123456')
-            self.assertEqual(channel.address, 'u1234567890')
-
-            response = self.client.post(claim_line_url, payload, follow=True)
-            self.assertContains(response, "A channel with this configuration already exists.")
-
-        self.org.channels.update(is_active=False, org=None)
-
-        with patch('requests.get') as mock:
-            mock.return_value = MockResponse(401, json.dumps(dict(error_desciption="invalid token")))
-            payload = dict(channel_auth_token='abcdef123456', channel_secret='123456')
-
-            response = self.client.post(claim_line_url, payload, follow=True)
-            self.assertContains(response, "invalid token")
-
-    def test_claim_fcm(self):
-
-        # disassociate all of our channels
-        self.org.channels.all().update(org=None, is_active=False)
-
-        self.login(self.admin)
-        claim_url = reverse('channels.channel_claim_fcm')
-        response = self.client.get(claim_url)
-        self.assertContains(response, 'Firebase')
-
-        claim_fcm_url = reverse('channels.channel_claim_fcm')
-
-        with patch('requests.get') as mock:
-            mock.return_value = MockResponse(200, json.dumps(dict(title='FCM Channel', key='abcde12345',
-                                                                  send_notification='True')))
-
-            payload = dict(title='FCM Channel', key='abcde12345', send_notification='True')
-
-            response = self.client.post(claim_fcm_url, payload, follow=True)
-            channel = Channel.objects.get(channel_type=Channel.TYPE_FCM)
-            self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
-            self.assertEqual(channel.channel_type, "FCM")
-            self.assertEqual(channel.config_json()[Channel.CONFIG_FCM_KEY], 'abcde12345')
-            self.assertEqual(channel.config_json()[Channel.CONFIG_FCM_TITLE], 'FCM Channel')
-            self.assertEqual(channel.address, "abcde12345")
 
     def test_release(self):
         Channel.objects.all().delete()
@@ -2654,78 +2487,6 @@ class ChannelAlertTest(TembaTest):
 
 class ChannelClaimTest(TembaTest):
 
-    def test_external(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-
-        # should see the general channel claim page
-        response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, reverse('channels.channel_claim_external'))
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_external'))
-        post_data = response.context['form'].initial
-
-        url = 'http://test.com/send.php?from={{from}}&text={{text}}&to={{to}}'
-
-        post_data['number'] = '12345'
-        post_data['country'] = 'RW'
-        post_data['url'] = url
-        post_data['method'] = 'GET'
-        post_data['scheme'] = 'tel'
-        post_data['content_type'] = Channel.CONTENT_TYPE_JSON
-        post_data['max_length'] = 180
-
-        response = self.client.post(reverse('channels.channel_claim_external'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('RW', channel.country)
-        self.assertTrue(channel.uuid)
-        self.assertEquals(post_data['number'], channel.address)
-        self.assertEquals(post_data['url'], channel.config_json()[Channel.CONFIG_SEND_URL])
-        self.assertEquals(post_data['method'], channel.config_json()[Channel.CONFIG_SEND_METHOD])
-        self.assertEquals(post_data['content_type'], channel.config_json()[Channel.CONFIG_CONTENT_TYPE])
-        self.assertEquals(180, channel.config_json()[Channel.CONFIG_MAX_LENGTH])
-        self.assertEquals(Channel.TYPE_EXTERNAL, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('handlers.external_handler', args=['sent', channel.uuid]))
-        self.assertContains(response, reverse('handlers.external_handler', args=['delivered', channel.uuid]))
-        self.assertContains(response, reverse('handlers.external_handler', args=['failed', channel.uuid]))
-        self.assertContains(response, reverse('handlers.external_handler', args=['received', channel.uuid]))
-
-        # test substitution in our url
-        self.assertEqual('http://test.com/send.php?from=5080&text=test&to=%2B250788383383',
-                         channel.replace_variables(url, {'from': "5080", 'text': "test", 'to': "+250788383383"}))
-
-        # test substitution with unicode
-        self.assertEqual('http://test.com/send.php?from=5080&text=Reply+%E2%80%9C1%E2%80%9D+for+good&to=%2B250788383383',
-                         channel.replace_variables(url, {
-                             'from': "5080",
-                             'text': "Reply “1” for good",
-                             'to': "+250788383383"
-                         }))
-
-        # test substitution with XML encoding
-        body = "<xml>{{text}}</xml>"
-        self.assertEquals("<xml>Hello &amp; World</xml>",
-                          channel.replace_variables(body, dict(text="Hello & World"), Channel.CONTENT_TYPE_XML))
-
-        self.assertEquals("<xml>التوطين</xml>",
-                          channel.replace_variables(body, dict(text="التوطين"), Channel.CONTENT_TYPE_XML))
-
-        # test substitution with JSON encoding
-        body = "{ body: {{text}} }"
-        self.assertEquals("{ body: \"this is \\\"quote\\\"\" }",
-                          channel.replace_variables(body, dict(text="this is \"quote\""), Channel.CONTENT_TYPE_JSON))
-
     def test_clickatell(self):
         Channel.objects.all().delete()
 
@@ -3249,45 +3010,6 @@ class ChannelClaimTest(TembaTest):
         text = text_template.render(context)
 
         self.assertEquals(mail.outbox[1].body, text)
-
-    def test_claim_jiochat(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-        response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, reverse('channels.channel_claim_jiochat'))
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_jiochat'))
-        post_data = response.context['form'].initial
-
-        post_data['app_id'] = 'foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo'
-        post_data['app_secret'] = 'barbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbar'
-
-        response = self.client.post(reverse('channels.channel_claim_jiochat'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals(channel.config_json()[Channel.CONFIG_JIOCHAT_APP_ID], post_data['app_id'])
-        self.assertEquals(channel.config_json()[Channel.CONFIG_JIOCHAT_APP_SECRET], post_data['app_secret'])
-        self.assertEquals(channel.channel_type, Channel.TYPE_JIOCHAT)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('handlers.jiochat_handler', args=[channel.uuid]))
-        self.assertContains(response, channel.secret)
-
-        contact = self.create_contact('Jiochat User', urn=URN.from_jiochat('1234'))
-
-        # make sure we our jiochat channel satisfies as a send channel
-        response = self.client.get(reverse('contacts.contact_read', args=[contact.uuid]))
-        send_channel = response.context['send_channel']
-        self.assertIsNotNone(send_channel)
-        self.assertEqual(Channel.TYPE_JIOCHAT, send_channel.channel_type)
 
     def test_claim_macrokiosk(self):
         Channel.objects.all().delete()
@@ -7410,7 +7132,7 @@ class TelegramTest(TembaTest):
 
         self.channel.delete()
 
-        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_TELEGRAM, None, 'RapidBot',
+        self.channel = Channel.create(self.org, self.user, None, 'TG', None, 'RapidBot',
                                       config=dict(auth_token='valid'),
                                       uuid='00000000-0000-0000-0000-000000001234')
 
@@ -7994,7 +7716,7 @@ class TwitterTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000002345')
 
         # a new style Twitter channel configured for the Webhooks API
-        self.twitter_beta = Channel.create(self.org, self.user, None, 'TT', None, 'cuenca_facts',
+        self.twitter_beta = Channel.create(self.org, self.user, None, 'TWT', None, 'cuenca_facts',
                                            config={'handle_id': 10001,
                                                    'api_key': 'APIKEY',
                                                    'api_secret': 'APISECRET',
@@ -8415,6 +8137,24 @@ class MageHandlerTest(TembaTest):
         # check contact count updated
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(contact_counts[ContactGroup.TYPE_ALL], 3)
+
+    def test_stop_contact(self):
+        url = reverse('handlers.mage_handler', args=['stop_contact'])
+        headers = dict(HTTP_AUTHORIZATION='Token %s' % settings.MAGE_AUTH_TOKEN)
+        contact = self.create_contact("Mary Jo", twitter='mary_jo')
+
+        response = self.client.post(url, dict(contact_id=contact.id), **headers)
+        self.assertEqual(200, response.status_code)
+
+        # check the contact got stopped
+        contact.refresh_from_db()
+        self.assertTrue(contact.is_stopped)
+
+        # try with invalid id
+        response = self.client.post(url, dict(contact_id=-1), **headers)
+
+        # should get a 401
+        self.assertEqual(400, response.status_code)
 
 
 class StartMobileTest(TembaTest):
@@ -9978,18 +9718,24 @@ class JiochatTest(TembaTest):
         super(JiochatTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_JIOCHAT, None, '1212',
-                                      config={Channel.CONFIG_JIOCHAT_APP_ID: 'app-id',
-                                              Channel.CONFIG_JIOCHAT_APP_SECRET: 'app-secret'},
+        self.channel = Channel.create(self.org, self.user, None, 'JC', None, '1212',
+                                      config={'jiochat_app_id': 'app-id',
+                                              'jiochat_app_secret': 'app-secret'},
                                       uuid='00000000-0000-0000-0000-000000001234',
                                       secret=Channel.generate_secret(32))
 
     def test_refresh_jiochat_access_tokens_task(self):
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(400, '{ "error":"Failed" }')
+
+            self.assertFalse(ChannelLog.objects.all())
             refresh_jiochat_access_tokens()
+
+            self.assertEqual(ChannelLog.objects.all().count(), 1)
+            self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
+
             self.assertEqual(mock.call_count, 1)
-            channel_client = self.channel.get_jiochat_client()
+            channel_client = JiochatClient.from_channel(self.channel)
 
             self.assertIsNone(channel_client.get_access_token())
 
@@ -9997,12 +9743,21 @@ class JiochatTest(TembaTest):
             mock.return_value = MockResponse(200, '{ "access_token":"ABC1234" }')
 
             refresh_jiochat_access_tokens()
+
+            self.assertEqual(ChannelLog.objects.all().count(), 2)
+            self.assertTrue(ChannelLog.objects.filter(is_error=True).count(), 1)
+            self.assertTrue(ChannelLog.objects.filter(is_error=False).count(), 1)
             self.assertEqual(mock.call_count, 1)
 
             self.assertEqual(channel_client.get_access_token(), 'ABC1234')
             self.assertEqual(mock.call_args_list[0][1]['data'], {'client_secret': u'app-secret',
                                                                  'grant_type': 'client_credentials',
                                                                  'client_id': u'app-id'})
+
+            self.login(self.admin)
+            response = self.client.get(reverse("channels.channellog_list") + '?channel=%d&others=1' % self.channel.id,
+                                       follow=True)
+            self.assertEqual(len(response.context['object_list']), 2)
 
     @patch('temba.utils.jiochat.JiochatClient.refresh_access_token')
     def test_url_verification(self, mock_refresh_access_token):
@@ -10154,8 +9909,13 @@ class JiochatTest(TembaTest):
             "Content": "Test",
         }
 
+        self.assertEqual(ChannelLog.objects.all().count(), 0)
+
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
         self.assertEqual(response.status_code, 400)
+
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(is_error=True).count(), 1)
 
         data = {
             'ToUsername': '12121212121212',
@@ -10167,9 +9927,13 @@ class JiochatTest(TembaTest):
         }
 
         Contact.objects.all().delete()
+        ChannelLog.objects.all().delete()
 
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
         self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(is_error=True).count(), 1)
 
         msg = Msg.objects.get()
         self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
@@ -10185,10 +9949,14 @@ class JiochatTest(TembaTest):
 
         Msg.objects.all().delete()
         Contact.objects.all().delete()
+        ChannelLog.objects.all().delete()
 
         mock_get.return_value = MockResponse(200, '{"nickname":"Shinonda"}')
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
         self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        self.assertEqual(ChannelLog.objects.filter(is_error=False).count(), 1)
 
         msg = Msg.objects.get()
         self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
@@ -10204,10 +9972,13 @@ class JiochatTest(TembaTest):
 
         Msg.objects.all().delete()
         Contact.objects.all().delete()
+        ChannelLog.objects.all().delete()
 
         with AnonymousOrg(self.org):
             response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
             self.assertEqual(response.status_code, 200)
+
+            self.assertEqual(ChannelLog.objects.all().count(), 0)
 
             msg = Msg.objects.get()
             self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
@@ -10222,6 +9993,7 @@ class JiochatTest(TembaTest):
             self.assertEqual(msg.sent_on.date(), an_hour_ago.date())
 
         Msg.objects.all().delete()
+        ChannelLog.objects.all().delete()
 
         data = {
             'ToUsername': '12121212121212',
@@ -10233,7 +10005,7 @@ class JiochatTest(TembaTest):
         }
 
         with patch('requests.get') as mock_get:
-            mock_get.side_effect = [MockResponse(200, '{"nickname":"Shinonda"}'),
+            mock_get.side_effect = [MockResponse(200, '{"nickname": "Shinonda. ☺"}'),
                                     MockResponse(400, 'Error'),
                                     MockResponse(200, "IMG_BITS",
                                                  headers={"Content-Type": "image/jpeg",
@@ -10245,6 +10017,10 @@ class JiochatTest(TembaTest):
 
                 response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
                 self.assertEqual(response.status_code, 200)
+
+                self.assertEqual(ChannelLog.objects.all().count(), 2)
+                self.assertEqual(ChannelLog.objects.filter(is_error=False).count(), 2)
+                self.assertEqual(ChannelLog.objects.all().first().response, '{"nickname": "Shinonda. \\u263a"}')
 
                 msg = Msg.objects.get()
                 self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
@@ -10259,6 +10035,21 @@ class JiochatTest(TembaTest):
                 self.assertEqual(msg.attachments[0], 'image/jpeg:<MEDIA_SAVED_URL>')
 
                 self.assertEqual(mock_get.call_count, 3)
+
+        Msg.objects.all().delete()
+        ChannelLog.objects.all().delete()
+
+        with patch('requests.get') as mock_get:
+            mock_get.return_value = MockResponse(400, 'Error')
+
+            with patch('temba.orgs.models.Org.save_media') as mock_save_media:
+                mock_save_media.return_value = '<MEDIA_SAVED_URL>'
+
+                response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+                self.assertEqual(response.status_code, 200)
+
+                self.assertEqual(ChannelLog.objects.all().count(), 2)
+                self.assertEqual(ChannelLog.objects.filter(is_error=True).count(), 2)
 
 
 class GlobeTest(TembaTest):
@@ -10604,7 +10395,7 @@ class LineTest(TembaTest):
         super(LineTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_LINE, '123456789', '123456789',
+        self.channel = Channel.create(self.org, self.user, None, 'LN', '123456789', '123456789',
                                       config=dict(channel_id='1234', channel_secret='1234', channel_mid='1234', auth_token='abcdefgij'),
                                       uuid='00000000-0000-0000-0000-000000001234')
 
@@ -10746,7 +10537,7 @@ class ViberPublicTest(TembaTest):
         super(ViberPublicTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_VIBER_PUBLIC, None, '1001',
+        self.channel = Channel.create(self.org, self.user, None, 'VP', None, '1001',
                                       uuid='00000000-0000-0000-0000-000000001234',
                                       config={Channel.CONFIG_AUTH_TOKEN: "auth_token"})
 
@@ -11077,7 +10868,7 @@ class FcmTest(TembaTest):
         super(FcmTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_FCM, 'FCM Channel', 'fcm-channel',
+        self.channel = Channel.create(self.org, self.user, None, 'FCM', 'FCM Channel', 'fcm-channel',
                                       config=dict(FCM_KEY='123456789', FCM_TITLE='FCM Channel',
                                                   FCM_NOTIFICATION=True),
                                       uuid='00000000-0000-0000-0000-000000001234')
