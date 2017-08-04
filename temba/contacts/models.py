@@ -201,7 +201,12 @@ class URN(object):
             norm_path = norm_path.lower()
 
         if display:
-            display = six.text_type(display).strip().lower()
+            display = six.text_type(display).strip()
+
+            if scheme == TWITTER_SCHEME and display:
+                display = display.lower()
+                if display[0] == '@':
+                    display = display[1:]
 
         return cls.from_parts(scheme, norm_path, display)
 
@@ -951,7 +956,7 @@ class Contact(TembaModel):
             # assign them property names with added count
             urns_for_scheme_counts = defaultdict(int)
             for urn in urn_objects.keys():
-                scheme, path = URN.to_parts(urn)
+                scheme, path, display = URN.to_parts(urn)
                 urns_for_scheme_counts[scheme] += 1
                 params["%s%d" % (scheme, urns_for_scheme_counts[scheme])] = path
 
