@@ -885,7 +885,7 @@ class Contact(TembaModel):
             urns_to_create = dict()
             for urn in urns:
                 normalized = URN.normalize(urn, country)
-                existing_urn = ContactURN.lookup(org, normalized, normalize=False)
+                existing_urn = ContactURN.lookup(org, normalized, normalize=False, country_code=country)
 
                 if existing_urn:
                     if existing_urn.contact and not force_urn_update:
@@ -1960,7 +1960,7 @@ class ContactURN(models.Model):
             urn_as_string = URN.normalize(urn_as_string, country_code)
         identity = URN.identity(urn_as_string)
 
-        return cls.objects.filter(org=org, identity=identity).select_related('contact').first()
+        return cls.objects.filter(org=org, urn=identity).select_related('contact').first()
 
     def update_auth(self, auth):
         if auth and auth != self.auth:
