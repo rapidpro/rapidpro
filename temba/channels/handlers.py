@@ -2376,7 +2376,9 @@ class FacebookHandler(BaseChannelHandler):
                         postback = None
 
                         if 'message' in envelope:
-                            if 'text' in envelope['message']:
+                            if 'quick_reply' in envelope['message'] and 'payload' in envelope['message']['quick_reply']:
+                                content = envelope['message']['quick_reply']['payload']
+                            elif 'text' in envelope['message']:
                                 content = envelope['message']['text']
                             elif 'attachments' in envelope['message']:
                                 urls = []
