@@ -1328,6 +1328,9 @@ class ContactTest(TembaTest):
         # create twitter channel
         Channel.create(self.org, self.user, None, 'TT')
 
+        # add add an external channel so numbers get normalized
+        Channel.create(self.org, self.user, 'RW', 'EX', schemes=[TEL_SCHEME])
+
         # search for again for Joe by twitter
         self.assertEqual(omnibox_request("search=blow80"), [
             dict(id='u-%d' % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme='twitter')
@@ -1361,7 +1364,7 @@ class ContactTest(TembaTest):
         # lookup by URN ids
         urn_query = "u=%d,%d" % (self.joe.get_urn(TWITTER_SCHEME).pk, self.frank.get_urn(TEL_SCHEME).pk)
         self.assertEqual(omnibox_request(urn_query), [
-            dict(id='u-%d' % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme='tel'),
+            dict(id='u-%d' % frank_tel.pk, text="0782 222 222", extra="Frank Smith", scheme='tel'),
             dict(id='u-%d' % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme='twitter')
         ])
 
@@ -1412,7 +1415,7 @@ class ContactTest(TembaTest):
         # but still lookup by URN ids
         urn_query = "u=%d,%d" % (self.joe.get_urn(TWITTER_SCHEME).pk, self.frank.get_urn(TEL_SCHEME).pk)
         self.assertEqual(omnibox_request(urn_query), [
-            dict(id='u-%d' % frank_tel.pk, text="250782222222", extra="Frank Smith", scheme='tel'),
+            dict(id='u-%d' % frank_tel.pk, text="0782 222 222", extra="Frank Smith", scheme='tel'),
             dict(id='u-%d' % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme='twitter')
         ])
 
