@@ -1,3 +1,7 @@
+v3.0.173
+----------
+ * Add migration to populate ContactField.uuid
+
 v3.0.172
 ----------
  * Only try to delete Twilio app when channel config contains 'application_sid'
