@@ -117,13 +117,11 @@ class RequestBuilder(object):
         })
         return self
 
-    def flow_exited(self, run):
+    def run_expired(self, run):
         self.request['events'].append({
-            'type': "flow_exited",
+            'type': "run_expired",
             'created_on': datetime_to_str(run.exited_on),
-            'flow_uuid': str(run.flow.uuid),
-            'contact_uuid': str(run.contact.uuid),
-            'status': "expired" if run.exit_type == 'E' else "interrupted"
+            'run_uuid': str(run.uuid),
         })
         return self
 

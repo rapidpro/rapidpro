@@ -179,8 +179,8 @@ class FlowSession(ChannelSession):
 
             output = request.start(flow)
 
-            # determine if we're still active
-            active = len(output.session['runs']) > 0 and output.session['runs'][0]['status'] == 'active'
+            # if we hit a wait then we didn't complete
+            active = output.session['status'] == 'waiting'
 
             # create our session
             session = cls.objects.create(org=contact.org, contact=contact,
@@ -193,7 +193,7 @@ class FlowSession(ChannelSession):
 
         return runs
 
-    def resume(self, msg_in=None, exited_child_run=None):
+    def resume(self, msg_in=None, expired_child_run=None):
         """
         Resumes an existing flow session
         """
@@ -202,8 +202,11 @@ class FlowSession(ChannelSession):
 
         current_output = self.as_json()
 
-        # look up our active run
-        active_run = current_output['runs'][-1] if len(current_output['runs']) > 0 else None
+        # find the run that was waiting for input
+        waiting_run = None
+        for run in current_output['runs']:
+            if run['status'] == 'waiting':
+                waiting_run = run
 
         # get our root flow
         flow = self.get_root_flow()
@@ -226,8 +229,8 @@ class FlowSession(ChannelSession):
 
         if msg_in:
             request = request.msg_received(msg_in)
-        if exited_child_run:
-            request = request.flow_exited(exited_child_run)
+        if expired_child_run:
+            request = request.run_expired(expired_child_run)
 
         # TODO determine if contact or environment has changed
         request = request.set_contact(self.contact)
@@ -235,8 +238,8 @@ class FlowSession(ChannelSession):
 
         output = request.resume(self.as_json())
 
-        # determine if we're still active
-        active = len(output.session['runs']) > 0 and output.session['runs'][0]['status'] == 'active'
+        # if we hit a wait then we didn't complete
+        active = output.session['status'] == 'waiting'
 
         # update our output
         self.output = json.dumps(output.session)
@@ -245,11 +248,11 @@ class FlowSession(ChannelSession):
         self.save(update_fields=['output', 'is_active', 'modified_on'])
 
         # update our session
-        self.sync_runs(output, msg_in, (), active, active_run)
+        self.sync_runs(output, msg_in, (), active, waiting_run)
 
         return True, []
 
-    def sync_runs(self, output, msg_in, broadcasts, active, prev_active_run=None):
+    def sync_runs(self, output, msg_in, broadcasts, active, prev_waiting_run=None):
         """
         Update our runs with the session output
         """
@@ -259,7 +262,7 @@ class FlowSession(ChannelSession):
             for step in run['path']:
                 step_to_run[step['uuid']] = run['uuid']
 
-        run_receiving_input = prev_active_run or output.session['runs'][0]
+        run_receiving_input = prev_waiting_run or output.session['runs'][0]
 
         # update each of our runs
         runs = []
@@ -2749,8 +2752,8 @@ class FlowRun(models.Model):
         """
         uuid = run_output['uuid']
         path = run_output['path']
-        is_active = (run_output['status'] == 'active')
-        is_error = (run_output['status'] == 'errored')
+        is_active = run_output['status'] in ('active', 'waiting')
+        is_error = run_output['status'] == 'errored'
         expires_on = iso8601.parse_date(run_output['expires_on']) if run_output['expires_on'] else None
 
         # does this run already exist?
@@ -2782,15 +2785,18 @@ class FlowRun(models.Model):
             created_on = timezone.now()
 
             flow = Flow.objects.get(org=contact.org, uuid=run_output['flow_uuid'])
+
+            parent_uuid = run_output.get('parent_uuid')
+            parent = cls.objects.get(org=contact.org, uuid=parent_uuid) if parent_uuid else None
+
             run = cls.objects.create(org=contact.org, uuid=uuid,
                                      flow=flow, contact=contact,
+                                     parent=parent,
                                      output=json.dumps(run_output),
                                      exited_on=exited_on, exit_type=exit_type,
                                      session=session,
                                      is_active=is_active,
-                                     expires_on=expires_on,
-                                     modified_on=created_on,
-                                     created_on=created_on)
+                                     created_on=created_on, expires_on=expires_on, modified_on=created_on)
 
             # old simulation needs an action log showing we entered the flow
             if contact.is_test:
@@ -3008,7 +3014,7 @@ class FlowRun(models.Model):
         Exits (expires, interrupts) runs in bulk
         """
         # when expiring phone calls, we want to issue hangups
-        session_runs = runs.exclude(session=None)
+        session_runs = runs.exclude(session=None).exclude(session__session_type=ChannelSession.GO)
         for run in session_runs:
             session = run.session.get()
 
@@ -3052,8 +3058,9 @@ class FlowRun(models.Model):
     @classmethod
     def continue_parent_flow_run(cls, run, trigger_send=True, continue_parent=True):
         # resume via goflow if this run using the new engine
-        if run.parent.session:
-            return run.parent.session.resume(exited_child_run=run)
+        if run.parent.session and run.parent.session.session_type == ChannelSession.GO:
+            session = FlowSession.objects.get(id=run.parent.session.id)
+            return session.resume(expired_child_run=run)
 
         msgs = []
 
