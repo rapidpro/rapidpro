@@ -1,3 +1,7 @@
+v3.0.174
+----------
+ * Make ContactField.uuid unique and non-null
+
 v3.0.173
 ----------
  * Add migration to populate ContactField.uuid
