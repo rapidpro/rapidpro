@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('orgs', '0036_ensure_anon_user_exists'),
-        ('contacts', '0062_backfill_urn_identity'),
+        ('contacts', '0065_backfill_urn_identity'),
     ]
 
     operations = [

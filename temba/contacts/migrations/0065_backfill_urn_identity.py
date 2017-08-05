@@ -24,7 +24,7 @@ def backfill_urn_identity(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contacts', '0061_auto_20170804_1918'),
+        ('contacts', '0064_auto_20170804_1918'),
     ]
 
     operations = [
