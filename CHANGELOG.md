@@ -1,3 +1,7 @@
+v3.0.175
+----------
+ * Fix incorrect lambda use so message sending works
+
 v3.0.174
 ----------
  * Make ContactField.uuid unique and non-null
