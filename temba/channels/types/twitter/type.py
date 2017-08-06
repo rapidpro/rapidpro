@@ -26,7 +26,7 @@ class TwitterType(ChannelType):
     claim_blurb = _("""Add a <a href="http://twitter.com">Twitter</a> account to send messages as direct messages.""")
     claim_view = ClaimView
 
-    scheme = TWITTER_SCHEME
+    schemes = [TWITTER_SCHEME]
     max_length = 10000
     show_config_page = False
     free_sending = True
