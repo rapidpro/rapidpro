@@ -86,7 +86,7 @@ class URN(object):
         raise ValueError("Class shouldn't be instantiated")
 
     @classmethod
-    def from_parts(cls, scheme, path):
+    def from_parts(cls, scheme, path, display=None):
         """
         Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
         """
@@ -96,7 +96,10 @@ class URN(object):
         if not path:
             raise ValueError("Invalid path component: '%s'" % path)
 
-        return '%s:%s' % (scheme, path)
+        if display:
+            return '%s:%s#%s' % (scheme, path, display)
+        else:
+            return '%s:%s' % (scheme, path)
 
     @classmethod
     def to_parts(cls, urn):
@@ -114,7 +117,13 @@ class URN(object):
         if not path:
             raise ValueError("URN contains an invalid path component: '%s'" % path)
 
-        return scheme, path
+        path_parts = path.split("#")
+        display = None
+        if len(path_parts) > 1:
+            path = path_parts[0]
+            display = path_parts[1]
+
+        return scheme, path, display
 
     @classmethod
     def validate(cls, urn, country_code=None):
@@ -122,7 +131,7 @@ class URN(object):
         Validates a normalized URN
         """
         try:
-            scheme, path = cls.to_parts(urn)
+            scheme, path, display = cls.to_parts(urn)
         except ValueError:
             return False
 
@@ -178,7 +187,7 @@ class URN(object):
         """
         Normalizes the path of a URN string. Should be called anytime looking for a URN match.
         """
-        scheme, path = cls.to_parts(urn)
+        scheme, path, display = cls.to_parts(urn)
 
         norm_path = six.text_type(path).strip()
 
@@ -192,7 +201,15 @@ class URN(object):
         elif scheme == EMAIL_SCHEME:
             norm_path = norm_path.lower()
 
-        return cls.from_parts(scheme, norm_path)
+        if display:
+            display = six.text_type(display).strip()
+
+            if scheme == TWITTER_SCHEME and display:
+                display = display.lower()
+                if display[0] == '@':
+                    display = display[1:]
+
+        return cls.from_parts(scheme, norm_path, display)
 
     @classmethod
     def normalize_number(cls, number, country_code):
@@ -229,6 +246,11 @@ class URN(object):
 
         # this must be a local number of some kind, just lowercase and save
         return regex.sub('[^0-9a-z]', '', number.lower(), regex.V0), False
+
+    @classmethod
+    def identity(cls, urn):
+        scheme, path, display = URN.to_parts(urn)
+        return URN.from_parts(scheme, path)
 
     @classmethod
     def fb_ref_from_path(cls, path):
@@ -866,7 +888,7 @@ class Contact(TembaModel):
             urns_to_create = dict()
             for urn in urns:
                 normalized = URN.normalize(urn, country)
-                existing_urn = ContactURN.lookup(org, normalized, normalize=False)
+                existing_urn = ContactURN.lookup(org, normalized, normalize=False, country_code=country)
 
                 if existing_urn:
                     if existing_urn.contact and not force_urn_update:
@@ -937,7 +959,7 @@ class Contact(TembaModel):
             # assign them property names with added count
             urns_for_scheme_counts = defaultdict(int)
             for urn in urn_objects.keys():
-                scheme, path = URN.to_parts(urn)
+                scheme, path, display = URN.to_parts(urn)
                 urns_for_scheme_counts[scheme] += 1
                 params["%s%d" % (scheme, urns_for_scheme_counts[scheme])] = path
 
@@ -1692,7 +1714,8 @@ class Contact(TembaModel):
 
             for urn_as_string in urns:
                 normalized = URN.normalize(urn_as_string, country)
-                urn = ContactURN.objects.filter(org=self.org, urn=normalized).first()
+                urn = ContactURN.lookup(self.org, normalized)
+
                 if not urn:
                     urn = ContactURN.create(self.org, self, normalized, priority=priority)
                     urns_created.append(urn)
@@ -1883,11 +1906,17 @@ class ContactURN(models.Model):
     contact = models.ForeignKey(Contact, null=True, blank=True, related_name='urns',
                                 help_text="The contact that this URN is for, can be null")
 
-    urn = models.CharField(max_length=255, choices=SCHEME_CHOICES,
+    urn = models.CharField(max_length=255,
                            help_text="The Universal Resource Name as a string. ex: tel:+250788383383")
+
+    identity = models.CharField(max_length=255, null=True,
+                                help_text="The Universal Resource Name as a string, excluding display if present. ex: tel:+250788383383")
 
     path = models.CharField(max_length=255,
                             help_text="The path component of our URN. ex: +250788383383")
+
+    display = models.CharField(max_length=255, null=True,
+                               help_text="The display component for this URN, if any")
 
     scheme = models.CharField(max_length=128,
                               help_text="The scheme for this URN, broken out for optimization reasons, ex: tel")
@@ -1916,13 +1945,14 @@ class ContactURN(models.Model):
 
     @classmethod
     def create(cls, org, contact, urn_as_string, channel=None, priority=None, auth=None):
-        scheme, path = URN.to_parts(urn_as_string)
+        scheme, path, display = URN.to_parts(urn_as_string)
+        urn_as_string = URN.from_parts(scheme, path)
 
         if not priority:
             priority = cls.PRIORITY_DEFAULTS.get(scheme, cls.PRIORITY_STANDARD)
 
-        return cls.objects.create(org=org, contact=contact, priority=priority, channel=channel,
-                                  scheme=scheme, path=path, urn=urn_as_string, auth=auth)
+        return cls.objects.create(org=org, contact=contact, priority=priority, channel=channel, auth=auth,
+                                  scheme=scheme, path=path, urn=urn_as_string, identity=urn_as_string, display=display)
 
     @classmethod
     def lookup(cls, org, urn_as_string, country_code=None, normalize=True):
@@ -1931,8 +1961,9 @@ class ContactURN(models.Model):
         """
         if normalize:
             urn_as_string = URN.normalize(urn_as_string, country_code)
+        identity = URN.identity(urn_as_string)
 
-        return cls.objects.filter(org=org, urn=urn_as_string).select_related('contact').first()
+        return cls.objects.filter(org=org, urn=identity).select_related('contact').first()
 
     def update_auth(self, auth):
         if auth and auth != self.auth:
