@@ -21,7 +21,7 @@ def populate_contact_field_uuids(apps, schema_editor):
         num_updated += 1
 
         if num_updated % 1000 == 0:
-            print(" > Updated % of % contact fields" % (num_updated, len(field_ids)))
+            print(" > Updated %d of %d contact fields" % (num_updated, len(field_ids)))
 
 
 class Migration(migrations.Migration):
