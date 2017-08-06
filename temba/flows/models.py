@@ -5086,7 +5086,9 @@ class ReplyAction(Action):
                     if not item.get(value_key):
                         item[value_key] = base_metadata[i][value_key]
 
-            return language_metadata
+                return language_metadata
+            else:
+                return base_metadata
         else:
             return None
 
@@ -5101,8 +5103,8 @@ class ReplyAction(Action):
                 text = run.flow.get_localized_text(self.msg, run.contact)
 
             metadata = json.dumps(dict(
-                quick_replies=self.get_translated_metadata(run, 'quick_replies'),
-                url_buttons=self.get_translated_metadata(run, 'url_buttons')
+                quick_replies=self.get_translated_metadata(run, 'quick_replies') if self.quick_replies else [],
+                url_buttons=self.get_translated_metadata(run, 'url_buttons') if self.url_buttons else []
             ))
 
             attachments = None

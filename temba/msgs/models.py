@@ -407,7 +407,9 @@ class Broadcast(models.Model):
                     if not item.get(value_key):
                         item[value_key] = base_metadata[i][value_key]
 
-            return language_metadata
+                return language_metadata
+            else:
+                return base_metadata
         else:
             return None
 

@@ -46,12 +46,13 @@ window.updateSimulator = (data) ->
 
     if msg.metadata
       params = JSON.parse(msg.metadata)
-      if params.quick_replies[0]
+      if params.quick_replies? and params.quick_replies[0]?
         quick_replies = "<div id='quick-reply-content'>"
         for reply in params.quick_replies
           quick_replies += "<button class=\"btn quick-reply\" data-payload=\"" + reply.payload + "\"> " + reply.title + "</button>"
         quick_replies += "</div>"
-      else if params.url_buttons[0]
+      else if params.url_buttons? and params.url_buttons[0]?
+        url_buttons = ''
         for button in params.url_buttons
           url_buttons += "<a class=\"btn button-reply\"href='" + button.url + "' target=\"_blank\"> " + button.title + "</a><br>"
 
