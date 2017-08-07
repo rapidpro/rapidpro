@@ -479,7 +479,7 @@ class TriggerTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=contact, text="join ben haggerty")
         self.assertIsNone(msg.msg_type)
 
-        self.assertTrue(Trigger.find_and_handle(msg))
+        self.assertEquals(Trigger.find_and_handle(msg), (True, flow.name))
 
         self.assertEqual(msg.msg_type, 'F')
         self.assertEqual(Trigger.objects.get(pk=trigger.pk).trigger_count, 1)
@@ -552,14 +552,14 @@ class TriggerTest(TembaTest):
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
 
         # did our group join flow get created?
-        Flow.objects.get(flow_type=Flow.FLOW)
+        flow = Flow.objects.get(flow_type=Flow.FLOW)
 
         # now let's try it out
         contact = self.create_contact('Ben', '+250788382382')
         msg = self.create_msg(direction=INCOMING, contact=contact, text=u'١٠٠ join group')
         self.assertIsNone(msg.msg_type)
 
-        self.assertTrue(Trigger.find_and_handle(msg))
+        self.assertEquals(Trigger.find_and_handle(msg), (True, flow.name))
 
         # we should be in the group now
         self.assertEqual(msg.msg_type, 'F')
@@ -586,7 +586,7 @@ class TriggerTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=contact, text="join")
         self.assertIsNone(msg.msg_type)
 
-        self.assertTrue(Trigger.find_and_handle(msg))
+        self.assertEquals(Trigger.find_and_handle(msg), (True, flow.name))
 
         # we should be in the group now
         self.assertEqual(msg.msg_type, 'F')
@@ -990,7 +990,7 @@ class TriggerTest(TembaTest):
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="when is it?")
 
         # check message was handled
-        self.assertTrue(Trigger.find_and_handle(incoming))
+        self.assertEquals(Trigger.find_and_handle(incoming), (True, flow.name))
 
         # should also have a flow run
         run = FlowRun.objects.get()
@@ -1005,10 +1005,10 @@ class TriggerTest(TembaTest):
         self.assertEquals(Trigger.find_and_handle(incoming), (False, None))
 
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="  WHEN! ")
-        self.assertTrue(Trigger.find_and_handle(incoming))
+        self.assertEquals(Trigger.find_and_handle(incoming), (True, flow.name))
 
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="\WHEN")
-        self.assertTrue(Trigger.find_and_handle(incoming))
+        self.assertEquals(Trigger.find_and_handle(incoming), (True, flow.name))
 
         # change match type back to 'first'
         trigger.match_type = Trigger.MATCH_FIRST_WORD
@@ -1021,7 +1021,7 @@ class TriggerTest(TembaTest):
         self.assertTrue(self.contact.is_stopped)
 
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="when is it?")
-        self.assertTrue(Trigger.find_and_handle(incoming))
+        self.assertEquals(Trigger.find_and_handle(incoming), (True, flow.name))
 
         self.contact.refresh_from_db()
         self.assertFalse(self.contact.is_stopped)
@@ -1036,12 +1036,12 @@ class TriggerTest(TembaTest):
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="where do you go?")
 
         # check not handled (contact not in the group)
-        self.assertFalse(Trigger.find_and_handle(incoming))
+        self.assertEquals(Trigger.find_and_handle(incoming), (False, None))
 
         incoming2 = self.create_msg(direction=INCOMING, contact=self.contact2, text="where do I find it?")
 
         # check was handled (this contact is in the group)
-        self.assertTrue(Trigger.find_and_handle(incoming2))
+        self.assertEquals(Trigger.find_and_handle(incoming2), (True, flow.name))
 
     def test_trigger_handle_priority(self):
 
@@ -1078,19 +1078,19 @@ class TriggerTest(TembaTest):
         incoming1 = self.create_msg(direction=INCOMING, contact=self.contact, text="unique is the keyword send")
 
         # incoming1 should be handled and in flow1
-        self.assertTrue(Trigger.find_and_handle(incoming1))
+        self.assertEquals(Trigger.find_and_handle(incoming1), (True, flow1.name))
         self.assertTrue(FlowRun.objects.filter(contact=self.contact)[0].flow.pk, flow1.pk)
 
         incoming2 = self.create_msg(direction=INCOMING, contact=self.contact2, text="unique is the keyword send")
 
         # incoming2 should be handled and in flow3
-        self.assertTrue(Trigger.find_and_handle(incoming2))
+        self.assertEquals(Trigger.find_and_handle(incoming2), (True, flow3.name))
         self.assertTrue(FlowRun.objects.filter(contact=self.contact2)[0].flow.pk, flow3.pk)
 
         incoming3 = self.create_msg(direction=INCOMING, contact=self.contact3, text="unique is the keyword send")
 
         # incoming2 should be handled and in flow2
-        self.assertTrue(Trigger.find_and_handle(incoming3))
+        self.assertEquals(Trigger.find_and_handle(incoming3), (True, flow2.name))
         self.assertTrue(FlowRun.objects.filter(contact=self.contact3)[0].flow.pk, flow2.pk)
 
         incoming4 = self.create_msg(direction=INCOMING, contact=self.contact4, text="other is the keyword send")
