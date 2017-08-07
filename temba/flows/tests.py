@@ -2896,18 +2896,7 @@ class ActionTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
-        payload = """
-            "quick_replies": [
-                {
-                    "payload": "yes",
-                    "title": "Yes"
-                },
-                {
-                    "payload": "no",
-                    "title": "No"
-                }
-            ]
-        """
+        payload = dict(quick_replies=dict(eng=[dict(payload='yes', title='Yes'), dict(payload='no', title='No')]))
 
         action = ReplyAction(msg=dict(base="Are you fine?"), quick_replies=payload)
         action_json = action.as_json()
@@ -2921,14 +2910,8 @@ class ActionTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
-        url_buttons = """
-            "url_buttons": [
-                {
-                    "url": "http://example.com",
-                    "title": "Website"
-                }
-            ]
-        """
+        url_buttons = dict(url_buttons=dict(eng=[dict(url='http://example.com', title='Example'),
+                                                 dict(url='http://example2.com', title='Example 2')]))
 
         action = ReplyAction(dict(base="Testing buttons..."), url_buttons=url_buttons)
         action_json = action.as_json()
