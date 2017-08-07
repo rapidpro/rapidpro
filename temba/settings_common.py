@@ -907,11 +907,6 @@ CELERYBEAT_SCHEDULE = {
         'task': 'check_messages_task',
         'schedule': timedelta(seconds=300)
     },
-    "send-chatbase-logs": {
-        'task': 'send_chatbase_logs',
-        'schedule': timedelta(seconds=300),
-        'options': {'queue': 'msgs'}
-    },
     "fail-old-messages": {
         'task': 'fail_old_messages',
         'schedule': crontab(hour=0, minute=0),
@@ -1164,4 +1159,4 @@ VALUE_FIELD_SIZE = 640
 SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
 
-CHATBASE_API_URL = 'https://chatbase.com/api/messages'
+CHATBASE_API_URL = 'https://chatbase.com/api/message'
