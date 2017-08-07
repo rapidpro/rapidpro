@@ -63,7 +63,7 @@ class FlowTest(TembaTest):
 
         self.other_group = self.create_group("Other", [])
 
-    def export_flow_results(self, flow, responded_only=False, include_msgs=True, include_runs=True, contact_fields=None):
+    def export_flow_results(self, flow, responded_only=False, include_msgs=True, include_runs=True, contact_fields=None, extra_urns=[]):
         """
         Exports results for the given flow and returns the generated workbook
         """
@@ -73,7 +73,8 @@ class FlowTest(TembaTest):
             'flows': [flow.id],
             'responded_only': responded_only,
             'include_messages': include_msgs,
-            'include_runs': include_runs
+            'include_runs': include_runs,
+            'extra_urns': extra_urns
         }
         if contact_fields:
             form['contact_fields'] = [c.id for c in contact_fields]
@@ -814,6 +815,7 @@ class FlowTest(TembaTest):
 
     def test_export_results(self):
         # setup flow and start both contacts
+        self.contact.update_urns(self.admin, ['tel:+250788382382', 'twitter:erictweets'])
 
         self.create_group('Devs', [self.contact])
 
@@ -978,9 +980,9 @@ class FlowTest(TembaTest):
         # insert a duplicate age field, this can happen due to races
         Value.objects.create(org=self.org, contact=self.contact, contact_field=age, string_value='36', decimal_value='36')
 
-        with self.assertNumQueries(54):
+        with self.assertNumQueries(57):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
-                                                contact_fields=[age])
+                                                contact_fields=[age], extra_urns=['twitter', 'line'])
 
         # try setting the field again
         self.contact.set_field(self.admin, 'age', 36)
@@ -992,32 +994,34 @@ class FlowTest(TembaTest):
         sheet_runs, sheet_contacts = workbook.worksheets
 
         self.assertEqual(len(list(sheet_contacts.rows)), 3)  # header + 2 contacts
-        self.assertEqual(len(list(sheet_contacts.columns)), 10)
+        self.assertEqual(len(list(sheet_contacts.columns)), 12)
 
-        self.assertExcelRow(sheet_contacts, 0, ["Contact UUID", "URN", "Name", "Groups", "Age",
+        self.assertExcelRow(sheet_contacts, 0, ["Contact UUID", "URN", "Twitter", "Line", "Name", "Groups", "Age",
                                                 "First Seen", "Last Seen",
                                                 "color (Category) - Color Flow",
                                                 "color (Value) - Color Flow",
                                                 "color (Text) - Color Flow"])
 
-        self.assertExcelRow(sheet_contacts, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "Devs", "36",
-                                                c1_run1_first, c1_run2_last, "Blue", "blue", " blue "], tz)
+        self.assertExcelRow(sheet_contacts, 1, [contact1_run1.contact.uuid, "+250788382382", "erictweets", "", "Eric",
+                                                "Devs", "36", c1_run1_first, c1_run2_last, "Blue",
+                                                "blue", " blue "], tz)
 
-        self.assertExcelRow(sheet_contacts, 2, [contact2_run1.contact.uuid, "+250788383383", "Nic", "", "",
-                                                c2_run1_first, c2_run1_last, "Other", "green", "green"], tz)
+        self.assertExcelRow(sheet_contacts, 2, [contact2_run1.contact.uuid, "+250788383383", "", "", "Nic",
+                                                "", "", c2_run1_first, c2_run1_last, "Other", "green", "green"], tz)
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 4)  # header + 3 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 10)
+        self.assertEqual(len(list(sheet_runs.columns)), 12)
 
-        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Groups", "Age",
+        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Twitter", "Line", "Name", "Groups", "Age",
                                             "First Seen", "Last Seen",
                                             "color (Category) - Color Flow",
                                             "color (Value) - Color Flow",
                                             "color (Text) - Color Flow"])
 
-        self.assertExcelRow(sheet_runs, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "Devs", "36",
-                                            c1_run1_first, c1_run1_last, "Orange", "orange", "orange"], tz)
+        self.assertExcelRow(sheet_runs, 1, [contact1_run1.contact.uuid, "+250788382382", "erictweets", "", "Eric",
+                                            "Devs", "36", c1_run1_first, c1_run1_last, "Orange", "orange",
+                                            "orange"], tz)
 
     def test_export_results_list_messages_once(self):
         contact1_run1 = self.flow.start([], [self.contact])[0]

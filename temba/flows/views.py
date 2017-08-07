@@ -1035,6 +1035,12 @@ class FlowCRUDL(SmartCRUDL):
             contact_fields = forms.ModelMultipleChoiceField(ContactField.objects.filter(id__lt=0), required=False,
                                                             help_text=_("Which contact fields, if any, to include "
                                                                         "in the export"))
+
+            extra_urns = forms.MultipleChoiceField(required=False, label=_("Extra URNs"),
+                                                   choices=ContactURN.EXPORT_SCHEME_HEADERS,
+                                                   help_text=_("Extra URNs to include in the export in addition to "
+                                                               "the URN used in the flow"))
+
             responded_only = forms.BooleanField(required=False, label=_("Responded Only"), initial=True,
                                                 help_text=_("Only export results for contacts which responded"))
             include_messages = forms.BooleanField(required=False, label=_("Include Messages"),
@@ -1092,7 +1098,8 @@ class FlowCRUDL(SmartCRUDL):
                                                       contact_fields=form.cleaned_data['contact_fields'],
                                                       include_runs=form.cleaned_data['include_runs'],
                                                       include_msgs=form.cleaned_data['include_messages'],
-                                                      responded_only=form.cleaned_data['responded_only'])
+                                                      responded_only=form.cleaned_data['responded_only'],
+                                                      extra_urns=form.cleaned_data['extra_urns'])
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: needs cover
