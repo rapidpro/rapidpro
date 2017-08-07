@@ -1528,7 +1528,8 @@ class MakeTestDBTest(SimpleTestCase):
         def assertOrgCounts(qs, counts):
             self.assertEqual([qs.filter(org=o).count() for o in (org1, org2, org3)], counts)
 
-        self.assertEqual(User.objects.count(), 15)  # 4 for each org + superuser + anonymous + flow user
+        print(User.objects.all())
+        self.assertEqual(User.objects.exclude(username__in=["AnonymousUser", "root", "rapidpro_flow", "temba_flow"]).count(), 12)
         assertOrgCounts(ContactField.objects.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
         assertOrgCounts(Contact.objects.filter(is_test=True), [4, 4, 4])  # 1 for each user

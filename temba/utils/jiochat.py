@@ -1,13 +1,14 @@
+from __future__ import unicode_literals, absolute_import
+
 import hashlib
 import json
 import requests
+import six
 import time
 
-import six
 from django.core.cache import cache
 from django.utils.crypto import constant_time_compare
 from django_redis import get_redis_connection
-
 from temba.channels.models import ChannelLog
 from temba.utils.http import HttpEvent
 
@@ -20,6 +21,13 @@ class JiochatClient:
         self.channel_uuid = channel_uuid
         self.app_id = app_id
         self.app_secret = app_secret
+
+    @classmethod
+    def from_channel(cls, channel):
+        config = channel.config_json()
+        app_id = config.get('jiochat_app_id', None)
+        app_secret = config.get('jiochat_app_secret', None)
+        return cls(channel.uuid, app_id, app_secret)
 
     def get_access_token(self):
         r = get_redis_connection()
