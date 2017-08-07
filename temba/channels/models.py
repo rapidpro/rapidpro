@@ -1285,6 +1285,7 @@ class Channel(TembaModel):
         request_time = time.time() - start
 
         from temba.msgs.models import Msg
+        from temba.msgs.tasks import send_chatbase_logs
         Msg.mark_sent(channel.config['r'], msg, msg_status, external_id)
 
         # record stats for analytics
@@ -1320,8 +1321,7 @@ class Channel(TembaModel):
 
             # Send data to Chatbase API
             if hasattr(msg, 'is_org_connected_to_chatbase'):
-                Org.queue_chatbase_log(org_id=msg.org, channel_name=channel.name, text=msg.text, contact_id=msg.contact,
-                                       type=CHATBASE_TYPE_AGENT, not_handled=False)
+                on_transaction_commit(lambda: send_chatbase_logs.apply_async(args=(msg.chatbase_api_key, msg.chatbase_api_version, channel.name, msg.text, msg.contact, CHATBASE_TYPE_AGENT, False), queue='msgs'))
 
     @classmethod
     def send_red_rabbit_message(cls, channel, msg, text):
