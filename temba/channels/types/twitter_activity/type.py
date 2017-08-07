@@ -25,7 +25,7 @@ class TwitterActivityType(ChannelType):
     Activity API</a> which is currently in beta, you can add a Twitter channel for that here.""")
     claim_view = ClaimView
 
-    scheme = TWITTER_SCHEME
+    schemes = [TWITTER_SCHEME]
     show_config_page = False
     free_sending = True
 

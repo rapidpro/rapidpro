@@ -13,7 +13,7 @@ class LineTypeTest(TembaTest):
         super(LineTypeTest, self).setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'LN', name="LINE", address="12345",
-                                      role="SR", scheme='line',
+                                      role="SR", schemes=['line'],
                                       config={'auth_token': 'abcdef098765', 'channel_secret': '87654'})
 
     @patch('requests.get')
