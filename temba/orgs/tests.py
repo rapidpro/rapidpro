@@ -1349,24 +1349,6 @@ class OrgTest(TembaTest):
         self.assertContains(response, reverse('airtime.airtimetransfer_list'))
         self.assertContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
 
-    def test_chatbase_model_methods(self):
-        org = self.org
-
-        org.refresh_from_db()
-        self.assertFalse(org.is_connected_to_chatbase())
-
-        org.connect_chatbase('agent_name', 'api_token', 'type', True, False, '1.0', self.user)
-
-        org.refresh_from_db()
-        self.assertTrue(org.is_connected_to_chatbase())
-        self.assertEqual(org.modified_by, self.user)
-
-        org.remove_chatbase_account(self.user)
-
-        org.refresh_from_db()
-        self.assertFalse(org.is_connected_to_chatbase())
-        self.assertEqual(org.modified_by, self.user)
-
     def test_chatbase_account(self):
 
         self.login(self.admin)
@@ -1381,7 +1363,7 @@ class OrgTest(TembaTest):
         payload = dict(version='1.0', not_handled=True, feedback=False, disconnect='false')
 
         response = self.client.post(chatbase_account_url, payload, follow=True)
-        self.assertContains(response, "Missing data: Agent Name, API Key or Type.")
+        self.assertContains(response, "Missing data: Agent Name or API Key.Please check them again and retry.")
         self.assertFalse(self.org.is_connected_to_chatbase())
 
         payload.update(dict(api_key='api_key', agent_name='chatbase_agent', type='user'))
@@ -1393,42 +1375,16 @@ class OrgTest(TembaTest):
 
         self.assertEquals(self.org.config_json()['CHATBASE_API_KEY'], 'api_key')
         self.assertEquals(self.org.config_json()['CHATBASE_AGENT_NAME'], 'chatbase_agent')
-        self.assertEquals(self.org.config_json()['CHATBASE_TYPE'], 'user')
         self.assertEquals(self.org.config_json()['CHATBASE_VERSION'], '1.0')
-        self.assertEquals(self.org.config_json()['CHATBASE_FEEDBACK'], False)
-        self.assertEquals(self.org.config_json()['CHATBASE_NOT_HANDLED'], True)
+
+        contact = self.create_contact('Anakin Skywalker', '+12067791212')
+        msg = self.create_msg(contact=contact, text="favs")
+        Msg.process_message(msg)
 
         org_home_url = reverse('orgs.org_home')
 
         response = self.client.get(org_home_url)
         self.assertContains(response, self.org.config_json()['CHATBASE_AGENT_NAME'])
-
-        payload = dict(disconnect='true')
-
-        self.client.post(chatbase_account_url, payload, follow=True)
-
-        self.org.refresh_from_db()
-        self.assertFalse(self.org.is_connected_to_chatbase())
-
-        response = self.client.get(chatbase_account_url, HTTP_X_FORMAX=True)
-        self.assertNotContains(response, reverse('chatbase.chatbase_list'))
-        self.assertNotContains(response, "%s?disconnect=true" % reverse('orgs.org_chatbase'))
-
-        response = self.client.get(chatbase_account_url)
-        self.assertNotContains(response, reverse('chatbase.chatbase_list'))
-        self.assertNotContains(response, "%s?disconnect=true" % reverse('orgs.org_chatbase'))
-
-        self.org.connect_chatbase('agent_name', 'api_key', 'agent', False, True, '1.0', self.admin)
-
-        # links not show if request is not from formax
-        response = self.client.get(chatbase_account_url)
-        self.assertNotContains(response, reverse('chatbase.chatbase_list'))
-        self.assertNotContains(response, "%s?disconnect=true" % reverse('orgs.org_chatbase'))
-
-        # link show for formax requests
-        response = self.client.get(chatbase_account_url, HTTP_X_FORMAX=True)
-        self.assertContains(response, reverse('chatbase.chatbase_list'))
-        self.assertContains(response, "%s?disconnect=true" % reverse('orgs.org_chatbase'))
 
     def test_resthooks(self):
         # no hitting this page without auth

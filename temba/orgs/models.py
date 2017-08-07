@@ -1946,55 +1946,6 @@ class Org(SmartModel):
 
         return getattr(user, '_org', None)
 
-    @staticmethod
-    def queue_chatbase_log(org_id, channel_name, text, contact_id, type, not_handled, intent=None):
-        if not settings.SEND_CHATBASE:
-            raise Exception("!! Skipping Chatbase request, SEND_CHATBASE set to False")
-
-        try:
-            data = dict(type=type,
-                        user_id=contact_id,
-                        platform=channel_name,
-                        message=text,
-                        time_stamp=int(time.time()))
-
-            if intent:
-                data.update(dict(intent=intent))
-
-            if type == CHATBASE_TYPE_USER and not_handled:
-                data.update(dict(not_handled=not_handled))
-
-            key = ORG_CHATBASE_LOG_CACHE_KEY % org_id
-            cached = cache.get(key, None)
-
-            if cached is None:
-                cache.set(key, dict_to_json([data]))
-            else:
-                cached_dict = json_to_dict(cached)
-                cached_dict.append(data)
-                cache.set(key, dict_to_json(cached_dict))
-
-        except Exception as e:
-            import traceback
-            traceback.print_exc(e)
-            raise Exception("Error: %s" % e.args)
-
-    def send_messages_to_chatbase(self, messages):
-        from temba.channels.models import TEMBA_HEADERS
-
-        for message in messages:
-            message['api_key'] = self.config_json()[CHATBASE_API_KEY]
-
-            if CHATBASE_VERSION in self.config_json():
-                message['version'] = self.config_json()[CHATBASE_VERSION]
-
-        payload = dict(messages=messages)
-        payload = json.dumps(payload)
-
-        headers = {'Content-Type': 'application/json'}
-        headers.update(TEMBA_HEADERS)
-        requests.post(settings.CHATBASE_API_URL, data=payload, headers=headers)
-
     def __str__(self):
         return self.name
 

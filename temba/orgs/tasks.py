@@ -1,12 +1,10 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import time
-import json
 
 from celery.task import task
 from datetime import timedelta
 from django.utils import timezone
-from django.core.cache import cache
 from temba.utils.queues import nonoverlapping_task
 from .models import CreditAlert, Invitation, Org, TopUpCredits
 
@@ -47,33 +45,3 @@ def calculate_credit_caches():  # pragma: needs cover
 @nonoverlapping_task(track_started=True, name="squash_topupcredits", lock_key='squash_topupcredits')
 def squash_topupcredits():
     TopUpCredits.squash()
-
-
-@task(track_started=True, name='send_chatbase_logs')
-def send_chatbase_logs():  # pragma: needs cover
-    """
-    Send messages logs in batch to Chatbase
-    """
-    from temba.orgs.models import CHATBASE_API_KEY, ORG_CHATBASE_LOG_CACHE_KEY, CHATBASE_BATCH_SIZE
-
-    for org in Org.objects.filter(config__icontains=CHATBASE_API_KEY):
-        org_chatbase_log_key = ORG_CHATBASE_LOG_CACHE_KEY % org.id
-        chatbase_logs = cache.get(org_chatbase_log_key, None)
-
-        if chatbase_logs:
-            messages = json.loads(chatbase_logs)
-
-            if len(messages) < CHATBASE_BATCH_SIZE:
-                print("Starting chatbase message for batch of %d messages" % len(messages))
-                org.send_messages_to_chatbase(messages)
-            else:
-                batch_chatbase = []
-                for message in messages:
-                    batch_chatbase.append(message)
-
-                    if len(batch_chatbase) >= CHATBASE_BATCH_SIZE:
-                        print("Starting chatbase message for batch of %d messages" % len(batch_chatbase))
-                        org.send_messages_to_chatbase(batch_chatbase)
-                        batch_chatbase = []
-
-            cache.delete(org_chatbase_log_key)
