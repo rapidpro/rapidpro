@@ -672,7 +672,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         )
 
         if not org.is_anon:
-            queryset = queryset.prefetch_related(Prefetch('urns', queryset=ContactURN.objects.only('urn')))
+            queryset = queryset.prefetch_related(Prefetch('urns', queryset=ContactURN.objects.only('scheme', 'path', 'display')))
 
         return self.filter_before_after(queryset, 'created_on')
 
@@ -2295,7 +2295,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name')),
-            Prefetch('contact_urn', queryset=ContactURN.objects.only('urn')),
+            Prefetch('contact_urn', queryset=ContactURN.objects.only('scheme', 'path', 'display')),
             Prefetch('channel', queryset=Channel.objects.only('uuid', 'name')),
             Prefetch('labels', queryset=Label.label_objects.only('uuid', 'name')),
         )
