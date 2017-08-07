@@ -975,12 +975,12 @@ class TriggerTest(TembaTest):
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="")
 
         # check not handled
-        self.assertFalse(Trigger.find_and_handle(incoming))
+        self.assertEquals(Trigger.find_and_handle(incoming), (False, None))
 
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="some text")
 
         # check not handled (no trigger or flow)
-        self.assertFalse(Trigger.find_and_handle(incoming))
+        self.assertEquals(Trigger.find_and_handle(incoming), (False, None))
 
         # setup a flow and keyword trigger
         flow = self.create_flow()
@@ -1096,7 +1096,7 @@ class TriggerTest(TembaTest):
         incoming4 = self.create_msg(direction=INCOMING, contact=self.contact4, text="other is the keyword send")
 
         # incoming4 should not be handled
-        self.assertFalse(Trigger.find_and_handle(incoming4))
+        self.assertEquals(Trigger.find_and_handle(incoming4), (False, None))
 
     def test_export_import(self):
         # tweak our current channel to be twitter so we can create a channel-based trigger

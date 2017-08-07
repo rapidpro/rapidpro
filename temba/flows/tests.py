@@ -2729,7 +2729,7 @@ class FlowTest(TembaTest):
 
         other_incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="kiva")
 
-        self.assertFalse(Trigger.find_and_handle(other_incoming))
+        self.assertEquals(Trigger.find_and_handle(other_incoming), (False, None))
 
         # complete the flow
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="orange")
