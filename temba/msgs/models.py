@@ -798,6 +798,7 @@ class Msg(models.Model):
         Processes a message, running it through all our handlers
         """
         from temba.orgs.models import CHATBASE_TYPE_USER
+        from .tasks import send_chatbase_logs
 
         handlers = get_message_handlers()
         flow = None
@@ -838,8 +839,7 @@ class Msg(models.Model):
         # Registering data to send to Chatbase API later
         org = msg.org
         if org.is_connected_to_chatbase():
-            Org.queue_chatbase_log(org_id=org.id, channel_name=msg.channel.name, text=msg.text, type=CHATBASE_TYPE_USER,
-                                   contact_id=msg.contact.id, not_handled=chatbase_not_handled, intent=flow)
+            on_transaction_commit(lambda: send_chatbase_logs.apply_async(args=(msg.as_task_json()['chatbase_api_key'], msg.as_task_json()['chatbase_api_version'], msg.channel.name, msg.text, msg.contact.id, CHATBASE_TYPE_USER, chatbase_not_handled, flow), queue='msgs'))
 
         # record our handling latency for this object
         if msg.queued_on:
@@ -1198,7 +1198,7 @@ class Msg(models.Model):
             data.update(dict(auth=self.contact_urn.auth))
 
         if self.org.is_connected_to_chatbase():
-            data.update(dict(is_org_connected_to_chatbase=True))
+            data.update(dict(is_org_connected_to_chatbase=True, chatbase_api_key=self.org.config_json()['CHATBASE_API_KEY'], chatbase_api_version=self.org.config_json()['CHATBASE_VERSION']))
 
         return data
 
