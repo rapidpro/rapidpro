@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0074_channelsession_output'),
+        ('channels', '0075_auto_20170628_1825'),
         ('flows', '0110_auto_20170731_1046'),
     ]
 
@@ -33,5 +33,10 @@ class Migration(migrations.Migration):
             name='feature_flag',
             field=models.BigIntegerField(default=0x7FFFFFFFFFFFFFFF,
                                          help_text='Which features are used in this flow'),
+        ),
+        migrations.AlterField(
+            model_name='actionlog',
+            name='created_on',
+            field=models.DateTimeField(help_text='When this log event occurred'),
         ),
     ]

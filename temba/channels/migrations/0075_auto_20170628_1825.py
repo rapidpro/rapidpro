@@ -9,10 +9,22 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0074_channelsession_output'),
+        ('channels', '0074_channel_schemes'),
     ]
 
     operations = [
+        migrations.AddField(
+            model_name='channelsession',
+            name='output',
+            field=models.TextField(blank=True, null=True),
+        ),
+        migrations.AlterField(
+            model_name='channelsession',
+            name='contact_urn',
+            field=models.ForeignKey(blank=True, help_text='The URN this session is communicating with', null=True,
+                                    on_delete=django.db.models.deletion.CASCADE, to='contacts.ContactURN',
+                                    verbose_name='Contact URN'),
+        ),
         migrations.AlterField(
             model_name='channelsession',
             name='channel',
