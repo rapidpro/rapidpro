@@ -1,3 +1,27 @@
+v3.0.176
+----------
+ * Add display and identity fields to ContactURN
+ * Add schemes field to allow channels to support more than one scheme
+
+v3.0.175
+----------
+ * Fix incorrect lambda use so message sending works
+
+v3.0.174
+----------
+ * Make ContactField.uuid unique and non-null
+
+v3.0.173
+----------
+ * Add migration to populate ContactField.uuid
+
+v3.0.172
+----------
+ * Only try to delete Twilio app when channel config contains 'application_sid'
+ * Surveyor submissions should try rematching the rules if the same ruleset got updated by the user and old rules were removed
+ * Add uuid field to ContactField
+ * Convert more channel types to dynamic types 
+
 v3.0.171
 ----------
  * Fixes for Twitter Activity channels

@@ -436,7 +436,7 @@ class Org(SmartModel):
         channels = self.channels.filter(is_active=True, role__contains=role).order_by('-pk')
 
         if scheme is not None:
-            channels = channels.filter(scheme=scheme)
+            channels = channels.filter(schemes__contains=[scheme])
 
         channel = None
         if country_code:
@@ -487,7 +487,7 @@ class Org(SmartModel):
 
                 # no country specific channel, try to find any channel at all
                 if not channels:
-                    channels = [c for c in self.channels.all()]
+                    channels = [c for c in self.channels.filter(schemes__contains=[TEL_SCHEME])]
 
                 # filter based on role and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
                 senders = []
