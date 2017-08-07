@@ -101,7 +101,7 @@ class BroadcastReadSerializer(ReadSerializer):
         if self.context['org'].is_anon:
             return None
         else:
-            return [urn.urn for urn in obj.urns.all()]
+            return [six.text_type(urn) for urn in obj.urns.all()]
 
     class Meta:
         model = Broadcast
@@ -343,7 +343,7 @@ class ContactReadSerializer(ReadSerializer):
         if self.context['org'].is_anon or not obj.is_active:
             return []
 
-        return [urn.urn for urn in obj.get_urns()]
+        return [six.text_type(urn) for urn in obj.get_urns()]
 
     def get_groups(self, obj):
         if not obj.is_active:

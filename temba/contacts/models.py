@@ -1746,7 +1746,7 @@ class Contact(TembaModel):
         self.save(update_fields=('modified_on', 'modified_by'))
 
         # trigger updates based all urns created or detached
-        self.handle_update(urns=[u.urn for u in (urns_created + urns_attached + urns_detached)])
+        self.handle_update(urns=[six.text_type(u) for u in (urns_created + urns_attached + urns_detached)])
 
         # clear URN cache
         if hasattr(self, '__urns'):
@@ -1992,8 +1992,9 @@ class ContactURN(models.Model):
             norm_urn = URN.from_tel(norm_number)
             if not ContactURN.objects.filter(urn=norm_urn, org_id=self.org_id).exclude(id=self.id):
                 self.urn = norm_urn
+                self.identity = norm_urn
                 self.path = norm_number
-                self.save()
+                self.save(update_fields=['urn', 'identity', 'path'])
 
         return self
 
@@ -2034,7 +2035,10 @@ class ContactURN(models.Model):
         return self.path
 
     def __str__(self):  # pragma: no cover
-        return self.urn
+        return URN.from_parts(self.scheme, self.path, self.display)
+
+    def __unicode__(self):  # pragma: no cover
+        return URN.from_parts(self.scheme, self.path, self.display)
 
     class Meta:
         unique_together = (('urn', 'org'), ('identity', 'org'))
