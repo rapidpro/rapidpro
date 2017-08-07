@@ -14,8 +14,6 @@ import regex
 import six
 import stripe
 import traceback
-import time
-import requests
 
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -23,7 +21,6 @@ from dateutil.relativedelta import relativedelta
 from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User, Group
-from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
@@ -41,7 +38,6 @@ from smartmin.models import SmartModel
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string, languages
-from temba.utils import dict_to_json, json_to_dict
 from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from temba.utils.currencies import currency_for_country
 from temba.utils.email import send_template_email, send_simple_email, send_custom_smtp_email
