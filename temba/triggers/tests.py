@@ -1002,7 +1002,7 @@ class TriggerTest(TembaTest):
 
         # check message is not handled
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="when and where?")
-        self.assertFalse(Trigger.find_and_handle(incoming))
+        self.assertEquals(Trigger.find_and_handle(incoming), (False, None))
 
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="  WHEN! ")
         self.assertTrue(Trigger.find_and_handle(incoming))
