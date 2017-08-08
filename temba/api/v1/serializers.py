@@ -325,8 +325,8 @@ class ContactWriteSerializer(WriteSerializer):
             country = self.org.get_country_code()
 
             for parsed_urn in self.parsed_urns:
-                normalized_urn = URN.normalize(parsed_urn, country)
-                urn = ContactURN.objects.filter(org=self.org, urn__exact=normalized_urn).first()
+                normalized_urn = URN.identity(URN.normalize(parsed_urn, country))
+                urn = ContactURN.objects.filter(org=self.org, identity__exact=normalized_urn).first()
                 if urn and urn.contact:
                     urn_contacts.add(urn.contact)
 

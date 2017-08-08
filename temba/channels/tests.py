@@ -7981,7 +7981,7 @@ class MageHandlerTest(TembaTest):
                                          modified_by=self.user, created_by=self.user,
                                          modified_on=timezone.now(), created_on=timezone.now())
         urn = ContactURN.objects.create(org=self.org, contact=contact,
-                                        urn="twitter:%s" % twitter, scheme="twitter", path=twitter, priority="90")
+                                        identity="twitter:%s" % twitter, scheme="twitter", path=twitter, priority="90")
         return contact, urn
 
     def create_message_like_mage(self, text, contact, contact_urn=None):
@@ -9243,7 +9243,7 @@ class FacebookTest(TembaTest):
             self.assertEqual(response.status_code, 200)
 
             # check the channel affinity for our URN
-            urn = ContactURN.objects.get(urn='facebook:5678')
+            urn = ContactURN.objects.get(identity='facebook:5678')
             self.assertEqual(self.channel, urn.channel)
 
             # create another facebook channel
