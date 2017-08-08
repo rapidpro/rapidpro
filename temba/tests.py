@@ -447,18 +447,14 @@ class FlowFileTest(TembaTest):
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants, start_msg=incoming)
             else:
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
-                flow_find = Flow.find_and_handle(incoming)
-                flow_name = ''
-
-                if len(flow_find) > 2:
-                    flow_name = flow_find[2]
+                (handled, msgs, name) = Flow.find_and_handle(incoming)
 
                 Msg.mark_handled(incoming)
 
-                if assert_handle and flow_name:
-                    self.assertTrue(flow_name, "'%s' did not handle message as expected" % flow.name)
+                if assert_handle:
+                    self.assertTrue(name, "'%s' did not handle message as expected" % flow.name)
                 else:
-                    self.assertFalse(flow_name, "'%s' handled message, was supposed to ignore" % flow.name)
+                    self.assertFalse(name, "'%s' handled message, was supposed to ignore" % flow.name)
 
             # our message should have gotten a reply
             if assert_reply:
