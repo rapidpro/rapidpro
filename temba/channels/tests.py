@@ -9259,7 +9259,7 @@ class FacebookTest(TembaTest):
             response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
             self.assertEqual(response.status_code, 200)
 
-            urn = ContactURN.objects.get(urn='facebook:5678')
+            urn = ContactURN.objects.get(identity='facebook:5678')
             self.assertEqual(channel2, urn.channel)
 
     def test_ignored_webhooks(self):
