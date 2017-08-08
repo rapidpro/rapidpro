@@ -1377,9 +1377,10 @@ class OrgTest(TembaTest):
         self.assertEquals(self.org.config_json()['CHATBASE_AGENT_NAME'], 'chatbase_agent')
         self.assertEquals(self.org.config_json()['CHATBASE_VERSION'], '1.0')
 
-        contact = self.create_contact('Anakin Skywalker', '+12067791212')
-        msg = self.create_msg(contact=contact, text="favs")
-        Msg.process_message(msg)
+        with self.settings(SEND_CHATBASE=True):
+            contact = self.create_contact('Anakin Skywalker', '+12067791212')
+            msg = self.create_msg(contact=contact, text="favs")
+            Msg.process_message(msg)
 
         org_home_url = reverse('orgs.org_home')
 
