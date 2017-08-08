@@ -42,7 +42,7 @@ window.updateSimulator = (data) ->
     media_type = null
     media_viewer_elt = null
 
-    if msg.attachments
+    if msg.attachments and msg.attachments.length > 0
       parts = msg.attachments[0].split(':')
 
       media_type = parts[0]

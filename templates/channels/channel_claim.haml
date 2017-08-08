@@ -619,19 +619,17 @@
                 -blocktrans
                   Easily connect your <a href="http://go.vumi.org/">Vumi</a> account to take advantage of session based messaging across USSD transports.
 
-    .claim-row.external-channel
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_external' %}"}
-            .btn-container
-              .claim-glyph.icon-power-cord
-              %p.claim-text
-                -trans "External API"
-
-        .span9
-          .claim-description
-            %div
-              -trans "Use our pluggable API to connect an external service you already have."
+    -for ch_type in channel_types.PHONE
+      .claim-row
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+              .btn-container
+                .claim-glyph{class:"{{ ch_type.icon }}"}
+                %p.claim-text= ch_type.name
+          .span9
+            .claim-description
+              %div= ch_type.get_claim_blurb
 
     %h3
       -trans "Social Network Channels"
@@ -648,75 +646,20 @@
             .claim-description
               %div= ch_type.get_claim_blurb
 
-    .claim-row.viber-channel
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_viber_public' %}"}
-            .btn-container
-              .claim-glyph.icon-viber
-              %p.claim-text
-                -trans "Viber"
-
-        .span9
-          .claim-description
-            %div
-              -blocktrans
-                Connect a <a href="http://viber.com/en/">Viber</a> public channel to send and receive messages to Viber users
-                for free. Your users will need an Android, Windows or iOS device and a Viber account to send and receive messages.
-
-    .claim-row.line-channel
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_line' %}"}
-            .btn-container
-              .claim-glyph.icon-line
-              %p.claim-text
-                -trans "LINE"
-
-        .span9
-          .claim-description
-            %div
-              -blocktrans
-                Add a <a href="https://line.me">LINE</a> bot to send and receive messages to LINE users
-                for free. Your users will need an Android, Windows or iOS device and a LINE account to send
-                and receive messages.
-
-    .claim-row.jiochat-channel
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_jiochat' %}"}
-            .btn-container
-              .claim-glyph.icon-jiochat
-              %p.claim-text
-                -trans "JioChat"
-
-        .span9
-          .claim-description
-            %div
-              -blocktrans
-                Add a <a href="https://jiochat.me">JioChat</a> bot to send and receive messages to JioChat users
-                for free. Your users will need an Android, Windows or iOS device and a JioChat account to send
-                and receive messages.
-
     %h3
       -trans "API Channels"
 
-    .claim-row
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-gcm{href:"{% url 'channels.channel_claim_fcm' %}"}
-            .claim-glyph.icon-fcm
-            %p.claim-text
-              -trans "Firebase Cloud Messaging"
-
-        .span9
-          .claim-description
-            %div
-              -blocktrans
-                Add a <a href="https://firebase.google.com/docs/cloud-messaging/" target="_blank">
-                Firebase Cloud Messaging Channel</a> to send and receive messages.
-                Your users will need an App to send and receive messages.
-
+    -for ch_type in channel_types.API
+      .claim-row
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+              .btn-container
+                .claim-glyph{class:"{{ ch_type.icon }}"}
+                %p.claim-text= ch_type.name
+          .span9
+            .claim-description
+              %div= ch_type.get_claim_blurb
 
 -block form-buttons
 
