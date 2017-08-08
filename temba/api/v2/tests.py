@@ -1845,7 +1845,7 @@ class APITest(TembaTest):
             'id': msg.id,
             'broadcast': msg.broadcast,
             'contact': {'uuid': msg.contact.uuid, 'name': msg.contact.name},
-            'urn': six.text_type(msg.contact_urn.urn),
+            'urn': six.text_type(msg.contact_urn),
             'channel': {'uuid': msg.channel.uuid, 'name': msg.channel.name},
             'direction': "in" if msg.direction == 'I' else "out",
             'type': msg_type,
