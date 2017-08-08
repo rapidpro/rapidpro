@@ -1,3 +1,7 @@
+v3.0.178
+----------
+ * Remove urn field, urn compound index, remove last uses of urn field
+
 v3.0.177
 ----------
  * remove all uses of urn (except when writing)
