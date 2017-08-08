@@ -19,6 +19,7 @@ from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartFo
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import ContactGroup, URN, ContactURN, TEL_SCHEME
+from temba.contacts.omnibox import omnibox_query
 from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils import analytics, on_transaction_commit
@@ -71,6 +72,7 @@ class SendMessageForm(Form):
     omnibox = OmniboxField()
     text = forms.CharField(widget=forms.Textarea, max_length=640)
     schedule = forms.BooleanField(widget=forms.HiddenInput, required=False)
+    step_node = forms.CharField(widget=forms.HiddenInput, max_length=36, required=False)
 
     def __init__(self, user, *args, **kwargs):
         super(SendMessageForm, self).__init__(*args, **kwargs)
@@ -80,7 +82,7 @@ class SendMessageForm(Form):
     def is_valid(self):
         valid = super(SendMessageForm, self).is_valid()
         if valid:
-            if 'omnibox' not in self.data or len(self.data['omnibox'].strip()) == 0:
+            if ('step_node' not in self.data or not self.data['step_node']) and ('omnibox' not in self.data or len(self.data['omnibox'].strip()) == 0):
                 self.errors['__all__'] = self.error_class([six.text_type(_("At least one recipient is required"))])
                 return False
         return valid
@@ -317,11 +319,19 @@ class BroadcastCRUDL(SmartCRUDL):
 
             omnibox = self.form.cleaned_data['omnibox']
             has_schedule = self.form.cleaned_data['schedule']
+            step_uuid = self.form.cleaned_data.get('step_node', None)
 
             groups = list(omnibox['groups'])
             contacts = list(omnibox['contacts'])
             urns = list(omnibox['urns'])
             recipients = list()
+
+            if step_uuid:
+                groups = []
+                urns = []
+                get_params = {k: v for k, v in self.request.GET.items()}
+                get_params.update({'s': step_uuid})
+                contacts = list(omnibox_query(user.get_org(), **get_params))
 
             if simulation:
                 # when simulating make sure we only use test contacts

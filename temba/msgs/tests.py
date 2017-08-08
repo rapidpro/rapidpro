@@ -1084,6 +1084,11 @@ class BroadcastTest(TembaTest):
         response = self.client.post(send_url, post_data, follow=True)
         self.assertIn("success", response.content)
 
+        # no error if we are sending from a flow node
+        post_data = dict(text="message content", omnibox='', step_node='foo')
+        response = self.client.post(send_url + '?_format=json', post_data, follow=True)
+        self.assertIn("success", response.content)
+
     def test_unreachable(self):
         no_urns = Contact.get_or_create(self.org, self.admin, name="Ben Haggerty", urns=[])
         tel_contact = self.create_contact("Ryan Lewis", number="+12067771234")

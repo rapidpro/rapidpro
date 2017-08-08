@@ -110,13 +110,7 @@
     });
 
     function broadcastToNode(nodeUUID) {
-      var queryString = "s=" + nodeUUID;
-
-      if (window.simulation) {
-        queryString += "&simulation=true";
-      }
-
-      showComposeInitialized(queryString);
+      showCompose(false, null, nodeUUID);
       return false;
     }
 
