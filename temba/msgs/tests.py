@@ -1003,7 +1003,7 @@ class BroadcastTest(TembaTest):
 
         # test when we are simulating
         response = self.client.get(send_url + "?simulation=true")
-        self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
+        self.assertEquals(['omnibox', 'text', 'schedule', 'step_node'], response.context['fields'])
 
         test_contact = Contact.get_test_contact(self.admin)
 
@@ -1023,7 +1023,7 @@ class BroadcastTest(TembaTest):
         Channel.create(self.org, self.user, None, "TT")
 
         response = self.client.get(send_url)
-        self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
+        self.assertEquals(['omnibox', 'text', 'schedule', 'step_node'], response.context['fields'])
 
         post_data = dict(text="message #1", omnibox="g-%s,c-%s,c-%s" % (self.joe_and_frank.uuid, self.joe.uuid, self.lucy.uuid))
         self.client.post(send_url, post_data, follow=True)
@@ -1043,7 +1043,7 @@ class BroadcastTest(TembaTest):
         Channel.create(self.org, self.user, None, 'A', None, secret="12345", gcm_id="123")
 
         response = self.client.get(send_url)
-        self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
+        self.assertEquals(['omnibox', 'text', 'schedule', 'step_node'], response.context['fields'])
 
         post_data = dict(text="message #2", omnibox='g-%s,c-%s' % (self.joe_and_frank.uuid, self.kevin.uuid))
         self.client.post(send_url, post_data, follow=True)

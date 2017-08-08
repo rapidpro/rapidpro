@@ -271,7 +271,7 @@ class BroadcastCRUDL(SmartCRUDL):
     class Send(OrgPermsMixin, SmartFormView):
         title = _("Send Message")
         form_class = SendMessageForm
-        fields = ('omnibox', 'text', 'schedule')
+        fields = ('omnibox', 'text', 'schedule', 'step_node')
         success_url = '@msgs.msg_inbox'
         submit_button_name = _('Send')
 
