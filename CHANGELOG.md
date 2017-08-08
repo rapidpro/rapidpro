@@ -1,3 +1,9 @@
+v3.0.177
+----------
+ * remove all uses of urn (except when writing)
+ * create display index, backfill identity
+ * Allow users to specify extra URNs columns to include on the flow results export
+
 v3.0.176
 ----------
  * Add display and identity fields to ContactURN
