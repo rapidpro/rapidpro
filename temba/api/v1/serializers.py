@@ -196,7 +196,7 @@ class ContactReadSerializer(ReadSerializer):
         if obj.org.is_anon or not obj.is_active:
             return []
 
-        return [urn.urn for urn in obj.get_urns()]
+        return [six.text_type(urn) for urn in obj.get_urns()]
 
     def get_contact_fields(self, obj):
         fields = dict()

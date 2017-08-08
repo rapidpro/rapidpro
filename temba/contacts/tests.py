@@ -512,7 +512,7 @@ class ContactTest(TembaTest):
         self.voldemort = self.create_contact(number="+250768383383")
 
         # create an orphaned URN
-        ContactURN.objects.create(org=self.org, scheme='tel', path='+250788888888', urn='tel:+250788888888', priority=50)
+        ContactURN.objects.create(org=self.org, scheme='tel', path='+250788888888', identity='tel:+250788888888', urn='tel:+250788888888', priority=50)
 
         # create an deleted contact
         self.jim = self.create_contact(name="Jim")
@@ -1462,7 +1462,7 @@ class ContactTest(TembaTest):
         EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
 
         # create a missed call
-        ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn, ChannelEvent.TYPE_CALL_OUT_MISSED,
+        ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED,
                             timezone.now(), 5)
 
         # try adding some failed calls
@@ -2329,7 +2329,7 @@ class ContactTest(TembaTest):
 
         self.joe.refresh_from_db()
         self.assertEqual(self.joe.name, "Joe X")
-        self.assertEqual({u.urn for u in self.joe.urns.all()}, {"tel:+250781111111", "ext:EXT123"})  # urns unaffected
+        self.assertEqual({six.text_type(u) for u in self.joe.urns.all()}, {"tel:+250781111111", "ext:EXT123"})  # urns unaffected
 
         # remove all of joe's URNs
         ContactURN.objects.filter(contact=self.joe).update(contact=None)
@@ -2339,7 +2339,7 @@ class ContactTest(TembaTest):
         self.assertNotContains(response, "blow80")
 
         # try delete action
-        call = ChannelEvent.create(self.channel, self.frank.get_urn(TEL_SCHEME).urn, ChannelEvent.TYPE_CALL_OUT_MISSED,
+        call = ChannelEvent.create(self.channel, six.text_type(self.frank.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED,
                                    timezone.now(), 5)
         post_data['action'] = 'delete'
         post_data['objects'] = self.frank.pk
@@ -2412,9 +2412,9 @@ class ContactTest(TembaTest):
         self.assertEquals(contact5, ContactURN.objects.get(urn='twitter:jimmy_woot').contact)
 
         # check twitter URN takes priority if you don't specify scheme
-        self.assertEqual('twitter:jimmy_woot', contact5.get_urn().urn)
-        self.assertEquals('twitter:jimmy_woot', contact5.get_urn(schemes=[TWITTER_SCHEME]).urn)
-        self.assertEquals('tel:+250788333666', contact5.get_urn(schemes=[TEL_SCHEME]).urn)
+        self.assertEqual('twitter:jimmy_woot', six.text_type(contact5.get_urn()))
+        self.assertEquals('twitter:jimmy_woot', six.text_type(contact5.get_urn(schemes=[TWITTER_SCHEME])))
+        self.assertEquals('tel:+250788333666', six.text_type(contact5.get_urn(schemes=[TEL_SCHEME])))
         self.assertIsNone(contact5.get_urn(schemes=['email']))
         self.assertIsNone(contact5.get_urn(schemes=['facebook']))
 
@@ -2483,7 +2483,7 @@ class ContactTest(TembaTest):
         contact = Contact.create_instance(dict(org=self.org, created_by=self.admin, name="Bob", phone="+250788111111"))
         self.assertEqual(contact.org, self.org)
         self.assertEqual(contact.name, "Bob")
-        self.assertEqual([u.urn for u in contact.urns.all()], ["tel:+250788111111"])
+        self.assertEqual([six.text_type(u) for u in contact.urns.all()], ["tel:+250788111111"])
         self.assertEqual(contact.created_by, self.admin)
 
     def do_import(self, user, filename):
@@ -3714,19 +3714,19 @@ class ContactURNTest(TembaTest):
         urn = ContactURN.create(self.org, None, 'tel:1234')
         self.assertEqual(urn.org, self.org)
         self.assertEqual(urn.contact, None)
-        self.assertEqual(urn.urn, 'tel:1234')
+        self.assertEqual(urn.identity, 'tel:1234')
         self.assertEqual(urn.scheme, 'tel')
         self.assertEqual(urn.path, '1234')
         self.assertEqual(urn.priority, 50)
 
     def test_get_display(self):
-        urn = ContactURN.objects.create(org=self.org, scheme='tel', path='+250788383383', urn='tel:+250788383383', priority=50)
+        urn = ContactURN.objects.create(org=self.org, scheme='tel', path='+250788383383', identity='tel:+250788383383', urn='tel:+250788383383', priority=50)
         self.assertEqual(urn.get_display(self.org), '0788 383 383')
         self.assertEqual(urn.get_display(self.org, formatted=False), '+250788383383')
         self.assertEqual(urn.get_display(self.org, international=True), '+250 788 383 383')
         self.assertEqual(urn.get_display(self.org, formatted=False, international=True), '+250788383383')
 
-        urn = ContactURN.objects.create(org=self.org, scheme='twitter', path='billy_bob', urn='twitter:billy_bob', priority=50)
+        urn = ContactURN.objects.create(org=self.org, scheme='twitter', path='billy_bob', identity='twitter:billy_bob', urn='twitter:billy_bob', priority=50)
         self.assertEqual(urn.get_display(self.org), 'billy_bob')
 
 
@@ -3866,7 +3866,7 @@ class ContactFieldTest(TembaTest):
 
         # create another contact, this should sort before Ben
         contact2 = self.create_contact("Adam Sumner", '+12067799191', twitter='adam')
-        urns = [urn.urn for urn in contact2.get_urns()]
+        urns = [six.text_type(urn) for urn in contact2.get_urns()]
         urns.append("mailto:adam@sumner.com")
         urns.append("telegram:1234")
         contact2.update_urns(self.admin, urns)
