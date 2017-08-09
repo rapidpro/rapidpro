@@ -848,11 +848,12 @@ class Contact(TembaModel):
             # if contact already exists try to figured if it has all the urn to skip the lock
             if contact:
                 contact_has_all_urns = True
-                contact_urns = set(contact.get_urns().values_list('urn', flat=True))
+                contact_urns = set(contact.get_urns().values_list('identity', flat=True))
                 if len(urns) <= len(contact_urns):
                     for urn in urns:
                         normalized = URN.normalize(urn, country)
-                        if normalized not in contact_urns:
+                        identity = URN.identity(normalized)
+                        if identity not in contact_urns:
                             contact_has_all_urns = False
 
                         existing_urn = ContactURN.lookup(org, normalized, normalize=False)
@@ -1746,7 +1747,7 @@ class Contact(TembaModel):
         self.save(update_fields=('modified_on', 'modified_by'))
 
         # trigger updates based all urns created or detached
-        self.handle_update(urns=[u.urn for u in (urns_created + urns_attached + urns_detached)])
+        self.handle_update(urns=[six.text_type(u) for u in (urns_created + urns_attached + urns_detached)])
 
         # clear URN cache
         if hasattr(self, '__urns'):
@@ -1909,10 +1910,7 @@ class ContactURN(models.Model):
     contact = models.ForeignKey(Contact, null=True, blank=True, related_name='urns',
                                 help_text="The contact that this URN is for, can be null")
 
-    urn = models.CharField(max_length=255,
-                           help_text="The Universal Resource Name as a string. ex: tel:+250788383383")
-
-    identity = models.CharField(max_length=255, null=True,
+    identity = models.CharField(max_length=255,
                                 help_text="The Universal Resource Name as a string, excluding display if present. ex: tel:+250788383383")
 
     path = models.CharField(max_length=255,
@@ -1955,7 +1953,7 @@ class ContactURN(models.Model):
             priority = cls.PRIORITY_DEFAULTS.get(scheme, cls.PRIORITY_STANDARD)
 
         return cls.objects.create(org=org, contact=contact, priority=priority, channel=channel, auth=auth,
-                                  scheme=scheme, path=path, urn=urn_as_string, identity=urn_as_string, display=display)
+                                  scheme=scheme, path=path, identity=urn_as_string, display=display)
 
     @classmethod
     def lookup(cls, org, urn_as_string, country_code=None, normalize=True):
@@ -1966,7 +1964,7 @@ class ContactURN(models.Model):
             urn_as_string = URN.normalize(urn_as_string, country_code)
         identity = URN.identity(urn_as_string)
 
-        return cls.objects.filter(org=org, urn=identity).select_related('contact').first()
+        return cls.objects.filter(org=org, identity=identity).select_related('contact').first()
 
     def update_auth(self, auth):
         if auth and auth != self.auth:
@@ -1993,10 +1991,10 @@ class ContactURN(models.Model):
 
             # don't trounce existing contacts with that country code already
             norm_urn = URN.from_tel(norm_number)
-            if not ContactURN.objects.filter(urn=norm_urn, org_id=self.org_id).exclude(id=self.id):
-                self.urn = norm_urn
+            if not ContactURN.objects.filter(identity=norm_urn, org_id=self.org_id).exclude(id=self.id):
+                self.identity = norm_urn
                 self.path = norm_number
-                self.save()
+                self.save(update_fields=['identity', 'path'])
 
         return self
 
@@ -2037,10 +2035,13 @@ class ContactURN(models.Model):
         return self.path
 
     def __str__(self):  # pragma: no cover
-        return self.urn
+        return URN.from_parts(self.scheme, self.path, self.display)
+
+    def __unicode__(self):  # pragma: no cover
+        return URN.from_parts(self.scheme, self.path, self.display)
 
     class Meta:
-        unique_together = ('urn', 'org')
+        unique_together = ('identity', 'org')
         ordering = ('-priority', 'id')
 
 
