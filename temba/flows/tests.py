@@ -2066,7 +2066,6 @@ class FlowTest(TembaTest):
 
         flow = Flow.objects.get(name="USSD Flow 2")
 
-        # can't change trigger from update, need to go to trigger page
         post_data['ussd_trigger'] = "*112#"
         post_data['ussd_push_enabled'] = True
         post_data['expires_after_minutes'] = 60 * 12

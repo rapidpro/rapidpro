@@ -142,8 +142,8 @@ class UssdFlowForm(forms.ModelForm):
             existing = Trigger.objects.filter(org=self.user.get_org(), keyword__iexact=keyword, is_archived=False,
                                               is_active=True)
 
-            if self.instance:
-                existing = existing.exclude(id=self.instance.id)
+            if self.instance and hasattr(self, 'ussd_trigger_instance') and self.ussd_trigger_instance:
+                existing = existing.exclude(id=self.ussd_trigger_instance.id)
 
             if existing:
                 raise forms.ValidationError(_("An active trigger already uses this keyword on this channel."))
@@ -624,12 +624,12 @@ class FlowCRUDL(SmartCRUDL):
 
                     self.fields[Flow.CONTACT_CREATION] = contact_creation
                 elif self.instance.flow_type == Flow.USSD:
-                    ussd_trigger = Trigger.objects.filter(
+                    self.ussd_trigger_instance = Trigger.objects.filter(
                         org=self.instance.org, flow=self.instance, is_archived=False, groups=None,
                         trigger_type=Trigger.TYPE_USSD_PULL
-                    ).first()
-                    if ussd_trigger:
-                        self.fields['ussd_trigger'].initial = ussd_trigger.keyword
+                    ).order_by('id').first()
+                    if self.ussd_trigger_instance:
+                        self.fields['ussd_trigger'].initial = self.ussd_trigger_instance.keyword
                 else:
                     self.fields['keyword_triggers'] = forms.CharField(required=False,
                                                                       label=_("Global keyword triggers"),
@@ -713,7 +713,7 @@ class FlowCRUDL(SmartCRUDL):
                 ussd_trigger = Trigger.objects.filter(
                     org=org, flow=obj, is_archived=False, groups=None,
                     trigger_type=Trigger.TYPE_USSD_PULL
-                ).first()
+                ).order_by('id').first()
 
                 if not ussd_code and ussd_trigger:
                     ussd_trigger.delete()
