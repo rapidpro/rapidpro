@@ -1138,6 +1138,7 @@ IP_ADDRESSES = ('172.16.10.10', '162.16.10.20')
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640
 VALUE_FIELD_SIZE = 640
+QUICK_REPLY_TITLE_SIZE = 20
 
 # -----------------------------------------------------------------------------------
 # Installs may choose how long to keep the channel logs in hours
