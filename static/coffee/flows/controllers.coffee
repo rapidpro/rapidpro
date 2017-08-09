@@ -1809,14 +1809,17 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.action_webhook_headers_value = []
   currentLang = Flow.language.iso_code
 
-  if $scope.options.dragSource? || $scope.options.startNewNode? || $scope.options.innerAction?
+  startNodeConfig = () ->
     $scope.container_operation_visible = true
     $scope.actions_buttons_reply = []
     $scope.actions_quick_reply = []
     $scope.action.quick_replies = {}
     $scope.action.url_buttons = {}
+
+  if $scope.options.dragSource? || $scope.options.startNewNode? || $scope.options.innerAction?
+    startNodeConfig()
   else
-    if $scope.action.quick_replies?
+    if $scope.action.quick_replies? and $scope.action.quick_replies[currentLang] != undefined
       if $scope.action.quick_replies[currentLang]?
         $scope.container_operation_visible = false
         $scope.actions_quick_reply = $scope.action.quick_replies[currentLang]
@@ -1824,12 +1827,20 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         $scope.actions_quick_reply = []
         $scope.container_operation_visible = true
 
-    if $scope.action.url_buttons?
+      $scope.actions_buttons_reply = []
+
+    else if $scope.action.url_buttons? and $scope.action.url_buttons[currentLang] != undefined
       if $scope.action.url_buttons[currentLang]?
         $scope.container_operation_visible = false
         $scope.actions_buttons_reply = $scope.action.url_buttons[currentLang]
       else
         $scope.actions_buttons_reply = []
+        $scope.container_operation_visible = true
+
+      $scope.actions_quick_reply = []
+
+    else
+      startNodeConfig()
 
     if $scope.action._media?
       $scope.container_operation_visible = false
@@ -1968,10 +1979,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.action.msg = {}
     $scope.action.msg[$scope.base_language] = message
 
-    if ! $scope.action.quick_replies instanceof Object
+    if Object.prototype.toString.call($scope.action.quick_replies) != '[object Object]'
       $scope.action.quick_replies = {}
 
-    if ! $scope.action.url_buttons instanceof Object
+    if Object.prototype.toString.call($scope.action.url_buttons) != '[object Object]'
       $scope.action.url_buttons = {}
       
     if $scope.actions_quick_reply.length > 0
