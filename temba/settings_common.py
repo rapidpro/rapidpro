@@ -373,6 +373,7 @@ PERMISSIONS = {
                  'smtp_server',
                  'api',
                  'country',
+                 'chatbase',
                  'clear_cache',
                  'create_login',
                  'create_sub_org',
@@ -1092,6 +1093,11 @@ SEND_AIRTIME = False
 ######
 # DANGER: only turn this on if you know what you are doing!
 #         could cause calls in test environments
+SEND_CHATBASE = False
+
+######
+# DANGER: only turn this on if you know what you are doing!
+#         could cause calls in test environments
 SEND_CALLS = False
 
 MESSAGE_HANDLERS = [
@@ -1151,3 +1157,5 @@ VALUE_FIELD_SIZE = 640
 # -----------------------------------------------------------------------------------
 SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
+
+CHATBASE_API_URL = 'https://chatbase.com/api/message'
