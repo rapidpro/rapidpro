@@ -1311,26 +1311,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       actionset._lastActionMissingTranslation = null
 
-      if action.quick_replies
-        for lang in Object.getOwnPropertyNames(action.quick_replies)
-          actions = []
-          for quick_reply in action.quick_replies[lang]
-            quick_reply_title = if quick_reply.title then quick_reply.title else null
-            if quick_reply_title
-              quick_reply.title = quick_reply_title.slice(0, 20)
-            actions.push(quick_reply)
-          action.quick_replies[lang] = actions
-
-      if action.url_buttons
-        for lang in Object.getOwnPropertyNames(action.url_buttons)
-          actions = []
-          for button in action.url_buttons[lang]
-            button_title = if button.title then button.title else null
-            if button_title
-              button.title = button_title.slice(0, 20)
-            actions.push(button)
-          action.url_buttons[lang] = actions
-
       if action.type == "end_ussd"
         actionset.destination = null
         Plumb.updateConnection(actionset)
