@@ -1471,6 +1471,30 @@ class Msg(models.Model):
         if channel:
             analytics.gauge('temba.msg_outgoing_%s' % channel.channel_type.lower())
 
+        metadata = json.loads(metadata)
+        quick_replies = metadata.get('quick_replies', None)
+        if quick_replies:
+            for reply in quick_replies:
+                (title, errors) = Msg.substitute_variables(reply.get('title', None), message_context, contact=contact, org=org)
+                (payload, errors) = Msg.substitute_variables(reply.get('payload', None), message_context, contact=contact, org=org)
+                if title:
+                    reply['title'] = title[:Msg.MAX_TEXT_LEN]
+                if payload:
+                    reply['payload'] = payload[:Msg.MAX_TEXT_LEN]
+
+        elif metadata.get('url_buttons', None):
+            url_buttons = metadata.get('url_buttons', None)
+            for button in url_buttons:
+                (title, errors) = Msg.substitute_variables(button.get('title', None), message_context, contact=contact, org=org)
+                (url, errors) = Msg.substitute_variables(button.get('url', None), message_context, contact=contact, org=org)
+                if title:
+                    button['title'] = title[:Msg.MAX_TEXT_LEN]
+                if url:
+                    button['url'] = url
+
+        metadata = json.dumps(metadata)
+        
+
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,
                         org=org,
