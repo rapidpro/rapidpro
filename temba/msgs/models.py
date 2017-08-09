@@ -797,6 +797,9 @@ class Msg(models.Model):
         """
         Processes a message, running it through all our handlers
         """
+        from temba.orgs.models import CHATBASE_TYPE_USER
+        from .tasks import send_chatbase_logs
+
         handlers = get_message_handlers()
 
         if msg.contact.is_blocked:
@@ -823,9 +826,19 @@ class Msg(models.Model):
 
         cls.mark_handled(msg)
 
+        # Chatbase parameters to track logs
+        chatbase_not_handled = True
+
         # if this is an inbox message, increment our unread inbox count
         if msg.msg_type == INBOX:
             msg.org.increment_unread_msg_count(UNREAD_INBOX_MSGS)
+        elif msg.msg_type == FLOW:
+            chatbase_not_handled = False
+
+        # Registering data to send to Chatbase API later
+        org = msg.org
+        if org.is_connected_to_chatbase():
+            on_transaction_commit(lambda: send_chatbase_logs.apply_async(args=(msg.as_task_json()['chatbase_api_key'], msg.as_task_json()['chatbase_api_version'], msg.channel.name, msg.text, msg.contact.id, CHATBASE_TYPE_USER, chatbase_not_handled), queue='msgs'))
 
         # record our handling latency for this object
         if msg.queued_on:
@@ -1182,6 +1195,9 @@ class Msg(models.Model):
 
         if self.contact_urn.auth:
             data.update(dict(auth=self.contact_urn.auth))
+
+        if self.org.is_connected_to_chatbase():
+            data.update(dict(is_org_connected_to_chatbase=True, chatbase_api_key=self.org.config_json()['CHATBASE_API_KEY'], chatbase_api_version=self.org.config_json()['CHATBASE_VERSION']))
 
         return data
 
