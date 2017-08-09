@@ -75,7 +75,8 @@ class FacebookType(ChannelType):
                 )
             )
             for button in url_buttons:
-                button_obj = dict(title=button.get('title'), url=button.get('url'), type='web_url')
+                button_obj = dict(title=button.get('title'), url=button.get('url'), type='web_url',
+                                  webview_height_ratio='tall')
                 current_payload['message']['attachment']['payload']['buttons'].append(button_obj)
 
         return current_payload
