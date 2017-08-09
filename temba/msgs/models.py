@@ -737,6 +737,7 @@ class Msg(models.Model):
         task_msgs = []
         task_priority = None
         last_contact = None
+        batches = []
 
         # we send in chunks of 1,000 to help with contention
         for msg_chunk in chunk_list(all_msgs, 1000):
@@ -768,7 +769,7 @@ class Msg(models.Model):
                             if task_priority is None:  # pragma: needs cover
                                 task_priority = DEFAULT_PRIORITY
 
-                            on_transaction_commit(lambda: push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority))
+                            batches.append(dict(org=task_msgs[0]['org'], msgs=task_msgs, priority=task_priority))
                             task_msgs = []
                             task_priority = None
 
@@ -789,8 +790,15 @@ class Msg(models.Model):
         if task_msgs:
             if task_priority is None:
                 task_priority = DEFAULT_PRIORITY
+            batches.append(dict(org=task_msgs[0]['org'], msgs=task_msgs, priority=task_priority))
 
-            on_transaction_commit(lambda: push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority))
+        # send our batches
+        on_transaction_commit(lambda: cls._send_msg_batches(batches))
+
+    @classmethod
+    def _send_msg_batches(cls, batches):
+        for batch in batches:
+            push_task(batch['org'], MSG_QUEUE, SEND_MSG_TASK, batch['msgs'], priority=batch['priority'])
 
     @classmethod
     def process_message(cls, msg):
