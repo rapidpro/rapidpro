@@ -11224,17 +11224,7 @@ class ViberPublicTest(TembaTest):
             self.clear_cache()
 
     def test_send_url_buttons(self):
-        metadata = """
-        {
-            "url_buttons":[
-                {
-                    "url": "https://example.com",
-                    "title": "Show Website",
-                    "type": "web_url"
-                }
-            ]
-        }
-        """
+        metadata = json.dumps(dict(url_buttons=[dict(title='Show Website', url='https://example.com')]))
         joe = self.create_contact("Joe", urn="viber:FXLP/JstS7kDuoiUGihkgA==")
         msg = joe.send("Hello, world!", self.admin, trigger_send=False, metadata=metadata)[0]
 
@@ -11275,22 +11265,7 @@ class ViberPublicTest(TembaTest):
             self.assertEqual(mock.call_args[1]['json']['keyboard']['Buttons'][0]['Text'], 'Show Website')
 
     def test_send_quick_replies(self):
-        metadata = """
-        {
-            "quick_replies": [
-                {
-                    "payload": "yes",
-                    "title": "Yes",
-                    "content_type": "text"
-                },
-                {
-                    "payload": "no",
-                    "title": "No",
-                    "content_type": "text"
-                }
-            ]
-        }
-        """
+        metadata = json.dumps(dict(quick_replies=[dict(title='Yes', payload='yes'), dict(title='No', payload='no')]))
         joe = self.create_contact("Joe", urn="viber:FXLP/JstS7kDuoiUGihkgA==")
         msg = joe.send("Hello, world!", self.admin, trigger_send=False, metadata=metadata)[0]
 
