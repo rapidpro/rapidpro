@@ -285,7 +285,7 @@ class NewConversationTriggerForm(BaseTriggerForm):
         if self.instance:
             existing = existing.exclude(id=self.instance.id)
 
-        if existing.first():
+        if existing.exists():
             raise forms.ValidationError(_("Trigger with this Channel already exists."))
 
         return self.cleaned_data['channel']
