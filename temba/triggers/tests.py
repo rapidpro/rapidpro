@@ -703,6 +703,16 @@ class TriggerTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response, 'form', 'channel', 'Trigger with this Channel already exists.')
 
+        # try to change the existing trigger
+        response = self.client.post(reverse('triggers.trigger_update', args=[trigger.id]),
+                                    data=dict(id=trigger.id, flow=flow2.id, channel=viber_channel.id),
+                                    follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        trigger.refresh_from_db()
+        self.assertEqual(flow2, trigger.flow)
+        self.assertEqual(viber_channel, trigger.channel)
+
     @override_settings(IS_PROD=True)
     @patch('requests.post')
     def test_new_conversation_trigger(self, mock_post):

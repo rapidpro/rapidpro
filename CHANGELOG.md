@@ -1,3 +1,7 @@
+v3.0.179
+----------
+ * Allow editing of start conversation triggers
+
 v3.0.178
 ----------
  * Remove urn field, urn compound index, remove last uses of urn field
