@@ -590,6 +590,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_smtp_server',
         'orgs.org_api',
         'orgs.org_country',
+        'orgs.org_chatbase',
         'orgs.org_create_sub_org',
         'orgs.org_download',
         'orgs.org_edit',
