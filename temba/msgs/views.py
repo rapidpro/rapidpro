@@ -314,6 +314,7 @@ class BroadcastCRUDL(SmartCRUDL):
         def form_valid(self, form):
             self.form = form
             user = self.request.user
+            org = user.get_org()
             simulation = self.request.GET.get('simulation', 'false') == 'true'
 
             omnibox = self.form.cleaned_data['omnibox']
@@ -330,7 +331,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 from .tasks import send_to_flow_node
                 get_params = {k: v for k, v in self.request.GET.items()}
                 get_params.update({'s': step_uuid})
-                send_to_flow_node.delay(user.pk, text, **get_params)
+                send_to_flow_node.delay(org.pk, user.pk, text, **get_params)
                 if '_format' in self.request.GET and self.request.GET['_format'] == 'json':
                     return HttpResponse(json.dumps(dict(status="success")), content_type='application/json')
                 else:
@@ -350,7 +351,7 @@ class BroadcastCRUDL(SmartCRUDL):
                     recipients.append(urn)
 
             schedule = Schedule.objects.create(created_by=user, modified_by=user) if has_schedule else None
-            broadcast = Broadcast.create(user.get_org(), user, text, recipients,
+            broadcast = Broadcast.create(org, user, text, recipients,
                                          schedule=schedule)
 
             if not has_schedule:
