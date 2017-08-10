@@ -138,14 +138,16 @@ def send_broadcast_task(broadcast_id):
 
 
 @task(track_started=True, name='send_to_flow_node')
-def send_to_flow_node(user_id, text, **kwargs):
+def send_to_flow_node(org_id, user_id, text, **kwargs):
     from django.contrib.auth.models import User
     from temba.contacts.omnibox import omnibox_query
+    from temba.orgs.models import Org
 
+    org = Org.objects.get(pk=org_id)
     user = User.objects.get(pk=user_id)
     simulation = kwargs.get('simulation', 'false') == 'true'
 
-    contacts = list(omnibox_query(user.get_org(), **kwargs))
+    contacts = list(omnibox_query(org, **kwargs))
     recipients = list()
 
     if simulation:
@@ -156,8 +158,8 @@ def send_to_flow_node(user_id, text, **kwargs):
     else:
         for contact in contacts:
             recipients.append(contact)
-    broadcast = Broadcast.create(user.get_org(), user, text, recipients)
-    on_transaction_commit(lambda: broadcast.send())
+    broadcast = Broadcast.create(org, user, text, recipients)
+    on_transaction_commit(lambda: send_broadcast_task.delay(broadcast.pk))
 
     analytics.track(user.username, 'temba.broadcast_created',
                     dict(contacts=len(contacts), groups=0, urns=0))
