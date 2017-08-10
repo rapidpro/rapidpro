@@ -9,6 +9,8 @@ from mock import patch
 from temba.tests import TembaTest
 from temba.utils.twitter import TwythonError
 from ...models import Channel
+from temba.contacts.models import ContactURN
+from .tasks import resolve_twitter_ids
 
 
 class TwitterActivityTypeTest(TembaTest):
@@ -92,3 +94,45 @@ class TwitterActivityTypeTest(TembaTest):
         self.channel.release()
 
         mock_delete_webhook.assert_called_once_with('wh45678')
+
+    @patch('twython.Twython.lookup_user')
+    def test_resolve(self, mock_lookup_user):
+        self.joe = self.create_contact("joe", twitter="therealjoe")
+
+        urn = self.joe.get_urns()[0]
+
+        # test no return value, shouldn't affect contact URN
+        mock_lookup_user.return_value = []
+        resolve_twitter_ids()
+
+        urn.refresh_from_db()
+        self.assertIsNone(urn.display)
+        self.assertEqual("twitter:therealjoe", urn.identity)
+        self.assertEqual("therealjoe", urn.path)
+
+        # test a real return value
+        mock_lookup_user.return_value = [dict(screen_name="therealjoe", id="123456")]
+        resolve_twitter_ids()
+
+        urn.refresh_from_db()
+        self.assertEqual("twitter:123456", urn.identity)
+        self.assertEqual("123456", urn.path)
+        self.assertEqual("therealjoe", urn.display)
+        self.assertEqual("twitter:123456#therealjoe", urn.urn)
+
+        # create another URN for the same display name
+        urn2 = ContactURN.create(self.org, self.joe, "twitter:therealjoe")
+        resolve_twitter_ids()
+
+        # this urn should have been deleted
+        self.assertEqual(0, ContactURN.objects.filter(id=urn2.id).count())
+
+        # disconnect joe's current URN and try again
+        ContactURN.objects.filter(id=urn.id).update(contact=None)
+        urn3 = ContactURN.create(self.org, self.joe, "twitter:therealjoe")
+        resolve_twitter_ids()
+
+        # this time should prefer new URN
+        urn3.refresh_from_db()
+        self.assertEqual(0, ContactURN.objects.filter(id=urn.id).count())
+        self.assertEqual(urn3.id, self.joe.get_urns()[0].id)

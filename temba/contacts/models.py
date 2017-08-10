@@ -1980,9 +1980,17 @@ class ContactURN(models.Model):
         """
         if normalize:
             urn_as_string = URN.normalize(urn_as_string, country_code)
-        identity = URN.identity(urn_as_string)
 
-        return cls.objects.filter(org=org, identity=identity).select_related('contact').first()
+        identity = URN.identity(urn_as_string)
+        (scheme, path, display) = URN.to_parts(urn_as_string)
+
+        existing = cls.objects.filter(org=org, identity=identity).select_related('contact').first()
+
+        # not found and this is a TWITTER scheme? check TWITTERID scheme by looking up by display
+        if not existing and scheme == TWITTER_SCHEME:
+            existing = cls.objects.filter(org=org, scheme=TWITTERID_SCHEME, display=path).select_related('contact').first()
+
+        return existing
 
     def update_auth(self, auth):
         if auth and auth != self.auth:
@@ -2051,6 +2059,13 @@ class ContactURN(models.Model):
                 pass
 
         return self.path
+
+    @property
+    def urn(self):
+        """
+        Returns a full representation of this contact URN as a string
+        """
+        return URN.from_parts(self.scheme, self.path, self.display)
 
     def __str__(self):  # pragma: no cover
         return URN.from_parts(self.scheme, self.path, self.display)

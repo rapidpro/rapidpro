@@ -147,6 +147,12 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         return self.attachment_support
 
+    def setup_periodic_tasks(self, sender):
+        """
+        Allows a ChannelType to register periodic tasks it wants celery to run.
+        ex: sender.add_periodic_task(300, remap_twitter_ids)
+        """
+
     def __str__(self):
         return self.name
 
