@@ -1086,6 +1086,30 @@ class BroadcastTest(TembaTest):
         response = self.client.post(send_url + '?_format=json', post_data, follow=True)
         self.assertIn("success", response.content)
 
+        response = self.client.post(send_url, post_data)
+        self.assertRedirect(response, reverse('msgs.msg_inbox'))
+
+        with patch("temba.contacts.omnibox.omnibox_query") as mock_omnibox_query:
+            mock_omnibox_query.return_value = [test_contact, self.joe]
+
+            response = self.client.post(send_url + '?_format=json', post_data, follow=True)
+            self.assertIn("success", response.content)
+            broadcast = Broadcast.objects.order_by('-id').first()
+            self.assertEqual(broadcast.text, {'base': "message content"})
+            self.assertEquals(broadcast.groups.count(), 0)
+            self.assertEquals(broadcast.contacts.count(), 2)
+            self.assertTrue(test_contact in broadcast.contacts.all())
+            self.assertTrue(self.joe in broadcast.contacts.all())
+
+            response = self.client.post(send_url + '?_format=json&simulation=true', post_data, follow=True)
+            self.assertIn("success", response.content)
+            broadcast = Broadcast.objects.order_by('-id').first()
+            self.assertEqual(broadcast.text, {'base': "message content"})
+            self.assertEquals(broadcast.groups.count(), 0)
+            self.assertEquals(broadcast.contacts.count(), 1)
+            self.assertTrue(test_contact in broadcast.contacts.all())
+            self.assertFalse(self.joe in broadcast.contacts.all())
+
     def test_unreachable(self):
         no_urns = Contact.get_or_create(self.org, self.admin, name="Ben Haggerty", urns=[])
         tel_contact = self.create_contact("Ryan Lewis", number="+12067771234")
