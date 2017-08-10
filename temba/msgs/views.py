@@ -19,7 +19,6 @@ from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartFo
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import ContactGroup, URN, ContactURN, TEL_SCHEME
-from temba.contacts.omnibox import omnibox_query
 from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils import analytics, on_transaction_commit
@@ -320,6 +319,7 @@ class BroadcastCRUDL(SmartCRUDL):
             omnibox = self.form.cleaned_data['omnibox']
             has_schedule = self.form.cleaned_data['schedule']
             step_uuid = self.form.cleaned_data.get('step_node', None)
+            text = self.form.cleaned_data['text']
 
             groups = list(omnibox['groups'])
             contacts = list(omnibox['contacts'])
@@ -327,11 +327,14 @@ class BroadcastCRUDL(SmartCRUDL):
             recipients = list()
 
             if step_uuid:
-                groups = []
-                urns = []
+                from .tasks import send_to_flow_node
                 get_params = {k: v for k, v in self.request.GET.items()}
                 get_params.update({'s': step_uuid})
-                contacts = list(omnibox_query(user.get_org(), **get_params))
+                send_to_flow_node.delay(user.pk, text, **get_params)
+                if '_format' in self.request.GET and self.request.GET['_format'] == 'json':
+                    return HttpResponse(json.dumps(dict(status="success")), content_type='application/json')
+                else:
+                    return HttpResponseRedirect(self.get_success_url())
 
             if simulation:
                 # when simulating make sure we only use test contacts
@@ -347,7 +350,7 @@ class BroadcastCRUDL(SmartCRUDL):
                     recipients.append(urn)
 
             schedule = Schedule.objects.create(created_by=user, modified_by=user) if has_schedule else None
-            broadcast = Broadcast.create(user.get_org(), user, self.form.cleaned_data['text'], recipients,
+            broadcast = Broadcast.create(user.get_org(), user, text, recipients,
                                          schedule=schedule)
 
             if not has_schedule:

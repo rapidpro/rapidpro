@@ -13,7 +13,7 @@ from django.db import transaction, connection
 from django.db.models import Count
 from django.utils import timezone
 from django_redis import get_redis_connection
-from temba.utils import json_date_to_datetime, chunk_list
+from temba.utils import json_date_to_datetime, chunk_list, on_transaction_commit, analytics
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import start_task, complete_task, nonoverlapping_task
 from .models import Msg, Broadcast, BroadcastRecipient, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
@@ -135,6 +135,32 @@ def send_broadcast_task(broadcast_id):
     from .models import Broadcast
     broadcast = Broadcast.objects.get(pk=broadcast_id)
     broadcast.send()
+
+
+@task(track_started=True, name='send_to_flow_node')
+def send_to_flow_node(user_id, text, **kwargs):
+    from django.contrib.auth.models import User
+    from temba.contacts.omnibox import omnibox_query
+
+    user = User.objects.get(pk=user_id)
+    simulation = kwargs.get('simulation', 'false') == 'true'
+
+    contacts = list(omnibox_query(user.get_org(), **kwargs))
+    recipients = list()
+
+    if simulation:
+        # when simulating make sure we only use test contacts
+        for contact in contacts:
+            if contact.is_test:
+                recipients.append(contact)
+    else:
+        for contact in contacts:
+            recipients.append(contact)
+    broadcast = Broadcast.create(user.get_org(), user, text, recipients)
+    on_transaction_commit(lambda: broadcast.send())
+
+    analytics.track(user.username, 'temba.broadcast_created',
+                    dict(contacts=len(contacts), groups=0, urns=0))
 
 
 @task(track_started=True, name='send_spam')
