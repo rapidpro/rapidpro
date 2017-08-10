@@ -51,8 +51,8 @@ from uuid import uuid4
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
 
-CURRENT_EXPORT_VERSION = 11
-EARLIEST_IMPORT_VERSION = 3
+CURRENT_EXPORT_VERSION = "10.1"
+EARLIEST_IMPORT_VERSION = "3"
 
 MT_SMS_EVENTS = 1 << 0
 MO_SMS_EVENTS = 1 << 1
@@ -367,10 +367,10 @@ class Org(SmartModel):
         # see if our export needs to be updated
         export_version = data.get('version', 0)
         from temba.orgs.models import EARLIEST_IMPORT_VERSION, CURRENT_EXPORT_VERSION
-        if export_version < EARLIEST_IMPORT_VERSION:  # pragma: needs cover
+        if Flow.is_before_version(export_version, EARLIEST_IMPORT_VERSION):  # pragma: needs cover
             raise ValueError(_("Unknown version (%s)" % data.get('version', 0)))
 
-        if export_version < CURRENT_EXPORT_VERSION:
+        if Flow.is_before_version(export_version, CURRENT_EXPORT_VERSION):
             from temba.flows.models import FlowRevision
             data = FlowRevision.migrate_export(self, data, same_site, export_version)
 

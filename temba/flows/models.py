@@ -175,6 +175,10 @@ class Flow(TembaModel):
 
     START_MSG_FLOW_BATCH = 'start_msg_flow_batch'
 
+    VERSIONS = [
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10.1"
+    ]
+
     name = models.CharField(max_length=64,
                             help_text=_("The name for this flow"))
 
@@ -213,8 +217,8 @@ class Flow(TembaModel):
                                      help_text=_('The primary language for editing this flow'),
                                      default='base')
 
-    version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION,
-                                         help_text=_("The flow version this definition is in"))
+    version_number = models.CharField(default=CURRENT_EXPORT_VERSION, max_length=8,
+                                      help_text=_("The flow version this definition is in"))
 
     @classmethod
     def create(cls, org, user, name, flow_type=FLOW, expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER, base_language=None):
@@ -264,6 +268,16 @@ class Flow(TembaModel):
                          rule_sets=[], action_sets=action_sets))
 
         return flow
+
+    @classmethod
+    def is_before_version(cls, us, version):
+        version_str = six.text_type(us)
+        for ver in Flow.VERSIONS:
+            if ver == version_str:
+                return True
+            elif version == ver:
+                return False
+        return False
 
     @classmethod
     def import_flows(cls, exported_json, org, user, same_site=False):
@@ -844,6 +858,23 @@ class Flow(TembaModel):
             except FlowException:  # pragma: no cover
                 pass
         return changed
+
+    @classmethod
+    def get_versions_after(cls, version_number):
+        versions = []
+        version_str = six.text_type(version_number)
+        for ver in reversed(Flow.VERSIONS):
+            if version_str != ver:
+                versions.insert(0, ver)
+            else:
+                break
+        return versions
+
+    def get_newer_versions(self):
+        """
+        Finds all versions that are newer than our current version
+        """
+        return Flow.get_versions_after(self.version_number)
 
     def build_flow_context(self, contact, contact_context=None):
         """
@@ -2092,7 +2123,7 @@ class Flow(TembaModel):
         Makes sure the flow is at the current version. If it isn't it will
         migrate the definition forward updating the flow accordingly.
         """
-        if self.version_number < CURRENT_EXPORT_VERSION:
+        if Flow.is_before_version(self.version_number, CURRENT_EXPORT_VERSION):
             with self.lock_on(FlowLock.definition):
                 revision = self.revisions.all().order_by('-revision').all().first()
                 if revision:
@@ -3545,7 +3576,7 @@ class FlowRevision(SmartModel):
 
     definition = models.TextField(help_text=_("The JSON flow definition"))
 
-    spec_version = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
+    spec_version = models.CharField(default=CURRENT_EXPORT_VERSION, max_length=8, help_text=_("The flow version this definition is in"))
 
     revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
 
@@ -3586,33 +3617,62 @@ class FlowRevision(SmartModel):
             to_version = CURRENT_EXPORT_VERSION
 
         from temba.flows import flow_migrations
-        while version < to_version and version < CURRENT_EXPORT_VERSION:
+        versions = Flow.get_versions_after(version)
+        print ("EXPORT", version, versions)
+        for version in versions:
+            parts = version.split(".")
+            migrate_fn = None
+            if len(parts) > 1:
+                (major, minor) = parts
+                migrate_fn = getattr(flow_migrations, 'migrate_export_to_version_%s_%s' % (major, minor), None)
+            else:
+                migrate_fn = getattr(flow_migrations, 'migrate_export_to_version_%s' % (version), None)
 
-            migrate_fn = getattr(flow_migrations, 'migrate_export_to_version_%d' % (version + 1), None)
             if migrate_fn:
                 exported_json = migrate_fn(exported_json, org, same_site)
             else:
                 flows = []
                 for json_flow in exported_json.get('flows', []):
-                    migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % (version + 1), None)
+                    migrate_fn = None
+                    if len(parts) > 1:
+                        (major, minor) = parts
+                        migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s_%s' % (major, minor), None)
+                    else:
+                        migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s' % (version), None)
+
                     if migrate_fn:
                         json_flow = migrate_fn(json_flow, None)
                     flows.append(json_flow)
                 exported_json['flows'] = flows
-            version += 1
+
+            if version == to_version:
+                break
 
         return exported_json
 
     @classmethod
-    def migrate_definition(cls, json_flow, flow, version, to_version=None):
+    def migrate_definition(cls, json_flow, flow, to_version=None):
+
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
+
+        versions = flow.get_newer_versions()
         from temba.flows import flow_migrations
-        while version < to_version and version < CURRENT_EXPORT_VERSION:
-            migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % (version + 1), None)
+        for version in versions:
+            parts = version.split(".")
+            print ("Migrating to version", version)
+            migrate_fn = None
+            if len(parts) > 1:
+                (major, minor) = parts
+                migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s_%s' % (major, minor), None)
+            else:
+                migrate_fn = getattr(flow_migrations, 'migrate_to_version_%s' % (version), None)
+
             if migrate_fn:
                 json_flow = migrate_fn(json_flow, flow)
-            version += 1
+
+            if version == to_version:
+                break
 
         return json_flow
 
@@ -3622,14 +3682,14 @@ class FlowRevision(SmartModel):
 
         # if it's previous to version 6, wrap the definition to
         # mirror our exports for those versions
-        if self.spec_version <= 6:
+        if Flow.is_before_version(self.spec_version, "6"):
             definition = dict(definition=definition, flow_type=self.flow.flow_type,
                               expires=self.flow.expires_after_minutes, id=self.flow.pk,
                               revision=self.revision, uuid=self.flow.uuid)
 
         # migrate our definition if necessary
-        if self.spec_version < CURRENT_EXPORT_VERSION:
-            definition = FlowRevision.migrate_definition(definition, self.flow, self.spec_version)
+        if self.spec_version != CURRENT_EXPORT_VERSION:
+            definition = FlowRevision.migrate_definition(definition, self.flow)
         return definition
 
     def as_json(self, include_definition=False):

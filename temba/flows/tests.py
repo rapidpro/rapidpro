@@ -6227,13 +6227,13 @@ class FlowMigrationTest(FlowFileTest):
             to_version = CURRENT_EXPORT_VERSION
 
         flow_json = flow.as_json()
-        if flow.version_number <= 6:
+        if Flow.is_before_version(flow.version_number, "6"):
             revision = flow.revisions.all().order_by('-revision').first()
             flow_json = dict(definition=flow_json, flow_type=flow.flow_type,
                              expires=flow.expires_after_minutes, id=flow.pk,
                              revision=revision.revision if revision else 1)
 
-        flow_json = FlowRevision.migrate_definition(flow_json, flow, flow.version_number, to_version=to_version)
+        flow_json = FlowRevision.migrate_definition(flow_json, flow, to_version=to_version)
         if 'definition' in flow_json:
             flow_json = flow_json['definition']
 
@@ -6359,6 +6359,7 @@ class FlowMigrationTest(FlowFileTest):
     def test_migrate_to_10(self):
         # this is really just testing our rewriting of webhook rulesets
         webhook_flow = self.get_flow('dual_webhook')
+        print (webhook_flow.version_number)
 
         self.assertNotEqual(webhook_flow.modified_on, webhook_flow.saved_on)
 
@@ -6611,7 +6612,7 @@ class FlowMigrationTest(FlowFileTest):
 
         # fake a version 4 flow
         RuleSet.objects.filter(flow=flow).update(response_type='C', ruleset_type=None)
-        flow.version_number = 4
+        flow.version_number = "4"
         flow.save()
 
         # pretend our current ruleset was stopped at a webhook with a passive rule

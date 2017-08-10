@@ -11,7 +11,7 @@ from temba.utils.expressions import migrate_template
 from uuid import uuid4
 
 
-def migrate_to_version_11(json_flow, flow):
+def migrate_to_version_10_1(json_flow, flow):
     """
     Ensures all actions have uuids
     """
@@ -448,8 +448,7 @@ def migrate_to_version_5(json_flow, flow=None):
                         # if it's not a plain split, make us wait and create
                         # an expression split node to handle our response
                         pausing_ruleset = copy.deepcopy(ruleset)
-                        pausing_ruleset[
-                            'ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
+                        pausing_ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_MESSAGE
                         pausing_ruleset['operand'] = '@step.value'
                         pausing_ruleset['label'] = label + ' Response'
                         remove_extra_rules(definition, pausing_ruleset)
