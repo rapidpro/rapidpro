@@ -2873,27 +2873,27 @@ class Channel(TembaModel):
     @classmethod
     def get_context_metadata(cls, msg, text, channel):
         metadata = json.loads(msg.metadata)
-        data = dict(
-            auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
-            receiver=msg.urn_path,
-            text=text,
-            type='text',
-            tracking_data=msg.id,
-            keyboard=dict(Type="keyboard", DefaultHeight=True, Buttons=list())
-        )
+        url_buttons = metadata.get('url_buttons', None)
+        quick_replies = metadata.get('quick_replies', None)
 
-        if metadata.get('quick_replies'):
-            quick_replies = metadata.get('quick_replies')
-            for quick_reply in quick_replies:
-                data["keyboard"]["Buttons"].append({
-                    "Text": quick_reply["title"], "ActionBody": quick_reply["payload"],
-                    "ActionType": "reply", "TextSize": "regular"})
-        else:
-            url_buttons = metadata.get('url_buttons')
-            for url_button in url_buttons:
-                data["keyboard"]["Buttons"].append({
-                    "Text": url_button["title"], "ActionBody": url_button["url"],
-                    "ActionType": "open-url", "TextSize": "regular"})
+        data = dict(auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
+                    receiver=msg.urn_path,
+                    text=text,
+                    type='text',
+                    tracking_data=msg.id)
+
+        if url_buttons or quick_replies:
+            buttons = []
+            if quick_replies:
+                for quick_reply in quick_replies:
+                    buttons.append(dict(Text=quick_reply['title'], ActionBody=quick_reply['payload'],
+                                        ActionType='reply', TextSize='regular'))
+            else:
+                for url_button in url_buttons:
+                    buttons.append(dict(Text=url_button['title'], ActionBody=url_button['url'],
+                                        ActionType='open-url', TextSize='regular'))
+
+            data.update(dict(keyboard=dict(Type="keyboard", DefaultHeight=True, Buttons=buttons)))
 
         return data
 
