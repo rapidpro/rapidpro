@@ -51,6 +51,7 @@ TEL_SCHEME = 'tel'
 TELEGRAM_SCHEME = 'telegram'
 TWILIO_SCHEME = 'twilio'
 TWITTER_SCHEME = 'twitter'
+TWITTERID_SCHEME = 'twitterid'
 VIBER_SCHEME = 'viber'
 FCM_SCHEME = 'fcm'
 
@@ -60,6 +61,7 @@ FACEBOOK_PATH_REF_PREFIX = 'ref:'
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (FACEBOOK_SCHEME, _("Facebook identifier"), 'facebook', FACEBOOK_SCHEME),
                      (TWITTER_SCHEME, _("Twitter handle"), 'twitter', TWITTER_SCHEME),
+                     (TWITTERID_SCHEME, _("Twitter ID"), 'twitterid', TWITTERID_SCHEME),
                      (VIBER_SCHEME, _("Viber identifier"), 'viber', VIBER_SCHEME),
                      (LINE_SCHEME, _("LINE identifier"), 'line', LINE_SCHEME),
                      (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
@@ -146,6 +148,14 @@ class URN(object):
         elif scheme == TWITTER_SCHEME:
             return regex.match(r'^[a-zA-Z0-9_]{1,15}$', path, regex.V0)
 
+        # validate path is a number and display is a handle if present
+        elif scheme == TWITTERID_SCHEME:
+            valid = path.isdigit()
+            if valid and display:
+                valid = regex.match(r'^[a-zA-Z0-9_]{1,15}$', path, regex.V0)
+
+            return valid
+
         elif scheme == EMAIL_SCHEME:
             try:
                 validate_email(path)
@@ -198,16 +208,15 @@ class URN(object):
             if norm_path[0:1] == '@':  # strip @ prefix if provided
                 norm_path = norm_path[1:]
             norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
+
+        elif scheme == TWITTERID_SCHEME:
+            if display:
+                display = six.text_type(display).strip().lower()
+                if display and display[0] == '@':
+                    display = display[1:]
+
         elif scheme == EMAIL_SCHEME:
             norm_path = norm_path.lower()
-
-        if display:
-            display = six.text_type(display).strip()
-
-            if scheme == TWITTER_SCHEME and display:
-                display = display.lower()
-                if display[0] == '@':
-                    display = display[1:]
 
         return cls.from_parts(scheme, norm_path, display)
 
@@ -273,6 +282,10 @@ class URN(object):
     @classmethod
     def from_twitter(cls, path):
         return cls.from_parts(TWITTER_SCHEME, path)
+
+    @classmethod
+    def from_twitterid(cls, id, screen_name=None):
+        return cls.from_parts(TWITTERID_SCHEME, id, screen_name)
 
     @classmethod
     def from_email(cls, path):
@@ -856,7 +869,7 @@ class Contact(TembaModel):
                         if identity not in contact_urns:
                             contact_has_all_urns = False
 
-                        existing_urn = ContactURN.lookup(org, normalized, normalize=False)
+                        existing_urn = ContactURN.lookup(org, normalized, country_code=country, normalize=False)
                         if existing_urn and auth:
                             ContactURN.update_auth(existing_urn, auth)
 
@@ -1877,7 +1890,7 @@ class ContactURN(models.Model):
     CONTEXT_KEYS_TO_LABEL = {c[3]: c[1] for c in URN_SCHEME_CONFIG}
     IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
 
-    SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME, JIOCHAT_SCHEME}  # schemes that support "follow" triggers
+    SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME, TWITTERID_SCHEME, JIOCHAT_SCHEME}  # schemes that support "follow" triggers
     # schemes that support "new conversation" triggers
     SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME}
     SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
@@ -1885,6 +1898,7 @@ class ContactURN(models.Model):
     EXPORT_FIELDS = {
         TEL_SCHEME: dict(label="Phone", key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
         TWITTER_SCHEME: dict(label="Twitter", key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
+        TWITTERID_SCHEME: dict(label="TwitterID", key=None, id=0, field=None, urn_scheme=TWITTERID_SCHEME),
         EXTERNAL_SCHEME: dict(label="External", key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
         EMAIL_SCHEME: dict(label="Email", key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
         TELEGRAM_SCHEME: dict(label="Telegram", key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
@@ -1901,8 +1915,12 @@ class ContactURN(models.Model):
     PRIORITY_STANDARD = 50
     PRIORITY_HIGHEST = 99
 
-    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90, FACEBOOK_SCHEME: 90, TELEGRAM_SCHEME: 90,
-                         VIBER_SCHEME: 90, FCM_SCHEME: 90}
+    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD,
+                         TWITTER_SCHEME: 90, TWITTERID_SCHEME: 90,
+                         FACEBOOK_SCHEME: 90,
+                         TELEGRAM_SCHEME: 90,
+                         VIBER_SCHEME: 90,
+                         FCM_SCHEME: 90}
 
     ANON_MASK = '*' * 8            # Returned instead of URN values for anon orgs
     ANON_MASK_HTML = '\u2022' * 8  # Pretty HTML version of anon mask
