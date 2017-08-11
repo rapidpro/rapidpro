@@ -7478,6 +7478,9 @@ class TelegramTest(TembaTest):
         response_json = response.json()
         self.assertEqual(response_json.get("description"), "Conversation started")
 
+        # remove all contacts to simulate the contact is new
+        Contact.objects.all().delete()
+
         with AnonymousOrg(self.org):
             response = self.client.post(receive_url, new_conversation_command, content_type='application/json')
             self.assertEqual(response.status_code, 201)
