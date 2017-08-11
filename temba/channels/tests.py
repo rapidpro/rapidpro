@@ -7451,6 +7451,33 @@ class TelegramTest(TembaTest):
         response = self.client.post(receive_url, empty_message, content_type='application/json')
         self.assertEqual(response.status_code, 201)
 
+        new_conversation_command = """
+        {
+          "update_id": 174114370,
+          "message": {
+            "message_id": 41,
+            "from": {
+              "id": 3527065,
+              "first_name": "Nic",
+              "last_name": "Pottier"
+            },
+            "chat": {
+              "id": 3527065,
+              "first_name": "Nic",
+              "last_name": "Pottier",
+              "type": "private"
+            },
+            "date": 1454119029,
+            "text": "/start Hello World"
+          }
+        }
+        """
+
+        response = self.client.post(receive_url, new_conversation_command, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
+        response_json = response.json()
+        self.assertEqual(response_json.get("description"), "Conversation started")
+
     def test_send(self):
         joe = self.create_contact("Ernie", urn='telegram:1234')
         msg = joe.send("Test message", self.admin, trigger_send=False)[0]

@@ -611,10 +611,10 @@ class TelegramHandler(BaseChannelHandler):
         # look up the contact
         telegram_id = str(body['message']['from']['id'])
         urn = URN.from_telegram(telegram_id)
-        existing_contact = Contact.from_urn(channel.org, urn)
+        contact = Contact.from_urn(channel.org, urn)
 
         # if the contact doesn't exist, try to create one
-        if not existing_contact and not channel.org.is_anon:
+        if not contact:
             # "from": {
             # "id": 25028612,
             # "first_name": "Eric",
@@ -627,8 +627,10 @@ class TelegramHandler(BaseChannelHandler):
             if not name and username:  # pragma: needs cover
                 name = username
 
-            if name:
-                Contact.get_or_create(channel.org, channel.created_by, name, urns=[urn])
+            if channel.org.is_anon:
+                name = None
+
+            contact = Contact.get_or_create(channel.org, channel.created_by, name, urns=[urn])
 
         text = ""
         attachments = []
@@ -651,14 +653,14 @@ class TelegramHandler(BaseChannelHandler):
         elif 'caption' in body['message']:
             text = body['message']['caption']
         elif 'contact' in body['message']:  # pragma: needs cover
-            contact = body['message']['contact']
+            contact_block = body['message']['contact']
 
-            if 'first_name' in contact and 'phone_number' in contact:
-                text = '%(first_name)s (%(phone_number)s)' % contact
-            elif 'first_name' in contact:
-                text = '%(first_name)s' % contact
-            elif 'phone_number' in contact:
-                text = '%(phone_number)s' % contact
+            if 'first_name' in contact_block and 'phone_number' in contact_block:
+                text = '%(first_name)s (%(phone_number)s)' % contact_block
+            elif 'first_name' in contact_block:
+                text = '%(first_name)s' % contact_block
+            elif 'phone_number' in contact_block:
+                text = '%(phone_number)s' % contact_block
         elif 'venue' in body['message']:
             if 'title' in body['message']['venue']:
                 text = body['message']['venue']['title']
@@ -670,6 +672,11 @@ class TelegramHandler(BaseChannelHandler):
         if 'location' in body['message']:
             location = body['message']['location']
             attachments.append('geo:%s,%s' % (location['latitude'], location['longitude']))
+
+        if text and text.startswith("/start"):
+
+            Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
+            return make_response("Conversation started")
 
         if text or attachments:
             msg = Msg.create_incoming(channel, urn, text, attachments=attachments, date=msg_date)
@@ -2429,8 +2436,8 @@ class FacebookHandler(BaseChannelHandler):
                                         import traceback
                                         traceback.print_exc()
 
-                                contact = Contact.get_or_create(channel.org, channel.created_by,
-                                                                name=name, urns=[urn], channel=channel)
+                                    contact = Contact.get_or_create(channel.org, channel.created_by,
+                                                                    name=name, urns=[urn], channel=channel)
 
                         # we received a new message, create and handle it
                         if content:
