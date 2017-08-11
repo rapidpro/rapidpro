@@ -3650,7 +3650,7 @@ class ExternalTest(TembaTest):
         self.assertFalse(Msg.objects.all())
 
     def test_receive_external(self):
-        self.channel.scheme = 'ext'
+        self.channel.schemes = ['ext']
         self.channel.save()
 
         data = {'from': 'lynch24', 'text': 'Beast Mode!'}
@@ -7725,7 +7725,7 @@ class TwitterTest(TembaTest):
                                                    'access_token_secret': '0123456789'},
                                            uuid='00000000-0000-0000-0000-000000001234')
 
-        self.joe = self.create_contact("Joe", twitter='joe81')
+        self.joe = self.create_contact("Joe", twitterid='10002')
 
     def signed_request(self, url, data, api_secret='APISECRET'):
         """
@@ -7842,7 +7842,7 @@ class TwitterTest(TembaTest):
 
                 # assert we were only called once
                 self.assertEquals(1, mock.call_count)
-                self.assertEquals("joe81", mock.call_args[1]['data']['screen_name'])
+                self.assertEquals("10002", mock.call_args[1]['data']['user_id'])
 
                 # check the status of the message is now sent
                 msg.refresh_from_db()

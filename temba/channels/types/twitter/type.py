@@ -47,7 +47,8 @@ class TwitterType(ChannelType):
         start = time.time()
 
         try:
-            (scheme, path, display) = URN.to_parts(msg.contact_urn)
+            urn = getattr(msg, 'urn', URN.from_twitter(msg.urn_path))
+            (scheme, path, display) = URN.to_parts(urn)
 
             # this is a legacy URN (no display), the path is our screen name
             if scheme == TWITTER_SCHEME:

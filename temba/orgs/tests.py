@@ -118,7 +118,7 @@ class OrgTest(TembaTest):
                                                                  currency_name='US Dollar', currency_code='USD')])
 
         Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
-                       address="billy_bob", role="SR", scheme='twitter')
+                       address="billy_bob", role="SR")
 
         self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
                                                                  currency_code='RWF'),
