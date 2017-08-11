@@ -7478,6 +7478,12 @@ class TelegramTest(TembaTest):
         response_json = response.json()
         self.assertEqual(response_json.get("description"), "Conversation started")
 
+        with AnonymousOrg(self.org):
+            response = self.client.post(receive_url, new_conversation_command, content_type='application/json')
+            self.assertEqual(response.status_code, 201)
+            response_json = response.json()
+            self.assertEqual(response_json.get("description"), "Conversation started")
+
     def test_send(self):
         joe = self.create_contact("Ernie", urn='telegram:1234')
         msg = joe.send("Test message", self.admin, trigger_send=False)[0]
