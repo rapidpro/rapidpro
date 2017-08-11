@@ -3895,8 +3895,8 @@ class ContactFieldTest(TembaTest):
         with self.assertNumQueries(40):
             self.assertExcelSheet(request_export(), [
                 ["UUID", "Name", "Email", "Phone", "Telegram", "Twitter", "TwitterID", "First", "Second", "Third"],
-                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "1234", "adam", "", "", ""],
-                [contact.uuid, "Ben Haggerty", "", "+12067799294", "", "", "One", "", "20-12-2015 08:30"],
+                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "1234", "adam", "", "", "", ""],
+                [contact.uuid, "Ben Haggerty", "", "+12067799294", "", "", "", "One", "", "20-12-2015 08:30"],
             ])
 
         # more contacts do not increase the queries
@@ -3908,33 +3908,33 @@ class ContactFieldTest(TembaTest):
         with self.assertNumQueries(40):
             self.assertExcelSheet(request_export(), [
                 ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "TwitterID", "First", "Second", "Third"],
-                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
-                [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
-                [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", ""],
-                [contact4.uuid, "Stephen", "", "+12078778899", "", "", "stephen", "", "", ""],
+                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", "", ""],
+                [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "", "20-12-2015 08:30"],
+                [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", "", ""],
+                [contact4.uuid, "Stephen", "", "+12078778899", "", "", "stephen", "", "", "", ""],
             ])
 
         # export a specified group of contacts (only Ben and Adam are in the group)
         with self.assertNumQueries(40):
             self.assertExcelSheet(request_export('?g=%s' % group.uuid), [
                 ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "TwitterID", "First", "Second", "Third"],
-                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
-                [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
+                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", "", ""],
+                [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "", "20-12-2015 08:30"],
             ])
 
         # export a search
         with self.assertNumQueries(40):
             self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng'), [
                 ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "TwitterID", "First", "Second", "Third"],
-                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
-                [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", ""],
+                [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", "", ""],
+                [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", "", ""],
             ])
 
         # export a search within a specified group of contacts
         with self.assertNumQueries(40):
             self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid), [
                 ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "TwitterID", "First", "Second", "Third"],
-                [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
+                [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "", "20-12-2015 08:30"],
             ])
 
         # now try with an anonymous org
