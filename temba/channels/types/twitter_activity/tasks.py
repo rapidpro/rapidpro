@@ -4,7 +4,7 @@ from celery.task import task
 from django_redis import get_redis_connection
 from twython import Twython
 
-from temba.contacts.models import ContactURN, URN, TWITTER_SCHEME, TWITTERID_SCHEME
+from temba.contacts.models import ContactURN, URN, TWITTER_SCHEME
 from temba.utils import chunk_list
 from django.conf import settings
 
@@ -18,10 +18,10 @@ def resolve_twitter_ids():
 
     with r.lock('resolve_twitter_ids_task', 900):
         # look up all twitter contact URNs without a display, limiting to 30k since that's the most our API would allow anyways
-        twitter_urns = ContactURN.objects.filter(scheme=TWITTER_SCHEME).exclude(contact=None)[:30000].values('id',
-                                                                                                             'org_id',
-                                                                                                             'contact_id',
-                                                                                                             'path')
+        twitter_urns = ContactURN.objects.filter(scheme=TWITTER_SCHEME).exclude(contact=None)[:30000].only('id',
+                                                                                                           'org',
+                                                                                                           'contact',
+                                                                                                           'path')
         api_key = settings.TWITTER_API_KEY
         api_secret = settings.TWITTER_API_SECRET
         client = Twython(api_key, api_secret)
@@ -33,8 +33,8 @@ def resolve_twitter_ids():
 
         # we try to look these up 100 at a time
         for urn_batch in chunk_list(twitter_urns, 100):
-            screen_names = [u['path'] for u in urn_batch]
-            screen_map = {u['path']: u for u in urn_batch}
+            screen_names = [u.path for u in urn_batch]
+            screen_map = {u.path: u for u in urn_batch}
 
             # try to fetch our users by screen name
             try:
@@ -45,19 +45,20 @@ def resolve_twitter_ids():
                     twitter_id = twitter_user['id']
 
                     if screen_name in screen_map and twitter_user['id']:
-                        twitterid_urn = URN.normalize(URN.from_parts(TWITTERID_SCHEME, twitter_id, screen_name))
+                        twitterid_urn = URN.normalize(URN.from_twitterid(twitter_id, screen_name))
                         old_urn = screen_map[screen_name]
 
                         # create our new contact URN
-                        new_urn = ContactURN.get_or_create(old_urn['org_id'], old_urn['contact_id'], twitterid_urn)
+                        new_urn = ContactURN.get_or_create(old_urn.org, old_urn.contact, twitterid_urn)
 
-                        # reassociate this contact URN if needbe
-                        if new_urn.contact_id != old_urn['contact_id']:
-                            new_urn.contact_id = old_urn['contact_id']
-                            new_urn.save(update_fields=['contact_id'])
+                        # if our new URN already existed for another contact and it is newer
+                        # than our old contact, reassign it to the old contact
+                        if new_urn.contact != old_urn.contact and new_urn.contact.created_on > old_urn.contact.created_on:
+                            new_urn.contact = old_urn.contact
+                            new_urn.save(update_fields=['contact'])
 
                         # get rid of our old URN
-                        ContactURN.objects.filter(id=old_urn['id']).update(contact=None)
+                        ContactURN.objects.filter(id=old_urn.id).update(contact=None)
                         del screen_map[screen_name]
                         updated += 1
 

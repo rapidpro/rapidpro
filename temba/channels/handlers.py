@@ -507,7 +507,7 @@ class ExternalHandler(BaseChannelHandler):
                 except ValueError as e:
                     return HttpResponse("Bad parameter error: %s" % e.message, status=400)
 
-            urn = URN.from_parts(channel.scheme, sender)
+            urn = URN.from_parts(channel.schemes[0], sender)
             sms = Msg.create_incoming(channel, urn, text, date=date)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)

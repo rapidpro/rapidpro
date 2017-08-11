@@ -400,10 +400,7 @@ class Channel(TembaModel):
     config = models.TextField(verbose_name=_("Config"), null=True,
                               help_text=_("Any channel specific configuration, used for the various aggregators"))
 
-    scheme = models.CharField(verbose_name="URN Scheme", max_length=8, default='tel',
-                              help_text=_("The URN scheme this channel can handle"))
-
-    schemes = ArrayField(models.CharField(max_length=8), default=['tel'],
+    schemes = ArrayField(models.CharField(max_length=16), default=['tel'],
                          verbose_name="URN Schemes", help_text=_("The URN schemes this channel supports"))
 
     role = models.CharField(verbose_name="Channel Role", max_length=4, default=DEFAULT_ROLE,
@@ -421,8 +418,8 @@ class Channel(TembaModel):
             channel_type = cls.get_type_from_code(channel_type)
 
         if schemes:
-            if channel_type.schemes and channel_type.schemes != schemes:
-                raise ValueError("Channel type '%s' cannot support scheme %s" % (channel_type, schemes))
+            if channel_type.schemes and not set(channel_type.schemes).intersection(schemes):
+                raise ValueError("Channel type '%s' cannot support schemes %s" % (channel_type, schemes))
         else:
             schemes = channel_type.schemes
 
@@ -440,7 +437,7 @@ class Channel(TembaModel):
                            channel_type=channel_type.code,
                            name=name, address=address,
                            config=json.dumps(config),
-                           role=role, schemes=schemes, scheme=schemes[0])
+                           role=role, schemes=schemes)
         create_args.update(kwargs)
 
         if 'uuid' not in create_args:

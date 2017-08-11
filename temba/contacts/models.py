@@ -1649,17 +1649,17 @@ class Contact(TembaModel):
         urns = self.get_urns()
 
         # make sure all urns of the same scheme use this channel (only do this for TEL, others are channel specific)
-        if channel.scheme == TEL_SCHEME:
+        if TEL_SCHEME in channel.schemes:
             for urn in urns:
-                if urn.scheme == channel.scheme and urn.channel_id != channel.id:
+                if urn.scheme in channel.schemes and urn.channel_id != channel.id:
                     urn.channel = channel
                     urn.save(update_fields=['channel'])
 
         # if our scheme isn't the highest priority
-        if urns and urns[0].scheme != channel.scheme:
+        if urns and urns[0].scheme not in channel.schemes:
             # update the highest URN of the right scheme to be highest
             for urn in urns[1:]:
-                if urn.scheme == channel.scheme:
+                if urn.scheme in channel.schemes:
                     urn.priority = urns[0].priority + 1
                     urn.save(update_fields=['priority'])
 
@@ -1986,9 +1986,11 @@ class ContactURN(models.Model):
 
         existing = cls.objects.filter(org=org, identity=identity).select_related('contact').first()
 
-        # not found and this is a TWITTER scheme? check TWITTERID scheme by looking up by display
-        if not existing and scheme == TWITTER_SCHEME:
-            existing = cls.objects.filter(org=org, scheme=TWITTERID_SCHEME, display=path).select_related('contact').first()
+        # is this a TWITTER scheme? check TWITTERID scheme by looking up by display
+        if scheme == TWITTER_SCHEME:
+            twitterid_urn = cls.objects.filter(org=org, scheme=TWITTERID_SCHEME, display=path).select_related('contact').first()
+            if twitterid_urn:
+                return twitterid_urn
 
         return existing
 

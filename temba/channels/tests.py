@@ -64,7 +64,7 @@ class ChannelTest(TembaTest):
                                           role="SR", secret="12345", gcm_id="123")
 
         self.twitter_channel = Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
-                                              address="billy_bob", role="SR", schemes=['twitter'])
+                                              address="billy_bob", role="SR")
 
         self.released_channel = Channel.create(None, self.user, None, 'NX', name="Released Channel", address=None,
                                                secret=None, gcm_id="000")
@@ -7753,8 +7753,8 @@ class TwitterTest(TembaTest):
                 }
             ],
             "users": {
-                sender['id']: {"name": sender['name'], "screen_name": sender['screen_name']},
-                target['id']: {"name": target['name'], "screen_name": target['screen_name']}
+                sender['id']: {"id": sender['id'], "name": sender['name'], "screen_name": sender['screen_name']},
+                target['id']: {"id": target['id'], "name": target['name'], "screen_name": target['screen_name']}
             }
         }
 

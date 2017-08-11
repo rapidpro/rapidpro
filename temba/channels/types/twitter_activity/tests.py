@@ -9,7 +9,6 @@ from mock import patch
 from temba.tests import TembaTest
 from temba.utils.twitter import TwythonError
 from ...models import Channel
-from temba.contacts.models import ContactURN
 from .tasks import resolve_twitter_ids
 
 
@@ -18,7 +17,7 @@ class TwitterActivityTypeTest(TembaTest):
         super(TwitterActivityTypeTest, self).setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'TWT', name="Twitter Beta", address="beta_bob",
-                                      role="SR", schemes=['twitter'],
+                                      role="SR",
                                       config={'api_key': 'ak1',
                                               'api_secret': 'as1',
                                               'access_token': 'at1',
@@ -115,24 +114,10 @@ class TwitterActivityTypeTest(TembaTest):
         resolve_twitter_ids()
 
         urn.refresh_from_db()
-        self.assertEqual("twitter:123456", urn.identity)
-        self.assertEqual("123456", urn.path)
-        self.assertEqual("therealjoe", urn.display)
-        self.assertEqual("twitter:123456#therealjoe", urn.urn)
+        self.assertIsNone(urn.contact)
 
-        # create another URN for the same display name
-        urn2 = ContactURN.create(self.org, self.joe, "twitter:therealjoe")
-        resolve_twitter_ids()
-
-        # this urn should have been deleted
-        self.assertEqual(0, ContactURN.objects.filter(id=urn2.id).count())
-
-        # disconnect joe's current URN and try again
-        ContactURN.objects.filter(id=urn.id).update(contact=None)
-        urn3 = ContactURN.create(self.org, self.joe, "twitter:therealjoe")
-        resolve_twitter_ids()
-
-        # this time should prefer new URN
-        urn3.refresh_from_db()
-        self.assertEqual(0, ContactURN.objects.filter(id=urn.id).count())
-        self.assertEqual(urn3.id, self.joe.get_urns()[0].id)
+        new_urn = self.joe.get_urns()[0]
+        self.assertEqual("twitterid:123456", new_urn.identity)
+        self.assertEqual("123456", new_urn.path)
+        self.assertEqual("therealjoe", new_urn.display)
+        self.assertEqual("twitterid:123456#therealjoe", new_urn.urn)
