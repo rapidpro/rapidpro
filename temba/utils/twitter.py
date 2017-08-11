@@ -178,7 +178,7 @@ class TembaTwython(Twython):  # pragma: no cover
 
         Docs: https://dev.twitter.com/webhooks/reference/post/account_activity/webhooks/subscriptions
         """
-        return self.post('account_activity/webhooks/%s/subscriptions.json' % webhook_id)
+        return self.post('account_activity/webhooks/%s/subscriptions' % webhook_id)
 
     def send_direct_message_with_events(self, params):
         """

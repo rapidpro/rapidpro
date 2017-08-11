@@ -667,7 +667,7 @@ class TriggerTest(TembaTest):
         self.assertNotContains(response, "conversation is started")
 
         # add a viber public channel
-        viber_channel = Channel.create(self.org, self.user, None, Channel.TYPE_VIBER_PUBLIC, None, '1001',
+        viber_channel = Channel.create(self.org, self.user, None, 'VP', None, '1001',
                                        uuid='00000000-0000-0000-0000-000000001234',
                                        config={Channel.CONFIG_AUTH_TOKEN: "auth_token"})
 

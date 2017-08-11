@@ -991,7 +991,7 @@ class BroadcastTest(TembaTest):
     def test_send(self):
         # remove all channels first
         for channel in Channel.objects.all():
-            channel.release(notify_mage=False)
+            channel.release()
 
         send_url = reverse('msgs.broadcast_send')
         self.login(self.admin)
@@ -1038,7 +1038,7 @@ class BroadcastTest(TembaTest):
 
         # test with one channel now
         for channel in Channel.objects.all():
-            channel.release(notify_mage=False)
+            channel.release()
 
         Channel.create(self.org, self.user, None, 'A', None, secret="12345", gcm_id="123")
 
@@ -1109,7 +1109,7 @@ class BroadcastTest(TembaTest):
         self.assertTrue(msgs[0].contact, twitter_contact)
 
         # remove twitter relayer
-        self.twitter.release(trigger_sync=False, notify_mage=False)
+        self.twitter.release(trigger_sync=False)
 
         # send another broadcast to all
         broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", recipients)
