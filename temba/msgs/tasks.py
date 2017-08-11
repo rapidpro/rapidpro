@@ -9,11 +9,11 @@ import requests
 from celery.task import task
 from collections import defaultdict
 from datetime import timedelta
-from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction, connection
 from django.db.models import Count
 from django.utils import timezone
+from django.conf import settings
 from django_redis import get_redis_connection
 from temba.utils import json_date_to_datetime, chunk_list
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
@@ -402,7 +402,7 @@ def clear_old_msg_external_ids():
 
 
 @task(track_started=True, name='send_chatbase_logs')
-def send_chatbase_logs(chatbase_api_key, chatbase_api_version, channel_name, text, contact_id, log_type, not_handled, intent=None):  # pragma: needs cover
+def send_chatbase_logs(chatbase_api_key, chatbase_api_version, channel_name, text, contact_id, log_type, not_handled):  # pragma: needs cover
     """
     Send messages logs in batch to Chatbase
     """
@@ -425,9 +425,6 @@ def send_chatbase_logs(chatbase_api_key, chatbase_api_version, channel_name, tex
 
     if log_type == 'user' and not_handled:
         message['not_handled'] = not_handled
-
-    if intent:
-        message['intent'] = intent
 
     headers = {'Content-Type': 'application/json'}
     headers.update(TEMBA_HEADERS)

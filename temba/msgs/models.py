@@ -801,7 +801,6 @@ class Msg(models.Model):
         from .tasks import send_chatbase_logs
 
         handlers = get_message_handlers()
-        flow = None
 
         if msg.contact.is_blocked:
             msg.visibility = Msg.VISIBILITY_ARCHIVED
@@ -813,7 +812,7 @@ class Msg(models.Model):
                     if settings.DEBUG:  # pragma: no cover
                         start = time.time()
 
-                    (handled, flow) = handler.handle(msg)
+                    handled = handler.handle(msg)
 
                     if start:  # pragma: no cover
                         print("[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk or 0))
@@ -839,7 +838,7 @@ class Msg(models.Model):
         # Registering data to send to Chatbase API later
         org = msg.org
         if org.is_connected_to_chatbase():
-            on_transaction_commit(lambda: send_chatbase_logs.apply_async(args=(msg.as_task_json()['chatbase_api_key'], msg.as_task_json()['chatbase_api_version'], msg.channel.name, msg.text, msg.contact.id, CHATBASE_TYPE_USER, chatbase_not_handled, flow), queue='msgs'))
+            on_transaction_commit(lambda: send_chatbase_logs.apply_async(args=(msg.as_task_json()['chatbase_api_key'], msg.as_task_json()['chatbase_api_version'], msg.channel.name, msg.text, msg.contact.id, CHATBASE_TYPE_USER, chatbase_not_handled), queue='msgs'))
 
         # record our handling latency for this object
         if msg.queued_on:

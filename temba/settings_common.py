@@ -1093,7 +1093,7 @@ SEND_AIRTIME = False
 
 ######
 # DANGER: only turn this on if you know what you are doing!
-#         could cause data to be sent to Chatbase in test environment
+#         could cause calls in test environments
 SEND_CHATBASE = False
 
 ######
