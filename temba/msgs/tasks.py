@@ -402,7 +402,7 @@ def clear_old_msg_external_ids():
 
 
 @task(track_started=True, name='send_chatbase_logs')
-def send_chatbase_logs(chatbase_api_key, chatbase_api_version, channel_name, text, contact_id, log_type, not_handled, intent=None):  # pragma: needs cover
+def send_chatbase_logs(chatbase_api_key, chatbase_api_version, channel_name, text, contact_id, log_type, not_handled):  # pragma: needs cover
     """
     Send messages logs in batch to Chatbase
     """
@@ -425,9 +425,6 @@ def send_chatbase_logs(chatbase_api_key, chatbase_api_version, channel_name, tex
 
     if log_type == 'user' and not_handled:
         message['not_handled'] = not_handled
-
-    if intent:
-        message['intent'] = intent
 
     headers = {'Content-Type': 'application/json'}
     headers.update(TEMBA_HEADERS)
