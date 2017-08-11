@@ -3048,7 +3048,7 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
-                             '"Twitter", "Viber", "Line", "Telegram", "Email", "External", '
+                             '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Email", "External", '
                              '"Jiochat", "Fcm" should be included.')
 
         # check that no contacts or groups were created by any of the previous invalid imports
@@ -3892,9 +3892,9 @@ class ContactFieldTest(TembaTest):
             return workbook.worksheets[0]
 
         # no group specified, so will default to 'All Contacts'
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(40):
             self.assertExcelSheet(request_export(), [
-                ["UUID", "Name", "Email", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                ["UUID", "Name", "Email", "Phone", "Telegram", "Twitter", "TwitterID", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "1234", "adam", "", "", ""],
                 [contact.uuid, "Ben Haggerty", "", "+12067799294", "", "", "One", "", "20-12-2015 08:30"],
             ])
@@ -3917,7 +3917,7 @@ class ContactFieldTest(TembaTest):
         # export a specified group of contacts (only Ben and Adam are in the group)
         with self.assertNumQueries(40):
             self.assertExcelSheet(request_export('?g=%s' % group.uuid), [
-                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "TwitterID", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
                 [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
             ])
@@ -3925,7 +3925,7 @@ class ContactFieldTest(TembaTest):
         # export a search
         with self.assertNumQueries(40):
             self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng'), [
-                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "TwitterID", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
                 [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", ""],
             ])
@@ -3933,7 +3933,7 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         with self.assertNumQueries(40):
             self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid), [
-                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "TwitterID", "First", "Second", "Third"],
                 [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
             ])
 

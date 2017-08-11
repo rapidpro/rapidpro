@@ -7855,10 +7855,10 @@ class TwitterTest(TembaTest):
 
             ChannelLog.objects.all().delete()
 
-            msg.contact_urn.display = "joe81"
-            msg.contact_urn.scheme = 'twitterid'
-            msg.contact_urn.path = "12345"
-            msg.contact_urn.identity = "twitterid:12345"
+            msg.contact_urn.path = "joe81"
+            msg.contact_urn.scheme = 'twitter'
+            msg.contact_urn.display = None
+            msg.contact_urn.identity = "twitter:joe81"
             msg.contact_urn.save()
 
             with patch('requests.sessions.Session.post') as mock:
@@ -7869,7 +7869,7 @@ class TwitterTest(TembaTest):
 
                 # assert we were only called once
                 self.assertEquals(1, mock.call_count)
-                self.assertEquals("12345", mock.call_args[1]['data']['user_id'])
+                self.assertEquals("joe81", mock.call_args[1]['data']['screen_name'])
 
                 # check the status of the message is now sent
                 msg.refresh_from_db()
@@ -7877,6 +7877,10 @@ class TwitterTest(TembaTest):
                 self.assertEquals('1234567890', msg.external_id)
                 self.assertTrue(msg.sent_on)
                 self.assertEqual(mock.call_args[1]['data']['text'], msg.text)
+
+                self.clear_cache()
+
+            ChannelLog.objects.all().delete()
 
             with patch('requests.sessions.Session.post') as mock:
                 mock.side_effect = TwythonError("Failed to send message")
