@@ -1061,7 +1061,7 @@ class Flow(TembaModel):
         flows = self.org.resolve_dependencies([self], [], False)
         flow_json = []
         for flow in flows:
-            if flow.is_runnable_in_goflow():
+            if flow.is_runnable_in_goflow() and flow.flow_type in (Flow.MESSAGE, Flow.FLOW):
                 flow_json.append(flow.as_json(expand_contacts=True))
             else:
                 # return an empty list if any of our dependencies is too fancy
@@ -2754,6 +2754,7 @@ class FlowRun(models.Model):
         path = run_output['path']
         is_active = run_output['status'] in ('active', 'waiting')
         is_error = run_output['status'] == 'errored'
+        created_on = iso8601.parse_date(run_output['created_on'])
         expires_on = iso8601.parse_date(run_output['expires_on']) if run_output['expires_on'] else None
 
         # does this run already exist?
@@ -2782,7 +2783,10 @@ class FlowRun(models.Model):
 
         else:
             prev_path = []
-            created_on = timezone.now()
+
+            # use our now for created_on/modified_on as this needs to be as close as possible to database time for API
+            # run syncing to work
+            now = timezone.now()
 
             flow = Flow.objects.get(org=contact.org, uuid=run_output['flow_uuid'])
 
@@ -2793,10 +2797,11 @@ class FlowRun(models.Model):
                                      flow=flow, contact=contact,
                                      parent=parent,
                                      output=json.dumps(run_output),
-                                     exited_on=exited_on, exit_type=exit_type,
                                      session=session,
                                      is_active=is_active,
-                                     created_on=created_on, expires_on=expires_on, modified_on=created_on)
+                                     exited_on=exited_on, exit_type=exit_type,
+                                     expires_on=expires_on,
+                                     created_on=now, modified_on=now)
 
             # old simulation needs an action log showing we entered the flow
             if contact.is_test:
@@ -3369,10 +3374,15 @@ class FlowStep(models.Model):
         # look through our events for flow results to save as ruleset results
         category = None
         value = None
+        decimal_value = None
         for event in path_step['events']:
             if event['type'] == 'save_flow_result' and event['category']:
                 category = event['category']
                 value = event['value']
+                try:
+                    decimal_value = Decimal(event['value'])
+                except Exception:
+                    pass
                 break
 
         if step_type == cls.TYPE_RULE_SET:
@@ -3391,16 +3401,15 @@ class FlowStep(models.Model):
         existing = cls.objects.filter(run=run, arrived_on=arrived_on, step_uuid=node_uuid).first()
 
         if existing:
-            # print("===Updating step for %s" % node_uuid)
             existing.left_on = left_on
             existing.rule_uuid = rule_uuid
             existing.rule_category = category
             existing.rule_value = value
+            existing.rule_decimal_value = decimal_value
             existing.next_uuid = next_uuid
-            existing.save(update_fields=('left_on', 'rule_uuid', 'next_uuid', 'rule_category', 'rule_value'))
+            existing.save(update_fields=('left_on', 'rule_uuid', 'next_uuid', 'rule_category', 'rule_value', 'rule_decimal_value'))
             step = existing
         else:
-            # print("===Creating step for %s" % node_uuid)
             step = cls.objects.create(step_uuid=node_uuid,
                                       step_type=step_type,
                                       run=run,
@@ -3410,6 +3419,7 @@ class FlowStep(models.Model):
                                       next_uuid=next_uuid,
                                       rule_category=category,
                                       rule_value=value,
+                                      rule_decimal_value=decimal_value,
                                       rule_uuid=rule_uuid)
 
         for msg in step_messages:
