@@ -88,6 +88,7 @@ class TwimlAPIHandler(BaseChannelHandler):
 
     def post(self, request, *args, **kwargs):
         from twilio.util import RequestValidator
+        from temba.flows.models import FlowSession
         from temba.msgs.models import Msg
 
         signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
@@ -139,6 +140,7 @@ class TwimlAPIHandler(BaseChannelHandler):
 
                 if flow:
                     call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, call_sid)
+                    FlowSession.create_ivr(contact, call)
 
                     call.update_status(request.POST.get('CallStatus', None),
                                        request.POST.get('CallDuration', None),
@@ -1061,6 +1063,7 @@ class NexmoCallHandler(BaseChannelHandler):
         return self.get(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
+        from temba.flows.models import FlowSession
         from temba.ivr.models import IVRCall
 
         action = kwargs['action'].lower()
@@ -1149,6 +1152,7 @@ class NexmoCallHandler(BaseChannelHandler):
 
             if flow:
                 call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, external_id)
+                FlowSession.create_ivr(contact, call)
 
                 FlowRun.create(flow, contact.pk, session=call)
                 response = Flow.handle_call(call)

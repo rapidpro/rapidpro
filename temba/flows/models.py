@@ -119,6 +119,30 @@ def edit_distance(s1, s2):  # pragma: no cover
     return d[lenstr1 - 1, lenstr2 - 1]
 
 
+class FlowSession(models.Model):
+    TYPE_IVR = 'F'
+    TYPE_USSD = 'U'
+
+    TYPE_CHOICES = ((TYPE_IVR, "IVR"), (TYPE_USSD, "USSD"),)
+
+    org = models.ForeignKey(Org, help_text="The organization this session belongs to")
+
+    contact = models.ForeignKey('contacts.Contact', help_text="The contact that this session is with")
+
+    session_type = models.CharField(max_length=1, choices=TYPE_CHOICES, help_text="The type of session")
+
+    channel_session = models.ForeignKey('channels.ChannelSession', null=True,
+                                        help_text=_("The channel session used for IVR and USSD type sessions"))
+
+    @classmethod
+    def create_ivr(cls, contact, call):
+        return cls.objects.create(org=contact.org, contact=contact, session_type=cls.TYPE_IVR, channel_session=call)
+
+    @classmethod
+    def create_ussd(cls, contact, ussd_session):
+        return cls.objects.create(org=contact.org, contact=contact, session_type=cls.TYPE_USSD, channel_session=ussd_session)
+
+
 @six.python_2_unicode_compatible
 class Flow(TembaModel):
     UUID = 'uuid'
@@ -1557,6 +1581,7 @@ class Flow(TembaModel):
                 call = parent_run.session
             else:
                 call = IVRCall.create_outgoing(channel, contact, contact_urn, self.created_by)
+                FlowSession.create_ivr(contact, call)
 
             # save away our created call
             run.session = call

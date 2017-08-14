@@ -6,6 +6,7 @@ from django.db import models
 from django.utils import timezone
 from temba.channels.models import ChannelSession
 from temba.contacts.models import Contact, URN, ContactURN
+from temba.flows.models import FlowSession
 from temba.triggers.models import Trigger
 from temba.utils import get_anonymous_user
 
@@ -119,6 +120,9 @@ class USSDSession(ChannelSession):
 
         if not session:
             session, created = cls.objects.update_or_create(external_id=external_id, defaults=defaults)
+
+            if created:
+                FlowSession.create_ussd(contact, session)
         else:
             defaults.update(dict(external_id=external_id))
             for key, value in six.iteritems(defaults):
