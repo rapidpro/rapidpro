@@ -152,7 +152,7 @@ class URN(object):
         elif scheme == TWITTERID_SCHEME:
             valid = path.isdigit()
             if valid and display:
-                valid = regex.match(r'^[a-zA-Z0-9_]{1,15}$', path, regex.V0)
+                valid = regex.match(r'^[a-zA-Z0-9_]{1,15}$', display, regex.V0)
 
             return valid
 

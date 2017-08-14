@@ -3719,6 +3719,13 @@ class ContactURNTest(TembaTest):
         self.assertEqual(urn.path, '1234')
         self.assertEqual(urn.priority, 50)
 
+        urn = ContactURN.get_or_create(self.org, None, "twitterid:12345#fooman")
+        self.assertEqual("twitterid:12345", urn.identity)
+        self.assertEqual("fooman", urn.display)
+
+        urn2 = ContactURN.get_or_create(self.org, None, "twitter:fooman")
+        self.assertEqual(urn, urn2)
+
     def test_get_display(self):
         urn = ContactURN.objects.create(org=self.org, scheme='tel', path='+250788383383', identity='tel:+250788383383', priority=50)
         self.assertEqual(urn.get_display(self.org), '0788 383 383')
@@ -4223,7 +4230,13 @@ class URNTest(TembaTest):
         self.assertFalse(URN.validate("twitter:jimmyjo!@"))
         self.assertFalse(URN.validate("twitter:billy bob"))
 
-        # emil addresses
+        # twitterid urns
+        self.assertTrue(URN.validate("twitterid:12345#jimmyjo"))
+        self.assertTrue(URN.validate("twitterid:12345#1234567"))
+        self.assertFalse(URN.validate("twitterid:jimmyjo#1234567"))
+        self.assertFalse(URN.validate("twitterid:123#a.!f"))
+
+        # email addresses
         self.assertTrue(URN.validate("mailto:abcd+label@x.y.z.com"))
         self.assertFalse(URN.validate("mailto:@@@"))
 
