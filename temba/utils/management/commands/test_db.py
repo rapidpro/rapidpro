@@ -491,10 +491,10 @@ class Command(BaseCommand):
 
             if c['tel']:
                 c['urns'].append(ContactURN(org=org, contact=c['object'], priority=50, scheme=TEL_SCHEME,
-                                            path=c['tel'], urn=URN.from_tel(c['tel'])))
+                                            path=c['tel'], identity=URN.from_tel(c['tel'])))
             if c['twitter']:
                 c['urns'].append(ContactURN(org=org, contact=c['object'], priority=50, scheme=TWITTER_SCHEME,
-                                            path=c['twitter'], urn=URN.from_twitter(c['twitter'])))
+                                            path=c['twitter'], identity=URN.from_twitter(c['twitter'])))
             if c['gender']:
                 batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['gender'],
                                           string_value=c['gender']))
@@ -610,7 +610,7 @@ class Command(BaseCommand):
 
                 for text in inputs:
                     channel = flow.org.cache['channels'][0]
-                    Msg.create_incoming(channel, urn.urn, text)
+                    Msg.create_incoming(channel, six.text_type(urn), text)
 
         # if more than 10% of contacts have responded, consider flow activity over
         if len(activity['unresponded']) <= (len(activity['started']) * 0.9):
@@ -629,7 +629,7 @@ class Command(BaseCommand):
             urn = contact.urns.first()
             if urn:
                 text = ' '.join([self.random_choice(l) for l in INBOX_MESSAGES])
-                Msg.create_incoming(channel, urn.urn, text)
+                Msg.create_incoming(channel, six.text_type(urn), text)
 
     def probability(self, prob):
         return self.random.random() < prob

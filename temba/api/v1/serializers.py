@@ -196,7 +196,7 @@ class ContactReadSerializer(ReadSerializer):
         if obj.org.is_anon or not obj.is_active:
             return []
 
-        return [urn.urn for urn in obj.get_urns()]
+        return [six.text_type(urn) for urn in obj.get_urns()]
 
     def get_contact_fields(self, obj):
         fields = dict()
@@ -260,7 +260,7 @@ class ContactWriteSerializer(WriteSerializer):
             for urn in value:
                 try:
                     normalized = URN.normalize(urn)
-                    scheme, path = URN.to_parts(normalized)
+                    scheme, path, display = URN.to_parts(normalized)
                     # for backwards compatibility we don't validate phone numbers here
                     if scheme != TEL_SCHEME and not URN.validate(normalized):  # pragma: needs cover
                         raise ValueError()
@@ -325,8 +325,8 @@ class ContactWriteSerializer(WriteSerializer):
             country = self.org.get_country_code()
 
             for parsed_urn in self.parsed_urns:
-                normalized_urn = URN.normalize(parsed_urn, country)
-                urn = ContactURN.objects.filter(org=self.org, urn__exact=normalized_urn).first()
+                normalized_urn = URN.identity(URN.normalize(parsed_urn, country))
+                urn = ContactURN.objects.filter(org=self.org, identity__exact=normalized_urn).first()
                 if urn and urn.contact:
                     urn_contacts.add(urn.contact)
 
@@ -797,7 +797,7 @@ class MsgCreateSerializer(WriteSerializer):
             country = channel.country
             for urn in phones:
                 try:
-                    tel, phone = URN.to_parts(urn)
+                    tel, phone, display = URN.to_parts(urn)
                     normalized = phonenumbers.parse(phone, country.code)
                     if not phonenumbers.is_possible_number(normalized):  # pragma: needs cover
                         raise serializers.ValidationError("Invalid phone number: '%s'" % phone)
