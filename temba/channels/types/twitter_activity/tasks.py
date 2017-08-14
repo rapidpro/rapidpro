@@ -17,7 +17,7 @@ def resolve_twitter_ids():
         return
 
     with r.lock('resolve_twitter_ids_task', 900):
-        # look up all twitter contact URNs without a display, limiting to 30k since that's the most our API would allow anyways
+        # look up all 'twitter' URNs, limiting to 30k since that's the most our API would allow anyways
         twitter_urns = ContactURN.objects.filter(scheme=TWITTER_SCHEME).exclude(contact=None)[:30000].only('id',
                                                                                                            'org',
                                                                                                            'contact',
