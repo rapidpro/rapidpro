@@ -131,8 +131,8 @@ class FlowSession(models.Model):
 
     session_type = models.CharField(max_length=1, choices=TYPE_CHOICES, help_text="The type of session")
 
-    channel_session = models.ForeignKey('channels.ChannelSession', null=True,
-                                        help_text=_("The channel session used for IVR and USSD type sessions"))
+    channel_session = models.OneToOneField('channels.ChannelSession', null=True, related_name='flow_session',
+                                           help_text=_("The channel session used for IVR and USSD type sessions"))
 
     @classmethod
     def create_ivr(cls, contact, call):
