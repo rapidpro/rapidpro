@@ -32,6 +32,18 @@ class FirebaseCloudMessagingType(ChannelType):
     attachment_support = False
     free_sending = True
 
+    def get_quick_replies(self, metadata, post_body):
+        metadata = json.loads(metadata)
+        quick_replies = metadata.get('quick_replies') if metadata.get('quick_replies') else None
+        url_buttons = metadata.get('url_buttons') if metadata.get('url_buttons') else None
+
+        if quick_replies:
+            post_body['data']['metadata'] = dict(quick_replies=quick_replies)
+        elif url_buttons:
+            post_body['data']['metadata'] = dict(url_buttons=url_buttons)
+
+        return post_body
+
     def send(self, channel, msg, text):
         start = time.time()
 
@@ -55,6 +67,9 @@ class FirebaseCloudMessagingType(ChannelType):
                 'body': text
             }
             data['content_available'] = True
+
+        if hasattr(msg, 'metadata'):
+            data = self.get_quick_replies(msg.metadata, data)
 
         payload = json.dumps(data)
         headers = {'Content-Type': 'application/json', 'Authorization': 'key=%s' % channel.config.get('FCM_KEY')}
