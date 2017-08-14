@@ -846,7 +846,10 @@ class Msg(models.Model):
         # Registering data to send to Chatbase API later
         org = msg.org
         if org.is_connected_to_chatbase():
-            on_transaction_commit(lambda: send_chatbase_logs.apply_async(args=(msg.as_task_json()['chatbase_api_key'], msg.as_task_json()['chatbase_api_version'], msg.channel.name, msg.text, msg.contact.id, CHATBASE_TYPE_USER, chatbase_not_handled), queue='msgs'))
+            on_transaction_commit(lambda: send_chatbase_logs.apply_async(
+                args=(msg.as_task_json()['chatbase_api_key'], msg.as_task_json()['chatbase_api_version'],
+                      msg.channel.name, msg.text, msg.contact.id, CHATBASE_TYPE_USER, chatbase_not_handled),
+                queue='msgs'))
 
         # record our handling latency for this object
         if msg.queued_on:

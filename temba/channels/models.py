@@ -1323,7 +1323,10 @@ class Channel(TembaModel):
 
             # Send data to Chatbase API
             if hasattr(msg, 'is_org_connected_to_chatbase'):
-                on_transaction_commit(lambda: send_chatbase_logs.apply_async(args=(msg.chatbase_api_key, msg.chatbase_api_version, channel.name, msg.text, msg.contact, CHATBASE_TYPE_AGENT), queue='msgs'))
+                on_transaction_commit(lambda: send_chatbase_logs.apply_async(args=(msg.chatbase_api_key,
+                                                                                   msg.chatbase_api_version,
+                                                                                   channel.name, msg.text, msg.contact,
+                                                                                   CHATBASE_TYPE_AGENT), queue='msgs'))
 
     @classmethod
     def send_red_rabbit_message(cls, channel, msg, text):
