@@ -23,6 +23,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from django_redis import get_redis_connection
 from requests import Request
+from temba_expressions.utils import tokenize
+
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import Contact, URN
@@ -673,7 +675,8 @@ class TelegramHandler(BaseChannelHandler):
             location = body['message']['location']
             attachments.append('geo:%s,%s' % (location['latitude'], location['longitude']))
 
-        if text and text.startswith("/start"):
+        words = tokenize(text)
+        if words and words[0] == "start":
 
             Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
             return make_response("Conversation started")
