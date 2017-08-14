@@ -1208,7 +1208,9 @@ class Msg(models.Model):
             data.update(dict(auth=self.contact_urn.auth))
 
         if self.org.is_connected_to_chatbase():
-            data.update(dict(is_org_connected_to_chatbase=True, chatbase_api_key=self.org.config_json()['CHATBASE_API_KEY'], chatbase_api_version=self.org.config_json()['CHATBASE_VERSION']))
+            data.update(dict(is_org_connected_to_chatbase=True,
+                             chatbase_api_key=self.org.config_json()['CHATBASE_API_KEY'],
+                             chatbase_api_version=self.org.config_json()['CHATBASE_VERSION']))
 
         return data
 
