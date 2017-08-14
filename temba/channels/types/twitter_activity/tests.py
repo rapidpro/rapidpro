@@ -8,7 +8,7 @@ from django.urls import reverse
 from mock import patch
 from temba.tests import TembaTest
 from temba.utils.twitter import TwythonError
-from temba.contacts.models import ContactURN, URN
+from temba.contacts.models import URN
 from ...models import Channel
 from .tasks import resolve_twitter_ids
 
@@ -123,9 +123,8 @@ class TwitterActivityTypeTest(TembaTest):
         self.assertEqual("therealjoe", new_urn.display)
         self.assertEqual("twitterid:123456#therealjoe", new_urn.urn)
 
-        old_fred = self.create_contact("fred", urn=URN.from_twitterid("12345", screen_name="fred"))
-        new_fred = self.create_contact("fred")
-        ContactURN.create(new_fred.org, new_fred, "twitter:fred")
+        old_fred = self.create_contact("old fred", urn=URN.from_twitter("fred"))
+        new_fred = self.create_contact("new fred", urn=URN.from_twitterid("12345", screen_name="fred"))
 
         mock_lookup_user.return_value = [dict(screen_name="fred", id="12345")]
         resolve_twitter_ids()
