@@ -1603,6 +1603,10 @@ class Contact(TembaModel):
         for scheme, label in ContactURN.SCHEME_CHOICES:
             context[scheme] = self.get_urn_display(scheme=scheme, org=org) or ''
 
+        # populate twitter address if we have a twitter id
+        if context[TWITTERID_SCHEME] and not context[TWITTER_SCHEME]:
+            context[TWITTER_SCHEME] = context[TWITTERID_SCHEME]
+
         field_values = Value.objects.filter(contact=self).exclude(contact_field=None)\
                                                          .exclude(contact_field__is_active=False)\
                                                          .select_related('contact_field')
@@ -2059,6 +2063,9 @@ class ContactURN(models.Model):
 
             except Exception:  # pragma: no cover
                 pass
+
+        if self.display:
+            return self.display
 
         return self.path
 

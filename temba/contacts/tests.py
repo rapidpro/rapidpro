@@ -3469,6 +3469,9 @@ class ContactTest(TembaTest):
         self.assertEquals(value.location_value, ward)
 
     def test_expressions_context(self):
+        self.joe.urns.filter(scheme='twitter').delete()
+        ContactURN.create(self.joe.org, self.joe, "twitterid:12345#therealjoe")
+
         context = self.joe.build_expressions_context()
 
         self.assertEquals("Joe", context['first_name'])
@@ -3478,6 +3481,8 @@ class ContactTest(TembaTest):
         self.assertEquals("", context['groups'])
         self.assertEquals(context['uuid'], self.joe.uuid)
         self.assertEquals(self.joe.uuid, context['uuid'])
+        self.assertEquals("therealjoe", context['twitter'])
+        self.assertEquals("therealjoe", context['twitterid'])
 
         # add him to a group
         self.create_group("Reporters", [self.joe])
