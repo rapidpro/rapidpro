@@ -402,7 +402,7 @@ def clear_old_msg_external_ids():
 
 
 @task(track_started=True, name='send_chatbase_logs')
-def send_chatbase_logs(chatbase_api_key, chatbase_api_version, channel_name, text, contact_id, log_type, not_handled):  # pragma: needs cover
+def send_chatbase_logs(chatbase_api_key, chatbase_api_version, channel_name, text, contact_id, log_type, not_handled=True):
     """
     Send messages logs in batch to Chatbase
     """
