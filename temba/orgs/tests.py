@@ -1350,7 +1350,6 @@ class OrgTest(TembaTest):
         self.assertContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
 
     def test_chatbase_account(self):
-
         self.login(self.admin)
 
         self.org.refresh_from_db()
@@ -1377,12 +1376,6 @@ class OrgTest(TembaTest):
         self.assertEquals(self.org.config_json()['CHATBASE_AGENT_NAME'], 'chatbase_agent')
         self.assertEquals(self.org.config_json()['CHATBASE_VERSION'], '1.0')
 
-        with self.settings(SEND_CHATBASE=True):
-            contact = self.create_contact('Anakin Skywalker', '+12067791212')
-            msg = self.create_msg(contact=contact, text="favs")
-            Msg.process_message(msg)
-            contact.send("Hello, world!", self.admin, trigger_send=False)
-
         org_home_url = reverse('orgs.org_home')
 
         response = self.client.get(org_home_url)
@@ -1399,7 +1392,6 @@ class OrgTest(TembaTest):
             contact = self.create_contact('Anakin Skywalker', '+12067791212')
             msg = self.create_msg(contact=contact, text="favs")
             Msg.process_message(msg)
-            contact.send("Hello, world!", self.admin, trigger_send=False)
 
     def test_resthooks(self):
         # no hitting this page without auth
