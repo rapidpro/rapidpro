@@ -2004,6 +2004,13 @@ class JunebugHandler(BaseChannelHandler):
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
+        authorization = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
+
+        if channel.secret is not None and (
+                len(authorization) != 2 or authorization[0] != 'Token' or
+                authorization[1] != channel.secret):
+            return JsonResponse(dict(error="Incorrect authentication token"), status=401)
+
         # Junebug is sending an event
         if action == 'event':
             expected_keys = ["event_type", "message_id", "timestamp"]
@@ -2072,7 +2079,8 @@ class JunebugHandler(BaseChannelHandler):
 
                 message_date = datetime.strptime(data['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
                 gmt_date = pytz.timezone('GMT').localize(message_date)
-                session_id = '%s.%s' % (data['from'], gmt_date.toordinal())
+                # Use a session id if provided, otherwise fall back to using the `from` address as the identifier
+                session_id = channel_data.get('session_id') or data['from']
 
                 session = USSDSession.handle_incoming(channel=channel, urn=data['from'], content=data['content'],
                                                       status=status, date=gmt_date, external_id=session_id,
