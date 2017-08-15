@@ -1,3 +1,8 @@
+v3.0.180
+----------
+ * Switch to using twitterid scheme for Twitter messages
+ * Should be shipped before Mage v0.1.84
+
 v3.0.179
 ----------
  * Allow editing of start conversation triggers
