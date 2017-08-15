@@ -1,3 +1,9 @@
+v3.0.182
+----------
+ * Tweak test_start_flow_action to test parent run states only after child runs have completed
+ * Stop contacts when they have only an invalid twitter screen name
+ * Change to max USSD session length
+
 v3.0.181
 ----------
  * Ignore case when looking up twitter screen names
