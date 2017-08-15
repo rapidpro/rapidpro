@@ -3062,11 +3062,6 @@ class FlowRun(models.Model):
 
     @classmethod
     def continue_parent_flow_run(cls, run, trigger_send=True, continue_parent=True):
-        # resume via goflow if this run using the new engine
-        if run.parent.session and run.parent.session.session_type == ChannelSession.GO:
-            session = FlowSession.objects.get(id=run.parent.session.id)
-            return session.resume(expired_child_run=run)
-
         msgs = []
 
         steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
@@ -3077,6 +3072,11 @@ class FlowRun(models.Model):
             if run.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED and run.contact.id == step.run.contact.id:
                 FlowRun.bulk_exit(FlowRun.objects.filter(id=step.run.id), FlowRun.EXIT_TYPE_INTERRUPTED)
                 return
+
+            # resume via goflow if this run is using the new engine
+            if run.parent.session and run.parent.session.session_type == ChannelSession.GO:
+                session = FlowSession.objects.get(id=run.parent.session.id)
+                return session.resume(expired_child_run=run)
 
             ruleset = RuleSet.objects.filter(uuid=step.step_uuid, ruleset_type=RuleSet.TYPE_SUBFLOW,
                                              flow__org=step.run.org).first()
