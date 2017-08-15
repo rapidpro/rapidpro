@@ -233,7 +233,7 @@ class TembaTest(SmartminTest):
 
         self.org2.initialize(topup_size=topup_size)
 
-    def create_contact(self, name=None, number=None, twitter=None, urn=None, is_test=False, **kwargs):
+    def create_contact(self, name=None, number=None, twitter=None, twitterid=None, urn=None, is_test=False, **kwargs):
         """
         Create a contact in the master test org
         """
@@ -242,6 +242,8 @@ class TembaTest(SmartminTest):
             urns.append(URN.from_tel(number))
         if twitter:
             urns.append(URN.from_twitter(twitter))
+        if twitterid:
+            urns.append(URN.from_twitterid(twitterid))
         if urn:
             urns.append(urn)
 

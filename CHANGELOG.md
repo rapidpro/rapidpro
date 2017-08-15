@@ -1,3 +1,26 @@
+v3.0.181
+----------
+ * Ignore case when looking up twitter screen names
+
+v3.0.180
+----------
+ * Switch to using twitterid scheme for Twitter messages
+ * Should be shipped before Mage v0.1.84
+
+v3.0.179
+----------
+ * Allow editing of start conversation triggers
+
+v3.0.178
+----------
+ * Remove urn field, urn compound index, remove last uses of urn field
+
+v3.0.177
+----------
+ * remove all uses of urn (except when writing)
+ * create display index, backfill identity
+ * Allow users to specify extra URNs columns to include on the flow results export
+
 v3.0.176
 ----------
  * Add display and identity fields to ContactURN

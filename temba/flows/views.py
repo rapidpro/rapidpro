@@ -1431,7 +1431,7 @@ class FlowCRUDL(SmartCRUDL):
                                                     status=status)
                     else:
                         Msg.create_incoming(None,
-                                            test_contact.get_urn(TEL_SCHEME).urn,
+                                            six.text_type(test_contact.get_urn(TEL_SCHEME)),
                                             new_message,
                                             attachments=[media] if media else None,
                                             org=user.get_org(),
