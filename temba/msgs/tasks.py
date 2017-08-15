@@ -4,7 +4,6 @@ import logging
 import six
 import time
 import json
-import requests
 
 from celery.task import task
 from collections import defaultdict
@@ -13,7 +12,6 @@ from django.core.cache import cache
 from django.db import transaction, connection
 from django.db.models import Count
 from django.utils import timezone
-from django.conf import settings
 from django_redis import get_redis_connection
 from temba.utils import json_date_to_datetime, chunk_list
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
@@ -399,33 +397,3 @@ def clear_old_msg_external_ids():
         Msg.objects.filter(pk__in=msg_id_batch).update(external_id=None)
 
     print("Cleared external ids on %d messages" % len(msg_ids))
-
-
-@task(track_started=True, name='send_chatbase_logs')
-def send_chatbase_logs(chatbase_api_key, chatbase_api_version, channel_name, text, contact_id, log_type, not_handled=True):
-    """
-    Send messages logs in batch to Chatbase
-    """
-    from temba.channels.models import TEMBA_HEADERS
-
-    if not settings.SEND_CHATBASE:
-        raise Exception("!! Skipping Chatbase request, SEND_CHATBASE set to False")
-
-    message = {
-        'type': log_type,
-        'user_id': contact_id,
-        'platform': channel_name,
-        'message': text,
-        'time_stamp': int(time.time()),
-        'api_key': chatbase_api_key
-    }
-
-    if chatbase_api_version:
-        message['version'] = chatbase_api_version
-
-    if log_type == 'user' and not_handled:
-        message['not_handled'] = not_handled
-
-    headers = {'Content-Type': 'application/json'}
-    headers.update(TEMBA_HEADERS)
-    requests.post(settings.CHATBASE_API_URL, data=json.dumps(message), headers=headers)
