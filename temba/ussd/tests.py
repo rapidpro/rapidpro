@@ -855,6 +855,20 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         self.assertEquals(outbound_msg.session.status, USSDSession.TRIGGERED)
         self.assertEquals(inbound_msg.direction, INCOMING)
 
+    def test_receive_with_session_id(self):
+        from temba.ussd.models import USSDSession
+
+        data = self.mk_ussd_msg(content="événement", session_id='session-id', to=self.starcode)
+        callback_url = reverse('handlers.junebug_handler',
+                               args=['inbound', self.channel.uuid])
+        self.client.post(callback_url, json.dumps(data), content_type='application/json')
+
+        # load our message
+        inbound_msg, outbound_msg = Msg.objects.all().order_by('pk')
+        self.assertEquals(outbound_msg.session.status, USSDSession.TRIGGERED)
+        self.assertEquals(outbound_msg.session.external_id, 'session-id')
+        self.assertEquals(inbound_msg.session.external_id, 'session-id')
+
     def test_receive_ussd_no_session(self):
         from temba.channels.handlers import JunebugHandler
 
@@ -914,7 +928,8 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                 call = mock.call_args_list[0]
                 (args, kwargs) = call
                 payload = kwargs['json']
-                self.assertIsNone(payload['reply_to'])
+                self.assertIsNone(payload.get('reply_to'))
+                self.assertEquals(payload.get('to'), "+250788383383")
                 self.assertEquals(payload['channel_data'], {
                     'continue_session': True
                 })
@@ -924,6 +939,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                 (args, kwargs) = call
                 payload = kwargs['json']
                 self.assertEquals(payload['reply_to'], 'vumi-message-id')
+                self.assertEquals(payload.get('to'), None)
                 self.assertEquals(payload['channel_data'], {
                     'continue_session': False
                 })

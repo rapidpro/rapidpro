@@ -1634,10 +1634,13 @@ class ChannelCRUDL(SmartCRUDL):
             password = forms.CharField(label=_("Password"),
                                        help_text=_("The password to be used to authenticate to Junebug"),
                                        required=False)
+            secret = forms.CharField(label=_("Secret"),
+                                     help_text=_("The token Junebug should use to authenticate"),
+                                     required=False)
 
         title = _("Connect Junebug")
         form_class = JunebugForm
-        fields = ('channel_type', 'country', 'number', 'url', 'username', 'password')
+        fields = ('channel_type', 'country', 'number', 'url', 'username', 'password', 'secret')
 
         def form_valid(self, form):
             org = self.request.user.get_org()
@@ -1654,6 +1657,9 @@ class ChannelCRUDL(SmartCRUDL):
                                                                      data['password'], data['channel_type'],
                                                                      data.get('url'),
                                                                      role=role)
+            if data['secret']:
+                self.object.secret = data['secret']
+                self.object.save()
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
