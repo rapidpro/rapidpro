@@ -7468,7 +7468,7 @@ class TelegramTest(TembaTest):
               "type": "private"
             },
             "date": 1454119029,
-            "text": "/start Hello World"
+            "text": "/start"
           }
         }
         """
@@ -7507,7 +7507,7 @@ class TelegramTest(TembaTest):
               "type": "private"
             },
             "date": 1454119029,
-            "text": "/startup Hello World"
+            "text": "/startup"
           }
         }
         """
@@ -7522,7 +7522,7 @@ class TelegramTest(TembaTest):
         self.assertEquals(INCOMING, msg1.direction)
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
-        self.assertEquals("/startup Hello World", msg1.text)
+        self.assertEquals("/startup", msg1.text)
         self.assertEqual(msg1.contact.name, 'Nic Pottier')
 
         Msg.objects.all().delete()
