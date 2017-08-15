@@ -8,7 +8,9 @@ from django.urls import reverse
 from mock import patch
 from temba.tests import TembaTest
 from temba.utils.twitter import TwythonError
+from temba.contacts.models import URN
 from ...models import Channel
+from .tasks import resolve_twitter_ids
 
 
 class TwitterActivityTypeTest(TembaTest):
@@ -16,7 +18,7 @@ class TwitterActivityTypeTest(TembaTest):
         super(TwitterActivityTypeTest, self).setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'TWT', name="Twitter Beta", address="beta_bob",
-                                      role="SR", schemes=['twitter'],
+                                      role="SR",
                                       config={'api_key': 'ak1',
                                               'api_secret': 'as1',
                                               'access_token': 'at1',
@@ -92,3 +94,43 @@ class TwitterActivityTypeTest(TembaTest):
         self.channel.release()
 
         mock_delete_webhook.assert_called_once_with('wh45678')
+
+    @patch('twython.Twython.lookup_user')
+    def test_resolve(self, mock_lookup_user):
+        self.joe = self.create_contact("joe", twitter="therealjoe")
+
+        urn = self.joe.get_urns()[0]
+
+        # test no return value, shouldn't affect contact URN
+        mock_lookup_user.return_value = []
+        resolve_twitter_ids()
+
+        urn.refresh_from_db()
+        self.assertIsNone(urn.display)
+        self.assertEqual("twitter:therealjoe", urn.identity)
+        self.assertEqual("therealjoe", urn.path)
+
+        # test a real return value
+        mock_lookup_user.return_value = [dict(screen_name="therealjoe", id="123456")]
+        resolve_twitter_ids()
+
+        urn.refresh_from_db()
+        self.assertIsNone(urn.contact)
+
+        new_urn = self.joe.get_urns()[0]
+        self.assertEqual("twitterid:123456", new_urn.identity)
+        self.assertEqual("123456", new_urn.path)
+        self.assertEqual("therealjoe", new_urn.display)
+        self.assertEqual("twitterid:123456#therealjoe", new_urn.urn)
+
+        old_fred = self.create_contact("old fred", urn=URN.from_twitter("fred"))
+        new_fred = self.create_contact("new fred", urn=URN.from_twitterid("12345", screen_name="fred"))
+
+        mock_lookup_user.return_value = [dict(screen_name="fred", id="12345")]
+        resolve_twitter_ids()
+
+        # new fred shouldn't have any URNs anymore as he really is old_fred
+        self.assertEqual(0, len(new_fred.urns.all()))
+
+        # old fred should be unchanged
+        self.assertEqual("twitterid:12345", old_fred.urns.all()[0].identity)

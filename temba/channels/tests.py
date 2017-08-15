@@ -64,7 +64,7 @@ class ChannelTest(TembaTest):
                                           role="SR", secret="12345", gcm_id="123")
 
         self.twitter_channel = Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
-                                              address="billy_bob", role="SR", schemes=['twitter'])
+                                              address="billy_bob", role="SR")
 
         self.released_channel = Channel.create(None, self.user, None, 'NX', name="Released Channel", address=None,
                                                secret=None, gcm_id="000")
@@ -3650,7 +3650,7 @@ class ExternalTest(TembaTest):
         self.assertFalse(Msg.objects.all())
 
     def test_receive_external(self):
-        self.channel.scheme = 'ext'
+        self.channel.schemes = ['ext']
         self.channel.save()
 
         data = {'from': 'lynch24', 'text': 'Beast Mode!'}
@@ -7725,7 +7725,7 @@ class TwitterTest(TembaTest):
                                                    'access_token_secret': '0123456789'},
                                            uuid='00000000-0000-0000-0000-000000001234')
 
-        self.joe = self.create_contact("Joe", twitter='joe81')
+        self.joe = self.create_contact("Joe", twitterid='10002')
 
     def signed_request(self, url, data, api_secret='APISECRET'):
         """
@@ -7753,8 +7753,8 @@ class TwitterTest(TembaTest):
                 }
             ],
             "users": {
-                sender['id']: {"name": sender['name'], "screen_name": sender['screen_name']},
-                target['id']: {"name": target['name'], "screen_name": target['screen_name']}
+                sender['id']: {"id": sender['id'], "name": sender['name'], "screen_name": sender['screen_name']},
+                target['id']: {"id": target['id'], "name": target['name'], "screen_name": target['screen_name']}
             }
         }
 
@@ -7842,6 +7842,34 @@ class TwitterTest(TembaTest):
 
                 # assert we were only called once
                 self.assertEquals(1, mock.call_count)
+                self.assertEquals("10002", mock.call_args[1]['data']['user_id'])
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(WIRED, msg.status)
+                self.assertEquals('1234567890', msg.external_id)
+                self.assertTrue(msg.sent_on)
+                self.assertEqual(mock.call_args[1]['data']['text'], msg.text)
+
+                self.clear_cache()
+
+            ChannelLog.objects.all().delete()
+
+            msg.contact_urn.path = "joe81"
+            msg.contact_urn.scheme = 'twitter'
+            msg.contact_urn.display = None
+            msg.contact_urn.identity = "twitter:joe81"
+            msg.contact_urn.save()
+
+            with patch('requests.sessions.Session.post') as mock:
+                mock.return_value = MockResponse(200, json.dumps(dict(id=1234567890)))
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # assert we were only called once
+                self.assertEquals(1, mock.call_count)
+                self.assertEquals("joe81", mock.call_args[1]['data']['screen_name'])
 
                 # check the status of the message is now sent
                 msg.refresh_from_db()
