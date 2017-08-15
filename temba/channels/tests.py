@@ -9746,23 +9746,22 @@ class FacebookTest(TembaTest):
         "entry": [{
           "id": 208685479508187,
           "messaging": [{
-              "timestamp": 1502820098870, 
-              "message": {
-                "text": "Test",
-                "mid": "external_id",
-                "seq": 1234,
-                "quick_reply": {
-                  "payload": "Test"
-                }
-              }, 
-              "recipient": {
-                "id": "1234"
-              }, 
-              "sender": {
-                "id": "1234"
+            "timestamp": 1502820098870,
+            "message": {
+              "text": "Test",
+              "mid": "external_id",
+              "seq": 1234,
+              "quick_reply": {
+                "payload": "Test"
               }
+            },
+            "recipient": {
+              "id": "1234"
+            },
+            "sender": {
+              "id": "1234"
             }
-          ],
+          }],
           "time": 1459991487970
           }
         ]}
