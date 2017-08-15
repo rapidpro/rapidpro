@@ -847,8 +847,9 @@ class Msg(models.Model):
         # Registering data to send to Chatbase API later
         org = msg.org
         if org.is_connected_to_chatbase():
-            cls.send_chatbase_logs(msg.as_task_json()['chatbase_api_key'], msg.as_task_json()['chatbase_api_version'],
-                                   msg.channel.name, msg.text, msg.contact.id, CHATBASE_TYPE_USER, chatbase_not_handled)
+            msg_task_json = msg.as_task_json()
+            cls.send_chatbase_log(msg_task_json['chatbase_api_key'], msg_task_json['chatbase_api_version'],
+                                  msg.channel.name, msg.text, msg.contact.id, CHATBASE_TYPE_USER, chatbase_not_handled)
 
         # record our handling latency for this object
         if msg.queued_on:
@@ -859,8 +860,8 @@ class Msg(models.Model):
         analytics.gauge('temba.channel_handling_latency', (msg.modified_on - msg.created_on).total_seconds())
 
     @classmethod
-    def send_chatbase_logs(cls, chatbase_api_key, chatbase_api_version, channel_name, text, contact_id, log_type,
-                           not_handled=True):
+    def send_chatbase_log(cls, chatbase_api_key, chatbase_api_version, channel_name, text, contact_id, log_type,
+                          not_handled=True):
         """
         Send messages logs in batch to Chatbase
         """
@@ -1237,9 +1238,10 @@ class Msg(models.Model):
             data.update(dict(auth=self.contact_urn.auth))
 
         if self.org.is_connected_to_chatbase():
+            org_config_json = self.org.config_json()
             data.update(dict(is_org_connected_to_chatbase=True,
-                             chatbase_api_key=self.org.config_json()['CHATBASE_API_KEY'],
-                             chatbase_api_version=self.org.config_json()['CHATBASE_VERSION']))
+                             chatbase_api_key=org_config_json['CHATBASE_API_KEY'],
+                             chatbase_api_version=org_config_json['CHATBASE_VERSION']))
 
         return data
 
