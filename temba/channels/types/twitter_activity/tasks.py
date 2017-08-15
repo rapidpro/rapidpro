@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 
+import six
 from celery.task import task
 from django_redis import get_redis_connection
 from twython import Twython
@@ -16,20 +17,21 @@ def resolve_twitter_ids():
     if r.get('resolve_twitter_ids_task'):  # pragma: no cover
         return
 
-    with r.lock('resolve_twitter_ids_task', 900):
+    with r.lock('resolve_twitter_ids_task', 1800):
         # look up all 'twitter' URNs, limiting to 30k since that's the most our API would allow anyways
-        twitter_urns = ContactURN.objects.filter(scheme=TWITTER_SCHEME).exclude(contact=None)[:30000].only('id',
-                                                                                                           'org',
-                                                                                                           'contact',
-                                                                                                           'path')
+        twitter_urns = ContactURN.objects.filter(scheme=TWITTER_SCHEME,
+                                                 contact__is_stopped=False,
+                                                 contact__is_blocked=False).exclude(contact=None)
+        twitter_urns = twitter_urns[:30000].only('id', 'org', 'contact', 'path')
         api_key = settings.TWITTER_API_KEY
         api_secret = settings.TWITTER_API_SECRET
         client = Twython(api_key, api_secret)
 
         updated = 0
-        missing = 0
-
         print("found %d twitter urns to resolve" % len(twitter_urns))
+
+        # contacts we will stop
+        stop_contacts = []
 
         # we try to look these up 100 at a time
         for urn_batch in chunk_list(twitter_urns, 100):
@@ -62,12 +64,24 @@ def resolve_twitter_ids():
                         del screen_map[screen_name]
                         updated += 1
 
-                missing += len(screen_map)
+            except Exception as e:
+                # if this wasn't an exception caused by not finding any of the users, then break
+                if six.text_type(e).find("No user matches") < 0:
+                    # exit, we'll try again later
+                    print("exiting resolve_twitter_ids due to exception: %s" % e)
+                    break
 
-            except Exception as e:  # pragma: no cover
-                # exit, we'll try again later
-                print("exiting resolve_twitter_ids due to exception: %s" % e)
-                break
+            # add all remaining contacts to the contacts we will stop
+            for contact in screen_map.values():
+                stop_contacts.append(contact)
+
+        # stop all the contacts we couldn't resolve that have only a twitter URN
+        stopped = 0
+        for contact_urn in stop_contacts:
+            contact = contact_urn.contact
+            if len(contact.urns.all()) == 1:
+                contact.stop(contact.created_by)
+                stopped += 1
 
         if len(twitter_urns) > 0:
-            print("updated %d twitter urns, %d missing" % (updated, missing))
+            print("updated %d twitter urns, %d stopped" % (updated, len(stop_contacts)))

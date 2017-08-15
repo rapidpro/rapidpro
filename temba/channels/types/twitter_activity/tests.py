@@ -101,14 +101,18 @@ class TwitterActivityTypeTest(TembaTest):
 
         urn = self.joe.get_urns()[0]
 
-        # test no return value, shouldn't affect contact URN
+        # test no return value, should cause joe to be stopped
         mock_lookup_user.return_value = []
         resolve_twitter_ids()
 
+        self.joe.refresh_from_db()
         urn.refresh_from_db()
+        self.assertTrue(self.joe.is_stopped)
         self.assertIsNone(urn.display)
         self.assertEqual("twitter:therealjoe", urn.identity)
         self.assertEqual("therealjoe", urn.path)
+
+        self.joe.unstop(self.admin)
 
         # test a real return value
         mock_lookup_user.return_value = [dict(screen_name="TheRealJoe", id="123456")]
@@ -134,3 +138,17 @@ class TwitterActivityTypeTest(TembaTest):
 
         # old fred should be unchanged
         self.assertEqual("twitterid:12345", old_fred.urns.all()[0].identity)
+
+        self.jane = self.create_contact("jane", twitter="jane10")
+        mock_lookup_user.side_effect = Exception("Twitter API returned a 404 (Not Found), No user matches for specified terms.")
+        resolve_twitter_ids()
+
+        self.jane.refresh_from_db()
+        self.assertTrue(self.jane.is_stopped)
+
+        self.sarah = self.create_contact("sarah", twitter="sarah20")
+        mock_lookup_user.side_effect = Exception("Unable to reach API")
+        resolve_twitter_ids()
+
+        self.sarah.refresh_from_db()
+        self.assertFalse(self.sarah.is_stopped)
