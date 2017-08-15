@@ -1,3 +1,7 @@
+v3.0.181
+----------
+ * Ignore case when looking up twitter screen names
+
 v3.0.180
 ----------
  * Switch to using twitterid scheme for Twitter messages
