@@ -9741,6 +9741,42 @@ class FacebookTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(msg.text, "http://mediaurl.com/img.gif")
 
+        # quick reply
+        data = """{
+        "entry": [{
+          "id": 208685479508187,
+          "messaging": [{
+              "timestamp": 1502820098870, 
+              "message": {
+                "text": "Test",
+                "mid": "external_id",
+                "seq": 1234,
+                "quick_reply": {
+                  "payload": "Test"
+                }
+              }, 
+              "recipient": {
+                "id": "1234"
+              }, 
+              "sender": {
+                "id": "1234"
+              }
+            }
+          ],
+          "time": 1459991487970
+          }
+        ]}
+        """
+        Msg.objects.all().delete()
+
+        data = json.loads(data)
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        msg = Msg.objects.get()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(msg.text, "Test")
+
         # link attachment
         data = """{
           "object":"page",
