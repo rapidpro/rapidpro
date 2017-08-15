@@ -509,7 +509,7 @@ class ExternalHandler(BaseChannelHandler):
                 except ValueError as e:
                     return HttpResponse("Bad parameter error: %s" % e.message, status=400)
 
-            urn = URN.from_parts(channel.scheme, sender)
+            urn = URN.from_parts(channel.schemes[0], sender)
             sms = Msg.create_incoming(channel, urn, text, date=date)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
@@ -2008,6 +2008,13 @@ class JunebugHandler(BaseChannelHandler):
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
+        authorization = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
+
+        if channel.secret is not None and (
+                len(authorization) != 2 or authorization[0] != 'Token' or
+                authorization[1] != channel.secret):
+            return JsonResponse(dict(error="Incorrect authentication token"), status=401)
+
         # Junebug is sending an event
         if action == 'event':
             expected_keys = ["event_type", "message_id", "timestamp"]
@@ -2076,7 +2083,8 @@ class JunebugHandler(BaseChannelHandler):
 
                 message_date = datetime.strptime(data['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
                 gmt_date = pytz.timezone('GMT').localize(message_date)
-                session_id = '%s.%s' % (data['from'], gmt_date.toordinal())
+                # Use a session id if provided, otherwise fall back to using the `from` address as the identifier
+                session_id = channel_data.get('session_id') or data['from']
 
                 session = USSDSession.handle_incoming(channel=channel, urn=data['from'], content=data['content'],
                                                       status=status, date=gmt_date, external_id=session_id,
@@ -2972,7 +2980,7 @@ class TwitterHandler(BaseChannelHandler):
                 if int(sender_id) == channel_config['handle_id']:
                     continue
 
-                urn = URN.from_twitter(users[sender_id]['screen_name'])
+                urn = URN.from_twitterid(users[sender_id]['id'], users[sender_id]['screen_name'])
                 name = None if channel.org.is_anon else users[sender_id]['name']
                 contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
 

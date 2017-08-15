@@ -118,17 +118,28 @@ class USSDSession(ChannelSession):
         # check if there's an initiated PUSH session
         session = cls.objects.get_initiated_push_session(contact)
 
+        created = False
         if not session:
-            session, created = cls.objects.update_or_create(external_id=external_id, defaults=defaults)
-
-            if created:
-                FlowSession.create_ussd(contact, session)
+            try:
+                session = cls.objects.select_for_update().exclude(status__in=ChannelSession.DONE)\
+                                                         .get(external_id=external_id)
+                created = False
+                for k, v in six.iteritems(defaults):
+                    setattr(session, k, v() if callable(v) else v)
+                session.save()
+            except cls.DoesNotExist:
+                defaults['external_id'] = external_id
+                session = cls.objects.create(**defaults)
+                created = True
         else:
             defaults.update(dict(external_id=external_id))
             for key, value in six.iteritems(defaults):
                 setattr(session, key, value)
             session.save()
             created = None
+
+        if created:
+            FlowSession.create_ussd(contact, session)
 
         # start session
         if created and async and trigger:
