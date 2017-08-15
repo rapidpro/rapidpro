@@ -41,7 +41,7 @@ def resolve_twitter_ids():
                 resp = client.lookup_user(screen_name=",".join(screen_names))
 
                 for twitter_user in resp:
-                    screen_name = twitter_user['screen_name']
+                    screen_name = twitter_user['screen_name'].lower()
                     twitter_id = twitter_user['id']
 
                     if screen_name in screen_map and twitter_user['id']:

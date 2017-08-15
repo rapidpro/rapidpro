@@ -111,7 +111,7 @@ class TwitterActivityTypeTest(TembaTest):
         self.assertEqual("therealjoe", urn.path)
 
         # test a real return value
-        mock_lookup_user.return_value = [dict(screen_name="therealjoe", id="123456")]
+        mock_lookup_user.return_value = [dict(screen_name="TheRealJoe", id="123456")]
         resolve_twitter_ids()
 
         urn.refresh_from_db()
