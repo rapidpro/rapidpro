@@ -7525,6 +7525,44 @@ class TelegramTest(TembaTest):
         self.assertEquals("/startup Hello World", msg1.text)
         self.assertEqual(msg1.contact.name, 'Nic Pottier')
 
+        Msg.objects.all().delete()
+        Contact.objects.all().delete()
+
+        no_new_conversation_command = """
+        {
+          "update_id": 174114370,
+          "message": {
+            "message_id": 41,
+            "from": {
+              "id": 3527065,
+              "first_name": "Nic",
+              "last_name": "Pottier"
+            },
+            "chat": {
+              "id": 3527065,
+              "first_name": "Nic",
+              "last_name": "Pottier",
+              "type": "private"
+            },
+            "date": 1454119029,
+            "text": "start Hello World"
+          }
+        }
+        """
+
+        response = self.client.post(receive_url, no_new_conversation_command, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
+        response_json = response.json()
+        self.assertEqual(response_json.get("description"), "Message accepted")
+
+        msg1 = Msg.objects.get()
+        self.assertEquals('3527065', msg1.contact.get_urn(TELEGRAM_SCHEME).path)
+        self.assertEquals(INCOMING, msg1.direction)
+        self.assertEquals(self.org, msg1.org)
+        self.assertEquals(self.channel, msg1.channel)
+        self.assertEquals("start Hello World", msg1.text)
+        self.assertEqual(msg1.contact.name, 'Nic Pottier')
+
     def test_send(self):
         joe = self.create_contact("Ernie", urn='telegram:1234')
         msg = joe.send("Test message", self.admin, trigger_send=False)[0]

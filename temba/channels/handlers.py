@@ -676,7 +676,7 @@ class TelegramHandler(BaseChannelHandler):
             attachments.append('geo:%s,%s' % (location['latitude'], location['longitude']))
 
         words = tokenize(text)
-        if words and words[0] == "start":
+        if words and words[0] == "start" and text.startswith("/start"):
 
             Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
             return make_response("Conversation started")
