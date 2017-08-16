@@ -2,7 +2,6 @@ from __future__ import unicode_literals, absolute_import
 
 import six
 import time
-import json
 
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import Contact, TWITTER_SCHEME
