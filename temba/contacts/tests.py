@@ -2761,7 +2761,7 @@ class ContactTest(TembaTest):
                                  dict(records=1, errors=2, creates=0, updates=1,
                                       error_messages=[dict(line=3,
                                                            error="Missing any valid URNs; at least one among phone, "
-                                                                 "facebook, twitter, viber, line, telegram, email, "
+                                                                 "facebook, twitter, twitterid, viber, line, telegram, email, "
                                                                  "external, jiochat, fcm should be provided"),
                                                       dict(line=4, error="Invalid Phone number 12345")]))
 
@@ -2833,7 +2833,7 @@ class ContactTest(TembaTest):
                                      dict(records=3, errors=1, creates=1, updates=2,
                                           error_messages=[dict(line=3,
                                                           error="Missing any valid URNs; at least one among phone, "
-                                                                "facebook, twitter, viber, line, telegram, email, "
+                                                                "facebook, twitter, twitterid, viber, line, telegram, email, "
                                                                 "external, jiochat, fcm should be provided")]))
 
             # lock for creates only
@@ -2901,7 +2901,7 @@ class ContactTest(TembaTest):
                                      dict(records=3, errors=1, creates=1, updates=2,
                                           error_messages=[dict(line=3,
                                                           error="Missing any valid URNs; at least one among phone, "
-                                                                "facebook, twitter, viber, line, telegram, email, "
+                                                                "facebook, twitter, twitterid, viber, line, telegram, email, "
                                                                 "external, jiochat, fcm should be provided")]))
 
             # only lock for create
@@ -3040,7 +3040,7 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
-                             '"Twitter", "Viber", "Line", "Telegram", "Email", "External", '
+                             '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Email", "External", '
                              '"Jiochat", "Fcm" should be included.')
 
         csv_file = open('%s/test_imports/sample_contacts_missing_name_phone_headers.xls' % settings.MEDIA_ROOT, 'rb')
@@ -3048,7 +3048,7 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
-                             '"Twitter", "Viber", "Line", "Telegram", "Email", "External", '
+                             '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Email", "External", '
                              '"Jiochat", "Fcm" should be included.')
 
         # check that no contacts or groups were created by any of the previous invalid imports
@@ -3469,6 +3469,9 @@ class ContactTest(TembaTest):
         self.assertEquals(value.location_value, ward)
 
     def test_expressions_context(self):
+        self.joe.urns.filter(scheme='twitter').delete()
+        ContactURN.create(self.joe.org, self.joe, "twitterid:12345#therealjoe")
+
         context = self.joe.build_expressions_context()
 
         self.assertEquals("Joe", context['first_name'])
@@ -3478,6 +3481,8 @@ class ContactTest(TembaTest):
         self.assertEquals("", context['groups'])
         self.assertEquals(context['uuid'], self.joe.uuid)
         self.assertEquals(self.joe.uuid, context['uuid'])
+        self.assertEquals("therealjoe", context['twitter'])
+        self.assertEquals("therealjoe", context['twitterid'])
 
         # add him to a group
         self.create_group("Reporters", [self.joe])
@@ -3719,6 +3724,13 @@ class ContactURNTest(TembaTest):
         self.assertEqual(urn.path, '1234')
         self.assertEqual(urn.priority, 50)
 
+        urn = ContactURN.get_or_create(self.org, None, "twitterid:12345#fooman")
+        self.assertEqual("twitterid:12345", urn.identity)
+        self.assertEqual("fooman", urn.display)
+
+        urn2 = ContactURN.get_or_create(self.org, None, "twitter:fooman")
+        self.assertEqual(urn, urn2)
+
     def test_get_display(self):
         urn = ContactURN.objects.create(org=self.org, scheme='tel', path='+250788383383', identity='tel:+250788383383', priority=50)
         self.assertEqual(urn.get_display(self.org), '0788 383 383')
@@ -3892,7 +3904,7 @@ class ContactFieldTest(TembaTest):
             return workbook.worksheets[0]
 
         # no group specified, so will default to 'All Contacts'
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(40):
             self.assertExcelSheet(request_export(), [
                 ["UUID", "Name", "Email", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "1234", "adam", "", "", ""],
@@ -3905,7 +3917,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, 'tel:+12062233445')
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(40):
             self.assertExcelSheet(request_export(), [
                 ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
@@ -3915,7 +3927,7 @@ class ContactFieldTest(TembaTest):
             ])
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(41):
             self.assertExcelSheet(request_export('?g=%s' % group.uuid), [
                 ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
@@ -3923,7 +3935,7 @@ class ContactFieldTest(TembaTest):
             ])
 
         # export a search
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(41):
             self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng'), [
                 ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
@@ -3931,7 +3943,7 @@ class ContactFieldTest(TembaTest):
             ])
 
         # export a search within a specified group of contacts
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(41):
             self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid), [
                 ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
@@ -4088,7 +4100,7 @@ class ContactFieldTest(TembaTest):
 
         response_json = response.json()
 
-        self.assertEquals(len(response_json), 44)
+        self.assertEquals(len(response_json), 45)
         self.assertEquals(response_json[0]['label'], 'Full name')
         self.assertEquals(response_json[0]['key'], 'name')
         self.assertEquals(response_json[1]['label'], 'Phone number')
@@ -4097,36 +4109,38 @@ class ContactFieldTest(TembaTest):
         self.assertEquals(response_json[2]['key'], 'facebook')
         self.assertEquals(response_json[3]['label'], 'Twitter handle')
         self.assertEquals(response_json[3]['key'], 'twitter')
-        self.assertEquals(response_json[4]['label'], 'Viber identifier')
-        self.assertEquals(response_json[4]['key'], 'viber')
-        self.assertEquals(response_json[5]['label'], 'LINE identifier')
-        self.assertEquals(response_json[5]['key'], 'line')
-        self.assertEquals(response_json[6]['label'], 'Telegram identifier')
-        self.assertEquals(response_json[6]['key'], 'telegram')
-        self.assertEquals(response_json[7]['label'], 'Email address')
-        self.assertEquals(response_json[7]['key'], 'mailto')
-        self.assertEquals(response_json[8]['label'], 'External identifier')
-        self.assertEquals(response_json[8]['key'], 'ext')
-        self.assertEquals(response_json[9]['label'], 'Jiochat identifier')
-        self.assertEquals(response_json[9]['key'], 'jiochat')
-        self.assertEquals(response_json[10]['label'], 'Firebase Cloud Messaging identifier')
-        self.assertEquals(response_json[10]['key'], 'fcm')
-        self.assertEquals(response_json[11]['label'], 'Groups')
-        self.assertEquals(response_json[11]['key'], 'groups')
-        self.assertEquals(response_json[12]['label'], 'First')
-        self.assertEquals(response_json[12]['key'], 'first')
-        self.assertEquals(response_json[13]['label'], 'label0')
-        self.assertEquals(response_json[13]['key'], 'key0')
+        self.assertEquals(response_json[4]['label'], 'Twitter ID')
+        self.assertEquals(response_json[4]['key'], 'twitterid')
+        self.assertEquals(response_json[5]['label'], 'Viber identifier')
+        self.assertEquals(response_json[5]['key'], 'viber')
+        self.assertEquals(response_json[6]['label'], 'LINE identifier')
+        self.assertEquals(response_json[6]['key'], 'line')
+        self.assertEquals(response_json[7]['label'], 'Telegram identifier')
+        self.assertEquals(response_json[7]['key'], 'telegram')
+        self.assertEquals(response_json[8]['label'], 'Email address')
+        self.assertEquals(response_json[8]['key'], 'mailto')
+        self.assertEquals(response_json[9]['label'], 'External identifier')
+        self.assertEquals(response_json[9]['key'], 'ext')
+        self.assertEquals(response_json[10]['label'], 'Jiochat identifier')
+        self.assertEquals(response_json[10]['key'], 'jiochat')
+        self.assertEquals(response_json[11]['label'], 'Firebase Cloud Messaging identifier')
+        self.assertEquals(response_json[11]['key'], 'fcm')
+        self.assertEquals(response_json[12]['label'], 'Groups')
+        self.assertEquals(response_json[12]['key'], 'groups')
+        self.assertEquals(response_json[13]['label'], 'First')
+        self.assertEquals(response_json[13]['key'], 'first')
+        self.assertEquals(response_json[14]['label'], 'label0')
+        self.assertEquals(response_json[14]['key'], 'key0')
 
         ContactField.objects.filter(org=self.org, key='key0').update(label='AAAA')
 
         response = self.client.get(contact_field_json_url)
         response_json = response.json()
 
-        self.assertEquals(response_json[12]['label'], 'AAAA')
-        self.assertEquals(response_json[12]['key'], 'key0')
-        self.assertEquals(response_json[13]['label'], 'First')
-        self.assertEquals(response_json[13]['key'], 'first')
+        self.assertEquals(response_json[13]['label'], 'AAAA')
+        self.assertEquals(response_json[13]['key'], 'key0')
+        self.assertEquals(response_json[14]['label'], 'First')
+        self.assertEquals(response_json[14]['key'], 'first')
 
 
 class URNTest(TembaTest):
@@ -4192,7 +4206,7 @@ class URNTest(TembaTest):
 
         # twitter handles remove @
         self.assertEqual(URN.normalize("twitter: @jimmyJO"), "twitter:jimmyjo")
-        self.assertEqual(URN.normalize("twitter:12345#@jimmyJO"), "twitter:12345#jimmyjo")
+        self.assertEqual(URN.normalize("twitterid:12345#@jimmyJO"), "twitterid:12345#jimmyjo")
 
         # email addresses
         self.assertEqual(URN.normalize("mailto: nAme@domAIN.cOm "), "mailto:name@domain.com")
@@ -4221,7 +4235,13 @@ class URNTest(TembaTest):
         self.assertFalse(URN.validate("twitter:jimmyjo!@"))
         self.assertFalse(URN.validate("twitter:billy bob"))
 
-        # emil addresses
+        # twitterid urns
+        self.assertTrue(URN.validate("twitterid:12345#jimmyjo"))
+        self.assertTrue(URN.validate("twitterid:12345#1234567"))
+        self.assertFalse(URN.validate("twitterid:jimmyjo#1234567"))
+        self.assertFalse(URN.validate("twitterid:123#a.!f"))
+
+        # email addresses
         self.assertTrue(URN.validate("mailto:abcd+label@x.y.z.com"))
         self.assertFalse(URN.validate("mailto:@@@"))
 
