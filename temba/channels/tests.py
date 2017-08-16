@@ -2403,7 +2403,7 @@ class ChannelTest(TembaTest):
         self.org.config = json.dumps(org_config)
         self.org.save()
 
-        self.assertTrue(self.org.is_connected_to_chatbase())
+        self.assertTrue(self.org.get_chatbase_credentials())
         self.assertEquals(self.org.config_json()['CHATBASE_API_KEY'], '123456abcdef')
         self.assertEquals(self.org.config_json()['CHATBASE_VERSION'], '1.0')
 

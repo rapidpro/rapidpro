@@ -2012,7 +2012,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.Chatbase, self).get_context_data(**kwargs)
-            if self.object.is_connected_to_chatbase():
+            if self.object.get_chatbase_credentials():
                 config = self.object.config_json()
                 agent_name = config.get(CHATBASE_AGENT_NAME, None)
                 context['chatbase_agent_name'] = agent_name
@@ -2111,7 +2111,7 @@ class OrgCRUDL(SmartCRUDL):
                                        action='redirect', nobutton=True)
 
             if self.has_org_perm('orgs.org_chatbase'):
-                if not self.object.is_connected_to_chatbase():
+                if not self.object.get_chatbase_credentials():
                     formax.add_section('chatbase', reverse('orgs.org_chatbase'), icon='icon-chatbase',
                                        action='redirect', button=_("Connect"))
                 else:  # pragma: needs cover

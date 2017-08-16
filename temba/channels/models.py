@@ -1322,8 +1322,9 @@ class Channel(TembaModel):
 
             # Sending data to Chatbase API
             if hasattr(msg, 'is_org_connected_to_chatbase'):
-                Msg.send_chatbase_log(msg.chatbase_api_key, msg.chatbase_api_version, channel.name, msg.text,
-                                      msg.contact, CHATBASE_TYPE_AGENT)
+                chatbase_version = msg.chatbase_version if hasattr(msg, 'chatbase_version') else None
+                Msg.send_chatbase_log(msg.chatbase_api_key, chatbase_version, channel.name, msg.text, msg.contact,
+                                      CHATBASE_TYPE_AGENT)
 
     @classmethod
     def send_red_rabbit_message(cls, channel, msg, text):

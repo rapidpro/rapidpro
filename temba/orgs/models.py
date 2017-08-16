@@ -904,14 +904,25 @@ class Org(SmartModel):
         self.modified_by = user
         self.save()
 
-    def is_connected_to_chatbase(self):
+    def get_chatbase_credentials(self):
         if self.config:
             config = self.config_json()
             chatbase_api_key = config.get(CHATBASE_API_KEY, None)
+            chatbase_version = config.get(CHATBASE_VERSION, None)
 
-            return True if chatbase_api_key else False
+            if chatbase_api_key:
+                credentials = dict(chatbase_api_key=chatbase_api_key)
+
+                if chatbase_version:
+                    credentials['chatbase_version'] = chatbase_version
+
+            else:
+                credentials = None
+
         else:
-            return False
+            credentials = None
+
+        return credentials
 
     def get_verboice_client(self):  # pragma: needs cover
         from temba.ivr.clients import VerboiceClient
