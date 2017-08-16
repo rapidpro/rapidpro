@@ -2755,16 +2755,15 @@ class FlowRun(models.Model):
         is_active = run_output['status'] in ('active', 'waiting')
         is_error = run_output['status'] == 'errored'
         created_on = iso8601.parse_date(run_output['created_on'])
+        exited_on = iso8601.parse_date(run_output['exited_on']) if run_output['exited_on'] else None
         expires_on = iso8601.parse_date(run_output['expires_on']) if run_output['expires_on'] else None
 
         # does this run already exist?
         existing = cls.objects.filter(org=contact.org, contact=contact, uuid=uuid).select_related('flow').first()
 
         if not is_active:
-            exited_on = timezone.now()
             exit_type = cls.EXIT_TYPE_INTERRUPTED if is_error else cls.EXIT_TYPE_COMPLETED
         else:
-            exited_on = None
             exit_type = None
 
         if existing:
