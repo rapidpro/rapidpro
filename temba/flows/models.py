@@ -273,7 +273,7 @@ class Flow(TembaModel):
     def is_before_version(cls, us, version):
         version_str = six.text_type(us)
         for ver in Flow.VERSIONS:
-            if ver == version_str:
+            if ver == version_str and version != ver:
                 return True
             elif version == ver:
                 return False
@@ -2155,7 +2155,7 @@ class Flow(TembaModel):
             flow_user = get_flow_user(self.org)
             # check whether the flow has changed since this flow was last saved
             if user and not force:
-                saved_on = json_dict.get(Flow.METADATA).get(Flow.SAVED_ON, None)
+                saved_on = json_dict.get(Flow.METADATA, {}).get(Flow.SAVED_ON, None)
                 org = user.get_org()
 
                 # check our last save if we aren't the system flow user
@@ -3671,7 +3671,6 @@ class FlowRevision(SmartModel):
         from temba.flows import flow_migrations
         for version in versions:
             parts = version.split(".")
-            print ("Migrating to version", version)
             migrate_fn = None
             if len(parts) > 1:
                 (major, minor) = parts
