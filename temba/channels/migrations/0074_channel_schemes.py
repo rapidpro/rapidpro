@@ -11,7 +11,10 @@ def populate_schemes(apps, schema_editor):
 
     # find all channels which aren't 'tel', update their schemes appropriately
     for chan in Channel.objects.all().exclude(scheme='tel'):
-        chan.schemes = [chan.scheme]
+        if chan.channel_type in ['TT', 'TWT']:
+            chan.schemes = ['twitter', 'twitterid']
+        else:
+            chan.schemes = [chan.scheme]
         chan.save(update_fields=['schemes'])
 
 
