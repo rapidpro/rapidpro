@@ -287,6 +287,7 @@ class FlowSession(ChannelSession):
 
         # trigger message sending
         if msgs_to_send:
+            msgs_to_send = sorted(msgs_to_send, key=lambda m: m.created_on)
             self.org.trigger_send(msgs_to_send)
 
         return runs
