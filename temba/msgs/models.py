@@ -740,17 +740,11 @@ class Msg(models.Model):
         queued.
         :return:
         """
-        task_msgs = []
-        task_priority = None
-        last_contact = None
         rapid_batches = []
         courier_batches = []
 
         # we send in chunks of 1,000 to help with contention
-        for msg_chunk in chunk_list(all_msgs, 1000):
-            # create a temporary list of our chunk so we can iterate more than once
-            msgs = [msg for msg in msg_chunk]
-
+        for msgs in chunk_list(all_msgs, 1000):
             # build our id list
             msg_ids = set([m.id for m in msgs])
 
@@ -781,9 +775,7 @@ class Msg(models.Model):
                         # if this is a different contact than our last, and we have msgs, queue the task
                         if task_msgs and last_contact != msg.contact_id:
                             # if no priority was set, default to DEFAULT
-                            if task_priority is None:  # pragma: needs cover
-                                task_priority = DEFAULT_PRIORITY
-
+                            task_priority = DEFAULT_PRIORITY if task_priority is None else task_priority
                             rapid_batches.append(dict(org=task_msgs[0]['org'], msgs=task_msgs, priority=task_priority))
                             task_msgs = []
                             task_priority = None
@@ -801,10 +793,8 @@ class Msg(models.Model):
                         task_msgs.append(task)
                         last_contact = msg.contact_id
 
-                # send any remaining msgs
                 if task_msgs:
-                    if task_priority is None:
-                        task_priority = DEFAULT_PRIORITY
+                    task_priority = DEFAULT_PRIORITY if task_priority is None else task_priority
                     rapid_batches.append(dict(org=task_msgs[0]['org'], msgs=task_msgs, priority=task_priority))
                     task_msgs = []
 
@@ -812,7 +802,8 @@ class Msg(models.Model):
                 task_priority = None
                 for msg in courier_msgs:
                     if task_msgs and (last_contact != msg.contact_id or last_channel != msg.channel_id):
-                        courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs, priority=task_priority != Msg.PRIORITY_NORMAL))
+                        courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs,
+                                                    priority=task_priority != Msg.PRIORITY_NORMAL))
                         task_msgs = []
 
                     if msg.priority != Msg.PRIORITY_BULK:

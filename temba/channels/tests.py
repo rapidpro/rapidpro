@@ -11200,7 +11200,7 @@ class CourierTest(TembaTest):
     def test_queue_to_courier(self):
         with self.settings(COURIER_CHANNELS=['TG']):
             self.channel.channel_type = 'TG'
-            self.channel.scheme = TELEGRAM_SCHEME
+            self.channel.schemes = [TELEGRAM_SCHEME]
             self.channel.save()
 
             # create some outgoing messages for our channel
