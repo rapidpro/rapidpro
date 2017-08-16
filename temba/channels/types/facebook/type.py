@@ -60,7 +60,7 @@ class FacebookType(ChannelType):
         if len(options) > 1:
             list_dic = [{"content_type":"text",
                         "title":t,
-                        "payload":re.findall(r'^\D*(\d+)', t)
+                        "payload":(re.findall(r'^\D*(\d+)', t)[0])
                         } for t in options[1:]]
             payload = {'message': {'text': options[0],'quick_replies' : list_dic}}
 
