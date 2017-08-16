@@ -11,11 +11,9 @@
           "quick_replies": {
             "por": [
               {
-                "payload": "1",
-                "title": "Op\u00e7\u00e3o 1"
+                "payload": "1"
               },
               {
-                "payload": "2",
                 "title": "Op\u00e7\u00e3o 2"
               }
             ],
@@ -31,16 +29,14 @@
             ]
           },
           "media": {},
-          "url_buttons": {},
-          "webhook_headers": [],
-          "action": "GET",
+          "url_buttons": [],
           "msg": {
             "por": "Escolha um op\u00e7\u00e3o",
             "eng": "Choice an option"
           },
           "send_all": false,
           "type": "reply",
-          "uuid": "9412fbb2-db2c-4188-81df-79d9a3f1d80f"
+          "uuid": "e28fa1dc-dd2e-4574-9444-c898e249f117"
         }
       ]
     },
@@ -56,14 +52,20 @@
           "url_buttons": {
             "por": [
               {
-                "url": "https://google.com.br",
                 "title": "Google PT-BR"
+              },
+              {
+                "url": "https://facebook.com"
               }
             ],
             "eng": [
               {
                 "url": "https://google.com",
                 "title": "Google"
+              },
+              {
+                "url": "https://facebook.com",
+                "title": "Facebook"
               }
             ]
           },
@@ -75,7 +77,7 @@
           },
           "send_all": false,
           "type": "reply",
-          "uuid": "03a00744-47bd-4e49-9703-f7778537f2e2"
+          "uuid": "a6efacab-8482-4fdb-916a-dbe9482314ac"
         }
       ]
     }
@@ -116,7 +118,7 @@
     "notes": [],
     "expires": 10080,
     "name": "NewFlowTest",
-    "saved_on": "2017-08-15T21:36:12.637205Z",
-    "revision": 69
+    "saved_on": "2017-08-16T18:36:22.150373Z",
+    "revision": 73
   }
 }
