@@ -149,7 +149,7 @@ class FlowSession(ChannelSession):
         """
         Starts a contact in the given flow
         """
-        if not settings.FLOW_SERVER_URL or not flow.is_active or flow.is_archived:
+        if not settings.FLOW_SERVER_URL or not flow.is_active or flow.is_archived or (msg_in and not msg_in.contact_urn):
             return []
 
         cls.close_active_sessions(contacts)
