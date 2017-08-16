@@ -1239,7 +1239,7 @@ class Msg(models.Model):
 
         chatbase_credentials = self.org.get_chatbase_credentials()
         if chatbase_credentials:
-            chatbase_credentials.update(dict(is_org_connected_to_chatbase=True))
+            chatbase_credentials['is_org_connected_to_chatbase'] = True
             data.update(chatbase_credentials)
 
         return data
