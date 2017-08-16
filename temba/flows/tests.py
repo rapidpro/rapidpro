@@ -5513,11 +5513,16 @@ class FlowsTest(FlowFileTest):
             self.assertTrue(FlowRun.objects.filter(flow=child, contact=contact))
             self.assertEquals("Greg", Contact.objects.get(pk=contact.pk).name)
 
-        # 10 of the runs should be completed (parent runs)
-        self.assertEqual(FlowRun.objects.filter(flow=parent, is_active=False, exit_type=FlowRun.EXIT_TYPE_COMPLETED).count(), 10)
-
-        # 10 should be active waiting for input
+        # 10 child flow runs should be active waiting for input
         self.assertEqual(FlowRun.objects.filter(flow=child, is_active=True).count(), 10)
+
+        # send some input to complete the child flows
+        for contact in contacts:
+            msg = self.create_msg(contact=contact, direction='I', text="OK", channel=self.channel)
+            msg.handle()
+
+        # all of the runs should now be completed
+        self.assertEqual(FlowRun.objects.filter(is_active=False, exit_type=FlowRun.EXIT_TYPE_COMPLETED).count(), 20)
 
     def test_cross_language_import(self):
         spanish = Language.create(self.org, self.admin, "Spanish", 'spa')
