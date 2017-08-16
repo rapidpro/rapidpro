@@ -800,11 +800,14 @@ class Msg(models.Model):
 
                 # ok, now push our courier msgs
                 task_priority = None
+                last_contact = None
+                last_channel = None
                 for msg in courier_msgs:
                     if task_msgs and (last_contact != msg.contact_id or last_channel != msg.channel_id):
                         courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs,
                                                     is_bulk=task_priority != Msg.PRIORITY_NORMAL))
                         task_msgs = []
+                        task_priority = None
 
                     if msg.priority != Msg.PRIORITY_BULK:
                         task_priority = Msg.PRIORITY_NORMAL

@@ -27,7 +27,7 @@ _script = None
 
 def get_script(r):
     global _script
-    if _script:
+    if _script:  # pragma: no cover
         return _script
 
     _script = r.register_script(LUA_PUSH)
@@ -62,7 +62,7 @@ def msg_as_task(msg):
                     queued_on=datetime_to_str(msg.queued_on, ms=True),
                     sent_on=datetime_to_str(msg.sent_on, ms=True))
 
-    if msg.contact_urn.auth:
+    if msg.contact_urn.auth:  # pragma: no cover
         msg_json['contact_urn_auth'] = msg.contact_urn.auth
 
     return msg_json

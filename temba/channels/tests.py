@@ -11204,12 +11204,16 @@ class CourierTest(TembaTest):
             self.channel.save()
 
             # create some outgoing messages for our channel
-            msg = Msg.create_outgoing(self.org, self.admin, 'telegram:12345', "Outgoing message")
-            Msg.send_messages([msg])
+            msg1 = Msg.create_outgoing(self.org, self.admin, 'telegram:1', "Outgoing message 1")
+            msg2 = Msg.create_outgoing(self.org, self.admin, 'telegram:2', "Outgoing message 2", priority=Msg.PRIORITY_BULK)
+            Msg.send_messages([msg1, msg2])
 
             # we should have been queued to our courier queues and our msg should be marked as such
-            msg.refresh_from_db()
-            self.assertEqual(msg.status, QUEUED)
+            msg1.refresh_from_db()
+            self.assertEqual(msg1.status, QUEUED)
+
+            msg2.refresh_from_db()
+            self.assertEqual(msg2.status, QUEUED)
 
             # check against redis
             r = get_redis_connection()
@@ -11219,5 +11223,6 @@ class CourierTest(TembaTest):
             self.assertEqual(1, r.zcard("msgs:active"))
             self.assertEqual(0, r.zrank("msgs:active", queue_name))
 
-            # and our msg added to the channel queue
+            # should have one msg in each queue (based on priority)
             self.assertEqual(1, r.zcard(queue_name + "/1"))
+            self.assertEqual(1, r.zcard(queue_name + "/0"))
