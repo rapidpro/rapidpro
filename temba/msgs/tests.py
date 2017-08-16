@@ -218,6 +218,7 @@ class MsgTest(TembaTest):
         # a Twitter channel
         Channel.create(self.org, self.user, None, 'TT')
         completions.insert(-2, dict(name="contact.%s" % 'twitter', display="Contact %s" % "Twitter handle"))
+        completions.insert(-2, dict(name="contact.%s" % 'twitterid', display="Contact %s" % "Twitter ID"))
 
         response = self.client.get(outbox_url)
         # the Twitter URN scheme is included
