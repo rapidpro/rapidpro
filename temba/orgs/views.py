@@ -1975,7 +1975,8 @@ class OrgCRUDL(SmartCRUDL):
             agent_name = forms.CharField(max_length=255, label=_("Agent Name"), required=False,
                                          help_text="Set the your Chatbase application name")
             api_key = forms.CharField(max_length=255, label=_("API Key"), required=False,
-                                      help_text="Set the your Chatbase API Key")
+                                      help_text="You can find your API Key by clicking "
+                                                "<a href='https://chatbase.com/agents' target='_new'>here</a>")
             version = forms.CharField(max_length=10, label=_("Version"), required=False, help_text="E.g. 1.0, 1.2.1")
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
 
