@@ -7470,7 +7470,7 @@ FLOW_FEATURES = [
     ('R', RuleSet.TYPE_CONTACT_FIELD, True),
     ('R', RuleSet.TYPE_EXPRESSION, True),
     ('R', RuleSet.TYPE_SUBFLOW, True),
-    ('R', RuleSet.TYPE_RANDOM, False),
+    ('R', RuleSet.TYPE_RANDOM, True),
     ('T', AirtimeStatusTest.TYPE, False),
     ('T', BetweenTest.TYPE, True),
     ('T', ContainsAnyTest.TYPE, True),
@@ -7499,7 +7499,7 @@ FLOW_FEATURES = [
     ('T', StartsWithTest.TYPE, True),
     ('T', SubflowTest.TYPE, True),
     ('T', TimeoutTest.TYPE, False),
-    ('T', WebhookStatusTest.TYPE, False),
+    ('T', WebhookStatusTest.TYPE, True),
 ]
 
 ALL_FEATURES = ['%s:%s' % (f[0], f[1]) for f in FLOW_FEATURES]
