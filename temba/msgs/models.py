@@ -768,7 +768,7 @@ class Msg(models.Model):
                 # now push each onto our queue
                 for msg in msgs:
                     if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and msg.topup and not msg.contact.is_test:
-                        if msg.channel.channel_type in settings.COURIER_CHANNELS:
+                        if msg.channel.channel_type in settings.COURIER_CHANNELS and msg.uuid:
                             courier_msgs.append(msg)
                             continue
 
@@ -803,7 +803,7 @@ class Msg(models.Model):
                 for msg in courier_msgs:
                     if task_msgs and (last_contact != msg.contact_id or last_channel != msg.channel_id):
                         courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs,
-                                                    priority=task_priority != Msg.PRIORITY_NORMAL))
+                                                    is_bulk=task_priority != Msg.PRIORITY_NORMAL))
                         task_msgs = []
 
                     if msg.priority != Msg.PRIORITY_BULK:
@@ -816,7 +816,7 @@ class Msg(models.Model):
                 # push any remaining courier msgs
                 if task_msgs:
                     courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs,
-                                                priority=task_priority != Msg.PRIORITY_NORMAL))
+                                                is_bulk=task_priority != Msg.PRIORITY_NORMAL))
 
         # send our batches
         on_transaction_commit(lambda: cls._send_rapid_msg_batches(rapid_batches))
@@ -830,7 +830,7 @@ class Msg(models.Model):
     @classmethod
     def _send_courier_msg_batches(cls, batches):
         for batch in batches:
-            push_courier_msgs(batch['channel'], batch['msgs'], batch['priority'])
+            push_courier_msgs(batch['channel'], batch['msgs'], batch['is_bulk'])
 
     @classmethod
     def process_message(cls, msg):
