@@ -1320,7 +1320,7 @@ class Channel(TembaModel):
                                       response_status=event.status_code,
                                       request_time=request_time_ms)
 
-            # Send data to Chatbase API
+            # Sending data to Chatbase API
             if hasattr(msg, 'is_org_connected_to_chatbase'):
                 Msg.send_chatbase_log(msg.chatbase_api_key, msg.chatbase_api_version, channel.name, msg.text,
                                       msg.contact, CHATBASE_TYPE_AGENT)

@@ -844,7 +844,7 @@ class Msg(models.Model):
         elif msg.msg_type == FLOW:
             chatbase_not_handled = False
 
-        # Registering data to send to Chatbase API later
+        # Sending data to Chatbase API
         org = msg.org
         if org.is_connected_to_chatbase():
             org_config_json = org.config_json()
