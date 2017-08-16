@@ -17,6 +17,7 @@ from mock import patch
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
+from temba.flows.models import RuleSet
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
 from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, SystemLabelCount, UnreachableException
 from temba.msgs.models import Attachment, HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
@@ -1082,34 +1083,39 @@ class BroadcastTest(TembaTest):
         response = self.client.post(send_url, post_data, follow=True)
         self.assertIn("success", response.content)
 
+        # add flow steps
+        flow = self.get_flow('favorites')
+        flow.start([], [self.joe, test_contact], restart_participants=True)
+
+        step_uuid = RuleSet.objects.first().uuid
+
         # no error if we are sending from a flow node
-        post_data = dict(text="message content", omnibox='', step_node='foo')
+        post_data = dict(text="message content", omnibox='', step_node=step_uuid)
         response = self.client.post(send_url + '?_format=json', post_data, follow=True)
         self.assertIn("success", response.content)
 
         response = self.client.post(send_url, post_data)
         self.assertRedirect(response, reverse('msgs.msg_inbox'))
 
-        with patch("temba.contacts.omnibox.omnibox_query") as mock_omnibox_query:
-            mock_omnibox_query.return_value = [test_contact, self.joe]
+        response = self.client.post(send_url + '?_format=json', post_data, follow=True)
+        self.assertIn("success", response.content)
+        broadcast = Broadcast.objects.order_by('-id').first()
+        self.assertEqual(broadcast.text, {'base': "message content"})
+        self.assertEquals(broadcast.groups.count(), 0)
+        self.assertEquals(broadcast.contacts.count(), 1)
+        self.assertTrue(self.joe in broadcast.contacts.all())
 
-            response = self.client.post(send_url + '?_format=json', post_data, follow=True)
-            self.assertIn("success", response.content)
-            broadcast = Broadcast.objects.order_by('-id').first()
-            self.assertEqual(broadcast.text, {'base': "message content"})
-            self.assertEquals(broadcast.groups.count(), 0)
-            self.assertEquals(broadcast.contacts.count(), 2)
-            self.assertTrue(test_contact in broadcast.contacts.all())
-            self.assertTrue(self.joe in broadcast.contacts.all())
+        # Activate simulation mode
+        Contact.set_simulation(True)
+        flow.start([], [self.joe, test_contact], restart_participants=True)
 
-            response = self.client.post(send_url + '?_format=json&simulation=true', post_data, follow=True)
-            self.assertIn("success", response.content)
-            broadcast = Broadcast.objects.order_by('-id').first()
-            self.assertEqual(broadcast.text, {'base': "message content"})
-            self.assertEquals(broadcast.groups.count(), 0)
-            self.assertEquals(broadcast.contacts.count(), 1)
-            self.assertTrue(test_contact in broadcast.contacts.all())
-            self.assertFalse(self.joe in broadcast.contacts.all())
+        response = self.client.post(send_url + '?_format=json&simulation=true', post_data, follow=True)
+        self.assertIn("success", response.content)
+        broadcast = Broadcast.objects.order_by('-id').first()
+        self.assertEqual(broadcast.text, {'base': "message content"})
+        self.assertEquals(broadcast.groups.count(), 0)
+        self.assertEquals(broadcast.contacts.count(), 1)
+        self.assertTrue(test_contact in broadcast.contacts.all())
 
     def test_unreachable(self):
         no_urns = Contact.get_or_create(self.org, self.admin, name="Ben Haggerty", urns=[])
