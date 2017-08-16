@@ -807,7 +807,7 @@ class Msg(models.Model):
         """
         Processes a message, running it through all our handlers
         """
-        from temba.orgs.models import CHATBASE_TYPE_USER
+        from temba.orgs.models import CHATBASE_TYPE_USER, CHATBASE_API_KEY, CHATBASE_VERSION
 
         handlers = get_message_handlers()
 
@@ -847,8 +847,8 @@ class Msg(models.Model):
         # Registering data to send to Chatbase API later
         org = msg.org
         if org.is_connected_to_chatbase():
-            msg_task_json = msg.as_task_json()
-            cls.send_chatbase_log(msg_task_json['chatbase_api_key'], msg_task_json['chatbase_api_version'],
+            org_config_json = org.config_json()
+            cls.send_chatbase_log(org_config_json[CHATBASE_API_KEY], org_config_json[CHATBASE_VERSION],
                                   msg.channel.name, msg.text, msg.contact.id, CHATBASE_TYPE_USER, chatbase_not_handled)
 
         # record our handling latency for this object
