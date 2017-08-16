@@ -1,0 +1,122 @@
+{
+  "base_language": "eng",
+  "action_sets": [
+    {
+      "y": 2,
+      "x": 100,
+      "destination": "55a4abc9-1556-4bb5-8005-a23532108f55",
+      "uuid": "b9494431-b00c-4be3-9413-387ec69a8eb4",
+      "actions": [
+        {
+          "quick_replies": {
+            "por": [
+              {
+                "payload": "1",
+                "title": "Op\u00e7\u00e3o 1"
+              },
+              {
+                "payload": "2",
+                "title": "Op\u00e7\u00e3o 2"
+              }
+            ],
+            "eng": [
+              {
+                "payload": "1",
+                "title": "Option 1"
+              },
+              {
+                "payload": "2",
+                "title": "Option 2"
+              }
+            ]
+          },
+          "media": {},
+          "url_buttons": {},
+          "webhook_headers": [],
+          "action": "GET",
+          "msg": {
+            "por": "Escolha um op\u00e7\u00e3o",
+            "eng": "Choice an option"
+          },
+          "send_all": false,
+          "type": "reply",
+          "uuid": "9412fbb2-db2c-4188-81df-79d9a3f1d80f"
+        }
+      ]
+    },
+    {
+      "y": 67,
+      "x": 660,
+      "destination": null,
+      "uuid": "a9f44e23-d0fb-41d0-8317-0c5ad3846e69",
+      "actions": [
+        {
+          "quick_replies": {},
+          "media": {},
+          "url_buttons": {
+            "por": [
+              {
+                "url": "https://google.com.br",
+                "title": "Google PT-BR"
+              }
+            ],
+            "eng": [
+              {
+                "url": "https://google.com",
+                "title": "Google"
+              }
+            ]
+          },
+          "webhook_headers": [],
+          "action": "GET",
+          "msg": {
+            "por": "Link para o Google",
+            "eng": "Link to Google"
+          },
+          "send_all": false,
+          "type": "reply",
+          "uuid": "03a00744-47bd-4e49-9703-f7778537f2e2"
+        }
+      ]
+    }
+  ],
+  "version": 10,
+  "flow_type": "F",
+  "entry": "b9494431-b00c-4be3-9413-387ec69a8eb4",
+  "rule_sets": [
+    {
+      "uuid": "55a4abc9-1556-4bb5-8005-a23532108f55",
+      "rules": [
+        {
+          "test": {
+            "test": "true",
+            "type": "true"
+          },
+          "category": {
+            "eng": "All Responses"
+          },
+          "destination": "a9f44e23-d0fb-41d0-8317-0c5ad3846e69",
+          "uuid": "517b70eb-3ace-4164-b70f-be706154cd3a",
+          "destination_type": "A"
+        }
+      ],
+      "ruleset_type": "wait_message",
+      "label": "Response 1",
+      "y": 108,
+      "finished_key": null,
+      "response_type": "",
+      "operand": "@step.value",
+      "x": 284,
+      "config": {}
+    }
+  ],
+  "type": "F",
+  "metadata": {
+    "uuid": "2f15bfc3-9b4e-47da-8b55-2fb602817252",
+    "notes": [],
+    "expires": 10080,
+    "name": "NewFlowTest",
+    "saved_on": "2017-08-15T21:36:12.637205Z",
+    "revision": 69
+  }
+}
