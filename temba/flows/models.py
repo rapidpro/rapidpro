@@ -11,7 +11,7 @@ import time
 import urllib2
 import uuid
 
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
@@ -414,7 +414,7 @@ class Flow(TembaModel):
             if saved_media_url and ':' in saved_media_url:
                 text = saved_media_url.partition(':')[2]
 
-            msg = Msg.create_incoming(call.channel, call.contact_urn.urn,
+            msg = Msg.create_incoming(call.channel, six.text_type(call.contact_urn),
                                       text, status=PENDING, msg_type=IVR,
                                       attachments=[saved_media_url] if saved_media_url else None,
                                       session=run.session)
@@ -2921,8 +2921,17 @@ class FlowStep(models.Model):
                         rule = r
                         break
 
-                if not rule:  # pragma: needs cover
-                    raise ValueError("No such rule with UUID %s" % rule_uuid)
+                if not rule:
+                    # the user updated the rules try to match the new rules
+                    msg = Msg(org=run.org, contact=run.contact, text=json_obj['rule']['text'], id=0)
+                    rule, value = ruleset.find_matching_rule(step, run, msg)
+
+                    if not rule:
+                        raise ValueError("No such rule with UUID %s" % rule_uuid)
+
+                    rule_uuid = rule.uuid
+                    rule_category = rule.category
+                    rule_value = value
 
                 rule.category = rule_category
                 ruleset.save_run_value(run, rule, rule_value)
@@ -2944,7 +2953,8 @@ class FlowStep(models.Model):
     @classmethod
     def get_active_steps_for_contact(cls, contact, step_type=None):
 
-        steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__contact=contact, left_on=None)
+        steps = FlowStep.objects.filter(run__is_active=True, run__flow__is_active=True, run__contact=contact,
+                                        left_on=None)
 
         # don't consider voice steps, those are interactive
         steps = steps.exclude(run__flow__flow_type=Flow.VOICE)
@@ -3086,7 +3096,7 @@ class RuleSet(models.Model):
                     (TYPE_FORM_FIELD, "Split by message form"),
                     (TYPE_CONTACT_FIELD, "Split on contact field"),
                     (TYPE_EXPRESSION, "Split by expression"),
-                    (TYPE_SUBFLOW, "Split Randomly"))
+                    (TYPE_RANDOM, "Split Randomly"))
 
     uuid = models.CharField(max_length=36, unique=True)
 
@@ -3136,7 +3146,7 @@ class RuleSet(models.Model):
 
     @property
     def is_messaging(self):
-        return self.ruleset_type in (self.TYPE_USSD + (self.TYPE_WAIT_MESSAGE, ))
+        return self.ruleset_type in (self.TYPE_USSD + (self.TYPE_WAIT_MESSAGE,))
 
     @classmethod
     def contains_step(cls, text):  # pragma: needs cover
@@ -3448,7 +3458,7 @@ class RuleSet(models.Model):
         if self.label:
             return "RuleSet: %s - %s" % (self.uuid, self.label)
         else:
-            return "RuleSet: %s" % (self.uuid, )
+            return "RuleSet: %s" % (self.uuid,)
 
 
 @six.python_2_unicode_compatible
@@ -3534,7 +3544,7 @@ class ActionSet(models.Model):
         return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination, actions=self.get_actions_dict())
 
     def __str__(self):  # pragma: no cover
-        return "ActionSet: %s" % (self.uuid, )
+        return "ActionSet: %s" % (self.uuid,)
 
 
 class FlowRevision(SmartModel):
@@ -3545,7 +3555,8 @@ class FlowRevision(SmartModel):
 
     definition = models.TextField(help_text=_("The JSON flow definition"))
 
-    spec_version = models.IntegerField(default=CURRENT_EXPORT_VERSION, help_text=_("The flow version this definition is in"))
+    spec_version = models.IntegerField(default=CURRENT_EXPORT_VERSION,
+                                       help_text=_("The flow version this definition is in"))
 
     revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
 
@@ -3865,6 +3876,7 @@ class ExportFlowResultsTask(BaseExportTask):
     INCLUDE_MSGS = 'include_msgs'
     CONTACT_FIELDS = 'contact_fields'
     RESPONDED_ONLY = 'responded_only'
+    EXTRA_URNS = 'extra_urns'
 
     flows = models.ManyToManyField(Flow, related_name='exports', help_text=_("The flows to export"))
 
@@ -3872,11 +3884,12 @@ class ExportFlowResultsTask(BaseExportTask):
                               help_text=_("Any configuration options for this flow export"))
 
     @classmethod
-    def create(cls, org, user, flows, contact_fields, responded_only, include_runs, include_msgs):
+    def create(cls, org, user, flows, contact_fields, responded_only, include_runs, include_msgs, extra_urns):
         config = {ExportFlowResultsTask.INCLUDE_RUNS: include_runs,
                   ExportFlowResultsTask.INCLUDE_MSGS: include_msgs,
                   ExportFlowResultsTask.CONTACT_FIELDS: [c.id for c in contact_fields],
-                  ExportFlowResultsTask.RESPONDED_ONLY: responded_only}
+                  ExportFlowResultsTask.RESPONDED_ONLY: responded_only,
+                  ExportFlowResultsTask.EXTRA_URNS: extra_urns}
 
         export = cls.objects.create(org=org, created_by=user, modified_by=user, config=json.dumps(config))
         for flow in flows:
@@ -3898,6 +3911,7 @@ class ExportFlowResultsTask(BaseExportTask):
         include_msgs = config.get(ExportFlowResultsTask.INCLUDE_MSGS, False)
         responded_only = config.get(ExportFlowResultsTask.RESPONDED_ONLY, True)
         contact_field_ids = config.get(ExportFlowResultsTask.CONTACT_FIELDS, [])
+        extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
         broadcast_only_flow = False
 
         contact_fields = []
@@ -3921,10 +3935,16 @@ class ExportFlowResultsTask(BaseExportTask):
         if flows:
             org = flows[0].org
 
+        extra_urn_columns = []
+        if not org.is_anon:
+            for extra_urn in extra_urns:
+                label = ContactURN.EXPORT_FIELDS.get(extra_urn, dict()).get('label', '')
+                extra_urn_columns.append(dict(label=label, scheme=extra_urn))
+
         # create a mapping of column id to index
         column_map = dict()
         for col in range(len(columns)):
-            column_map[columns[col].uuid] = 6 + len(contact_fields) + col * 3
+            column_map[columns[col].uuid] = 6 + len(extra_urn_columns) + len(contact_fields) + col * 3
 
         # build a cache of rule uuid to category name, we want to use the most recent name the user set
         # if possible and back down to the cached rule_category only when necessary
@@ -4006,6 +4026,10 @@ class ExportFlowResultsTask(BaseExportTask):
                 sheet_row.append("URN")
                 col_widths.append(self.WIDTH_SMALL)
 
+            for extra_urn in extra_urn_columns:
+                sheet_row.append(extra_urn['label'])
+                col_widths.append(self.WIDTH_SMALL)
+
             sheet_row.append("Name")
             col_widths.append(self.WIDTH_MEDIUM)
 
@@ -4068,19 +4092,22 @@ class ExportFlowResultsTask(BaseExportTask):
         start = time.time()
         flow_names = ", ".join([f['name'] for f in self.flows.values('name')])
 
-        urn_display_cache = {}
+        urn_display_cache = defaultdict(dict)
 
         seen_msgs = set()
 
-        def get_contact_urn_display(contact):
+        def get_contact_urn_display(contact, scheme=None):
             """
             Gets the possibly cached URN display (e.g. formatted phone number) for the given contact
             """
-            urn_display = urn_display_cache.get(contact.pk)
+
+            scheme_key = '__default__' if scheme is None else scheme
+
+            urn_display = urn_display_cache.get(contact.pk, dict()).get(scheme_key, None)
             if urn_display:
                 return urn_display
-            urn_display = contact.get_urn_display(org=org, formatted=False)
-            urn_display_cache[contact.pk] = urn_display
+            urn_display = contact.get_urn_display(org=org, scheme=scheme, formatted=False)
+            urn_display_cache[contact.pk][scheme_key] = urn_display
             return urn_display
 
         for run_step in ChunkIterator(FlowStep, step_ids,
@@ -4169,16 +4196,29 @@ class ExportFlowResultsTask(BaseExportTask):
                             runs_sheet_row[padding + 1] = run_step.contact.id
                         else:
                             runs_sheet_row[padding + 1] = contact_urn_display
-                        runs_sheet_row[padding + 2] = contact_name
-                        runs_sheet_row[padding + 3] = groups
 
                     merged_sheet_row[padding + 0] = contact_uuid
                     if org.is_anon:
                         merged_sheet_row[padding + 1] = run_step.contact.id
                     else:
                         merged_sheet_row[padding + 1] = contact_urn_display
-                    merged_sheet_row[padding + 2] = contact_name
-                    merged_sheet_row[padding + 3] = groups
+
+                    extra_urn_padding = 0
+
+                    for extra_urn_column in extra_urn_columns:
+                        urn_value = get_contact_urn_display(run_step.contact, extra_urn_column['scheme'])
+
+                        merged_sheet_row[padding + 2 + extra_urn_padding] = urn_value
+                        if include_runs:
+                            runs_sheet_row[padding + 2 + extra_urn_padding] = urn_value
+                        extra_urn_padding += 1
+
+                    if include_runs:
+                        runs_sheet_row[padding + extra_urn_padding + 2] = contact_name
+                        runs_sheet_row[padding + extra_urn_padding + 3] = groups
+
+                    merged_sheet_row[padding + extra_urn_padding + 2] = contact_name
+                    merged_sheet_row[padding + extra_urn_padding + 3] = groups
 
                     cf_padding = 0
 
@@ -4190,9 +4230,9 @@ class ExportFlowResultsTask(BaseExportTask):
 
                         field_value = six.text_type(field_value)
 
-                        merged_sheet_row[padding + 4 + cf_padding] = field_value
+                        merged_sheet_row[padding + 4 + extra_urn_padding + cf_padding] = field_value
                         if include_runs:
-                            runs_sheet_row[padding + 4 + cf_padding] = field_value
+                            runs_sheet_row[padding + 4 + extra_urn_padding + cf_padding] = field_value
 
                         cf_padding += 1
 
@@ -4203,11 +4243,11 @@ class ExportFlowResultsTask(BaseExportTask):
                     merged_latest = run_step.arrived_on
 
                 if include_runs:
-                    runs_sheet_row[padding + 4 + cf_padding] = earliest
-                    runs_sheet_row[padding + 5 + cf_padding] = latest
+                    runs_sheet_row[padding + 4 + extra_urn_padding + cf_padding] = earliest
+                    runs_sheet_row[padding + 5 + extra_urn_padding + cf_padding] = latest
 
-                merged_sheet_row[padding + 4 + cf_padding] = merged_earliest
-                merged_sheet_row[padding + 5 + cf_padding] = merged_latest
+                merged_sheet_row[padding + 4 + extra_urn_padding + cf_padding] = merged_earliest
+                merged_sheet_row[padding + 5 + extra_urn_padding + cf_padding] = merged_latest
 
                 # write the step data
                 col = column_map.get(run_step.step_uuid, 0) + padding
@@ -5541,7 +5581,7 @@ class SaveToContactAction(Action):
                     ActionLog.warn(run, _('Contact not updated, missing connection for contact'))
 
             if new_urn:
-                urns = [urn.urn for urn in contact.urns.all()]
+                urns = [six.text_type(urn) for urn in contact.urns.all()]
                 urns += [new_urn]
 
                 # don't really update URNs on test contacts

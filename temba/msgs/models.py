@@ -740,6 +740,12 @@ class Msg(models.Model):
         queued.
         :return:
         """
+        task_msgs = []
+        task_priority = None
+        last_contact = None
+        rapid_batches = []
+        courier_batches = []
+
         # we send in chunks of 1,000 to help with contention
         for msg_chunk in chunk_list(all_msgs, 1000):
             # create a temporary list of our chunk so we can iterate more than once
@@ -752,6 +758,7 @@ class Msg(models.Model):
                 queued_on = timezone.now()
                 courier_msgs = []
                 task_msgs = []
+
                 task_priority = None
                 last_contact = None
                 last_channel = None
@@ -773,7 +780,11 @@ class Msg(models.Model):
 
                         # if this is a different contact than our last, and we have msgs, queue the task
                         if task_msgs and last_contact != msg.contact_id:
-                            push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority if task_priority else DEFAULT_PRIORITY)
+                            # if no priority was set, default to DEFAULT
+                            if task_priority is None:  # pragma: needs cover
+                                task_priority = DEFAULT_PRIORITY
+
+                            rapid_batches.append(dict(org=task_msgs[0]['org'], msgs=task_msgs, priority=task_priority))
                             task_msgs = []
                             task_priority = None
 
@@ -792,14 +803,16 @@ class Msg(models.Model):
 
                 # send any remaining msgs
                 if task_msgs:
-                    push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority if task_priority else DEFAULT_PRIORITY)
+                    if task_priority is None:
+                        task_priority = DEFAULT_PRIORITY
+                    rapid_batches.append(dict(org=task_msgs[0]['org'], msgs=task_msgs, priority=task_priority))
                     task_msgs = []
 
                 # ok, now push our courier msgs
                 task_priority = None
                 for msg in courier_msgs:
                     if task_msgs and (last_contact != msg.contact_id or last_channel != msg.channel_id):
-                        push_courier_msgs(task_msgs[0].channel, task_msgs, task_priority != Msg.PRIORITY_NORMAL)
+                        courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs, priority=task_priority != Msg.PRIORITY_NORMAL))
                         task_msgs = []
 
                     if msg.priority != Msg.PRIORITY_BULK:
@@ -811,7 +824,22 @@ class Msg(models.Model):
 
                 # push any remaining courier msgs
                 if task_msgs:
-                    push_courier_msgs(task_msgs[0].channel, task_msgs, task_priority != Msg.PRIORITY_NORMAL)
+                    courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs,
+                                                priority=task_priority != Msg.PRIORITY_NORMAL))
+
+        # send our batches
+        on_transaction_commit(lambda: cls._send_rapid_msg_batches(rapid_batches))
+        on_transaction_commit(lambda: cls._send_courier_msg_batches(courier_batches))
+
+    @classmethod
+    def _send_rapid_msg_batches(cls, batches):
+        for batch in batches:
+            push_task(batch['org'], MSG_QUEUE, SEND_MSG_TASK, batch['msgs'], priority=batch['priority'])
+
+    @classmethod
+    def _send_courier_msg_batches(cls, batches):
+        for batch in batches:
+            push_courier_msgs(batch['channel'], batch['msgs'], batch['priority'])
 
     @classmethod
     def process_message(cls, msg):
@@ -1193,7 +1221,7 @@ class Msg(models.Model):
         Used internally to serialize to JSON when queueing messages in Redis
         """
         data = dict(id=self.id, org=self.org_id, channel=self.channel_id, broadcast=self.broadcast_id,
-                    text=self.text, urn_path=self.contact_urn.path,
+                    text=self.text, urn_path=self.contact_urn.path, urn=six.text_type(self.contact_urn),
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
                     status=self.status, direction=self.direction, attachments=self.attachments,
@@ -1474,7 +1502,7 @@ class Msg(models.Model):
         contact = None
         contact_urn = None
 
-        resolved_schemes = {channel.scheme} if channel else org.get_schemes(role)
+        resolved_schemes = set(channel.schemes) if channel else org.get_schemes(role)
 
         if isinstance(recipient, Contact):
             if recipient.is_test:
@@ -1488,7 +1516,7 @@ class Msg(models.Model):
                 contact = recipient.contact
                 contact_urn = recipient
         elif isinstance(recipient, six.string_types):
-            scheme, path = URN.to_parts(recipient)
+            scheme, path, display = URN.to_parts(recipient)
             if scheme in resolved_schemes:
                 contact = Contact.get_or_create(org, user, urns=[recipient])
                 contact_urn = contact.urn_objects[recipient]

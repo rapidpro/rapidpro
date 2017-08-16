@@ -10,6 +10,9 @@ from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from django_redis import get_redis_connection
+from django.db import transaction
+from django.contrib.auth.models import User
+from django.test import override_settings
 from mock import patch
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
@@ -26,6 +29,9 @@ from temba.values.models import Value
 from .management.commands.msg_console import MessageConsole
 from .tasks import squash_labelcounts, clear_old_msg_external_ids, purge_broadcasts_task
 from .templatetags.sms import as_icon
+from temba.locations.models import AdminBoundary
+from temba.msgs import models
+from temba.utils.queues import DEFAULT_PRIORITY
 
 
 class MsgTest(TembaTest):
@@ -212,6 +218,7 @@ class MsgTest(TembaTest):
         # a Twitter channel
         Channel.create(self.org, self.user, None, 'TT')
         completions.insert(-2, dict(name="contact.%s" % 'twitter', display="Contact %s" % "Twitter handle"))
+        completions.insert(-2, dict(name="contact.%s" % 'twitterid', display="Contact %s" % "Twitter ID"))
 
         response = self.client.get(outbox_url)
         # the Twitter URN scheme is included
@@ -317,7 +324,7 @@ class MsgTest(TembaTest):
         contact = self.create_contact("Blocked contact", "250728739305")
         contact.is_blocked = True
         contact.save()
-        ignored_msg = Msg.create_incoming(self.channel, contact.get_urn().urn, "My msg should be archived")
+        ignored_msg = Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "My msg should be archived")
         ignored_msg = Msg.objects.get(pk=ignored_msg.pk)
         self.assertEqual(ignored_msg.visibility, Msg.VISIBILITY_ARCHIVED)
         self.assertEqual(ignored_msg.status, HANDLED)
@@ -435,7 +442,7 @@ class MsgTest(TembaTest):
     def test_inbox(self):
         inbox_url = reverse('msgs.msg_inbox')
 
-        joe_tel = self.joe.get_urn(TEL_SCHEME).urn
+        joe_tel = six.text_type(self.joe.get_urn(TEL_SCHEME))
         msg1 = Msg.create_incoming(self.channel, joe_tel, "message number 1")
         msg2 = Msg.create_incoming(self.channel, joe_tel, "message number 2")
         msg3 = Msg.create_incoming(self.channel, joe_tel, "message number 3")
@@ -555,7 +562,7 @@ class MsgTest(TembaTest):
 
         # messages from test contact are not included in the inbox
         test_contact = Contact.get_test_contact(self.admin)
-        Msg.create_incoming(self.channel, test_contact.get_urn().urn, 'Bla Blah')
+        Msg.create_incoming(self.channel, six.text_type(test_contact.get_urn()), 'Bla Blah')
 
         response = self.client.get(inbox_url)
         self.assertEqual(Msg.objects.all().count(), 7)
@@ -604,7 +611,7 @@ class MsgTest(TembaTest):
     def test_flows(self):
         url = reverse('msgs.msg_flow')
 
-        msg1 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "test 1", msg_type='F')
+        msg1 = Msg.create_incoming(self.channel, six.text_type(self.joe.get_urn()), "test 1", msg_type='F')
 
         # user not in org can't access
         self.login(self.non_org_user)
@@ -682,9 +689,6 @@ class MsgTest(TembaTest):
 
         self.joe.name = "Jo\02e Blow"
         self.joe.save()
-
-        # create some messages...
-        # joe_urn = self.joe.get_urn(TEL_SCHEME).urn
 
         msg1 = self.create_msg(contact=self.joe, text="hello 1", direction='I', status=HANDLED,
                                msg_type='I', created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
@@ -2079,19 +2083,19 @@ class TagsTest(TembaTest):
         # default cause is pending sent
         self.assertHasClass(as_icon(None), 'icon-bubble-dots-2 green')
 
-        in_call = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
+        in_call = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
                                       ChannelEvent.TYPE_CALL_IN, timezone.now(), 5)
         self.assertHasClass(as_icon(in_call), 'icon-call-incoming green')
 
-        in_miss = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
+        in_miss = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
                                       ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 5)
         self.assertHasClass(as_icon(in_miss), 'icon-call-incoming red')
 
-        out_call = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
+        out_call = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
                                        ChannelEvent.TYPE_CALL_OUT, timezone.now(), 5)
         self.assertHasClass(as_icon(out_call), 'icon-call-outgoing green')
 
-        out_miss = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
+        out_miss = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
                                        ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), 5)
         self.assertHasClass(as_icon(out_miss), 'icon-call-outgoing red')
 
@@ -2103,3 +2107,68 @@ class TagsTest(TembaTest):
         # exception if tag not used correctly
         self.assertRaises(ValueError, self.render_template, '{% load sms %}{% render with bob %}{% endrender %}')
         self.assertRaises(ValueError, self.render_template, '{% load sms %}{% render as %}{% endrender %}')
+
+
+class CeleryTaskTest(TembaTest):
+
+    def setUp(self):
+        super(CeleryTaskTest, self).setUp()
+
+        self.applied_tasks = []
+
+        self.joe = self.create_contact("Joe", "+250788383444")
+
+        self.channel2 = Channel.create(
+            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '1234',
+            config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
+            uuid='00000000-0000-0000-0000-000000001234', role=Channel.ROLE_USSD)
+
+    def _fixture_teardown(self):
+        Msg.objects.all().delete()
+        Channel.objects.all().delete()
+        AdminBoundary.objects.all().delete()
+        Org.objects.all().delete()
+        Contact.objects.all().delete()
+        User.objects.all().exclude(username=settings.ANONYMOUS_USER_NAME).delete()
+
+    @classmethod
+    def _enter_atomics(cls):
+        return {}
+
+    @classmethod
+    def _rollback_atomics(cls, atomics):
+        pass
+
+    def handle_push_task(self, task_name):
+        self.applied_tasks.append(task_name)
+
+    def assert_task_sent(self, task_name):
+        was_sent = task_name in self.applied_tasks
+        self.assertTrue(was_sent, 'Task not called w/class %s' % (task_name))
+
+    def assertInDB(self, obj, msg=None):
+        """Test for obj's presence in the database."""
+        fullmsg = "Object %r unexpectedly not found in the database" % obj
+        fullmsg += ": " + msg if msg else ""
+        try:
+            type(obj).objects.using('default2').get(pk=obj.pk)
+        except obj.DoesNotExist:
+            self.fail(fullmsg)
+
+    @override_settings(CELERY_ALWAYS_EAGER=False, SEND_MESSAGES=True)
+    def test_reply_task_added(self):
+        orig_push_task = models.push_task
+
+        def new_send_task(name, args=(), kwargs={}, **opts):
+            self.handle_push_task(name)
+
+        def new_push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
+            orig_push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY)
+
+            self.assertInDB(msg1)
+            self.assert_task_sent('send_msg_task')
+
+        with patch('celery.current_app.send_task', new_send_task), patch('temba.msgs.models.push_task', new_push_task), transaction.atomic():
+            msg1 = Msg.create_outgoing(self.org, self.user, self.joe, "Hello, we heard from you.", channel=self.channel2)
+
+            Msg.send_messages([msg1])

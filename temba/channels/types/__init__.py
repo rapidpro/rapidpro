@@ -13,7 +13,7 @@ def register_channel_type(type_class):
     Registers a channel type
     """
     if not type_class.slug:
-        type_class.slug = type_class.__module__.split('.')[-1]
+        type_class.slug = type_class.__module__.split('.')[-2]
 
     if type_class.code in TYPES:  # pragma: no cover
         raise ValueError("More than channel type with code: %s" % type_class.code)
@@ -36,7 +36,7 @@ def reload_channel_types():
             slug=code.lower(),
             icon=Channel.TYPE_ICONS.get(code, 'icon-channel-external'),
             show_config_page=code not in Channel.HIDE_CONFIG_PAGE,
-            scheme=type_settings.get('scheme'),
+            schemes=type_settings.get('schemes'),
             max_length=type_settings.get('max_length'),
             max_tps=type_settings.get('max_tps'),
             attachment_support=code in Channel.MEDIA_CHANNELS,

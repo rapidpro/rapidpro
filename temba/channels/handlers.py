@@ -34,6 +34,7 @@ from temba.ussd.models import USSDSession
 from temba.utils import decode_base64, get_anonymous_user, json_date_to_datetime, ms_to_datetime, on_transaction_commit
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
+from temba.utils.jiochat import JiochatClient
 from temba.utils.twitter import generate_twitter_signature
 from twilio import twiml
 from .tasks import fb_channel_subscribe, refresh_jiochat_access_tokens
@@ -446,7 +447,7 @@ class ExternalHandler(BaseChannelHandler):
     url_name = 'handlers.external_handler'
 
     def get_channel_type(self):
-        return Channel.TYPE_EXTERNAL
+        return 'EX'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -506,7 +507,7 @@ class ExternalHandler(BaseChannelHandler):
                 except ValueError as e:
                     return HttpResponse("Bad parameter error: %s" % e.message, status=400)
 
-            urn = URN.from_parts(channel.scheme, sender)
+            urn = URN.from_parts(channel.schemes[0], sender)
             sms = Msg.create_incoming(channel, urn, text, date=date)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
@@ -2003,6 +2004,13 @@ class JunebugHandler(BaseChannelHandler):
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
+        authorization = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
+
+        if channel.secret is not None and (
+                len(authorization) != 2 or authorization[0] != 'Token' or
+                authorization[1] != channel.secret):
+            return JsonResponse(dict(error="Incorrect authentication token"), status=401)
+
         # Junebug is sending an event
         if action == 'event':
             expected_keys = ["event_type", "message_id", "timestamp"]
@@ -2071,7 +2079,8 @@ class JunebugHandler(BaseChannelHandler):
 
                 message_date = datetime.strptime(data['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
                 gmt_date = pytz.timezone('GMT').localize(message_date)
-                session_id = '%s.%s' % (data['from'], gmt_date.toordinal())
+                # Use a session id if provided, otherwise fall back to using the `from` address as the identifier
+                session_id = channel_data.get('session_id') or data['from']
 
                 session = USSDSession.handle_incoming(channel=channel, urn=data['from'], content=data['content'],
                                                       status=status, date=gmt_date, external_id=session_id,
@@ -2191,14 +2200,14 @@ class JioChatHandler(BaseChannelHandler):
     def lookup_channel(self, kwargs):
         # look up the channel
         return Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
-                                      channel_type=Channel.TYPE_JIOCHAT).exclude(org=None).first()
+                                      channel_type='JC').exclude(org=None).first()
 
     def get(self, request, *args, **kwargs):
         channel = self.lookup_channel(kwargs)
         if not channel:
             return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
 
-        client = channel.get_jiochat_client()
+        client = JiochatClient.from_channel(channel)
         if client:
             verified, echostr = client.verify_request(request, channel.secret)
 
@@ -2221,7 +2230,7 @@ class JioChatHandler(BaseChannelHandler):
         if 'FromUserName' not in body or 'MsgType' not in body or ('MsgId' not in body and 'Event' not in body):
             return HttpResponse("Missing parameters", status=400)
 
-        client = channel.get_jiochat_client()
+        client = JiochatClient.from_channel(channel)
 
         sender_id = body.get('FromUserName')
         create_time = body.get('CreateTime', None)
@@ -2519,7 +2528,7 @@ class GlobeHandler(BaseChannelHandler):
                     return HttpResponse("Missing one of dateTime, senderAddress, message, messageId or destinationAddress in message", status=400)
 
                 try:
-                    scheme, destination = URN.to_parts(inbound_msg['destinationAddress'])
+                    scheme, destination, display = URN.to_parts(inbound_msg['destinationAddress'])
                 except ValueError as v:
                     return HttpResponse("Error parsing destination address: " + str(v), status=400)
 
@@ -2529,7 +2538,7 @@ class GlobeHandler(BaseChannelHandler):
 
                 # parse our sender address out, it is a URN looking thing
                 try:
-                    scheme, sender_tel = URN.to_parts(inbound_msg['senderAddress'])
+                    scheme, sender_tel, display = URN.to_parts(inbound_msg['senderAddress'])
                 except ValueError as v:
                     return HttpResponse("Error parsing sender address: " + str(v), status=400)
 
@@ -2967,7 +2976,7 @@ class TwitterHandler(BaseChannelHandler):
                 if int(sender_id) == channel_config['handle_id']:
                     continue
 
-                urn = URN.from_twitter(users[sender_id]['screen_name'])
+                urn = URN.from_twitterid(users[sender_id]['id'], users[sender_id]['screen_name'])
                 name = None if channel.org.is_anon else users[sender_id]['name']
                 contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
 

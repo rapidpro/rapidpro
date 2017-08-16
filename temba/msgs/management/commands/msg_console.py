@@ -8,6 +8,7 @@ from django.utils import timezone
 from temba.contacts.models import Contact, URN
 from temba.orgs.models import Org
 from temba.msgs.models import Msg, OUTGOING
+import six
 
 
 DEFAULT_ORG = '1'
@@ -112,12 +113,12 @@ class MessageConsole(cmd.Cmd):
         incoming = Msg.create_incoming(None, URN.from_parts(urn.scheme, urn.path),
                                        line, date=timezone.now(), org=self.org)
 
-        self.echo((Fore.GREEN + "[%s] " + Fore.YELLOW + ">>" + Fore.MAGENTA + " %s" + Fore.WHITE) % (urn.urn, incoming.text))
+        self.echo((Fore.GREEN + "[%s] " + Fore.YELLOW + ">>" + Fore.MAGENTA + " %s" + Fore.WHITE) % (six.text_type(urn), incoming.text))
 
         # look up any message responses
         outgoing = Msg.objects.filter(org=self.org, pk__gt=incoming.pk, direction=OUTGOING).order_by('sent_on')
         for response in outgoing:
-            self.echo((Fore.GREEN + "[%s] " + Fore.YELLOW + "<<" + Fore.MAGENTA + " %s" + Fore.WHITE) % (urn.urn, response.text))
+            self.echo((Fore.GREEN + "[%s] " + Fore.YELLOW + "<<" + Fore.MAGENTA + " %s" + Fore.WHITE) % (six.text_type(urn), response.text))
 
     def do_EOF(self, line):
         """
