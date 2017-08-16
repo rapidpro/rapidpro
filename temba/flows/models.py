@@ -145,7 +145,7 @@ class FlowSession(ChannelSession):
         sessions.update(is_active=False, modified_on=timezone.now())
 
     @classmethod
-    def start(cls, contacts, flow, broadcasts=None, msg_in=None, extra=None):
+    def batch_start(cls, contacts, flow, broadcasts=None, msg_in=None, extra=None):
         """
         Starts a contact in the given flow
         """
@@ -1865,7 +1865,7 @@ class Flow(TembaModel):
                              extra=None, flow_start=None, parent_run=None):
 
         # try to start the session against our flow server
-        runs = FlowSession.start(Contact.objects.filter(id__in=batch_contact_ids), self, broadcasts, start_msg, extra)
+        runs = FlowSession.batch_start(Contact.objects.filter(id__in=batch_contact_ids).order_by('id'), self, broadcasts, start_msg, extra)
         from temba.tests import ExcludeTestRunner
         if len(runs):
             ExcludeTestRunner.NEW_ENGINE_RUNS += 1
