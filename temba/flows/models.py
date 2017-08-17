@@ -1867,14 +1867,14 @@ class Flow(TembaModel):
 
         # try to start the session against our flow server
         runs = FlowSession.batch_start(Contact.objects.filter(id__in=batch_contact_ids).order_by('id'), self, broadcasts, start_msg, extra)
-        from temba.tests import ExcludeTestRunner
+        from temba.tests import TembaTestRunner
         if len(runs):
-            ExcludeTestRunner.NEW_ENGINE_RUNS += 1
+            TembaTestRunner.NEW_ENGINE_RUNS += 1
             if flow_start:
                 flow_start.runs.add(*runs)
                 flow_start.update_status()
             return runs
-        ExcludeTestRunner.LEGACY_ENGINE_RUNS += 1
+        TembaTestRunner.LEGACY_ENGINE_RUNS += 1
 
         simulation = False
         if len(batch_contact_ids) == 1:
