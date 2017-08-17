@@ -8,6 +8,8 @@ from ...models import Channel
 class InfobipTypeTest(TembaTest):
 
     def test_claim(self):
+        Channel.objects.all().delete()
+
         url = reverse('channels.claim_infobip')
 
         self.login(self.admin)
@@ -25,7 +27,7 @@ class InfobipTypeTest(TembaTest):
         post_data['username'] = 'user1'
         post_data['password'] = 'pass1'
 
-        response = self.client.post(reverse('channels.channel_claim_infobip'), post_data)
+        response = self.client.post(url, post_data)
 
         channel = Channel.objects.get()
 

@@ -51,7 +51,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         data = form.cleaned_data
         self.object = Channel.add_authenticated_external_channel(org, self.request.user,
-                                                                 data['county'],
+                                                                 data['country'],
                                                                  data['number'],
                                                                  data['username'],
                                                                  data['password'],
