@@ -6259,6 +6259,7 @@ class FlowMigrationTest(FlowFileTest):
         # unknown versions return false
         self.assertFalse(Flow.is_before_version("3.1", "5"))
         self.assertFalse(Flow.is_before_version("200", "5"))
+        self.assertFalse(Flow.is_before_version("3.1", "3.5"))
 
         self.assertFalse(Flow.is_before_version(CURRENT_EXPORT_VERSION, 10))
 
