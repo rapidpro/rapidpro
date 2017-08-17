@@ -6248,6 +6248,18 @@ class FlowsTest(FlowFileTest):
 
 class FlowMigrationTest(FlowFileTest):
 
+    def test_is_before_version(self):
+
+        # works with numbers
+        self.assertTrue(Flow.is_before_version(5, 6))
+
+        self.assertTrue(Flow.is_before_version("10", "10.1"))
+        self.assertFalse(Flow.is_before_version("10", "9"))
+
+        # unknown versions return false
+        self.assertFalse(Flow.is_before_version("3.1", "5"))
+        self.assertFalse(Flow.is_before_version("200", "5"))
+
     def migrate_flow(self, flow, to_version=None):
 
         if not to_version:
@@ -6368,7 +6380,7 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEquals(5, len(flow_json['action_sets']))
         self.assertEquals(1, len(flow_json['rule_sets']))
 
-    def test_migrate_to_11(self):
+    def test_migrate_to_10_1(self):
         favorites = self.get_flow('favorites')
 
         # make sure all of our actions have uuids set
@@ -6380,7 +6392,7 @@ class FlowMigrationTest(FlowFileTest):
         exported = favorites.as_json()
         flow = Flow.objects.filter(name='Favorites').first()
         self.assertEqual(exported, flow.as_json())
-        self.assertTrue(flow.version_number >= 11)
+        self.assertEqual(flow.version_number, CURRENT_EXPORT_VERSION)
 
     @override_settings(SEND_WEBHOOKS=True)
     def test_migrate_to_10(self):

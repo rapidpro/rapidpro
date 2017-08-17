@@ -270,8 +270,8 @@ class Flow(TembaModel):
         return flow
 
     @classmethod
-    def is_before_version(cls, us, version):
-        version_str = six.text_type(us)
+    def is_before_version(cls, to_check, version):
+        version_str = six.text_type(to_check)
         for ver in Flow.VERSIONS:
             if ver == version_str and version != ver:
                 return True
@@ -3479,7 +3479,7 @@ class RuleSet(models.Model):
                            operand=self.operand, config=self.config_json())
 
         # if we are pre-version 10, include our webhook and webhook_action in our dict
-        if self.flow.version_number < 10:
+        if Flow.is_before_version(self.flow.version_number, 10):
             ruleset_def['webhook'] = self.webhook_url
             ruleset_def['webhook_action'] = self.webhook_action
 
