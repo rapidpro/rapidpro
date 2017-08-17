@@ -38,9 +38,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 raise forms.ValidationError(
                     _("Invalid phone number, please include the country code. ex: +250788123123"))
 
-    title = _("Connect Infobip")
-    permission = 'channels.channel_claim'
-    success_url = "id@channels.channel_configuration"
     form_class = Form
 
     def form_valid(self, form):
