@@ -5292,6 +5292,7 @@ class VariableContactAction(Action):
                 contact_variable_by_uuid = Contact.objects.filter(uuid=variable, org=run.flow.org).first()
                 if contact_variable_by_uuid:
                     contacts.append(contact_variable_by_uuid)
+                    continue
 
                 variable_group = ContactGroup.get_user_group(run.flow.org, name=variable)
                 if variable_group:  # pragma: needs cover
