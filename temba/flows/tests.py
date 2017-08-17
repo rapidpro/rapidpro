@@ -6260,6 +6260,8 @@ class FlowMigrationTest(FlowFileTest):
         self.assertFalse(Flow.is_before_version("3.1", "5"))
         self.assertFalse(Flow.is_before_version("200", "5"))
 
+        self.assertFalse(Flow.is_before_version(CURRENT_EXPORT_VERSION, 10))
+
     def migrate_flow(self, flow, to_version=None):
 
         if not to_version:
@@ -6398,8 +6400,6 @@ class FlowMigrationTest(FlowFileTest):
     def test_migrate_to_10(self):
         # this is really just testing our rewriting of webhook rulesets
         webhook_flow = self.get_flow('dual_webhook')
-        print (webhook_flow.version_number)
-
         self.assertNotEqual(webhook_flow.modified_on, webhook_flow.saved_on)
 
         # get our definition out

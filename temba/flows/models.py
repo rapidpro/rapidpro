@@ -272,6 +272,7 @@ class Flow(TembaModel):
     @classmethod
     def is_before_version(cls, to_check, version):
         version_str = six.text_type(to_check)
+        version = six.text_type(version)
         for ver in Flow.VERSIONS:
             if ver == version_str and version != ver:
                 return True
