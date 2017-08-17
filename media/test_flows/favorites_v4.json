@@ -201,7 +201,7 @@
             "response_type": "C",
             "y": 129,
             "x": 98,
-            "webhook": "http://www.mywebhook.com/lookup",
+            "webhook": "http://localhost:49999/echo?content=%7B%20%22status%22%3A%20%22valid%22%20%7D",
             "webhook_action": "POST",
             "operand": "@extra.value",
             "config": {}
