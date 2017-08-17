@@ -6674,8 +6674,8 @@ class FlowMigrationTest(FlowFileTest):
             first_response.set_actions_dict(actions)
             first_response.save()
 
-        reply = self.send_message(flow, 'red')
-        self.assertEquals('I like Red too! What is your favorite beer? { "status": "valid" }', reply)
+            reply = self.send_message(flow, 'red')
+            self.assertEquals('I like Red too! What is your favorite beer? { "status": "valid" }', reply)
 
         reply = self.send_message(flow, 'Turbo King')
         self.assertEquals('Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?', reply)
