@@ -17,6 +17,8 @@
         %textarea#id_text{tabindex:1}
         #counter
 
+        #recipients-count
+
         #omni
           #omni-select2
             #omnibox.placeholder.populate{style:"width:100%"}
@@ -69,14 +71,14 @@
 
     // show the compose dialog with some contacts prepopulated
     function showComposeInitialized(queryString, url, onComplete) {
-      showCompose(true, url, null, onComplete);
+      showCompose(true, url, null, null, onComplete);
       $.get("{% url 'contacts.contact_omnibox' %}?" + queryString, function(data, textStatus){
         initializeOmnibox(data.results);
         $('.select2-input').attr('tabindex', 2);
       });
     }
 
-    function showCompose(loading, url, nodeUUID, onComplete) {
+    function showCompose(loading, url, nodeUUID, nodeRecipientsCount, onComplete) {
       // make sure any previous errors are removed
       $("#send-message .error").remove();
 
@@ -94,11 +96,15 @@
         $("#loading").hide();
       }
 
+      $("#recipients-count").hide();
+
       if(nodeUUID) {
         $("#omnibox").hide();
         $("#omni-select2").hide();
         $("#loading").hide();
         $("#send-message .schedule").hide();
+        $("#recipients-count").html("<strong>" + nodeRecipientsCount + "</strong> " + '{% trans "recipients" %}' );
+        $("#recipients-count").show();
       }
 
       // show the modal
