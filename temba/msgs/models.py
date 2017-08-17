@@ -807,7 +807,7 @@ class Msg(models.Model):
         """
         Processes a message, running it through all our handlers
         """
-        from temba.orgs.models import CHATBASE_TYPE_USER, CHATBASE_API_KEY, CHATBASE_VERSION
+        from temba.orgs.models import CHATBASE_TYPE_USER
 
         handlers = get_message_handlers()
 
