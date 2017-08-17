@@ -902,7 +902,9 @@ class FlowCRUDL(SmartCRUDL):
                     flow_variables.append(dict(name='flow.%s.time' % key, display='%s Time' % rule_set.label))
 
             function_completions = get_function_listing()
-            return JsonResponse(dict(message_completions=contact_variables + date_variables + flow_variables + parent_variables + child_variables,
+            messages_completions = contact_variables + date_variables + flow_variables
+            messages_completions += parent_variables + child_variables
+            return JsonResponse(dict(message_completions=messages_completions,
                                      function_completions=function_completions))
 
     class Read(OrgObjPermsMixin, SmartReadView):

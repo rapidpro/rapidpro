@@ -4760,6 +4760,10 @@ class FlowsTest(FlowFileTest):
         assert_in_response(response, 'message_completions', 'contact.first_name')
         assert_in_response(response, 'message_completions', 'contact.tel')
         assert_in_response(response, 'message_completions', 'contact.mailto')
+
+        assert_in_response(response, 'message_completions', 'parent.contact.uuid')
+        assert_in_response(response, 'message_completions', 'child.contact.uuid')
+
         assert_in_response(response, 'message_completions', 'flow.color')
         assert_in_response(response, 'message_completions', 'flow.color.category')
         assert_in_response(response, 'message_completions', 'flow.color.text')
