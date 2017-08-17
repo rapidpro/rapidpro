@@ -5423,9 +5423,14 @@ class FlowsTest(FlowFileTest):
         mother_flow = self.get_flow('new_mother')
         registration_flow = self.get_flow('mother_registration', dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
 
+        self.assertEqual(mother_flow.runs.count(), 0)
+
         self.assertEquals("What is her expected delivery date?", self.send_message(registration_flow, "Judy Pottier"))
         self.assertEquals("What is her phone number?", self.send_message(registration_flow, "31.1.2014"))
         self.assertEquals("Great, you've registered the new mother!", self.send_message(registration_flow, "0788 383 383"))
+
+        # we start both the new mother by @flow.phone and the current contact by its uuid @contact.uuid
+        self.assertEqual(mother_flow.runs.count(), 2)
 
         mother = Contact.from_urn(self.org, "tel:+250788383383")
         self.assertEquals("Judy Pottier", mother.name)
