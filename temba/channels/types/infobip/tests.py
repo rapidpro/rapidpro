@@ -45,3 +45,23 @@ class InfobipTypeTest(TembaTest):
 
         self.assertContains(response, reverse('handlers.infobip_handler', args=['received', channel.uuid]))
         self.assertContains(response, reverse('handlers.infobip_handler', args=['delivered', channel.uuid]))
+
+        Channel.objects.all().delete()
+
+        response = self.client.get(url)
+        post_data = response.context['form'].initial
+
+        post_data['country'] = 'NI'
+        post_data['number'] = '20050'
+        post_data['username'] = 'user1'
+        post_data['password'] = 'pass1'
+
+        response = self.client.post(url, post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertEquals('NI', channel.country)
+        self.assertEquals(post_data['username'], channel.config_json()['username'])
+        self.assertEquals(post_data['password'], channel.config_json()['password'])
+        self.assertEquals('20050', channel.address)
+        self.assertEquals('IB', channel.channel_type)
