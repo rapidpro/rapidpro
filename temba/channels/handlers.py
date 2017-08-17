@@ -684,12 +684,15 @@ class InfobipHandler(BaseChannelHandler):
     url = r'^infobip/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.infobip_handler'
 
+    def get_channel_type(self):
+        return 'IB'
+
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_INFOBIP).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -738,7 +741,7 @@ class InfobipHandler(BaseChannelHandler):
         if sender is None or text is None or receiver is None:  # pragma: needs cover
             return HttpResponse("Missing parameters, must have 'sender', 'text' and 'receiver'", status=400)
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_INFOBIP).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
