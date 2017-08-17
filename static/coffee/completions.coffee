@@ -5,8 +5,10 @@ class window.AutoComplete
 
   constructor: (@variables=[], @functions=[]) ->
 
-    @parser = new window.excellent.Parser('@', ['channel', 'contact', 'date', 'extra', 'flow', 'step']);
+    @parser = new window.excellent.Parser('@', ['channel', 'contact', 'date', 'extra', 'flow', 'step', 'parent', 'child', 'new_contact']);
     @completions = @variables.concat(@functions)
+
+    console.log(@completions)
 
     # mark our functions as functions
     for f in @functions

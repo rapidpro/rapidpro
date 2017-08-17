@@ -880,6 +880,13 @@ class FlowCRUDL(SmartCRUDL):
                 dict(name='step.value', display=six.text_type(_('Sent to')))
             ]
             flow_variables += [dict(name='step.%s' % v['name'], display=v['display']) for v in contact_variables]
+
+            parent_variables = [dict(name='parent.%s' % v['name'], display=v['display']) for v in contact_variables]
+            parent_variables += [dict(name='parent.%s' % v['name'], display=v['display']) for v in flow_variables]
+
+            child_variables = [dict(name='child.%s' % v['name'], display=v['display']) for v in contact_variables]
+            child_variables += [dict(name='child.%s' % v['name'], display=v['display']) for v in flow_variables]
+
             flow_variables.append(dict(name='flow', display=six.text_type(_('All flow variables'))))
 
             flow_id = self.request.GET.get('flow', None)
@@ -895,7 +902,7 @@ class FlowCRUDL(SmartCRUDL):
                     flow_variables.append(dict(name='flow.%s.time' % key, display='%s Time' % rule_set.label))
 
             function_completions = get_function_listing()
-            return JsonResponse(dict(message_completions=contact_variables + date_variables + flow_variables,
+            return JsonResponse(dict(message_completions=contact_variables + date_variables + flow_variables + parent_variables + child_variables,
                                      function_completions=function_completions))
 
     class Read(OrgObjPermsMixin, SmartReadView):
