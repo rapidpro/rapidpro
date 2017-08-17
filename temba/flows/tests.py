@@ -6629,42 +6629,14 @@ class FlowMigrationTest(FlowFileTest):
 
     @override_settings(SEND_WEBHOOKS=True)
     def test_migrate_to_5(self):
-        flow = self.get_flow('favorites')
+        flow = self.get_flow('favorites_v4')
 
-        # start the flow for our contact
-        flow.start(groups=[], contacts=[self.contact])
-
-        # we should be sitting at the ruleset waiting for a message
-        step = FlowStep.objects.get(run__flow=flow, step_type='R')
-        ruleset = RuleSet.objects.get(uuid=step.step_uuid)
-        self.assertEquals('wait_message', ruleset.ruleset_type)
-
-        # fake a version 4 flow
-        RuleSet.objects.filter(flow=flow).update(response_type='C', ruleset_type=None)
-        flow.version_number = "4"
-        flow.save()
-
-        # pretend our current ruleset was stopped at a webhook with a passive rule
-        ruleset = RuleSet.objects.get(flow=flow, uuid=step.step_uuid)
-        ruleset.webhook_url = 'http://www.mywebhook.com/lookup'
-        ruleset.webhook_action = 'POST'
-        ruleset.operand = '@extra.value'
-        ruleset.save()
-
-        # make beer use @step.value with a filter to test node creation
-        beer_ruleset = RuleSet.objects.get(flow=flow, label='Beer')
-        beer_ruleset.operand = '@step.value|lower_case'
-        beer_ruleset.save()
-
-        # now migrate our flow
-        flow = self.migrate_flow(flow)
-
-        # we should be sitting at a wait node
-        ruleset = RuleSet.objects.get(uuid=step.step_uuid)
+        # first node should be a wait node
+        ruleset = RuleSet.objects.filter(label='Color Response').first()
         self.assertEquals('wait_message', ruleset.ruleset_type)
         self.assertEquals('@step.value', ruleset.operand)
 
-        # we should be pointing to a newly created webhook rule
+        # we should now be pointing to a newly created webhook rule
         webhook = RuleSet.objects.get(flow=flow, uuid=ruleset.get_rules()[0].destination)
         self.assertEquals('webhook', webhook.ruleset_type)
         self.assertEquals('http://www.mywebhook.com/lookup', webhook.config_json()[RuleSet.CONFIG_WEBHOOK])
@@ -6700,8 +6672,7 @@ class FlowMigrationTest(FlowFileTest):
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "status": "valid" }')
 
-            # now move our straggler forward with a message, should get a reply
-
+            # now try executing our migrated flow
             first_response = ActionSet.objects.get(flow=flow, x=131)
             actions = first_response.get_actions_dict()
             actions[0]['msg'][flow.base_language] = 'I like @flow.color.category too! What is your favorite beer? @flow.color_webhook'

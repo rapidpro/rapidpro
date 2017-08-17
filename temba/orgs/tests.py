@@ -2547,14 +2547,14 @@ class BulkExportTest(TembaTest):
         # now try again with purchased credits, but our file is too old
         post_data = dict(import_file=open('%s/test_flows/too_old.json' % settings.MEDIA_ROOT, 'rb'))
         response = self.client.post(reverse('orgs.org_import'), post_data)
-        self.assertEquals(response.context['form'].errors['import_file'][0], 'This file is no longer valid. Please export a new version and try again.')
+        self.assertEquals('This file is no longer valid. Please export a new version and try again.', response.context['form'].errors['import_file'][0])
 
         # simulate an unexpected exception during import
         with patch('temba.triggers.models.Trigger.import_triggers') as validate:
             validate.side_effect = Exception('Unexpected Error')
             post_data = dict(import_file=open('%s/test_flows/new_mother.json' % settings.MEDIA_ROOT, 'rb'))
             response = self.client.post(reverse('orgs.org_import'), post_data)
-            self.assertEquals(response.context['form'].errors['import_file'][0], 'Sorry, your import file is invalid.')
+            self.assertEquals('Sorry, your import file is invalid.', response.context['form'].errors['import_file'][0])
 
             # trigger import failed, new flows that were added should get rolled back
             self.assertIsNone(Flow.objects.filter(org=self.org, name='New Mother').first())

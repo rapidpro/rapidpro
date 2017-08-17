@@ -3629,7 +3629,6 @@ class FlowRevision(SmartModel):
 
         from temba.flows import flow_migrations
         versions = Flow.get_versions_after(version)
-        print ("EXPORT", version, versions)
         for version in versions:
             parts = version.split(".")
             migrate_fn = None

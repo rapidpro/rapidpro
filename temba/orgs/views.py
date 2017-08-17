@@ -477,7 +477,7 @@ class OrgCRUDL(SmartCRUDL):
                 # check that it isn't too old
                 data = self.cleaned_data['import_file'].read()
                 json_data = json.loads(data)
-                if json_data.get('version', 0) < EARLIEST_IMPORT_VERSION:
+                if Flow.is_before_version(json_data.get('version', 0), EARLIEST_IMPORT_VERSION):
                     raise ValidationError('This file is no longer valid. Please export a new version and try again.')
 
                 return data
