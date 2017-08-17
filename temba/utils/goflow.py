@@ -57,12 +57,6 @@ class RequestBuilder(object):
                 'value': v.string_value
             }
 
-        # only include language if it's a valid org language
-        if contact.language and contact.language in contact.org.get_language_codes():
-            language = contact.language
-        else:
-            language = None
-
         _contact, contact_urn = Msg.resolve_recipient(contact.org, None, contact, None)
 
         # only populate channel if this contact can actually be reached (ie, has a URN)
@@ -81,7 +75,7 @@ class RequestBuilder(object):
                 'urns': [urn.urn for urn in contact.urns.all()],
                 'groups': [{"uuid": group.uuid, "name": group.name} for group in contact.user_groups.all()],
                 'timezone': "UTC",
-                'language': language,
+                'language': contact.language,
                 'fields': field_values,
                 'channel_uuid': channel_uuid
             }

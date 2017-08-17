@@ -177,7 +177,10 @@ class FlowSession(ChannelSession):
             if extra:
                 request = request.set_extra(extra)
 
-            output = request.start(flow)
+            try:
+                output = request.start(flow)
+            except goflow.FlowServerException:
+                continue
 
             # if we hit a wait then we didn't complete
             active = output.session['status'] == 'waiting'
@@ -188,7 +191,7 @@ class FlowSession(ChannelSession):
                                          created_by=flow.created_by, modified_by=flow.modified_by,
                                          modified_on=timezone.now(), created_on=timezone.now())
 
-            contact_runs = session.sync_runs(output, msg_in, broadcasts, active)
+            contact_runs = session.sync_runs(output, msg_in, broadcasts)
             runs.append(contact_runs[0])
 
         return runs
@@ -236,23 +239,32 @@ class FlowSession(ChannelSession):
         request = request.set_contact(self.contact)
         request = request.set_environment(self.org)
 
-        output = request.resume(self.as_json())
+        try:
+            output = request.resume(self.as_json())
 
-        # if we hit a wait then we didn't complete
-        active = output.session['status'] == 'waiting'
+            # if we hit a wait then we didn't complete
+            active = output.session['status'] == 'waiting'
 
-        # update our output
-        self.output = json.dumps(output.session)
-        self.is_active = active
-        self.modified_on = timezone.now()
-        self.save(update_fields=['output', 'is_active', 'modified_on'])
+            # update our output
+            self.output = json.dumps(output.session)
+            self.is_active = active
+            self.modified_on = timezone.now()
+            self.save(update_fields=('output', 'is_active', 'modified_on'))
 
-        # update our session
-        self.sync_runs(output, msg_in, (), active, waiting_run)
+            # update our session
+            self.sync_runs(output, msg_in, (), waiting_run)
+
+        except goflow.FlowServerException:
+            # something has gone wrong so this session is over
+            self.is_active = False
+            self.modified_on = timezone.now()
+            self.save(update_fields=('is_active', 'modified_on'))
+
+            self.runs.update(is_active=False, exited_on=timezone.now(), exit_type=FlowRun.EXIT_TYPE_COMPLETED)
 
         return True, []
 
-    def sync_runs(self, output, msg_in, broadcasts, active, prev_waiting_run=None):
+    def sync_runs(self, output, msg_in, broadcasts, prev_waiting_run=None):
         """
         Update our runs with the session output
         """
@@ -282,7 +294,7 @@ class FlowSession(ChannelSession):
                 first_run = run
 
         # if we're no longer active and we're in a simulation, create an action log to show we've left the flow
-        if self.contact.is_test and not active:
+        if self.contact.is_test and not self.is_active:
             ActionLog.create(first_run, '%s has exited this flow' % self.contact.get_display(self.org, short=True))
 
         # trigger message sending
@@ -2917,8 +2929,7 @@ class FlowRun(models.Model):
         Properties of this contact being updated
         """
         pass
-        # from flowbase.contacts.models import ContactField
-        # field = ContactField.get_or_create(self.org, self.org.created_by, event['field_name'], uuid=event['field_uuid'])
+        # field = ContactField.objects.get(org=self.org, uuid=event['field_uuid'])
         # self.contact.set_field_value(field, event['value'])
 
     def apply_save_flow_result(self, event, msg):
