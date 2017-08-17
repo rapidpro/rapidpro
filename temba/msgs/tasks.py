@@ -158,7 +158,7 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
 
     recipients = list(contacts)
     broadcast = Broadcast.create(org, user, text, recipients)
-    on_transaction_commit(lambda: send_broadcast_task.delay(broadcast.pk))
+    on_transaction_commit(lambda: broadcast.send())
 
     analytics.track(user.username, 'temba.broadcast_created',
                     dict(contacts=len(contacts), groups=0, urns=0))

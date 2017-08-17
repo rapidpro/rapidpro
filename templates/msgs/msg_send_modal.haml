@@ -103,7 +103,7 @@
         $("#omni-select2").hide();
         $("#loading").hide();
         $("#send-message .schedule").hide();
-        $("#recipients-count").html("<strong>" + nodeRecipientsCount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "</strong> " + '{% trans "recipients at this point in the flow" %}' );
+        $("#recipients-count").html("<strong>" + formatNumber(nodeRecipientsCount) + "</strong> " + '{% trans "recipients at this point in the flow" %}' );
         $("#recipients-count").show();
       }
 
