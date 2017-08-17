@@ -469,7 +469,7 @@
               ng-style:"{left:ruleset.x, top:ruleset.y}",
               ng-click:'clickRuleset(ruleset)'}
 
-          .active{ng-show:'ruleset._active >= 0', ng-click:'broadcastToStep($event, ruleset.uuid, ruleset._active)'}
+          .active{ng-show:'ruleset._active > 0', ng-click:'broadcastToStep($event, ruleset.uuid, ruleset._active)'}
             [[ruleset._active|number]]
 
           .flow-start{ng-show:'ruleset.uuid == flow.entry'}
