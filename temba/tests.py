@@ -62,10 +62,12 @@ class MockServerRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
     def _handle_echo(self, params):
-        content = params['content'][0]
         status = int(params.get('status', [200])[0])
+        content = params['content'][0]
+        content_type = params.get('type', ['text/plain'])[0]
 
         self.send_response(status)
+        self.send_header("Content-type", content_type)
         self.end_headers()
         self.wfile.write(content.encode('utf-8'))
 
