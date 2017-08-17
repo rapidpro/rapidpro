@@ -1353,7 +1353,7 @@ class OrgTest(TembaTest):
         self.login(self.admin)
 
         self.org.refresh_from_db()
-        self.assertFalse(self.org.get_chatbase_credentials())
+        self.assertEquals((None, None), self.org.get_chatbase_credentials())
 
         chatbase_account_url = reverse('orgs.org_chatbase')
         response = self.client.get(chatbase_account_url)
@@ -1363,14 +1363,14 @@ class OrgTest(TembaTest):
 
         response = self.client.post(chatbase_account_url, payload, follow=True)
         self.assertContains(response, "Missing data: Agent Name or API Key.Please check them again and retry.")
-        self.assertFalse(self.org.get_chatbase_credentials())
+        self.assertEquals((None, None), self.org.get_chatbase_credentials())
 
         payload.update(dict(api_key='api_key', agent_name='chatbase_agent', type='user'))
 
         self.client.post(chatbase_account_url, payload, follow=True)
 
         self.org.refresh_from_db()
-        self.assertTrue(self.org.get_chatbase_credentials())
+        self.assertEquals(('api_key', '1.0'), self.org.get_chatbase_credentials())
 
         self.assertEquals(self.org.config_json()['CHATBASE_API_KEY'], 'api_key')
         self.assertEquals(self.org.config_json()['CHATBASE_AGENT_NAME'], 'chatbase_agent')
@@ -1396,7 +1396,7 @@ class OrgTest(TembaTest):
         self.client.post(chatbase_account_url, payload, follow=True)
 
         self.org.refresh_from_db()
-        self.assertFalse(self.org.get_chatbase_credentials())
+        self.assertEquals((None, None), self.org.get_chatbase_credentials())
 
         with self.settings(SEND_CHATBASE=True):
             contact = self.create_contact('Anakin Skywalker', '+12067791212')

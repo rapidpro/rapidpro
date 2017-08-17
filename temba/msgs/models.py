@@ -845,11 +845,10 @@ class Msg(models.Model):
             chatbase_not_handled = False
 
         # Sending data to Chatbase API
-        chatbase_credentials = msg.org.get_chatbase_credentials()
-        if chatbase_credentials:
-            cls.send_chatbase_log(chatbase_credentials.get(CHATBASE_API_KEY.lower()),
-                                  chatbase_credentials.get(CHATBASE_VERSION.lower(), None), msg.channel.name, msg.text,
-                                  msg.contact.id, CHATBASE_TYPE_USER, chatbase_not_handled)
+        (chatbase_api_key, chatbase_version) = msg.org.get_chatbase_credentials()
+        if chatbase_api_key:
+            cls.send_chatbase_log(chatbase_api_key, chatbase_version, msg.channel.name, msg.text, msg.contact.id,
+                                  CHATBASE_TYPE_USER, chatbase_not_handled)
 
         # record our handling latency for this object
         if msg.queued_on:
@@ -1237,10 +1236,10 @@ class Msg(models.Model):
         if self.contact_urn.auth:
             data.update(dict(auth=self.contact_urn.auth))
 
-        chatbase_credentials = self.org.get_chatbase_credentials()
-        if chatbase_credentials:
-            chatbase_credentials['is_org_connected_to_chatbase'] = True
-            data.update(chatbase_credentials)
+        (chatbase_api_key, chatbase_version) = self.org.get_chatbase_credentials()
+        if chatbase_api_key:
+            data.update(dict(chatbase_api_key=chatbase_api_key, chatbase_version=chatbase_version,
+                             is_org_connected_to_chatbase=True))
 
         return data
 

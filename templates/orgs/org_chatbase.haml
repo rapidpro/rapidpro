@@ -10,14 +10,14 @@
       -trans "Chatbase Account"
 
 -block summary
-  -if object.get_chatbase_credentials
+  -if object.get_chatbase_credentials.0
     -trans "Connected to Chatbase Account"
     <b>{{chatbase_agent_name}}</b>.
   -else
     -trans "No Chatbase account connected."
 
 -block pre-form
-  -if not object.get_chatbase_credentials
+  -if not object.get_chatbase_credentials.0
     -blocktrans
       Adding a Chatbase account will allow you to analyse and receive suggestions for how to “improve” bot experiences
       to make them better for users. To signup for an account, visit
@@ -25,13 +25,13 @@
     %hr
 
 -block fields
-  -if not object.get_chatbase_credentials
+  -if not object.get_chatbase_credentials.0
     {{ block.super }}
 
 -block form-buttons
 
 -block post-form
-  -if object.get_chatbase_credentials and request.META.HTTP_X_FORMAX
+  -if object.get_chatbase_credentials.0 and request.META.HTTP_X_FORMAX
     %p
       -trans "Your account is connected to the Chatbase account"
       {{chatbase_agent_name}}.
