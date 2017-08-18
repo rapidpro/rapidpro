@@ -5064,50 +5064,49 @@ class ReplyAction(Action):
         return dict(type=self.TYPE, msg=self.msg, media=self.media, quick_replies=self.quick_replies,
                     url_buttons=self.url_buttons, send_all=self.send_all)
 
-    def get_translated_metadata(self, run, metadata_type='quick_replies'):
+    @staticmethod
+    def get_translated_metadata(metadata, run, metadata_type='quick_replies'):
         """
         Gets the appropriate metadata translation for the given contact
         """
 
         if metadata_type == 'quick_replies':
             value_key = 'payload'
-            metadata = self.quick_replies
         else:
             value_key = 'url'
-            metadata = self.url_buttons
 
-        if metadata:
-            language_metadata = Language.get_localized_text(metadata, [run.contact.language])
-            base_metadata = Language.get_localized_text(metadata, [run.flow.base_language])
+        language_metadata = Language.get_localized_text(metadata, [run.contact.language])
+        base_metadata = Language.get_localized_text(metadata, [run.flow.base_language])
 
-            if language_metadata:
-                for i, item in enumerate(language_metadata):
-                    if not item.get('title'):
-                        item['title'] = base_metadata[i]['title']
+        if language_metadata:
+            for i, item in enumerate(language_metadata):
+                if not item.get('title'):
+                    item['title'] = base_metadata[i]['title']
 
-                    if not item.get(value_key):
-                        item[value_key] = base_metadata[i][value_key]
+                if not item.get(value_key):
+                    item[value_key] = base_metadata[i][value_key]
 
-                return language_metadata
-            else:
-                return base_metadata
+            return language_metadata
         else:
-            return None
+            return base_metadata
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []
 
-        if self.msg or self.media or self.quick_replies or self.url_buttons:
+        if self.msg or self.media:
             user = get_flow_user(run.org)
 
             text = ''
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
 
-            metadata = json.dumps(dict(
-                quick_replies=self.get_translated_metadata(run, 'quick_replies') if self.quick_replies else [],
-                url_buttons=self.get_translated_metadata(run, 'url_buttons') if self.url_buttons else []
-            ))
+            quick_replies = ReplyAction.get_translated_metadata(self.quick_replies, run, 'quick_replies') \
+                if self.quick_replies else []
+
+            url_buttons = ReplyAction.get_translated_metadata(self.url_buttons, run, 'url_buttons') \
+                if self.url_buttons else []
+
+            metadata = json.dumps(dict(quick_replies=quick_replies, url_buttons=url_buttons))
 
             attachments = None
             if self.media:

@@ -384,7 +384,7 @@ class Broadcast(models.Model):
         preferred_languages = self.get_preferred_languages(contact, org)
         return Language.get_localized_text(self.text, preferred_languages)
 
-    def get_translated_metadata(self, contact, metadata_type='quick_replies', org=None):
+    def get_translated_metadata(self, metadata, contact, metadata_type='quick_replies', org=None):
         """
         Gets the appropriate metadata translation for the given contact
         """
@@ -393,25 +393,22 @@ class Broadcast(models.Model):
         else:
             value_key = 'url'
 
-        if self.metadata:
-            preferred_languages = self.get_preferred_languages(contact, org)
-            metadata = json.loads(self.metadata)
-            language_metadata = Language.get_localized_text(metadata.get(metadata_type), preferred_languages)
-            base_metadata = Language.get_localized_text(metadata.get(metadata_type), [self.base_language])
+        preferred_languages = self.get_preferred_languages(contact, org)
+        metadata = json.loads(metadata)
+        language_metadata = Language.get_localized_text(metadata.get(metadata_type), preferred_languages)
+        base_metadata = Language.get_localized_text(metadata.get(metadata_type), [self.base_language])
 
-            if language_metadata:
-                for i, item in enumerate(language_metadata):
-                    if not item.get('title'):
-                        item['title'] = base_metadata[i]['title']
+        if language_metadata:
+            for i, item in enumerate(language_metadata):
+                if not item.get('title'):
+                    item['title'] = base_metadata[i]['title']
 
-                    if not item.get(value_key):
-                        item[value_key] = base_metadata[i][value_key]
+                if not item.get(value_key):
+                    item[value_key] = base_metadata[i][value_key]
 
-                return language_metadata
-            else:
-                return base_metadata
+            return language_metadata
         else:
-            return None
+            return base_metadata
 
     def get_translated_media(self, contact, org=None):
         """
@@ -485,8 +482,8 @@ class Broadcast(models.Model):
 
             if metadata:
                 _metadata = json.dumps(dict(
-                    quick_replies=self.get_translated_metadata(contact, 'quick_replies'),
-                    url_buttons=self.get_translated_metadata(contact, 'url_buttons')
+                    quick_replies=self.get_translated_metadata(metadata, contact, 'quick_replies'),
+                    url_buttons=self.get_translated_metadata(metadata, contact, 'url_buttons')
                 ))
             else:
                 _metadata = None
