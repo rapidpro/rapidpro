@@ -786,9 +786,12 @@
 .icon-attachment:before {
   content: "\e9cd";
 }
-.icon-button-response:before {
+.icon-chatbase:before {
   content: "\e902";
 }
 .icon-button-quick-reply:before {
   content: "\e903";
+}
+.icon-button-response:before {
+  content: "\e907";
 }
