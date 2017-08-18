@@ -13,7 +13,7 @@
   padding-bottom: 100px;
 
   // equal to footer height
-  margin-bottom: -200px;
+  margin-bottom: -@footer-height;
 }
 
 html, body {
@@ -30,7 +30,7 @@ html, body {
   background: @color-bg-lightgrey;
   color: @color-font-lightgrey;
   padding-top: 20px;
-  height: 200px;
+  height: @footer-height;
   position: relative;
   margin-top: 40px;
 
@@ -67,7 +67,7 @@ html, body {
 }
 
 #footer, .page-wrap:after {
-  height: 142px;
+  height: @footer-height;
 }
 
 // a css class to override an elements visibility property
