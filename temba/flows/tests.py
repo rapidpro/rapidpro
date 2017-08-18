@@ -2629,7 +2629,7 @@ class FlowTest(TembaTest):
         self.assertEquals('Invalid label name: @badlabel', response.json()['description'])
 
     def test_flow_start_with_start_msg(self):
-        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="I am coming")
+        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Hello, world!")
         self.flow.start([], [self.contact], start_msg=sms)
 
         self.assertTrue(FlowRun.objects.filter(contact=self.contact))
