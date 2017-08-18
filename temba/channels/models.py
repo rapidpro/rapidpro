@@ -3139,6 +3139,9 @@ class ChannelLog(models.Model):
         parsed = urlparse.urlparse(self.url)
         return '%s://%s%s' % (parsed.scheme, parsed.hostname, parsed.path)
 
+    def log_group(self):
+        return ChannelLog.objects.filter(msg=self.msg, session=self.session).order_by('-created_on')
+
     def get_request_formatted(self):
 
         if self.method == 'GET':

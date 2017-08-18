@@ -71,7 +71,7 @@
     -for log in object.get_logs
       -include "channels/channellog_log.haml"
   -else
-    -with object as log
+    -for log in object.log_group
       -include "channels/channellog_log.haml"
 
 -block extra-script
