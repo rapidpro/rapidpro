@@ -210,6 +210,8 @@ class FlowSession(ChannelSession):
         for run in current_output['runs']:
             if run['status'] == 'waiting':
                 waiting_run = run
+                break
+        waiting_flow = Flow.objects.get(org=self.org, uuid=waiting_run['flow_uuid'])
 
         # get our root flow
         flow = self.get_root_flow()
@@ -218,7 +220,7 @@ class FlowSession(ChannelSession):
             self.save(update_fields=['is_active'])
             return False, []
 
-        flows = goflow.migrate_flow_with_dependencies(flow)
+        flows = goflow.migrate_flow_with_dependencies(flow, [waiting_flow])
         if not flows:
             raise ValueError("Session flows have been modified and are no longer supported by goflow")
 

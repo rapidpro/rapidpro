@@ -13,7 +13,7 @@ class FlowServerException(Exception):
     pass
 
 
-def migrate_flow_with_dependencies(flow, strip_ui=True):
+def migrate_flow_with_dependencies(flow, extra_flows=(), strip_ui=True):
     """
     Migrates the given flow with its dependencies, returning [] if the flow or any of its dependencies can't be run in
     goflow because of unsupported features.
@@ -22,6 +22,11 @@ def migrate_flow_with_dependencies(flow, strip_ui=True):
     from temba.flows.models import Flow, get_flow_user
 
     legacy_flows = flow.org.resolve_dependencies([flow], [], False)
+
+    for extra_flow in extra_flows:
+        if extra_flow not in legacy_flows:
+            legacy_flows.add(extra_flow)
+
     legacy_flow_defs = []
     for flow in legacy_flows:
         # if any flow can't be run in goflow, bail
