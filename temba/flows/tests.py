@@ -4336,7 +4336,7 @@ class FlowsTest(FlowFileTest):
 
     def test_is_runnable_in_goflow(self):
         self.assertTrue(self.get_flow('favorites').is_runnable_in_goflow())
-        self.assertFalse(self.get_flow('timeout').is_runnable_in_goflow())
+        self.assertFalse(self.get_flow('ussd_example').is_runnable_in_goflow())
 
     def test_simple(self):
         # don't use import process as we want to keep the UUIDs in the definition

@@ -172,7 +172,9 @@ class FlowSession(ChannelSession):
                 .include_flows(flows)\
                 .set_environment(flow.org)\
                 .set_contact(contact)
-            if msg_in:
+
+            # only include message if it's a real message
+            if msg_in and msg_in.created_on:
                 request = request.msg_received(msg_in)
             if extra:
                 request = request.set_extra(extra)
@@ -232,7 +234,8 @@ class FlowSession(ChannelSession):
             .include_channels(channels)\
             .include_flows(flows)
 
-        if msg_in:
+        # only include message if it's a real message
+        if msg_in and msg_in.created_on:
             request = request.msg_received(msg_in)
         if expired_child_run:
             request = request.run_expired(expired_child_run)
@@ -285,10 +288,12 @@ class FlowSession(ChannelSession):
         for run in output.session['runs']:
             run_log = [event for event in output.log if step_to_run[event.step_uuid] == run['uuid']]
 
+            wait = output.session['wait'] if run['status'] == "waiting" else None
+
             # currently outgoing messages are only have response_to set if sent from same run
             run_input = msg_in if run['uuid'] == run_receiving_input['uuid'] else None
 
-            run, msgs = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_log, run_input, broadcasts)
+            run, msgs = FlowRun.create_or_update_from_goflow(self, self.contact, run, run_log, wait, run_input, broadcasts)
             runs.append(run)
             msgs_to_send += msgs
 
@@ -2744,7 +2749,7 @@ class FlowRun(models.Model):
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
 
     @classmethod
-    def create_or_update_from_goflow(cls, session, contact, run_output, run_log, msg_in, broadcasts=()):
+    def create_or_update_from_goflow(cls, session, contact, run_output, run_log, wait, msg_in, broadcasts=()):
         """
         Creates or updates a flow run from the given output returned from goflow
         """
@@ -2755,6 +2760,7 @@ class FlowRun(models.Model):
         created_on = iso8601.parse_date(run_output['created_on'])
         exited_on = iso8601.parse_date(run_output['exited_on']) if run_output['exited_on'] else None
         expires_on = iso8601.parse_date(run_output['expires_on']) if run_output['expires_on'] else None
+        timeout_on = iso8601.parse_date(wait['timeout_on']) if wait and wait.get('timeout_on') else None
 
         # does this run already exist?
         existing = cls.objects.filter(org=contact.org, contact=contact, uuid=uuid).select_related('flow').first()
@@ -2769,6 +2775,7 @@ class FlowRun(models.Model):
 
             existing.output = json.dumps(run_output)
             existing.expires_on = expires_on
+            existing.timeout_on = timeout_on
             existing.modified_on = timezone.now()
             existing.exited_on = exited_on
             existing.exit_type = exit_type
@@ -2797,7 +2804,7 @@ class FlowRun(models.Model):
                                      session=session,
                                      is_active=is_active,
                                      exited_on=exited_on, exit_type=exit_type,
-                                     expires_on=expires_on,
+                                     expires_on=expires_on, timeout_on=timeout_on,
                                      created_on=now, modified_on=now)
 
             # old simulation needs an action log showing we entered the flow
@@ -3371,7 +3378,7 @@ class FlowStep(models.Model):
         category = None
         value = None
         decimal_value = None
-        for event in path_step['events']:
+        for event in path_step.get('events', []):
             if event['type'] == 'save_flow_result' and event['category']:
                 category = event['category']
                 value = event['value']
@@ -3422,7 +3429,6 @@ class FlowStep(models.Model):
             step.add_message(msg)
 
         if next_uuid and not run.contact.is_test:
-            # print("===Recording completed step for %s" % node_uuid)
             FlowPathRecentMessage.record_step(step)
 
         return step
@@ -7494,7 +7500,7 @@ FLOW_FEATURES = [
     ('T', RegexTest.TYPE, False),                # https://github.com/nyaruka/goflow/issues/69
     ('T', StartsWithTest.TYPE, True),
     ('T', SubflowTest.TYPE, True),
-    ('T', TimeoutTest.TYPE, False),
+    ('T', TimeoutTest.TYPE, True),
     ('T', WebhookStatusTest.TYPE, True),
 ]
 
