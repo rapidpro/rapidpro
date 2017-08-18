@@ -13,7 +13,7 @@ from django.db import transaction, connection
 from django.db.models import Count
 from django.utils import timezone
 from django_redis import get_redis_connection
-from temba.utils import json_date_to_datetime, chunk_list, on_transaction_commit, analytics
+from temba.utils import json_date_to_datetime, chunk_list, analytics
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import start_task, complete_task, nonoverlapping_task
 from .models import Msg, Broadcast, BroadcastRecipient, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
@@ -158,7 +158,7 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
 
     recipients = list(contacts)
     broadcast = Broadcast.create(org, user, text, recipients)
-    on_transaction_commit(lambda: broadcast.send())
+    broadcast.send()
 
     analytics.track(user.username, 'temba.broadcast_created',
                     dict(contacts=len(contacts), groups=0, urns=0))
