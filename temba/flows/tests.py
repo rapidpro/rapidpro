@@ -58,10 +58,11 @@ class FlowTest(TembaTest):
         self.contact = self.create_contact('Eric', '+250788382382')
         self.contact2 = self.create_contact('Nic', '+250788383383')
         self.contact3 = self.create_contact('Norbert', '+250788123456')
+        self.contact4 = self.create_contact('Teeh', '+250788123457', language='por')
 
         self.flow = self.create_flow(name="Color Flow", base_language='base', definition=self.COLOR_FLOW_DEFINITION)
 
-        self.flow_quick_replies = self.create_flow(name="Quick Replies Flow", base_language='base',
+        self.flow_quick_replies = self.create_flow(name="Quick Replies Flow", base_language='eng',
                                                    definition=self.QUICK_REPLY_FLOW_DEFINITION)
 
         self.other_group = self.create_group("Other", [])
@@ -2651,10 +2652,11 @@ class FlowTest(TembaTest):
         self.assertEquals(Msg.objects.get(pk=sms.pk).msg_type, FLOW)
 
     def test_flow_start_with_quick_replies(self):
-        self.flow_quick_replies.start([], [self.contact])
+        sms = self.create_msg(direction=INCOMING, contact=self.contact4, text="1")
+        self.flow_quick_replies.start([], [self.contact4], start_msg=sms)
 
-        self.assertTrue(FlowRun.objects.filter(contact=self.contact))
-        run = FlowRun.objects.filter(contact=self.contact).first()
+        self.assertTrue(FlowRun.objects.filter(contact=self.contact4))
+        run = FlowRun.objects.filter(contact=self.contact4).first()
 
         self.assertEquals(run.steps.all().count(), 2)
         actionset_step = run.steps.filter(step_type=FlowStep.TYPE_ACTION_SET).first()
@@ -2664,7 +2666,7 @@ class FlowTest(TembaTest):
         self.assertFalse(ruleset_step.messages.all())
 
         # should have 2 messages on the actionset step
-        self.assertEquals(actionset_step.messages.all().count(), 1)
+        self.assertEquals(actionset_step.messages.all().count(), 2)
 
     def test_multiple(self):
         self.flow.start([], [self.contact])

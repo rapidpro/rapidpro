@@ -11,10 +11,10 @@
           "quick_replies": {
             "por": [
               {
-                "payload": "1"
+                "title": "Op\u00e7\u00e3o 1"
               },
               {
-                "title": "Op\u00e7\u00e3o 2"
+                "payload": "2"
               }
             ],
             "eng": [
@@ -36,39 +36,20 @@
           },
           "send_all": false,
           "type": "reply",
-          "uuid": "e28fa1dc-dd2e-4574-9444-c898e249f117"
+          "uuid": "7f0b399c-6e43-4253-8877-1fd6a67666dc"
         }
       ]
     },
     {
-      "y": 67,
-      "x": 660,
+      "y": 107,
+      "x": 748,
       "destination": null,
       "uuid": "a9f44e23-d0fb-41d0-8317-0c5ad3846e69",
       "actions": [
         {
           "quick_replies": {},
           "media": {},
-          "url_buttons": {
-            "por": [
-              {
-                "title": "Google PT-BR"
-              },
-              {
-                "url": "https://facebook.com"
-              }
-            ],
-            "eng": [
-              {
-                "url": "https://google.com",
-                "title": "Google"
-              },
-              {
-                "url": "https://facebook.com",
-                "title": "Facebook"
-              }
-            ]
-          },
+          "url_buttons": {},
           "webhook_headers": [],
           "action": "GET",
           "msg": {
@@ -77,7 +58,7 @@
           },
           "send_all": false,
           "type": "reply",
-          "uuid": "a6efacab-8482-4fdb-916a-dbe9482314ac"
+          "uuid": "9c4e54cf-7b31-4ef2-9a9c-6c8408c566d8"
         }
       ]
     }
@@ -104,11 +85,11 @@
       ],
       "ruleset_type": "wait_message",
       "label": "Response 1",
-      "y": 108,
+      "y": 133,
       "finished_key": null,
       "response_type": "",
       "operand": "@step.value",
-      "x": 284,
+      "x": 291,
       "config": {}
     }
   ],
@@ -118,7 +99,7 @@
     "notes": [],
     "expires": 10080,
     "name": "NewFlowTest",
-    "saved_on": "2017-08-16T18:36:22.150373Z",
-    "revision": 73
+    "saved_on": "2017-08-17T20:46:57.329837Z",
+    "revision": 80
   }
 }
