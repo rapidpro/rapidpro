@@ -1283,7 +1283,7 @@ class Msg(models.Model):
         if chatbase_api_key:
             data.update(dict(chatbase_api_key=chatbase_api_key, chatbase_version=chatbase_version,
                              is_org_connected_to_chatbase=True))
-        
+
         if self.metadata:
             data['metadata'] = self.metadata
 
