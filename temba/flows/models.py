@@ -3478,12 +3478,6 @@ class RuleSet(models.Model):
         ruleset_def = dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label, rules=self.get_rules_dict(),
                            finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
                            operand=self.operand, config=self.config_json())
-
-        # if we are pre-version 10, include our webhook and webhook_action in our dict
-        if Flow.is_before_version(self.flow.version_number, 10):
-            ruleset_def['webhook'] = self.webhook_url
-            ruleset_def['webhook_action'] = self.webhook_action
-
         return ruleset_def
 
     def __str__(self):
