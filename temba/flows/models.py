@@ -154,7 +154,7 @@ class FlowSession(ChannelSession):
 
         cls.close_active_sessions(contacts)
 
-        flows = flow.as_json_with_dependencies()
+        flows = goflow.migrate_flow_with_dependencies(flow)
         if len(flows) == 0:
             return []
 
@@ -218,7 +218,7 @@ class FlowSession(ChannelSession):
             self.save(update_fields=['is_active'])
             return False, []
 
-        flows = flow.as_json_with_dependencies()
+        flows = goflow.migrate_flow_with_dependencies(flow)
         if not flows:
             raise ValueError("Session flows have been modified and are no longer supported by goflow")
 
@@ -1066,23 +1066,6 @@ class Flow(TembaModel):
             except FlowException:  # pragma: no cover
                 pass
         return changed
-
-    def as_json_with_dependencies(self):
-        """
-        Gets the json for this flow in the new flow format, calling out to the flow server
-        """
-        flows = self.org.resolve_dependencies([self], [], False)
-        flow_json = []
-        for flow in flows:
-            if flow.is_runnable_in_goflow() and flow.flow_type in (Flow.MESSAGE, Flow.FLOW):
-                flow_json.append(flow.as_json(expand_contacts=True))
-            else:
-                # return an empty list if any of our dependencies is too fancy
-                return []
-
-        # for now, lets call the server to migrate our flow to the new version
-        # TODO: pass current flow_json to server and have it migrate as needed on the fly
-        return goflow.get_client().migrate({'flows': flow_json})
 
     def build_flow_context(self, contact, contact_context=None):
         """
@@ -2928,9 +2911,9 @@ class FlowRun(models.Model):
         """
         Properties of this contact being updated
         """
-        pass
-        # field = ContactField.objects.get(org=self.org, uuid=event['field_uuid'])
-        # self.contact.set_field_value(field, event['value'])
+        user = get_flow_user(self.org)
+        field = ContactField.objects.get(org=self.org, uuid=event['field_uuid'])
+        self.contact.set_field(user, field.key, event['value'])
 
     def apply_save_flow_result(self, event, msg):
         ActionLog.create(self, "Saved '%s' as @flow.%s" % (event['value'], slugify_with(event['result_name'])),

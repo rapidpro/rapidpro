@@ -13,6 +13,45 @@ class FlowServerException(Exception):
     pass
 
 
+def migrate_flow_with_dependencies(flow, strip_ui=True):
+    """
+    Migrates the given flow with its dependencies, returning [] if the flow or any of its dependencies can't be run in
+    goflow because of unsupported features.
+    """
+    from temba.contacts.models import ContactField, ContactURN
+    from temba.flows.models import Flow, get_flow_user
+
+    legacy_flows = flow.org.resolve_dependencies([flow], [], False)
+    legacy_flow_defs = []
+    for flow in legacy_flows:
+        # if any flow can't be run in goflow, bail
+        if not flow.is_runnable_in_goflow() or flow.flow_type not in (Flow.MESSAGE, Flow.FLOW):
+            return []
+
+        flow_def = flow.as_json(expand_contacts=True)
+
+        # contact fields need to have UUIDs in the new world
+        for actionset in flow_def.get('action_sets', []):
+            for action in actionset.get('actions', []):
+                if action['type'] == 'save':
+                    field_key = action['field']
+                    if field_key in ('name', 'first_name', 'tel_e164') or field_key in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
+                        continue
+
+                    field = ContactField.get_or_create(flow.org, get_flow_user(flow.org), field_key)
+                    action['field_uuid'] = str(field.uuid)
+
+        legacy_flow_defs.append(flow_def)
+
+    migrated_flow_defs = get_client().migrate({'flows': legacy_flow_defs})
+
+    if strip_ui:
+        for migrated_flow_def in migrated_flow_defs:
+            del migrated_flow_def['_ui']
+
+    return migrated_flow_defs
+
+
 class RequestBuilder(object):
     def __init__(self, client):
         self.client = client
