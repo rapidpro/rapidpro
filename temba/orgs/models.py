@@ -108,6 +108,13 @@ SMTP_PASSWORD = 'SMTP_PASSWORD'
 SMTP_PORT = 'SMTP_PORT'
 SMTP_ENCRYPTION = 'SMTP_ENCRYPTION'
 
+CHATBASE_AGENT_NAME = 'CHATBASE_AGENT_NAME'
+CHATBASE_API_KEY = 'CHATBASE_API_KEY'
+CHATBASE_TYPE_AGENT = 'agent'
+CHATBASE_TYPE_USER = 'user'
+CHATBASE_FEEDBACK = 'CHATBASE_FEEDBACK'
+CHATBASE_VERSION = 'CHATBASE_VERSION'
+
 ORG_STATUS = 'STATUS'
 SUSPENDED = 'suspended'
 RESTORED = 'restored'
@@ -867,6 +874,44 @@ class Org(SmartModel):
 
             # clear all our channel configurations
             self.clear_channel_caches()
+
+    def connect_chatbase(self, agent_name, api_key, version, user):
+        chatbase_config = {
+            CHATBASE_AGENT_NAME: agent_name,
+            CHATBASE_API_KEY: api_key,
+            CHATBASE_VERSION: version
+        }
+
+        config = self.config_json()
+        config.update(chatbase_config)
+        self.config = json.dumps(config)
+        self.modified_by = user
+        self.save()
+
+    def remove_chatbase_account(self, user):
+        config = self.config_json()
+
+        if CHATBASE_AGENT_NAME in config:
+            del config[CHATBASE_AGENT_NAME]
+
+        if CHATBASE_API_KEY in config:
+            del config[CHATBASE_API_KEY]
+
+        if CHATBASE_VERSION in config:
+            del config[CHATBASE_VERSION]
+
+        self.config = json.dumps(config)
+        self.modified_by = user
+        self.save()
+
+    def get_chatbase_credentials(self):
+        if self.config:
+            config = self.config_json()
+            chatbase_api_key = config.get(CHATBASE_API_KEY, None)
+            chatbase_version = config.get(CHATBASE_VERSION, None)
+            return chatbase_api_key, chatbase_version
+        else:
+            return None, None
 
     def get_verboice_client(self):  # pragma: needs cover
         from temba.ivr.clients import VerboiceClient
