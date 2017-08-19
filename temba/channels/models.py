@@ -262,6 +262,9 @@ class Channel(TembaModel):
                             (CONTENT_TYPE_JSON, _("JSON - application/json")),
                             (CONTENT_TYPE_XML, _("XML - text/xml; charset=utf-8")))
 
+    # our default max tps is 50
+    DEFAULT_TPS = 50
+
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
         TYPE_AFRICAS_TALKING: dict(schemes=['tel'], max_length=160),
@@ -409,6 +412,9 @@ class Channel(TembaModel):
 
     bod = models.TextField(verbose_name=_("Optional Data"), null=True,
                            help_text=_("Any channel specific state data"))
+
+    tps = models.IntegerField(verbose_name=_("Maximum Transactions per Second"), null=True,
+                              help_text=_("The max number of messages that will be sent per second"))
 
     @classmethod
     def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=DEFAULT_ROLE, schemes=None, **kwargs):
@@ -3065,6 +3071,9 @@ class ChannelLog(models.Model):
     def get_url_host(self):
         parsed = urlparse.urlparse(self.url)
         return '%s://%s%s' % (parsed.scheme, parsed.hostname, parsed.path)
+
+    def log_group(self):
+        return ChannelLog.objects.filter(msg=self.msg, session=self.session).order_by('-created_on')
 
     def get_request_formatted(self):
 
