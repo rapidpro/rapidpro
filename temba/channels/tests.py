@@ -3127,39 +3127,6 @@ class ChannelClaimTest(TembaTest):
         self.assertContains(response, reverse('handlers.m3tech_handler', args=['failed', channel.uuid]))
         self.assertContains(response, reverse('handlers.m3tech_handler', args=['delivered', channel.uuid]))
 
-    def test_infobip(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_infobip'))
-        post_data = response.context['form'].initial
-
-        post_data['country'] = 'NI'
-        post_data['number'] = '250788123123'
-        post_data['username'] = 'user1'
-        post_data['password'] = 'pass1'
-
-        response = self.client.post(reverse('channels.channel_claim_infobip'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('NI', channel.country)
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals('+250788123123', channel.address)
-        self.assertEquals('IB', channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('handlers.infobip_handler', args=['received', channel.uuid]))
-        self.assertContains(response, reverse('handlers.infobip_handler', args=['delivered', channel.uuid]))
-
     @override_settings(SEND_EMAILS=True)
     def test_sms_alert(self):
         contact = self.create_contact("John Doe", '123')
@@ -5330,7 +5297,7 @@ class InfobipTest(TembaTest):
             settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps(dict(results=[{'status': 0, 'messageid': 12}])))
+                mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status': {'id': 0}, 'messageid': 12}])))
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -5354,6 +5321,19 @@ class InfobipTest(TembaTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
+
+            with patch('requests.post') as mock:
+                mock.side_effect = Exception('Kaboom!')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # message should be marked as an error
+                msg.refresh_from_db()
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(2, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+
         finally:
             settings.SEND_MESSAGES = False
 
@@ -5365,7 +5345,7 @@ class InfobipTest(TembaTest):
             settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps(dict(results=[{'status': 0, 'messageid': 12}])))
+                mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status': {'id': 0}, 'messageid': 12}])))
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -5376,7 +5356,7 @@ class InfobipTest(TembaTest):
                 self.assertTrue(msg.sent_on)
                 self.assertEquals('12', msg.external_id)
 
-                self.assertEqual(json.loads(mock.call_args[1]['data'])['messages'][0]['text'],
+                self.assertEqual(mock.call_args[1]['json']['text'],
                                  "Test message\nhttps://example.com/attachments/pic.jpg")
 
                 self.clear_cache()

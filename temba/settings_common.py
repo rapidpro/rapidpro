@@ -850,9 +850,9 @@ AUTHENTICATION_BACKENDS = (
 ANONYMOUS_USER_NAME = 'AnonymousUser'
 
 # -----------------------------------------------------------------------------------
-# Our test runner is standard but with ability to exclude apps
+# Our test runner includes a mocked HTTP server and the ability to exclude apps
 # -----------------------------------------------------------------------------------
-TEST_RUNNER = 'temba.tests.ExcludeTestRunner'
+TEST_RUNNER = 'temba.tests.TembaTestRunner'
 TEST_EXCLUDE = ('smartmin',)
 
 # -----------------------------------------------------------------------------------
@@ -1104,6 +1104,7 @@ CHANNEL_TYPES = [
     'temba.channels.types.external.ExternalType',
     'temba.channels.types.facebook.FacebookType',
     'temba.channels.types.firebase.FirebaseCloudMessagingType',
+    'temba.channels.types.infobip.InfobipType',
     'temba.channels.types.jiochat.JioChatType',
     'temba.channels.types.line.LineType',
     'temba.channels.types.telegram.TelegramType',
