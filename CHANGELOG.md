@@ -1,3 +1,7 @@
+v3.0.190
+----------
+ * Turn down default courier TPS to 10/s
+
 v3.0.189
 ----------
  * Make sure msg time never wraps in the inbox
