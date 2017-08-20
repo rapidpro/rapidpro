@@ -11199,7 +11199,7 @@ class CourierTest(TembaTest):
             r = get_redis_connection()
 
             # should have our channel in the active queue
-            queue_name = "msgs:" + self.channel.uuid + "|50"
+            queue_name = "msgs:" + self.channel.uuid + "|10"
             self.assertEqual(1, r.zcard("msgs:active"))
             self.assertEqual(0, r.zrank("msgs:active", queue_name))
 
