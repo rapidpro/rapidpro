@@ -70,7 +70,7 @@ def msg_as_task(msg):
 
 COURIER_DEFAULT_PRIORITY = 1
 COURIER_BULK_PRIORITY = 0
-COURIER_DEFAULT_TPS = 50
+COURIER_DEFAULT_TPS = 10
 
 
 # Our lua script for properly inserting items to a courier queue
