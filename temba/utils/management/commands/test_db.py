@@ -314,7 +314,7 @@ class Command(BaseCommand):
             user = org.cache['users'][0]
             for c in CHANNELS:
                 Channel.objects.create(org=org, name=c['name'], channel_type=c['channel_type'],
-                                       address=c['address'], scheme=c['scheme'],
+                                       address=c['address'], schemes=[c['scheme']],
                                        created_by=user, modified_by=user)
 
         self._log(self.style.SUCCESS("OK") + '\n')

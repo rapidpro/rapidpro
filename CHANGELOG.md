@@ -1,3 +1,36 @@
+v3.0.190
+----------
+ * Turn down default courier TPS to 10/s
+
+v3.0.189
+----------
+ * Make sure msg time never wraps in the inbox
+
+v3.0.188
+----------
+ * Use a real but mockable HTTP server to test flows that hit external URLs instead of mocking the requests
+ * Add infobip as dynamic channel type and Update it to use the latest Infobip API
+ * Add support for Courier message sending
+
+v3.0.183
+----------
+ * Use twitter icon for twitter id urns
+
+v3.0.182
+----------
+ * Tweak test_start_flow_action to test parent run states only after child runs have completed
+ * Stop contacts when they have only an invalid twitter screen name
+ * Change to max USSD session length
+
+v3.0.181
+----------
+ * Ignore case when looking up twitter screen names
+
+v3.0.180
+----------
+ * Switch to using twitterid scheme for Twitter messages
+ * Should be shipped before Mage v0.1.84
+
 v3.0.179
 ----------
  * Allow editing of start conversation triggers

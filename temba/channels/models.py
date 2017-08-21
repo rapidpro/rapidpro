@@ -147,6 +147,12 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         return self.attachment_support
 
+    def setup_periodic_tasks(self, sender):
+        """
+        Allows a ChannelType to register periodic tasks it wants celery to run.
+        ex: sender.add_periodic_task(300, remap_twitter_ids)
+        """
+
     def __str__(self):
         return self.name
 
@@ -163,7 +169,6 @@ class Channel(TembaModel):
     TYPE_GLOBE = 'GL'
     TYPE_HIGH_CONNECTION = 'HX'
     TYPE_HUB9 = 'H9'
-    TYPE_INFOBIP = 'IB'
     TYPE_JASMIN = 'JS'
     TYPE_JUNEBUG = 'JN'
     TYPE_JUNEBUG_USSD = 'JNU'
@@ -212,6 +217,7 @@ class Channel(TembaModel):
     CONFIG_MAX_LENGTH = 'max_length'
     CONFIG_MACROKIOSK_SENDER_ID = 'macrokiosk_sender_id'
     CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
+    CONFIG_RP_HOSTNAME_OVERRIDE = 'rp_hostname_override'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -256,6 +262,9 @@ class Channel(TembaModel):
                             (CONTENT_TYPE_JSON, _("JSON - application/json")),
                             (CONTENT_TYPE_XML, _("XML - text/xml; charset=utf-8")))
 
+    # our default max tps is 50
+    DEFAULT_TPS = 50
+
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
         TYPE_AFRICAS_TALKING: dict(schemes=['tel'], max_length=160),
@@ -268,7 +277,6 @@ class Channel(TembaModel):
         TYPE_GLOBE: dict(schemes=['tel'], max_length=160),
         TYPE_HIGH_CONNECTION: dict(schemes=['tel'], max_length=1500),
         TYPE_HUB9: dict(schemes=['tel'], max_length=1600),
-        TYPE_INFOBIP: dict(schemes=['tel'], max_length=1600),
         TYPE_JASMIN: dict(schemes=['tel'], max_length=1600),
         TYPE_JUNEBUG: dict(schemes=['tel'], max_length=1600),
         TYPE_JUNEBUG_USSD: dict(schemes=['tel'], max_length=1600),
@@ -303,7 +311,6 @@ class Channel(TembaModel):
                     (TYPE_GLOBE, "Globe Labs"),
                     (TYPE_HIGH_CONNECTION, "High Connection"),
                     (TYPE_HUB9, "Hub9"),
-                    (TYPE_INFOBIP, "Infobip"),
                     (TYPE_JASMIN, "Jasmin"),
                     (TYPE_JUNEBUG, "Junebug"),
                     (TYPE_JUNEBUG_USSD, "Junebug USSD"),
@@ -394,10 +401,7 @@ class Channel(TembaModel):
     config = models.TextField(verbose_name=_("Config"), null=True,
                               help_text=_("Any channel specific configuration, used for the various aggregators"))
 
-    scheme = models.CharField(verbose_name="URN Scheme", max_length=8, default='tel',
-                              help_text=_("The URN scheme this channel can handle"))
-
-    schemes = ArrayField(models.CharField(max_length=8), default=['tel'],
+    schemes = ArrayField(models.CharField(max_length=16), default=['tel'],
                          verbose_name="URN Schemes", help_text=_("The URN schemes this channel supports"))
 
     role = models.CharField(verbose_name="Channel Role", max_length=4, default=DEFAULT_ROLE,
@@ -409,14 +413,17 @@ class Channel(TembaModel):
     bod = models.TextField(verbose_name=_("Optional Data"), null=True,
                            help_text=_("Any channel specific state data"))
 
+    tps = models.IntegerField(verbose_name=_("Maximum Transactions per Second"), null=True,
+                              help_text=_("The max number of messages that will be sent per second"))
+
     @classmethod
     def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=DEFAULT_ROLE, schemes=None, **kwargs):
         if isinstance(channel_type, six.string_types):
             channel_type = cls.get_type_from_code(channel_type)
 
         if schemes:
-            if channel_type.schemes and channel_type.schemes != schemes:
-                raise ValueError("Channel type '%s' cannot support scheme %s" % (channel_type, schemes))
+            if channel_type.schemes and not set(channel_type.schemes).intersection(schemes):
+                raise ValueError("Channel type '%s' cannot support schemes %s" % (channel_type, schemes))
         else:
             schemes = channel_type.schemes
 
@@ -434,7 +441,7 @@ class Channel(TembaModel):
                            channel_type=channel_type.code,
                            name=name, address=address,
                            config=json.dumps(config),
-                           role=role, schemes=schemes, scheme=schemes[0])
+                           role=role, schemes=schemes)
         create_args.update(kwargs)
 
         if 'uuid' not in create_args:
@@ -1418,9 +1425,12 @@ class Channel(TembaModel):
 
         session = None
 
+        # if the channel config has specified and override hostname use that, otherwise use settings
+        event_hostname = channel.config.get(Channel.CONFIG_RP_HOSTNAME_OVERRIDE, settings.HOSTNAME)
+
         # the event url Junebug will relay events to
-        event_url = 'https://%s%s' % (
-            settings.HOSTNAME,
+        event_url = 'http://%s%s' % (
+            event_hostname,
             reverse('handlers.junebug_handler',
                     args=['event', channel.uuid]))
 
@@ -1431,11 +1441,21 @@ class Channel(TembaModel):
         payload['event_url'] = event_url
         payload['content'] = text
 
+        if channel.secret is not None:
+            payload['event_auth_token'] = channel.secret
+
         if is_ussd:
             session = USSDSession.objects.get_session_with_status_only(msg.session_id)
-            external_id = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
-            # NOTE: Only one of `to` or `reply_to` may be specified
-            payload['reply_to'] = external_id
+            # make sure USSD responses are only valid for a short window
+            response_expiration = timezone.now() - timedelta(seconds=180)
+            external_id = None
+            if msg.response_to_id and msg.created_on > response_expiration:
+                external_id = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
+            # NOTE: Only one of `to` or `reply_to` may be specified, use external_id if we have it.
+            if external_id:
+                payload['reply_to'] = external_id
+            else:
+                payload['to'] = msg.urn_path
             payload['channel_data'] = {
                 'continue_session': session and not session.should_end or False,
             }
@@ -2152,69 +2172,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, SENT, start, events=events)
 
     @classmethod
-    def send_infobip_message(cls, channel, msg, text):
-        from temba.msgs.models import SENT
-
-        API_URL = 'http://api.infobip.com/api/v3/sendsms/json'
-        BACKUP_API_URL = 'http://api2.infobip.com/api/v3/sendsms/json'
-
-        url = API_URL
-
-        # build our message dict
-        message = dict(sender=channel.address.lstrip('+'),
-                       text=text,
-                       recipients=[dict(gsm=msg.urn_path.lstrip('+'))])
-
-        # infobip requires that long messages have a different type
-        if len(text) > 160:  # pragma: no cover
-            message['type'] = 'longSMS'
-
-        payload = {'authentication': dict(username=channel.config['username'], password=channel.config['password']),
-                   'messages': [message]}
-        payload_json = json.dumps(payload)
-
-        headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-        headers.update(TEMBA_HEADERS)
-
-        event = HttpEvent('POST', url, payload_json)
-        events = [event]
-        start = time.time()
-
-        try:
-            response = requests.post(url, data=payload_json, headers=headers, timeout=5)
-            event.status_code = response.status_code
-            event.response_body = response.text
-        except Exception:  # pragma: no cover
-            try:
-                # we failed to connect, try our backup URL
-                url = BACKUP_API_URL
-                event = HttpEvent('POST', url, payload_json)
-                events.append(event)
-                response = requests.post(url, data=payload_json, headers=headers, timeout=5)
-                event.status_code = response.status_code
-                event.response_body = response.text
-            except Exception as e:
-                payload['authentication']['password'] = 'x' * len(payload['authentication']['password'])
-                raise SendException(u"Unable to send message: %s" % six.text_type(e),
-                                    events=events, start=start)
-
-        if response.status_code != 200 and response.status_code != 201:
-            payload['authentication']['password'] = 'x' * len(payload['authentication']['password'])
-            raise SendException("Received non 200 status: %d" % response.status_code,
-                                events=events, start=start)
-
-        response_json = response.json()
-        messages = response_json['results']
-
-        # if it wasn't successfully delivered, throw
-        if int(messages[0]['status']) != 0:  # pragma: no cover
-            raise SendException("Received non-zero status code [%s]" % messages[0]['status'],
-                                events=events, start=start)
-
-        external_id = messages[0]['messageid']
-        Channel.success(channel, msg, SENT, start, events=events, external_id=external_id)
-
-    @classmethod
     def send_hub9_or_dartmedia_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
 
@@ -2830,7 +2787,6 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_GLOBE: Channel.send_globe_message,
                   Channel.TYPE_HIGH_CONNECTION: Channel.send_high_connection_message,
                   Channel.TYPE_HUB9: Channel.send_hub9_or_dartmedia_message,
-                  Channel.TYPE_INFOBIP: Channel.send_infobip_message,
                   Channel.TYPE_JASMIN: Channel.send_jasmin_message,
                   Channel.TYPE_JUNEBUG: Channel.send_junebug_message,
                   Channel.TYPE_JUNEBUG_USSD: Channel.send_junebug_message,
@@ -3115,6 +3071,9 @@ class ChannelLog(models.Model):
     def get_url_host(self):
         parsed = urlparse.urlparse(self.url)
         return '%s://%s%s' % (parsed.scheme, parsed.hostname, parsed.path)
+
+    def log_group(self):
+        return ChannelLog.objects.filter(msg=self.msg, session=self.session).order_by('-created_on')
 
     def get_request_formatted(self):
 

@@ -45,7 +45,7 @@ class APITest(TembaTest):
         self.test_contact = Contact.get_test_contact(self.user)
 
         self.twitter = Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
-                                      address="billy_bob", role="SR", scheme='twitter')
+                                      address="billy_bob", role="SR")
 
         self.create_secondary_org()
         self.hans = self.create_contact("Hans Gruber", "+4921551511", org=self.org2)
@@ -911,7 +911,7 @@ class APITest(TembaTest):
 
         # create channel for other org
         Channel.create(self.org2, self.admin2, None, 'TT', name="Twitter Channel",
-                       address="nyaruka", role="SR", scheme='twitter')
+                       address="nyaruka", role="SR")
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
