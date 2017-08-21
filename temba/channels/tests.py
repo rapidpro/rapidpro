@@ -29,6 +29,7 @@ from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, \
     LINE_SCHEME, JIOCHAT_SCHEME
+from temba.flows.models import FlowRun
 from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING, QUEUED
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME, FCM_SCHEME
@@ -8314,6 +8315,43 @@ class MageHandlerTest(TembaTest):
 
         # should get a 401
         self.assertEqual(400, response.status_code)
+
+    def test_trigger_new_conversation(self):
+
+        url = reverse('handlers.mage_handler', args=['trigger_new_conversation'])
+        headers = dict(HTTP_AUTHORIZATION='Token %s' % settings.MAGE_AUTH_TOKEN)
+
+        # Invalid contact ID
+        response = self.client.post(url, dict(contact_id=-1, channel=-1), **headers)
+        self.assertEqual(400, response.status_code)
+        self.assertEqual("Invalid contact_id", response.json().get('error'))
+
+        contact = self.create_contact("Mary Jo", twitter='mary_jo')
+
+        # Invalid Channel ID
+        response = self.client.post(url, dict(contact_id=contact.id, channel=-1), **headers)
+
+        # should get a 401
+        self.assertEqual(400, response.status_code)
+        self.assertEqual("Invalid channel_id", response.json().get('error'))
+
+        channel = Channel.create(self.org, self.user, None, 'TG', None, 'RapidBot',
+                                 config=dict(auth_token='valid'),
+                                 uuid='00000000-0000-0000-0000-000000001234')
+
+        # Valid contact and channel now trigger
+        response = self.client.post(url, dict(contact_id=contact.id, channel_id=channel.id), **headers)
+        self.assertEqual(200, response.status_code)
+        self.assertFalse(FlowRun.objects.filter(contact=contact))
+
+        # Add a new conversation trigger
+        flow = self.create_flow()
+        Trigger.objects.create(org=self.org, trigger_type=Trigger.TYPE_NEW_CONVERSATION, channel=channel, flow=flow,
+                               created_by=self.admin, modified_by=self.admin)
+
+        response = self.client.post(url, dict(contact_id=contact.id, channel_id=channel.id), **headers)
+        self.assertEqual(200, response.status_code)
+        self.assertTrue(FlowRun.objects.filter(contact=contact))
 
 
 class StartMobileTest(TembaTest):
