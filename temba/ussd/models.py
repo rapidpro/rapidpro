@@ -119,6 +119,12 @@ class USSDSession(ChannelSession):
         # session is already re-triggered, now the decision is being made whether to resume or restart
         if content:
             self.resume()
+
+            # resume run
+            last_run.exit_type = None
+            last_run.exited_on = None
+            last_run.is_active = True
+            last_run.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
     def handle_session_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
         Msg.create_incoming(
