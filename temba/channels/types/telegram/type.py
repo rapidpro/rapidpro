@@ -50,22 +50,14 @@ class TelegramType(ChannelType):
     def get_quick_replies(self, metadata, post_body):
         metadata = json.loads(metadata)
         quick_replies = metadata.get('quick_replies', None)
-        url_buttons = metadata.get('url_buttons', None)
         replies = []
-        keyboard_type = None
 
         if quick_replies:
             for reply in quick_replies:
                 replies.append([dict(text=reply.get('title'))])
-            keyboard_type = 'keyboard'
-        elif url_buttons:
-            for url_button in url_buttons:
-                replies.append([dict(text=url_button.get('title'), url=url_button.get('url'))])
-            keyboard_type = 'inline_keyboard'
 
-        if keyboard_type:
             keyboard_json = dict(resize_keyboard=True, one_time_keyboard=True)
-            keyboard_json[keyboard_type] = replies
+            keyboard_json['keyboard'] = replies
             post_body['reply_markup'] = json.dumps(keyboard_json)
 
         return post_body
