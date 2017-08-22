@@ -65,6 +65,8 @@ class USSDSession(ChannelSession):
     def resume(self):
         if self.status == self.INTERRUPTED:
             self.status = self.IN_PROGRESS
+            self.ended_on = None
+            self.save(update_fields=['status', 'ended_on'])
         from temba.msgs.models import Msg, USSD
         message = Msg.objects.create(
             channel=self.channel, contact=self.contact, contact_urn=self.contact_urn,
