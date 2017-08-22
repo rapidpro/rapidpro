@@ -148,6 +148,7 @@ class USSDSession(ChannelSession):
 
         trigger = None
         contact_urn = None
+        resume_session = None
 
         # handle contact with channel
         urn = URN.from_tel(urn)
@@ -211,7 +212,11 @@ class USSDSession(ChannelSession):
         if created and async and trigger:
             session.start_session_async(trigger.flow, date, message_id)
 
-        # resume session, deal with incoming content and all the other states
+        # resume interrupted session
+        elif resume_session:
+            session.resume_session_async(content, date, message_id)
+
+        # deal with incoming content and all the other states
         else:
             session.handle_session_async(urn, content, date, message_id)
 
