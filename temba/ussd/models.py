@@ -129,6 +129,9 @@ class USSDSession(ChannelSession):
             message = self.create_incoming_message(content, date, message_id)
 
         step = flow.add_step(last_run, resume_or_restart_ruleset, arrived_on=timezone.now())
+        Flow.handle_destination(resume_or_restart_ruleset, step, last_run, message, user_input=message is not None,
+                                trigger_send=True, continue_parent=False, no_save=True)
+
     def handle_session_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
         Msg.create_incoming(
