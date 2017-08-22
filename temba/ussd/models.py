@@ -111,6 +111,10 @@ class USSDSession(ChannelSession):
              Rule(str(uuid4()), dict(base="Restart"), entry_ruleset.uuid, 'R', EqTest(test="2"),
                   dict(base="Restart from main menu")).as_json(),
                 Rule(str(uuid4()), dict(base="All Responses"), entry_ruleset.uuid, 'R', TrueTest()).as_json()])
+        config = {
+            "ussd_message": {"base": "Welcome back. Please select an option:"}
+        }
+        resume_or_restart_ruleset.config = json.dumps(config)
     def handle_session_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
         Msg.create_incoming(
