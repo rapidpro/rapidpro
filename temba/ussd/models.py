@@ -27,6 +27,9 @@ class USSDQuerySet(models.QuerySet):
     def get_initiated_push_session(self, contact):
         return self.filter(direction=USSDSession.USSD_PUSH, status=USSDSession.INITIATED, contact=contact).first()
 
+    def get_interrupted_pull_session(self, contact):
+        return self.filter(direction=USSDSession.USSD_PULL, status=USSDSession.INTERRUPTED, contact=contact).last()
+
     def get_session_with_status_only(self, session_id):
         return self.only('status').filter(id=session_id).first()
 
