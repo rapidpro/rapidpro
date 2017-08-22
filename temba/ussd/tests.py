@@ -787,6 +787,24 @@ class VumiUssdTest(TembaTest):
         new_contact = Contact.from_urn(self.org, "tel:+250788123123")
         self.assertIsNotNone(new_contact)
 
+    def test_resume_interrupted_pull_session(self):
+        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
+
+        ussd_code = "*111#"
+
+        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
+                    content="", transport_type='ussd', session_event="new", to_addr=ussd_code)
+
+        flow = self.get_flow('ussd_interrupt_example_2')
+
+        trigger, _ = Trigger.objects.get_or_create(channel=self.channel, keyword=ussd_code, flow=flow,
+                                                   created_by=self.user, modified_by=self.user, org=self.org,
+                                                   trigger_type=Trigger.TYPE_USSD_PULL)
+
+        # trigger session with an incoming message
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
 
 class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
