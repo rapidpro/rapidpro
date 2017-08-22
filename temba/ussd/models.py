@@ -97,6 +97,9 @@ class USSDSession(ChannelSession):
         # pick the step which was interrupted
         last_step = steps.filter(rule_value='interrupted_status').order_by('-pk').first()
 
+        # get the resuming RuleSet
+        resuming_ruleset = last_step.get_step()
+
     def handle_session_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
         Msg.create_incoming(
