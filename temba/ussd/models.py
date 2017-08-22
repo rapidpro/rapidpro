@@ -115,6 +115,10 @@ class USSDSession(ChannelSession):
             "ussd_message": {"base": "Welcome back. Please select an option:"}
         }
         resume_or_restart_ruleset.config = json.dumps(config)
+
+        # session is already re-triggered, now the decision is being made whether to resume or restart
+        if content:
+            self.resume()
     def handle_session_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
         Msg.create_incoming(
