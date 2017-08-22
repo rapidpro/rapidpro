@@ -20,34 +20,28 @@
           
         .quick-reply{ng-show:"translation.toQuickReply.length"}
           .modal-quick-reply-header
-            .modal-quick-reply-value.quick_reply-title
+            .quick_reply-title
               -trans "Text"
-            .modal-quick-reply-value
-              -trans "Value"
               
           .modal-quick-reply{ng-repeat:"response in translation.toQuickReply", class:""}
-            .modal-quick-reply-value.quick_reply-title.center-translate
+            .quick_reply-title.center-translate
               .translate-from{ng-show:"translation.fromQuickReply[$index].title"}
                 -trans "[[translation.fromQuickReply[$index].title]]"
               %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"response.title", ng-required:"true"}
-            .modal-quick-reply-value.center-translate
-              .translate-from{ng-show:"translation.fromQuickReply[$index].payload"}
-                -trans "[[translation.fromQuickReply[$index].payload]]"
-              %input{type:"text", name:"quick-reply-value", auto-complete:"", ng-model:"response.payload", ng-required:"true"}
               
         .quick-reply{ng-show:"translation.toButtonsReply.length"}
           .modal-quick-reply-header
-            .modal-quick-reply-value.quick_reply-title
+            .url_buttons-title
               -trans "Text"
-            .modal-quick-reply-value
+            .url_buttons-value
               -trans "URL"
               
           .modal-quick-reply{ng-repeat:"response in translation.toButtonsReply", class:""}
-            .modal-quick-reply-value.quick_reply-title.center-translate
+            .url_buttons-title.center-translate
               .translate-from{ng-show:"translation.fromButtonsReply[$index].title"}  
                 -trans "[[translation.fromButtonsReply[$index].title]]"                
               %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"response.title", ng-required:"true"}
-            .modal-quick-reply-value.center-translate
+            .url_buttons-value.center-translate
               .translate-from{ng-show:"translation.fromButtonsReply[$index].url"}
                 -trans "[[translation.fromButtonsReply[$index].url]]"           
               %input{type:"url", name:"quick-reply-value", auto-complete:"", ng-model:"response.url", ng-required:"true"}

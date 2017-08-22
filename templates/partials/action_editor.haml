@@ -32,16 +32,12 @@
 
       .quick-reply{ng-show:"actions_quick_reply.length"}
         .modal-quick-reply-header
-          .modal-quick-reply-value.quick_reply-title
+          .quick_reply-title
             -trans "Text"
-          .modal-quick-reply-value
-            -trans "Value"
             
         .modal-quick-reply{ng-repeat:"response in actions_quick_reply", class:""}
-          .modal-quick-reply-value.quick_reply-title
+          .quick_reply-title
             %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"response.title", ng-required:"true"}
-          .modal-quick-reply-value 
-            %input{type:"text", name:"quick-reply-value", auto-complete:"", ng-model:"response.payload", ng-required:"true"}
           
           .icon.icon-close{ng-click:"removeElementArrayQuickReply(actions_quick_reply, $index)"}
         %a{ng-click:"addNewQuickReply()", class:"cursor-pointer", ng-hide:"actions_quick_reply.length == 11"}
@@ -49,15 +45,15 @@
 
       .quick-reply{ng-show:"actions_buttons_reply.length"}
         .modal-quick-reply-header
-          .modal-quick-reply-value.quick_reply-title
+          .url_buttons-title
             -trans "Text"
-          .modal-quick-reply-value
+          .url_buttons-value
             -trans "URL"
             
         .modal-quick-reply{ng-repeat:"response in actions_buttons_reply", class:""}
-          .modal-quick-reply-value.quick_reply-title
+          .url_buttons-title
             %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"response.title", ng-required:"true"}
-          .modal-quick-reply-value 
+          .url_buttons-value
             %input{type:"url", name:"quick-reply-value", auto-complete:"", ng-model:"response.url", ng-required:"true"}
           .icon.icon-close{ng-click:"removeElementArrayUrlButton(actions_buttons_reply, $index)"}
         %a{ng-click:"addNewUrlButton()", class:"cursor-pointer", ng-hide:"actions_buttons_reply.length == 3"}

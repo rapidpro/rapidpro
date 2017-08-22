@@ -2304,17 +2304,17 @@ div.modal[role="dialog"] {
     -webkit-box-sizing: border-box;
     padding: 14px 6px;
     margin: 5px 0 0 0;
-    &.ng-invalid-maxlength{
+    &.ng-invalid-maxlength {
       border-color: #e9322d;
       -webkit-box-shadow: 0 0 6px #f8b9b7;
       -moz-box-shadow: 0 0 6px #f8b9b7;
       box-shadow: 0 0 6px #f8b9b7;
     }
   }
-  .modal-quick-reply-value {
+  .quick_reply-title, .url_buttons-title, .url_buttons-value {
     display: inline-block;
-    width: 46%;
-    margin: 0 0 0 1%;
+    width: 95%;
+    margin: 0 1% 0 0;
     box-sizing: border-box;
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box;
@@ -2326,16 +2326,27 @@ div.modal[role="dialog"] {
       padding: 5px;
       margin-bottom: 3px;
     }
-    &.quick_reply-title{
-      margin: 0 1% 0 0;
+    @media(max-width: 768px){
+      width: 92%;
     }
-    @media (max-width: 768px){
-      width: 45%;
-    }
-    &.center-translate{
+    &.center-translate {
       text-align: center;
       input{
         margin: 2px 0 5px 0;
+      }
+    }
+    &.url_buttons-title{
+      width: 46%;
+      margin: 0 1% 0 0;
+      @media(max-width: 768px){
+        width: 45%;
+      }
+    }
+    &.url_buttons-value {
+      width: 46%;
+      margin: 0 1% 0 0;
+      @media(max-width: 768px){
+        width: 45%;
       }
     }
   }
