@@ -6131,9 +6131,7 @@ class FlowsTest(FlowFileTest):
         USSDSession.handle_incoming(channel=self.channel, urn=self.contact.get_urn().path, date=timezone.now(),
                                     external_id="12341231", status=USSDSession.INTERRUPTED)
 
-        # as the example flow has an interrupt state connected to a valid destination,
-        # the flow will go on and reach the destination
-        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
+        self.assertTrue(FlowRun.objects.get(contact=self.contact).is_interrupted())
 
         # the contact should have been added to the "Interrupted" group as flow step describes
         contact = flow.get_results()[0]['contact']
