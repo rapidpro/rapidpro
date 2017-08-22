@@ -60,17 +60,29 @@ def migrate_flow_with_dependencies(flow, extra_flows=(), strip_ui=True):
 class RequestBuilder(object):
     def __init__(self, client):
         self.client = client
-        self.request = {'assets': {'flows': [], 'channels': []}, 'events': []}
+        self.request = {'assets': [], 'events': []}
 
     def include_flows(self, flows):
-        self.request['assets']['flows'].extend(flows)
+        def as_asset(f):
+            return {'type': "flow", 'content': f, 'url': "http://rpd.io/todo"}
+
+        self.request['assets'].extend([as_asset(flow) for flow in flows])
         return self
 
     def include_channels(self, channels):
         def as_asset(c):
-            return {'uuid': c.uuid, 'name': six.text_type(c.get_name()), 'type': c.channel_type, 'address': c.address}
+            return {
+                'type': "channel",
+                'content': {
+                    'uuid': c.uuid,
+                    'name': six.text_type(c.get_name()),
+                    'type': c.channel_type,
+                    'address': c.address
+                },
+                'url': "http://rpd.io/todo"
+            }
 
-        self.request['assets']['channels'].extend([as_asset(ch) for ch in channels])
+        self.request['assets'].extend([as_asset(ch) for ch in channels])
         return self
 
     def set_environment(self, org):
