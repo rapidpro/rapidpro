@@ -5,7 +5,9 @@ import requests
 import six
 
 from django.conf import settings
+from django.db.models import Prefetch
 from django.utils.timezone import now
+from mptt.utils import get_cached_trees
 from temba.utils import datetime_to_str
 
 
@@ -83,6 +85,52 @@ class RequestBuilder(object):
             }
 
         self.request['assets'].extend([as_asset(ch) for ch in channels])
+        return self
+
+    def include_locations(self, org):
+        """
+        Adds country data for the given org as a single location_set asset. e.g.
+        {
+            "type": "location_set",
+            "content": {
+                "name": "Rwanda",
+                "children": [
+                    {
+                        "name": "Kigali City",
+                        "children": [
+                            {
+                                "name": "Nyarugenge",
+                                "children": []
+                            }
+                        ]
+                    },
+                    ...
+        """
+        from temba.locations.models import BoundaryAlias
+
+        if not org.country:
+            return
+
+        queryset = org.country.get_descendants(include_self=True)
+        queryset = queryset.prefetch_related(
+            Prefetch('aliases', queryset=BoundaryAlias.objects.filter(org=org)),
+        )
+
+        def _serialize_node(node):
+            names = [node.name]
+            for alias in node.aliases.all():
+                names.append(alias.name)
+
+            rendered = {'names': names}
+
+            children = node.get_children()
+            if children:
+                rendered['children'] = []
+                for child in node.get_children():
+                    rendered['children'].append(_serialize_node(child))
+            return rendered
+
+        self.request['assets']['location_sets'] = [_serialize_node(node) for node in get_cached_trees(queryset)]
         return self
 
     def set_environment(self, org):
