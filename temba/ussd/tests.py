@@ -939,6 +939,88 @@ class VumiUssdTest(TembaTest):
         self.assertTrue(run.is_completed())
         self.assertFalse(run.is_interrupted())
 
+    def test_restart_interrupted_pull_session(self):
+        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
+
+        ussd_code = "*111#"
+
+        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
+                    content="", transport_type='ussd', session_event="new", to_addr=ussd_code)
+
+        flow = self.get_flow('ussd_interrupt_example_2')
+
+        trigger, _ = Trigger.objects.get_or_create(channel=self.channel, keyword=ussd_code, flow=flow,
+                                                   created_by=self.user, modified_by=self.user, org=self.org,
+                                                   trigger_type=Trigger.TYPE_USSD_PULL)
+
+        # trigger session with an incoming message
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+
+        # Actual message is generated and sent, now we are waiting for an answer
+        msg = Msg.objects.all().first()
+        self.assertEqual(msg.text, u"What's up?\n1: Good\n2: Nada")
+
+        # Continue the flow menus
+        data['session_event'] = 'resume'
+        data['content'] = '2'
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+        # now we are at the second menu
+        run = FlowRun.objects.get()
+        self.assertEqual(run.steps.last().messages.last().text, u'Second menu\n1: Good\n2: Bad')
+
+        # An interrupt happens
+        interrupt_data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
+                              content="Arbitrary content", transport_type='ussd', session_event="close",
+                              to_addr=ussd_code)
+
+        response = self.client.post(callback_url, json.dumps(interrupt_data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+        # The session is marked as interrupted
+        session = USSDSession.objects.get()
+        self.assertIsInstance(session.ended_on, datetime)
+        self.assertEqual(session.status, USSDSession.INTERRUPTED)
+
+        # Run is inactive and interrupted
+        run = FlowRun.objects.get()
+        self.assertFalse(run.is_active)
+        self.assertTrue(run.is_interrupted())
+
+        # now trigger the session again to resume it
+        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
+                    content="", transport_type='ussd', session_event="new", to_addr=ussd_code)
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+
+        # Run is still inactive
+        run.refresh_from_db()
+        self.assertFalse(run.is_active)
+        self.assertTrue(run.is_interrupted())
+
+        self.assertEqual(run.steps.last().messages.last().text,
+                         u"Welcome back. Please select an option:\n1: Resume flow\n2: Restart from main menu")
+
+        # now send a reply - resume flow
+        data['session_event'] = 'resume'
+        data['content'] = '2'
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+
+        # Run is now active
+        run.refresh_from_db()
+        self.assertTrue(run.is_active)
+        self.assertFalse(run.is_completed())
+        self.assertFalse(run.is_interrupted())
+
+        self.assertEqual(run.steps.last().messages.last().text, u"What's up?\n1: Good\n2: Nada")
+        self.assertNotEqual(run.steps.last().messages.last().id, msg.id)
+
 
 class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
