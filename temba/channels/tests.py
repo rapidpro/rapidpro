@@ -7642,44 +7642,8 @@ class TelegramTest(TembaTest):
 
             mock_json = json.loads(mock.call_args[0][1]['reply_markup'])
 
-            self.assertEqual(mock_json['keyboard'][0][0]['callback_data'], "yes")
             self.assertEqual(mock_json['keyboard'][0][0]['text'], "Yes")
-            self.assertEqual(mock_json['keyboard'][1][0]['callback_data'], "no")
             self.assertEqual(mock_json['keyboard'][1][0]['text'], "No")
-
-    def test_send_url_buttons(self):
-        metadata = """
-        {
-            "url_buttons":[
-                {
-                    "url": "https://example.com",
-                    "title": "Show Website"
-                }
-            ]
-        }
-        """
-        joe = self.create_contact("Ernie", urn='telegram:1234')
-        msg = joe.send("Hello, world!", self.admin, trigger_send=False, metadata=metadata)[0]
-
-        settings.SEND_MESSAGES = True
-
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(200, json.dumps({"result": {"message_id": 1234}}))
-
-            # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-            # check the status of the message is now sent
-            msg.refresh_from_db()
-            self.assertEquals(WIRED, msg.status)
-            self.assertTrue(msg.sent_on)
-            self.clear_cache()
-
-            self.assertEqual(mock.call_args[0][0], "https://api.telegram.org/botvalid/sendMessage")
-
-            mock_json = json.loads(mock.call_args[0][1]['reply_markup'])
-            self.assertEqual(mock_json['inline_keyboard'][0][0]['url'], 'https://example.com')
-            self.assertEqual(mock_json['inline_keyboard'][0][0]['text'], 'Show Website')
 
 
 class PlivoTest(TembaTest):
@@ -9989,12 +9953,12 @@ class FacebookTest(TembaTest):
         {
             "quick_replies": [
                 {
-                    "payload": "yes",
+                    "payload": "Yes",
                     "title": "Yes",
                     "content_type": "text"
                 },
                 {
-                    "payload": "no",
+                    "payload": "No",
                     "title": "No",
                     "content_type": "text"
                 }
@@ -10025,43 +9989,6 @@ class FacebookTest(TembaTest):
                 self.assertEqual(json.loads(mock.call_args[0][1])['message']['text'], 'Facebook Msg')
                 self.assertEqual(json.loads(mock.call_args[0][1])['message']['quick_replies'][0]['title'], 'Yes')
                 self.assertEqual(json.loads(mock.call_args[0][1])['message']['quick_replies'][1]['title'], 'No')
-
-    def test_send_url_buttons(self):
-        joe = self.create_contact("Joe", urn="facebook:1234")
-        metadata = """
-        {
-            "url_buttons":[
-                {
-                    "url": "https://example.com",
-                    "title": "Show Website",
-                    "type": "web_url"
-                }
-            ]
-        }
-        """
-        msg = joe.send("Facebook Msg", self.admin, trigger_send=False, metadata=metadata)[0]
-
-        with self.settings(SEND_MESSAGES=True):
-
-            with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, '{"recipient_id": "1234", "message_id": "mid.external"}')
-
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                # check the status of the message is now sent
-                msg.refresh_from_db()
-                self.assertEqual(msg.status, WIRED)
-                self.assertTrue(msg.sent_on)
-                self.assertEqual(msg.external_id, 'mid.external')
-                self.clear_cache()
-
-                self.assertEqual(mock.call_args[0][0], 'https://graph.facebook.com/v2.5/me/messages')
-                mock_call_args = json.loads(mock.call_args[0][1])
-
-                self.assertEqual(mock_call_args['recipient']['id'], '1234')
-                self.assertEqual(mock_call_args['message']['attachment']['payload']['buttons'][0]['url'],
-                                 'https://example.com')
 
 
 class JiochatTest(TembaTest):
@@ -11213,49 +11140,8 @@ class ViberPublicTest(TembaTest):
             self.assertEqual(msg.external_id, "4987381194038857789")
             self.clear_cache()
 
-    def test_send_url_buttons(self):
-        metadata = json.dumps(dict(url_buttons=[dict(title='Show Website', url='https://example.com')]))
-        joe = self.create_contact("Joe", urn="viber:FXLP/JstS7kDuoiUGihkgA==")
-        msg = joe.send("Hello, world!", self.admin, trigger_send=False, metadata=metadata)[0]
-
-        settings.SEND_MESSAGES = True
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(200, '{ "status":0, "status_message": "ok", "message_token": "999" }')
-
-            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-            mock.assert_called_with('https://chatapi.viber.com/pa/send_message',
-                                    headers={'Accept': u'application/json', u'User-agent': u'RapidPro'},
-                                    json=dict(
-                                        auth_token='auth_token',
-                                        receiver="FXLP/JstS7kDuoiUGihkgA==",
-                                        text="Hello, world!",
-                                        type='text',
-                                        tracking_data=msg.id,
-                                        keyboard=dict(
-                                            Type="keyboard",
-                                            DefaultHeight=True,
-                                            Buttons=[
-                                                {
-                                                    "Text": "Show Website",
-                                                    "ActionBody": "https://example.com",
-                                                    "ActionType": "open-url",
-                                                    "TextSize": "regular"
-                                                }
-                                            ]
-                                        )
-                                    ),
-                                    timeout=5)
-            msg.refresh_from_db()
-            self.assertEqual(msg.status, WIRED)
-            self.assertTrue(msg.sent_on)
-            self.assertEqual(msg.external_id, "999")
-            self.assertEqual(msg.metadata, metadata)
-            self.clear_cache()
-            self.assertEqual(mock.call_args[1]['json']['keyboard']['Buttons'][0]['Text'], 'Show Website')
-
     def test_send_quick_replies(self):
-        metadata = json.dumps(dict(quick_replies=[dict(title='Yes', payload='yes'), dict(title='No', payload='no')]))
+        metadata = json.dumps(dict(quick_replies=[dict(title='Yes', payload='Yes'), dict(title='No', payload='No')]))
         joe = self.create_contact("Joe", urn="viber:FXLP/JstS7kDuoiUGihkgA==")
         msg = joe.send("Hello, world!", self.admin, trigger_send=False, metadata=metadata)[0]
 
@@ -11279,13 +11165,13 @@ class ViberPublicTest(TembaTest):
                                             Buttons=[
                                                 {
                                                     "Text": "Yes",
-                                                    "ActionBody": "yes",
+                                                    "ActionBody": "Yes",
                                                     "ActionType": "reply",
                                                     "TextSize": "regular"
                                                 },
                                                 {
                                                     "Text": "No",
-                                                    "ActionBody": "no",
+                                                    "ActionBody": "No",
                                                     "ActionType": "reply",
                                                     "TextSize": "regular"
                                                 }
@@ -11478,11 +11364,11 @@ class FcmTest(TembaTest):
         {
             "quick_replies": [
                 {
-                    "payload": "yes",
+                    "payload": "Yes",
                     "title": "Yes"
                 },
                 {
-                    "payload": "no",
+                    "payload": "No",
                     "title": "No"
                 }
             ]
@@ -11513,74 +11399,12 @@ class FcmTest(TembaTest):
                         'metadata': {
                             "quick_replies": [
                                 {
-                                    "payload": "yes",
+                                    "payload": "Yes",
                                     "title": "Yes"
                                 },
                                 {
-                                    "payload": "no",
+                                    "payload": "No",
                                     "title": "No"
-                                }
-                            ]
-                        }
-                    },
-                    'content_available': True,
-                    'to': '123456abcdef',
-                    'priority': 'high',
-                    'notification': {
-                        'title': 'FCM Channel',
-                        'body': 'Hello, world!'
-                    }
-                })
-
-                mock.assert_called_once_with('https://fcm.googleapis.com/fcm/send',
-                                             data=data,
-                                             headers={
-                                                 'Content-Type': 'application/json',
-                                                 'Authorization': 'key=123456789',
-                                                 'User-agent': 'RapidPro'
-                                             },
-                                             timeout=5)
-
-                self.clear_cache()
-
-    def test_send_url_buttons(self):
-        metadata = """
-        {
-            "url_buttons":[
-                {
-                    "url": "https://example.com",
-                    "title": "Show Website"
-                }
-            ]
-        }
-        """
-        joe = self.create_contact("Joe", urn="fcm:12345abcde", auth="123456abcdef")
-        msg = joe.send("Hello, world!", self.admin, trigger_send=False, metadata=metadata)[0]
-
-        with self.settings(SEND_MESSAGES=True):
-
-            with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, '{ "success": 1, "multicast_id": 123456, "failures": 0 }')
-
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                # check the status of the message is now sent
-                msg.refresh_from_db()
-                self.assertEqual(msg.status, WIRED)
-                self.assertTrue(msg.sent_on)
-
-                data = json.dumps({
-                    'data': {
-                        'type': 'rapidpro',
-                        'title': 'FCM Channel',
-                        'message': 'Hello, world!',
-                        'message_id': msg.id,
-                        'metadata': {
-                            "url_buttons": [
-                                {
-                                    "url": "https://example.com",
-                                    "title": "Show Website"
                                 }
                             ]
                         }
