@@ -51,7 +51,6 @@ class ViberPublicType(ChannelType):
 
     def get_quick_replies(self, metadata, post_body):
         metadata = json.loads(metadata)
-        url_buttons = metadata.get('url_buttons', None)
         quick_replies = metadata.get('quick_replies', None)
         buttons = []
 
@@ -59,12 +58,7 @@ class ViberPublicType(ChannelType):
             for quick_reply in quick_replies:
                 buttons.append(dict(Text=quick_reply.get('title'), ActionBody=quick_reply.get('title'),
                                     ActionType='reply', TextSize='regular'))
-        elif url_buttons:
-            for url_button in url_buttons:
-                buttons.append(dict(Text=url_button['title'], ActionBody=url_button['url'],
-                                    ActionType='open-url', TextSize='regular'))
 
-        if quick_replies or url_buttons:
             post_body['keyboard'] = dict(Type="keyboard", DefaultHeight=True, Buttons=buttons)
 
         return post_body
