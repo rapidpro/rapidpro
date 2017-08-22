@@ -6,6 +6,7 @@ import regex
 import six
 import time
 import traceback
+import uuid
 
 from datetime import datetime, timedelta
 from django.conf import settings
@@ -21,6 +22,8 @@ from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
 from django_redis import get_redis_connection
 from temba_expressions.evaluator import EvaluationContext, DateStyle
+
+from temba.channels.courier import push_courier_msgs
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
 from temba.channels.models import Channel, ChannelEvent
@@ -646,6 +649,9 @@ class Msg(models.Model):
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
+    uuid = models.UUIDField(null=True, default=uuid.uuid4,
+                            help_text=_("The UUID for this message"))
+
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))
 
@@ -734,21 +740,22 @@ class Msg(models.Model):
         queued.
         :return:
         """
-        task_msgs = []
-        task_priority = None
-        last_contact = None
-        batches = []
+        rapid_batches = []
+        courier_batches = []
 
         # we send in chunks of 1,000 to help with contention
-        for msg_chunk in chunk_list(all_msgs, 1000):
-            # create a temporary list of our chunk so we can iterate more than once
-            msgs = [msg for msg in msg_chunk]
-
+        for msgs in chunk_list(all_msgs, 1000):
             # build our id list
             msg_ids = set([m.id for m in msgs])
 
             with transaction.atomic():
                 queued_on = timezone.now()
+                courier_msgs = []
+                task_msgs = []
+
+                task_priority = None
+                last_contact = None
+                last_channel = None
 
                 # update them to queued
                 send_messages = Msg.objects.filter(id__in=msg_ids)\
@@ -760,16 +767,16 @@ class Msg(models.Model):
 
                 # now push each onto our queue
                 for msg in msgs:
-                    if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and \
-                            msg.topup and not msg.contact.is_test:
+                    if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and msg.topup and not msg.contact.is_test:
+                        if msg.channel.channel_type in settings.COURIER_CHANNELS and msg.uuid:
+                            courier_msgs.append(msg)
+                            continue
 
-                        # if this is a different contact than our last, and we have msgs for that last contact, queue the task
+                        # if this is a different contact than our last, and we have msgs, queue the task
                         if task_msgs and last_contact != msg.contact_id:
                             # if no priority was set, default to DEFAULT
-                            if task_priority is None:  # pragma: needs cover
-                                task_priority = DEFAULT_PRIORITY
-
-                            batches.append(dict(org=task_msgs[0]['org'], msgs=task_msgs, priority=task_priority))
+                            task_priority = DEFAULT_PRIORITY if task_priority is None else task_priority
+                            rapid_batches.append(dict(org=task_msgs[0]['org'], msgs=task_msgs, priority=task_priority))
                             task_msgs = []
                             task_priority = None
 
@@ -786,19 +793,47 @@ class Msg(models.Model):
                         task_msgs.append(task)
                         last_contact = msg.contact_id
 
-        # send our last msgs
-        if task_msgs:
-            if task_priority is None:
-                task_priority = DEFAULT_PRIORITY
-            batches.append(dict(org=task_msgs[0]['org'], msgs=task_msgs, priority=task_priority))
+                if task_msgs:
+                    task_priority = DEFAULT_PRIORITY if task_priority is None else task_priority
+                    rapid_batches.append(dict(org=task_msgs[0]['org'], msgs=task_msgs, priority=task_priority))
+                    task_msgs = []
+
+                # ok, now push our courier msgs
+                task_priority = None
+                last_contact = None
+                last_channel = None
+                for msg in courier_msgs:
+                    if task_msgs and (last_contact != msg.contact_id or last_channel != msg.channel_id):
+                        courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs,
+                                                    is_bulk=task_priority != Msg.PRIORITY_NORMAL))
+                        task_msgs = []
+                        task_priority = None
+
+                    if msg.priority != Msg.PRIORITY_BULK:
+                        task_priority = Msg.PRIORITY_NORMAL
+
+                    last_contact = msg.contact_id
+                    last_channel = msg.channel_id
+                    task_msgs.append(msg)
+
+                # push any remaining courier msgs
+                if task_msgs:
+                    courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs,
+                                                is_bulk=task_priority != Msg.PRIORITY_NORMAL))
 
         # send our batches
-        on_transaction_commit(lambda: cls._send_msg_batches(batches))
+        on_transaction_commit(lambda: cls._send_rapid_msg_batches(rapid_batches))
+        on_transaction_commit(lambda: cls._send_courier_msg_batches(courier_batches))
 
     @classmethod
-    def _send_msg_batches(cls, batches):
+    def _send_rapid_msg_batches(cls, batches):
         for batch in batches:
             push_task(batch['org'], MSG_QUEUE, SEND_MSG_TASK, batch['msgs'], priority=batch['priority'])
+
+    @classmethod
+    def _send_courier_msg_batches(cls, batches):
+        for batch in batches:
+            push_courier_msgs(batch['channel'], batch['msgs'], batch['is_bulk'])
 
     @classmethod
     def process_message(cls, msg):

@@ -1,3 +1,17 @@
+v3.0.190
+----------
+ * Turn down default courier TPS to 10/s
+
+v3.0.189
+----------
+ * Make sure msg time never wraps in the inbox
+
+v3.0.188
+----------
+ * Use a real but mockable HTTP server to test flows that hit external URLs instead of mocking the requests
+ * Add infobip as dynamic channel type and Update it to use the latest Infobip API
+ * Add support for Courier message sending
+
 v3.0.183
 ----------
  * Use twitter icon for twitter id urns
