@@ -125,6 +125,9 @@ class USSDSession(ChannelSession):
             last_run.exited_on = None
             last_run.is_active = True
             last_run.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
+
+            message = self.create_incoming_message(content, date, message_id)
+
     def handle_session_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
         Msg.create_incoming(
