@@ -105,6 +105,12 @@ class USSDSession(ChannelSession):
 
         # create a RuleSet to ask the user to Resume/Continue or Restart the session
         resume_or_restart_ruleset = RuleSet(flow=flow, uuid=str(uuid4()), x=0, y=0, ruleset_type=RuleSet.TYPE_WAIT_USSD_MENU)
+        resume_or_restart_ruleset.set_rules_dict(
+            [Rule(str(uuid4()), dict(base="Resume"), resuming_ruleset.uuid, 'R', EqTest(test="1"),
+                  dict(base="Resume flow")).as_json(),
+             Rule(str(uuid4()), dict(base="Restart"), entry_ruleset.uuid, 'R', EqTest(test="2"),
+                  dict(base="Restart from main menu")).as_json(),
+                Rule(str(uuid4()), dict(base="All Responses"), entry_ruleset.uuid, 'R', TrueTest()).as_json()])
     def handle_session_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
         Msg.create_incoming(
