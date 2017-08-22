@@ -828,6 +828,20 @@ class VumiUssdTest(TembaTest):
         self.assertFalse(run.is_active)
         self.assertTrue(run.is_interrupted())
 
+        # now trigger the session again to resume it
+        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
+                    content="", transport_type='ussd', session_event="new", to_addr=ussd_code)
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+
+        # Run is still inactive
+        run.refresh_from_db()
+        self.assertFalse(run.is_active)
+        self.assertTrue(run.is_interrupted())
+
+        self.assertEqual(run.steps.last().messages.last().text,
+                         u"Welcome back. Please select an option:\n1: Resume flow\n2: Restart from main menu")
 class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
     def setUp(self):
