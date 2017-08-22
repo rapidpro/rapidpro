@@ -34,13 +34,10 @@ class FirebaseCloudMessagingType(ChannelType):
 
     def get_quick_replies(self, metadata, post_body):
         metadata = json.loads(metadata)
-        quick_replies = metadata.get('quick_replies') if metadata.get('quick_replies') else None
-        url_buttons = metadata.get('url_buttons') if metadata.get('url_buttons') else None
+        quick_replies = metadata.get('quick_replies', None)
 
         if quick_replies:
             post_body['data']['metadata'] = dict(quick_replies=quick_replies)
-        elif url_buttons:
-            post_body['data']['metadata'] = dict(url_buttons=url_buttons)
 
         return post_body
 
