@@ -722,6 +722,9 @@ class Flow(TembaModel):
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
         if destination:
             step = run.flow.add_step(run, destination, previous_step=step)
+        elif run.session_interrupted:
+            run.set_interrupted(final_step=step)
+            step = None
         else:
             run.set_completed(final_step=step)
             step = None
