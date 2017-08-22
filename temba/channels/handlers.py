@@ -1365,6 +1365,7 @@ class VumiHandler(BaseChannelHandler):
                     status = USSDSession.INTERRUPTED
                 elif body.get('session_event') == "new":
                     status = USSDSession.TRIGGERED
+                    content = ''
                 else:  # "resume" or null handling
                     status = USSDSession.IN_PROGRESS
 
