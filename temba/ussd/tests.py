@@ -920,6 +920,21 @@ class VumiUssdTest(TembaTest):
 
         self.assertEqual(run.steps.last().messages.last().text, u'Second menu\n1: Good\n2: Bad')
 
+        # Let's complete this flow
+        data['session_event'] = 'resume'
+        data['timestamp'] = "2016-04-18 03:57:31.570618"
+        data['content'] = '1'
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+
+        # Run is completed
+        run.refresh_from_db()
+        self.assertFalse(run.is_active)
+        self.assertTrue(run.is_completed())
+        self.assertFalse(run.is_interrupted())
+
+
 class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
     def setUp(self):
