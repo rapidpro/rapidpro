@@ -57,7 +57,7 @@ class ViberPublicType(ChannelType):
 
         if quick_replies:
             for quick_reply in quick_replies:
-                buttons.append(dict(Text=quick_reply['title'], ActionBody=quick_reply['payload'],
+                buttons.append(dict(Text=quick_reply.get('title'), ActionBody=quick_reply.get('title'),
                                     ActionType='reply', TextSize='regular'))
         elif url_buttons:
             for url_button in url_buttons:
