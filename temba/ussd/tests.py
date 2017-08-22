@@ -806,6 +806,17 @@ class VumiUssdTest(TembaTest):
 
         self.assertEqual(response.status_code, 200)
 
+        # Actual message is generated and sent, now we are waiting for an answer
+        msg = Msg.objects.all().first()
+        self.assertEqual(msg.text, u"What's up?\n1: Good\n2: Nada")
+
+        # An interrupt happens
+        interrupt_data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
+                              content="Arbitrary content", transport_type='ussd', session_event="close",
+                              to_addr=ussd_code)
+
+        response = self.client.post(callback_url, json.dumps(interrupt_data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
 class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
     def setUp(self):
