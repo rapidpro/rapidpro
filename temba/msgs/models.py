@@ -385,27 +385,19 @@ class Broadcast(models.Model):
         preferred_languages = self.get_preferred_languages(contact, org)
         return Language.get_localized_text(self.text, preferred_languages)
 
-    def get_translated_metadata(self, metadata, contact, metadata_type='quick_replies', org=None):
+    def get_translated_metadata(self, metadata, contact, org=None):
         """
         Gets the appropriate metadata translation for the given contact
         """
-        if metadata_type == 'quick_replies':
-            value_key = None
-        else:
-            value_key = 'url'
-
         preferred_languages = self.get_preferred_languages(contact, org)
         metadata = json.loads(metadata)
-        language_metadata = Language.get_localized_text(metadata.get(metadata_type), preferred_languages)
-        base_metadata = Language.get_localized_text(metadata.get(metadata_type), [self.base_language])
+        language_metadata = Language.get_localized_text(metadata.get('quick_replies'), preferred_languages)
+        base_metadata = Language.get_localized_text(metadata.get('quick_replies'), [self.base_language])
 
         if language_metadata:
             for i, item in enumerate(language_metadata):
                 if not item.get('title'):
                     item['title'] = base_metadata[i]['title']
-
-                if value_key and not item.get(value_key):
-                    item[value_key] = base_metadata[i][value_key]
 
             return language_metadata
         else:
@@ -482,10 +474,7 @@ class Broadcast(models.Model):
             text = self.get_translated_text(contact)
 
             if metadata:
-                _metadata = json.dumps(dict(
-                    quick_replies=self.get_translated_metadata(metadata, contact, 'quick_replies'),
-                    url_buttons=self.get_translated_metadata(metadata, contact, 'url_buttons')
-                ))
+                _metadata = json.dumps(dict(quick_replies=self.get_translated_metadata(metadata, contact)))
             else:
                 _metadata = None
 
@@ -1535,18 +1524,6 @@ class Msg(models.Model):
                                                                contact=contact, org=org)
                     if title:
                         reply['title'] = title[:Msg.MAX_QUICK_REPLY_TITLE_LEN]
-
-            elif metadata.get('url_buttons', None):
-                url_buttons = metadata.get('url_buttons', None)
-                for button in url_buttons:
-                    (title, errors) = Msg.substitute_variables(button.get('title', None), message_context,
-                                                               contact=contact, org=org)
-                    (url, errors) = Msg.substitute_variables(button.get('url', None), message_context, contact=contact,
-                                                             org=org)
-                    if title:
-                        button['title'] = title[:Msg.MAX_QUICK_REPLY_TITLE_LEN]
-                    if url:
-                        button['url'] = url
 
             metadata = json.dumps(metadata)
 

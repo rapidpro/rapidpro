@@ -1594,9 +1594,8 @@ class Flow(TembaModel):
             # check that we either have text or media, available for the base language
             if (send_action.msg and send_action.msg.get(self.base_language)) or (send_action.media and send_action.media.get(self.base_language)):
 
-                if send_action.url_buttons or send_action.quick_replies:
-                    metadata = json.dumps(dict(url_buttons=send_action.url_buttons,
-                                               quick_replies=send_action.quick_replies))
+                if send_action.quick_replies:
+                    metadata = json.dumps(dict(quick_replies=send_action.quick_replies))
                 else:
                     metadata = None
 
@@ -5034,14 +5033,12 @@ class ReplyAction(Action):
     MEDIA = 'media'
     SEND_ALL = 'send_all'
     QUICK_REPLIES = 'quick_replies'
-    URL_BUTTONS = 'url_buttons'
 
-    def __init__(self, msg=None, media=None, quick_replies=None, url_buttons=None, send_all=False):
+    def __init__(self, msg=None, media=None, quick_replies=None, send_all=False):
         self.msg = msg
         self.media = media if media else {}
         self.send_all = send_all
         self.quick_replies = quick_replies if quick_replies else []
-        self.url_buttons = url_buttons if url_buttons else []
 
     @classmethod
     def from_json(cls, org, json_obj):
@@ -5057,24 +5054,17 @@ class ReplyAction(Action):
             raise FlowException("Invalid reply action, no message")
 
         return cls(msg=json_obj.get(cls.MESSAGE), media=json_obj.get(cls.MEDIA, None),
-                   quick_replies=json_obj.get(cls.QUICK_REPLIES), url_buttons=json_obj.get(cls.URL_BUTTONS),
-                   send_all=json_obj.get(cls.SEND_ALL, False))
+                   quick_replies=json_obj.get(cls.QUICK_REPLIES), send_all=json_obj.get(cls.SEND_ALL, False))
 
     def as_json(self):
         return dict(type=self.TYPE, msg=self.msg, media=self.media, quick_replies=self.quick_replies,
-                    url_buttons=self.url_buttons, send_all=self.send_all)
+                    send_all=self.send_all)
 
     @staticmethod
-    def get_translated_metadata(metadata, run, metadata_type='quick_replies'):
+    def get_translated_metadata(metadata, run):
         """
         Gets the appropriate metadata translation for the given contact
         """
-
-        if metadata_type == 'quick_replies':
-            value_key = None
-        else:
-            value_key = 'url'
-
         language_metadata = Language.get_localized_text(metadata, [run.contact.language])
         base_metadata = Language.get_localized_text(metadata, [run.flow.base_language])
 
@@ -5082,9 +5072,6 @@ class ReplyAction(Action):
             for i, item in enumerate(language_metadata):
                 if not item.get('title'):
                     item['title'] = base_metadata[i]['title']
-
-                if value_key and not item.get(value_key):
-                    item[value_key] = base_metadata[i][value_key]
 
             return language_metadata
         else:
@@ -5100,13 +5087,9 @@ class ReplyAction(Action):
             if self.msg:
                 text = run.flow.get_localized_text(self.msg, run.contact)
 
-            quick_replies = ReplyAction.get_translated_metadata(self.quick_replies, run, 'quick_replies') \
-                if self.quick_replies else []
+            quick_replies = ReplyAction.get_translated_metadata(self.quick_replies, run) if self.quick_replies else []
 
-            url_buttons = ReplyAction.get_translated_metadata(self.url_buttons, run, 'url_buttons') \
-                if self.url_buttons else []
-
-            metadata = json.dumps(dict(quick_replies=quick_replies, url_buttons=url_buttons))
+            metadata = json.dumps(dict(quick_replies=quick_replies))
 
             attachments = None
             if self.media:
