@@ -61,18 +61,20 @@ class USSDSession(ChannelSession):
         self.ended_on = timezone.now()
         self.save(update_fields=['status', 'ended_on'])
 
-    def start_session_async(self, flow, date, message_id):
     def resume(self):
         if self.status == self.INTERRUPTED:
             self.status = self.IN_PROGRESS
             self.ended_on = None
             self.save(update_fields=['status', 'ended_on'])
+
+    def create_incoming_message(self, content, date, message_id):
         from temba.msgs.models import Msg, USSD
-        message = Msg.objects.create(
+
+        return Msg.objects.create(
             channel=self.channel, contact=self.contact, contact_urn=self.contact_urn,
             sent_on=date, session=self, msg_type=USSD, external_id=message_id,
             created_on=timezone.now(), modified_on=timezone.now(), org=self.channel.org,
-            direction=self.INCOMING)
+            direction=self.INCOMING, text=content or '')
         flow.start([], [self.contact], start_msg=message, restart_participants=True, session=self)
 
     def handle_session_async(self, urn, content, date, message_id):
