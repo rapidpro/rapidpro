@@ -15,7 +15,7 @@ from django_redis import get_redis_connection
 
 from temba.channels.models import Channel
 from temba.channels.tests import JunebugTestMixin
-from temba.contacts.models import Contact, TEL_SCHEME
+from temba.contacts.models import Contact, TEL_SCHEME, ContactGroup
 from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING, USSD, DELIVERED, FAILED
 from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
@@ -888,6 +888,11 @@ class VumiUssdTest(TembaTest):
         run.refresh_from_db()
         self.assertFalse(run.is_active)
         self.assertTrue(run.is_interrupted())
+
+        # the contact should have been added to the "Interrupted" group as flow step describes
+        contact = flow.get_results()[0]['contact']
+        interrupted_group = ContactGroup.user_groups.get(name='Interrupted')
+        self.assertTrue(interrupted_group.contacts.filter(id=contact.id).exists())
 
         # now trigger the session again to resume it the second time
         data = dict(timestamp="2016-04-18 03:54:21.570618", message_id="123456", from_addr="+250788383383",
