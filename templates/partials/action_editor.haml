@@ -18,8 +18,6 @@
         .icon-attachment.add-attachment.cursor-pointer{ng-show:'!action._media', ng-file-select:'onFileSelect($files, actionset, action);', ng-click:'$event.stopPropagation();', style:"font-size:15px;"}
 
         .icon-button-quick-reply.cursor-pointer{style:"font-size:22px; margin-top:-2px; margin-left:2px;", ng-click:'addNewQuickReply()', ng-show:'(!action._media && flow.flow_type=="F")'}
-      
-        .icon-button-response.cursor-pointer{style:"font-size:22px; margin-top:-3px; margin-left:7px;", ng-click:'addNewUrlButton()', ng-show:'(!action._media && flow.flow_type=="F")'}
 
       .media{ng-hide:'action.uploading'}
         .tag-button{ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
@@ -42,22 +40,6 @@
           .icon.icon-close{ng-click:"removeElementArrayQuickReply(actions_quick_reply, $index)"}
         %a{ng-click:"addNewQuickReply()", class:"cursor-pointer", ng-hide:"actions_quick_reply.length == 11"}
           -trans "Add new quick reply"
-
-      .quick-reply{ng-show:"actions_buttons_reply.length"}
-        .modal-quick-reply-header
-          .url_buttons-title
-            -trans "Text"
-          .url_buttons-value
-            -trans "URL"
-            
-        .modal-quick-reply{ng-repeat:"response in actions_buttons_reply", class:""}
-          .url_buttons-title
-            %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"response.title", ng-required:"true"}
-          .url_buttons-value
-            %input{type:"url", name:"quick-reply-value", auto-complete:"", ng-model:"response.url", ng-required:"true"}
-          .icon.icon-close{ng-click:"removeElementArrayUrlButton(actions_buttons_reply, $index)"}
-        %a{ng-click:"addNewUrlButton()", class:"cursor-pointer", ng-hide:"actions_buttons_reply.length == 3"}
-          -trans "Add new URL button"
 
     %span{ng-if:'config.type == "end_ussd"'}
       %span{auto-complete:"",msg:"action.msg",type:"ussd",data-message:"message"}

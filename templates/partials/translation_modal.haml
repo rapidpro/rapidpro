@@ -28,23 +28,6 @@
               .translate-from{ng-show:"translation.fromQuickReply[$index].title"}
                 -trans "[[translation.fromQuickReply[$index].title]]"
               %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"response.title", ng-required:"true"}
-              
-        .quick-reply{ng-show:"translation.toButtonsReply.length"}
-          .modal-quick-reply-header
-            .url_buttons-title
-              -trans "Text"
-            .url_buttons-value
-              -trans "URL"
-              
-          .modal-quick-reply{ng-repeat:"response in translation.toButtonsReply", class:""}
-            .url_buttons-title.center-translate
-              .translate-from{ng-show:"translation.fromButtonsReply[$index].title"}  
-                -trans "[[translation.fromButtonsReply[$index].title]]"                
-              %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"response.title", ng-required:"true"}
-            .url_buttons-value.center-translate
-              .translate-from{ng-show:"translation.fromButtonsReply[$index].url"}
-                -trans "[[translation.fromButtonsReply[$index].url]]"           
-              %input{type:"url", name:"quick-reply-value", auto-complete:"", ng-model:"response.url", ng-required:"true"}
         
       .modal-footer
         %button{ng-click:"cancel()",class:"btn btn-secondary"}
