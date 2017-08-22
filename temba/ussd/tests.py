@@ -874,6 +874,21 @@ class VumiUssdTest(TembaTest):
         self.assertFalse(run.is_completed())
         self.assertFalse(run.is_interrupted())
 
+        # Interrupt again
+        interrupt_data['content'] = 'Arbitrary content 2'
+        response = self.client.post(callback_url, json.dumps(interrupt_data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+        # The session is marked as interrupted
+        session = USSDSession.objects.get()
+        self.assertIsInstance(session.ended_on, datetime)
+        self.assertEqual(session.status, USSDSession.INTERRUPTED)
+
+        # Run is inactive and interrupted
+        run.refresh_from_db()
+        self.assertFalse(run.is_active)
+        self.assertTrue(run.is_interrupted())
+
 class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
     def setUp(self):
