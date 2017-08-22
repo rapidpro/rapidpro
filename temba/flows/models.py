@@ -5071,7 +5071,7 @@ class ReplyAction(Action):
         """
 
         if metadata_type == 'quick_replies':
-            value_key = 'payload'
+            value_key = None
         else:
             value_key = 'url'
 
@@ -5083,7 +5083,7 @@ class ReplyAction(Action):
                 if not item.get('title'):
                     item['title'] = base_metadata[i]['title']
 
-                if not item.get(value_key):
+                if value_key and not item.get(value_key):
                     item[value_key] = base_metadata[i][value_key]
 
             return language_metadata

@@ -390,7 +390,7 @@ class Broadcast(models.Model):
         Gets the appropriate metadata translation for the given contact
         """
         if metadata_type == 'quick_replies':
-            value_key = 'payload'
+            value_key = None
         else:
             value_key = 'url'
 
@@ -404,7 +404,7 @@ class Broadcast(models.Model):
                 if not item.get('title'):
                     item['title'] = base_metadata[i]['title']
 
-                if not item.get(value_key):
+                if value_key and not item.get(value_key):
                     item[value_key] = base_metadata[i][value_key]
 
             return language_metadata
@@ -1533,12 +1533,8 @@ class Msg(models.Model):
                 for reply in quick_replies:
                     (title, errors) = Msg.substitute_variables(reply.get('title', None), message_context,
                                                                contact=contact, org=org)
-                    (payload, errors) = Msg.substitute_variables(reply.get('payload', None), message_context,
-                                                                 contact=contact, org=org)
                     if title:
                         reply['title'] = title[:Msg.MAX_QUICK_REPLY_TITLE_LEN]
-                    if payload:
-                        reply['payload'] = payload
 
             elif metadata.get('url_buttons', None):
                 url_buttons = metadata.get('url_buttons', None)
