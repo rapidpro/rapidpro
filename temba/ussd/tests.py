@@ -858,6 +858,22 @@ class VumiUssdTest(TembaTest):
 
         self.assertEqual(run.steps.last().messages.last().text, u"What's up?\n1: Good\n2: Nada")
         self.assertNotEqual(run.steps.last().messages.last().id, msg.id)
+
+        # Continue the flow menus
+        data['session_event'] = 'resume'
+        data['content'] = '2'
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+        # now we are at the second menu
+        self.assertEqual(run.steps.last().messages.last().text, u'Second menu\n1: Good\n2: Bad')
+
+        # Run is still active
+        run.refresh_from_db()
+        self.assertTrue(run.is_active)
+        self.assertFalse(run.is_completed())
+        self.assertFalse(run.is_interrupted())
+
 class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
     def setUp(self):
