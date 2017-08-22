@@ -75,6 +75,9 @@ class USSDSession(ChannelSession):
             sent_on=date, session=self, msg_type=USSD, external_id=message_id,
             created_on=timezone.now(), modified_on=timezone.now(), org=self.channel.org,
             direction=self.INCOMING, text=content or '')
+
+    def start_session_async(self, flow, date, message_id):
+        message = self.create_incoming_message(None, date, message_id)
         flow.start([], [self.contact], start_msg=message, restart_participants=True, session=self)
 
     def handle_session_async(self, urn, content, date, message_id):
