@@ -895,7 +895,6 @@ class Contact(TembaModel):
 
         # perform everything in a org-level lock to prevent duplication by different instances
         with org.lock_on(OrgLock.contacts):
-
             # figure out which URNs already exist and who they belong to
             existing_owned_urns = dict()
             existing_orphan_urns = dict()
