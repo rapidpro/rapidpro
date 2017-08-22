@@ -1,0 +1,259 @@
+{
+  "campaigns": [],
+  "version": 10,
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "base_language": "base",
+      "action_sets": [
+        {
+          "y": 311,
+          "x": 1002,
+          "destination": null,
+          "uuid": "20e63490-49b5-40dc-a47d-b60e32ca81e6",
+          "actions": [
+            {
+              "type": "add_group",
+              "groups": [
+                {
+                  "name": "Interrupted",
+                  "uuid": "52a65efc-b89d-40e8-b09c-52855599ff28"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "y": 450,
+          "x": 741,
+          "destination": null,
+          "uuid": "7e731b2f-e8f3-4f9b-b223-b025821c9b15",
+          "actions": [
+            {
+              "labels": [
+                {
+                  "name": "Interrupted",
+                  "uuid": "6452a2eb-4944-48d5-9825-dd7773191527"
+                }
+              ],
+              "type": "add_label"
+            }
+          ]
+        },
+        {
+          "y": 494,
+          "x": 133,
+          "destination": null,
+          "uuid": "9fe341b8-d215-4dd1-8d3c-a68aba7c4d6c",
+          "actions": [
+            {
+              "msg": {
+                "base": "Closed with good"
+              },
+              "media": {},
+              "send_all": false,
+              "type": "end_ussd"
+            }
+          ]
+        },
+        {
+          "y": 560,
+          "x": 380,
+          "destination": null,
+          "uuid": "f9a55fd5-6b6e-424d-bfc3-ff3049c7e719",
+          "actions": [
+            {
+              "msg": {
+                "base": "Closed with Bad"
+              },
+              "media": {},
+              "send_all": false,
+              "type": "end_ussd"
+            }
+          ]
+        },
+        {
+          "y": 520,
+          "x": 702,
+          "destination": null,
+          "uuid": "fdd70991-dee5-4909-b886-a24f699183fa",
+          "actions": [
+            {
+              "msg": {
+                "base": "Closed with Other"
+              },
+              "media": {},
+              "send_all": false,
+              "type": "end_ussd"
+            }
+          ]
+        }
+      ],
+      "version": 10,
+      "flow_type": "U",
+      "entry": "95caba30-0a24-4847-8705-14526c1f4786",
+      "rule_sets": [
+        {
+          "uuid": "95caba30-0a24-4847-8705-14526c1f4786",
+          "rules": [
+            {
+              "test": {
+                "test": 1,
+                "type": "eq"
+              },
+              "category": {
+                "base": "Good"
+              },
+              "uuid": "aecc219e-1963-4185-b6e6-b431493f2c15",
+              "label": {
+                "base": "Good"
+              }
+            },
+            {
+              "category": {
+                "base": "Nada"
+              },
+              "uuid": "5d24a858-99f5-41ac-9fab-21843affe607",
+              "destination": "4869a12f-4e83-4838-a6e7-8cab68929425",
+              "label": {
+                "base": "Nada"
+              },
+              "destination_type": "R",
+              "test": {
+                "test": "2",
+                "type": "eq"
+              }
+            },
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "base": "Other"
+              },
+              "destination": null,
+              "uuid": "6394d2a7-c04d-442e-8271-bdf65681373a",
+              "destination_type": "A"
+            },
+            {
+              "test": {
+                "test": "interrupted",
+                "type": "interrupted_status"
+              },
+              "category": {
+                "base": "Interrupted"
+              },
+              "destination": "20e63490-49b5-40dc-a47d-b60e32ca81e6",
+              "uuid": "7cba94a5-a297-49af-9bf3-82ae1e7fd6f1",
+              "destination_type": "A"
+            }
+          ],
+          "ruleset_type": "wait_menu",
+          "label": "Response 1",
+          "operand": "@step.value",
+          "finished_key": null,
+          "response_type": "",
+          "y": 0,
+          "x": 710,
+          "config": {
+            "ussd_message": {
+              "base": "What's up?"
+            }
+          }
+        },
+        {
+          "uuid": "4869a12f-4e83-4838-a6e7-8cab68929425",
+          "rules": [
+            {
+              "category": {
+                "base": "Good"
+              },
+              "uuid": "997804f4-17f2-4fc8-bda3-69a5926334d7",
+              "destination": "9fe341b8-d215-4dd1-8d3c-a68aba7c4d6c",
+              "label": {
+                "base": "Good"
+              },
+              "destination_type": "A",
+              "test": {
+                "test": 1,
+                "type": "eq"
+              }
+            },
+            {
+              "category": {
+                "base": "Bad"
+              },
+              "uuid": "c763e050-002b-4968-aad5-8927143e9a67",
+              "destination": "f9a55fd5-6b6e-424d-bfc3-ff3049c7e719",
+              "label": {
+                "base": "Bad"
+              },
+              "destination_type": "A",
+              "test": {
+                "test": 2,
+                "type": "eq"
+              }
+            },
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "base": "Other"
+              },
+              "destination": "fdd70991-dee5-4909-b886-a24f699183fa",
+              "uuid": "ea8602c5-1877-40ca-9c19-13cb57c0fcbf",
+              "destination_type": "A"
+            },
+            {
+              "test": {
+                "test": "interrupted",
+                "type": "interrupted_status"
+              },
+              "category": {
+                "base": "Interrupted"
+              },
+              "destination": "7e731b2f-e8f3-4f9b-b223-b025821c9b15",
+              "uuid": "6731a126-d80a-494c-8ff6-5fd3797730c1",
+              "destination_type": "A"
+            }
+          ],
+          "ruleset_type": "wait_menu",
+          "label": "Response 2",
+          "operand": "@step.value",
+          "finished_key": null,
+          "response_type": "",
+          "y": 261,
+          "x": 345,
+          "config": {
+            "ussd_message": {
+              "base": "Second menu"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "uuid": "24c43732-168e-4525-bbb7-f090bf9b8df5",
+        "notes": [],
+        "expires": 10080,
+        "name": "test ussd interrupt 2",
+        "saved_on": "2017-08-17T13:06:03.910539Z",
+        "revision": 25
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "trigger_type": "U",
+      "flow": {
+        "name": "test ussd interrupt 2",
+        "uuid": "24c43732-168e-4525-bbb7-f090bf9b8df5"
+      },
+      "groups": [],
+      "keyword": "",
+      "channel": null
+    }
+  ]
+}
