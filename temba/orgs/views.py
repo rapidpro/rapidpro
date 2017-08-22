@@ -48,6 +48,7 @@ from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS
 from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
 from .models import TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_LOGIN, SMTP_FROM_EMAIL
 from .models import SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_PORT, SMTP_ENCRYPTION
+from .models import CHATBASE_API_KEY, CHATBASE_VERSION, CHATBASE_AGENT_NAME
 
 
 def check_login(request):
@@ -448,11 +449,11 @@ class UserSettingsCRUDL(SmartCRUDL):
 
 
 class OrgCRUDL(SmartCRUDL):
-    actions = ('signup', 'home', 'webhook', 'edit', 'edit_sub_org', 'join', 'grant', 'accounts', 'create_login', 'choose',
-               'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country', 'languages', 'clear_cache',
-               'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect',
-               'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'resthooks', 'service', 'surveyor',
-               'transfer_credits', 'transfer_to_account', 'smtp_server')
+    actions = ('signup', 'home', 'webhook', 'edit', 'edit_sub_org', 'join', 'grant', 'accounts', 'create_login',
+               'chatbase', 'choose', 'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country',
+               'languages', 'clear_cache', 'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account',
+               'nexmo_connect', 'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'resthooks',
+               'service', 'surveyor', 'transfer_credits', 'transfer_to_account', 'smtp_server')
 
     model = Org
 
@@ -1968,6 +1969,74 @@ class OrgCRUDL(SmartCRUDL):
             context['failed_webhooks'] = WebHookEvent.get_recent_errored(self.request.user.get_org()).exists()
             return context
 
+    class Chatbase(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+
+        class ChatbaseForm(forms.ModelForm):
+            agent_name = forms.CharField(max_length=255, label=_("Agent Name"), required=False,
+                                         help_text="Set the your Chatbase application name")
+            api_key = forms.CharField(max_length=255, label=_("API Key"), required=False,
+                                      help_text="You can find your API Key by clicking "
+                                                "<a href='https://chatbase.com/agents' target='_new'>here</a>")
+            version = forms.CharField(max_length=10, label=_("Version"), required=False, help_text="E.g. 1.0, 1.2.1")
+            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
+
+            def clean(self):
+                super(OrgCRUDL.Chatbase.ChatbaseForm, self).clean()
+                if self.cleaned_data.get('disconnect', 'false') == 'false':
+                    agent_name = self.cleaned_data.get('agent_name')
+                    api_key = self.cleaned_data.get('api_key')
+
+                    if not agent_name or not api_key:
+                        raise ValidationError(_("Missing data: Agent Name or API Key."
+                                                "Please check them again and retry."))
+
+                return self.cleaned_data
+
+            class Meta:
+                model = Org
+                fields = ('agent_name', 'api_key', 'version', 'disconnect')
+
+        success_message = ''
+        success_url = '@orgs.org_home'
+        form_class = ChatbaseForm
+
+        def derive_initial(self):
+            initial = super(OrgCRUDL.Chatbase, self).derive_initial()
+            org = self.get_object()
+            config = org.config_json()
+            initial['agent_name'] = config.get(CHATBASE_AGENT_NAME, '')
+            initial['api_key'] = config.get(CHATBASE_API_KEY, '')
+            initial['version'] = config.get(CHATBASE_VERSION, '')
+            initial['disconnect'] = 'false'
+            return initial
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.Chatbase, self).get_context_data(**kwargs)
+            (chatbase_api_key, chatbase_version) = self.object.get_chatbase_credentials()
+            if chatbase_api_key:
+                config = self.object.config_json()
+                agent_name = config.get(CHATBASE_AGENT_NAME, None)
+                context['chatbase_agent_name'] = agent_name
+
+            return context
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+
+            agent_name = form.cleaned_data.get('agent_name')
+            api_key = form.cleaned_data.get('api_key')
+            version = form.cleaned_data.get('version')
+            disconnect = form.cleaned_data.get('disconnect', 'false') == 'true'
+
+            if disconnect:
+                org.remove_chatbase_account(user)
+                return HttpResponseRedirect(reverse('orgs.org_home'))
+            elif api_key:
+                org.connect_chatbase(agent_name, api_key, version, user)
+
+            return super(OrgCRUDL.Chatbase, self).form_valid(form)
+
     class Home(FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
 
@@ -2040,6 +2109,15 @@ class OrgCRUDL(SmartCRUDL):
                                        action='redirect', button=_("Connect"))
                 else:  # pragma: needs cover
                     formax.add_section('transferto', reverse('orgs.org_transfer_to_account'), icon='icon-transferto',
+                                       action='redirect', nobutton=True)
+
+            if self.has_org_perm('orgs.org_chatbase'):
+                (chatbase_api_key, chatbase_version) = self.object.get_chatbase_credentials()
+                if not chatbase_api_key:
+                    formax.add_section('chatbase', reverse('orgs.org_chatbase'), icon='icon-chatbase',
+                                       action='redirect', button=_("Connect"))
+                else:  # pragma: needs cover
+                    formax.add_section('chatbase', reverse('orgs.org_chatbase'), icon='icon-chatbase',
                                        action='redirect', nobutton=True)
 
             if self.has_org_perm('orgs.org_webhook'):
