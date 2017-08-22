@@ -56,7 +56,7 @@ class TelegramType(ChannelType):
 
         if quick_replies:
             for reply in quick_replies:
-                replies.append([dict(text=reply.get('title'), callback_data=reply.get('payload'))])
+                replies.append([dict(text=reply.get('title'))])
             keyboard_type = 'keyboard'
         elif url_buttons:
             for url_button in url_buttons:
