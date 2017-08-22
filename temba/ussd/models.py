@@ -1,11 +1,15 @@
 from __future__ import absolute_import, unicode_literals
 
+import json
+from uuid import uuid4
+
 import six
 
 from django.db import models
 from django.utils import timezone
 from temba.channels.models import ChannelSession
 from temba.contacts.models import Contact, URN, ContactURN
+from temba.flows.models import RuleSet, Rule, TrueTest, EqTest
 from temba.triggers.models import Trigger
 from temba.utils import get_anonymous_user
 
@@ -80,6 +84,10 @@ class USSDSession(ChannelSession):
         message = self.create_incoming_message(None, date, message_id)
         flow.start([], [self.contact], start_msg=message, restart_participants=True, session=self)
 
+    def resume_session_async(self, content, date, message_id):
+        from temba.flows.models import Flow
+
+        message = None
     def handle_session_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
         Msg.create_incoming(
