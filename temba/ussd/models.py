@@ -120,6 +120,11 @@ class USSDSession(ChannelSession):
         # check if there's an initiated PUSH session
         session = cls.objects.get_initiated_push_session(contact)
 
+        # check if there's an interrupted PULL session
+        if not session:
+            session = cls.objects.get_interrupted_pull_session(contact)
+            if session:
+                resume_session = True
         created = False
         if not session:
             try:
