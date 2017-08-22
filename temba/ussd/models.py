@@ -125,6 +125,8 @@ class USSDSession(ChannelSession):
             session = cls.objects.get_interrupted_pull_session(contact)
             if session:
                 resume_session = True
+                defaults.update(dict(status=cls.INTERRUPTED))
+
         created = False
         if not session:
             try:
