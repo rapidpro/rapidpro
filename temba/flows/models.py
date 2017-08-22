@@ -2499,7 +2499,7 @@ class FlowRun(models.Model):
 
     @property
     def session_interrupted(self):
-        return self.session and self.session.status == ChannelSession.INTERRUPTED
+        return self.session and getattr(self.session, 'status', '') == ChannelSession.INTERRUPTED
 
     @classmethod
     def normalize_field_key(cls, key):
