@@ -100,6 +100,9 @@ class USSDSession(ChannelSession):
         # get the resuming RuleSet
         resuming_ruleset = last_step.get_step()
 
+        # get the entry RuleSet
+        entry_ruleset = RuleSet.objects.filter(uuid=flow.entry_uuid).first()
+
     def handle_session_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
         Msg.create_incoming(
