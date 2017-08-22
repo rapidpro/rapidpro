@@ -813,7 +813,7 @@ class Flow(TembaModel):
         if destination:
             step = flow.add_step(run, destination, rule=rule.uuid, category=rule.category, previous_step=step)
 
-        return dict(handled=True, destination=destination, step=step, msgs=msgs)
+        return dict(handled=True, destination=destination, step=step, msgs=msgs, interrupted=run.session_interrupted)
 
     @classmethod
     def handle_ussd_ruleset_action(cls, ruleset, step, run, msg):
