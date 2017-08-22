@@ -54,7 +54,6 @@ class FacebookType(ChannelType):
     def get_quick_replies(self, metadata, post_body):
         metadata = json.loads(metadata)
         quick_replies = metadata.get('quick_replies', None)
-        url_buttons = metadata.get('url_buttons', None)
         replies = []
 
         if quick_replies:
@@ -62,22 +61,6 @@ class FacebookType(ChannelType):
                 replies.append(dict(title=reply.get('title'), payload=reply.get('title'), content_type='text'))
 
             post_body['message']['quick_replies'] = replies
-
-        elif url_buttons:
-            for button in url_buttons:
-                replies.append(dict(title=button.get('title'), url=button.get('url'), type='web_url',
-                                    webview_height_ratio='tall'))
-
-            post_body['message'] = dict(
-                attachment=dict(
-                    type='template',
-                    payload=dict(
-                        template_type='button',
-                        text=post_body['message']['text'],
-                        buttons=replies
-                    )
-                )
-            )
 
         return post_body
 
