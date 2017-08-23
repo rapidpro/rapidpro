@@ -2,73 +2,62 @@
   "base_language": "eng",
   "action_sets": [
     {
-      "y": 2,
-      "x": 100,
-      "destination": "55a4abc9-1556-4bb5-8005-a23532108f55",
-      "uuid": "b9494431-b00c-4be3-9413-387ec69a8eb4",
+      "y": 24,
+      "x": 363,
+      "destination": "c21d066a-2c2e-488f-aedc-c3ef84e4cae1",
+      "uuid": "28ebb505-2ea7-405d-8100-91fb59de6ec7",
       "actions": [
         {
+          "uuid": "751884e2-bba6-4af3-bcec-2c9877a87970",
+          "webhook_headers": [],
+          "action": "GET",
+          "msg": {
+            "eng": "Hello, choose\u200b an option, please."
+          },
+          "type": "reply",
           "quick_replies": {
             "por": [
               {
                 "title": "Op\u00e7\u00e3o 1"
               },
-              {
-                "payload": "2"
-              }
+              {}
             ],
             "eng": [
               {
-                "payload": "1",
                 "title": "Option 1"
               },
               {
-                "payload": "2",
                 "title": "Option 2"
               }
             ]
-          },
-          "media": {},
-          "url_buttons": [],
-          "msg": {
-            "por": "Escolha um op\u00e7\u00e3o",
-            "eng": "Choice an option"
-          },
-          "send_all": false,
-          "type": "reply",
-          "uuid": "7f0b399c-6e43-4253-8877-1fd6a67666dc"
+          }
         }
       ]
     },
     {
-      "y": 107,
-      "x": 748,
-      "destination": null,
-      "uuid": "a9f44e23-d0fb-41d0-8317-0c5ad3846e69",
+      "y": 257,
+      "x": 451,
+      "uuid": "b8d33c68-a471-4f11-94d6-5f17587bec95",
       "actions": [
         {
-          "quick_replies": {},
-          "media": {},
-          "url_buttons": {},
+          "uuid": "d18d5912-eccd-4978-95aa-26f814d28b75",
           "webhook_headers": [],
           "action": "GET",
           "msg": {
-            "por": "Link para o Google",
-            "eng": "Link to Google"
+            "eng": "Thank you!"
           },
-          "send_all": false,
           "type": "reply",
-          "uuid": "9c4e54cf-7b31-4ef2-9a9c-6c8408c566d8"
+          "quick_replies": {}
         }
       ]
     }
   ],
   "version": 10,
   "flow_type": "F",
-  "entry": "b9494431-b00c-4be3-9413-387ec69a8eb4",
+  "entry": "28ebb505-2ea7-405d-8100-91fb59de6ec7",
   "rule_sets": [
     {
-      "uuid": "55a4abc9-1556-4bb5-8005-a23532108f55",
+      "uuid": "c21d066a-2c2e-488f-aedc-c3ef84e4cae1",
       "rules": [
         {
           "test": {
@@ -78,28 +67,24 @@
           "category": {
             "eng": "All Responses"
           },
-          "destination": "a9f44e23-d0fb-41d0-8317-0c5ad3846e69",
-          "uuid": "517b70eb-3ace-4164-b70f-be706154cd3a",
-          "destination_type": "A"
+          "destination": "b8d33c68-a471-4f11-94d6-5f17587bec95",
+          "uuid": "6e1b51e4-c8f2-40ac-8448-d23c10f6986f"
         }
       ],
       "ruleset_type": "wait_message",
       "label": "Response 1",
-      "y": 133,
-      "finished_key": null,
-      "response_type": "",
       "operand": "@step.value",
-      "x": 291,
+      "y": 121,
+      "x": 639,
       "config": {}
     }
   ],
   "type": "F",
   "metadata": {
-    "uuid": "2f15bfc3-9b4e-47da-8b55-2fb602817252",
-    "notes": [],
     "expires": 10080,
-    "name": "NewFlowTest",
-    "saved_on": "2017-08-17T20:46:57.329837Z",
-    "revision": 80
+    "saved_on": "2017-08-22T20:34:47.515456Z",
+    "uuid": "d265bf27-4463-4098-8b5b-5fab8ebcf065",
+    "name": "Quick Reply Flow",
+    "revision": 15
   }
 }

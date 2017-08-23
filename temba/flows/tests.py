@@ -2928,21 +2928,6 @@ class ActionTest(TembaTest):
         self.assertEquals(action.msg, dict(base="Are you fine?"))
         self.assertEquals(action.quick_replies, payload)
 
-    def test_url_buttons_action(self):
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
-        run = FlowRun.create(self.flow, self.contact.pk)
-
-        url_buttons = dict(url_buttons=dict(eng=[dict(url='http://example.com', title='Example'),
-                                                 dict(url='http://example2.com', title='Example 2')]))
-
-        action = ReplyAction(dict(base="Testing buttons..."), url_buttons=url_buttons)
-        action_json = action.as_json()
-        action = ReplyAction.from_json(self.org, action_json)
-
-        self.execute_action(action, run, msg)
-        self.assertEquals(action.msg, dict(base="Testing buttons..."))
-        self.assertEquals(action.url_buttons, url_buttons)
-
     def test_ussd_action(self):
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
