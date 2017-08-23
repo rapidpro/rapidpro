@@ -773,41 +773,18 @@ describe 'Controllers:', ->
       actionset = flowService.flow.action_sets[0]
       action = actionset.actions[0]
     
-      json_quick_reply = 'base':[{'title':'Quick reply', 'payload':'Test quick reply is ok'}]
+      json_quick_reply = 'base':[{'title': 'Yes', 'payload': 'Yes'}]
 
       editAction actionset, action, (scope) ->
         scope.actions_buttons_reply = []
         scope.actions_quick_reply = []
         scope.action.quick_replies = {}
         scope.addNewQuickReply()
-        scope.actions_quick_reply[0]['payload'] = 'Test quick reply is ok'
-        scope.actions_quick_reply[0]['title'] = 'Quick reply'
+        scope.actions_quick_reply[0]['payload'] = 'Yes'
+        scope.actions_quick_reply[0]['title'] = 'Yes'
         scope.formData.msg = "test"
         scope.saveMessage('test', type='reply')
 
       actionset = flowService.flow.action_sets[0]
       action = actionset.actions[0]
       expect(JSON.stringify(action.quick_replies)).toBe(JSON.stringify(json_quick_reply))
-
-    it 'should generate json button url replies to send', ->
-      loadFavoritesFlow()
-
-      actionset = flowService.flow.action_sets[0]
-      action = actionset.actions[0]
-    
-      json_buttons_reply = 'base':[{'title':'URL title', 'url':'example.com'}]
-
-      editAction actionset, action, (scope) ->
-        scope.actions_buttons_reply = []
-        scope.actions_quick_reply = []
-        scope.action.url_buttons = {}
-        scope.addNewUrlButton()
-        scope.actions_buttons_reply[0]['title'] = 'URL title'
-        scope.actions_buttons_reply[0]['url'] = 'example.com'
-        scope.formData.msg = "test"
-        scope.saveMessage('test', type='reply')
-
-      actionset = flowService.flow.action_sets[0]
-      action = actionset.actions[0]
-      
-      expect(JSON.stringify(action.url_buttons)).toBe(JSON.stringify(json_buttons_reply))
