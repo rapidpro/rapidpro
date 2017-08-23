@@ -221,9 +221,9 @@ class Command(BaseCommand):
 
         self.random = random.Random(seed)
 
-        # monkey patch uuid4 so it returns the same UUIDs for the same seed
+        # monkey patch uuid4 so it returns the same UUIDs for the same seed, see https://github.com/joke2k/faker/issues/484#issuecomment-287931101
         from temba.utils import models
-        models.uuid4 = lambda: uuid.UUID(int=self.random.getrandbits(128))
+        models.uuid4 = lambda: uuid.UUID(int=(self.random.getrandbits(128) | (1 << 63) | (1 << 78)) & (~(1 << 79) & ~(1 << 77) & ~(1 << 76) & ~(1 << 62)))
 
         # We want a variety of large and small orgs so when allocating content like contacts and messages, we apply a
         # bias toward the beginning orgs. if there are N orgs, then the amount of content the first org will be
