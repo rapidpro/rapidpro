@@ -496,13 +496,6 @@ class FlowTest(TembaTest):
         self.assertEquals(2, activity['activity']["bd531ace-911e-4722-8e53-6730d6122fe1"])
         self.assertTrue(activity['messages'], [test_message.as_json()])
 
-        # if we try to get contacts at this step for our compose we should have two contacts
-        self.login(self.admin)
-        response = self.client.get(reverse('contacts.contact_omnibox') + "?s=%s" % contact1_steps[1].step_uuid)
-        contact_json = response.json()
-        self.assertEquals(2, len(contact_json['results']))
-        self.client.logout()
-
         # set the flow as inactive, shouldn't react to replies
         self.flow.is_archived = True
         self.flow.save()
