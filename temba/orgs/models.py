@@ -1903,7 +1903,7 @@ class Org(SmartModel):
 # ===================== monkey patch User class with a few extra functions ========================
 
 def get_user_orgs(user, brand=None):
-    org = user.get_org()
+    org = Org.get_org(user)
     if not brand:
         brand = org.brand if org else settings.DEFAULT_BRAND
 
