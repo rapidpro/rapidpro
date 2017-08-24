@@ -20,28 +20,19 @@ def omnibox_query(org, **kwargs):
     """
     # determine what type of group/contact/URN lookup is being requested
     contact_uuids = kwargs.get('c', None)  # contacts with ids
-    step_uuid = kwargs.get('s', None)    # contacts in flow step with UUID
     message_ids = kwargs.get('m', None)  # contacts with message ids
     label_id = kwargs.get('l', None)     # contacts in flow step with UUID
     group_uuids = kwargs.get('g', None)    # groups with ids
     urn_ids = kwargs.get('u', None)      # URNs with ids
     search = kwargs.get('search', None)  # search of groups, contacts and URNs
     types = list(kwargs.get('types', ''))    # limit search to types (g | s | c | u)
-    simulation = kwargs.get('simulation', 'false') == 'true'
 
     # these lookups return a Contact queryset
-    if contact_uuids or step_uuid or message_ids or label_id:
-        qs = Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True, is_test=simulation)
+    if contact_uuids or message_ids or label_id:
+        qs = Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True, is_test=False)
 
         if contact_uuids:
             qs = qs.filter(uuid__in=contact_uuids.split(","))
-
-        elif step_uuid:
-            from temba.flows.models import FlowStep
-            steps = FlowStep.objects.filter(run__is_active=True, step_uuid=step_uuid,
-                                            left_on=None, run__flow__org=org).distinct('contact').select_related('contact')
-            contact_uuids = [f.contact.uuid for f in steps]
-            qs = qs.filter(uuid__in=contact_uuids)
 
         elif message_ids:
             qs = qs.filter(msgs__in=message_ids.split(","))

@@ -1054,6 +1054,9 @@ class ChannelTest(TembaTest):
         self.assertEqual(default_sender, self.org.get_receive_channel(TEL_SCHEME))
         self.assertFalse(default_sender.is_delegate_sender())
 
+        response = self.client.get(reverse('channels.channel_bulk_sender_options'))
+        self.assertEqual(response.status_code, 200)
+
         response = self.client.post(reverse('channels.channel_create_bulk_sender') + "?connection=NX",
                                     dict(connection='NX'))
         self.assertFormError(response, 'form', 'channel', "Can't add sender for that number")
