@@ -77,11 +77,6 @@ class OrgTest(TembaTest):
         self.assertEqual(self.surveyor, org_users[2])
         self.assertEqual(self.user, org_users[3])
 
-    def test_get_user_orgs(self):
-        delattr(self.admin, '_org')
-        settings.DEFAULT_BRAND = None
-        self.assertIsNotNone(self.admin.get_user_orgs().first())
-
     def test_get_unique_slug(self):
         self.org.slug = 'allo'
         self.org.save()

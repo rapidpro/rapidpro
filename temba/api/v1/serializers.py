@@ -581,7 +581,7 @@ class FlowRunWriteSerializer(WriteSerializer):
     def validate_submitted_by(self, value):
         if value:
             user = User.objects.filter(username__iexact=value).first()
-            if user and self.org in user.get_user_orgs():
+            if user and self.org in user.get_user_orgs(self.org.brand):
                 self.submitted_by_obj = user
             else:  # pragma: needs cover
                 raise serializers.ValidationError("Invalid submitter id, user doesn't exist")
