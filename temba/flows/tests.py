@@ -4316,7 +4316,7 @@ class SimulationTest(FlowFileTest):
 
         self.assertEqual(handle_incoming.call_args[1]['status'], USSDSession.INTERRUPTED)
 
-    def test_ussd_simulation_session_end(self):
+    def test_ussd_simulation_connection_end(self):
         self.ussd_channel = Channel.create(
             self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
             schemes=['tel'], uuid='00000000-0000-0000-0000-000000002222',
@@ -4333,8 +4333,8 @@ class SimulationTest(FlowFileTest):
 
         self.assertEquals(response.status_code, 200)
 
-        session = USSDSession.objects.get()
-        self.assertEquals(session.status, USSDSession.COMPLETED)
+        connection = USSDSession.objects.get()
+        self.assertEquals(connection.status, USSDSession.COMPLETED)
 
     def test_ussd_simulation_without_channel_doesnt_run(self):
         Channel.objects.all().delete()

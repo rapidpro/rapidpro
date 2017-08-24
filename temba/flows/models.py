@@ -531,7 +531,7 @@ class Flow(TembaModel):
         return name
 
     @classmethod
-    def should_close_session(cls, run, current_destination, next_destination):
+    def should_close_connection(cls, run, current_destination, next_destination):
         if run.flow.flow_type == Flow.USSD:
             # this might be our last node that sends msg
             if not next_destination:
@@ -540,12 +540,12 @@ class Flow(TembaModel):
                 if next_destination.is_messaging:
                     return False
                 else:
-                    return Flow.should_close_session_graph(next_destination)
+                    return Flow.should_close_connection_graph(next_destination)
         else:
             return False
 
     @classmethod
-    def should_close_session_graph(cls, start_node):
+    def should_close_connection_graph(cls, start_node):
         # modified DFS that is looking for nodes with messaging capabilities
         if start_node.get_step_type() == FlowStep.TYPE_RULE_SET:
             # keep rules only that have destination
@@ -558,7 +558,7 @@ class Flow(TembaModel):
                     if next_node.is_messaging:
                         return False
                     else:
-                        if Flow.should_close_session_graph(next_node):
+                        if Flow.should_close_connection_graph(next_node):
                             continue
                         else:
                             return False
@@ -569,7 +569,7 @@ class Flow(TembaModel):
                 if next_node.is_messaging:
                     return False
                 else:
-                    return Flow.should_close_session_graph(next_node)
+                    return Flow.should_close_connection_graph(next_node)
             else:
                 return True
 
@@ -649,7 +649,7 @@ class Flow(TembaModel):
 
                     # USSD check for session end
                     if not result.get('interrupted') and \
-                            Flow.should_close_session(run, destination, result.get('destination')):
+                            Flow.should_close_connection(run, destination, result.get('destination')):
 
                         end_message = Msg.create_outgoing(msg.org, get_flow_user(msg.org), msg.contact, '',
                                                           channel=msg.channel, priority=Msg.PRIORITY_HIGH,
@@ -677,7 +677,7 @@ class Flow(TembaModel):
                 add_to_path(path, destination.uuid)
 
                 # USSD check for session end
-                if Flow.should_close_session(run, destination, result.get('destination')):
+                if Flow.should_close_connection(run, destination, result.get('destination')):
                     for msg in result['msgs']:
                         msg.connection.mark_ending()
                         ActionLog.create(run, _("USSD Session was marked to end"))
@@ -745,7 +745,7 @@ class Flow(TembaModel):
     def handle_ruleset(cls, ruleset, step, run, msg, started_flows, resume_parent_run=False, resume_after_timeout=False):
         msgs = []
 
-        if ruleset.is_ussd() and run.session_interrupted:
+        if ruleset.is_ussd() and run.connection_interrupted:
             rule, value = ruleset.find_interrupt_rule(step, run, msg)
             if not rule:
                 run.set_interrupted(final_step=step)
@@ -800,14 +800,14 @@ class Flow(TembaModel):
 
         # output the new value if in the simulator
         if run.contact.is_test:
-            if run.session_interrupted:  # pragma: no cover
+            if run.connection_interrupted:  # pragma: no cover
                 ActionLog.create(run, _("@flow.%s has been interrupted") % (Flow.label_to_slug(ruleset.label)))
             else:
                 ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(ruleset.label)))
 
         # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
         if not rule.destination:
-            if run.session_interrupted:
+            if run.connection_interrupted:
                 # run was interrupted and interrupt state not handled (not connected)
                 run.set_interrupted(final_step=step)
                 return dict(handled=True, destination=None, destination_type=None, interrupted=True, msgs=msgs)
@@ -2497,7 +2497,7 @@ class FlowRun(models.Model):
             return FlowRun(**args)
 
     @property
-    def session_interrupted(self):
+    def connection_interrupted(self):
         return self.connection and self.connection.status == ChannelSession.INTERRUPTED
 
     @classmethod
