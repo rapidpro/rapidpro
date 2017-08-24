@@ -2759,7 +2759,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             channel = Channel.objects.get(pk=self.request.GET['channel'])
 
             if self.request.GET.get('sessions'):
-                logs = ChannelLog.objects.filter(channel=channel).exclude(connection=None).values_list('session_id', flat=True)
+                logs = ChannelLog.objects.filter(channel=channel).exclude(connection=None).values_list('connection_id', flat=True)
                 events = ChannelSession.objects.filter(id__in=logs).order_by('-created_on')
 
                 if self.request.GET.get('errors'):

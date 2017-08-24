@@ -372,7 +372,7 @@ class IVRTests(FlowFileTest):
             self.assertEqual(channel_log.connection.id, call.id)
             self.assertEqual(channel_log.description, "Incoming request for call")
 
-            log = ChannelLog.objects.filter(description="Downloaded media", session_id=call.id).first()
+            log = ChannelLog.objects.filter(description="Downloaded media", connection_id=call.id).first()
             self.assertIsNotNone(log)
 
             # our log should be the newly saved url

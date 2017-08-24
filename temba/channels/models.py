@@ -2758,7 +2758,7 @@ class Channel(TembaModel):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE])
 
     def get_ivr_log_count(self):
-        return ChannelLog.objects.filter(channel=self).exclude(connection=None).order_by('session').distinct('session').count()
+        return ChannelLog.objects.filter(channel=self).exclude(connection=None).order_by('connection').distinct('connection').count()
 
     def get_non_ivr_log_count(self):
         return self.get_log_count() - self.get_ivr_log_count()
@@ -3044,7 +3044,7 @@ class ChannelLog(models.Model):
     @classmethod
     def log_ivr_interaction(cls, call, description, event, is_error=False):
         ChannelLog.objects.create(channel_id=call.channel_id,
-                                  session_id=call.id,
+                                  connection_id=call.id,
                                   request=six.text_type(event.request_body),
                                   response=six.text_type(event.response_body),
                                   url=event.url,
