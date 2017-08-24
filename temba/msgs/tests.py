@@ -17,6 +17,7 @@ from mock import patch
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
+from temba.flows.models import RuleSet
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
 from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, SystemLabelCount, UnreachableException
 from temba.msgs.models import Attachment, HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
@@ -1001,7 +1002,7 @@ class BroadcastTest(TembaTest):
 
         # test when we are simulating
         response = self.client.get(send_url + "?simulation=true")
-        self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
+        self.assertEquals(['omnibox', 'text', 'schedule', 'step_node'], response.context['fields'])
 
         test_contact = Contact.get_test_contact(self.admin)
 
@@ -1021,7 +1022,7 @@ class BroadcastTest(TembaTest):
         Channel.create(self.org, self.user, None, "TT")
 
         response = self.client.get(send_url)
-        self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
+        self.assertEquals(['omnibox', 'text', 'schedule', 'step_node'], response.context['fields'])
 
         post_data = dict(text="message #1", omnibox="g-%s,c-%s,c-%s" % (self.joe_and_frank.uuid, self.joe.uuid, self.lucy.uuid))
         self.client.post(send_url, post_data, follow=True)
@@ -1041,7 +1042,7 @@ class BroadcastTest(TembaTest):
         Channel.create(self.org, self.user, None, 'A', None, secret="12345", gcm_id="123")
 
         response = self.client.get(send_url)
-        self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
+        self.assertEquals(['omnibox', 'text', 'schedule', 'step_node'], response.context['fields'])
 
         post_data = dict(text="message #2", omnibox='g-%s,c-%s' % (self.joe_and_frank.uuid, self.kevin.uuid))
         self.client.post(send_url, post_data, follow=True)
@@ -1081,6 +1082,40 @@ class BroadcastTest(TembaTest):
         post_data = dict(text="this is a test message", omnibox="c-%s,g-%s,n-911" % (self.kevin.pk, self.joe_and_frank.pk), _format="json")
         response = self.client.post(send_url, post_data, follow=True)
         self.assertIn("success", response.content)
+
+        # add flow steps
+        flow = self.get_flow('favorites')
+        flow.start([], [self.joe, test_contact], restart_participants=True)
+
+        step_uuid = RuleSet.objects.first().uuid
+
+        # no error if we are sending from a flow node
+        post_data = dict(text="message content", omnibox='', step_node=step_uuid)
+        response = self.client.post(send_url + '?_format=json', post_data, follow=True)
+        self.assertIn("success", response.content)
+
+        response = self.client.post(send_url, post_data)
+        self.assertRedirect(response, reverse('msgs.msg_inbox'))
+
+        response = self.client.post(send_url + '?_format=json', post_data, follow=True)
+        self.assertIn("success", response.content)
+        broadcast = Broadcast.objects.order_by('-id').first()
+        self.assertEqual(broadcast.text, {'base': "message content"})
+        self.assertEquals(broadcast.groups.count(), 0)
+        self.assertEquals(broadcast.contacts.count(), 1)
+        self.assertTrue(self.joe in broadcast.contacts.all())
+
+        # Activate simulation mode
+        Contact.set_simulation(True)
+        flow.start([], [self.joe, test_contact], restart_participants=True)
+
+        response = self.client.post(send_url + '?_format=json&simulation=true', post_data, follow=True)
+        self.assertIn("success", response.content)
+        broadcast = Broadcast.objects.order_by('-id').first()
+        self.assertEqual(broadcast.text, {'base': "message content"})
+        self.assertEquals(broadcast.groups.count(), 0)
+        self.assertEquals(broadcast.contacts.count(), 1)
+        self.assertTrue(test_contact in broadcast.contacts.all())
 
     def test_unreachable(self):
         no_urns = Contact.get_or_create(self.org, self.admin, name="Ben Haggerty", urns=[])

@@ -13,7 +13,7 @@ from django.db import transaction, connection
 from django.db.models import Count
 from django.utils import timezone
 from django_redis import get_redis_connection
-from temba.utils import json_date_to_datetime, chunk_list
+from temba.utils import json_date_to_datetime, chunk_list, analytics
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import start_task, complete_task, nonoverlapping_task
 from .models import Msg, Broadcast, BroadcastRecipient, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
@@ -135,6 +135,33 @@ def send_broadcast_task(broadcast_id):
     from .models import Broadcast
     broadcast = Broadcast.objects.get(pk=broadcast_id)
     broadcast.send()
+
+
+@task(track_started=True, name='send_to_flow_node')
+def send_to_flow_node(org_id, user_id, text, **kwargs):
+    from django.contrib.auth.models import User
+    from temba.contacts.models import Contact
+    from temba.orgs.models import Org
+    from temba.flows.models import FlowStep
+
+    org = Org.objects.get(pk=org_id)
+    user = User.objects.get(pk=user_id)
+    simulation = kwargs.get('simulation', 'false') == 'true'
+    step_uuid = kwargs.get('s', None)
+
+    qs = Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True, is_test=simulation)
+
+    steps = FlowStep.objects.filter(run__is_active=True, step_uuid=step_uuid,
+                                    left_on=None, run__flow__org=org).distinct('contact').select_related('contact')
+    contact_uuids = [f.contact.uuid for f in steps]
+    contacts = qs.filter(uuid__in=contact_uuids).order_by('name')
+
+    recipients = list(contacts)
+    broadcast = Broadcast.create(org, user, text, recipients)
+    broadcast.send()
+
+    analytics.track(user.username, 'temba.broadcast_created',
+                    dict(contacts=len(contacts), groups=0, urns=0))
 
 
 @task(track_started=True, name='send_spam')

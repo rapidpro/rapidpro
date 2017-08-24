@@ -1,3 +1,7 @@
+v3.0.191
+----------
+ * Update test_db to generate deterministic UUIDs which are also valid UUID4
+
 v3.0.190
 ----------
  * Turn down default courier TPS to 10/s
