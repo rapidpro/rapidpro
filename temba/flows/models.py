@@ -2450,7 +2450,7 @@ class FlowRun(models.Model):
     session = models.ForeignKey(FlowSession, related_name='runs', null=True,
                                 help_text=_("The session that handled this flow run, only for voice flows"))
 
-    connection = models.ForeignKey('channels.ChannelSession', related_name='runs', null=True, blank=True, db_index=False,
+    connection = models.ForeignKey('channels.ChannelSession', related_name='runs', null=True, blank=True,
                                    help_text=_("The session that handled this flow run, only for voice flows"))
 
     is_active = models.BooleanField(default=True,
