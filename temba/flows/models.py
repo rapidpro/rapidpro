@@ -132,7 +132,7 @@ class FlowSession(models.Model):
     def create(cls, contact, connection):
         return cls.objects.create(org=contact.org, contact=contact, connection=connection)
 
-    def __str__(self):
+    def __str__(self):  # pragma: no cover
         return six.text_type(self.contact)
 
 

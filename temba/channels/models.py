@@ -1424,7 +1424,7 @@ class Channel(TembaModel):
         from temba.msgs.models import WIRED, Msg
         from temba.ussd.models import USSDSession
 
-        session = None
+        connection = None
 
         # if the channel config has specified and override hostname use that, otherwise use settings
         event_hostname = channel.config.get(Channel.CONFIG_RP_HOSTNAME_OVERRIDE, settings.HOSTNAME)
@@ -1446,7 +1446,7 @@ class Channel(TembaModel):
             payload['event_auth_token'] = channel.secret
 
         if is_ussd:
-            session = USSDSession.objects.get_with_status_only(msg.connection_id)
+            connection = USSDSession.objects.get_with_status_only(msg.connection_id)
             # make sure USSD responses are only valid for a short window
             response_expiration = timezone.now() - timedelta(seconds=180)
             external_id = None
@@ -1458,7 +1458,7 @@ class Channel(TembaModel):
             else:
                 payload['to'] = msg.urn_path
             payload['channel_data'] = {
-                'continue_session': session and not session.should_end or False,
+                'continue_session': connection and not connection.should_end or False,
             }
         else:
             payload['from'] = channel.address
@@ -1490,8 +1490,8 @@ class Channel(TembaModel):
 
         data = response.json()
 
-        if is_ussd and session and session.should_end:
-            session.close()
+        if is_ussd and connection and connection.should_end:
+            connection.close()
 
         try:
             message_id = data['result']['message_id']
@@ -3440,10 +3440,10 @@ class ChannelSession(SmartModel):
         pass
 
     def get(self):
-        if self.session_type == ChannelSession.IVR:
+        if self.session_type == self.IVR:
             from temba.ivr.models import IVRCall
             return IVRCall.objects.filter(id=self.id).first()
-        if self.session_type == ChannelSession.USSD:
+        if self.session_type == self.USSD:
             from temba.ussd.models import USSDSession
             return USSDSession.objects.filter(id=self.id).first()
         return self  # pragma: no cover
