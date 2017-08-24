@@ -131,7 +131,7 @@ class USSDSessionTest(TembaTest):
         run.expire()
 
         # we should be marked as interrupted now
-        self.assertEqual(USSDSession.INTERRUPTED, run.session.status)
+        self.assertEqual(USSDSession.INTERRUPTED, run.connection.status)
 
     def test_async_interrupt_handling(self):
         # start a flow
@@ -590,8 +590,8 @@ class VumiUssdTest(TembaTest):
             settings.SEND_MESSAGES = False
 
     @patch('temba.msgs.models.Msg.create_incoming')
-    @patch('temba.ussd.models.USSDSession.start_session_async')
-    def test_triggered_ussd_pull(self, start_session_async, create_incoming):
+    @patch('temba.ussd.models.USSDSession.start_async')
+    def test_triggered_ussd_pull(self, start_async, create_incoming):
         callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
 
         ussd_code = "*111#"
@@ -623,8 +623,8 @@ class VumiUssdTest(TembaTest):
         self.assertFalse(create_incoming.called)
 
         # check if session was started
-        self.assertTrue(start_session_async.called)
-        self.assertEqual(start_session_async.call_count, 1)
+        self.assertTrue(start_async.called)
+        self.assertEqual(start_async.call_count, 1)
 
     def test_receive(self):
         # start a session

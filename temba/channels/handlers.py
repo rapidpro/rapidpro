@@ -140,7 +140,7 @@ class TwimlAPIHandler(BaseChannelHandler):
 
                 if flow:
                     call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, call_sid)
-                    FlowSession.create_ivr(contact, call)
+                    FlowSession.create(contact, connection=call)
 
                     call.update_status(request.POST.get('CallStatus', None),
                                        request.POST.get('CallDuration', None),
@@ -1155,7 +1155,7 @@ class NexmoCallHandler(BaseChannelHandler):
 
             if flow:
                 call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, external_id)
-                FlowSession.create_ivr(contact, call)
+                FlowSession.create(contact, connection=call)
 
                 FlowRun.create(flow, contact.pk, session=call)
                 response = Flow.handle_call(call)

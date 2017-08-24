@@ -1445,7 +1445,7 @@ class Channel(TembaModel):
             payload['event_auth_token'] = channel.secret
 
         if is_ussd:
-            session = USSDSession.objects.get_session_with_status_only(msg.session_id)
+            session = USSDSession.objects.get_with_status_only(msg.session_id)
             # make sure USSD responses are only valid for a short window
             response_expiration = timezone.now() - timedelta(seconds=180)
             external_id = None
@@ -1975,7 +1975,7 @@ class Channel(TembaModel):
         in_reply_to = None
 
         if is_ussd:
-            session = USSDSession.objects.get_session_with_status_only(msg.session_id)
+            session = USSDSession.objects.get_with_status_only(msg.session_id)
             if session and session.should_end:
                 session_event = "close"
             else:
