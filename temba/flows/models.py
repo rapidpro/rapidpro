@@ -20,7 +20,7 @@ from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
-from django.db import models, connection
+from django.db import models, connection as db_connection
 from django.db.models import Q, Count, QuerySet, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
@@ -2444,6 +2444,9 @@ class FlowRun(models.Model):
 
     contact = models.ForeignKey(Contact, related_name='runs')
 
+    session = models.ForeignKey(FlowSession, related_name='runs', null=True,
+                                help_text=_("The session that handled this flow run, only for voice flows"))
+
     connection = models.ForeignKey('channels.ChannelSession', related_name='runs', null=True, blank=True,
                                    help_text=_("The session that handled this flow run, only for voice flows"))
 
@@ -3787,7 +3790,7 @@ class FlowPathRecentMessage(models.Model):
               ) s WHERE s.pos > %(limit)d
             )""" % {'table': cls._meta.db_table, 'last_id': last_id, 'limit': cls.PRUNE_TO}
 
-        cursor = connection.cursor()
+        cursor = db_connection.cursor()
         cursor.execute(sql)
 
         cache.set(cls.LAST_PRUNED_KEY, newest_id)
