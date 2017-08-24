@@ -30,4 +30,29 @@ class Migration(migrations.Migration):
             old_name='session',
             new_name='connection',
         ),
+        # the next 2 operations drop and re-add the index on the renamed flowrun.connection column so the
+        # index name won't conflict with the new session column being added below
+        migrations.AlterField(
+            model_name='flowrun',
+            name='connection',
+            field=models.ForeignKey(blank=True, db_index=False,
+                                    help_text='The session that handled this flow run, only for voice flows', null=True,
+                                    on_delete=django.db.models.deletion.CASCADE, related_name='runs',
+                                    to='channels.ChannelSession'),
+        ),
+        migrations.AlterField(
+            model_name='flowrun',
+            name='connection',
+            field=models.ForeignKey(blank=True,
+                                    help_text='The session that handled this flow run, only for voice flows', null=True,
+                                    on_delete=django.db.models.deletion.CASCADE, related_name='runs',
+                                    to='channels.ChannelSession'),
+        ),
+        migrations.AddField(
+            model_name='flowrun',
+            name='session',
+            field=models.ForeignKey(help_text='The session that handled this flow run, only for voice flows', null=True,
+                                    on_delete=django.db.models.deletion.CASCADE, related_name='runs',
+                                    to='flows.FlowSession'),
+        ),
     ]

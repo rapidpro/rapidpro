@@ -140,14 +140,14 @@ class TwimlAPIHandler(BaseChannelHandler):
 
                 if flow:
                     call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, call_sid)
-                    FlowSession.create(contact, connection=call)
+                    session = FlowSession.create(contact, connection=call)
 
                     call.update_status(request.POST.get('CallStatus', None),
                                        request.POST.get('CallDuration', None),
                                        Channel.TYPE_TWILIO)
                     call.save()
 
-                    FlowRun.create(flow, contact.pk, connection=call)
+                    FlowRun.create(flow, contact.pk, session=session, connection=call)
                     response = Flow.handle_call(call)
                     return HttpResponse(six.text_type(response))
 
@@ -1155,9 +1155,9 @@ class NexmoCallHandler(BaseChannelHandler):
 
             if flow:
                 call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, external_id)
-                FlowSession.create(contact, connection=call)
+                session = FlowSession.create(contact, connection=call)
 
-                FlowRun.create(flow, contact.pk, connection=call)
+                FlowRun.create(flow, contact.pk, session=session, connection=call)
                 response = Flow.handle_call(call)
 
                 event = HttpEvent(request_method, request_path, request_body, 200, six.text_type(response))
@@ -1389,12 +1389,12 @@ class VumiHandler(BaseChannelHandler):
 
                 session_id = str(session_id_part1 + session_id_part2)
 
-                session = USSDSession.handle_incoming(channel=channel, urn=body['from_addr'], content=content,
-                                                      status=status, date=gmt_date, external_id=session_id,
-                                                      message_id=body['message_id'], starcode=body.get('to_addr'))
+                connection = USSDSession.handle_incoming(channel=channel, urn=body['from_addr'], content=content,
+                                                         status=status, date=gmt_date, external_id=session_id,
+                                                         message_id=body['message_id'], starcode=body.get('to_addr'))
 
-                if session:
-                    return HttpResponse("Accepted: %d" % session.id)
+                if connection:
+                    return HttpResponse("Accepted: %d" % connection.id)
                 else:
                     return HttpResponse("Session not handled", status=400)
 
@@ -2089,15 +2089,15 @@ class JunebugHandler(BaseChannelHandler):
                 # Use a session id if provided, otherwise fall back to using the `from` address as the identifier
                 session_id = channel_data.get('session_id') or data['from']
 
-                session = USSDSession.handle_incoming(channel=channel, urn=data['from'], content=data['content'],
-                                                      status=status, date=gmt_date, external_id=session_id,
-                                                      message_id=data['message_id'], starcode=data['to'])
+                connection = USSDSession.handle_incoming(channel=channel, urn=data['from'], content=data['content'],
+                                                         status=status, date=gmt_date, external_id=session_id,
+                                                         message_id=data['message_id'], starcode=data['to'])
 
-                if session:
+                if connection:
                     status = 200
                     response_body = {
                         'status': self.ACK,
-                        'session_id': session.pk,
+                        'session_id': connection.pk,
                     }
                     event = HttpEvent(request_method, request_path, request_body, status, json.dumps(response_body))
                     log_channel(channel, 'Handled USSD message of %s session_event' % (

@@ -1512,8 +1512,9 @@ class Flow(TembaModel):
                                                         org=self.org, direction=USSDSession.USSD_PUSH,
                                                         started_on=timezone.now(), status=USSDSession.INITIATED)
 
+            run.session = connection.get_session()
             run.connection = connection
-            run.save(update_fields=['connection'])
+            run.save(update_fields=['session', 'connection'])
 
             # if we were started by other connection, save that off
             if parent_run and parent_run.connection:  # pragma: needs cover
@@ -1572,11 +1573,13 @@ class Flow(TembaModel):
             # create our call objects
             if parent_run and parent_run.connection:
                 call = parent_run.connection
+                session = parent_run.session
             else:
                 call = IVRCall.create_outgoing(channel, contact, contact_urn, self.created_by)
-                FlowSession.create(contact, connection=call)
+                session = FlowSession.create(contact, connection=call)
 
             # save away our created call
+            run.session = session
             run.connection = call
             run.save(update_fields=['connection'])
 
@@ -2447,7 +2450,7 @@ class FlowRun(models.Model):
     session = models.ForeignKey(FlowSession, related_name='runs', null=True,
                                 help_text=_("The session that handled this flow run, only for voice flows"))
 
-    connection = models.ForeignKey('channels.ChannelSession', related_name='runs', null=True, blank=True,
+    connection = models.ForeignKey('channels.ChannelSession', related_name='runs', null=True, blank=True, db_index=False,
                                    help_text=_("The session that handled this flow run, only for voice flows"))
 
     is_active = models.BooleanField(default=True,
@@ -2485,11 +2488,11 @@ class FlowRun(models.Model):
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
 
     @classmethod
-    def create(cls, flow, contact_id, start=None, connection=None, fields=None,
+    def create(cls, flow, contact_id, start=None, session=None, connection=None, fields=None,
                created_on=None, db_insert=True, submitted_by=None, parent=None):
 
         args = dict(org=flow.org, flow=flow, contact_id=contact_id, start=start,
-                    connection=connection, fields=fields, submitted_by=submitted_by, parent=parent)
+                    session=session, connection=connection, fields=fields, submitted_by=submitted_by, parent=parent)
 
         if created_on:
             args['created_on'] = created_on

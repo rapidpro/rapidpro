@@ -19,6 +19,7 @@ from django.conf.urls import url
 from django.contrib.auth.models import User, Group
 from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.urlresolvers import reverse
 from django.core.validators import URLValidator
 from django.db import models
@@ -3446,3 +3447,13 @@ class ChannelSession(SmartModel):
             from temba.ussd.models import USSDSession
             return USSDSession.objects.filter(id=self.id).first()
         return self  # pragma: no cover
+
+    def get_session(self):
+        """
+        There is a one-to-one relationship between flow sessions and connections, but as connection can be null
+        it can throw an exception
+        """
+        try:
+            return self.session
+        except ObjectDoesNotExist:
+            return None

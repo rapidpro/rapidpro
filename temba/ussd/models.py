@@ -130,6 +130,7 @@ class USSDSession(ChannelSession):
             except cls.DoesNotExist:
                 defaults['external_id'] = external_id
                 connection = cls.objects.create(**defaults)
+                FlowSession.create(contact, connection=connection)
                 created = True
         else:
             defaults.update(dict(external_id=external_id))
@@ -137,9 +138,6 @@ class USSDSession(ChannelSession):
                 setattr(connection, key, value)
             connection.save()
             created = None
-
-        if created:
-            FlowSession.create(contact, connection=connection)
 
         # start session
         if created and async and trigger:

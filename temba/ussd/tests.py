@@ -16,10 +16,10 @@ from django_redis import get_redis_connection
 from temba.channels.models import Channel
 from temba.channels.tests import JunebugTestMixin
 from temba.contacts.models import Contact, TEL_SCHEME
+from temba.flows.models import FlowRun, FlowSession
 from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING, USSD, DELIVERED, FAILED
 from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
-from temba.flows.models import FlowRun
 from temba.utils import dict_to_struct
 
 from .models import USSDSession
@@ -766,6 +766,15 @@ class VumiUssdTest(TembaTest):
 
         # now we added the trigger, let's reinitiate the session
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        session = FlowSession.objects.get()
+        connection = USSDSession.objects.get()
+
+        self.assertEqual(session.connection, connection)
+
+        run = FlowRun.objects.get()
+        self.assertEqual(run.session, session)
+        self.assertEqual(run.connection, connection)
 
         msg = Msg.objects.all().first()
         self.assertEqual("Please enter a phone number", msg.text)
