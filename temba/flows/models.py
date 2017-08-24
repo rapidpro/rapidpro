@@ -403,7 +403,7 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
-        run = FlowRun.objects.filter(session=call, is_active=True).order_by('-created_on').first()
+        run = FlowRun.objects.filter(connection=call, is_active=True).order_by('-created_on').first()
 
         # what we will send back
         voice_response = call.channel.generate_ivr_response()
@@ -434,7 +434,7 @@ class Flow(TembaModel):
             msg = Msg.create_incoming(call.channel, six.text_type(call.contact_urn),
                                       text, status=PENDING, msg_type=IVR,
                                       attachments=[saved_media_url] if saved_media_url else None,
-                                      session=run.connection)
+                                      connection=run.connection)
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
@@ -653,9 +653,9 @@ class Flow(TembaModel):
 
                         end_message = Msg.create_outgoing(msg.org, get_flow_user(msg.org), msg.contact, '',
                                                           channel=msg.channel, priority=Msg.PRIORITY_HIGH,
-                                                          session=msg.session, response_to=msg if msg.id else None)
+                                                          connection=msg.connection, response_to=msg if msg.id else None)
 
-                        end_message.session.mark_ending()
+                        end_message.connection.mark_ending()
                         msgs.append(end_message)
                         ActionLog.create(run, _("USSD Session was marked to end"))
 
@@ -679,7 +679,7 @@ class Flow(TembaModel):
                 # USSD check for session end
                 if Flow.should_close_session(run, destination, result.get('destination')):
                     for msg in result['msgs']:
-                        msg.session.mark_ending()
+                        msg.connection.mark_ending()
                         ActionLog.create(run, _("USSD Session was marked to end"))
 
                 # add any generated messages to be sent at once
@@ -2808,7 +2808,7 @@ class FlowRun(models.Model):
     def is_interrupted(self):
         return self.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED
 
-    def create_outgoing_ivr(self, text, recording_url, session, response_to=None):
+    def create_outgoing_ivr(self, text, recording_url, connection, response_to=None):
 
         # create a Msg object to track what happened
         from temba.msgs.models import DELIVERED, IVR
@@ -2817,9 +2817,9 @@ class FlowRun(models.Model):
         if recording_url:
             attachments = ['%s/x-wav:%s' % (Msg.MEDIA_AUDIO, recording_url)]
 
-        msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.session.channel,
+        msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.connection.channel,
                                   response_to=response_to, attachments=attachments,
-                                  status=DELIVERED, msg_type=IVR, session=session)
+                                  status=DELIVERED, msg_type=IVR, connection=connection)
 
         # play a recording or read some text
         if msg:
@@ -5134,11 +5134,11 @@ class ReplyAction(Action):
 
             if msg:
                 replies = msg.reply(text, user, trigger_send=False, message_context=context,
-                                    session=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
+                                    connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
                                     send_all=self.send_all, created_on=created_on)
             else:
                 replies = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                           session=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
+                                           connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
                                            created_on=created_on, all_urns=self.send_all)
         return replies
 

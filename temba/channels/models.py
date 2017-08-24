@@ -1445,7 +1445,7 @@ class Channel(TembaModel):
             payload['event_auth_token'] = channel.secret
 
         if is_ussd:
-            session = USSDSession.objects.get_with_status_only(msg.session_id)
+            session = USSDSession.objects.get_with_status_only(msg.connection_id)
             # make sure USSD responses are only valid for a short window
             response_expiration = timezone.now() - timedelta(seconds=180)
             external_id = None
@@ -1975,7 +1975,7 @@ class Channel(TembaModel):
         in_reply_to = None
 
         if is_ussd:
-            session = USSDSession.objects.get_with_status_only(msg.session_id)
+            session = USSDSession.objects.get_with_status_only(msg.connection_id)
             if session and session.should_end:
                 session_event = "close"
             else:
@@ -2758,7 +2758,7 @@ class Channel(TembaModel):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE])
 
     def get_ivr_log_count(self):
-        return ChannelLog.objects.filter(channel=self).exclude(session=None).order_by('session').distinct('session').count()
+        return ChannelLog.objects.filter(channel=self).exclude(connection=None).order_by('session').distinct('session').count()
 
     def get_non_ivr_log_count(self):
         return self.get_log_count() - self.get_ivr_log_count()
@@ -2974,8 +2974,8 @@ class ChannelLog(models.Model):
     msg = models.ForeignKey('msgs.Msg', related_name='channel_logs', null=True,
                             help_text=_("The message that was sent"))
 
-    session = models.ForeignKey('channels.ChannelSession', related_name='channel_logs', null=True,
-                                help_text=_("The channel session for this log"))
+    connection = models.ForeignKey('channels.ChannelSession', related_name='channel_logs', null=True,
+                                   help_text=_("The channel session for this log"))
 
     description = models.CharField(max_length=255,
                                    help_text=_("A description of the status of this message send"))
@@ -3073,7 +3073,7 @@ class ChannelLog(models.Model):
         return '%s://%s%s' % (parsed.scheme, parsed.hostname, parsed.path)
 
     def log_group(self):
-        return ChannelLog.objects.filter(msg=self.msg, session=self.session).order_by('-created_on')
+        return ChannelLog.objects.filter(msg=self.msg, connection=self.connection).order_by('-created_on')
 
     def get_request_formatted(self):
 

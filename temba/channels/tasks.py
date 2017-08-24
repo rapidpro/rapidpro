@@ -77,6 +77,11 @@ def send_msg_task():
                 msg = dict_to_struct('MockMsg', msg_task,
                                      datetime_fields=['modified_on', 'sent_on', 'created_on', 'queued_on',
                                                       'next_attempt'])
+
+                # we renamed msg.session_id to msg.connection_id but might still have queued messages with the former
+                if hasattr(msg, 'session_id'):
+                    msg.connection_id = msg.session_id
+
                 Channel.send_message(msg)
 
                 # if there are more messages to send for this contact, sleep a second before moving on

@@ -1450,8 +1450,8 @@ class FlowCRUDL(SmartCRUDL):
 
             if flow.flow_type == Flow.USSD:
                 for msg in messages:
-                    if msg.session.should_end:
-                        msg.session.close()
+                    if msg.connection.should_end:
+                        msg.connection.close()
 
                 # don't show the empty closing message on the simulator
                 messages = messages.exclude(text='', direction='O')

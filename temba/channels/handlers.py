@@ -147,7 +147,7 @@ class TwimlAPIHandler(BaseChannelHandler):
                                        Channel.TYPE_TWILIO)
                     call.save()
 
-                    FlowRun.create(flow, contact.pk, session=call)
+                    FlowRun.create(flow, contact.pk, connection=call)
                     response = Flow.handle_call(call)
                     return HttpResponse(six.text_type(response))
 
@@ -1114,7 +1114,7 @@ class NexmoCallHandler(BaseChannelHandler):
 
             if call.status == IVRCall.COMPLETED:
                 # if our call is completed, hangup
-                runs = FlowRun.objects.filter(session=call)
+                runs = FlowRun.objects.filter(connection=call)
                 for run in runs:
                     if not run.is_completed():
                         final_step = FlowStep.objects.filter(run=run).order_by('-arrived_on').first()
@@ -1157,7 +1157,7 @@ class NexmoCallHandler(BaseChannelHandler):
                 call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, external_id)
                 FlowSession.create(contact, connection=call)
 
-                FlowRun.create(flow, contact.pk, session=call)
+                FlowRun.create(flow, contact.pk, connection=call)
                 response = Flow.handle_call(call)
 
                 event = HttpEvent(request_method, request_path, request_body, 200, six.text_type(response))
