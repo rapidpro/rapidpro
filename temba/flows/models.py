@@ -6813,8 +6813,8 @@ class RegexTest(Test):  # pragma: needs cover
             if match:
                 return_match = match.group(0)
 
-                # build up a dictionary that contains indexed values
-                group_dict = match.groupdict()
+                # build up a dictionary that contains indexed group matches
+                group_dict = {}
                 for idx in range(rexp.groups + 1):
                     group_dict[str(idx)] = match.group(idx)
 
