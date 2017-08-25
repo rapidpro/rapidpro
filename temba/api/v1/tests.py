@@ -610,7 +610,7 @@ class APITest(TembaTest):
         data = dict(flow=flow.uuid,
                     revision=2,
                     contact=self.joe.uuid,
-                    submitted_by=self.admin.username,
+                    submitted_by=self.surveyor.username,
                     started='2015-08-25T11:09:29.088Z',
                     steps=[
                         dict(node='d51ec25f-04e6-4349-a448-e7c4d93d4597',
@@ -620,6 +620,12 @@ class APITest(TembaTest):
                              ])
                     ],
                     completed=False)
+
+        # make our org brand different from the default brand
+        # this is to make sure surveyor submissions work when
+        # they deviate from DEFAULT_BRAND
+        self.org.brand = 'other_brand'
+        self.org.save()
 
         with patch.object(timezone, 'now', return_value=datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
             self.postJSON(url, data)
@@ -663,7 +669,7 @@ class APITest(TembaTest):
                     revision=2,
                     contact=self.joe.uuid,
                     started='2015-08-25T11:09:29.088Z',
-                    submitted_by=self.admin.username,
+                    submitted_by=self.surveyor.username,
                     steps=[
                         dict(node='bd531ace-911e-4722-8e53-6730d6122fe1',
                              arrived_on='2015-08-25T11:11:30.088Z',
@@ -691,7 +697,7 @@ class APITest(TembaTest):
         # run should be complete now
         run = FlowRun.objects.get()
 
-        self.assertEqual(run.submitted_by, self.admin)
+        self.assertEqual(run.submitted_by, self.surveyor)
         self.assertEqual(run.modified_on, datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, False)
         self.assertEqual(run.is_completed(), True)
