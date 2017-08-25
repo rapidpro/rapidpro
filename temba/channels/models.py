@@ -3076,9 +3076,8 @@ class ChannelLog(models.Model):
         return ChannelLog.objects.filter(msg=self.msg, session=self.session).order_by('-created_on')
 
     def get_request_formatted(self):
-
-        if self.method == 'GET':
-            return self.url
+        if not self.request:
+            return self.method + " " + self.url
 
         try:
             return json.dumps(json.loads(self.request), indent=2)
