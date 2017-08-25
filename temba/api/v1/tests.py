@@ -952,6 +952,12 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(name='Eminem', phone='+250788123456', urns=['tel:+250788123456']))
         self.assertResponseError(response, 'non_field_errors', "Cannot provide both urns and phone parameters together")
 
+        # clearing the contact name is allowed
+        response = self.postJSON(url, dict(name="", uuid=contact.uuid))
+        self.assertEquals(201, response.status_code)
+        contact = Contact.objects.get()
+        self.assertIsNone(contact.name)
+
         # update the contact using uuid, URNs will remain the same
         response = self.postJSON(url, dict(name="Mathers", uuid=contact.uuid))
         self.assertEquals(201, response.status_code)

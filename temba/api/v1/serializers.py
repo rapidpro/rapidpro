@@ -219,7 +219,7 @@ class ContactReadSerializer(ReadSerializer):
 
 class ContactWriteSerializer(WriteSerializer):
     uuid = serializers.CharField(required=False, max_length=36)
-    name = serializers.CharField(required=False, max_length=64)
+    name = serializers.CharField(required=False, allow_blank=True, max_length=64)
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
     urns = StringArrayField(required=False)
     group_uuids = StringArrayField(required=False)
@@ -355,6 +355,10 @@ class ContactWriteSerializer(WriteSerializer):
         name = self.validated_data.get('name')
         fields = self.validated_data.get('fields')
         language = self.validated_data.get('language')
+
+        # treat empty names as None
+        if not name:
+            name = None
 
         changed = []
 
