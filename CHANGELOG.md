@@ -1,3 +1,13 @@
+v3.0.192
+----------
+ * Allow empty contact names for surveyor submissions but make them null
+ * Honor admin org brand in get_user_orgs
+ * Fix external channel bulk sender URL
+ * Send broadcast in the same task as it is created in and JS utility method to format number
+ * Try the variable as a contact uuid and use its contact when building recipients
+ * Fix org lookup, use the same code path for sending a broadcast
+ * Fix broadcast to flow node to consider all current contacts on the the step
+
 v3.0.191
 ----------
  * Update test_db to generate deterministic UUIDs which are also valid UUID4
