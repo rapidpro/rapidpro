@@ -41,9 +41,9 @@ class IVRCall(ChannelSession):
     def hangup_test_call(cls, flow):
         # if we have an active call, hang it up
         from temba.flows.models import FlowRun
-        runs = FlowRun.objects.filter(flow=flow, contact__is_test=True).exclude(session=None)
+        runs = FlowRun.objects.filter(flow=flow, contact__is_test=True).exclude(connection=None)
         for run in runs:
-            test_call = IVRCall.objects.filter(id=run.session.id).first()
+            test_call = IVRCall.objects.filter(id=run.connection.id).first()
             if test_call.channel.channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_TWIML]:
                 if not test_call.is_done():
                     test_call.close()
@@ -77,7 +77,7 @@ class IVRCall(ChannelSession):
                     user_settings = self.created_by.get_settings()
                     if user_settings.tel:
                         tel = user_settings.tel
-                        run = FlowRun.objects.filter(session=self)
+                        run = FlowRun.objects.filter(connection=self)
                         if run:
                             ActionLog.create(run[0], "Placing test call to %s" % user_settings.get_tel_formatted())
                 if not tel:
@@ -92,7 +92,7 @@ class IVRCall(ChannelSession):
                 self.status = self.FAILED
                 self.save()
                 if self.contact.is_test:
-                    run = FlowRun.objects.filter(session=self)
+                    run = FlowRun.objects.filter(connection=self)
                     ActionLog.create(run[0], "Call ended. %s" % e.message)
 
             except Exception as e:  # pragma: no cover
@@ -102,7 +102,7 @@ class IVRCall(ChannelSession):
                 self.save()
 
                 if self.contact.is_test:
-                    run = FlowRun.objects.filter(session=self)
+                    run = FlowRun.objects.filter(connection=self)
                     ActionLog.create(run[0], "Call ended.")
 
     def start_call(self):
@@ -131,7 +131,7 @@ class IVRCall(ChannelSession):
                 self.status = self.IN_PROGRESS
             elif status == 'completed':
                 if self.contact.is_test:
-                    run = FlowRun.objects.filter(session=self)
+                    run = FlowRun.objects.filter(connection=self)
                     if run:
                         ActionLog.create(run[0], _("Call ended."))
                 self.status = self.COMPLETED
@@ -165,7 +165,7 @@ class IVRCall(ChannelSession):
 
         # if we are moving into IN_PROGRESS, make sure our runs have proper expirations
         if previous_status in [self.QUEUED, self.PENDING] and self.status in [self.IN_PROGRESS, self.RINGING]:
-            runs = FlowRun.objects.filter(session=self, is_active=True, expires_on=None)
+            runs = FlowRun.objects.filter(connection=self, is_active=True, expires_on=None)
             for run in runs:
                 run.update_expiration()
 
@@ -189,5 +189,5 @@ class IVRCall(ChannelSession):
         """
         sorted_logs = None
         if self.channel and self.channel.is_active:
-            sorted_logs = sorted(ChannelLog.objects.filter(session=self), key=lambda l: l.created_on, reverse=True)
+            sorted_logs = sorted(ChannelLog.objects.filter(connection=self), key=lambda l: l.created_on, reverse=True)
         return sorted_logs[0] if sorted_logs else None
