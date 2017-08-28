@@ -1685,7 +1685,6 @@ class FlowTest(TembaTest):
         self.assertEquals("Isaac Newton", extra['0'])
         self.assertEquals("Isaac", extra['1'])
         self.assertEquals("Newton", extra['2'])
-        self.assertEquals("Isaac", extra['first_name'])
 
         # find that arabic unicode is handled right
         sms.text = "مرحبا العالم"
@@ -1694,7 +1693,6 @@ class FlowTest(TembaTest):
         self.assertEquals("مرحبا العالم", extra['0'])
         self.assertEquals("مرحبا", extra['1'])
         self.assertEquals("العالم", extra['2'])
-        self.assertEquals("مرحبا", extra['first_name'])
 
         # no matching groups, should return whole string as match
         test = RegexTest(dict(base="\w+ \w+"))
