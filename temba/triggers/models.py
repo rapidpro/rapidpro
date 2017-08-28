@@ -258,8 +258,7 @@ class Trigger(SmartModel):
             start_msg = entity
         elif isinstance(entity, ChannelEvent) or isinstance(entity, IVRCall):
             contact = entity.contact
-            start_msg = Msg(org=entity.org, contact=contact, contact_urn=entity.contact_urn, channel=entity.channel,
-                            created_on=timezone.now(), id=0)
+            start_msg = Msg(org=entity.org, contact=contact, contact_urn=entity.contact_urn, channel=entity.channel, created_on=timezone.now(), id=0)
         elif isinstance(entity, Contact):
             contact = entity
             start_msg = Msg(org=entity.org, contact=contact, channel=channel, created_on=timezone.now(), id=0)
