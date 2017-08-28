@@ -1557,9 +1557,8 @@ class Contact(TembaModel):
         for scheme, label in ContactURN.SCHEME_CHOICES:
             context[scheme] = self.get_urn_display(scheme=scheme, org=org) or ''
 
-        field_values = Value.objects.filter(contact=self).exclude(contact_field=None)\
-                                                         .exclude(contact_field__is_active=False)\
-                                                         .select_related('contact_field')
+        active_ids = ContactField.objects.filter(org_id=self.org_id, is_active=True).values_list('id', flat=True)
+        field_values = Value.objects.filter(contact=self, contact_field_id__in=active_ids).select_related('contact_field')
 
         # get all the values for this contact
         contact_values = {v.contact_field.key: v for v in field_values}
