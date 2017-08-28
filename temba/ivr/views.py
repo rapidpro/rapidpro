@@ -141,7 +141,7 @@ class CallHandler(View):
 
                 if call.status == IVRCall.COMPLETED:
                     # if our call is completed, hangup
-                    runs = FlowRun.objects.filter(session=call)
+                    runs = FlowRun.objects.filter(connection=call)
                     for run in runs:
                         if not run.is_completed():
                             final_step = FlowStep.objects.filter(run=run).order_by('-arrived_on').first()

@@ -497,13 +497,6 @@ class FlowTest(TembaTest):
         self.assertEquals(2, activity['activity']["bd531ace-911e-4722-8e53-6730d6122fe1"])
         self.assertTrue(activity['messages'], [test_message.as_json()])
 
-        # if we try to get contacts at this step for our compose we should have two contacts
-        self.login(self.admin)
-        response = self.client.get(reverse('contacts.contact_omnibox') + "?s=%s" % contact1_steps[1].step_uuid)
-        contact_json = response.json()
-        self.assertEquals(2, len(contact_json['results']))
-        self.client.logout()
-
         # set the flow as inactive, shouldn't react to replies
         self.flow.is_archived = True
         self.flow.save()
@@ -1693,7 +1686,6 @@ class FlowTest(TembaTest):
         self.assertEquals("Isaac Newton", extra['0'])
         self.assertEquals("Isaac", extra['1'])
         self.assertEquals("Newton", extra['2'])
-        self.assertEquals("Isaac", extra['first_name'])
 
         # find that arabic unicode is handled right
         sms.text = "مرحبا العالم"
@@ -1702,7 +1694,6 @@ class FlowTest(TembaTest):
         self.assertEquals("مرحبا العالم", extra['0'])
         self.assertEquals("مرحبا", extra['1'])
         self.assertEquals("العالم", extra['2'])
-        self.assertEquals("مرحبا", extra['first_name'])
 
         # no matching groups, should return whole string as match
         test = RegexTest(dict(base="\w+ \w+"))
@@ -4295,7 +4286,7 @@ class SimulationTest(FlowFileTest):
 
         self.assertEqual(handle_incoming.call_args[1]['status'], USSDSession.INTERRUPTED)
 
-    def test_ussd_simulation_session_end(self):
+    def test_ussd_simulation_connection_end(self):
         self.ussd_channel = Channel.create(
             self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
             schemes=['tel'], uuid='00000000-0000-0000-0000-000000002222',
@@ -4312,8 +4303,8 @@ class SimulationTest(FlowFileTest):
 
         self.assertEquals(response.status_code, 200)
 
-        session = USSDSession.objects.get()
-        self.assertEquals(session.status, USSDSession.COMPLETED)
+        connection = USSDSession.objects.get()
+        self.assertEquals(connection.status, USSDSession.COMPLETED)
 
     def test_ussd_simulation_without_channel_doesnt_run(self):
         Channel.objects.all().delete()
@@ -4826,6 +4817,10 @@ class FlowsTest(FlowFileTest):
         assert_in_response(response, 'message_completions', 'contact.first_name')
         assert_in_response(response, 'message_completions', 'contact.tel')
         assert_in_response(response, 'message_completions', 'contact.mailto')
+
+        assert_in_response(response, 'message_completions', 'parent.contact.uuid')
+        assert_in_response(response, 'message_completions', 'child.contact.uuid')
+
         assert_in_response(response, 'message_completions', 'flow.color')
         assert_in_response(response, 'message_completions', 'flow.color.category')
         assert_in_response(response, 'message_completions', 'flow.color.text')
@@ -5489,9 +5484,14 @@ class FlowsTest(FlowFileTest):
         mother_flow = self.get_flow('new_mother')
         registration_flow = self.get_flow('mother_registration', dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
 
+        self.assertEqual(mother_flow.runs.count(), 0)
+
         self.assertEquals("What is her expected delivery date?", self.send_message(registration_flow, "Judy Pottier"))
         self.assertEquals("What is her phone number?", self.send_message(registration_flow, "31.1.2014"))
         self.assertEquals("Great, you've registered the new mother!", self.send_message(registration_flow, "0788 383 383"))
+
+        # we start both the new mother by @flow.phone and the current contact by its uuid @contact.uuid
+        self.assertEqual(mother_flow.runs.count(), 2)
 
         mother = Contact.from_urn(self.org, "tel:+250788383383")
         self.assertEquals("Judy Pottier", mother.name)

@@ -8,25 +8,26 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0076_auto_20170628_1825'),
-        ('flows', '0110_auto_20170731_1046'),
+        ('flows', '0111_auto_20170824_1458'),
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='FlowSession',
-            fields=[
-            ],
-            options={
-                'proxy': True,
-                'indexes': [],
-            },
-            bases=('channels.channelsession',),
+        migrations.AddField(
+            model_name='flowsession',
+            name='output',
+            field=models.TextField(null=True),
+        ),
+        migrations.AddField(
+            model_name='flowsession',
+            name='status',
+            field=models.CharField(
+                choices=[('W', 'Waiting'), ('C', 'Completed'), ('I', 'Interrupted'), ('X', 'Expired'),
+                         ('E', 'Errored')], help_text='The status of this session', max_length=1, null=True),
         ),
         migrations.AddField(
             model_name='flowrun',
             name='output',
-            field=models.TextField(blank=True, null=True),
+            field=models.TextField(null=True),
         ),
         migrations.AddField(
             model_name='flow',

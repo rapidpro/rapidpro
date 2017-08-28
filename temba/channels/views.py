@@ -862,7 +862,7 @@ class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
                'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration',
-               'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
+               'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender',
                'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
@@ -1572,10 +1572,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                                      data.get('url'))
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
-    class ClaimInfobip(ClaimAuthenticatedExternal):
-        title = _("Connect Infobip")
-        channel_type = Channel.TYPE_INFOBIP
 
     class ClaimBlackmyna(ClaimAuthenticatedExternal):
         title = _("Connect Blackmyna")
@@ -2763,17 +2759,17 @@ class ChannelLogCRUDL(SmartCRUDL):
             channel = Channel.objects.get(pk=self.request.GET['channel'])
 
             if self.request.GET.get('sessions'):
-                logs = ChannelLog.objects.filter(channel=channel).exclude(session=None).values_list('session_id', flat=True)
+                logs = ChannelLog.objects.filter(channel=channel).exclude(connection=None).values_list('connection_id', flat=True)
                 events = ChannelSession.objects.filter(id__in=logs).order_by('-created_on')
 
                 if self.request.GET.get('errors'):
                     events = events.filter(status=ChannelSession.FAILED)
 
             elif self.request.GET.get('others'):
-                events = ChannelLog.objects.filter(channel=channel, session=None, msg=None).order_by('-created_on')
+                events = ChannelLog.objects.filter(channel=channel, connection=None, msg=None).order_by('-created_on')
 
             else:
-                events = ChannelLog.objects.filter(channel=channel, session=None).exclude(msg=None).order_by('-created_on').select_related('msg__contact', 'msg')
+                events = ChannelLog.objects.filter(channel=channel, connection=None).exclude(msg=None).order_by('-created_on').select_related('msg__contact', 'msg')
                 events.count = lambda: channel.get_non_ivr_log_count()
 
             return events

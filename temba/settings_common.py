@@ -1104,6 +1104,7 @@ CHANNEL_TYPES = [
     'temba.channels.types.external.ExternalType',
     'temba.channels.types.facebook.FacebookType',
     'temba.channels.types.firebase.FirebaseCloudMessagingType',
+    'temba.channels.types.infobip.InfobipType',
     'temba.channels.types.jiochat.JioChatType',
     'temba.channels.types.line.LineType',
     'temba.channels.types.telegram.TelegramType',
@@ -1152,5 +1153,13 @@ VALUE_FIELD_SIZE = 640
 SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
 
+# -----------------------------------------------------------------------------------
+# GoFlow
+# -----------------------------------------------------------------------------------
 FLOW_SERVER_URL = None
 FLOW_SERVER_DEBUG = False
+
+# -----------------------------------------------------------------------------------
+# Which channel types will be sent using Courier instead of RapidPro
+# -----------------------------------------------------------------------------------
+COURIER_CHANNELS = set()

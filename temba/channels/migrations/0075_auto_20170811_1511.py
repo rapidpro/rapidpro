@@ -6,6 +6,12 @@ import django.contrib.postgres.fields
 from django.db import migrations, models
 
 
+def update_twitter_channels_schemes(apps, schema_editor):
+    Channel = apps.get_model('channels', 'Channel')
+
+    Channel.objects.filter(channel_type__in=['TT', 'TWT']).update(schemes=['twitter', 'twitterid'])
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -22,4 +28,5 @@ class Migration(migrations.Migration):
             name='schemes',
             field=django.contrib.postgres.fields.ArrayField(base_field=models.CharField(max_length=16), default=['tel'], help_text='The URN schemes this channel supports', size=None, verbose_name='URN Schemes'),
         ),
+        migrations.RunPython(update_twitter_channels_schemes)
     ]
