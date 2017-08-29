@@ -2284,7 +2284,7 @@ class FlowTest(TembaTest):
         self.assertIn('channels', response.json())
         self.assertIn('languages', response.json())
         self.assertIn('channel_countries', response.json())
-        self.assertEqual(ActionSet.objects.all().count(), 32)
+        self.assertEqual(ActionSet.objects.all().count(), 28)
 
         json_dict = response.json()['flow']
 
@@ -2296,7 +2296,7 @@ class FlowTest(TembaTest):
 
         response = self.client.post(reverse('flows.flow_json', args=[self.flow.id]), json.dumps(json_dict), content_type="application/json")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(ActionSet.objects.all().count(), 29)
+        self.assertEqual(ActionSet.objects.all().count(), 25)
 
         # check that the flow only has a single actionset
         ActionSet.objects.get(flow=self.flow)
@@ -6690,7 +6690,7 @@ class FlowMigrationTest(FlowFileTest):
 
     def test_migrate_sample_flows(self):
         self.org.create_sample_flows('https://app.rapidpro.io')
-        self.assertEquals(4, self.org.flows.filter(name__icontains='Sample Flow').count())
+        self.assertEquals(3, self.org.flows.filter(name__icontains='Sample Flow').count())
 
         # make sure it is localized
         poll = self.org.flows.filter(name='Sample Flow - Simple Poll').first()
