@@ -34,7 +34,7 @@ from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
-from temba.orgs.models import Org, NEXMO_UUID, NEXMO_APP_ID
+from temba.orgs.models import Org, NEXMO_UUID, NEXMO_APP_ID, CHATBASE_TYPE_AGENT
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
@@ -211,6 +211,7 @@ class Channel(TembaModel):
     CONFIG_MAX_LENGTH = 'max_length'
     CONFIG_MACROKIOSK_SENDER_ID = 'macrokiosk_sender_id'
     CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
+    CONFIG_RP_HOSTNAME_OVERRIDE = 'rp_hostname_override'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -1285,6 +1286,7 @@ class Channel(TembaModel):
         request_time = time.time() - start
 
         from temba.msgs.models import Msg
+
         Msg.mark_sent(channel.config['r'], msg, msg_status, external_id)
 
         # record stats for analytics
@@ -1317,6 +1319,12 @@ class Channel(TembaModel):
                                       response=event.response_body,
                                       response_status=event.status_code,
                                       request_time=request_time_ms)
+
+            # Sending data to Chatbase API
+            if hasattr(msg, 'is_org_connected_to_chatbase'):
+                chatbase_version = msg.chatbase_version if hasattr(msg, 'chatbase_version') else None
+                Msg.send_chatbase_log(msg.chatbase_api_key, chatbase_version, channel.name, msg.text, msg.contact,
+                                      CHATBASE_TYPE_AGENT)
 
     @classmethod
     def send_red_rabbit_message(cls, channel, msg, text):
@@ -1413,9 +1421,12 @@ class Channel(TembaModel):
 
         session = None
 
+        # if the channel config has specified and override hostname use that, otherwise use settings
+        event_hostname = channel.config.get(Channel.CONFIG_RP_HOSTNAME_OVERRIDE, settings.HOSTNAME)
+
         # the event url Junebug will relay events to
-        event_url = 'https://%s%s' % (
-            settings.HOSTNAME,
+        event_url = 'http://%s%s' % (
+            event_hostname,
             reverse('handlers.junebug_handler',
                     args=['event', channel.uuid]))
 
@@ -1426,11 +1437,21 @@ class Channel(TembaModel):
         payload['event_url'] = event_url
         payload['content'] = text
 
+        if channel.secret is not None:
+            payload['event_auth_token'] = channel.secret
+
         if is_ussd:
             session = USSDSession.objects.get_session_with_status_only(msg.session_id)
-            external_id = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
-            # NOTE: Only one of `to` or `reply_to` may be specified
-            payload['reply_to'] = external_id
+            # make sure USSD responses are only valid for a short window
+            response_expiration = timezone.now() - timedelta(seconds=180)
+            external_id = None
+            if msg.response_to_id and msg.created_on > response_expiration:
+                external_id = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
+            # NOTE: Only one of `to` or `reply_to` may be specified, use external_id if we have it.
+            if external_id:
+                payload['reply_to'] = external_id
+            else:
+                payload['to'] = msg.urn_path
             payload['channel_data'] = {
                 'continue_session': session and not session.should_end or False,
             }

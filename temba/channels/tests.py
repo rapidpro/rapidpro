@@ -2393,6 +2393,35 @@ class ChannelTest(TembaTest):
         self.assertTrue(ussd_context['has_outgoing_channel'])
         self.assertEqual(ussd_context['is_ussd_channel'], True)
 
+    def test_send_message_chatbase(self):
+        Channel.create(self.org, self.user, None, 'FCM', 'FCM Channel', 'fcm-channel',
+                       config=dict(FCM_KEY='123456789', FCM_TITLE='FCM Channel', FCM_NOTIFICATION=True),
+                       uuid='00000000-0000-0000-0000-000000001234')
+
+        org_config = self.org.config_json()
+        org_config.update(dict(CHATBASE_API_KEY='123456abcdef', CHATBASE_VERSION='1.0'))
+        self.org.config = json.dumps(org_config)
+        self.org.save()
+
+        self.assertTrue(self.org.get_chatbase_credentials())
+        self.assertEquals(self.org.config_json()['CHATBASE_API_KEY'], '123456abcdef')
+        self.assertEquals(self.org.config_json()['CHATBASE_VERSION'], '1.0')
+
+        with self.settings(SEND_CHATBASE=True):
+            joe = self.create_contact("Joe", urn="fcm:forrest_gump", auth="1234567890")
+            msg = joe.send("Hello, world!", self.admin, trigger_send=False)[0]
+
+            with self.settings(SEND_MESSAGES=True):
+                with patch('requests.post') as mock:
+                    mock.return_value = MockResponse(200, '{ "success": 1, "multicast_id": 123456, "failures": 0 }')
+
+                    Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                    # check the status of the message is now sent
+                    msg.refresh_from_db()
+                    self.assertEqual(msg.status, WIRED)
+                    self.assertTrue(msg.sent_on)
+
 
 class ChannelBatchTest(TembaTest):
 
@@ -2858,6 +2887,44 @@ class ChannelClaimTest(TembaTest):
 
         self.assertEquals(channel.country, post_data['country'])
         self.assertEquals(channel.address, post_data['number'])
+        self.assertEquals(channel.config_json()['send_url'], post_data['url'])
+        self.assertEquals(channel.config_json()['username'], post_data['username'])
+        self.assertEquals(channel.config_json()['password'], post_data['password'])
+        self.assertEquals(channel.channel_type, Channel.TYPE_JUNEBUG)
+        self.assertEquals(channel.role, Channel.DEFAULT_ROLE)
+
+        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        self.assertRedirect(response, config_url)
+
+        response = self.client.get(config_url)
+        self.assertEquals(200, response.status_code)
+
+        self.assertContains(response, reverse('handlers.junebug_handler', args=['inbound', channel.uuid]))
+
+    def test_claim_junebug_with_secret(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        response = self.client.get(reverse('channels.channel_claim_junebug'))
+        self.assertEquals(200, response.status_code)
+
+        post_data = {
+            "channel_type": Channel.TYPE_JUNEBUG,
+            "country": "ZA",
+            "number": "+273454325324",
+            "url": "http://example.com/messages.json",
+            "username": "foo",
+            "password": "bar",
+            "secret": "UjOq8ATo2PDS6L08t6vlqSoK"
+        }
+
+        response = self.client.post(reverse('channels.channel_claim_junebug'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertEquals(channel.country, post_data['country'])
+        self.assertEquals(channel.address, post_data['number'])
+        self.assertEquals(channel.secret, post_data['secret'])
         self.assertEquals(channel.config_json()['send_url'], post_data['url'])
         self.assertEquals(channel.config_json()['username'], post_data['username'])
         self.assertEquals(channel.config_json()['password'], post_data['password'])
@@ -8717,9 +8784,10 @@ class JunebugTestMixin(object):
         default.update(kwargs)
         return default
 
-    def mk_ussd_msg(self, session_event='new', **kwargs):
-        return self.mk_msg(channel_data={'session_event': session_event},
-                           **kwargs)
+    def mk_ussd_msg(self, session_event='new', session_id=None, **kwargs):
+        return self.mk_msg(
+            channel_data={'session_event': session_event,
+                          'session_id': session_id}, **kwargs)
 
     def mk_msg(self, **kwargs):
         default = {
@@ -8822,6 +8890,47 @@ class JunebugTest(JunebugTestMixin, TembaTest):
             "Message with external id of '%s' not found" % (
                 data['message_id'],))
 
+    def test_status_with_auth(self):
+        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.save()
+
+        data = self.mk_event()
+        joe = self.create_contact("Joe Biden", "+254788383383")
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)[0]
+        msg.external_id = data['message_id']
+        msg.save(update_fields=('external_id',))
+
+        def assertStatus(sms, event_type, assert_status):
+            data['event_type'] = event_type
+            response = self.client.post(
+                reverse('handlers.junebug_handler',
+                        args=['event', self.channel.uuid]),
+                data=json.dumps(data),
+                content_type='application/json',
+                HTTP_AUTHORIZATION="Token UjOq8ATo2PDS6L08t6vlqSoK")
+            self.assertEquals(200, response.status_code)
+            sms = Msg.objects.get(pk=sms.id)
+            self.assertEquals(assert_status, sms.status)
+
+        assertStatus(msg, 'submitted', SENT)
+        assertStatus(msg, 'delivery_succeeded', DELIVERED)
+        assertStatus(msg, 'delivery_failed', FAILED)
+        assertStatus(msg, 'rejected', FAILED)
+
+    def test_status_incorrect_auth(self):
+        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.save()
+
+        # ok, what happens with an invalid uuid?
+        data = self.mk_event()
+        response = self.client.post(
+            reverse('handlers.junebug_handler',
+                    args=['event', self.channel.uuid]),
+            data=json.dumps(data),
+            content_type='application/json',
+            HTTP_AUTHORIZATION="Token Not_token")
+        self.assertEquals(401, response.status_code)
+
     def test_receive_with_invalid_message(self):
         callback_url = reverse('handlers.junebug_handler',
                                args=['inbound', self.channel.uuid])
@@ -8847,6 +8956,41 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
         self.assertEquals("événement", msg.text)
+
+    def test_receive_with_auth(self):
+        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.save()
+
+        data = self.mk_msg(content="événement")
+        callback_url = reverse('handlers.junebug_handler',
+                               args=['inbound', self.channel.uuid])
+        response = self.client.post(callback_url, json.dumps(data),
+                                    content_type='application/json',
+                                    HTTP_AUTHORIZATION="Token UjOq8ATo2PDS6L08t6vlqSoK")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], 'ack')
+
+        # load our message
+        msg = Msg.objects.get()
+        self.assertEquals(data["from"], msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("événement", msg.text)
+
+    def test_receive_with_incorrect_auth(self):
+        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.save()
+
+        data = self.mk_msg(content="événement")
+        callback_url = reverse('handlers.junebug_handler',
+                               args=['inbound', self.channel.uuid])
+        response = self.client.post(callback_url, json.dumps(data),
+                                    content_type='application/json',
+                                    HTTP_AUTHORIZATION="Token Not_token")
+
+        self.assertEqual(response.status_code, 401)
 
     def test_send_wired(self):
         joe = self.create_contact("Joe", "+250788383383")
@@ -8954,6 +9098,27 @@ class JunebugTest(JunebugTestMixin, TembaTest):
             # manually send it off
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
             self.assertTrue(ChannelLog.objects.filter(description__icontains="Unable to read external message_id"))
+
+    def test_send_adds_auth(self):
+        self.channel.secret = "UjOq8ATo2PDS6L08t6vlqSoK"
+        self.channel.save()
+
+        joe = self.create_contact("Joe", "+250788383383")
+        msg = joe.send("événement", self.admin, trigger_send=False)[0]
+
+        settings.SEND_MESSAGES = True
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, json.dumps({
+                'result': {
+                    'message_id': '07033084-5cfd-4812-90a4-e4d24ffb6e3d',
+                }
+            }))
+
+            # manually send it off
+            self.channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+            self.assertEqual(mock.call_args[1]['json']['event_auth_token'],
+                             "UjOq8ATo2PDS6L08t6vlqSoK")
 
 
 class MbloxTest(TembaTest):
