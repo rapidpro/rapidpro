@@ -30,7 +30,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
-from temba.utils import datetime_to_ms, dict_to_json, get_anonymous_user, clean_string
+from temba.utils import datetime_to_s, dict_to_json, get_anonymous_user, clean_string
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField
@@ -1144,7 +1144,7 @@ class Msg(models.Model):
         # first push our msg on our contact's queue using our created date
         r = get_redis_connection('default')
         queue_time = self.sent_on if self.sent_on else timezone.now()
-        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_ms(queue_time), dict_to_json(payload))
+        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_s(queue_time), dict_to_json(payload))
 
         # queue up our celery task
         push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)

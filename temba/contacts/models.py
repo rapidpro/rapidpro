@@ -73,6 +73,8 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
 
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
+STOP_CONTACT_EVENT = 'stop_contact'
+
 
 class URN(object):
     """
