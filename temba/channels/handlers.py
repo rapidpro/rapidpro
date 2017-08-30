@@ -2331,13 +2331,21 @@ class FacebookHandler(BaseChannelHandler):
                 status = []
 
                 for envelope in entry['messaging']:
-                    if 'optin' in envelope:
+                    if 'optin' in envelope or 'referral' in envelope:
                         # check that the recipient is correct for this channel
                         channel_address = str(envelope['recipient']['id'])
                         if channel_address != channel.address:  # pragma: needs cover
                             return HttpResponse("Msg Ignored for recipient id: %s" % channel_address, status=200)
 
-                        referrer_id = envelope['optin'].get('ref')
+                        referrer_id = None
+                        trigger_extra = None
+
+                        if 'optin' in envelope:
+                            referrer_id = envelope['optin'].get('ref')
+                            trigger_extra = envelope['optin']
+                        elif 'referral' in envelope:
+                            referrer_id = envelope['referral'].get('ref')
+                            trigger_extra = envelope['referral']
 
                         # This is a standard opt in, we know the sender id:
                         #   https://developers.facebook.com/docs/messenger-platform/webhook-reference/optins
@@ -2378,7 +2386,7 @@ class FacebookHandler(BaseChannelHandler):
                                                             urns=[urn], channel=channel)
 
                         caught = Trigger.catch_triggers(contact, Trigger.TYPE_REFERRAL, channel,
-                                                        referrer_id=referrer_id, extra=envelope['optin'])
+                                                        referrer_id=referrer_id, extra=trigger_extra)
 
                         if caught:
                             status.append("Triggered flow for ref: %s" % referrer_id)
@@ -2398,6 +2406,8 @@ class FacebookHandler(BaseChannelHandler):
 
                         content = None
                         postback = None
+                        referrer_id = None
+                        trigger_extra = None
 
                         if 'message' in envelope:
                             if 'text' in envelope['message']:
@@ -2416,6 +2426,9 @@ class FacebookHandler(BaseChannelHandler):
 
                         elif 'postback' in envelope:
                             postback = envelope['postback']['payload']
+                            if 'referral' in envelope['postback']:
+                                trigger_extra = envelope['postback']['referral']
+                                referrer_id = trigger_extra['ref']
 
                         # if we have some content, load the contact
                         if content or postback:
@@ -2453,6 +2466,11 @@ class FacebookHandler(BaseChannelHandler):
                             msg = Msg.create_incoming(channel, urn, content, date=msg_date, contact=contact)
                             Msg.objects.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
                             status.append("Msg %d accepted." % msg.id)
+
+                        # conversation started with a referrer_id that catches a trigger
+                        elif referrer_id and Trigger.catch_triggers(contact, Trigger.TYPE_REFERRAL, channel,
+                                                                    referrer_id=referrer_id, extra=trigger_extra):
+                            status.append("Triggered flow for ref: %s" % referrer_id)
 
                         # a contact pressed "Get Started", trigger any new conversation triggers
                         elif postback == 'get_started':

@@ -36,7 +36,7 @@ from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
-from temba.orgs.models import Org, NEXMO_UUID, NEXMO_APP_ID
+from temba.orgs.models import Org, NEXMO_UUID, NEXMO_APP_ID, CHATBASE_TYPE_AGENT
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
@@ -1298,6 +1298,7 @@ class Channel(TembaModel):
         request_time = time.time() - start
 
         from temba.msgs.models import Msg
+
         Msg.mark_sent(channel.config['r'], msg, msg_status, external_id)
 
         # record stats for analytics
@@ -1330,6 +1331,12 @@ class Channel(TembaModel):
                                       response=event.response_body,
                                       response_status=event.status_code,
                                       request_time=request_time_ms)
+
+            # Sending data to Chatbase API
+            if hasattr(msg, 'is_org_connected_to_chatbase'):
+                chatbase_version = msg.chatbase_version if hasattr(msg, 'chatbase_version') else None
+                Msg.send_chatbase_log(msg.chatbase_api_key, chatbase_version, channel.name, msg.text, msg.contact,
+                                      CHATBASE_TYPE_AGENT)
 
     @classmethod
     def send_red_rabbit_message(cls, channel, msg, text):
