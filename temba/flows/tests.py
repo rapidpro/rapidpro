@@ -63,7 +63,7 @@ class FlowTest(TembaTest):
 
         self.other_group = self.create_group("Other", [])
 
-    def export_flow_results(self, flow, responded_only=False, include_msgs=True, include_runs=True, contact_fields=None):
+    def export_flow_results(self, flow, responded_only=False, include_msgs=True, include_runs=True, contact_fields=None, extra_urns=[]):
         """
         Exports results for the given flow and returns the generated workbook
         """
@@ -73,7 +73,8 @@ class FlowTest(TembaTest):
             'flows': [flow.id],
             'responded_only': responded_only,
             'include_messages': include_msgs,
-            'include_runs': include_runs
+            'include_runs': include_runs,
+            'extra_urns': extra_urns
         }
         if contact_fields:
             form['contact_fields'] = [c.id for c in contact_fields]
@@ -814,6 +815,7 @@ class FlowTest(TembaTest):
 
     def test_export_results(self):
         # setup flow and start both contacts
+        self.contact.update_urns(self.admin, ['tel:+250788382382', 'twitter:erictweets'])
 
         self.create_group('Devs', [self.contact])
 
@@ -978,9 +980,9 @@ class FlowTest(TembaTest):
         # insert a duplicate age field, this can happen due to races
         Value.objects.create(org=self.org, contact=self.contact, contact_field=age, string_value='36', decimal_value='36')
 
-        with self.assertNumQueries(54):
+        with self.assertNumQueries(57):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
-                                                contact_fields=[age])
+                                                contact_fields=[age], extra_urns=['twitter', 'line'])
 
         # try setting the field again
         self.contact.set_field(self.admin, 'age', 36)
@@ -992,32 +994,34 @@ class FlowTest(TembaTest):
         sheet_runs, sheet_contacts = workbook.worksheets
 
         self.assertEqual(len(list(sheet_contacts.rows)), 3)  # header + 2 contacts
-        self.assertEqual(len(list(sheet_contacts.columns)), 10)
+        self.assertEqual(len(list(sheet_contacts.columns)), 12)
 
-        self.assertExcelRow(sheet_contacts, 0, ["Contact UUID", "URN", "Name", "Groups", "Age",
+        self.assertExcelRow(sheet_contacts, 0, ["Contact UUID", "URN", "Twitter", "Line", "Name", "Groups", "Age",
                                                 "First Seen", "Last Seen",
                                                 "color (Category) - Color Flow",
                                                 "color (Value) - Color Flow",
                                                 "color (Text) - Color Flow"])
 
-        self.assertExcelRow(sheet_contacts, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "Devs", "36",
-                                                c1_run1_first, c1_run2_last, "Blue", "blue", " blue "], tz)
+        self.assertExcelRow(sheet_contacts, 1, [contact1_run1.contact.uuid, "+250788382382", "erictweets", "", "Eric",
+                                                "Devs", "36", c1_run1_first, c1_run2_last, "Blue",
+                                                "blue", " blue "], tz)
 
-        self.assertExcelRow(sheet_contacts, 2, [contact2_run1.contact.uuid, "+250788383383", "Nic", "", "",
-                                                c2_run1_first, c2_run1_last, "Other", "green", "green"], tz)
+        self.assertExcelRow(sheet_contacts, 2, [contact2_run1.contact.uuid, "+250788383383", "", "", "Nic",
+                                                "", "", c2_run1_first, c2_run1_last, "Other", "green", "green"], tz)
 
         # check runs sheet...
         self.assertEqual(len(list(sheet_runs.rows)), 4)  # header + 3 runs
-        self.assertEqual(len(list(sheet_runs.columns)), 10)
+        self.assertEqual(len(list(sheet_runs.columns)), 12)
 
-        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Name", "Groups", "Age",
+        self.assertExcelRow(sheet_runs, 0, ["Contact UUID", "URN", "Twitter", "Line", "Name", "Groups", "Age",
                                             "First Seen", "Last Seen",
                                             "color (Category) - Color Flow",
                                             "color (Value) - Color Flow",
                                             "color (Text) - Color Flow"])
 
-        self.assertExcelRow(sheet_runs, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "Devs", "36",
-                                            c1_run1_first, c1_run1_last, "Orange", "orange", "orange"], tz)
+        self.assertExcelRow(sheet_runs, 1, [contact1_run1.contact.uuid, "+250788382382", "erictweets", "", "Eric",
+                                            "Devs", "36", c1_run1_first, c1_run1_last, "Orange", "orange",
+                                            "orange"], tz)
 
     def test_export_results_list_messages_once(self):
         contact1_run1 = self.flow.start([], [self.contact])[0]
@@ -4409,7 +4413,7 @@ class SimulationTest(FlowFileTest):
     def test_ussd_simulation_session_end(self):
         self.ussd_channel = Channel.create(
             self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
-            scheme='tel', uuid='00000000-0000-0000-0000-000000002222',
+            schemes=['tel'], uuid='00000000-0000-0000-0000-000000002222',
             role=Channel.ROLE_USSD)
 
         flow = self.get_flow('ussd_session_end')
@@ -5594,11 +5598,16 @@ class FlowsTest(FlowFileTest):
             self.assertTrue(FlowRun.objects.filter(flow=child, contact=contact))
             self.assertEquals("Greg", Contact.objects.get(pk=contact.pk).name)
 
-        # 10 of the runs should be completed (parent runs)
-        self.assertEqual(FlowRun.objects.filter(flow=parent, is_active=False, exit_type=FlowRun.EXIT_TYPE_COMPLETED).count(), 10)
-
-        # 10 should be active waiting for input
+        # 10 child flow runs should be active waiting for input
         self.assertEqual(FlowRun.objects.filter(flow=child, is_active=True).count(), 10)
+
+        # send some input to complete the child flows
+        for contact in contacts:
+            msg = self.create_msg(contact=contact, direction='I', text="OK", channel=self.channel)
+            msg.handle()
+
+        # all of the runs should now be completed
+        self.assertEqual(FlowRun.objects.filter(is_active=False, exit_type=FlowRun.EXIT_TYPE_COMPLETED).count(), 20)
 
     def test_cross_language_import(self):
         spanish = Language.create(self.org, self.admin, "Spanish", 'spa')
@@ -5973,6 +5982,26 @@ class FlowsTest(FlowFileTest):
         self.assertEqual('radio', msgs[7].text)
         self.assertEqual('Welcome message.', msgs[8].text)
         self.assertEqual('Have you heard of show X? Yes or No?', msgs[9].text)
+
+    def test_trigger_flow_complete(self):
+        contact2 = self.create_contact(name='Jason Tatum', number='+250788123123')
+
+        self.get_flow('trigger_flow_complete', dict(contact2_uuid=contact2.uuid))
+
+        parent = Flow.objects.get(org=self.org, name='Flow A')
+
+        parent.start(groups=[], contacts=[self.contact], restart_participants=True)
+
+        self.assertEqual(1, FlowRun.objects.filter(contact=self.contact).count())
+        self.assertEqual(1, FlowRun.objects.filter(contact=contact2).count())
+
+        run1 = FlowRun.objects.filter(contact=self.contact).first()
+        run2 = FlowRun.objects.filter(contact=contact2).first()
+
+        self.assertEqual(run1.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+        self.assertFalse(run1.is_active)
+
+        self.assertEqual(run2.parent.id, run1.id)
 
     def test_translations_rule_first(self):
 
@@ -7157,7 +7186,7 @@ class OrderingTest(FlowFileTest):
         self.contact2 = self.create_contact('Ryan Lewis', '+12065552121')
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', scheme='tel',
+        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', schemes=['tel'],
                                       config=dict(send_url='https://google.com'))
 
     def tearDown(self):
@@ -7552,7 +7581,7 @@ class StackedExitsTest(FlowFileTest):
         super(StackedExitsTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', scheme='tel',
+        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', schemes=['tel'],
                                       config=dict(send_url='https://google.com'))
 
     def test_stacked_exits(self):
@@ -7628,7 +7657,7 @@ class ParentChildOrderingTest(FlowFileTest):
     def setUp(self):
         super(ParentChildOrderingTest, self).setUp()
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', scheme='tel',
+        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', schemes=['tel'],
                                       config=dict(send_url='https://google.com'))
 
     def test_parent_child_ordering(self):
@@ -7651,7 +7680,7 @@ class AndroidChildStatus(FlowFileTest):
     def setUp(self):
         super(AndroidChildStatus, self).setUp()
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', 'A', None, '+250788123123', scheme='tel')
+        self.channel = Channel.create(self.org, self.user, 'RW', 'A', None, '+250788123123', schemes=['tel'])
 
     def test_split_first(self):
         self.get_flow('split_first_child_msg')
@@ -7679,11 +7708,11 @@ class FlowChannelSelectionTest(FlowFileTest):
         self.channel.delete()
         self.sms_channel = Channel.create(
             self.org, self.user, 'RW', Channel.TYPE_JUNEBUG, None, '+250788123123',
-            scheme='tel', uuid='00000000-0000-0000-0000-000000001111',
+            schemes=['tel'], uuid='00000000-0000-0000-0000-000000001111',
             role=Channel.DEFAULT_ROLE)
         self.ussd_channel = Channel.create(
             self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
-            scheme='tel', uuid='00000000-0000-0000-0000-000000002222',
+            schemes=['tel'], uuid='00000000-0000-0000-0000-000000002222',
             role=Channel.ROLE_USSD)
 
     def test_sms_channel_selection(self):

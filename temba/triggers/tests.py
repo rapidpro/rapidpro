@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import six
 import time
 import json
 from uuid import uuid4
@@ -600,7 +601,7 @@ class TriggerTest(TembaTest):
 
         self.assertFalse(missed_call_trigger)
 
-        ChannelEvent.create(self.channel, contact.get_urn(TEL_SCHEME).urn, ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
+        ChannelEvent.create(self.channel, six.text_type(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
         self.assertEqual(ChannelEvent.objects.all().count(), 1)
         self.assertEqual(flow.runs.all().count(), 0)
 
@@ -621,7 +622,7 @@ class TriggerTest(TembaTest):
 
         self.assertEquals(missed_call_trigger.pk, trigger.pk)
 
-        ChannelEvent.create(self.channel, contact.get_urn(TEL_SCHEME).urn, ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
+        ChannelEvent.create(self.channel, six.text_type(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
         self.assertEqual(ChannelEvent.objects.all().count(), 2)
         self.assertEqual(flow.runs.all().count(), 1)
         self.assertEqual(flow.runs.all()[0].contact.pk, contact.pk)
@@ -701,6 +702,16 @@ class TriggerTest(TembaTest):
                                     data=dict(channel=viber_channel.id, flow=flow2.id))
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response, 'form', 'channel', 'Trigger with this Channel already exists.')
+
+        # try to change the existing trigger
+        response = self.client.post(reverse('triggers.trigger_update', args=[trigger.id]),
+                                    data=dict(id=trigger.id, flow=flow2.id, channel=viber_channel.id),
+                                    follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        trigger.refresh_from_db()
+        self.assertEqual(flow2, trigger.flow)
+        self.assertEqual(viber_channel, trigger.channel)
 
     @override_settings(IS_PROD=True)
     @patch('requests.post')
@@ -807,7 +818,7 @@ class TriggerTest(TembaTest):
 
         self.assertFalse(catch_all_trigger)
 
-        Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
+        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hi")
         self.assertEquals(1, Msg.objects.all().count())
         self.assertEquals(0, flow.runs.all().count())
 
@@ -828,7 +839,7 @@ class TriggerTest(TembaTest):
 
         self.assertEquals(catch_all_trigger.pk, trigger.pk)
 
-        incoming = Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
+        incoming = Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hi")
         self.assertEquals(1, flow.runs.all().count())
         self.assertEquals(flow.runs.all()[0].contact.pk, contact.pk)
         reply = Msg.objects.get(response_to=incoming)
@@ -897,7 +908,7 @@ class TriggerTest(TembaTest):
         FlowRun.objects.all().delete()
         Msg.objects.all().delete()
 
-        incoming = Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
+        incoming = Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hi")
         self.assertEquals(0, FlowRun.objects.all().count())
         self.assertFalse(Msg.objects.filter(response_to=incoming))
 
@@ -905,7 +916,7 @@ class TriggerTest(TembaTest):
         group.contacts.add(contact)
 
         # this time should trigger the flow
-        incoming = Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
+        incoming = Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hi")
         self.assertEquals(1, FlowRun.objects.all().count())
         self.assertEquals(other_flow.runs.all()[0].contact.pk, contact.pk)
         reply = Msg.objects.get(response_to=incoming)

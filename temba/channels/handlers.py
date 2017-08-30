@@ -507,7 +507,7 @@ class ExternalHandler(BaseChannelHandler):
                 except ValueError as e:
                     return HttpResponse("Bad parameter error: %s" % e.message, status=400)
 
-            urn = URN.from_parts(channel.scheme, sender)
+            urn = URN.from_parts(channel.schemes[0], sender)
             sms = Msg.create_incoming(channel, urn, text, date=date)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
@@ -684,12 +684,15 @@ class InfobipHandler(BaseChannelHandler):
     url = r'^infobip/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.infobip_handler'
 
+    def get_channel_type(self):
+        return 'IB'
+
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_INFOBIP).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -738,7 +741,7 @@ class InfobipHandler(BaseChannelHandler):
         if sender is None or text is None or receiver is None:  # pragma: needs cover
             return HttpResponse("Missing parameters, must have 'sender', 'text' and 'receiver'", status=400)
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_INFOBIP).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -2528,7 +2531,7 @@ class GlobeHandler(BaseChannelHandler):
                     return HttpResponse("Missing one of dateTime, senderAddress, message, messageId or destinationAddress in message", status=400)
 
                 try:
-                    scheme, destination = URN.to_parts(inbound_msg['destinationAddress'])
+                    scheme, destination, display = URN.to_parts(inbound_msg['destinationAddress'])
                 except ValueError as v:
                     return HttpResponse("Error parsing destination address: " + str(v), status=400)
 
@@ -2538,7 +2541,7 @@ class GlobeHandler(BaseChannelHandler):
 
                 # parse our sender address out, it is a URN looking thing
                 try:
-                    scheme, sender_tel = URN.to_parts(inbound_msg['senderAddress'])
+                    scheme, sender_tel, display = URN.to_parts(inbound_msg['senderAddress'])
                 except ValueError as v:
                     return HttpResponse("Error parsing sender address: " + str(v), status=400)
 
@@ -2976,7 +2979,7 @@ class TwitterHandler(BaseChannelHandler):
                 if int(sender_id) == channel_config['handle_id']:
                     continue
 
-                urn = URN.from_twitter(users[sender_id]['screen_name'])
+                urn = URN.from_twitterid(users[sender_id]['id'], users[sender_id]['screen_name'])
                 name = None if channel.org.is_anon else users[sender_id]['name']
                 contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
 

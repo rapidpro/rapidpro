@@ -5,9 +5,10 @@ import json
 from django.conf import settings
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
-from temba.contacts.models import TWITTER_SCHEME
+from temba.contacts.models import TWITTER_SCHEME, TWITTERID_SCHEME
 from temba.utils.twitter import TembaTwython
 from .views import ClaimView
+from .tasks import resolve_twitter_ids
 from ...models import Channel, ChannelType
 
 
@@ -25,9 +26,13 @@ class TwitterActivityType(ChannelType):
     Activity API</a> which is currently in beta, you can add a Twitter channel for that here.""")
     claim_view = ClaimView
 
-    scheme = TWITTER_SCHEME
+    schemes = [TWITTER_SCHEME, TWITTERID_SCHEME]
     show_config_page = False
     free_sending = True
+
+    def setup_periodic_tasks(self, sender):
+        # automatically try to resolve any missing twitter ids every 15 minutes
+        sender.add_periodic_task(900, resolve_twitter_ids)
 
     def is_available_to(self, user):
         return user.is_beta()

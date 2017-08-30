@@ -9,6 +9,7 @@ import pytz
 import regex
 import six
 import time
+import uuid
 
 from collections import defaultdict
 from django.core.exceptions import ValidationError
@@ -50,6 +51,7 @@ TEL_SCHEME = 'tel'
 TELEGRAM_SCHEME = 'telegram'
 TWILIO_SCHEME = 'twilio'
 TWITTER_SCHEME = 'twitter'
+TWITTERID_SCHEME = 'twitterid'
 VIBER_SCHEME = 'viber'
 FCM_SCHEME = 'fcm'
 
@@ -59,6 +61,7 @@ FACEBOOK_PATH_REF_PREFIX = 'ref:'
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (FACEBOOK_SCHEME, _("Facebook identifier"), 'facebook', FACEBOOK_SCHEME),
                      (TWITTER_SCHEME, _("Twitter handle"), 'twitter', TWITTER_SCHEME),
+                     (TWITTERID_SCHEME, _("Twitter ID"), 'twitterid', TWITTERID_SCHEME),
                      (VIBER_SCHEME, _("Viber identifier"), 'viber', VIBER_SCHEME),
                      (LINE_SCHEME, _("LINE identifier"), 'line', LINE_SCHEME),
                      (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
@@ -85,7 +88,7 @@ class URN(object):
         raise ValueError("Class shouldn't be instantiated")
 
     @classmethod
-    def from_parts(cls, scheme, path):
+    def from_parts(cls, scheme, path, display=None):
         """
         Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
         """
@@ -95,7 +98,10 @@ class URN(object):
         if not path:
             raise ValueError("Invalid path component: '%s'" % path)
 
-        return '%s:%s' % (scheme, path)
+        if display:
+            return '%s:%s#%s' % (scheme, path, display)
+        else:
+            return '%s:%s' % (scheme, path)
 
     @classmethod
     def to_parts(cls, urn):
@@ -113,7 +119,13 @@ class URN(object):
         if not path:
             raise ValueError("URN contains an invalid path component: '%s'" % path)
 
-        return scheme, path
+        path_parts = path.split("#")
+        display = None
+        if len(path_parts) > 1:
+            path = path_parts[0]
+            display = path_parts[1]
+
+        return scheme, path, display
 
     @classmethod
     def validate(cls, urn, country_code=None):
@@ -121,7 +133,7 @@ class URN(object):
         Validates a normalized URN
         """
         try:
-            scheme, path = cls.to_parts(urn)
+            scheme, path, display = cls.to_parts(urn)
         except ValueError:
             return False
 
@@ -135,6 +147,14 @@ class URN(object):
         # validate twitter URNs look like handles
         elif scheme == TWITTER_SCHEME:
             return regex.match(r'^[a-zA-Z0-9_]{1,15}$', path, regex.V0)
+
+        # validate path is a number and display is a handle if present
+        elif scheme == TWITTERID_SCHEME:
+            valid = path.isdigit()
+            if valid and display:
+                valid = regex.match(r'^[a-zA-Z0-9_]{1,15}$', display, regex.V0)
+
+            return valid
 
         elif scheme == EMAIL_SCHEME:
             try:
@@ -177,7 +197,7 @@ class URN(object):
         """
         Normalizes the path of a URN string. Should be called anytime looking for a URN match.
         """
-        scheme, path = cls.to_parts(urn)
+        scheme, path, display = cls.to_parts(urn)
 
         norm_path = six.text_type(path).strip()
 
@@ -188,10 +208,17 @@ class URN(object):
             if norm_path[0:1] == '@':  # strip @ prefix if provided
                 norm_path = norm_path[1:]
             norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
+
+        elif scheme == TWITTERID_SCHEME:
+            if display:
+                display = six.text_type(display).strip().lower()
+                if display and display[0] == '@':
+                    display = display[1:]
+
         elif scheme == EMAIL_SCHEME:
             norm_path = norm_path.lower()
 
-        return cls.from_parts(scheme, norm_path)
+        return cls.from_parts(scheme, norm_path, display)
 
     @classmethod
     def normalize_number(cls, number, country_code):
@@ -230,6 +257,11 @@ class URN(object):
         return regex.sub('[^0-9a-z]', '', number.lower(), regex.V0), False
 
     @classmethod
+    def identity(cls, urn):
+        scheme, path, display = URN.to_parts(urn)
+        return URN.from_parts(scheme, path)
+
+    @classmethod
     def fb_ref_from_path(cls, path):
         return path[len(FACEBOOK_PATH_REF_PREFIX):]
 
@@ -250,6 +282,10 @@ class URN(object):
     @classmethod
     def from_twitter(cls, path):
         return cls.from_parts(TWITTER_SCHEME, path)
+
+    @classmethod
+    def from_twitterid(cls, id, screen_name=None):
+        return cls.from_parts(TWITTERID_SCHEME, id, screen_name)
 
     @classmethod
     def from_email(cls, path):
@@ -291,6 +327,8 @@ class ContactField(SmartModel):
     """
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
+
+    uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="contactfields")
 
@@ -823,14 +861,15 @@ class Contact(TembaModel):
             # if contact already exists try to figured if it has all the urn to skip the lock
             if contact:
                 contact_has_all_urns = True
-                contact_urns = set(contact.get_urns().values_list('urn', flat=True))
+                contact_urns = set(contact.get_urns().values_list('identity', flat=True))
                 if len(urns) <= len(contact_urns):
                     for urn in urns:
                         normalized = URN.normalize(urn, country)
-                        if normalized not in contact_urns:
+                        identity = URN.identity(normalized)
+                        if identity not in contact_urns:
                             contact_has_all_urns = False
 
-                        existing_urn = ContactURN.lookup(org, normalized, normalize=False)
+                        existing_urn = ContactURN.lookup(org, normalized, country_code=country, normalize=False)
                         if existing_urn and auth:
                             ContactURN.update_auth(existing_urn, auth)
 
@@ -863,7 +902,7 @@ class Contact(TembaModel):
             urns_to_create = dict()
             for urn in urns:
                 normalized = URN.normalize(urn, country)
-                existing_urn = ContactURN.lookup(org, normalized, normalize=False)
+                existing_urn = ContactURN.lookup(org, normalized, normalize=False, country_code=country)
 
                 if existing_urn:
                     if existing_urn.contact and not force_urn_update:
@@ -934,7 +973,7 @@ class Contact(TembaModel):
             # assign them property names with added count
             urns_for_scheme_counts = defaultdict(int)
             for urn in urn_objects.keys():
-                scheme, path = URN.to_parts(urn)
+                scheme, path, display = URN.to_parts(urn)
                 urns_for_scheme_counts[scheme] += 1
                 params["%s%d" % (scheme, urns_for_scheme_counts[scheme])] = path
 
@@ -1564,6 +1603,10 @@ class Contact(TembaModel):
         for scheme, label in ContactURN.SCHEME_CHOICES:
             context[scheme] = self.get_urn_display(scheme=scheme, org=org) or ''
 
+        # populate twitter address if we have a twitter id
+        if context[TWITTERID_SCHEME] and not context[TWITTER_SCHEME]:
+            context[TWITTER_SCHEME] = context[TWITTERID_SCHEME]
+
         field_values = Value.objects.filter(contact=self).exclude(contact_field=None)\
                                                          .exclude(contact_field__is_active=False)\
                                                          .select_related('contact_field')
@@ -1610,17 +1653,17 @@ class Contact(TembaModel):
         urns = self.get_urns()
 
         # make sure all urns of the same scheme use this channel (only do this for TEL, others are channel specific)
-        if channel.scheme == TEL_SCHEME:
+        if TEL_SCHEME in channel.schemes:
             for urn in urns:
-                if urn.scheme == channel.scheme and urn.channel_id != channel.id:
+                if urn.scheme in channel.schemes and urn.channel_id != channel.id:
                     urn.channel = channel
                     urn.save(update_fields=['channel'])
 
         # if our scheme isn't the highest priority
-        if urns and urns[0].scheme != channel.scheme:
+        if urns and urns[0].scheme not in channel.schemes:
             # update the highest URN of the right scheme to be highest
             for urn in urns[1:]:
-                if urn.scheme == channel.scheme:
+                if urn.scheme in channel.schemes:
                     urn.priority = urns[0].priority + 1
                     urn.save(update_fields=['priority'])
 
@@ -1689,7 +1732,8 @@ class Contact(TembaModel):
 
             for urn_as_string in urns:
                 normalized = URN.normalize(urn_as_string, country)
-                urn = ContactURN.objects.filter(org=self.org, urn=normalized).first()
+                urn = ContactURN.lookup(self.org, normalized)
+
                 if not urn:
                     urn = ContactURN.create(self.org, self, normalized, priority=priority)
                     urns_created.append(urn)
@@ -1720,7 +1764,7 @@ class Contact(TembaModel):
         self.save(update_fields=('modified_on', 'modified_by'))
 
         # trigger updates based all urns created or detached
-        self.handle_update(urns=[u.urn for u in (urns_created + urns_attached + urns_detached)])
+        self.handle_update(urns=[six.text_type(u) for u in (urns_created + urns_attached + urns_detached)])
 
         # clear URN cache
         if hasattr(self, '__urns'):
@@ -1850,7 +1894,7 @@ class ContactURN(models.Model):
     CONTEXT_KEYS_TO_LABEL = {c[3]: c[1] for c in URN_SCHEME_CONFIG}
     IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
 
-    SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME, JIOCHAT_SCHEME}  # schemes that support "follow" triggers
+    SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME, TWITTERID_SCHEME, JIOCHAT_SCHEME}  # schemes that support "follow" triggers
     # schemes that support "new conversation" triggers
     SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME}
     SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
@@ -1858,6 +1902,7 @@ class ContactURN(models.Model):
     EXPORT_FIELDS = {
         TEL_SCHEME: dict(label="Phone", key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
         TWITTER_SCHEME: dict(label="Twitter", key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
+        TWITTERID_SCHEME: dict(label="TwitterID", key=None, id=0, field=None, urn_scheme=TWITTERID_SCHEME),
         EXTERNAL_SCHEME: dict(label="External", key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
         EMAIL_SCHEME: dict(label="Email", key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
         TELEGRAM_SCHEME: dict(label="Telegram", key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
@@ -1865,14 +1910,21 @@ class ContactURN(models.Model):
         VIBER_SCHEME: dict(label="Viber", key=None, id=0, field=None, urn_scheme=VIBER_SCHEME),
         JIOCHAT_SCHEME: dict(label="Jiochat", key=None, id=0, field=None, urn_scheme=JIOCHAT_SCHEME),
         FCM_SCHEME: dict(label="FCM", key=None, id=0, field=None, urn_scheme=FCM_SCHEME),
+        LINE_SCHEME: dict(label='Line', key=None, id=0, field=None, urn_scheme=LINE_SCHEME),
     }
+
+    EXPORT_SCHEME_HEADERS = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
 
     PRIORITY_LOWEST = 1
     PRIORITY_STANDARD = 50
     PRIORITY_HIGHEST = 99
 
-    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90, FACEBOOK_SCHEME: 90, TELEGRAM_SCHEME: 90,
-                         VIBER_SCHEME: 90, FCM_SCHEME: 90}
+    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD,
+                         TWITTER_SCHEME: 90, TWITTERID_SCHEME: 90,
+                         FACEBOOK_SCHEME: 90,
+                         TELEGRAM_SCHEME: 90,
+                         VIBER_SCHEME: 90,
+                         FCM_SCHEME: 90}
 
     ANON_MASK = '*' * 8            # Returned instead of URN values for anon orgs
     ANON_MASK_HTML = '\u2022' * 8  # Pretty HTML version of anon mask
@@ -1880,11 +1932,14 @@ class ContactURN(models.Model):
     contact = models.ForeignKey(Contact, null=True, blank=True, related_name='urns',
                                 help_text="The contact that this URN is for, can be null")
 
-    urn = models.CharField(max_length=255, choices=SCHEME_CHOICES,
-                           help_text="The Universal Resource Name as a string. ex: tel:+250788383383")
+    identity = models.CharField(max_length=255,
+                                help_text="The Universal Resource Name as a string, excluding display if present. ex: tel:+250788383383")
 
     path = models.CharField(max_length=255,
                             help_text="The path component of our URN. ex: +250788383383")
+
+    display = models.CharField(max_length=255, null=True,
+                               help_text="The display component for this URN, if any")
 
     scheme = models.CharField(max_length=128,
                               help_text="The scheme for this URN, broken out for optimization reasons, ex: tel")
@@ -1913,13 +1968,14 @@ class ContactURN(models.Model):
 
     @classmethod
     def create(cls, org, contact, urn_as_string, channel=None, priority=None, auth=None):
-        scheme, path = URN.to_parts(urn_as_string)
+        scheme, path, display = URN.to_parts(urn_as_string)
+        urn_as_string = URN.from_parts(scheme, path)
 
         if not priority:
             priority = cls.PRIORITY_DEFAULTS.get(scheme, cls.PRIORITY_STANDARD)
 
-        return cls.objects.create(org=org, contact=contact, priority=priority, channel=channel,
-                                  scheme=scheme, path=path, urn=urn_as_string, auth=auth)
+        return cls.objects.create(org=org, contact=contact, priority=priority, channel=channel, auth=auth,
+                                  scheme=scheme, path=path, identity=urn_as_string, display=display)
 
     @classmethod
     def lookup(cls, org, urn_as_string, country_code=None, normalize=True):
@@ -1929,7 +1985,18 @@ class ContactURN(models.Model):
         if normalize:
             urn_as_string = URN.normalize(urn_as_string, country_code)
 
-        return cls.objects.filter(org=org, urn=urn_as_string).select_related('contact').first()
+        identity = URN.identity(urn_as_string)
+        (scheme, path, display) = URN.to_parts(urn_as_string)
+
+        existing = cls.objects.filter(org=org, identity=identity).select_related('contact').first()
+
+        # is this a TWITTER scheme? check TWITTERID scheme by looking up by display
+        if scheme == TWITTER_SCHEME:
+            twitterid_urn = cls.objects.filter(org=org, scheme=TWITTERID_SCHEME, display=path).select_related('contact').first()
+            if twitterid_urn:
+                return twitterid_urn
+
+        return existing
 
     def update_auth(self, auth):
         if auth and auth != self.auth:
@@ -1956,10 +2023,10 @@ class ContactURN(models.Model):
 
             # don't trounce existing contacts with that country code already
             norm_urn = URN.from_tel(norm_number)
-            if not ContactURN.objects.filter(urn=norm_urn, org_id=self.org_id).exclude(id=self.id):
-                self.urn = norm_urn
+            if not ContactURN.objects.filter(identity=norm_urn, org_id=self.org_id).exclude(id=self.id):
+                self.identity = norm_urn
                 self.path = norm_number
-                self.save()
+                self.save(update_fields=['identity', 'path'])
 
         return self
 
@@ -1997,13 +2064,26 @@ class ContactURN(models.Model):
             except Exception:  # pragma: no cover
                 pass
 
+        if self.display:
+            return self.display
+
         return self.path
 
+    @property
+    def urn(self):
+        """
+        Returns a full representation of this contact URN as a string
+        """
+        return URN.from_parts(self.scheme, self.path, self.display)
+
     def __str__(self):  # pragma: no cover
-        return self.urn
+        return URN.from_parts(self.scheme, self.path, self.display)
+
+    def __unicode__(self):  # pragma: no cover
+        return URN.from_parts(self.scheme, self.path, self.display)
 
     class Meta:
-        unique_together = ('urn', 'org')
+        unique_together = ('identity', 'org')
         ordering = ('-priority', 'id')
 
 
