@@ -879,7 +879,6 @@ class FlowCRUDL(SmartCRUDL):
                 dict(name='step', display=six.text_type(_('Sent to'))),
                 dict(name='step.value', display=six.text_type(_('Sent to')))
             ]
-            flow_variables += [dict(name='step.%s' % v['name'], display=v['display']) for v in contact_variables]
 
             parent_variables = [dict(name='parent.%s' % v['name'], display=v['display']) for v in contact_variables]
             parent_variables += [dict(name='parent.%s' % v['name'], display=v['display']) for v in flow_variables]
@@ -1450,8 +1449,8 @@ class FlowCRUDL(SmartCRUDL):
 
             if flow.flow_type == Flow.USSD:
                 for msg in messages:
-                    if msg.session.should_end:
-                        msg.session.close()
+                    if msg.connection.should_end:
+                        msg.connection.close()
 
                 # don't show the empty closing message on the simulator
                 messages = messages.exclude(text='', direction='O')

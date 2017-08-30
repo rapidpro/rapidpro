@@ -1,3 +1,7 @@
+v3.0.193
+----------
+ * Add flow session model and start creating instances for IVR and USSD channel sessions
+
 v3.0.192
 ----------
  * Allow empty contact names for surveyor submissions but make them null
