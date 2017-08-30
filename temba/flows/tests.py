@@ -1993,6 +1993,91 @@ class FlowTest(TembaTest):
         flow = Flow.objects.get(name='Survey Flow')
         self.assertEqual(flow.triggers.all().count(), 0)
 
+    def test_flow_create_with_ussd_trigger(self):
+        self.login(self.admin)
+
+        post_data = dict()
+        post_data['name'] = "USSD Flow 1"
+        post_data['ussd_trigger'] = "notallowed"
+        post_data['flow_type'] = Flow.USSD
+        response = self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+
+        self.assertEqual(response.context_data['form'].errors,
+                         {u'ussd_trigger': [u'USSD code must contain only *,# and numbers']})
+
+        post_data['ussd_trigger'] = "*111#"
+        self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+
+        self.assertEqual(Trigger.objects.count(), 1)
+
+        # try to add duplicate
+        response = self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+        self.assertEqual(response.context_data['form'].errors,
+                         {u'ussd_trigger': [u"An active trigger already uses this keyword on this channel."]})
+
+    def test_flow_update_with_ussd_trigger(self):
+        self.login(self.admin)
+
+        post_data = dict()
+        post_data['name'] = "USSD Flow 2"
+        post_data['ussd_trigger'] = "*112#"
+        post_data['flow_type'] = Flow.USSD
+        post_data['ussd_push_enabled'] = False
+        self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+
+        flow = Flow.objects.get(name="USSD Flow 2")
+        trigger = Trigger.objects.get(keyword="*112#")
+
+        # update ussd code
+        post_data['ussd_trigger'] = "*113#"
+        post_data['ussd_push_enabled'] = True
+        post_data['expires_after_minutes'] = 60 * 12
+        self.client.post(reverse('flows.flow_update', args=[flow.pk]), post_data, follow=True)
+
+        flow.refresh_from_db()
+        trigger.refresh_from_db()
+
+        self.assertTrue(flow.ussd_push_enabled)
+        self.assertEqual(trigger.keyword, "*113#")
+        self.assertFalse(Trigger.objects.filter(keyword="*112#").exists())
+        self.assertTrue(Trigger.objects.filter(keyword="*113#").exists())
+
+        # delete trigger
+        post_data['ussd_trigger'] = ""
+        post_data['ussd_push_enabled'] = True
+        post_data['expires_after_minutes'] = 60 * 12
+        self.client.post(reverse('flows.flow_update', args=[flow.pk]), post_data, follow=True)
+
+        flow.refresh_from_db()
+
+        self.assertTrue(flow.ussd_push_enabled)
+        self.assertFalse(Trigger.objects.filter(keyword="*112#").exists())
+        self.assertFalse(Trigger.objects.filter(keyword="*113#").exists())
+
+    def test_flow_create_on_update_ussd_trigger(self):
+        self.login(self.admin)
+
+        # create flow without trigger
+        post_data = dict()
+        post_data['name'] = "USSD Flow 2"
+        post_data['flow_type'] = Flow.USSD
+        post_data['ussd_push_enabled'] = False
+        self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+
+        flow = Flow.objects.get(name="USSD Flow 2")
+
+        post_data['ussd_trigger'] = "*112#"
+        post_data['ussd_push_enabled'] = True
+        post_data['expires_after_minutes'] = 60 * 12
+        self.client.post(reverse('flows.flow_update', args=[flow.pk]), post_data, follow=True)
+
+        flow.refresh_from_db()
+        trigger = Trigger.objects.get(keyword="*112#")
+
+        self.assertTrue(flow.ussd_push_enabled)
+        self.assertEqual(trigger.keyword, "*112#")
+        self.assertEqual(trigger.flow, flow)
+
     def test_flow_keyword_update(self):
         self.login(self.admin)
         flow = Flow.create(self.org, self.admin, "Flow")
@@ -6046,9 +6131,7 @@ class FlowsTest(FlowFileTest):
         USSDSession.handle_incoming(channel=self.channel, urn=self.contact.get_urn().path, date=timezone.now(),
                                     external_id="12341231", status=USSDSession.INTERRUPTED)
 
-        # as the example flow has an interrupt state connected to a valid destination,
-        # the flow will go on and reach the destination
-        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
+        self.assertTrue(FlowRun.objects.get(contact=self.contact).is_interrupted())
 
         # the contact should have been added to the "Interrupted" group as flow step describes
         contact = flow.get_results()[0]['contact']

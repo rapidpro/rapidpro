@@ -344,9 +344,16 @@ describe 'Services:', ->
         ruleConnection = flowService.isConnectionAllowed(ussdMenu, ussdResponse)
         expect(ruleConnection).toBeTruthy()
 
-      it 'should allow self loops', ->
+      it 'should not allow self loops', ->
+        window.ussd_push_enabled = false
+        ruleLoop = flowService.isConnectionAllowed(ussdMenu, ussdMenu)
+        expect(ruleLoop).toBeFalsy()
+
+      it 'should allow self loops in ussd push mode', ->
+        window.ussd_push_enabled = true
         ruleLoop = flowService.isConnectionAllowed(ussdMenu, ussdMenu)
         expect(ruleLoop).toBeTruthy()
+
 
     describe 'getFieldSelection()', ->
 

@@ -333,7 +333,7 @@ class UssdTriggerForm(BaseTriggerForm):
     """
     keyword = forms.CharField(max_length=32, required=True, label=_("USSD Code"),
                               help_text=_("USSD code to dial (eg: *111#)"))
-    channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("USSD Channel"), required=True)
+    channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("USSD Channel"), required=False)
 
     def __init__(self, user, *args, **kwargs):
         flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.USSD])

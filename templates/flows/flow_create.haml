@@ -6,15 +6,33 @@
 
   :javascript
     $(document).ready(function() {
-      // Don't show keywords when Surveyor is selected
-      $('#id_flow_type').on('change', function() {
-        var is_surveyor = $(this).attr('value') == 'S';
-        var triggers = $('#id_keyword_triggers').parents('.control-group')
-
-        if (is_surveyor) {
-          triggers.hide()
+      var triggers = $('#id_keyword_triggers').parents('.control-group');
+      var ussd_trigger = $('#id_ussd_trigger').parents('.control-group');
+      var ussd_push = $('#id_ussd_push_enabled').parents('.form-group');
+      var toggleUSSDSpecifics = function() {
+        var is_ussd = $('#id_flow_type').attr('value') === 'U';
+        // Only show ussd trigger and push option if it's a USSD flow
+        if (is_ussd) {
+          triggers.hide();
+          ussd_trigger.show();
+          ussd_push.show();
         } else {
-          triggers.show()
+          ussd_trigger.hide();
+          ussd_push.hide();
         }
+      };
+      $('#id_flow_type').on('change', function() {
+        var is_surveyor = $(this).attr('value') === 'S';
+        var is_ussd = $(this).attr('value') === 'U';
+
+        // Don't show keywords when Surveyor or USSD is selected
+        if (is_surveyor || is_ussd) {
+          triggers.hide();
+        } else {
+          triggers.show();
+        }
+        toggleUSSDSpecifics();
       });
+
+      toggleUSSDSpecifics();
     });
