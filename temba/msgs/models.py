@@ -410,6 +410,12 @@ class Broadcast(models.Model):
         preferred_languages = self.get_preferred_languages(contact, org)
         return Language.get_localized_text(self.media, preferred_languages)
 
+    def get_broadcast_metadata(self, metadata, contact):
+        if metadata:
+            return json.dumps(dict(quick_replies=self.get_translated_metadata(metadata, contact)))
+        else:
+            return None
+
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
              created_on=None, partial_recipients=None, run_map=None, metadata=None):
         """
@@ -473,10 +479,8 @@ class Broadcast(models.Model):
             # get the appropriate translation for this contact
             text = self.get_translated_text(contact)
 
-            if metadata:
-                _metadata = json.dumps(dict(quick_replies=self.get_translated_metadata(metadata, contact)))
-            else:
-                _metadata = None
+            # get the appropriate metadata translation for this contact
+            _metadata = self.get_broadcast_metadata(metadata, contact)
 
             media = self.get_translated_media(contact)
             if media:
@@ -1417,6 +1421,19 @@ class Msg(models.Model):
         return evaluate_template(text, context, url_encode, partial_vars)
 
     @classmethod
+    def get_outgoing_metadata(cls, metadata, message_context, contact, org):
+        metadata = json.loads(metadata)
+        quick_replies = metadata.get('quick_replies', None)
+        if quick_replies:
+            for reply in quick_replies:
+                (title, errors) = Msg.substitute_variables(reply.get('title', None), message_context,
+                                                           contact=contact, org=org)
+                if title:
+                    reply['title'] = title[:Msg.MAX_QUICK_REPLY_TITLE_LEN]
+
+        return json.dumps(metadata)
+
+    @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
                         metadata=None, attachments=None, topup_id=None, msg_type=INBOX, session=None):
@@ -1516,16 +1533,7 @@ class Msg(models.Model):
             analytics.gauge('temba.msg_outgoing_%s' % channel.channel_type.lower())
 
         if metadata:
-            metadata = json.loads(metadata)
-            quick_replies = metadata.get('quick_replies', None)
-            if quick_replies:
-                for reply in quick_replies:
-                    (title, errors) = Msg.substitute_variables(reply.get('title', None), message_context,
-                                                               contact=contact, org=org)
-                    if title:
-                        reply['title'] = title[:Msg.MAX_QUICK_REPLY_TITLE_LEN]
-
-            metadata = json.dumps(metadata)
+            metadata = Msg.get_outgoing_metadata(metadata, message_context, contact, org)
 
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,
