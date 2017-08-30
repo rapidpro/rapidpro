@@ -288,9 +288,9 @@ def handle_event_task():
     messages that need to be handled.
 
     Currently three types of events may be "popped" from our queue:
-           msg   - Which contains the id of the Msg to be processed
-          fire   - Which contains the id of the EventFire that needs to be fired
-       timeout   - Which contains a run that timed out and needs to be resumed
+             msg - Which contains the id of the Msg to be processed
+            fire - Which contains the id of the EventFire that needs to be fired
+         timeout - Which contains a run that timed out and needs to be resumed
     stop_contact - Which contains the contact id to stop
     """
     # pop off the next task
