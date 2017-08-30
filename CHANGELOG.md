@@ -1,3 +1,7 @@
+v3.0.195
+----------
+ * Tweaks to allow message handling straight from courier
+
 v3.0.193
 ----------
  * Add flow session model and start creating instances for IVR and USSD channel sessions
