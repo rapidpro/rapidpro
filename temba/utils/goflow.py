@@ -11,52 +11,90 @@ from mptt.utils import get_cached_trees
 from temba.utils import datetime_to_str
 
 
-class FlowServerException(Exception):
-    pass
-
-
-def migrate_flow_with_dependencies(flow, extra_flows=(), strip_ui=True):
+def serialize_flow(flow, strip_ui=True):
     """
-    Migrates the given flow with its dependencies, returning [] if the flow or any of its dependencies can't be run in
+    Migrates the given flow, returning None if the flow or any of its dependencies can't be run in
     goflow because of unsupported features.
     """
     from temba.contacts.models import ContactField, ContactURN
-    from temba.flows.models import Flow, get_flow_user
+    from temba.flows.models import get_flow_user
 
-    legacy_flows = flow.org.resolve_dependencies([flow], [], False)
+    flow_def = flow.as_json(expand_contacts=True)
 
-    for extra_flow in extra_flows:
-        if extra_flow not in legacy_flows:
-            legacy_flows.add(extra_flow)
+    # contact fields need to have UUIDs in the new world
+    for actionset in flow_def.get('action_sets', []):
+        for action in actionset.get('actions', []):
+            if action['type'] == 'save':
+                field_key = action['field']
+                if field_key in ('name', 'first_name', 'tel_e164') or field_key in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
+                    continue
 
-    legacy_flow_defs = []
-    for flow in legacy_flows:
-        # if any flow can't be run in goflow, bail
-        if not flow.is_runnable_in_goflow() or flow.flow_type not in (Flow.MESSAGE, Flow.FLOW):
-            return []
+                field = ContactField.get_or_create(flow.org, get_flow_user(flow.org), field_key)
+                action['field_uuid'] = str(field.uuid)
 
-        flow_def = flow.as_json(expand_contacts=True)
-
-        # contact fields need to have UUIDs in the new world
-        for actionset in flow_def.get('action_sets', []):
-            for action in actionset.get('actions', []):
-                if action['type'] == 'save':
-                    field_key = action['field']
-                    if field_key in ('name', 'first_name', 'tel_e164') or field_key in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
-                        continue
-
-                    field = ContactField.get_or_create(flow.org, get_flow_user(flow.org), field_key)
-                    action['field_uuid'] = str(field.uuid)
-
-        legacy_flow_defs.append(flow_def)
-
-    migrated_flow_defs = get_client().migrate({'flows': legacy_flow_defs})
+    migrated_flow_def = get_client().migrate({'flows': [flow_def]})[0]
 
     if strip_ui:
-        for migrated_flow_def in migrated_flow_defs:
-            del migrated_flow_def['_ui']
+        del migrated_flow_def['_ui']
 
-    return migrated_flow_defs
+    return migrated_flow_def
+
+
+def serialize_channel(channel):
+    return {
+        'uuid': channel.uuid,
+        'name': six.text_type(channel.get_name()),
+        'type': channel.channel_type,
+        'address': channel.address
+    }
+
+
+def serialize_group(group):
+    return {'uuid': group.uuid, 'name': group.name}
+
+
+def serialize_country(org):
+    """
+    Serializes country data for the given org, e.g.
+    {
+        "name": "Rwanda",
+        "children": [
+            {
+                "name": "Kigali City",
+                "children": [
+                    {
+                        "name": "Nyarugenge",
+                        "children": []
+                    }
+                ]
+            },
+            ...
+    """
+    from temba.locations.models import BoundaryAlias
+
+    if not org.country:
+        return
+
+    queryset = org.country.get_descendants(include_self=True)
+    queryset = queryset.prefetch_related(
+        Prefetch('aliases', queryset=BoundaryAlias.objects.filter(org=org)),
+    )
+
+    def _serialize_node(node):
+        names = [node.name]
+        for alias in node.aliases.all():
+            names.append(alias.name)
+
+        rendered = {'names': names}
+
+        children = node.get_children()
+        if children:
+            rendered['children'] = []
+            for child in node.get_children():
+                rendered['children'].append(_serialize_node(child))
+        return rendered
+
+    return [_serialize_node(node) for node in get_cached_trees(queryset)][0]
 
 
 class RequestBuilder(object):
@@ -64,73 +102,20 @@ class RequestBuilder(object):
         self.client = client
         self.request = {'assets': [], 'events': []}
 
-    def include_flows(self, flows):
-        def as_asset(f):
-            return {'type': "flow", 'content': f, 'url': "http://rpd.io/todo"}
-
-        self.request['assets'].extend([as_asset(flow) for flow in flows])
+    def include_flow(self, flow):
+        self.request['assets'].append({
+            'type': "flow",
+            'url': get_assets_url(flow.org, 'flow', str(flow.uuid)),
+            'content': serialize_flow(flow)
+        })
         return self
 
-    def include_channels(self, channels):
-        def as_asset(c):
-            return {
-                'type': "channel",
-                'content': {
-                    'uuid': c.uuid,
-                    'name': six.text_type(c.get_name()),
-                    'type': c.channel_type,
-                    'address': c.address
-                },
-                'url': "http://rpd.io/todo"
-            }
-
-        self.request['assets'].extend([as_asset(ch) for ch in channels])
-        return self
-
-    def include_locations(self, org):
-        """
-        Adds country data for the given org as a single location_set asset. e.g.
-        {
-            "type": "location_set",
-            "content": {
-                "name": "Rwanda",
-                "children": [
-                    {
-                        "name": "Kigali City",
-                        "children": [
-                            {
-                                "name": "Nyarugenge",
-                                "children": []
-                            }
-                        ]
-                    },
-                    ...
-        """
-        from temba.locations.models import BoundaryAlias
-
-        if not org.country:
-            return
-
-        queryset = org.country.get_descendants(include_self=True)
-        queryset = queryset.prefetch_related(
-            Prefetch('aliases', queryset=BoundaryAlias.objects.filter(org=org)),
-        )
-
-        def _serialize_node(node):
-            names = [node.name]
-            for alias in node.aliases.all():
-                names.append(alias.name)
-
-            rendered = {'names': names}
-
-            children = node.get_children()
-            if children:
-                rendered['children'] = []
-                for child in node.get_children():
-                    rendered['children'].append(_serialize_node(child))
-            return rendered
-
-        self.request['assets']['location_sets'] = [_serialize_node(node) for node in get_cached_trees(queryset)]
+    def include_channel(self, channel):
+        self.request['assets'].append({
+            'type': "channel",
+            'url': get_assets_url(channel.org, 'channel', str(channel.uuid)),
+            'content': serialize_channel(channel)
+        })
         return self
 
     def set_environment(self, org):
@@ -163,14 +148,7 @@ class RequestBuilder(object):
 
         _contact, contact_urn = Msg.resolve_recipient(contact.org, None, contact, None)
 
-        # only populate channel if this contact can actually be reached (ie, has a URN)
-        channel_uuid = None
-        if contact_urn:
-            channel = contact.org.get_send_channel(contact_urn=contact_urn)
-            if channel:
-                channel_uuid = channel.uuid
-
-        self.request['events'].append({
+        event = {
             'type': "set_contact",
             'created_on': datetime_to_str(now()),
             'contact': {
@@ -180,10 +158,17 @@ class RequestBuilder(object):
                 'groups': [{"uuid": group.uuid, "name": group.name} for group in contact.user_groups.all()],
                 'timezone': "UTC",
                 'language': contact.language,
-                'fields': field_values,
-                'channel_uuid': channel_uuid
+                'fields': field_values
             }
-        })
+        }
+
+        # only populate channel if this contact can actually be reached (ie, has a URN)
+        if contact_urn:
+            channel = contact.org.get_send_channel(contact_urn=contact_urn)
+            if channel:
+                event['contact']['channel_uuid'] = channel.uuid
+
+        self.request['events'].append(event)
         return self
 
     def set_extra(self, extra):
@@ -195,24 +180,21 @@ class RequestBuilder(object):
         return self
 
     def msg_received(self, msg):
-        urn = None
-        if msg.contact_urn:
-            urn = msg.contact_urn.urn
-
-        # simulation doesn't have a channel
-        channel_uuid = None
-        if msg.channel:
-            channel_uuid = str(msg.channel.uuid)
-
-        self.request['events'].append({
+        event = {
             'type': "msg_received",
             'created_on': datetime_to_str(msg.created_on),
-            'urn': urn,
             'text': msg.text,
-            'attachments': msg.attachments or [],
             'contact_uuid': str(msg.contact.uuid),
-            'channel_uuid': channel_uuid
-        })
+
+        }
+        if msg.contact_urn:
+            event['urn'] = msg.contact_urn.urn
+        if msg.channel:
+            event['channel_uuid'] = str(msg.channel.uuid)
+        if msg.attachments:
+            event['attachments'] = msg.attachments
+
+        self.request['events'].append(event)
         return self
 
     def run_expired(self, run):
@@ -223,8 +205,9 @@ class RequestBuilder(object):
         })
         return self
 
-    def start(self, flow):
+    def start(self, flow, assets_url):
         self.request['flow_uuid'] = str(flow.uuid)
+        self.request['assets_url'] = assets_url
 
         return self.client.start(self.request)
 
@@ -252,6 +235,10 @@ class Output(object):
     @classmethod
     def from_json(cls, output_json):
         return cls(output_json['session'], [Output.LogEntry.from_json(e) for e in output_json.get('log', [])])
+
+
+class FlowServerException(Exception):
+    pass
 
 
 class FlowServerClient:
@@ -295,6 +282,19 @@ class FlowServerClient:
         response.raise_for_status()
 
         return resp_json
+
+
+def get_assets_url(org, asset_type=None, asset_uuid=None):
+    if settings.TESTING:
+        url = 'http://localhost:8000/flow_assets/%d' % org.id
+    else:
+        url = 'https://%s/flow_assets/%d' % (settings.HOSTNAME, org.id)
+
+    if asset_type:
+        url = url + '/' + asset_type
+    if asset_uuid:
+        url = url + '/' + asset_uuid
+    return url
 
 
 def get_client():
