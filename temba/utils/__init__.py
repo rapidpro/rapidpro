@@ -162,6 +162,14 @@ def json_date_to_datetime(date_str):
     return datetime.datetime.strptime(date_str, iso_format).replace(tzinfo=pytz.utc)
 
 
+def datetime_to_s(dt):
+    """
+    Converts a datetime to a fractional second epoch
+    """
+    seconds = calendar.timegm(dt.utctimetuple())
+    return seconds + dt.microsecond / float(100000)
+
+
 def datetime_to_ms(dt):
     """
     Converts a datetime to a millisecond accuracy timestamp
