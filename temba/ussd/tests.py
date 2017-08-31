@@ -968,3 +968,39 @@ class InfoBipUSSDTest(TembaTest):
             created_by=self.user, modified_by=self.user, org=self.org,
             trigger_type=Trigger.TYPE_USSD_PULL)
 
+    def test_start(self):
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'start'])
+
+        start_data = {
+            'msisdn': '+2347030767143',
+            'imsi': '8796df56as657',
+            'shortCode': self.starcode,
+            'ussdNodeId': 'testNodeId',
+            'text': 'auxiliary data that was sent when triggering the session',
+            'networkName': 'Orange',
+            'countryName': 'NG'
+        }
+
+        response = self.client.post(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        session = USSDSession.objects.get()
+
+        self.assertEqual(session.status, USSDSession.TRIGGERED)
+        self.assertTrue(session.runs.first().is_active)
+
+        msgs = session.msg_set.order_by('id').all()
+
+        # should have two messages, one for the trigger, one for the first menu
+        self.assertEqual(msgs.count(), 2)
+        self.assertEqual(msgs.first().text, '')
+        self.assertEqual(msgs.first().status, HANDLED)
+        self.assertEqual(msgs.last().text, u"What's up?\n1: Good\n2: Nada")
+        self.assertEqual(msgs.last().status, WIRED)
+
+        self.assertEqual(response.json()['responseExitCode'], 200)
+        self.assertEqual(response.json()['responseMessage'], '')
+        self.assertEqual(response.json()['shouldClose'], 'true' if session.should_end else 'false')
+        self.assertEqual(response.json()['ussdMenu'], msgs.last().text)
