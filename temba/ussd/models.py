@@ -131,7 +131,7 @@ class USSDSession(ChannelSession):
         if status == cls.TRIGGERED:
             trigger = Trigger.find_trigger_for_ussd_session(contact, starcode)
             if not trigger:
-                return False
+                return None, None
             defaults.update(dict(started_on=date, direction=cls.USSD_PULL, status=status))
 
         elif status == cls.INTERRUPTED:
