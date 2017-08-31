@@ -825,6 +825,12 @@ class InfobipUSSDHandler(BaseChannelHandler):
             'shouldClose': 'true' if msg.session.should_end else 'false',
             'ussdMenu': msg.text
         }
+
+        # mark msg as sent
+        msg.sent_on = timezone.now()
+        msg.status = WIRED
+        msg.save(update_fields=['status', 'sent_on'])
+
 class Hub9Handler(BaseChannelHandler):
 
     url = r'^hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
