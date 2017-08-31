@@ -835,6 +835,11 @@ class InfobipUSSDHandler(BaseChannelHandler):
             msg.session.close()
 
         return JsonResponse(response_data)
+
+    def put(self, request, *args, **kwargs):
+        return self.post(request, *args, **kwargs)
+
+
 class Hub9Handler(BaseChannelHandler):
 
     url = r'^hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
