@@ -1715,9 +1715,9 @@ class FlowAssets(View):
     """
     Flow assets endpoint used by goflow engine and standalone flow editor. For example:
 
-    /flow_assets/123/flow/0a9f4ddd-895d-4c64-917e-b004fb048306/     -> the flow with that UUID in org #123
-    /flow_assets/123/channel/b432261a-7117-4885-8815-8f04e7a15779/  -> the channel with that UUID in org #123
-    /flow_assets/123/group/                                         -> all groups for org #123
+    /flow_assets/123/xyz/flow/0a9f4ddd-895d-4c64-917e-b004fb048306/     -> the flow with that UUID in org #123
+    /flow_assets/123/xyz/channel/b432261a-7117-4885-8815-8f04e7a15779/  -> the channel with that UUID in org #123
+    /flow_assets/123/xyz/group/                                         -> all groups for org #123
 
     TODO authentication
     """

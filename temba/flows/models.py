@@ -175,17 +175,20 @@ class FlowSession(models.Model):
 
         client = goflow.get_client()
 
+        asset_timestamp = int(time.time() * 1000000)
+
         runs = []
         for contact in contacts:
             # build request to flow server
-            request = client.request_builder() \
+            request = client.request_builder(asset_timestamp) \
                 .asset_urls(flow.org)\
                 .set_environment(flow.org)\
                 .set_contact(contact)
 
             # if we're testing we need to include all assets with the request
             if settings.TESTING:
-                request = request.include_flow(flow)
+                for f in flow.org.flows.filter(is_active=True):
+                    request = request.include_flow(f)
                 for channel in flow.org.channels.filter(is_active=True):
                     request = request.include_channel(channel)
 
@@ -227,9 +230,12 @@ class FlowSession(models.Model):
         client = goflow.get_client()
 
         # build request to flow server
-        request = client.request_builder().asset_urls(self.org)
+        asset_timestamp = int(time.time() * 1000000)
+        request = client.request_builder(asset_timestamp).asset_urls(self.org)
 
         if settings.TESTING:
+            for f in self.org.flows.filter(is_active=True):
+                request = request.include_flow(f)
             for channel in self.org.channels.filter(is_active=True):
                 request = request.include_channel(channel)
 
@@ -2335,7 +2341,7 @@ class Flow(TembaModel):
                 print("[GOFLOW] won't run flow due to unsupported type: %s" % flow.flow_type)
                 return False
 
-            features = flag_to_features(self.feature_flag)
+            features = flag_to_features(flow.feature_flag)
             unsupported = [f for f in features if f not in GOFLOW_FEATURES]
             if unsupported:
                 print("[GOFLOW] won't run flow due to unsupported features: %s" % ', '.join(unsupported))

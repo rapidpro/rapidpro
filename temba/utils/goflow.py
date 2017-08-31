@@ -98,14 +98,15 @@ def serialize_country(org):
 
 
 class RequestBuilder(object):
-    def __init__(self, client):
+    def __init__(self, client, asset_timestamp):
         self.client = client
+        self.asset_timestamp = asset_timestamp
         self.request = {'assets': [], 'events': []}
 
     def include_flow(self, flow):
         self.request['assets'].append({
             'type': "flow",
-            'url': get_assets_url(flow.org, 'flow', str(flow.uuid)),
+            'url': get_assets_url(flow.org, self.asset_timestamp, 'flow', str(flow.uuid)),
             'content': serialize_flow(flow)
         })
         return self
@@ -113,7 +114,7 @@ class RequestBuilder(object):
     def include_channel(self, channel):
         self.request['assets'].append({
             'type': "channel",
-            'url': get_assets_url(channel.org, 'channel', str(channel.uuid)),
+            'url': get_assets_url(channel.org, self.asset_timestamp, 'channel', str(channel.uuid)),
             'content': serialize_channel(channel)
         })
         return self
@@ -207,9 +208,9 @@ class RequestBuilder(object):
 
     def asset_urls(self, org):
         self.request['asset_urls'] = {
-            'channel': get_assets_url(org, 'channel'),
-            'flow': get_assets_url(org, 'flow'),
-            'group': get_assets_url(org, 'group'),
+            'channel': get_assets_url(org, self.asset_timestamp, 'channel'),
+            'flow': get_assets_url(org, self.asset_timestamp, 'flow'),
+            'group': get_assets_url(org, self.asset_timestamp, 'group'),
         }
         return self
 
@@ -256,8 +257,8 @@ class FlowServerClient:
         self.base_url = base_url
         self.debug = debug
 
-    def request_builder(self):
-        return RequestBuilder(self)
+    def request_builder(self, asset_timestamp):
+        return RequestBuilder(self, asset_timestamp)
 
     def start(self, flow_start):
         return Output.from_json(self._request('start', flow_start))
@@ -291,11 +292,11 @@ class FlowServerClient:
         return resp_json
 
 
-def get_assets_url(org, asset_type=None, asset_uuid=None):
+def get_assets_url(org, timestamp, asset_type=None, asset_uuid=None):
     if settings.TESTING:
-        url = 'http://localhost:8000/flow_assets/%d' % org.id
+        url = 'http://localhost:8000/flow_assets/%d/%d' % (org.id, timestamp)
     else:
-        url = 'https://%s/flow_assets/%d' % (settings.HOSTNAME, org.id)
+        url = 'https://%s/flow_assets/%d/%d' % (settings.HOSTNAME, org.id, timestamp)
 
     if asset_type:
         url = url + '/' + asset_type
