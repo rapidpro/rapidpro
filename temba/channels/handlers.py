@@ -831,6 +831,9 @@ class InfobipUSSDHandler(BaseChannelHandler):
         msg.status = WIRED
         msg.save(update_fields=['status', 'sent_on'])
 
+        if msg.session.should_end:
+            msg.session.close()
+
 class Hub9Handler(BaseChannelHandler):
 
     url = r'^hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
