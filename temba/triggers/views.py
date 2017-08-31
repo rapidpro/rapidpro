@@ -259,7 +259,7 @@ class FollowTriggerForm(BaseTriggerForm):
         super(FollowTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
         self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
-                                                                 scheme__in=ContactURN.SCHEMES_SUPPORTING_FOLLOW)
+                                                                 schemes__overlap=list(ContactURN.SCHEMES_SUPPORTING_FOLLOW))
 
     class Meta(BaseTriggerForm.Meta):
         fields = ('channel', 'flow')
@@ -276,16 +276,16 @@ class NewConversationTriggerForm(BaseTriggerForm):
         super(NewConversationTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
         self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
-                                                                 scheme__in=ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION)
+                                                                 schemes__overlap=list(ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION))
 
     def clean_channel(self):
         channel = self.cleaned_data['channel']
         existing = Trigger.objects.filter(org=self.user.get_org(), is_active=True, is_archived=False,
                                           trigger_type=Trigger.TYPE_NEW_CONVERSATION, channel=channel)
         if self.instance:
-            existing.exclude(id=self.instance.id)
+            existing = existing.exclude(id=self.instance.id)
 
-        if existing:
+        if existing.exists():
             raise forms.ValidationError(_("Trigger with this Channel already exists."))
 
         return self.cleaned_data['channel']
@@ -308,7 +308,7 @@ class ReferralTriggerForm(BaseTriggerForm):
         super(ReferralTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
         self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
-                                                                 scheme__in=ContactURN.SCHEMES_SUPPORTING_REFERRALS)
+                                                                 schemes__overlap=list(ContactURN.SCHEMES_SUPPORTING_REFERRALS))
 
     def get_existing_triggers(self, cleaned_data):
         ref_id = cleaned_data.get('referrer_id', '').strip()
@@ -333,7 +333,7 @@ class UssdTriggerForm(BaseTriggerForm):
     """
     keyword = forms.CharField(max_length=32, required=True, label=_("USSD Code"),
                               help_text=_("USSD code to dial (eg: *111#)"))
-    channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("USSD Channel"), required=True)
+    channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("USSD Channel"), required=False)
 
     def __init__(self, user, *args, **kwargs):
         flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.USSD])

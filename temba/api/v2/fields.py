@@ -189,11 +189,11 @@ class ContactField(TembaModelField):
     def get_object(self, value):
         # try to normalize as URN but don't blow up if it's a UUID
         try:
-            as_urn = URN.normalize(value)
+            as_urn = URN.identity(URN.normalize(value))
         except ValueError:
             as_urn = value
 
-        return self.get_queryset().filter(Q(uuid=value) | Q(urns__urn=as_urn)).first()
+        return self.get_queryset().filter(Q(uuid=value) | Q(urns__identity=as_urn)).first()
 
 
 class ContactFieldField(TembaModelField):

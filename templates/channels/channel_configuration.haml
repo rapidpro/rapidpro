@@ -226,6 +226,26 @@
     %code
       https://{{ domain }}{% url 'handlers.infobip_handler' 'delivered' object.uuid %}
 
+
+    -elif object.channel_type == 'IBU'
+    %h4
+      -blocktrans
+        To finish configuring your Infobip connection you'll need to set the following callback URL on the
+        Infobip website under your account.
+
+    .clearfix
+    %hr
+
+    %h4
+      -trans "Receive URL"
+
+    %p
+      -blocktrans
+        Set this URL on your Infobip USSD account for the USSD shortcode you added (do not include a slash at the end).
+
+    %code
+      https://{{ domain }}/handlers/infobip_ussd/{{ object.uuid }}
+
   -elif object.channel_type == 'MK'
     %h4
       -blocktrans

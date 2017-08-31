@@ -507,7 +507,7 @@ class ExternalHandler(BaseChannelHandler):
                 except ValueError as e:
                     return HttpResponse("Bad parameter error: %s" % e.message, status=400)
 
-            urn = URN.from_parts(channel.scheme, sender)
+            urn = URN.from_parts(channel.schemes[0], sender)
             sms = Msg.create_incoming(channel, urn, text, date=date)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
@@ -684,12 +684,15 @@ class InfobipHandler(BaseChannelHandler):
     url = r'^infobip/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.infobip_handler'
 
+    def get_channel_type(self):
+        return 'IB'
+
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_INFOBIP).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -738,7 +741,7 @@ class InfobipHandler(BaseChannelHandler):
         if sender is None or text is None or receiver is None:  # pragma: needs cover
             return HttpResponse("Missing parameters, must have 'sender', 'text' and 'receiver'", status=400)
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_INFOBIP).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -753,6 +756,92 @@ class InfobipHandler(BaseChannelHandler):
         sms = Msg.create_incoming(channel, URN.from_tel(sender), text)
 
         return HttpResponse("SMS Accepted: %d" % sms.id)
+
+
+class InfobipUSSDHandler(BaseChannelHandler):
+
+    url = r'^infobip_ussd/(?P<uuid>[a-z0-9\-]+)/session/(?P<session_id>[a-z0-9]+)/(?P<action>start|response|end)$'
+    url_name = 'handlers.infobip_ussd_handler'
+
+    def get_channel_type(self):
+        return 'IBU'
+
+    def post(self, request, *args, **kwargs):
+        """
+        Implements spec of Infobip USSD Gateway REST/JSON API v1.2
+        """
+        from temba.msgs.models import WIRED
+
+        content = None
+        status = USSDSession.IN_PROGRESS
+
+        action = kwargs['action'].lower()
+        channel_uuid = kwargs['uuid']
+        session_id = kwargs['session_id']
+
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type())\
+            .exclude(org=None).first()
+
+        if not channel:
+            return JsonResponse({'responseExitCode': 400, 'responseMessage': "Channel not found."})
+
+        try:
+            data = json.loads(request.body)
+        except ValueError:
+            return JsonResponse({'responseExitCode': 400, 'responseMessage': 'Error processing JSON data'})
+
+        if action == 'start':
+            status = USSDSession.TRIGGERED
+        elif action == 'response':
+            status = USSDSession.IN_PROGRESS
+            content = data.get('text', '')
+        elif action == 'end':
+            """
+            exitCode    reason
+            200         Session ended normally
+            500         Session aborted by network
+            510         Session aborted by TPA
+            520         Session aborted by user
+            600         Session timeout
+            """
+            exit_code = data.get('exitCode', 999)
+            if int(exit_code) != 200:
+                if not USSDSession.handle_interrupt(session_id, async=False):
+                    return JsonResponse({'responseExitCode': 400, 'responseMessage': 'Session not found'})
+
+            return JsonResponse({'responseExitCode': 200, 'responseMessage': ''})
+
+        session, msgs = USSDSession.handle_incoming(channel=channel, urn=data['msisdn'], content=content,
+                                                    status=status, date=timezone.now(), external_id=session_id,
+                                                    starcode=data['shortCode'], async=False)
+
+        if not session:
+            return JsonResponse({'responseExitCode': 400, 'responseMessage': 'Session not found'})
+
+        msg = msgs[0]
+        response_data = {
+            'responseExitCode': 200,
+            'responseMessage': '',
+            'shouldClose': 'true' if msg.session.should_end else 'false',
+            'ussdMenu': msg.text
+        }
+
+        # mark msg as sent
+        msg.sent_on = timezone.now()
+        msg.status = WIRED
+        msg.save(update_fields=['status', 'sent_on'])
+
+        if msg.session.should_end:
+            msg.session.close()
+
+        # generate event and log it
+        event = HttpEvent(request.method, request.build_absolute_uri(), request.body, 200, json.dumps(response_data))
+        ChannelLog.log_ussd_interaction(msg, session, "Successfully sent", event)
+
+        return JsonResponse(response_data)
+
+    def put(self, request, *args, **kwargs):
+        return self.post(request, *args, **kwargs)
 
 
 class Hub9Handler(BaseChannelHandler):
@@ -1382,9 +1471,9 @@ class VumiHandler(BaseChannelHandler):
 
                 session_id = str(session_id_part1 + session_id_part2)
 
-                session = USSDSession.handle_incoming(channel=channel, urn=body['from_addr'], content=content,
-                                                      status=status, date=gmt_date, external_id=session_id,
-                                                      message_id=body['message_id'], starcode=body.get('to_addr'))
+                session, _ = USSDSession.handle_incoming(channel=channel, urn=body['from_addr'], content=content,
+                                                         status=status, date=gmt_date, external_id=session_id,
+                                                         message_id=body['message_id'], starcode=body.get('to_addr'))
 
                 if session:
                     return HttpResponse("Accepted: %d" % session.id)
@@ -2082,9 +2171,9 @@ class JunebugHandler(BaseChannelHandler):
                 # Use a session id if provided, otherwise fall back to using the `from` address as the identifier
                 session_id = channel_data.get('session_id') or data['from']
 
-                session = USSDSession.handle_incoming(channel=channel, urn=data['from'], content=data['content'],
-                                                      status=status, date=gmt_date, external_id=session_id,
-                                                      message_id=data['message_id'], starcode=data['to'])
+                session, _ = USSDSession.handle_incoming(channel=channel, urn=data['from'], content=data['content'],
+                                                         status=status, date=gmt_date, external_id=session_id,
+                                                         message_id=data['message_id'], starcode=data['to'])
 
                 if session:
                     status = 200
@@ -2546,7 +2635,7 @@ class GlobeHandler(BaseChannelHandler):
                     return HttpResponse("Missing one of dateTime, senderAddress, message, messageId or destinationAddress in message", status=400)
 
                 try:
-                    scheme, destination = URN.to_parts(inbound_msg['destinationAddress'])
+                    scheme, destination, display = URN.to_parts(inbound_msg['destinationAddress'])
                 except ValueError as v:
                     return HttpResponse("Error parsing destination address: " + str(v), status=400)
 
@@ -2556,7 +2645,7 @@ class GlobeHandler(BaseChannelHandler):
 
                 # parse our sender address out, it is a URN looking thing
                 try:
-                    scheme, sender_tel = URN.to_parts(inbound_msg['senderAddress'])
+                    scheme, sender_tel, display = URN.to_parts(inbound_msg['senderAddress'])
                 except ValueError as v:
                     return HttpResponse("Error parsing sender address: " + str(v), status=400)
 
@@ -2994,7 +3083,7 @@ class TwitterHandler(BaseChannelHandler):
                 if int(sender_id) == channel_config['handle_id']:
                     continue
 
-                urn = URN.from_twitter(users[sender_id]['screen_name'])
+                urn = URN.from_twitterid(users[sender_id]['id'], users[sender_id]['screen_name'])
                 name = None if channel.org.is_anon else users[sender_id]['name']
                 contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
 

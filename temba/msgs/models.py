@@ -1225,7 +1225,7 @@ class Msg(models.Model):
         Used internally to serialize to JSON when queueing messages in Redis
         """
         data = dict(id=self.id, org=self.org_id, channel=self.channel_id, broadcast=self.broadcast_id,
-                    text=self.text, urn_path=self.contact_urn.path,
+                    text=self.text, urn_path=self.contact_urn.path, urn=six.text_type(self.contact_urn),
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
                     status=self.status, direction=self.direction, attachments=self.attachments,
@@ -1325,6 +1325,10 @@ class Msg(models.Model):
 
         if channel:
             analytics.gauge('temba.msg_incoming_%s' % channel.channel_type.lower())
+
+        # for synchronous USSD handling
+        if status == PENDING and msg_type == USSD and channel and channel.config_json().get('sync_handling'):
+            return msg
 
         # ivr messages are handled in handle_call
         if status == PENDING and msg_type != IVR:
@@ -1511,7 +1515,7 @@ class Msg(models.Model):
         contact = None
         contact_urn = None
 
-        resolved_schemes = {channel.scheme} if channel else org.get_schemes(role)
+        resolved_schemes = set(channel.schemes) if channel else org.get_schemes(role)
 
         if isinstance(recipient, Contact):
             if recipient.is_test:
@@ -1525,7 +1529,7 @@ class Msg(models.Model):
                 contact = recipient.contact
                 contact_urn = recipient
         elif isinstance(recipient, six.string_types):
-            scheme, path = URN.to_parts(recipient)
+            scheme, path, display = URN.to_parts(recipient)
             if scheme in resolved_schemes:
                 contact = Contact.get_or_create(org, user, urns=[recipient])
                 contact_urn = contact.urn_objects[recipient]
