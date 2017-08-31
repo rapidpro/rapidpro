@@ -300,7 +300,7 @@ class ReferralTriggerForm(BaseTriggerForm):
     """
     channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("Channel"), required=False,
                                      help_text=_("The channel to apply this trigger to, leave blank for all Facebook channels"))
-    referrer_id = forms.CharField(max_length=255, required=True, label=_("Referrer Id"),
+    referrer_id = forms.CharField(max_length=255, required=False, label=_("Referrer Id"),
                                   help_text=_("The referrer id that will trigger us"))
 
     def __init__(self, user, *args, **kwargs):
@@ -314,7 +314,7 @@ class ReferralTriggerForm(BaseTriggerForm):
         ref_id = cleaned_data.get('referrer_id', '').strip()
         channel = cleaned_data.get('channel')
         existing = Trigger.objects.filter(org=self.user.get_org(), trigger_type=Trigger.TYPE_REFERRAL,
-                                          is_active=True, is_archived=False, referrer_id=ref_id)
+                                          is_active=True, is_archived=False, referrer_id__iexact=ref_id)
         if self.instance:
             existing = existing.exclude(pk=self.instance.pk)
 

@@ -373,6 +373,7 @@ PERMISSIONS = {
                  'smtp_server',
                  'api',
                  'country',
+                 'chatbase',
                  'clear_cache',
                  'create_login',
                  'create_sub_org',
@@ -589,6 +590,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_smtp_server',
         'orgs.org_api',
         'orgs.org_country',
+        'orgs.org_chatbase',
         'orgs.org_create_sub_org',
         'orgs.org_download',
         'orgs.org_edit',
@@ -1091,6 +1093,11 @@ SEND_AIRTIME = False
 
 ######
 # DANGER: only turn this on if you know what you are doing!
+#         could cause data to be sent to Chatbase in test environment
+SEND_CHATBASE = False
+
+######
+# DANGER: only turn this on if you know what you are doing!
 #         could cause calls in test environments
 SEND_CALLS = False
 
@@ -1153,3 +1160,5 @@ VALUE_FIELD_SIZE = 640
 # -----------------------------------------------------------------------------------
 SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
+
+CHATBASE_API_URL = 'https://chatbase.com/api/message'
