@@ -184,4 +184,17 @@ class USSDSession(ChannelSession):
 
         return session, None
 
+    @classmethod
+    def handle_interrupt(cls, session_id, async=True):
+        session = cls.objects.get_session_by_external_id(session_id)
+
+        if not session:
+            return None
+
+        session.close()
+        if async:
+            session.handle_session_async(session.contact_urn.urn, None, timezone.now(), None)
+        else:
+            session.handle_session_sync(session.contact_urn.urn, None, timezone.now(), None)
+
         return session
