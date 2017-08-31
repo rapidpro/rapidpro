@@ -30,6 +30,9 @@ class USSDQuerySet(models.QuerySet):
     def get_session_with_status_only(self, session_id):
         return self.only('status').filter(id=session_id).first()
 
+    def get_session_by_external_id(self, session_id):
+        return self.exclude(status__in=USSDSession.DONE).filter(external_id=session_id).first()
+
 
 class USSDSession(ChannelSession):
     USSD_PULL = INCOMING = 'I'
