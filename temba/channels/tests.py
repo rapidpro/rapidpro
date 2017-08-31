@@ -9686,6 +9686,9 @@ class FacebookTest(TembaTest):
         contact1 = Contact.objects.get(org=self.org, urns__path='1122')
         self.assertEqual("What is your favorite color?", contact1.msgs.all().first().text)
 
+        # and that we created an event for it
+        self.assertTrue(ChannelEvent.objects.filter(contact=contact1, event_type=ChannelEvent.TYPE_REFERRAL))
+
     def test_receive(self):
         data = json.loads(FacebookTest.TEST_INCOMING)
         callback_url = reverse('handlers.facebook_handler', args=[self.channel.uuid])
@@ -11027,6 +11030,10 @@ class ViberPublicTest(TembaTest):
             # check that the contact was created
             contact = Contact.objects.get(org=self.org, urns__path='01234567890A=', urns__scheme=VIBER_SCHEME)
             self.assertEqual(contact.name, None)
+
+            # and a new channel event for the conversation
+            self.assertTrue(ChannelEvent.objects.filter(channel=self.channel, contact=contact,
+                                                        event_type=ChannelEvent.TYPE_NEW_CONVERSATION))
 
     def test_conversation_started(self):
         # this is a no-op

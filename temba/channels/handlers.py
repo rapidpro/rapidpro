@@ -24,7 +24,7 @@ from django.views.generic import View
 from django_redis import get_redis_connection
 from requests import Request
 from temba.api.models import WebHookEvent
-from temba.channels.models import Channel, ChannelLog
+from temba.channels.models import Channel, ChannelLog, ChannelEvent
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.orgs.models import NEXMO_UUID
@@ -2470,10 +2470,12 @@ class FacebookHandler(BaseChannelHandler):
                         # conversation started with a referrer_id that catches a trigger
                         elif referrer_id and Trigger.catch_triggers(contact, Trigger.TYPE_REFERRAL, channel,
                                                                     referrer_id=referrer_id, extra=trigger_extra):
+                            ChannelEvent.create(channel, urn, ChannelEvent.TYPE_REFERRAL, timezone.now())
                             status.append("Triggered flow for ref: %s" % referrer_id)
 
                         # a contact pressed "Get Started", trigger any new conversation triggers
                         elif postback == 'get_started':
+                            ChannelEvent.create(channel, urn, ChannelEvent.TYPE_NEW_CONVERSATION, timezone.now())
                             Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
                             status.append("Postback handled.")
 
@@ -2755,7 +2757,9 @@ class ViberPublicHandler(BaseChannelHandler):
             # }
             viber_id = body['user']['id']
             contact_name = None if channel.org.is_anon else body['user'].get('name')
-            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[URN.from_viber(viber_id)])
+            urn = URN.from_viber(viber_id)
+            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
+            ChannelEvent.create(channel, urn, ChannelEvent.TYPE_NEW_CONVERSATION, timezone.now())
             Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
             return HttpResponse("Subscription for contact: %s handled" % viber_id)
 
