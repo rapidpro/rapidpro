@@ -47,12 +47,12 @@ class USSDSession(ChannelSession):
     def should_end(self):
         return self.status == self.ENDING
 
-    def mark_ending(self):  # session to be ended
+    def mark_ending(self):
         if self.status != self.ENDING:
             self.status = self.ENDING
             self.save(update_fields=['status'])
 
-    def close(self):  # session has successfully ended
+    def close(self):
         if self.status == self.ENDING:
             self.status = self.COMPLETED
         else:
