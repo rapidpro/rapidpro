@@ -784,6 +784,12 @@ class InfobipUSSDHandler(BaseChannelHandler):
 
         if not channel:
             return JsonResponse({'responseExitCode': 400, 'responseMessage': "Channel not found."})
+
+        try:
+            data = json.loads(request.body)
+        except ValueError:
+            return JsonResponse({'responseExitCode': 400, 'responseMessage': 'Error processing JSON data'})
+
 class Hub9Handler(BaseChannelHandler):
 
     url = r'^hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
