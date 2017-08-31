@@ -814,6 +814,10 @@ class InfobipUSSDHandler(BaseChannelHandler):
         session, msgs = USSDSession.handle_incoming(channel=channel, urn=data['msisdn'], content=content,
                                                     status=status, date=timezone.now(), external_id=session_id,
                                                     starcode=data['shortCode'], async=False)
+
+        if not session:
+            return JsonResponse({'responseExitCode': 400, 'responseMessage': 'Session not found'})
+
         msg = msgs[0]
         response_data = {
             'responseExitCode': 200,
