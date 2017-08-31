@@ -94,6 +94,14 @@ class USSDSession(ChannelSession):
 
         if start:
             runs, msgs = self.start_session_sync(flow, date, message_id)
+        else:
+            msg = self.create_incoming_message(urn, content, date, message_id)
+            handled, msgs = Flow.find_and_handle(msg, trigger_send=False)
+
+            if handled:
+                Msg.mark_handled(msg)
+
+        return msgs
 
     @classmethod
     def handle_incoming(cls, channel, urn, date, external_id, contact=None, message_id=None, status=None,
