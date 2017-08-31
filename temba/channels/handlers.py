@@ -810,6 +810,10 @@ class InfobipUSSDHandler(BaseChannelHandler):
                     return JsonResponse({'responseExitCode': 400, 'responseMessage': 'Session not found'})
 
             return JsonResponse({'responseExitCode': 200, 'responseMessage': ''})
+
+        session, msgs = USSDSession.handle_incoming(channel=channel, urn=data['msisdn'], content=content,
+                                                    status=status, date=timezone.now(), external_id=session_id,
+                                                    starcode=data['shortCode'], async=False)
 class Hub9Handler(BaseChannelHandler):
 
     url = r'^hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
