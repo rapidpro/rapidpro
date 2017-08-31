@@ -81,6 +81,10 @@ class USSDSession(ChannelSession):
         message = self.create_incoming_message_for_trigger(None, date, message_id)
         flow.start([], [self.contact], start_msg=message, restart_participants=True, session=self)
 
+    def start_session_sync(self, flow, date, message_id):
+        message = self.create_incoming_message_for_trigger(None, date, message_id)
+        return flow.start([], [self.contact], start_msg=message, restart_participants=True, session=self, trigger_send=False)
+
     def handle_session_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
         Msg.create_incoming(
