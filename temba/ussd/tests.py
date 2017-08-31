@@ -158,6 +158,24 @@ class USSDSessionTest(TembaTest):
         self.assertIsInstance(session.ended_on, datetime)
         self.assertEqual(session.external_id, "21345")
 
+    @patch('temba.ussd.models.USSDSession.handle_session_async')
+    def test_async_interrupt_handling_with_helper(self, handle_session_async):
+        flow = self.get_flow('ussd_session_end')
+        contact = self.create_contact("Joe", "+250788383383")
+        flow.start([], [contact])
+
+        session_id = "21345"
+
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="1",
+                                                 date=timezone.now(), external_id=session_id)
+
+        USSDSession.handle_interrupt(session_id)
+
+        session.refresh_from_db()
+
+        self.assertTrue(handle_session_async.called)
+        self.assertEqual(session.status, USSDSession.INTERRUPTED)
+
     def test_end_with_menu_no_destination(self):
         flow = self.get_flow('ussd_session_end')
         contact = self.create_contact("Joe", "+250788383383")
