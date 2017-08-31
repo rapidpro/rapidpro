@@ -153,6 +153,13 @@ class USSDSession(ChannelSession):
                 session.save()
             except cls.DoesNotExist:
                 defaults['external_id'] = external_id
+                """
+                if we are not triggered and didn't find the session then we return, it should
+                be like that for all sync + async PULL sessions, but JuneBug and Vumi don't have
+                proper session handling and the session_id is sometimes unreliable.
+                """
+                if not async and not trigger:
+                    return None, None
                 session = cls.objects.create(**defaults)
                 created = True
         else:
