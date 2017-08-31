@@ -16,7 +16,7 @@ from django_redis import get_redis_connection
 from temba.channels.models import Channel
 from temba.channels.tests import JunebugTestMixin
 from temba.contacts.models import Contact, TEL_SCHEME
-from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING, USSD, DELIVERED, FAILED
+from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING, USSD, DELIVERED, FAILED, HANDLED
 from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
 from temba.flows.models import FlowRun
@@ -1097,6 +1097,45 @@ class InfoBipUSSDTest(TembaTest):
         self.assertEqual(response.json()['responseMessage'], '')
         self.assertEqual(response.json()['shouldClose'], 'true')
         self.assertEqual(response.json()['ussdMenu'], msgs.last().text)
+
+    def test_response_with_no_session_closing_ruleset(self):
+        self.test_start()
+
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'response'])
+
+        start_data = {
+            'msisdn': '+2347030767143',
+            'imsi': '8796df56as657',
+            'shortCode': self.starcode,
+            'ussdNodeId': 'testNodeId',
+            'text': '1',
+            'networkName': 'Orange',
+            'countryName': 'NG'
+        }
+
+        response = self.client.put(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        session = USSDSession.objects.get()
+
+        # session is done
+        self.assertEqual(session.status, USSDSession.COMPLETED)
+        # run is inactive
+        self.assertFalse(session.runs.first().is_active)
+
+        msgs = session.msg_set.order_by('id').all()
+
+        self.assertEqual(msgs.count(), 4)
+        self.assertEqual(msgs.last().text, '')
+        self.assertEqual(msgs.last().status, WIRED)
+
+        self.assertEqual(response.json()['responseExitCode'], 200)
+        self.assertEqual(response.json()['responseMessage'], '')
+        self.assertEqual(response.json()['shouldClose'], 'true')
+        self.assertEqual(response.json()['ussdMenu'], msgs.last().text)
+
     def test_ended_normally(self):
         self.test_response_with_no_session_closing_ruleset()
 
