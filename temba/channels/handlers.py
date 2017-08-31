@@ -779,6 +779,11 @@ class InfobipUSSDHandler(BaseChannelHandler):
         channel_uuid = kwargs['uuid']
         session_id = kwargs['session_id']
 
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type())\
+            .exclude(org=None).first()
+
+        if not channel:
+            return JsonResponse({'responseExitCode': 400, 'responseMessage': "Channel not found."})
 class Hub9Handler(BaseChannelHandler):
 
     url = r'^hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
