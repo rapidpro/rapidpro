@@ -834,6 +834,10 @@ class InfobipUSSDHandler(BaseChannelHandler):
         if msg.session.should_end:
             msg.session.close()
 
+        # generate event and log it
+        event = HttpEvent(request.method, request.build_absolute_uri(), request.body, 200, json.dumps(response_data))
+        ChannelLog.log_ussd_interaction(msg, session, "Successfully sent", event)
+
         return JsonResponse(response_data)
 
     def put(self, request, *args, **kwargs):
