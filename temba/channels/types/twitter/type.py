@@ -4,7 +4,7 @@ import six
 import time
 
 from django.utils.translation import ugettext_lazy as _
-from temba.contacts.models import Contact, TWITTER_SCHEME
+from temba.contacts.models import Contact, TWITTER_SCHEME, TWITTERID_SCHEME, URN
 from temba.msgs.models import WIRED
 from temba.utils.twitter import TembaTwython
 from .views import ClaimView
@@ -26,7 +26,7 @@ class TwitterType(ChannelType):
     claim_blurb = _("""Add a <a href="http://twitter.com">Twitter</a> account to send messages as direct messages.""")
     claim_view = ClaimView
 
-    scheme = TWITTER_SCHEME
+    schemes = [TWITTER_SCHEME, TWITTERID_SCHEME]
     max_length = 10000
     show_config_page = False
     free_sending = True
@@ -47,7 +47,17 @@ class TwitterType(ChannelType):
         start = time.time()
 
         try:
-            dm = twitter.send_direct_message(screen_name=msg.urn_path, text=text)
+            urn = getattr(msg, 'urn', URN.from_twitter(msg.urn_path))
+            (scheme, path, display) = URN.to_parts(urn)
+
+            # this is a legacy URN (no display), the path is our screen name
+            if scheme == TWITTER_SCHEME:
+                dm = twitter.send_direct_message(screen_name=path, text=text)
+
+            # this is a new twitterid URN, our path is our user id
+            else:
+                dm = twitter.send_direct_message(user_id=path, text=text)
+
         except Exception as e:
             error_code = getattr(e, 'error_code', 400)
             fatal = False

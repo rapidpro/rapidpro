@@ -36,7 +36,7 @@ def reload_channel_types():
             slug=code.lower(),
             icon=Channel.TYPE_ICONS.get(code, 'icon-channel-external'),
             show_config_page=code not in Channel.HIDE_CONFIG_PAGE,
-            scheme=type_settings.get('scheme'),
+            schemes=type_settings.get('schemes'),
             max_length=type_settings.get('max_length'),
             max_tps=type_settings.get('max_tps'),
             attachment_support=code in Channel.MEDIA_CHANNELS,

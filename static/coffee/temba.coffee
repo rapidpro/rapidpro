@@ -199,6 +199,10 @@ findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
   id = ele.val()
   $(ele).select2('val', id, true)
 
+@formatNumber = (number) ->
+  number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+
+
 ###
 @initAtMessageText = (selector, completions=null) ->
   completions = window.message_completions unless completions
