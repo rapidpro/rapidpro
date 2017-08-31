@@ -146,9 +146,8 @@ class USSDSession(ChannelSession):
         created = False
         if not session:
             try:
-                session = cls.objects.select_for_update().exclude(status__in=ChannelSession.DONE)\
+                session = cls.objects.select_for_update().exclude(status__in=cls.DONE)\
                                                          .get(external_id=external_id)
-                created = False
                 for k, v in six.iteritems(defaults):
                     setattr(session, k, v() if callable(v) else v)
                 session.save()
