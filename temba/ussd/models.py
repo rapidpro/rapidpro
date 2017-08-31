@@ -160,12 +160,13 @@ class USSDSession(ChannelSession):
             for key, value in six.iteritems(defaults):
                 setattr(session, key, value)
             session.save()
-            created = None
 
         # start session
-        if created and async and trigger:
-            session.start_session_async(trigger.flow, date, message_id)
-
+        if created and trigger:
+            if async:
+                session.start_session_async(trigger.flow, date, message_id)
+            else:
+                return session, session.handle_session_sync(urn, content, date, message_id, flow=trigger.flow, start=True)
         # resume session, deal with incoming content and all the other states
         else:
             session.handle_session_async(urn, content, date, message_id)
