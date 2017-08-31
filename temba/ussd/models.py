@@ -169,6 +169,11 @@ class USSDSession(ChannelSession):
                 return session, session.handle_session_sync(urn, content, date, message_id, flow=trigger.flow, start=True)
         # resume session, deal with incoming content and all the other states
         else:
-            session.handle_session_async(urn, content, date, message_id)
+            if async:
+                session.handle_session_async(urn, content, date, message_id)
+            else:
+                return session, session.handle_session_sync(urn, content, date, message_id)
+
+        return session, None
 
         return session
