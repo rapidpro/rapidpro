@@ -3048,6 +3048,21 @@ class ChannelLog(models.Model):
                                   description=description[:255])
 
     @classmethod
+    def log_ussd_interaction(cls, msg, session, description, event, is_error=False):
+        print(u"[%d] SENT - %s %s \"%s\" %s \"%s\"" %
+              (msg.id, event.method, event.url, event.request_body, event.status_code,
+               event.response_body))
+        ChannelLog.objects.create(channel_id=session.channel_id,
+                                  session_id=session.id,
+                                  request=six.text_type(event.request_body),
+                                  response=six.text_type(event.response_body),
+                                  url=event.url,
+                                  method=event.method,
+                                  is_error=is_error,
+                                  response_status=event.status_code,
+                                  description=description[:255])
+
+    @classmethod
     def log_channel_request(cls, channel_id, description, event, start, is_error=False):
         request_time = 0 if not start else time.time() - start
         request_time_ms = request_time * 1000
