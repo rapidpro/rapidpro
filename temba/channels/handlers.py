@@ -2470,7 +2470,8 @@ class FacebookHandler(BaseChannelHandler):
                         # conversation started with a referrer_id that catches a trigger
                         elif referrer_id and Trigger.catch_triggers(contact, Trigger.TYPE_REFERRAL, channel,
                                                                     referrer_id=referrer_id, extra=trigger_extra):
-                            ChannelEvent.create(channel, urn, ChannelEvent.TYPE_REFERRAL, timezone.now())
+                            ChannelEvent.create(channel, urn, ChannelEvent.TYPE_REFERRAL, timezone.now(),
+                                                extra=dict(referrer_id=referrer_id))
                             status.append("Triggered flow for ref: %s" % referrer_id)
 
                         # a contact pressed "Get Started", trigger any new conversation triggers

@@ -2442,7 +2442,7 @@ class ChannelEventTest(TembaTest):
 
     def test_create(self):
         now = timezone.now()
-        event = ChannelEvent.create(self.channel, "tel:+250783535665", ChannelEvent.TYPE_CALL_OUT, now, 300)
+        event = ChannelEvent.create(self.channel, "tel:+250783535665", ChannelEvent.TYPE_CALL_OUT, now, extra=dict(duration=300))
 
         contact = Contact.objects.get()
         self.assertEqual(six.text_type(contact.get_urn()), "tel:+250783535665")
@@ -2451,7 +2451,7 @@ class ChannelEventTest(TembaTest):
         self.assertEqual(event.channel, self.channel)
         self.assertEqual(event.contact, contact)
         self.assertEqual(event.event_type, ChannelEvent.TYPE_CALL_OUT)
-        self.assertEqual(event.time, now)
+        self.assertEqual(event.occurred_on, now)
         self.assertEqual(event.duration, 300)
 
 

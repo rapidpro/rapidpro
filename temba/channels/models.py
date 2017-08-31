@@ -2923,17 +2923,15 @@ class ChannelEvent(models.Model):
                                 help_text=_("The contact associated with this event"))
     contact_urn = models.ForeignKey('contacts.ContactURN', null=True, verbose_name=_("URN"), related_name='channel_events',
                                     help_text=_("The contact URN associated with this event"))
-    time = models.DateTimeField(verbose_name=_("Time"),
-                                help_text=_("When this event took place"))
-    duration = models.IntegerField(default=0, verbose_name=_("Duration"),
-                                   help_text=_("Duration in seconds if event is a call"))
+    extra = models.TextField(verbose_name=_("Extra"), null=True,
+                             help_text=_("Any extra properties on this event as JSON"))
+    occurred_on = models.DateTimeField(verbose_name=_("Occurred On"),
+                                       help_text=_("When this event took place"))
     created_on = models.DateTimeField(verbose_name=_("Created On"), default=timezone.now,
                                       help_text=_("When this event was created"))
-    is_active = models.BooleanField(default=True,
-                                    help_text="Whether this item is active, use this instead of deleting")
 
     @classmethod
-    def create(cls, channel, urn, event_type, date, duration=0):
+    def create(cls, channel, urn, event_type, occurred_on, extra=None):
         from temba.api.models import WebHookEvent
         from temba.contacts.models import Contact
         from temba.triggers.models import Trigger
@@ -2945,11 +2943,10 @@ class ChannelEvent(models.Model):
         contact_urn = contact.urn_objects[urn]
 
         event = cls.objects.create(org=org, channel=channel, contact=contact, contact_urn=contact_urn,
-                                   time=date, duration=duration, event_type=event_type)
+                                   occurred_on=occurred_on, event_type=event_type, extra=extra)
 
         if event_type in cls.CALL_TYPES:
             analytics.gauge('temba.call_%s' % event.get_event_type_display().lower().replace(' ', '_'))
-
             WebHookEvent.trigger_call_event(event)
 
         if event_type == cls.TYPE_CALL_IN_MISSED:
@@ -2959,11 +2956,16 @@ class ChannelEvent(models.Model):
 
     @classmethod
     def get_all(cls, org):
-        return cls.objects.filter(org=org, is_active=True)
+        return cls.objects.filter(org=org)
 
     def release(self):
-        self.is_active = False
-        self.save(update_fields=('is_active',))
+        self.delete()
+
+    def extra_json(self):
+        if self.extra:
+            return json.loads(self.extra)
+        else:
+            return dict()
 
 
 class SendException(Exception):
