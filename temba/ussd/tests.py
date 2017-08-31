@@ -1004,3 +1004,57 @@ class InfoBipUSSDTest(TembaTest):
         self.assertEqual(response.json()['responseMessage'], '')
         self.assertEqual(response.json()['shouldClose'], 'true' if session.should_end else 'false')
         self.assertEqual(response.json()['ussdMenu'], msgs.last().text)
+    def test_response(self):
+        self.test_start()
+
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'response'])
+
+        start_data = {
+            'msisdn': '+2347030767143',
+            'imsi': '8796df56as657',
+            'shortCode': self.starcode,
+            'ussdNodeId': 'testNodeId',
+            'text': '2',
+            'networkName': 'Orange',
+            'countryName': 'NG'
+        }
+
+        response = self.client.put(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        session = USSDSession.objects.get()
+
+        self.assertEqual(session.status, USSDSession.IN_PROGRESS)
+        self.assertTrue(session.runs.first().is_active)
+
+        msgs = session.msg_set.order_by('id').all()
+
+        self.assertEqual(msgs.count(), 4)
+        self.assertEqual(msgs.last().text, u"Second menu\n1: Good\n2: Bad")
+        self.assertEqual(msgs.last().status, WIRED)
+
+        # let's make another response to close the session
+        start_data['text'] = '1'
+        response = self.client.put(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        session.refresh_from_db()
+
+        # session is done
+        self.assertEqual(session.status, USSDSession.COMPLETED)
+        # run is inactive
+        self.assertFalse(session.runs.first().is_active)
+
+        msgs = session.msg_set.order_by('id').all()
+
+        self.assertEqual(msgs.count(), 6)
+        self.assertEqual(msgs.last().text, u"Closed with good")
+        self.assertEqual(msgs.last().status, WIRED)
+
+        self.assertEqual(response.json()['responseExitCode'], 200)
+        self.assertEqual(response.json()['responseMessage'], '')
+        self.assertEqual(response.json()['shouldClose'], 'true')
+        self.assertEqual(response.json()['ussdMenu'], msgs.last().text)
