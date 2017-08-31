@@ -86,10 +86,7 @@ class USSDSession(ChannelSession):
         return flow.start([], [self.contact], start_msg=message, restart_participants=True, session=self, trigger_send=False)
 
     def handle_session_async(self, urn, content, date, message_id):
-        from temba.msgs.models import Msg, USSD
-        Msg.create_incoming(
-            channel=self.channel, org=self.org, urn=urn, text=content or '', date=date, session=self,
-            msg_type=USSD, external_id=message_id)
+        self.create_incoming_message(urn, content, date, message_id)
 
     def handle_ussd_session_sync(self):  # pragma: needs cover
         # TODO: implement for InfoBip and other sync APIs
