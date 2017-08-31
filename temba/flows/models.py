@@ -1512,9 +1512,12 @@ class Flow(TembaModel):
             step = self.add_step(run, entry_rule, is_start=True, arrived_on=timezone.now())
             handled, step_msgs = Flow.handle_destination(entry_rule, step, run, start_msg, trigger_send=False, continue_parent=False)
 
-                    # add these messages as ones that are ready to send
-                    for msg in step_msgs:
-                        msgs.append(msg)
+            if start_msg:
+                Msg.mark_handled(start_msg)
+
+            # add these messages as ones that are ready to send
+            for msg in step_msgs:
+                msgs.append(msg)
 
             run.start_msgs = [start_msg]
 
