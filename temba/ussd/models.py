@@ -88,9 +88,12 @@ class USSDSession(ChannelSession):
     def handle_session_async(self, urn, content, date, message_id):
         self.create_incoming_message(urn, content, date, message_id)
 
-    def handle_ussd_session_sync(self):  # pragma: needs cover
-        # TODO: implement for InfoBip and other sync APIs
-        pass
+    def handle_session_sync(self, urn, content, date, message_id, flow=None, start=False):
+        from temba.flows.models import Flow
+        from temba.msgs.models import Msg
+
+        if start:
+            runs, msgs = self.start_session_sync(flow, date, message_id)
 
     @classmethod
     def handle_incoming(cls, channel, urn, date, external_id, contact=None, message_id=None, status=None,
