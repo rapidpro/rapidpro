@@ -1004,6 +1004,45 @@ class InfoBipUSSDTest(TembaTest):
         self.assertEqual(response.json()['responseMessage'], '')
         self.assertEqual(response.json()['shouldClose'], 'true' if session.should_end else 'false')
         self.assertEqual(response.json()['ussdMenu'], msgs.last().text)
+
+    def test_start_with_no_channel(self):
+        self.channel.delete()
+
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'start'])
+
+        start_data = {
+            'msisdn': '+2347030767143',
+            'imsi': '8796df56as657',
+            'shortCode': self.starcode,
+            'ussdNodeId': 'testNodeId',
+            'text': 'auxiliary data that was sent when triggering the session',
+            'networkName': 'Orange',
+            'countryName': 'NG'
+        }
+
+        response = self.client.post(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(response.json()['responseExitCode'], 400)
+        self.assertEqual(response.json()['responseMessage'], "Channel not found.")
+
+    def test_start_with_wrong_payload(self):
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'start'])
+
+        start_data = {
+            'msisdn': '+2347030767143'
+        }
+
+        response = self.client.post(callback_url, start_data)
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(response.json()['responseExitCode'], 400)
+        self.assertEqual(response.json()['responseMessage'], 'Error processing JSON data')
+
     def test_response(self):
         self.test_start()
 
