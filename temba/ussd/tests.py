@@ -1121,3 +1121,22 @@ class InfoBipUSSDTest(TembaTest):
         self.assertEqual(msgs.count(), 3)
         self.assertEqual(msgs.last().text, '')
         self.assertEqual(msgs.last().status, HANDLED)
+
+    def test_ended_with_error_session_not_found(self):
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'end'])
+
+        start_data = {
+            'reason': 'timeout',
+            'exitCode': '600',
+            'networkName': 'Orange',
+            'countryName': 'NG'
+        }
+
+        response = self.client.put(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(response.json()['responseExitCode'], 400)
+        self.assertEqual(response.json()['responseMessage'], 'Session not found')
+
