@@ -61,9 +61,13 @@ class USSDSession(ChannelSession):
         self.ended_on = timezone.now()
         self.save(update_fields=['status', 'ended_on'])
 
-    def start_session_async(self, flow, date, message_id):
+    def create_incoming_message(self, urn, content, date, message_id):
         from temba.msgs.models import Msg, USSD
-        message = Msg.objects.create(
+
+        return Msg.create_incoming(
+            channel=self.channel, org=self.org, urn=urn, text=content or '', date=date, session=self,
+            msg_type=USSD, external_id=message_id)
+
     def create_incoming_message_for_trigger(self, content, date, message_id):
         from temba.msgs.models import Msg, USSD
 
