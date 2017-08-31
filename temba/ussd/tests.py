@@ -1058,3 +1058,33 @@ class InfoBipUSSDTest(TembaTest):
         self.assertEqual(response.json()['responseMessage'], '')
         self.assertEqual(response.json()['shouldClose'], 'true')
         self.assertEqual(response.json()['ussdMenu'], msgs.last().text)
+    def test_ended_normally(self):
+        self.test_response_with_no_session_closing_ruleset()
+
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'end'])
+
+        start_data = {
+            'reason': 'Session ended normally',
+            'exitCode': '200',
+            'networkName': 'Orange',
+            'countryName': 'NG'
+        }
+
+        response = self.client.put(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        session = USSDSession.objects.get()
+
+        # still completed and inactive
+        self.assertEqual(session.status, USSDSession.COMPLETED)
+        self.assertFalse(session.runs.first().is_active)
+
+        msgs = session.msg_set.order_by('id').all()
+
+        # there were no more messages sent
+        self.assertEqual(msgs.count(), 4)
+
+        self.assertEqual(response.json()['responseExitCode'], 200)
+        self.assertEqual(response.json()['responseMessage'], '')
