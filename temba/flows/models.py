@@ -1524,7 +1524,7 @@ class Flow(TembaModel):
             runs.append(run)
 
         # trigger our messages to be sent
-        if msgs and not parent_run:
+        if msgs and trigger_send and not parent_run:
             # then send them off
             msgs.sort(key=lambda message: (message.contact_id, message.created_on))
             Msg.objects.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
