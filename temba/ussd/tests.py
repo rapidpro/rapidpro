@@ -1218,3 +1218,23 @@ class InfoBipUSSDTest(TembaTest):
         self.assertEqual(response.json()['responseExitCode'], 400)
         self.assertEqual(response.json()['responseMessage'], 'Session not found')
 
+    def test_response_without_session(self):
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'response'])
+
+        start_data = {
+            'msisdn': '+2347030767143',
+            'imsi': '8796df56as657',
+            'shortCode': self.starcode,
+            'ussdNodeId': 'testNodeId',
+            'text': '2',
+            'networkName': 'Orange',
+            'countryName': 'NG'
+        }
+
+        response = self.client.put(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(response.json()['responseExitCode'], 400)
+        self.assertEqual(response.json()['responseMessage'], 'Session not found')
