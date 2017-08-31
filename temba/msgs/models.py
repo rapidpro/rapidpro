@@ -1276,6 +1276,10 @@ class Msg(models.Model):
         if channel:
             analytics.gauge('temba.msg_incoming_%s' % channel.channel_type.lower())
 
+        # for synchronous USSD handling
+        if status == PENDING and msg_type == USSD and channel and channel.config_json().get('sync_handling'):
+            return msg
+
         # ivr messages are handled in handle_call
         if status == PENDING and msg_type != IVR:
             msg.handle()
