@@ -367,8 +367,8 @@ class USSDSessionTest(TembaTest):
         flow.start([], [contact])
 
         # choose option with destination connected to another type of ruleset (Split by Expression)
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="9",
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="9",
+                                                 date=timezone.now(), external_id="21345")
 
         # there should be a last message with the message of the end action
         msgs = Msg.objects.filter(direction='O').order_by('id')
@@ -387,8 +387,8 @@ class USSDSessionTest(TembaTest):
         flow.start([], [contact])
 
         # choose option with destination connected to another type of ruleset (Split by Expression)
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="7",
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="7",
+                                                 date=timezone.now(), external_id="21345")
 
         # there should be a last message with empty message
         msgs = Msg.objects.filter(direction='O').order_by('id')
