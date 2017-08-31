@@ -758,6 +758,13 @@ class InfobipHandler(BaseChannelHandler):
         return HttpResponse("SMS Accepted: %d" % sms.id)
 
 
+class InfobipUSSDHandler(BaseChannelHandler):
+
+    url = r'^infobip_ussd/(?P<uuid>[a-z0-9\-]+)/session/(?P<session_id>[a-z0-9]+)/(?P<action>start|response|end)$'
+    url_name = 'handlers.infobip_ussd_handler'
+
+    def get_channel_type(self):
+        return 'IBU'
 class Hub9Handler(BaseChannelHandler):
 
     url = r'^hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
