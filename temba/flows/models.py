@@ -178,7 +178,8 @@ class FlowSession(models.Model):
         runs = []
         for contact in contacts:
             # build request to flow server
-            request = client.request_builder()\
+            request = client.request_builder() \
+                .asset_urls(flow.org)\
                 .set_environment(flow.org)\
                 .set_contact(contact)
 
@@ -195,7 +196,7 @@ class FlowSession(models.Model):
                 request = request.set_extra(extra)
 
             try:
-                output = request.start(flow, goflow.get_assets_url(flow.org))
+                output = request.start(flow)
             except goflow.FlowServerException:
                 continue
 
@@ -226,10 +227,11 @@ class FlowSession(models.Model):
         client = goflow.get_client()
 
         # build request to flow server
-        request = client.request_builder()
+        request = client.request_builder().asset_urls(self.org)
 
-        for channel in self.org.channels.filter(is_active=True):
-            request = request.include_channel(channel)
+        if settings.TESTING:
+            for channel in self.org.channels.filter(is_active=True):
+                request = request.include_channel(channel)
 
         # only include message if it's a real message
         if msg_in and msg_in.created_on:

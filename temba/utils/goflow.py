@@ -205,9 +205,16 @@ class RequestBuilder(object):
         })
         return self
 
-    def start(self, flow, assets_url):
+    def asset_urls(self, org):
+        self.request['asset_urls'] = {
+            'channel': get_assets_url(org, 'channel'),
+            'flow': get_assets_url(org, 'flow'),
+            'group': get_assets_url(org, 'group'),
+        }
+        return self
+
+    def start(self, flow):
         self.request['flow_uuid'] = str(flow.uuid)
-        self.request['assets_url'] = assets_url
 
         return self.client.start(self.request)
 
