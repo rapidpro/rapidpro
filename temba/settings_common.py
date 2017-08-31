@@ -1105,6 +1105,7 @@ CHANNEL_TYPES = [
     'temba.channels.types.facebook.FacebookType',
     'temba.channels.types.firebase.FirebaseCloudMessagingType',
     'temba.channels.types.infobip.InfobipType',
+    'temba.channels.types.infobip_ussd.InfobipUSSDType',
     'temba.channels.types.jiochat.JioChatType',
     'temba.channels.types.line.LineType',
     'temba.channels.types.telegram.TelegramType',
