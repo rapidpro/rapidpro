@@ -765,6 +765,20 @@ class InfobipUSSDHandler(BaseChannelHandler):
 
     def get_channel_type(self):
         return 'IBU'
+
+    def post(self, request, *args, **kwargs):
+        """
+        Implements spec of Infobip USSD Gateway REST/JSON API v1.2
+        """
+        from temba.msgs.models import WIRED
+
+        content = None
+        status = USSDSession.IN_PROGRESS
+
+        action = kwargs['action'].lower()
+        channel_uuid = kwargs['uuid']
+        session_id = kwargs['session_id']
+
 class Hub9Handler(BaseChannelHandler):
 
     url = r'^hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
