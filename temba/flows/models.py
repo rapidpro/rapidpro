@@ -1506,11 +1506,11 @@ class Flow(TembaModel):
             run.session = session
             run.save(update_fields=['session'])
 
-                entry_rule = RuleSet.objects.filter(uuid=self.entry_uuid).first()
+            # TODO: fix entry action
+            entry_rule = RuleSet.objects.filter(uuid=self.entry_uuid).first()
 
-                step = self.add_step(run, entry_rule, is_start=True, arrived_on=timezone.now())
-                if entry_rule.is_ussd():
-                    handled, step_msgs = Flow.handle_destination(entry_rule, step, run, start_msg, trigger_send=False, continue_parent=False)
+            step = self.add_step(run, entry_rule, is_start=True, arrived_on=timezone.now())
+            handled, step_msgs = Flow.handle_destination(entry_rule, step, run, start_msg, trigger_send=False, continue_parent=False)
 
                     # add these messages as ones that are ready to send
                     for msg in step_msgs:
