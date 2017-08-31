@@ -1506,11 +1506,6 @@ class Flow(TembaModel):
             run.session = session
             run.save(update_fields=['session'])
 
-            # if we were started by other session, save that off
-            if parent_run and parent_run.session:  # pragma: needs cover
-                session.parent = parent_run.session
-                session.save()
-            else:
                 entry_rule = RuleSet.objects.filter(uuid=self.entry_uuid).first()
 
                 step = self.add_step(run, entry_rule, is_start=True, arrived_on=timezone.now())
