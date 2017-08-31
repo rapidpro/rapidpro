@@ -1088,3 +1088,36 @@ class InfoBipUSSDTest(TembaTest):
 
         self.assertEqual(response.json()['responseExitCode'], 200)
         self.assertEqual(response.json()['responseMessage'], '')
+
+    def test_ended_with_error(self):
+        self.test_start()
+
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'end'])
+
+        start_data = {
+            'reason': 'timeout',
+            'exitCode': '600',
+            'networkName': 'Orange',
+            'countryName': 'NG'
+        }
+
+        response = self.client.put(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(response.json()['responseExitCode'], 200)
+        self.assertEqual(response.json()['responseMessage'], '')
+
+        session = USSDSession.objects.get()
+
+        self.assertEqual(session.status, USSDSession.INTERRUPTED)
+        self.assertFalse(session.runs.first().is_active)
+        self.assertIsInstance(session.ended_on, datetime)
+
+        msgs = session.msg_set.order_by('id').all()
+
+        # should be 3 messages all together with start the last one being the interrupt with no content
+        self.assertEqual(msgs.count(), 3)
+        self.assertEqual(msgs.last().text, '')
+        self.assertEqual(msgs.last().status, HANDLED)
