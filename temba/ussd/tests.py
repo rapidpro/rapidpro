@@ -948,3 +948,23 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                 self.clear_cache()
         finally:
             settings.SEND_MESSAGES = False
+
+
+class InfoBipUSSDTest(TembaTest):
+
+    def setUp(self):
+        super(InfoBipUSSDTest, self).setUp()
+
+        flow = self.get_flow('ussd_example_modern')
+        self.starcode = "*113#"
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'NG', 'IBU', None, self.starcode,
+                                      config=dict(sync_handling=True), role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+        self.trigger, _ = Trigger.objects.get_or_create(
+            channel=self.channel, keyword=self.starcode, flow=flow,
+            created_by=self.user, modified_by=self.user, org=self.org,
+            trigger_type=Trigger.TYPE_USSD_PULL)
+
