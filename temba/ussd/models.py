@@ -37,6 +37,9 @@ class USSDQuerySet(models.QuerySet):
     def get_session_with_status_only(self, session_id):
         return self.only('status').filter(id=session_id).first()
 
+    def get_session_by_external_id(self, session_id):
+        return self.exclude(status__in=USSDSession.DONE).filter(external_id=session_id).first()
+
 
 class USSDSession(ChannelSession):
     USSD_PULL = INCOMING = 'I'
@@ -51,12 +54,12 @@ class USSDSession(ChannelSession):
     def should_end(self):
         return self.status == self.ENDING
 
-    def mark_ending(self):  # session to be ended
+    def mark_ending(self):
         if self.status != self.ENDING:
             self.status = self.ENDING
             self.save(update_fields=['status'])
 
-    def close(self):  # session has successfully ended
+    def close(self):
         if self.status == self.ENDING:
             self.status = self.COMPLETED
         else:
@@ -65,6 +68,7 @@ class USSDSession(ChannelSession):
         self.ended_on = timezone.now()
         self.save(update_fields=['status', 'ended_on'])
 
+<<<<<<< HEAD
     def resume(self):
         if self.status == self.INTERRUPTED:
             self.status = self.IN_PROGRESS
@@ -72,6 +76,16 @@ class USSDSession(ChannelSession):
             self.save(update_fields=['status', 'ended_on'])
 
     def create_incoming_message(self, content, date, message_id):
+=======
+    def create_incoming_message(self, urn, content, date, message_id):
+        from temba.msgs.models import Msg, USSD
+
+        return Msg.create_incoming(
+            channel=self.channel, org=self.org, urn=urn, text=content or '', date=date, session=self,
+            msg_type=USSD, external_id=message_id)
+
+    def create_incoming_message_for_trigger(self, content, date, message_id):
+>>>>>>> feature/infobip_ussd
         from temba.msgs.models import Msg, USSD
 
         return Msg.objects.create(
@@ -81,6 +95,7 @@ class USSDSession(ChannelSession):
             direction=self.INCOMING, text=content or '')
 
     def start_session_async(self, flow, date, message_id):
+<<<<<<< HEAD
         message = self.create_incoming_message(None, date, message_id)
         flow.start([], [self.contact], start_msg=message, restart_participants=True, session=self)
 
@@ -131,16 +146,32 @@ class USSDSession(ChannelSession):
         step = flow.add_step(last_run, resume_or_restart_ruleset, arrived_on=timezone.now())
         Flow.handle_destination(resume_or_restart_ruleset, step, last_run, message, user_input=message is not None,
                                 trigger_send=True, continue_parent=False, no_save=True)
+=======
+        message = self.create_incoming_message_for_trigger(None, date, message_id)
+        flow.start([], [self.contact], start_msg=message, restart_participants=True, session=self)
+
+    def start_session_sync(self, flow, date, message_id):
+        message = self.create_incoming_message_for_trigger(None, date, message_id)
+        return flow.start([], [self.contact], start_msg=message, restart_participants=True, session=self, trigger_send=False)
+>>>>>>> feature/infobip_ussd
 
     def handle_session_async(self, urn, content, date, message_id):
-        from temba.msgs.models import Msg, USSD
-        Msg.create_incoming(
-            channel=self.channel, org=self.org, urn=urn, text=content or '', date=date, session=self,
-            msg_type=USSD, external_id=message_id)
+        self.create_incoming_message(urn, content, date, message_id)
 
-    def handle_ussd_session_sync(self):  # pragma: needs cover
-        # TODO: implement for InfoBip and other sync APIs
-        pass
+    def handle_session_sync(self, urn, content, date, message_id, flow=None, start=False):
+        from temba.flows.models import Flow
+        from temba.msgs.models import Msg
+
+        if start:
+            runs, msgs = self.start_session_sync(flow, date, message_id)
+        else:
+            msg = self.create_incoming_message(urn, content, date, message_id)
+            handled, msgs = Flow.find_and_handle(msg, trigger_send=False)
+
+            if handled:
+                Msg.mark_handled(msg)
+
+        return msgs
 
     @classmethod
     def handle_incoming(cls, channel, urn, date, external_id, contact=None, message_id=None, status=None,
@@ -171,7 +202,7 @@ class USSDSession(ChannelSession):
         if status == cls.TRIGGERED:
             trigger = Trigger.find_trigger_for_ussd_session(contact, starcode)
             if not trigger:
-                return False
+                return None, None
             defaults.update(dict(started_on=date, direction=cls.USSD_PULL, status=status))
 
         elif status == cls.INTERRUPTED:
@@ -193,13 +224,25 @@ class USSDSession(ChannelSession):
         created = False
         if not session:
             try:
+<<<<<<< HEAD
                 session = cls.objects.select_for_update().exclude(status__in=USSDSession.DONE)\
+=======
+                session = cls.objects.select_for_update().exclude(status__in=cls.DONE)\
+>>>>>>> feature/infobip_ussd
                                                          .get(external_id=external_id)
                 for k, v in six.iteritems(defaults):
                     setattr(session, k, v() if callable(v) else v)
                 session.save()
             except cls.DoesNotExist:
-                defaults['external_id'] = external_id
+                """
+                if we are not triggered and didn't find the session then we return, it should
+                be like that for all sync + async PULL sessions, but JuneBug and Vumi don't have
+                proper session handling and the session_id is sometimes unreliable.
+                """
+                if not async and not trigger:
+                    return None, None
+
+                defaults.update(dict(external_id=external_id))
                 session = cls.objects.create(**defaults)
                 created = True
         else:
@@ -209,6 +252,7 @@ class USSDSession(ChannelSession):
             session.save()
 
         # start session
+<<<<<<< HEAD
         if created and async and trigger:
             session.start_session_async(trigger.flow, date, message_id)
 
@@ -217,7 +261,33 @@ class USSDSession(ChannelSession):
             session.resume_session_async(content, date, message_id)
 
         # deal with incoming content and all the other states
+=======
+        if created and trigger:
+            if async:
+                session.start_session_async(trigger.flow, date, message_id)
+            else:
+                return session, session.handle_session_sync(urn, content, date, message_id, flow=trigger.flow, start=True)
+        # resume session, deal with incoming content and all the other states
+>>>>>>> feature/infobip_ussd
         else:
-            session.handle_session_async(urn, content, date, message_id)
+            if async:
+                session.handle_session_async(urn, content, date, message_id)
+            else:
+                return session, session.handle_session_sync(urn, content, date, message_id)
+
+        return session, None
+
+    @classmethod
+    def handle_interrupt(cls, session_id, async=True):
+        session = cls.objects.get_session_by_external_id(session_id)
+
+        if not session:
+            return None
+
+        session.close()
+        if async:
+            session.handle_session_async(session.contact_urn.urn, None, timezone.now(), None)
+        else:
+            session.handle_session_sync(session.contact_urn.urn, None, timezone.now(), None)
 
         return session

@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import pytz
+import six
 
 from datetime import datetime, timedelta
 from django.contrib.auth.models import Group
@@ -810,6 +811,42 @@ class APITest(TembaTest):
             self.assertEquals(201, response.status_code)
             self.assertIsNotNone(self.joe.urns.filter(path='+13605551212').first())
 
+            # rule uuid not existing we should find the actual matching rule
+            data = dict(flow=flow.uuid,
+                        revision=2,
+                        contact=self.joe.uuid,
+                        started='2015-08-25T11:09:29.088Z',
+                        submitted_by=self.admin.username,
+                        steps=[
+                            dict(node='bd531ace-911e-4722-8e53-6730d6122fe1',
+                                 arrived_on='2015-08-25T11:11:30.088Z',
+                                 rule=dict(uuid='abc5fd71-027b-40e8-a819-151a0f8140e6',
+                                           value="orange",
+                                           category="Orange",
+                                           text="I like orange")),
+                            dict(node='7d40faea-723b-473d-8999-59fb7d3c3ca2',
+                                 arrived_on='2015-08-25T11:13:30.088Z',
+                                 actions=[
+                                     dict(type="reply", msg="I love orange too!")
+                                 ]),
+                            dict(node=new_node_uuid,
+                                 arrived_on='2015-08-25T11:15:30.088Z',
+                                 actions=[
+                                     dict(type="save", field="tel_e164", value="+12065551212"),
+                                     dict(type="del_group", group=dict(name="Remove Me"))
+                                 ]),
+                        ],
+                        completed=True)
+
+            response = self.postJSON(url, data)
+            self.assertEquals(201, response.status_code)
+
+            with patch('temba.flows.models.RuleSet.find_matching_rule') as mock_find_matching_rule:
+                mock_find_matching_rule.return_value = None, None
+
+                with self.assertRaises(ValueError):
+                    self.postJSON(url, data)
+
     def test_api_contacts(self):
         url = reverse('api.v1.contacts')
 
@@ -967,7 +1004,7 @@ class APITest(TembaTest):
         self.assertEquals(201, response.status_code)
 
         contact = Contact.objects.get()
-        contact_urns = [urn.urn for urn in contact.urns.all().order_by('scheme', 'path')]
+        contact_urns = [six.text_type(urn) for urn in contact.urns.all().order_by('scheme', 'path')]
         self.assertEquals(["tel:+250788123456", "twitter:drdre"], contact_urns)
         self.assertEquals("Dr Dre", contact.name)
         self.assertEquals(self.org, contact.org)
@@ -1080,7 +1117,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         jay_z = Contact.objects.get(pk=jay_z.pk)
-        self.assertEqual([u.urn for u in jay_z.urns.all()], ['tel:+250785555555'])
+        self.assertEqual([six.text_type(u) for u in jay_z.urns.all()], ['tel:+250785555555'])
 
         # fetch all with blank query
         self.clear_cache()

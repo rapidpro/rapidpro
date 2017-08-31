@@ -14,7 +14,7 @@ class ViberPublicTypeTest(TembaTest):
         super(ViberPublicTypeTest, self).setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'VP', name="Viber", address="12345",
-                                      role="SR", scheme='viber', config={'auth_token': 'abcd1234'})
+                                      role="SR", schemes=['viber'], config={'auth_token': 'abcd1234'})
 
     @override_settings(IS_PROD=True)
     @patch('requests.post')

@@ -15,8 +15,8 @@ from django_redis import get_redis_connection
 
 from temba.channels.models import Channel
 from temba.channels.tests import JunebugTestMixin
-from temba.contacts.models import Contact, TEL_SCHEME, ContactGroup
-from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING, USSD, DELIVERED, FAILED
+from temba.contacts.models import Contact, TEL_SCHEME
+from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING, USSD, DELIVERED, FAILED, HANDLED
 from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
 from temba.flows.models import FlowRun
@@ -45,24 +45,24 @@ class USSDSessionTest(TembaTest):
                                                    trigger_type=Trigger.TYPE_USSD_PULL)
 
         # handle a message that has an unmatched wrong keyword
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+329732973", content="None",
-                                              status=USSDSession.TRIGGERED, date=timezone.now(), external_id="1234",
-                                              message_id="1111211", starcode="wrongkeyword")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+329732973", content="None",
+                                                 status=USSDSession.TRIGGERED, date=timezone.now(), external_id="1234",
+                                                 message_id="1111211", starcode="wrongkeyword")
 
         # check if session was started and created
         self.assertFalse(session)
 
         # handle a message that has an unmatched starcode
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+329732973", content="None",
-                                              status=USSDSession.TRIGGERED, date=timezone.now(), external_id="1234",
-                                              message_id="1111211", starcode="*111#")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+329732973", content="None",
+                                                 status=USSDSession.TRIGGERED, date=timezone.now(), external_id="1234",
+                                                 message_id="1111211", starcode="*111#")
 
         # check if session was started and created
         self.assertFalse(session)
 
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+329732973", content="None",
-                                              status=USSDSession.TRIGGERED, date=timezone.now(), external_id="1235",
-                                              message_id="1111131", starcode=starcode)
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+329732973", content="None",
+                                                 status=USSDSession.TRIGGERED, date=timezone.now(), external_id="1235",
+                                                 message_id="1111131", starcode=starcode)
 
         # check session properties
         self.assertEqual(session.status, USSDSession.TRIGGERED)
@@ -98,8 +98,8 @@ class USSDSessionTest(TembaTest):
         flow = self.test_push_async_start()
 
         # send an incoming message through the channel
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="1",
-                                              date=timezone.now(), external_id="21345", message_id="123")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="1",
+                                                 date=timezone.now(), external_id="21345", message_id="123")
 
         # same session is modified
         self.assertEqual(USSDSession.objects.count(), 1)
@@ -146,8 +146,9 @@ class USSDSessionTest(TembaTest):
         self.assertIsInstance(session.started_on, datetime)
 
         # send an interrupt "signal"
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", status=USSDSession.INTERRUPTED,
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383",
+                                                 status=USSDSession.INTERRUPTED,
+                                                 date=timezone.now(), external_id="21345")
 
         # same session is modified
         self.assertEqual(USSDSession.objects.count(), 1)
@@ -157,14 +158,32 @@ class USSDSessionTest(TembaTest):
         self.assertIsInstance(session.ended_on, datetime)
         self.assertEqual(session.external_id, "21345")
 
+    @patch('temba.ussd.models.USSDSession.handle_session_async')
+    def test_async_interrupt_handling_with_helper(self, handle_session_async):
+        flow = self.get_flow('ussd_session_end')
+        contact = self.create_contact("Joe", "+250788383383")
+        flow.start([], [contact])
+
+        session_id = "21345"
+
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="1",
+                                                 date=timezone.now(), external_id=session_id)
+
+        USSDSession.handle_interrupt(session_id)
+
+        session.refresh_from_db()
+
+        self.assertTrue(handle_session_async.called)
+        self.assertEqual(session.status, USSDSession.INTERRUPTED)
+
     def test_end_with_menu_no_destination(self):
         flow = self.get_flow('ussd_session_end')
         contact = self.create_contact("Joe", "+250788383383")
         flow.start([], [contact])
 
         # choose option with no destination connected
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="4",
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="4",
+                                                 date=timezone.now(), external_id="21345")
 
         # there should be 2 outgoing messages, one with an empty message to close down the session gracefully
         self.assertEqual(Msg.objects.count(), 3)
@@ -187,8 +206,8 @@ class USSDSessionTest(TembaTest):
         flow.start([], [contact])
 
         # choose option with destination connected to another wait_menu ruleset
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="1",
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="1",
+                                                 date=timezone.now(), external_id="21345")
 
         # the session shouldn't be marked as ending
         self.assertEqual(session.status, USSDSession.IN_PROGRESS)
@@ -201,8 +220,8 @@ class USSDSessionTest(TembaTest):
         flow.start([], [contact])
 
         # choose option with destination connected to another wait_menu ruleset
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="test",
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="test",
+                                                 date=timezone.now(), external_id="21345")
 
         # the session shouldn't be marked as ending
         self.assertEqual(session.status, USSDSession.IN_PROGRESS)
@@ -210,8 +229,8 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
         # choose option with destination connected to actions (add to groups and set language later)
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="2",
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="2",
+                                                 date=timezone.now(), external_id="21345")
 
         # there should be a last message with no content to close the session
         msgs = Msg.objects.filter(direction='O').order_by('id')
@@ -230,8 +249,8 @@ class USSDSessionTest(TembaTest):
         flow.start([], [contact])
 
         # choose option with destination connected to the arbitarty ussd ruleset
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="3",
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="3",
+                                                 date=timezone.now(), external_id="21345")
 
         # the session shouldn't be marked as ending
         self.assertEqual(session.status, USSDSession.IN_PROGRESS)
@@ -239,8 +258,8 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
         # now we are at the ussd response, choose an option here
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="3",
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="3",
+                                                 date=timezone.now(), external_id="21345")
 
         session.refresh_from_db()
         self.assertEqual(session.status, USSDSession.ENDING)
@@ -253,8 +272,8 @@ class USSDSessionTest(TembaTest):
         flow.start([], [contact])
 
         # choose option with destination connected to the arbitarty ussd ruleset
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="3",
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="3",
+                                                 date=timezone.now(), external_id="21345")
 
         # the session shouldn't be marked as ending
         self.assertEqual(session.status, USSDSession.IN_PROGRESS)
@@ -262,8 +281,8 @@ class USSDSessionTest(TembaTest):
         self.assertEqual(session.external_id, "21345")
 
         # choose the Maybe option which leads to a USSD End with message action
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="Maybe",
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="Maybe",
+                                                 date=timezone.now(), external_id="21345")
 
         # there should be a last message with the message of the end action
         msgs = Msg.objects.filter(direction='O').order_by('id')
@@ -285,8 +304,8 @@ class USSDSessionTest(TembaTest):
         flow.start([], [contact])
 
         # choose option with destination connected to a set of actions including an end session w message action
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="2",
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="2",
+                                                 date=timezone.now(), external_id="21345")
 
         # there should be a last message with the message of the end action
         msgs = Msg.objects.filter(direction='O').order_by('id')
@@ -306,8 +325,8 @@ class USSDSessionTest(TembaTest):
         flow.start([], [contact])
 
         # choose option with destination connected to another type of ruleset (Split by Expression)
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="6",
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="6",
+                                                 date=timezone.now(), external_id="21345")
 
         # there should be a last message with empty msg just to close the session gracefully
         msgs = Msg.objects.filter(direction='O').order_by('id')
@@ -326,8 +345,8 @@ class USSDSessionTest(TembaTest):
         flow.start([], [contact])
 
         # choose option with destination connected to another type of ruleset (Split by Expression)
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="5",
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="5",
+                                                 date=timezone.now(), external_id="21345")
 
         # there should be a last message with the message of the end action
         msgs = Msg.objects.filter(direction='O').order_by('id')
@@ -346,8 +365,8 @@ class USSDSessionTest(TembaTest):
         flow.start([], [contact])
 
         # choose option with destination connected to another type of ruleset (Split by Expression)
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="8",
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="8",
+                                                 date=timezone.now(), external_id="21345")
 
         # there should be a last message with empty message
         msgs = Msg.objects.filter(direction='O').order_by('id')
@@ -366,8 +385,8 @@ class USSDSessionTest(TembaTest):
         flow.start([], [contact])
 
         # choose option with destination connected to another type of ruleset (Split by Expression)
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="9",
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="9",
+                                                 date=timezone.now(), external_id="21345")
 
         # there should be a last message with the message of the end action
         msgs = Msg.objects.filter(direction='O').order_by('id')
@@ -386,8 +405,8 @@ class USSDSessionTest(TembaTest):
         flow.start([], [contact])
 
         # choose option with destination connected to another type of ruleset (Split by Expression)
-        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="7",
-                                              date=timezone.now(), external_id="21345")
+        session, _ = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="7",
+                                                 date=timezone.now(), external_id="21345")
 
         # there should be a last message with empty message
         msgs = Msg.objects.filter(direction='O').order_by('id')
@@ -787,240 +806,6 @@ class VumiUssdTest(TembaTest):
         new_contact = Contact.from_urn(self.org, "tel:+250788123123")
         self.assertIsNotNone(new_contact)
 
-    def test_resume_interrupted_pull_session(self):
-        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
-
-        ussd_code = "*111#"
-
-        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
-                    content="", transport_type='ussd', session_event="new", to_addr=ussd_code)
-
-        flow = self.get_flow('ussd_interrupt_example_2')
-
-        trigger, _ = Trigger.objects.get_or_create(channel=self.channel, keyword=ussd_code, flow=flow,
-                                                   created_by=self.user, modified_by=self.user, org=self.org,
-                                                   trigger_type=Trigger.TYPE_USSD_PULL)
-
-        # trigger session with an incoming message
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        # Actual message is generated and sent, now we are waiting for an answer
-        msg = Msg.objects.all().first()
-        self.assertEqual(msg.text, u"What's up?\n1: Good\n2: Nada")
-
-        # An interrupt happens
-        interrupt_data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
-                              content="Arbitrary content", transport_type='ussd', session_event="close",
-                              to_addr=ussd_code)
-
-        response = self.client.post(callback_url, json.dumps(interrupt_data), content_type="application/json")
-        self.assertEqual(response.status_code, 200)
-
-        # The session is marked as interrupted
-        session = USSDSession.objects.get()
-        self.assertIsInstance(session.ended_on, datetime)
-        self.assertEqual(session.status, USSDSession.INTERRUPTED)
-
-        # Run is inactive and interrupted
-        run = FlowRun.objects.get()
-        self.assertFalse(run.is_active)
-        self.assertTrue(run.is_interrupted())
-
-        # now trigger the session again to resume it
-        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
-                    content="", transport_type='ussd', session_event="new", to_addr=ussd_code)
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        # Run is still inactive
-        run.refresh_from_db()
-        self.assertFalse(run.is_active)
-        self.assertTrue(run.is_interrupted())
-
-        self.assertEqual(run.steps.last().messages.last().text,
-                         u"Welcome back. Please select an option:\n1: Resume flow\n2: Restart from main menu")
-
-        # now send a reply - resume flow
-        data['session_event'] = 'resume'
-        data['content'] = '1'
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        # Run is now active
-        run.refresh_from_db()
-        self.assertTrue(run.is_active)
-        self.assertFalse(run.is_completed())
-        self.assertFalse(run.is_interrupted())
-
-        self.assertEqual(run.steps.last().messages.last().text, u"What's up?\n1: Good\n2: Nada")
-        self.assertNotEqual(run.steps.last().messages.last().id, msg.id)
-
-        # Continue the flow menus
-        data['session_event'] = 'resume'
-        data['content'] = '2'
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-        # now we are at the second menu
-        self.assertEqual(run.steps.last().messages.last().text, u'Second menu\n1: Good\n2: Bad')
-
-        # Run is still active
-        run.refresh_from_db()
-        self.assertTrue(run.is_active)
-        self.assertFalse(run.is_completed())
-        self.assertFalse(run.is_interrupted())
-
-        # Interrupt again
-        interrupt_data['content'] = 'Arbitrary content 2'
-        response = self.client.post(callback_url, json.dumps(interrupt_data), content_type="application/json")
-        self.assertEqual(response.status_code, 200)
-
-        # The session is marked as interrupted
-        session = USSDSession.objects.get()
-        self.assertIsInstance(session.ended_on, datetime)
-        self.assertEqual(session.status, USSDSession.INTERRUPTED)
-
-        # Run is inactive and interrupted
-        run.refresh_from_db()
-        self.assertFalse(run.is_active)
-        self.assertTrue(run.is_interrupted())
-
-        # the contact should have been added to the "Interrupted" group as flow step describes
-        contact = flow.get_results()[0]['contact']
-        interrupted_group = ContactGroup.user_groups.get(name='Interrupted')
-        self.assertTrue(interrupted_group.contacts.filter(id=contact.id).exists())
-
-        # now trigger the session again to resume it the second time
-        data = dict(timestamp="2016-04-18 03:54:21.570618", message_id="123456", from_addr="+250788383383",
-                    content="", transport_type='ussd', session_event="new", to_addr=ussd_code)
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        # Run is still inactive
-        run.refresh_from_db()
-        self.assertFalse(run.is_active)
-        self.assertTrue(run.is_interrupted())
-
-        self.assertEqual(run.steps.last().messages.last().text,
-                         u"Welcome back. Please select an option:\n1: Resume flow\n2: Restart from main menu")
-
-        # now send a reply - resume flow
-        data['session_event'] = 'resume'
-        data['timestamp'] = "2016-04-18 03:56:31.570618"
-        data['content'] = '1'
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        # Run is now active
-        run.refresh_from_db()
-        self.assertTrue(run.is_active)
-        self.assertFalse(run.is_completed())
-        self.assertFalse(run.is_interrupted())
-
-        self.assertEqual(run.steps.last().messages.last().text, u'Second menu\n1: Good\n2: Bad')
-
-        # Let's complete this flow
-        data['session_event'] = 'resume'
-        data['timestamp'] = "2016-04-18 03:57:31.570618"
-        data['content'] = '1'
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        # Run is completed
-        run.refresh_from_db()
-        self.assertFalse(run.is_active)
-        self.assertTrue(run.is_completed())
-        self.assertFalse(run.is_interrupted())
-
-    def test_restart_interrupted_pull_session(self):
-        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
-
-        ussd_code = "*111#"
-
-        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
-                    content="", transport_type='ussd', session_event="new", to_addr=ussd_code)
-
-        flow = self.get_flow('ussd_interrupt_example_2')
-
-        trigger, _ = Trigger.objects.get_or_create(channel=self.channel, keyword=ussd_code, flow=flow,
-                                                   created_by=self.user, modified_by=self.user, org=self.org,
-                                                   trigger_type=Trigger.TYPE_USSD_PULL)
-
-        # trigger session with an incoming message
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        # Actual message is generated and sent, now we are waiting for an answer
-        msg = Msg.objects.all().first()
-        self.assertEqual(msg.text, u"What's up?\n1: Good\n2: Nada")
-
-        # Continue the flow menus
-        data['session_event'] = 'resume'
-        data['content'] = '2'
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-        # now we are at the second menu
-        run = FlowRun.objects.get()
-        self.assertEqual(run.steps.last().messages.last().text, u'Second menu\n1: Good\n2: Bad')
-
-        # An interrupt happens
-        interrupt_data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
-                              content="Arbitrary content", transport_type='ussd', session_event="close",
-                              to_addr=ussd_code)
-
-        response = self.client.post(callback_url, json.dumps(interrupt_data), content_type="application/json")
-        self.assertEqual(response.status_code, 200)
-
-        # The session is marked as interrupted
-        session = USSDSession.objects.get()
-        self.assertIsInstance(session.ended_on, datetime)
-        self.assertEqual(session.status, USSDSession.INTERRUPTED)
-
-        # Run is inactive and interrupted
-        run = FlowRun.objects.get()
-        self.assertFalse(run.is_active)
-        self.assertTrue(run.is_interrupted())
-
-        # now trigger the session again to resume it
-        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
-                    content="", transport_type='ussd', session_event="new", to_addr=ussd_code)
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        # Run is still inactive
-        run.refresh_from_db()
-        self.assertFalse(run.is_active)
-        self.assertTrue(run.is_interrupted())
-
-        self.assertEqual(run.steps.last().messages.last().text,
-                         u"Welcome back. Please select an option:\n1: Resume flow\n2: Restart from main menu")
-
-        # now send a reply - resume flow
-        data['session_event'] = 'resume'
-        data['content'] = '2'
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        # Run is now active
-        run.refresh_from_db()
-        self.assertTrue(run.is_active)
-        self.assertFalse(run.is_completed())
-        self.assertFalse(run.is_interrupted())
-
-        self.assertEqual(run.steps.last().messages.last().text, u"What's up?\n1: Good\n2: Nada")
-        self.assertNotEqual(run.steps.last().messages.last().id, msg.id)
-
 
 class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
@@ -1181,3 +966,293 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
                 self.clear_cache()
         finally:
             settings.SEND_MESSAGES = False
+
+
+class InfoBipUSSDTest(TembaTest):
+
+    def setUp(self):
+        super(InfoBipUSSDTest, self).setUp()
+
+        flow = self.get_flow('ussd_example_modern')
+        self.starcode = "*113#"
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'NG', 'IBU', None, self.starcode,
+                                      config=dict(sync_handling=True), role=Channel.ROLE_USSD,
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+        self.trigger, _ = Trigger.objects.get_or_create(
+            channel=self.channel, keyword=self.starcode, flow=flow,
+            created_by=self.user, modified_by=self.user, org=self.org,
+            trigger_type=Trigger.TYPE_USSD_PULL)
+
+    def test_start(self):
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'start'])
+
+        start_data = {
+            'msisdn': '+2347030767143',
+            'imsi': '8796df56as657',
+            'shortCode': self.starcode,
+            'ussdNodeId': 'testNodeId',
+            'text': 'auxiliary data that was sent when triggering the session',
+            'networkName': 'Orange',
+            'countryName': 'NG'
+        }
+
+        response = self.client.post(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        session = USSDSession.objects.get()
+
+        self.assertEqual(session.status, USSDSession.TRIGGERED)
+        self.assertTrue(session.runs.first().is_active)
+
+        msgs = session.msg_set.order_by('id').all()
+
+        # should have two messages, one for the trigger, one for the first menu
+        self.assertEqual(msgs.count(), 2)
+        self.assertEqual(msgs.first().text, '')
+        self.assertEqual(msgs.first().status, HANDLED)
+        self.assertEqual(msgs.last().text, u"What's up?\n1: Good\n2: Nada")
+        self.assertEqual(msgs.last().status, WIRED)
+
+        self.assertEqual(response.json()['responseExitCode'], 200)
+        self.assertEqual(response.json()['responseMessage'], '')
+        self.assertEqual(response.json()['shouldClose'], 'true' if session.should_end else 'false')
+        self.assertEqual(response.json()['ussdMenu'], msgs.last().text)
+
+    def test_start_with_no_channel(self):
+        self.channel.delete()
+
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'start'])
+
+        start_data = {
+            'msisdn': '+2347030767143',
+            'imsi': '8796df56as657',
+            'shortCode': self.starcode,
+            'ussdNodeId': 'testNodeId',
+            'text': 'auxiliary data that was sent when triggering the session',
+            'networkName': 'Orange',
+            'countryName': 'NG'
+        }
+
+        response = self.client.post(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(response.json()['responseExitCode'], 400)
+        self.assertEqual(response.json()['responseMessage'], "Channel not found.")
+
+    def test_start_with_wrong_payload(self):
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'start'])
+
+        start_data = {
+            'msisdn': '+2347030767143'
+        }
+
+        response = self.client.post(callback_url, start_data)
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(response.json()['responseExitCode'], 400)
+        self.assertEqual(response.json()['responseMessage'], 'Error processing JSON data')
+
+    def test_response(self):
+        self.test_start()
+
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'response'])
+
+        start_data = {
+            'msisdn': '+2347030767143',
+            'imsi': '8796df56as657',
+            'shortCode': self.starcode,
+            'ussdNodeId': 'testNodeId',
+            'text': '2',
+            'networkName': 'Orange',
+            'countryName': 'NG'
+        }
+
+        response = self.client.put(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        session = USSDSession.objects.get()
+
+        self.assertEqual(session.status, USSDSession.IN_PROGRESS)
+        self.assertTrue(session.runs.first().is_active)
+
+        msgs = session.msg_set.order_by('id').all()
+
+        self.assertEqual(msgs.count(), 4)
+        self.assertEqual(msgs.last().text, u"Second menu\n1: Good\n2: Bad")
+        self.assertEqual(msgs.last().status, WIRED)
+
+        # let's make another response to close the session
+        start_data['text'] = '1'
+        response = self.client.put(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        session.refresh_from_db()
+
+        # session is done
+        self.assertEqual(session.status, USSDSession.COMPLETED)
+        # run is inactive
+        self.assertFalse(session.runs.first().is_active)
+
+        msgs = session.msg_set.order_by('id').all()
+
+        self.assertEqual(msgs.count(), 6)
+        self.assertEqual(msgs.last().text, u"Closed with good")
+        self.assertEqual(msgs.last().status, WIRED)
+
+        self.assertEqual(response.json()['responseExitCode'], 200)
+        self.assertEqual(response.json()['responseMessage'], '')
+        self.assertEqual(response.json()['shouldClose'], 'true')
+        self.assertEqual(response.json()['ussdMenu'], msgs.last().text)
+
+    def test_response_with_no_session_closing_ruleset(self):
+        self.test_start()
+
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'response'])
+
+        start_data = {
+            'msisdn': '+2347030767143',
+            'imsi': '8796df56as657',
+            'shortCode': self.starcode,
+            'ussdNodeId': 'testNodeId',
+            'text': '1',
+            'networkName': 'Orange',
+            'countryName': 'NG'
+        }
+
+        response = self.client.put(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        session = USSDSession.objects.get()
+
+        # session is done
+        self.assertEqual(session.status, USSDSession.COMPLETED)
+        # run is inactive
+        self.assertFalse(session.runs.first().is_active)
+
+        msgs = session.msg_set.order_by('id').all()
+
+        self.assertEqual(msgs.count(), 4)
+        self.assertEqual(msgs.last().text, '')
+        self.assertEqual(msgs.last().status, WIRED)
+
+        self.assertEqual(response.json()['responseExitCode'], 200)
+        self.assertEqual(response.json()['responseMessage'], '')
+        self.assertEqual(response.json()['shouldClose'], 'true')
+        self.assertEqual(response.json()['ussdMenu'], msgs.last().text)
+
+    def test_ended_normally(self):
+        self.test_response_with_no_session_closing_ruleset()
+
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'end'])
+
+        start_data = {
+            'reason': 'Session ended normally',
+            'exitCode': '200',
+            'networkName': 'Orange',
+            'countryName': 'NG'
+        }
+
+        response = self.client.put(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        session = USSDSession.objects.get()
+
+        # still completed and inactive
+        self.assertEqual(session.status, USSDSession.COMPLETED)
+        self.assertFalse(session.runs.first().is_active)
+
+        msgs = session.msg_set.order_by('id').all()
+
+        # there were no more messages sent
+        self.assertEqual(msgs.count(), 4)
+
+        self.assertEqual(response.json()['responseExitCode'], 200)
+        self.assertEqual(response.json()['responseMessage'], '')
+
+    def test_ended_with_error(self):
+        self.test_start()
+
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'end'])
+
+        start_data = {
+            'reason': 'timeout',
+            'exitCode': '600',
+            'networkName': 'Orange',
+            'countryName': 'NG'
+        }
+
+        response = self.client.put(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(response.json()['responseExitCode'], 200)
+        self.assertEqual(response.json()['responseMessage'], '')
+
+        session = USSDSession.objects.get()
+
+        self.assertEqual(session.status, USSDSession.INTERRUPTED)
+        self.assertFalse(session.runs.first().is_active)
+        self.assertIsInstance(session.ended_on, datetime)
+
+        msgs = session.msg_set.order_by('id').all()
+
+        # should be 3 messages all together with start the last one being the interrupt with no content
+        self.assertEqual(msgs.count(), 3)
+        self.assertEqual(msgs.last().text, '')
+        self.assertEqual(msgs.last().status, HANDLED)
+
+    def test_ended_with_error_session_not_found(self):
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'end'])
+
+        start_data = {
+            'reason': 'timeout',
+            'exitCode': '600',
+            'networkName': 'Orange',
+            'countryName': 'NG'
+        }
+
+        response = self.client.put(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(response.json()['responseExitCode'], 400)
+        self.assertEqual(response.json()['responseMessage'], 'Session not found')
+
+    def test_response_without_session(self):
+        callback_url = reverse('handlers.infobip_ussd_handler',
+                               args=[self.channel.uuid, '13cc8b28afb86c69766531', 'response'])
+
+        start_data = {
+            'msisdn': '+2347030767143',
+            'imsi': '8796df56as657',
+            'shortCode': self.starcode,
+            'ussdNodeId': 'testNodeId',
+            'text': '2',
+            'networkName': 'Orange',
+            'countryName': 'NG'
+        }
+
+        response = self.client.put(callback_url, json.dumps(start_data), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(response.json()['responseExitCode'], 400)
+        self.assertEqual(response.json()['responseMessage'], 'Session not found')

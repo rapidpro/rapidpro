@@ -1,0 +1,214 @@
+{
+  "campaigns": [],
+  "version": 10,
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "base_language": "base",
+      "action_sets": [
+        {
+          "y": 494,
+          "x": 133,
+          "destination": null,
+          "uuid": "e95b6322-61a0-45b4-ae75-fd1bae445622",
+          "actions": [
+            {
+              "msg": {
+                "base": "Closed with good"
+              },
+              "media": {},
+              "send_all": false,
+              "type": "end_ussd"
+            }
+          ]
+        },
+        {
+          "y": 560,
+          "x": 378,
+          "destination": null,
+          "uuid": "80c32cd0-920c-4dc0-a7de-706b42cc0e60",
+          "actions": [
+            {
+              "msg": {
+                "base": "Closed with Bad"
+              },
+              "media": {},
+              "send_all": false,
+              "type": "end_ussd"
+            }
+          ]
+        },
+        {
+          "y": 520,
+          "x": 729,
+          "destination": null,
+          "uuid": "8bd6c4e2-e43a-4f89-afb8-68dee6c76e60",
+          "actions": [
+            {
+              "msg": {
+                "base": "Closed with Other"
+              },
+              "media": {},
+              "send_all": false,
+              "type": "end_ussd"
+            }
+          ]
+        }
+      ],
+      "version": 10,
+      "flow_type": "U",
+      "entry": "986b4ca0-3da5-4f12-99f7-d713b276519b",
+      "rule_sets": [
+        {
+          "uuid": "986b4ca0-3da5-4f12-99f7-d713b276519b",
+          "rules": [
+            {
+              "test": {
+                "test": 1,
+                "type": "eq"
+              },
+              "category": {
+                "base": "Good"
+              },
+              "uuid": "cd0d3860-7e82-4bde-8bde-55e5c2b6f783",
+              "label": {
+                "base": "Good"
+              }
+            },
+            {
+              "category": {
+                "base": "Nada"
+              },
+              "uuid": "836f1640-581d-4280-ac19-35386cbb23d6",
+              "destination": "d940fb1b-3813-47f0-b425-7a1fe6899c83",
+              "label": {
+                "base": "Nada"
+              },
+              "destination_type": "R",
+              "test": {
+                "test": "2",
+                "type": "eq"
+              }
+            },
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "base": "Other"
+              },
+              "destination": null,
+              "uuid": "a5931f02-5f86-4637-9189-cf43defb671e",
+              "destination_type": "A"
+            },
+            {
+              "test": {
+                "test": "interrupted",
+                "type": "interrupted_status"
+              },
+              "category": {
+                "base": "Interrupted"
+              },
+              "destination": null,
+              "uuid": "a50b7508-e83c-4c2f-96f7-721cf76fae9d",
+              "destination_type": "A"
+            }
+          ],
+          "ruleset_type": "wait_menu",
+          "label": "Response 1",
+          "operand": "@step.value",
+          "finished_key": null,
+          "response_type": "",
+          "y": 0,
+          "x": 710,
+          "config": {
+            "ussd_message": {
+              "base": "What's up?"
+            }
+          }
+        },
+        {
+          "uuid": "d940fb1b-3813-47f0-b425-7a1fe6899c83",
+          "rules": [
+            {
+              "category": {
+                "base": "Good"
+              },
+              "uuid": "8cf589a1-dafa-4696-8b20-be05e6866e91",
+              "destination": "e95b6322-61a0-45b4-ae75-fd1bae445622",
+              "label": {
+                "base": "Good"
+              },
+              "destination_type": "A",
+              "test": {
+                "test": 1,
+                "type": "eq"
+              }
+            },
+            {
+              "category": {
+                "base": "Bad"
+              },
+              "uuid": "2d2b29b0-0fe8-4025-8226-41ec79a9f67e",
+              "destination": "80c32cd0-920c-4dc0-a7de-706b42cc0e60",
+              "label": {
+                "base": "Bad"
+              },
+              "destination_type": "A",
+              "test": {
+                "test": 2,
+                "type": "eq"
+              }
+            },
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "base": "Other"
+              },
+              "destination": "8bd6c4e2-e43a-4f89-afb8-68dee6c76e60",
+              "uuid": "a37b6b11-ce83-4f1a-8bf5-a230776f4e5a",
+              "destination_type": "A"
+            },
+            {
+              "test": {
+                "test": "interrupted",
+                "type": "interrupted_status"
+              },
+              "category": {
+                "base": "Interrupted"
+              },
+              "destination": null,
+              "uuid": "c5330b05-626f-436d-9309-0070c79b3b5f",
+              "destination_type": "A"
+            }
+          ],
+          "ruleset_type": "wait_menu",
+          "label": "Response 2",
+          "operand": "@step.value",
+          "finished_key": null,
+          "response_type": "",
+          "y": 261,
+          "x": 345,
+          "config": {
+            "ussd_message": {
+              "base": "Second menu"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "uuid": "fdf59acd-9373-4ecb-b0eb-82377f8fb478",
+        "notes": [],
+        "expires": 10080,
+        "name": "ussd example modern",
+        "saved_on": "2017-08-31T14:22:56.552957Z",
+        "revision": 3
+      }
+    }
+  ],
+  "triggers": []
+}
