@@ -43,9 +43,9 @@
         -with item.obj as event
           -if event.event_type == 'mt_miss'
             -trans "Missed call"
-          -elif event.event_type == 'new_conversation':
+          -elif event.event_type == 'new_conversation'
             -trans "Conversation Started"
-          -elif event.event_type == 'referral':
+          -elif event.event_type == 'referral'
             -trans "Referred"
           -else
             -trans "Phone call"
