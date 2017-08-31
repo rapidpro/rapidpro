@@ -50,7 +50,7 @@ def serialize_channel(channel):
 
 
 def serialize_group(group):
-    return {'uuid': group.uuid, 'name': group.name}
+    return {'uuid': group.uuid, 'name': group.name, 'query': group.query}
 
 
 def serialize_country(org):

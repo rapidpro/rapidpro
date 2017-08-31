@@ -105,4 +105,4 @@ STATIC_URL = '/sitestatic/'
 # GoFlow
 # -----------------------------------------------------------------------------------
 FLOW_SERVER_URL = 'http://localhost:8080'
-FLOW_SERVER_DEBUG = True
+FLOW_SERVER_DEBUG = False

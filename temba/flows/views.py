@@ -13,6 +13,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
+from django.core.paginator import Paginator
 from django.core.urlresolvers import reverse
 from django.db.models import Count, Min, Max, Sum
 from django import forms
@@ -1742,4 +1743,18 @@ class FlowAssets(View):
             result = queryset.filter(uuid=uuid).first()
             return JsonResponse(resource.serializer(result))
         else:
-            return JsonResponse({'results': [resource.serializer(o) for o in queryset]})
+            page_size = self.request.GET.get('page_size')
+            page_num = self.request.GET.get('page')
+
+            if page_size is None:
+                # the flow engine doesn't want results paged, so just return the entire set
+                return JsonResponse([resource.serializer(o) for o in queryset], safe=False)
+            else:
+                # the flow editor however will specify what kind of pagination it wants
+                paginator = Paginator(queryset, page_size)
+                page = paginator.page(page_num)
+
+                return JsonResponse({
+                    'results': [resource.serializer(o) for o in page.object_list],
+                    'has_next': page.has_next()
+                })
