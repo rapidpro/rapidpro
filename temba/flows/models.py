@@ -1373,7 +1373,8 @@ class Flow(TembaModel):
         on_transaction_commit(lambda: start_flow_task.delay(flow_start.pk))
 
     def start(self, groups, contacts, restart_participants=False, started_flows=None,
-              start_msg=None, extra=None, flow_start=None, parent_run=None, interrupt=True, session=None, include_active=True):
+              start_msg=None, extra=None, flow_start=None, parent_run=None, interrupt=True,
+              session=None, include_active=True, trigger_send=True):
         """
         Starts a flow for the passed in groups and contacts.
         """
@@ -1463,17 +1464,20 @@ class Flow(TembaModel):
 
         elif self.flow_type == Flow.USSD:
             return self.start_ussd_flow(all_contact_ids, start_msg=start_msg,
-                                        extra=extra, flow_start=flow_start, parent_run=parent_run, session=session)
+                                        extra=extra, flow_start=flow_start, parent_run=parent_run,
+                                        session=session, trigger_send=trigger_send)
         else:
             return self.start_msg_flow(all_contact_ids,
                                        started_flows=started_flows, start_msg=start_msg,
                                        extra=extra, flow_start=flow_start, parent_run=parent_run)
 
-    def start_ussd_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None, session=None):
+    def start_ussd_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None,
+                        session=None, trigger_send=True):
         from temba.ussd.models import USSDSession
 
         runs = []
         msgs = []
+        handled = False
 
         channel = self.org.get_ussd_channel()
 
