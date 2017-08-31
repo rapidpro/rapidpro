@@ -790,6 +790,26 @@ class InfobipUSSDHandler(BaseChannelHandler):
         except ValueError:
             return JsonResponse({'responseExitCode': 400, 'responseMessage': 'Error processing JSON data'})
 
+        if action == 'start':
+            status = USSDSession.TRIGGERED
+        elif action == 'response':
+            status = USSDSession.IN_PROGRESS
+            content = data.get('text', '')
+        elif action == 'end':
+            """
+            exitCode    reason
+            200         Session ended normally
+            500         Session aborted by network
+            510         Session aborted by TPA
+            520         Session aborted by user
+            600         Session timeout
+            """
+            exit_code = data.get('exitCode', 999)
+            if int(exit_code) != 200:
+                if not USSDSession.handle_interrupt(session_id, async=False):
+                    return JsonResponse({'responseExitCode': 400, 'responseMessage': 'Session not found'})
+
+            return JsonResponse({'responseExitCode': 200, 'responseMessage': ''})
 class Hub9Handler(BaseChannelHandler):
 
     url = r'^hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
