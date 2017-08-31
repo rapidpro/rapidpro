@@ -814,6 +814,13 @@ class InfobipUSSDHandler(BaseChannelHandler):
         session, msgs = USSDSession.handle_incoming(channel=channel, urn=data['msisdn'], content=content,
                                                     status=status, date=timezone.now(), external_id=session_id,
                                                     starcode=data['shortCode'], async=False)
+        msg = msgs[0]
+        response_data = {
+            'responseExitCode': 200,
+            'responseMessage': '',
+            'shouldClose': 'true' if msg.session.should_end else 'false',
+            'ussdMenu': msg.text
+        }
 class Hub9Handler(BaseChannelHandler):
 
     url = r'^hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
