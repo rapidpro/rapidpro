@@ -1385,9 +1385,9 @@ class VumiHandler(BaseChannelHandler):
 
                 session_id = str(session_id_part1 + session_id_part2)
 
-                session = USSDSession.handle_incoming(channel=channel, urn=body['from_addr'], content=content,
-                                                      status=status, date=gmt_date, external_id=session_id,
-                                                      message_id=body['message_id'], starcode=body.get('to_addr'))
+                session, _ = USSDSession.handle_incoming(channel=channel, urn=body['from_addr'], content=content,
+                                                         status=status, date=gmt_date, external_id=session_id,
+                                                         message_id=body['message_id'], starcode=body.get('to_addr'))
 
                 if session:
                     return HttpResponse("Accepted: %d" % session.id)
@@ -2085,9 +2085,9 @@ class JunebugHandler(BaseChannelHandler):
                 # Use a session id if provided, otherwise fall back to using the `from` address as the identifier
                 session_id = channel_data.get('session_id') or data['from']
 
-                session = USSDSession.handle_incoming(channel=channel, urn=data['from'], content=data['content'],
-                                                      status=status, date=gmt_date, external_id=session_id,
-                                                      message_id=data['message_id'], starcode=data['to'])
+                session, _ = USSDSession.handle_incoming(channel=channel, urn=data['from'], content=data['content'],
+                                                         status=status, date=gmt_date, external_id=session_id,
+                                                         message_id=data['message_id'], starcode=data['to'])
 
                 if session:
                     status = 200
