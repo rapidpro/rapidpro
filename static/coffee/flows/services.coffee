@@ -473,7 +473,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         ]},
 
         # all flows
-        { type: 'subflow', name: 'Run Flow', verbose_name: 'Run a flow', filter: ALL, rules: [
+        { type: 'subflow', name: 'Run Flow', verbose_name: 'Run a flow', filter: [TEXT,VOICE,SURVEY], rules: [
           { name: 'Completed', test: { type: 'subflow', exit_type: 'completed' }},
           { name: 'Expired', test: { type: 'subflow', exit_type: 'expired' }}
         ]},
