@@ -169,28 +169,28 @@ class FlowSession(models.Model):
         """
         Starts a contact in the given flow
         """
-        if not settings.FLOW_SERVER_URL or not flow.is_active or flow.is_archived or (msg_in and not msg_in.contact_urn):
-            return []
-
         cls.interrupt_waiting(contacts)
-
-        flows = goflow.migrate_flow_with_dependencies(flow)
-        if len(flows) == 0:
-            return []
 
         Contact.bulk_cache_initialize(flow.org, contacts)
 
-        channels = list(flow.org.channels.filter(is_active=True))
         client = goflow.get_client()
+
+        asset_timestamp = int(time.time() * 1000000)
 
         runs = []
         for contact in contacts:
             # build request to flow server
-            request = client.request_builder()\
-                .include_channels(channels)\
-                .include_flows(flows)\
+            request = client.request_builder(asset_timestamp) \
+                .asset_urls(flow.org)\
                 .set_environment(flow.org)\
                 .set_contact(contact)
+
+            # if we're testing we need to include all assets with the request
+            if settings.TESTING:
+                for f in flow.org.flows.filter(is_active=True):
+                    request = request.include_flow(f)
+                for channel in flow.org.channels.filter(is_active=True):
+                    request = request.include_channel(channel)
 
             # only include message if it's a real message
             if msg_in and msg_in.created_on:
@@ -218,9 +218,6 @@ class FlowSession(models.Model):
         """
         Resumes an existing flow session
         """
-        if not settings.FLOW_SERVER_URL:
-            return False, []
-
         current_output = self.as_json()
 
         # find the run that was waiting for input
@@ -229,26 +226,18 @@ class FlowSession(models.Model):
             if run['status'] == 'waiting':
                 waiting_run = run
                 break
-        waiting_flow = Flow.objects.get(org=self.org, uuid=waiting_run['flow_uuid'])
 
-        # get our root flow
-        flow = self.get_root_flow()
-        if flow is None or flow.is_archived or not flow.is_active:
-            self.status = self.STATUS_ERRORED
-            self.save(update_fields=('status',))
-            return False, []
-
-        flows = goflow.migrate_flow_with_dependencies(flow, [waiting_flow])
-        if not flows:
-            raise ValueError("Session flows have been modified and are no longer supported by goflow")
-
-        channels = list(flow.org.channels.filter(is_active=True))
         client = goflow.get_client()
 
         # build request to flow server
-        request = client.request_builder()\
-            .include_channels(channels)\
-            .include_flows(flows)
+        asset_timestamp = int(time.time() * 1000000)
+        request = client.request_builder(asset_timestamp).asset_urls(self.org)
+
+        if settings.TESTING:
+            for f in self.org.flows.filter(is_active=True):
+                request = request.include_flow(f)
+            for channel in self.org.channels.filter(is_active=True):
+                request = request.include_channel(channel)
 
         # only include message if it's a real message
         if msg_in and msg_in.created_on:
@@ -1878,16 +1867,21 @@ class Flow(TembaModel):
     def start_msg_flow_batch(self, batch_contact_ids, broadcasts, started_flows, start_msg=None,
                              extra=None, flow_start=None, parent_run=None):
 
-        # try to start the session against our flow server
-        runs = FlowSession.bulk_start(Contact.objects.filter(id__in=batch_contact_ids).order_by('id'), self, broadcasts, start_msg, extra)
         from temba.tests import TembaTestRunner
-        if len(runs):
+
+        if settings.FLOW_SERVER_URL and self.is_runnable_in_goflow() and not (start_msg and not start_msg.contact_urn):
+            # try to start the session against our flow server
+            contacts = Contact.objects.filter(id__in=batch_contact_ids).order_by('id')
+
             TembaTestRunner.NEW_ENGINE_RUNS += 1
+
+            runs = FlowSession.bulk_start(contacts, self, broadcasts, start_msg, extra)
             if flow_start:
                 flow_start.runs.add(*runs)
                 flow_start.update_status()
             return runs
-        TembaTestRunner.LEGACY_ENGINE_RUNS += 1
+        else:
+            TembaTestRunner.LEGACY_ENGINE_RUNS += 1
 
         simulation = False
         if len(batch_contact_ids) == 1:
@@ -2342,13 +2336,18 @@ class Flow(TembaModel):
         """
         Returns true if this flow only uses features supported by GoFlow
         """
-        features = flag_to_features(self.feature_flag)
-        unsupported = [f for f in features if f not in GOFLOW_FEATURES]
+        for flow in self.org.resolve_dependencies([self], [], False):
+            if flow.flow_type not in (Flow.MESSAGE, Flow.FLOW):
+                print("[GOFLOW] won't run flow due to unsupported type: %s" % flow.flow_type)
+                return False
 
-        if unsupported:
-            print("[GOFLOW] won't run flow due to unsupported features: %s" % ', '.join(unsupported))
+            features = flag_to_features(flow.feature_flag)
+            unsupported = [f for f in features if f not in GOFLOW_FEATURES]
+            if unsupported:
+                print("[GOFLOW] won't run flow due to unsupported features: %s" % ', '.join(unsupported))
+                return False
 
-        return not unsupported
+        return True
 
     @classmethod
     def calculate_feature_flag(cls, action_types, ruleset_types, tests):

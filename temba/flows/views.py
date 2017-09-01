@@ -13,6 +13,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
+from django.core.paginator import Paginator
 from django.core.urlresolvers import reverse
 from django.db.models import Count, Min, Max, Sum
 from django import forms
@@ -21,7 +22,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import FormView
+from django.views.generic import View, FormView
 from functools import cmp_to_key
 from itertools import chain
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartListView, SmartUpdateView
@@ -31,6 +32,7 @@ from temba.contacts.fields import OmniboxField
 from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME, ContactURN
 from temba.ivr.models import IVRCall
 from temba.ussd.models import USSDSession
+from temba.orgs.models import Org
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.reports.models import Report
 from temba.flows.models import Flow, FlowRun, FlowRevision, FlowRunCount
@@ -38,7 +40,7 @@ from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, PENDING
 from temba.triggers.models import Trigger
-from temba.utils import analytics, percentage, datetime_to_str, on_transaction_commit
+from temba.utils import analytics, percentage, datetime_to_str, on_transaction_commit, goflow
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 from temba.values.models import Value
@@ -1707,3 +1709,52 @@ class FlowLabelCRUDL(SmartCRUDL):
                 obj.toggle_label(flows, add=True)
 
             return obj
+
+
+class FlowAssets(View):
+    """
+    Flow assets endpoint used by goflow engine and standalone flow editor. For example:
+
+    /flow_assets/123/xyz/flow/0a9f4ddd-895d-4c64-917e-b004fb048306/     -> the flow with that UUID in org #123
+    /flow_assets/123/xyz/channel/b432261a-7117-4885-8815-8f04e7a15779/  -> the channel with that UUID in org #123
+    /flow_assets/123/xyz/group/                                         -> all groups for org #123
+
+    TODO authentication
+    """
+    class Resource(object):
+        def __init__(self, queryset, serializer):
+            self.queryset = queryset
+            self.serializer = serializer
+
+    resources = {
+        'channel': Resource(Channel.objects.filter(is_active=True), goflow.serialize_channel),
+        'flow': Resource(Flow.objects.filter(is_active=True), goflow.serialize_flow),
+        'group': Resource(ContactGroup.user_groups.filter(is_active=True), goflow.serialize_group),
+    }
+
+    def get(self, *args, **kwargs):
+        org = Org.objects.get(id=kwargs['org'])
+        uuid = kwargs.get('uuid')
+
+        resource = self.resources[kwargs['type']]
+        queryset = resource.queryset.filter(org=org)
+
+        if uuid:
+            result = queryset.filter(uuid=uuid).first()
+            return JsonResponse(resource.serializer(result))
+        else:
+            page_size = self.request.GET.get('page_size')
+            page_num = self.request.GET.get('page')
+
+            if page_size is None:
+                # the flow engine doesn't want results paged, so just return the entire set
+                return JsonResponse([resource.serializer(o) for o in queryset], safe=False)
+            else:
+                # the flow editor however will specify what kind of pagination it wants
+                paginator = Paginator(queryset, page_size)
+                page = paginator.page(page_num)
+
+                return JsonResponse({
+                    'results': [resource.serializer(o) for o in page.object_list],
+                    'has_next': page.has_next()
+                })
