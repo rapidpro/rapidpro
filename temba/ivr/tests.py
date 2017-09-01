@@ -218,7 +218,7 @@ class IVRTests(FlowFileTest):
 
         self.assertEqual(ChannelLog.objects.all().count(), 1)
         channel_log = ChannelLog.objects.last()
-        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.connection.id, call.id)
         self.assertEqual(channel_log.description, "Incoming request for call")
 
         # simulate the caller making a recording and then hanging up, first they'll give us the
@@ -238,7 +238,7 @@ class IVRTests(FlowFileTest):
 
         self.assertEqual(ChannelLog.objects.all().count(), 2)
         channel_log = ChannelLog.objects.last()
-        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.connection.id, call.id)
         self.assertEqual(channel_log.description, "Incoming request for call")
 
         # we should have captured the recording, and ended the call
@@ -251,7 +251,7 @@ class IVRTests(FlowFileTest):
 
         self.assertEqual(ChannelLog.objects.all().count(), 3)
         channel_log = ChannelLog.objects.last()
-        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.connection.id, call.id)
         self.assertEqual(channel_log.description, "Updated call status")
 
         call = IVRCall.objects.get(pk=call.pk)
@@ -322,11 +322,11 @@ class IVRTests(FlowFileTest):
 
         self.assertEqual(ChannelLog.objects.all().count(), 2)
         channel_log = ChannelLog.objects.first()
-        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.connection.id, call.id)
         self.assertEqual(channel_log.description, "Started call")
 
         channel_log = ChannelLog.objects.last()
-        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.connection.id, call.id)
         self.assertEqual(channel_log.description, "Incoming request for call")
 
         # we have a talk action
@@ -360,7 +360,7 @@ class IVRTests(FlowFileTest):
             self.assertEqual(response.json().get('message'), 'Saved media url')
             self.assertEqual(ChannelLog.objects.all().count(), 4)
             channel_log = ChannelLog.objects.last()
-            self.assertEqual(channel_log.session.id, call.id)
+            self.assertEqual(channel_log.connection.id, call.id)
             self.assertEqual(channel_log.description, "Saved media url")
 
             # hack input call back to tell us to save the recording and an empty input submission
@@ -369,10 +369,10 @@ class IVRTests(FlowFileTest):
 
             self.assertEqual(ChannelLog.objects.all().count(), 6)
             channel_log = ChannelLog.objects.last()
-            self.assertEqual(channel_log.session.id, call.id)
+            self.assertEqual(channel_log.connection.id, call.id)
             self.assertEqual(channel_log.description, "Incoming request for call")
 
-            log = ChannelLog.objects.filter(description="Downloaded media", session_id=call.id).first()
+            log = ChannelLog.objects.filter(description="Downloaded media", connection_id=call.id).first()
             self.assertIsNotNone(log)
 
             # our log should be the newly saved url
@@ -384,7 +384,7 @@ class IVRTests(FlowFileTest):
 
         self.assertEqual(ChannelLog.objects.all().count(), 7)
         channel_log = ChannelLog.objects.last()
-        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.connection.id, call.id)
         self.assertEqual(channel_log.description, "Updated call status")
 
         # we should have captured the recording, and ended the call
@@ -666,14 +666,14 @@ class IVRTests(FlowFileTest):
         call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
 
         # our run shouldn't have an initial expiration yet
-        self.assertIsNone(FlowRun.objects.filter(session=call).first().expires_on)
+        self.assertIsNone(FlowRun.objects.filter(connection=call).first().expires_on)
 
         # after a call is picked up, twilio will call back to our server
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
 
         # once the call is handled, it should have one
-        self.assertIsNotNone(FlowRun.objects.filter(session=call).first().expires_on)
+        self.assertIsNotNone(FlowRun.objects.filter(connection=call).first().expires_on)
 
         # make sure we send the finishOnKey attribute to twilio
         self.assertContains(response, 'finishOnKey="#"')
@@ -798,7 +798,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(ChannelSession.INTERRUPTED, call.status)
 
         # call initiation, answer, and timeout should both be logged
-        self.assertEqual(3, ChannelLog.objects.filter(session=call).count())
+        self.assertEqual(3, ChannelLog.objects.filter(connection=call).count())
         self.assertIsNotNone(call.ended_on)
 
     @patch('nexmo.Client.create_application')
@@ -951,7 +951,7 @@ class IVRTests(FlowFileTest):
         IVRCall.hangup_test_call(flow)
         self.assertTrue(IVRCall.objects.filter(pk=call.pk).first())
 
-        msgs = Msg.objects.filter(session=call).order_by('created_on')
+        msgs = Msg.objects.filter(connection=call).order_by('created_on')
         self.assertEqual(3, msgs.count())
         self.assertIn('Would you like me to call you?', msgs[0].text)
         self.assertEqual('4', msgs[1].text)
@@ -1023,7 +1023,7 @@ class IVRTests(FlowFileTest):
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(CallStatus='completed'))
         call = IVRCall.objects.get(pk=call.pk)
         self.assertEquals(IVRCall.COMPLETED, call.status)
-        self.assertFalse(FlowRun.objects.filter(session=call).first().is_active)
+        self.assertFalse(FlowRun.objects.filter(connection=call).first().is_active)
         self.assertIsNotNone(call.ended_on)
 
         # simulation gets flipped off by middleware, and this unhandled message doesn't flip it back on
@@ -1283,7 +1283,7 @@ class IVRTests(FlowFileTest):
 
         self.assertEqual(ChannelLog.objects.all().count(), 2)
         channel_log = ChannelLog.objects.first()
-        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.connection.id, call.id)
         self.assertEqual(channel_log.description, "Incoming request for call")
 
     @patch('nexmo.Client.create_application')
@@ -1345,7 +1345,7 @@ class IVRTests(FlowFileTest):
 
         self.assertEqual(ChannelLog.objects.all().count(), 1)
         channel_log = ChannelLog.objects.first()
-        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.connection.id, call.id)
         self.assertEqual(channel_log.description, "Incoming request for call")
 
         from temba.orgs.models import CURRENT_EXPORT_VERSION
@@ -1373,7 +1373,7 @@ class IVRTests(FlowFileTest):
 
         self.assertEqual(ChannelLog.objects.all().count(), 2)
         channel_log = ChannelLog.objects.last()
-        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.connection.id, call.id)
         self.assertEqual(channel_log.description, "Updated call status")
 
     @patch('nexmo.Client.create_application')

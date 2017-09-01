@@ -496,13 +496,6 @@ class FlowTest(TembaTest):
         self.assertEquals(2, activity['activity']["bd531ace-911e-4722-8e53-6730d6122fe1"])
         self.assertTrue(activity['messages'], [test_message.as_json()])
 
-        # if we try to get contacts at this step for our compose we should have two contacts
-        self.login(self.admin)
-        response = self.client.get(reverse('contacts.contact_omnibox') + "?s=%s" % contact1_steps[1].step_uuid)
-        contact_json = response.json()
-        self.assertEquals(2, len(contact_json['results']))
-        self.client.logout()
-
         # set the flow as inactive, shouldn't react to replies
         self.flow.is_archived = True
         self.flow.save()
@@ -1692,7 +1685,6 @@ class FlowTest(TembaTest):
         self.assertEquals("Isaac Newton", extra['0'])
         self.assertEquals("Isaac", extra['1'])
         self.assertEquals("Newton", extra['2'])
-        self.assertEquals("Isaac", extra['first_name'])
 
         # find that arabic unicode is handled right
         sms.text = "مرحبا العالم"
@@ -1701,7 +1693,6 @@ class FlowTest(TembaTest):
         self.assertEquals("مرحبا العالم", extra['0'])
         self.assertEquals("مرحبا", extra['1'])
         self.assertEquals("العالم", extra['2'])
-        self.assertEquals("مرحبا", extra['first_name'])
 
         # no matching groups, should return whole string as match
         test = RegexTest(dict(base="\w+ \w+"))
@@ -2378,7 +2369,7 @@ class FlowTest(TembaTest):
         self.assertIn('channels', response.json())
         self.assertIn('languages', response.json())
         self.assertIn('channel_countries', response.json())
-        self.assertEqual(ActionSet.objects.all().count(), 32)
+        self.assertEqual(ActionSet.objects.all().count(), 28)
 
         json_dict = response.json()['flow']
 
@@ -2390,7 +2381,7 @@ class FlowTest(TembaTest):
 
         response = self.client.post(reverse('flows.flow_json', args=[self.flow.id]), json.dumps(json_dict), content_type="application/json")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(ActionSet.objects.all().count(), 29)
+        self.assertEqual(ActionSet.objects.all().count(), 25)
 
         # check that the flow only has a single actionset
         ActionSet.objects.get(flow=self.flow)
@@ -4091,17 +4082,15 @@ class WebhookTest(TembaTest):
         substitutions = dict(contact_id=contact1.id)
         flow = self.get_flow('triggered', substitutions)
 
-        with patch('requests.get') as get:
-            get.return_value = MockResponse(200, '{ "text": "(I came from a webhook)" }')
-            flow.start(groups=[], contacts=[contact1], restart_participants=True)
+        flow.start(groups=[], contacts=[contact1], restart_participants=True)
 
-            # first message from our trigger flow action
-            msg = Msg.objects.all().order_by('-created_on')[0]
-            self.assertEqual('Honey, I triggered the flow! (I came from a webhook)', msg.text)
+        # first message from our trigger flow action
+        msg = Msg.objects.all().order_by('-created_on')[0]
+        self.assertEqual('Honey, I triggered the flow! (I came from a webhook)', msg.text)
 
-            # second message from our start flow action
-            msg = Msg.objects.all().order_by('-created_on')[1]
-            self.assertEqual('Honey, I triggered the flow! (I came from a webhook)', msg.text)
+        # second message from our start flow action
+        msg = Msg.objects.all().order_by('-created_on')[1]
+        self.assertEqual('Honey, I triggered the flow! (I came from a webhook)', msg.text)
 
     def test_webhook(self):
         self.flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
@@ -4410,7 +4399,7 @@ class SimulationTest(FlowFileTest):
 
         self.assertEqual(handle_incoming.call_args[1]['status'], USSDSession.INTERRUPTED)
 
-    def test_ussd_simulation_session_end(self):
+    def test_ussd_simulation_connection_end(self):
         self.ussd_channel = Channel.create(
             self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
             schemes=['tel'], uuid='00000000-0000-0000-0000-000000002222',
@@ -4427,8 +4416,8 @@ class SimulationTest(FlowFileTest):
 
         self.assertEquals(response.status_code, 200)
 
-        session = USSDSession.objects.get()
-        self.assertEquals(session.status, USSDSession.COMPLETED)
+        connection = USSDSession.objects.get()
+        self.assertEquals(connection.status, USSDSession.COMPLETED)
 
     def test_ussd_simulation_without_channel_doesnt_run(self):
         Channel.objects.all().delete()
@@ -4845,6 +4834,10 @@ class FlowsTest(FlowFileTest):
         assert_in_response(response, 'message_completions', 'contact.first_name')
         assert_in_response(response, 'message_completions', 'contact.tel')
         assert_in_response(response, 'message_completions', 'contact.mailto')
+
+        assert_in_response(response, 'message_completions', 'parent.contact.uuid')
+        assert_in_response(response, 'message_completions', 'child.contact.uuid')
+
         assert_in_response(response, 'message_completions', 'flow.color')
         assert_in_response(response, 'message_completions', 'flow.color.category')
         assert_in_response(response, 'message_completions', 'flow.color.text')
@@ -5508,9 +5501,14 @@ class FlowsTest(FlowFileTest):
         mother_flow = self.get_flow('new_mother')
         registration_flow = self.get_flow('mother_registration', dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
 
+        self.assertEqual(mother_flow.runs.count(), 0)
+
         self.assertEquals("What is her expected delivery date?", self.send_message(registration_flow, "Judy Pottier"))
         self.assertEquals("What is her phone number?", self.send_message(registration_flow, "31.1.2014"))
         self.assertEquals("Great, you've registered the new mother!", self.send_message(registration_flow, "0788 383 383"))
+
+        # we start both the new mother by @flow.phone and the current contact by its uuid @contact.uuid
+        self.assertEqual(mother_flow.runs.count(), 2)
 
         mother = Contact.from_urn(self.org, "tel:+250788383383")
         self.assertEquals("Judy Pottier", mother.name)
@@ -6467,31 +6465,28 @@ class FlowMigrationTest(FlowFileTest):
             self.assertFalse('webhook' in ruleset)
             self.assertFalse('webhook_action' in ruleset)
 
-        with patch('requests.post') as mock_post:
-            mock_post.return_value = MockResponse(200, '{ "code": "ABABUUDDLRS" }')
+        webhook_flow.start([], [self.contact])
 
-            webhook_flow.start([], [self.contact])
-            self.assertEqual(mock_post.call_args[0][0], 'http://foo.bar/')
+        self.assertMockedRequests([{'method': 'POST', 'url': "http://localhost:49999/echo?content=%7B%20%22code%22%3A%20%22ABABUUDDLRS%22%20%7D"}])
 
-            # assert the code we received was right
-            msg = Msg.objects.filter(direction='O', contact=self.contact).first()
-            self.assertEqual("Great, your code is ABABUUDDLRS. Enter your name", msg.text)
+        # assert the code we received was right
+        msg = Msg.objects.filter(direction='O', contact=self.contact).first()
+        self.assertEqual(msg.text, "Great, your code is ABABUUDDLRS. Enter your name")
 
-            with patch('requests.get') as mock_get:
-                mock_get.return_value = MockResponse(400, "Error")
-                self.send_message(webhook_flow, "Ryan Lewis", assert_reply=False)
-                self.assertEqual(mock_get.call_args[0][0], 'http://bar.foo/')
+        self.send_message(webhook_flow, "Ryan Lewis", assert_reply=False)
+        self.assertMockedRequests([{'method': 'GET', 'url': "http://localhost:49999/echo?content=Success"}])
 
         # startover have our first webhook fail, check that routing still works with failure
-        with patch('requests.post') as mock_post:
-            mock_post.return_value = MockResponse(400, 'Error')
+        error_url = self.mockedServerURL("Error", 400)
+        flow_def['rule_sets'][0]['config']['webhook'] = error_url
+        webhook_flow.update(flow_def)
 
-            webhook_flow.start([], [self.contact], restart_participants=True)
-            self.assertEqual(mock_post.call_args[0][0], 'http://foo.bar/')
+        webhook_flow.start([], [self.contact], restart_participants=True)
+        self.assertMockedRequests([{'method': 'POST', 'url': error_url}])
 
-            # assert the code we received was right
-            msg = Msg.objects.filter(direction='O', contact=self.contact).first()
-            self.assertEqual("Great, your code is @extra.code. Enter your name", msg.text)
+        # assert the code we received was right
+        msg = Msg.objects.filter(direction='O', contact=self.contact).first()
+        self.assertEqual("Great, your code is @extra.code. Enter your name", msg.text)
 
     def test_migrate_to_9(self):
 
@@ -6713,7 +6708,7 @@ class FlowMigrationTest(FlowFileTest):
 
         # pretend our current ruleset was stopped at a webhook with a passive rule
         ruleset = RuleSet.objects.get(flow=flow, uuid=step.step_uuid)
-        ruleset.webhook_url = 'http://www.mywebhook.com/lookup'
+        ruleset.webhook_url = 'http://localhost:49999/echo?content=%7B%20%22status%22%3A%20%22valid%22%20%7D'
         ruleset.webhook_action = 'POST'
         ruleset.operand = '@extra.value'
         ruleset.save()
@@ -6734,7 +6729,7 @@ class FlowMigrationTest(FlowFileTest):
         # we should be pointing to a newly created webhook rule
         webhook = RuleSet.objects.get(flow=flow, uuid=ruleset.get_rules()[0].destination)
         self.assertEquals('webhook', webhook.ruleset_type)
-        self.assertEquals('http://www.mywebhook.com/lookup', webhook.config_json()[RuleSet.CONFIG_WEBHOOK])
+        self.assertEquals('http://localhost:49999/echo?content=%7B%20%22status%22%3A%20%22valid%22%20%7D', webhook.config_json()[RuleSet.CONFIG_WEBHOOK])
         self.assertEquals('POST', webhook.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION])
         self.assertEquals('@step.value', webhook.operand)
         self.assertEquals('Color Webhook', webhook.label)
@@ -6764,26 +6759,23 @@ class FlowMigrationTest(FlowFileTest):
         expression.operand = '@step.value'
         expression.save()
 
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(200, '{ "status": "valid" }')
+        # now move our straggler forward with a message, should get a reply
 
-            # now move our straggler forward with a message, should get a reply
+        first_response = ActionSet.objects.get(flow=flow, x=131)
+        actions = first_response.get_actions_dict()
+        actions[0]['msg'][flow.base_language] = 'I like @flow.color.category too! What is your favorite beer? @flow.color_webhook'
+        first_response.set_actions_dict(actions)
+        first_response.save()
 
-            first_response = ActionSet.objects.get(flow=flow, x=131)
-            actions = first_response.get_actions_dict()
-            actions[0]['msg'][flow.base_language] = 'I like @flow.color.category too! What is your favorite beer? @flow.color_webhook'
-            first_response.set_actions_dict(actions)
-            first_response.save()
+        reply = self.send_message(flow, 'red')
+        self.assertEquals('I like Red too! What is your favorite beer? { "status": "valid" }', reply)
 
-            reply = self.send_message(flow, 'red')
-            self.assertEquals('I like Red too! What is your favorite beer? { "status": "valid" }', reply)
-
-            reply = self.send_message(flow, 'Turbo King')
-            self.assertEquals('Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?', reply)
+        reply = self.send_message(flow, 'Turbo King')
+        self.assertEquals('Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?', reply)
 
     def test_migrate_sample_flows(self):
         self.org.create_sample_flows('https://app.rapidpro.io')
-        self.assertEquals(4, self.org.flows.filter(name__icontains='Sample Flow').count())
+        self.assertEquals(3, self.org.flows.filter(name__icontains='Sample Flow').count())
 
         # make sure it is localized
         poll = self.org.flows.filter(name='Sample Flow - Simple Poll').first()
@@ -6873,24 +6865,17 @@ class ChannelSplitTest(FlowFileTest):
 
 class WebhookLoopTest(FlowFileTest):
 
-    def setUp(self):
-        super(WebhookLoopTest, self).setUp()
-        settings.SEND_WEBHOOKS = True
-
-    def tearDown(self):
-        super(WebhookLoopTest, self).tearDown()
-        settings.SEND_WEBHOOKS = False
-
+    @override_settings(SEND_WEBHOOKS=True)
     def test_webhook_loop(self):
         flow = self.get_flow('webhook_loop')
 
-        with patch('requests.get') as mock:
-            mock.return_value = MockResponse(200, '{ "text": "first message" }')
-            self.assertEquals("first message", self.send_message(flow, "first", initiate_flow=True))
+        self.assertEquals("first message", self.send_message(flow, "first", initiate_flow=True))
 
-        with patch('requests.get') as mock:
-            mock.return_value = MockResponse(200, '{ "text": "second message" }')
-            self.assertEquals("second message", self.send_message(flow, "second"))
+        flow_def = flow.as_json()
+        flow_def['action_sets'][0]['actions'][0]['webhook'] = self.mockedServerURL('{ "text": "second message" }')
+        flow.update(flow_def)
+
+        self.assertEquals("second message", self.send_message(flow, "second"))
 
 
 class MissedCallChannelTest(FlowFileTest):

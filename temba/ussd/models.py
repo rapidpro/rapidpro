@@ -6,6 +6,7 @@ from django.db import models
 from django.utils import timezone
 from temba.channels.models import ChannelSession
 from temba.contacts.models import Contact, URN, ContactURN
+from temba.flows.models import FlowSession
 from temba.triggers.models import Trigger
 from temba.utils import get_anonymous_user
 
@@ -24,13 +25,13 @@ class USSDQuerySet(models.QuerySet):
         kwargs.update(dict(session_type=USSDSession.USSD, created_by=user, modified_by=user))
         return super(USSDQuerySet, self).create(**kwargs)
 
-    def get_initiated_push_session(self, contact):
+    def get_initiated_push(self, contact):
         return self.filter(direction=USSDSession.USSD_PUSH, status=USSDSession.INITIATED, contact=contact).first()
 
-    def get_session_with_status_only(self, session_id):
+    def get_with_status_only(self, session_id):
         return self.only('status').filter(id=session_id).first()
 
-    def get_session_by_external_id(self, session_id):
+    def get_connection_by_external_id(self, session_id):
         return self.exclude(status__in=USSDSession.DONE).filter(external_id=session_id).first()
 
 
@@ -65,7 +66,7 @@ class USSDSession(ChannelSession):
         from temba.msgs.models import Msg, USSD
 
         return Msg.create_incoming(
-            channel=self.channel, org=self.org, urn=urn, text=content or '', date=date, session=self,
+            channel=self.channel, org=self.org, urn=urn, text=content or '', date=date, connection=self,
             msg_type=USSD, external_id=message_id)
 
     def create_incoming_message_for_trigger(self, content, date, message_id):
@@ -73,27 +74,27 @@ class USSDSession(ChannelSession):
 
         return Msg.objects.create(
             channel=self.channel, contact=self.contact, contact_urn=self.contact_urn,
-            sent_on=date, session=self, msg_type=USSD, external_id=message_id,
+            sent_on=date, connection=self, msg_type=USSD, external_id=message_id,
             created_on=timezone.now(), modified_on=timezone.now(), org=self.channel.org,
             direction=self.INCOMING, text=content or '')
 
-    def start_session_async(self, flow, date, message_id):
+    def start_async(self, flow, date, message_id):
         message = self.create_incoming_message_for_trigger(None, date, message_id)
-        flow.start([], [self.contact], start_msg=message, restart_participants=True, session=self)
+        flow.start([], [self.contact], start_msg=message, restart_participants=True, connection=self)
 
-    def start_session_sync(self, flow, date, message_id):
+    def start_sync(self, flow, date, message_id):
         message = self.create_incoming_message_for_trigger(None, date, message_id)
-        return flow.start([], [self.contact], start_msg=message, restart_participants=True, session=self, trigger_send=False)
+        return flow.start([], [self.contact], start_msg=message, restart_participants=True, connection=self, trigger_send=False)
 
-    def handle_session_async(self, urn, content, date, message_id):
+    def handle_async(self, urn, content, date, message_id):
         self.create_incoming_message(urn, content, date, message_id)
 
-    def handle_session_sync(self, urn, content, date, message_id, flow=None, start=False):
+    def handle_sync(self, urn, content, date, message_id, flow=None, start=False):
         from temba.flows.models import Flow
         from temba.msgs.models import Msg
 
         if start:
-            runs, msgs = self.start_session_sync(flow, date, message_id)
+            runs, msgs = self.start_sync(flow, date, message_id)
         else:
             msg = self.create_incoming_message(urn, content, date, message_id)
             handled, msgs = Flow.find_and_handle(msg, trigger_send=False)
@@ -140,17 +141,18 @@ class USSDSession(ChannelSession):
         else:
             defaults.update(dict(status=cls.IN_PROGRESS))
 
-        # check if there's an initiated PUSH session
-        session = cls.objects.get_initiated_push_session(contact)
+        # check if there's an initiated PUSH connection
+        connection = cls.objects.get_initiated_push(contact)
 
         created = False
-        if not session:
+        if not connection:
             try:
-                session = cls.objects.select_for_update().exclude(status__in=cls.DONE)\
-                                                         .get(external_id=external_id)
+                connection = cls.objects.select_for_update()\
+                    .exclude(status__in=cls.DONE)\
+                    .get(external_id=external_id)
                 for k, v in six.iteritems(defaults):
-                    setattr(session, k, v() if callable(v) else v)
-                session.save()
+                    setattr(connection, k, v() if callable(v) else v)
+                connection.save()
             except cls.DoesNotExist:
                 """
                 if we are not triggered and didn't find the session then we return, it should
@@ -161,40 +163,41 @@ class USSDSession(ChannelSession):
                     return None, None
 
                 defaults.update(dict(external_id=external_id))
-                session = cls.objects.create(**defaults)
+                connection = cls.objects.create(**defaults)
+                FlowSession.create(contact, connection=connection)
                 created = True
         else:
             defaults.update(dict(external_id=external_id))
             for key, value in six.iteritems(defaults):
-                setattr(session, key, value)
-            session.save()
+                setattr(connection, key, value)
+            connection.save()
 
         # start session
         if created and trigger:
             if async:
-                session.start_session_async(trigger.flow, date, message_id)
+                connection.start_async(trigger.flow, date, message_id)
             else:
-                return session, session.handle_session_sync(urn, content, date, message_id, flow=trigger.flow, start=True)
+                return connection, connection.handle_sync(urn, content, date, message_id, flow=trigger.flow, start=True)
         # resume session, deal with incoming content and all the other states
         else:
             if async:
-                session.handle_session_async(urn, content, date, message_id)
+                connection.handle_async(urn, content, date, message_id)
             else:
-                return session, session.handle_session_sync(urn, content, date, message_id)
+                return connection, connection.handle_sync(urn, content, date, message_id)
 
-        return session, None
+        return connection, None
 
     @classmethod
     def handle_interrupt(cls, session_id, async=True):
-        session = cls.objects.get_session_by_external_id(session_id)
+        connection = cls.objects.get_connection_by_external_id(session_id)
 
-        if not session:
+        if not connection:
             return None
 
-        session.close()
+        connection.close()
         if async:
-            session.handle_session_async(session.contact_urn.urn, None, timezone.now(), None)
+            connection.handle_async(connection.contact_urn.urn, None, timezone.now(), None)
         else:
-            session.handle_session_sync(session.contact_urn.urn, None, timezone.now(), None)
+            connection.handle_sync(connection.contact_urn.urn, None, timezone.now(), None)
 
-        return session
+        return connection

@@ -1,3 +1,39 @@
+v3.0.195
+----------
+ * Tweaks to allow message handling straight from courier
+
+v3.0.193
+----------
+ * Add flow session model and start creating instances for IVR and USSD channel sessions
+
+v3.0.192
+----------
+ * Allow empty contact names for surveyor submissions but make them null
+ * Honor admin org brand in get_user_orgs
+ * Fix external channel bulk sender URL
+ * Send broadcast in the same task as it is created in and JS utility method to format number
+ * Try the variable as a contact uuid and use its contact when building recipients
+ * Fix org lookup, use the same code path for sending a broadcast
+ * Fix broadcast to flow node to consider all current contacts on the the step
+
+v3.0.191
+----------
+ * Update test_db to generate deterministic UUIDs which are also valid UUID4
+
+v3.0.190
+----------
+ * Turn down default courier TPS to 10/s
+
+v3.0.189
+----------
+ * Make sure msg time never wraps in the inbox
+
+v3.0.188
+----------
+ * Use a real but mockable HTTP server to test flows that hit external URLs instead of mocking the requests
+ * Add infobip as dynamic channel type and Update it to use the latest Infobip API
+ * Add support for Courier message sending
+
 v3.0.183
 ----------
  * Use twitter icon for twitter id urns

@@ -88,6 +88,7 @@ class TwimlAPIHandler(BaseChannelHandler):
 
     def post(self, request, *args, **kwargs):
         from twilio.util import RequestValidator
+        from temba.flows.models import FlowSession
         from temba.msgs.models import Msg
 
         signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
@@ -139,13 +140,14 @@ class TwimlAPIHandler(BaseChannelHandler):
 
                 if flow:
                     call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, call_sid)
+                    session = FlowSession.create(contact, connection=call)
 
                     call.update_status(request.POST.get('CallStatus', None),
                                        request.POST.get('CallDuration', None),
                                        Channel.TYPE_TWILIO)
                     call.save()
 
-                    FlowRun.create(flow, contact.pk, session=call)
+                    FlowRun.create(flow, contact.pk, session=session, connection=call)
                     response = Flow.handle_call(call)
                     return HttpResponse(six.text_type(response))
 
@@ -1150,6 +1152,7 @@ class NexmoCallHandler(BaseChannelHandler):
         return self.get(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
+        from temba.flows.models import FlowSession
         from temba.ivr.models import IVRCall
 
         action = kwargs['action'].lower()
@@ -1197,7 +1200,7 @@ class NexmoCallHandler(BaseChannelHandler):
 
             if call.status == IVRCall.COMPLETED:
                 # if our call is completed, hangup
-                runs = FlowRun.objects.filter(session=call)
+                runs = FlowRun.objects.filter(connection=call)
                 for run in runs:
                     if not run.is_completed():
                         final_step = FlowStep.objects.filter(run=run).order_by('-arrived_on').first()
@@ -1238,8 +1241,9 @@ class NexmoCallHandler(BaseChannelHandler):
 
             if flow:
                 call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, external_id)
+                session = FlowSession.create(contact, connection=call)
 
-                FlowRun.create(flow, contact.pk, session=call)
+                FlowRun.create(flow, contact.pk, session=session, connection=call)
                 response = Flow.handle_call(call)
 
                 event = HttpEvent(request_method, request_path, request_body, 200, six.text_type(response))
@@ -1471,12 +1475,12 @@ class VumiHandler(BaseChannelHandler):
 
                 session_id = str(session_id_part1 + session_id_part2)
 
-                session, _ = USSDSession.handle_incoming(channel=channel, urn=body['from_addr'], content=content,
-                                                         status=status, date=gmt_date, external_id=session_id,
-                                                         message_id=body['message_id'], starcode=body.get('to_addr'))
+                connection, _ = USSDSession.handle_incoming(channel=channel, urn=body['from_addr'], content=content,
+                                                            status=status, date=gmt_date, external_id=session_id,
+                                                            message_id=body['message_id'], starcode=body.get('to_addr'))
 
-                if session:
-                    return HttpResponse("Accepted: %d" % session.id)
+                if connection:
+                    return HttpResponse("Accepted: %d" % connection.id)
                 else:
                     return HttpResponse("Session not handled", status=400)
 
@@ -2171,15 +2175,15 @@ class JunebugHandler(BaseChannelHandler):
                 # Use a session id if provided, otherwise fall back to using the `from` address as the identifier
                 session_id = channel_data.get('session_id') or data['from']
 
-                session, _ = USSDSession.handle_incoming(channel=channel, urn=data['from'], content=data['content'],
-                                                         status=status, date=gmt_date, external_id=session_id,
-                                                         message_id=data['message_id'], starcode=data['to'])
+                connection, _ = USSDSession.handle_incoming(channel=channel, urn=data['from'], content=data['content'],
+                                                            status=status, date=gmt_date, external_id=session_id,
+                                                            message_id=data['message_id'], starcode=data['to'])
 
-                if session:
+                if connection:
                     status = 200
                     response_body = {
                         'status': self.ACK,
-                        'session_id': session.pk,
+                        'session_id': connection.pk,
                     }
                     event = HttpEvent(request_method, request_path, request_body, status, json.dumps(response_body))
                     log_channel(channel, 'Handled USSD message of %s session_event' % (

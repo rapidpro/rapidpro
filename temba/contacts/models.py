@@ -73,6 +73,8 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
 
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
+STOP_CONTACT_EVENT = 'stop_contact'
+
 
 class URN(object):
     """
@@ -895,7 +897,6 @@ class Contact(TembaModel):
 
         # perform everything in a org-level lock to prevent duplication by different instances
         with org.lock_on(OrgLock.contacts):
-
             # figure out which URNs already exist and who they belong to
             existing_owned_urns = dict()
             existing_orphan_urns = dict()
@@ -1851,7 +1852,7 @@ class Contact(TembaModel):
         if tel:
             return tel.path
 
-    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None,
+    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, connection=None,
              attachments=None, msg_type=None, created_on=None, all_urns=False):
         from temba.msgs.models import Msg, INBOX, PENDING, SENT, UnreachableException
 
@@ -1866,7 +1867,7 @@ class Contact(TembaModel):
         for recipient in recipients:
             try:
                 msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH,
-                                          response_to=response_to, message_context=message_context, session=session,
+                                          response_to=response_to, message_context=message_context, connection=connection,
                                           attachments=attachments, msg_type=msg_type or INBOX, status=status,
                                           created_on=created_on)
                 if msg is not None:
