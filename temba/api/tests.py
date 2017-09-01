@@ -117,7 +117,7 @@ class WebHookTest(TembaTest):
                                            contact=self.joe,
                                            contact_urn=self.joe.get_urn(),
                                            event_type=ChannelEvent.TYPE_CALL_IN_MISSED,
-                                           time=now)
+                                           occurred_on=now)
 
         self.setupChannel()
 
@@ -162,9 +162,8 @@ class WebHookTest(TembaTest):
             self.assertEquals(self.joe.uuid, data['contact'][0])
             self.assertEquals(self.joe.name, data['contact_name'][0])
             self.assertEquals(call.pk, int(data['call'][0]))
-            self.assertEquals(0, int(data['duration'][0]))
             self.assertEquals(call.event_type, data['event'][0])
-            self.assertTrue('time' in data)
+            self.assertTrue('occurred_on' in data)
             self.assertEquals(self.channel.pk, int(data['channel'][0]))
 
     def test_alarm_deliveries(self):

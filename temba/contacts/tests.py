@@ -2345,11 +2345,10 @@ class ContactTest(TembaTest):
         post_data['objects'] = self.frank.pk
 
         self.client.post(list_url, post_data)
-        self.frank.refresh_from_db()
-        self.assertFalse(self.frank.is_active)
-        call.refresh_from_db()
+        self.assertFalse(ChannelEvent.objects.filter(contact=self.frank))
 
         # the call should be inactive now too
+        call.refresh_from_db()
         self.assertFalse(call.is_active)
 
     def test_number_normalized(self):
