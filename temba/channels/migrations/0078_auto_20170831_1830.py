@@ -44,6 +44,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION temba_channelevent_is_call(_event channels_channelevent) RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN _event.event_type IN ('mo_call', 'mo_miss', 'mt_call', 'mt_miss');
+END;
+$$ LANGUAGE plpgsql;
 """
 
 

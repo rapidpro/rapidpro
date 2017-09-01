@@ -2452,16 +2452,16 @@ class ChannelEventTest(TembaTest):
         self.assertEqual(event.contact, contact)
         self.assertEqual(event.event_type, ChannelEvent.TYPE_CALL_OUT)
         self.assertEqual(event.occurred_on, now)
-        self.assertEqual(event.duration, 300)
+        self.assertEqual(event.extra_json()['duration'], 300)
 
 
 class ChannelEventCRUDLTest(TembaTest):
 
     def test_calls(self):
         now = timezone.now()
-        ChannelEvent.create(self.channel, "tel:12345", ChannelEvent.TYPE_CALL_IN, now, 600)
-        ChannelEvent.create(self.channel, "tel:890", ChannelEvent.TYPE_CALL_IN_MISSED, now, 0)
-        ChannelEvent.create(self.channel, "tel:456767", ChannelEvent.TYPE_UNKNOWN, now, 0)
+        ChannelEvent.create(self.channel, "tel:12345", ChannelEvent.TYPE_CALL_IN, now, dict(duration=600))
+        ChannelEvent.create(self.channel, "tel:890", ChannelEvent.TYPE_CALL_IN_MISSED, now)
+        ChannelEvent.create(self.channel, "tel:456767", ChannelEvent.TYPE_UNKNOWN, now)
 
         list_url = reverse('channels.channelevent_calls')
 

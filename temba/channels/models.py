@@ -2942,8 +2942,9 @@ class ChannelEvent(models.Model):
         contact = Contact.get_or_create(org, user, name=None, urns=[urn], channel=channel)
         contact_urn = contact.urn_objects[urn]
 
+        extra_json = None if not extra else json.dumps(extra)
         event = cls.objects.create(org=org, channel=channel, contact=contact, contact_urn=contact_urn,
-                                   occurred_on=occurred_on, event_type=event_type, extra=extra)
+                                   occurred_on=occurred_on, event_type=event_type, extra=extra_json)
 
         if event_type in cls.CALL_TYPES:
             analytics.gauge('temba.call_%s' % event.get_event_type_display().lower().replace(' ', '_'))

@@ -2731,7 +2731,7 @@ class ChannelEventCRUDL(SmartCRUDL):
     class Calls(InboxView):
         title = _("Calls")
         fields = ('contact', 'event_type', 'channel', 'occurred_on')
-        default_order = '-time'
+        default_order = '-occurred_on'
         search_fields = ('contact__urns__path__icontains', 'contact__name__icontains')
         system_label = SystemLabel.TYPE_CALLS
         select_related = ('contact', 'channel')
