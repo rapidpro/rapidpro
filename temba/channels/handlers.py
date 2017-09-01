@@ -813,18 +813,18 @@ class InfobipUSSDHandler(BaseChannelHandler):
 
             return JsonResponse({'responseExitCode': 200, 'responseMessage': ''})
 
-        session, msgs = USSDSession.handle_incoming(channel=channel, urn=data['msisdn'], content=content,
-                                                    status=status, date=timezone.now(), external_id=session_id,
-                                                    starcode=data['shortCode'], async=False)
+        connection, msgs = USSDSession.handle_incoming(channel=channel, urn=data['msisdn'], content=content,
+                                                       status=status, date=timezone.now(), external_id=session_id,
+                                                       starcode=data['shortCode'], async=False)
 
-        if not session:
+        if not connection:
             return JsonResponse({'responseExitCode': 400, 'responseMessage': 'Session not found'})
 
         msg = msgs[0]
         response_data = {
             'responseExitCode': 200,
             'responseMessage': '',
-            'shouldClose': 'true' if msg.session.should_end else 'false',
+            'shouldClose': 'true' if msg.connection.should_end else 'false',
             'ussdMenu': msg.text
         }
 
@@ -833,12 +833,12 @@ class InfobipUSSDHandler(BaseChannelHandler):
         msg.status = WIRED
         msg.save(update_fields=['status', 'sent_on'])
 
-        if msg.session.should_end:
-            msg.session.close()
+        if msg.connection.should_end:
+            msg.connection.close()
 
         # generate event and log it
         event = HttpEvent(request.method, request.build_absolute_uri(), request.body, 200, json.dumps(response_data))
-        ChannelLog.log_ussd_interaction(msg, session, "Successfully sent", event)
+        ChannelLog.log_ussd_interaction(msg, connection, "Successfully sent", event)
 
         return JsonResponse(response_data)
 
