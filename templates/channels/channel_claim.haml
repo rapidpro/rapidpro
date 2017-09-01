@@ -515,27 +515,6 @@
                 -blocktrans
                   Easily add a two way number you have configured with <a href="https://bulk.startmobile.ua/">Start Mobile</a> using their APIs.
 
-    -if False
-      .claim-row.infobip-channel
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans
-            We recommend using an Infobip phone number for SMS in your country, select this option to configure your number.
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_infobip' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Infobip Number"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Easily add a two way number you have configured with <a href="http://infobip.com">Infobip</a> using their APIs.
-
     -if org_timezone == 'Asia/Karachi'
       .claim-row.m3tech-channel{class:"{% if recommended_channel == 'm3tech' %}recommended{% endif %}"}
         .recommendation.hide

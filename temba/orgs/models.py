@@ -443,7 +443,7 @@ class Org(SmartModel):
         channels = self.channels.filter(is_active=True, role__contains=role).order_by('-pk')
 
         if scheme is not None:
-            channels = channels.filter(scheme=scheme)
+            channels = channels.filter(schemes__contains=[scheme])
 
         channel = None
         if country_code:
@@ -494,7 +494,7 @@ class Org(SmartModel):
 
                 # no country specific channel, try to find any channel at all
                 if not channels:
-                    channels = [c for c in self.channels.all()]
+                    channels = [c for c in self.channels.filter(schemes__contains=[TEL_SCHEME])]
 
                 # filter based on role and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
                 senders = []
@@ -575,7 +575,8 @@ class Org(SmartModel):
 
         schemes = set()
         for channel in self.channels.filter(is_active=True, role__contains=role):
-            schemes.add(channel.scheme)
+            for scheme in channel.schemes:
+                schemes.add(scheme)
 
         setattr(self, cache_attr, schemes)
         return schemes
@@ -1947,8 +1948,8 @@ class Org(SmartModel):
 # ===================== monkey patch User class with a few extra functions ========================
 
 def get_user_orgs(user, brand=None):
-    org = user.get_org()
     if not brand:
+        org = Org.get_org(user)
         brand = org.brand if org else settings.DEFAULT_BRAND
 
     if user.is_superuser:

@@ -30,7 +30,7 @@ class ViberPublicType(ChannelType):
     messages.""")
     claim_view = ClaimView
 
-    scheme = VIBER_SCHEME
+    schemes = [VIBER_SCHEME]
     max_length = 7000
     attachment_support = False
     free_sending = True

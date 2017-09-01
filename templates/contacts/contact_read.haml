@@ -36,6 +36,9 @@
               -elif urn.scheme == 'twitter'
                 %a{href:'http://twitter.com/{{urn.path}}'}
                   {{urn|format_urn:user_org}}
+              -elif urn.scheme == 'twitterid'
+                %a{href:'http://twitter.com/{{urn.display}}'}
+                  {{urn|format_urn:user_org}}
               -else
                 {{urn|format_urn:user_org}}
 
@@ -208,18 +211,6 @@
 
     {% lessblock %}
       :plain
-        .time {
-          margin-right: 12px;
-        }
-        .log-icon {
-          position: absolute;
-          right: 40px;
-          margin-top: -12px;
-          a {
-            color: rgba(0,0,0,.3);
-          }
-        }
-
         .show-all {
           margin-top:-10px;
           margin-right:18px;

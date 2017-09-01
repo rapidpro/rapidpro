@@ -221,9 +221,9 @@ class Command(BaseCommand):
 
         self.random = random.Random(seed)
 
-        # monkey patch uuid4 so it returns the same UUIDs for the same seed
+        # monkey patch uuid4 so it returns the same UUIDs for the same seed, see https://github.com/joke2k/faker/issues/484#issuecomment-287931101
         from temba.utils import models
-        models.uuid4 = lambda: uuid.UUID(int=self.random.getrandbits(128))
+        models.uuid4 = lambda: uuid.UUID(int=(self.random.getrandbits(128) | (1 << 63) | (1 << 78)) & (~(1 << 79) & ~(1 << 77) & ~(1 << 76) & ~(1 << 62)))
 
         # We want a variety of large and small orgs so when allocating content like contacts and messages, we apply a
         # bias toward the beginning orgs. if there are N orgs, then the amount of content the first org will be
@@ -314,7 +314,7 @@ class Command(BaseCommand):
             user = org.cache['users'][0]
             for c in CHANNELS:
                 Channel.objects.create(org=org, name=c['name'], channel_type=c['channel_type'],
-                                       address=c['address'], scheme=c['scheme'],
+                                       address=c['address'], schemes=[c['scheme']],
                                        created_by=user, modified_by=user)
 
         self._log(self.style.SUCCESS("OK") + '\n')
@@ -491,10 +491,10 @@ class Command(BaseCommand):
 
             if c['tel']:
                 c['urns'].append(ContactURN(org=org, contact=c['object'], priority=50, scheme=TEL_SCHEME,
-                                            path=c['tel'], urn=URN.from_tel(c['tel'])))
+                                            path=c['tel'], identity=URN.from_tel(c['tel'])))
             if c['twitter']:
                 c['urns'].append(ContactURN(org=org, contact=c['object'], priority=50, scheme=TWITTER_SCHEME,
-                                            path=c['twitter'], urn=URN.from_twitter(c['twitter'])))
+                                            path=c['twitter'], identity=URN.from_twitter(c['twitter'])))
             if c['gender']:
                 batch_values.append(Value(org=org, contact=c['object'], contact_field=org.cache['fields']['gender'],
                                           string_value=c['gender']))
@@ -610,7 +610,7 @@ class Command(BaseCommand):
 
                 for text in inputs:
                     channel = flow.org.cache['channels'][0]
-                    Msg.create_incoming(channel, urn.urn, text)
+                    Msg.create_incoming(channel, six.text_type(urn), text)
 
         # if more than 10% of contacts have responded, consider flow activity over
         if len(activity['unresponded']) <= (len(activity['started']) * 0.9):
@@ -629,7 +629,7 @@ class Command(BaseCommand):
             urn = contact.urns.first()
             if urn:
                 text = ' '.join([self.random_choice(l) for l in INBOX_MESSAGES])
-                Msg.create_incoming(channel, urn.urn, text)
+                Msg.create_incoming(channel, six.text_type(urn), text)
 
     def probability(self, prob):
         return self.random.random() < prob
