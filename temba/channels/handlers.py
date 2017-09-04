@@ -2345,12 +2345,12 @@ class FacebookHandler(BaseChannelHandler):
                         if 'optin' in envelope:
                             referrer_id = envelope['optin'].get('ref')
                             trigger_extra = envelope['optin']
-                            trigger_extra[Trigger.EXTRA_REFERRER_ID] = referrer_id
+                            trigger_extra[ChannelEvent.EXTRA_REFERRER_ID] = referrer_id
 
                         elif 'referral' in envelope:
                             referrer_id = envelope['referral'].get('ref')
                             trigger_extra = envelope['referral']
-                            trigger_extra[Trigger.EXTRA_REFERRER_ID] = referrer_id
+                            trigger_extra[ChannelEvent.EXTRA_REFERRER_ID] = referrer_id
 
                         # This is a standard opt in, we know the sender id:
                         #   https://developers.facebook.com/docs/messenger-platform/webhook-reference/optins
@@ -2435,7 +2435,7 @@ class FacebookHandler(BaseChannelHandler):
                             if 'referral' in envelope['postback']:
                                 trigger_extra = envelope['postback']['referral']
                                 referrer_id = trigger_extra['ref']
-                                trigger_extra[Trigger.EXTRA_REFERRER_ID] = referrer_id
+                                trigger_extra[ChannelEvent.EXTRA_REFERRER_ID] = referrer_id
 
                         # if we have some content, load the contact
                         if content or postback:
