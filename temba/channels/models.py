@@ -59,6 +59,9 @@ HUB9_ENDPOINT = 'http://175.103.48.29:28078/testing/smsmt.php'
 # Dart Media is another aggregator in Indonesia, set this to the endpoint for your service
 DART_MEDIA_ENDPOINT = 'http://202.43.169.11/APIhttpU/receive2waysms.php'
 
+# the event type for channel events in the handler queue
+CHANNEL_EVENT = 'channel_event'
+
 
 class Encoding(Enum):
     GSM7 = 1
@@ -2899,6 +2902,9 @@ class ChannelEvent(models.Model):
     TYPE_CALL_IN_MISSED = 'mo_miss'
     TYPE_NEW_CONVERSATION = 'new_conversation'
     TYPE_REFERRAL = 'referral'
+    TYPE_FOLLOW = 'follow'
+
+    EXTRA_REFERRER_ID = 'referrer_id'
 
     # single char flag, human readable name, API readable name
     TYPE_CONFIG = ((TYPE_UNKNOWN, _("Unknown Call Type"), 'unknown'),
@@ -2907,7 +2913,8 @@ class ChannelEvent(models.Model):
                    (TYPE_CALL_IN, _("Incoming Call"), 'call-in'),
                    (TYPE_CALL_IN_MISSED, _("Missed Incoming Call"), 'call-in-missed'),
                    (TYPE_NEW_CONVERSATION, _("New Conversation"), 'new-conversation'),
-                   (TYPE_REFERRAL, _("Referral"), 'referral'))
+                   (TYPE_REFERRAL, _("Referral"), 'referral'),
+                   (TYPE_FOLLOW, _("Follow"), 'follow'))
 
     TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
 
@@ -2958,6 +2965,24 @@ class ChannelEvent(models.Model):
     @classmethod
     def get_all(cls, org):
         return cls.objects.filter(org=org)
+
+    def handle(self):
+        """
+        Handles takes care of any processing of this channel event that needs to take place, such as
+        trigger any flows based on new conversations or referrals.
+        """
+        from temba.triggers.models import Trigger
+        if self.event_type == ChannelEvent.TYPE_NEW_CONVERSATION:
+            return Trigger.catch_triggers(self, Trigger.TYPE_NEW_CONVERSATION, self.channel)
+
+        elif self.event_type == ChannelEvent.TYPE_REFERRAL:
+            return Trigger.catch_triggers(self, Trigger.TYPE_REFERRAL, self.channel,
+                                          referrer_id=self.extra_json.get('referrer_id'), extra=self.extra_json())
+
+        elif self.event_type == ChannelEvent.TYPE_FOLLOW:
+            return Trigger.catch_triggers(self, Trigger.TYPE_FOLLOW, self.channel)
+
+        return False
 
     def release(self):
         self.delete()

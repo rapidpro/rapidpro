@@ -2259,7 +2259,9 @@ class JioChatHandler(BaseChannelHandler):
         if msg_type == 'event':
             event = body.get('Event')
             if event == 'subscribe':
-                Trigger.catch_triggers(contact, Trigger.TYPE_FOLLOW, channel)
+                channel_event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_FOLLOW, timezone.now())
+                channel_event.handle()
+
                 return HttpResponse("New follow handled: %s" % sender_id)
 
         text = ""
@@ -2343,9 +2345,12 @@ class FacebookHandler(BaseChannelHandler):
                         if 'optin' in envelope:
                             referrer_id = envelope['optin'].get('ref')
                             trigger_extra = envelope['optin']
+                            trigger_extra[Trigger.EXTRA_REFERRER_ID] = referrer_id
+
                         elif 'referral' in envelope:
                             referrer_id = envelope['referral'].get('ref')
                             trigger_extra = envelope['referral']
+                            trigger_extra[Trigger.EXTRA_REFERRER_ID] = referrer_id
 
                         # This is a standard opt in, we know the sender id:
                         #   https://developers.facebook.com/docs/messenger-platform/webhook-reference/optins
@@ -2385,8 +2390,9 @@ class FacebookHandler(BaseChannelHandler):
                             contact = Contact.get_or_create(channel.org, channel.created_by,
                                                             urns=[urn], channel=channel)
 
-                        caught = Trigger.catch_triggers(contact, Trigger.TYPE_REFERRAL, channel,
-                                                        referrer_id=referrer_id, extra=trigger_extra)
+                        event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_REFERRAL, timezone.now(),
+                                                    extra=trigger_extra)
+                        caught = event.handle()
 
                         if caught:
                             status.append("Triggered flow for ref: %s" % referrer_id)
@@ -2429,6 +2435,7 @@ class FacebookHandler(BaseChannelHandler):
                             if 'referral' in envelope['postback']:
                                 trigger_extra = envelope['postback']['referral']
                                 referrer_id = trigger_extra['ref']
+                                trigger_extra[Trigger.EXTRA_REFERRER_ID] = referrer_id
 
                         # if we have some content, load the contact
                         if content or postback:
@@ -2468,16 +2475,17 @@ class FacebookHandler(BaseChannelHandler):
                             status.append("Msg %d accepted." % msg.id)
 
                         # conversation started with a referrer_id that catches a trigger
-                        elif referrer_id and Trigger.catch_triggers(contact, Trigger.TYPE_REFERRAL, channel,
-                                                                    referrer_id=referrer_id, extra=trigger_extra):
-                            ChannelEvent.create(channel, urn, ChannelEvent.TYPE_REFERRAL, timezone.now(),
-                                                extra=dict(referrer_id=referrer_id))
-                            status.append("Triggered flow for ref: %s" % referrer_id)
+                        elif referrer_id:
+                            event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_REFERRAL, timezone.now(),
+                                                        extra=trigger_extra)
+                            event.handle()
+
+                            status.append("Referral posted with referral id: %s" % referrer_id)
 
                         # a contact pressed "Get Started", trigger any new conversation triggers
                         elif postback == 'get_started':
-                            ChannelEvent.create(channel, urn, ChannelEvent.TYPE_NEW_CONVERSATION, timezone.now())
-                            Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
+                            event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_NEW_CONVERSATION, timezone.now())
+                            event.handle()
                             status.append("Postback handled.")
 
                         else:
@@ -2760,8 +2768,8 @@ class ViberPublicHandler(BaseChannelHandler):
             contact_name = None if channel.org.is_anon else body['user'].get('name')
             urn = URN.from_viber(viber_id)
             contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
-            ChannelEvent.create(channel, urn, ChannelEvent.TYPE_NEW_CONVERSATION, timezone.now())
-            Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
+            event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_NEW_CONVERSATION, timezone.now())
+            event.handle()
             return HttpResponse("Subscription for contact: %s handled" % viber_id)
 
         # we currently ignore conversation started events
