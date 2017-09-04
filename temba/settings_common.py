@@ -221,6 +221,7 @@ INSTALLED_APPS = (
     'temba.assets',
     'temba.auth_tweaks',
     'temba.api',
+    'temba.dashboard',
     'temba.public',
     'temba.schedules',
     'temba.orgs',
@@ -426,6 +427,11 @@ PERMISSIONS = {
     'channels.channelevent': ('api',
                               'calls'),
 
+    'dashboard.dashboard': ('home',
+                            'message_history',
+                            'range_details',
+                            'org_history'),
+
     'flows.flowstart': ('api',),
 
     'flows.flow': ('activity',
@@ -577,6 +583,8 @@ GROUP_PERMISSIONS = {
         'contacts.contactgroup.*',
 
         'csv_imports.importtask.*',
+
+        'dashboard.*',
 
         'ivr.ivrcall.*',
         'ussd.ussdsession.*',
