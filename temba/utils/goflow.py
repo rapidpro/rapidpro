@@ -119,6 +119,17 @@ class RequestBuilder(object):
         })
         return self
 
+    def include_groups(self, org):
+        from temba.contacts.models import ContactGroup
+
+        self.request['assets'].append({
+            'type': "group",
+            'url': get_assets_url(org, self.asset_timestamp, 'group'),
+            'content': [serialize_group(g) for g in ContactGroup.get_user_groups(org)],
+            'is_set': True
+        })
+        return self
+
     def set_environment(self, org):
         languages = [org.primary_language.iso_code] if org.primary_language else []
 
@@ -156,7 +167,7 @@ class RequestBuilder(object):
                 'uuid': contact.uuid,
                 'name': contact.name,
                 'urns': [urn.urn for urn in contact.urns.all()],
-                'groups': [{"uuid": group.uuid, "name": group.name} for group in contact.user_groups.all()],
+                'group_uuids': [group.uuid for group in contact.user_groups.all()],
                 'timezone': "UTC",
                 'language': contact.language,
                 'fields': field_values

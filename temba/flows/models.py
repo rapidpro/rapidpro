@@ -191,6 +191,7 @@ class FlowSession(models.Model):
                     request = request.include_flow(f)
                 for channel in flow.org.channels.filter(is_active=True):
                     request = request.include_channel(channel)
+                request = request.include_groups(flow.org)
 
             # only include message if it's a real message
             if msg_in and msg_in.created_on:
@@ -238,6 +239,7 @@ class FlowSession(models.Model):
                 request = request.include_flow(f)
             for channel in self.org.channels.filter(is_active=True):
                 request = request.include_channel(channel)
+            request = request.include_groups(self.org)
 
         # only include message if it's a real message
         if msg_in and msg_in.created_on:
@@ -2933,30 +2935,35 @@ class FlowRun(models.Model):
         self.contact.set_field(user, field.key, event['value'])
 
     def apply_save_flow_result(self, event, msg):
-        ActionLog.create(self, "Saved '%s' as @flow.%s" % (event['value'], slugify_with(event['result_name'])),
-                         created_on=iso8601.parse_date(event['created_on']))
+        if self.contact.is_test:
+            ActionLog.create(self, "Saved '%s' as @flow.%s" % (event['value'], slugify_with(event['result_name'])),
+                             created_on=iso8601.parse_date(event['created_on']))
 
     def apply_add_to_group(self, event, msg):
         """
         This contact being added to one or more groups
         """
         user = get_flow_user(self.org)
-        for group in event['groups']:
-            group = ContactGroup.get_or_create(self.contact.org, user, group['name'], group['uuid'])
+        for group_uuid in event['group_uuids']:
+            group = ContactGroup.get_user_groups(self.org).filter(uuid=group_uuid).first()
+            if group and not self.contact.is_stopped:
+                group.update_contacts(user, [self.contact], add=True)
 
-            if group:
-                if not self.contact.is_stopped:
-                    group.update_contacts(user, [self.contact], True)
+                if self.contact.is_test:
+                    ActionLog.info(self, _("Added %s to %s") % (self.contact.name, group.name))
 
     def apply_remove_from_group(self, event, msg):
         """
         This contact being removed from one or more groups
         """
-        pass
-        # for group in event['groups']:
-        #     group = ContactGroup.objects.filter(org=self.contact.org, uuid=group['uuid']).first()
-        #     if group:
-        #         self.contact.groups.remove(group)
+        user = get_flow_user(self.org)
+        for group_uuid in event['group_uuids']:
+            group = ContactGroup.get_user_groups(self.org).filter(uuid=group_uuid).first()
+            if group and not self.contact.is_stopped:
+                group.update_contacts(user, [self.contact], add=False)
+
+                if self.contact.is_test:
+                    ActionLog.info(self, _("Removed %s from %s") % (self.contact.name, group.name))
 
     def apply_send_email(self, event, msg):
         """
@@ -7444,8 +7451,8 @@ class InterruptTest(Test):
 FLOW_FEATURES = [
     ('A', ReplyAction.TYPE, True),
     ('A', SendAction.TYPE, False),               # https://github.com/nyaruka/goflow/issues/67
-    ('A', AddToGroupAction.TYPE, False),         # https://github.com/nyaruka/goflow/issues/66
-    ('A', DeleteFromGroupAction.TYPE, False),    # https://github.com/nyaruka/goflow/issues/66
+    ('A', AddToGroupAction.TYPE, True),
+    ('A', DeleteFromGroupAction.TYPE, True),
     ('A', AddLabelAction.TYPE, False),           # https://github.com/nyaruka/goflow/issues/66
     ('A', EmailAction.TYPE, True),
     ('A', WebhookAction.TYPE, False),            # https://github.com/nyaruka/goflow/issues/70
