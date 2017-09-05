@@ -191,7 +191,7 @@ class FlowSession(models.Model):
                     request = request.include_flow(f)
                 for channel in flow.org.channels.filter(is_active=True):
                     request = request.include_channel(channel)
-                request = request.include_groups(flow.org)
+                request = request.include_groups(flow.org).include_labels(flow.org)
 
             # only include message if it's a real message
             if msg_in and msg_in.created_on:
@@ -239,7 +239,7 @@ class FlowSession(models.Model):
                 request = request.include_flow(f)
             for channel in self.org.channels.filter(is_active=True):
                 request = request.include_channel(channel)
-            request = request.include_groups(self.org)
+            request = request.include_groups(self.org).include_labels(self.org)
 
         # only include message if it's a real message
         if msg_in and msg_in.created_on:
@@ -7453,7 +7453,7 @@ FLOW_FEATURES = [
     ('A', SendAction.TYPE, False),               # https://github.com/nyaruka/goflow/issues/67
     ('A', AddToGroupAction.TYPE, True),
     ('A', DeleteFromGroupAction.TYPE, True),
-    ('A', AddLabelAction.TYPE, False),           # https://github.com/nyaruka/goflow/issues/66
+    ('A', AddLabelAction.TYPE, True),
     ('A', EmailAction.TYPE, True),
     ('A', WebhookAction.TYPE, False),            # https://github.com/nyaruka/goflow/issues/70
     ('A', SaveToContactAction.TYPE, True),

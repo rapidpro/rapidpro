@@ -53,6 +53,10 @@ def serialize_group(group):
     return {'uuid': group.uuid, 'name': group.name, 'query': group.query}
 
 
+def serialize_label(label):
+    return {'uuid': label.uuid, 'name': label.name}
+
+
 def serialize_country(org):
     """
     Serializes country data for the given org, e.g.
@@ -130,6 +134,17 @@ class RequestBuilder(object):
         })
         return self
 
+    def include_labels(self, org):
+        from temba.msgs.models import Label
+
+        self.request['assets'].append({
+            'type': "label",
+            'url': get_assets_url(org, self.asset_timestamp, 'label'),
+            'content': [serialize_label(l) for l in Label.label_objects.filter(org=org, is_active=True)],
+            'is_set': True
+        })
+        return self
+
     def set_environment(self, org):
         languages = [org.primary_language.iso_code] if org.primary_language else []
 
@@ -195,6 +210,7 @@ class RequestBuilder(object):
         event = {
             'type': "msg_received",
             'created_on': datetime_to_str(msg.created_on),
+            'msg_uuid': str(msg.uuid),
             'text': msg.text,
             'contact_uuid': str(msg.contact.uuid),
 

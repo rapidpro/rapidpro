@@ -38,7 +38,7 @@ from temba.reports.models import Report
 from temba.flows.models import Flow, FlowRun, FlowRevision, FlowRunCount
 from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, PENDING
+from temba.msgs.models import Msg, Label, PENDING
 from temba.triggers.models import Trigger
 from temba.utils import analytics, percentage, datetime_to_str, on_transaction_commit, goflow
 from temba.utils.expressions import get_function_listing
@@ -1730,6 +1730,7 @@ class FlowAssets(View):
         'channel': Resource(Channel.objects.filter(is_active=True), goflow.serialize_channel),
         'flow': Resource(Flow.objects.filter(is_active=True), goflow.serialize_flow),
         'group': Resource(ContactGroup.user_groups.filter(is_active=True), goflow.serialize_group),
+        'label': Resource(Label.label_objects.filter(is_active=True), goflow.serialize_label),
     }
 
     def get(self, *args, **kwargs):
