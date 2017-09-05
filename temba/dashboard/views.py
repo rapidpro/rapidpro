@@ -1,11 +1,9 @@
 from __future__ import unicode_literals
 
 import time
-import six
 
 from datetime import timedelta, datetime
 from django.db.models import Sum, Q
-from django.db.models.functions import Substr, Lower
 from django.http import JsonResponse
 from django.utils import timezone
 from smartmin.views import SmartTemplateView
