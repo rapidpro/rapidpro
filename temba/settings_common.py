@@ -378,6 +378,7 @@ PERMISSIONS = {
                  'clear_cache',
                  'create_login',
                  'create_sub_org',
+                 'dashboard',
                  'download',
                  'edit',
                  'edit_sub_org',
@@ -426,11 +427,6 @@ PERMISSIONS = {
 
     'channels.channelevent': ('api',
                               'calls'),
-
-    'dashboard.dashboard': ('home',
-                            'message_history',
-                            'range_details',
-                            'org_history'),
 
     'flows.flowstart': ('api',),
 
@@ -584,8 +580,6 @@ GROUP_PERMISSIONS = {
 
         'csv_imports.importtask.*',
 
-        'dashboard.*',
-
         'ivr.ivrcall.*',
         'ussd.ussdsession.*',
 
@@ -597,6 +591,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_accounts',
         'orgs.org_smtp_server',
         'orgs.org_api',
+        'orgs.org_dashboard',
         'orgs.org_country',
         'orgs.org_chatbase',
         'orgs.org_create_sub_org',

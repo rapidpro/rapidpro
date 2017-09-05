@@ -1,9 +1,10 @@
 from __future__ import unicode_literals
 
-from datetime import datetime
+import json
 from django.core.urlresolvers import reverse
+
+from temba.channels.models import Channel
 from temba.msgs.models import Label
-from temba.flows.models import ActionSet, Flow
 from temba.tests import TembaTest
 
 
@@ -15,20 +16,7 @@ class DashboardTest(TembaTest):
         self.flow_label = Label.label_objects.create(name="Color", org=self.org,
                                                      created_by=self.admin, modified_by=self.admin)
 
-    def test_dashboard_home(self):
-        dashboard_url = reverse('dashboard.dashboard_home')
-
-        # visit this page without authenticating
-        response = self.client.get(dashboard_url, follow=True)
-
-        # nope! cannot visit dashboard.
-        self.assertRedirects(response, "/users/login/?next=%s" % dashboard_url)
-
-        self.login(self.superuser)
-        response = self.client.get(dashboard_url, follow=True)
-
-        # yep! it works
-        self.assertEqual(response.request['PATH_INFO'], dashboard_url)
+    def create_activity(self):
 
         # and some message and call activity
         joe = self.create_contact("Joe", twitter="joe")
@@ -38,46 +26,73 @@ class DashboardTest(TembaTest):
         self.create_msg(contact=joe, direction='O', text="Wanna hang?", channel=self.channel, msg_type='V')
         self.create_msg(contact=joe, direction='I', text="Sure", channel=self.channel, msg_type='V')
 
-        response = self.client.get(dashboard_url)
-
-        today = datetime.utcnow().date()
-
-        self.assertEqual(response.context['message_stats'], [
-            {'name': "Incoming Text", 'data': [{'count': 1, 'date': today}]},
-            {'name': "Outgoing Text", 'data': [{'count': 2, 'date': today}]},
-            {'name': "Incoming IVR", 'data': [{'count': 1, 'date': today}]},
-            {'name': "Outgoing IVR", 'data': [{'count': 1, 'date': today}]}
-        ])
-
-    def test_dashboard_flows(self):
-        dashflows_url = reverse('dashboard.dashboard_flows')
+    def test_dashboard_home(self):
+        dashboard_url = reverse('dashboard.dashboard_home')
 
         # visit this page without authenticating
-        response = self.client.get(dashflows_url, follow=True)
+        response = self.client.get(dashboard_url, follow=True)
 
         # nope! cannot visit dashboard.
-        self.assertRedirects(response, "/users/login/?next=%s" % dashflows_url)
+        self.assertRedirects(response, "/users/login/?next=%s" % dashboard_url)
 
-        self.login(self.superuser)
-        response = self.client.get(dashflows_url, follow=True)
+        self.login(self.admin)
+        response = self.client.get(dashboard_url, follow=True)
 
         # yep! it works
-        self.assertEqual(response.request['PATH_INFO'], dashflows_url)
-        self.assertEqual(len(response.context['recent']), 0)
+        self.assertEqual(response.request['PATH_INFO'], dashboard_url)
 
-        # create a flow with action sets
-        recent_flow = Flow.objects.create(name="Recent Flow", org=self.org, saved_by=self.superuser,
-                                          created_by=self.superuser, modified_by=self.superuser)
+    def test_message_history(self):
 
-        ActionSet.objects.create(uuid='123456789012345678901234567890123456',
-                                 flow=recent_flow, actions="{type:'reply', msg:'Wow!'}", x=10, y=10)
-        ActionSet.objects.create(uuid='123456789012345678901234567890123457',
-                                 flow=recent_flow, actions="{type:'reply', msg:'Wow!'}", x=10, y=10)
-        ActionSet.objects.create(uuid='123456789012345678901234567890123458',
-                                 flow=recent_flow, actions="{type:'reply', msg:'Wow!'}", x=10, y=10)
-        ActionSet.objects.create(uuid='123456789012345678901234567890123459',
-                                 flow=recent_flow, actions="{type:'reply', msg:'Wow!'}", x=10, y=10)
+        url = reverse('dashboard.dashboard_message_history')
 
-        response = self.client.get(dashflows_url, follow=True)
-        self.assertEqual(response.request['PATH_INFO'], dashflows_url)
-        self.assertEqual(len(response.context['recent']), 1)
+        # visit this page without authenticating
+        response = self.client.get(url, follow=True)
+
+        # nope!
+        self.assertRedirects(response, "/users/login/?next=%s" % url)
+
+        self.login(self.admin)
+        self.create_activity()
+        response = json.loads(self.client.get(url).content)
+
+        # in, out, and total
+        self.assertEqual(3, len(response))
+
+        # incoming messages
+        self.assertEqual(2, response[0]['data'][0][1])
+
+        # outgoing messages
+        self.assertEqual(3, response[1]['data'][0][1])
+
+        # total messages
+        self.assertEqual(5, response[2]['data'][0][1])
+
+    def test_range_details(self):
+
+        url = reverse('dashboard.dashboard_range_details')
+
+        # visit this page without authenticating
+        response = self.client.get(url, follow=True)
+
+        # nope!
+        self.assertRedirects(response, "/users/login/?next=%s" % url)
+
+        self.login(self.admin)
+        self.create_activity()
+
+        types = ['T', 'TT', 'FB', 'NX', 'AT', 'KN', 'CK']
+        michael = self.create_contact("Michael", twitter="mjackson")
+        for t in types:
+            channel = Channel.create(self.org, self.user, None, t, name="Test Channel %s" % t, address="%s:1234" % t)
+            self.create_msg(contact=michael, direction='O', text="Message on %s" % t, channel=channel)
+        response = self.client.get(url)
+
+        # org message activity
+        self.assertEqual(12, response.context['orgs'][0]['count_sum'])
+        self.assertEqual('Temba', response.context['orgs'][0]['channel__org__name'])
+
+        # our pie chart
+        self.assertEqual(5, response.context['channel_types'][0]['count_sum'])
+        self.assertEqual('Android', response.context['channel_types'][0]['channel__name'])
+        self.assertEqual(7, len(response.context['channel_types']))
+        self.assertEqual('Other', response.context['channel_types'][6]['channel__name'])

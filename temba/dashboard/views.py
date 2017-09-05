@@ -4,7 +4,8 @@ import time
 import six
 
 from datetime import timedelta, datetime
-from django.db.models import Count, Sum, Avg, StdDev, Q
+from django.db.models import Sum, Q
+from django.db.models.functions import Substr, Lower
 from django.http import JsonResponse
 from django.utils import timezone
 from smartmin.views import SmartTemplateView
@@ -13,7 +14,7 @@ from temba.channels.models import ChannelCount, Channel
 from temba.orgs.views import OrgPermsMixin
 
 
-class Home(SmartTemplateView):
+class Home(OrgPermsMixin, SmartTemplateView):
     """
     The main dashboard view
     """
@@ -32,23 +33,17 @@ class MessageHistory(OrgPermsMixin, SmartTemplateView):
         is_support = self.request.user.groups.filter(name='Customer Support').first()
 
         orgs = []
-        org_id = self.request.session.get('org_id', None)
-        if org_id:
-            org = Org.objects.filter(is_active=True, id=org_id).first()
-            filter_org = self.request.GET.get("org")
-            if filter_org:
-                filter_org = Org.objects.filter(is_active=True, id=filter_org).first()
-                if filter_org and filter_org.parent == org:
-                    org = filter_org
-
-            if org:
-                orgs = Org.objects.filter(Q(id=org.id) | Q(parent=org))
+        org = self.derive_org()
+        if org:
+            orgs = Org.objects.filter(Q(id=org.id) | Q(parent=org))
 
         # get all our counts for that period
         daily_counts = ChannelCount.objects.filter(count_type__in=[ChannelCount.INCOMING_MSG_TYPE,
                                                                    ChannelCount.OUTGOING_MSG_TYPE,
                                                                    ChannelCount.INCOMING_IVR_TYPE,
-                                                                   ChannelCount.OUTGOING_IVR_TYPE]).filter(day__lt=timezone.now()).filter(day__gt='2013-02-01')
+                                                                   ChannelCount.OUTGOING_IVR_TYPE])
+
+        daily_counts = daily_counts.filter(day__gt='2013-02-01').filter(day__lte=timezone.now())
 
         if orgs or not is_support:
             daily_counts = daily_counts.filter(channel__org__in=orgs)
@@ -60,25 +55,42 @@ class MessageHistory(OrgPermsMixin, SmartTemplateView):
         epoch = datetime(1970, 1, 1)
 
         def get_timestamp(count_dict):
+            """
+            Gets a unix time that is highcharts friendly for a given day
+            """
             count_date = datetime.fromtimestamp(time.mktime(count_dict['day'].timetuple()))
             return int((count_date - epoch).total_seconds() * 1000)
 
-        totals = {}
+        def record_count(counts, day, count):
+            """
+            Records a count in counts list which is an ordered list of day, count tuples
+            """
+            is_new = True
+
+            # if we have seen this one before, increment it
+            if len(counts):
+                last = counts[-1]
+                if last and last[0] == day:
+                    last[1] += count['count_sum']
+                    is_new = False
+
+            # otherwise add it as a new count
+            if is_new:
+                counts.append([day, count['count_sum']])
+
+        msgs_total = []
         for count in daily_counts:
             direction = count['count_type'][0]
             day = get_timestamp(count)
 
             if direction == 'I':
-                msgs_in.append([day, count['count_sum']])
+                record_count(msgs_in, day, count)
             elif direction == 'O':
-                msgs_out.append([day, count['count_sum']])
+                record_count(msgs_out, day, count)
 
-            totals[day] = totals.get(day, 0) + count['count_sum']
-
-        # we create one extra series that is the combination of both in and out
-        # so we can use that inside our navigator
-        msgs_total = [(k, v) for k, v in six.iteritems(totals)]
-        msgs_total = sorted(msgs_total, key=lambda x: x[0])
+            # we create one extra series that is the combination of both in and out
+            # so we can use that inside our navigator
+            record_count(msgs_total, day, count)
 
         return JsonResponse([
             dict(name="Incoming", type="column", data=msgs_in, showInNavigator=False),
@@ -104,20 +116,13 @@ class RangeDetails(OrgPermsMixin, SmartTemplateView):
         begin = self.request.GET.get("begin", datetime.strftime(begin, "%Y-%m-%d"))
         end = self.request.GET.get("end", datetime.strftime(end, "%Y-%m-%d"))
 
-        direction = self.request.GET.get("direction")
+        direction = self.request.GET.get("direction", "IO")
 
         if begin and end:
             orgs = []
-            org_id = self.request.session.get('org_id', None)
-            if org_id:
-                org = Org.objects.filter(is_active=True, id=org_id).first()
-                filter_org = self.request.GET.get("org")
-                if filter_org:
-                    filter_org = Org.objects.filter(is_active=True, id=filter_org).first()
-                    if filter_org and filter_org.parent == org:
-                        org = filter_org
-                if org:
-                    orgs = Org.objects.filter(Q(id=org.id) | Q(parent=org))
+            org = self.derive_org()
+            if org:
+                orgs = Org.objects.filter(Q(id=org.id) | Q(parent=org))
 
             count_types = []
             if 'O' in direction:
@@ -143,7 +148,7 @@ class RangeDetails(OrgPermsMixin, SmartTemplateView):
             # populate the channel names
             pie = []
             for channel_type in channel_types[0:6]:
-                channel_type["channel__name"] = Channel.get_type_from_code(channel_type["channel__channel_type"])
+                channel_type["channel__name"] = Channel.get_type_from_code(channel_type["channel__channel_type"]).name
                 pie.append(channel_type)
 
             other_count = 0
@@ -152,6 +157,7 @@ class RangeDetails(OrgPermsMixin, SmartTemplateView):
 
             if other_count:
                 pie.append(dict(channel__name="Other", count_sum=other_count))
+
             context['channel_types'] = pie
 
             context['begin'] = datetime.strptime(begin, "%Y-%m-%d").date()
