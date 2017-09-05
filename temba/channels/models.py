@@ -36,6 +36,7 @@ from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
+
 from temba.orgs.models import Org, NEXMO_UUID, NEXMO_APP_ID, CHATBASE_TYPE_AGENT
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
@@ -2972,17 +2973,19 @@ class ChannelEvent(models.Model):
         trigger any flows based on new conversations or referrals.
         """
         from temba.triggers.models import Trigger
+        handled = False
+
         if self.event_type == ChannelEvent.TYPE_NEW_CONVERSATION:
-            return Trigger.catch_triggers(self, Trigger.TYPE_NEW_CONVERSATION, self.channel)
+            handled = Trigger.catch_triggers(self, Trigger.TYPE_NEW_CONVERSATION, self.channel)
 
         elif self.event_type == ChannelEvent.TYPE_REFERRAL:
-            return Trigger.catch_triggers(self, Trigger.TYPE_REFERRAL, self.channel,
-                                          referrer_id=self.extra_json().get('referrer_id'), extra=self.extra_json())
+            handled = Trigger.catch_triggers(self, Trigger.TYPE_REFERRAL, self.channel,
+                                             referrer_id=self.extra_json().get('referrer_id'), extra=self.extra_json())
 
         elif self.event_type == ChannelEvent.TYPE_FOLLOW:
-            return Trigger.catch_triggers(self, Trigger.TYPE_FOLLOW, self.channel)
+            handled = Trigger.catch_triggers(self, Trigger.TYPE_FOLLOW, self.channel)
 
-        return False
+        return handled
 
     def release(self):
         self.delete()

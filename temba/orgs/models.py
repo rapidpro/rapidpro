@@ -1554,7 +1554,7 @@ class Org(SmartModel):
 
                 try:
                     card = customer.cards.create(card=token)
-                except stripe.CardError:  # pragma: no cover
+                except stripe.CardError:
                     raise ValidationError(_("Sorry, your card was declined, please contact your provider or try another card."))
 
                 customer.default_card = card.id
