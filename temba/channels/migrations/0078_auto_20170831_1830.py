@@ -74,7 +74,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='channelevent',
             name='event_type',
-            field=models.CharField(choices=[('unknown', 'Unknown Call Type'), ('mt_call', 'Outgoing Call'), ('mt_miss', 'Missed Outgoing Call'), ('mo_call', 'Incoming Call'), ('mo_miss', 'Missed Incoming Call'), ('new_conversation', 'New Conversation'), ('referral', 'Referral')], help_text='The type of event', max_length=16, verbose_name='Event Type'),
+            field=models.CharField(choices=[('unknown', 'Unknown Call Type'), ('mt_call', 'Outgoing Call'), ('mt_miss', 'Missed Outgoing Call'), ('mo_call', 'Incoming Call'), ('mo_miss', 'Missed Incoming Call'), ('new_conversation', 'New Conversation'), ('referral', 'Referral'), ('follow', 'Follow')], help_text='The type of event', max_length=16, verbose_name='Event Type'),
         ),
         migrations.RemoveField(
             model_name='channelevent',
