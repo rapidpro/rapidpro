@@ -9680,7 +9680,7 @@ class FacebookTest(TembaTest):
         data['entry'][0]['messaging'][0].update(json.loads(postback))
         response = self.client.post(callback_url, json.dumps(data).replace('PAGE_ID', '1234'), content_type='application/json')
         self.assertEqual(200, response.status_code)
-        self.assertEqual('{"status": ["Triggered flow for ref: signup"]}', response.content)
+        self.assertEqual('{"status": ["Referral posted with referral id: signup"]}', response.content)
 
         # check that the user started the flow
         contact1 = Contact.objects.get(org=self.org, urns__path='1122')

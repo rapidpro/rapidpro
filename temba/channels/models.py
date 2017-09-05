@@ -2977,7 +2977,7 @@ class ChannelEvent(models.Model):
 
         elif self.event_type == ChannelEvent.TYPE_REFERRAL:
             return Trigger.catch_triggers(self, Trigger.TYPE_REFERRAL, self.channel,
-                                          referrer_id=self.extra_json.get('referrer_id'), extra=self.extra_json())
+                                          referrer_id=self.extra_json().get('referrer_id'), extra=self.extra_json())
 
         elif self.event_type == ChannelEvent.TYPE_FOLLOW:
             return Trigger.catch_triggers(self, Trigger.TYPE_FOLLOW, self.channel)
