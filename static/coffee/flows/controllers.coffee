@@ -467,7 +467,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         msg: msg
       ]
 
-    @clickAction(actionset, actionset.actions[0], startNewNode=true)
+    @clickAction(actionset, actionset.actions[0])
 
   $scope.createFirstUssd = ->
 
@@ -714,7 +714,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
     $('#' + action_uuid + "_audio")[0].play()
 
-  $scope.clickAction = (actionset, action, dragSource=null, startNewNode=null) ->
+  $scope.clickAction = (actionset, action, dragSource=null) ->
     if window.dragging or not window.mutable
       return
 
@@ -777,7 +777,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           actionset: actionset
           action: action
           dragSource: dragSource
-          startNewNode: startNewNode
         flowController: -> $scope
 
       $scope.dialog = utils.openModal("/partials/node_editor", NodeEditorController, resolveObj)
@@ -1799,7 +1798,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.actions_quick_reply = []
     $scope.action.quick_replies = {}
 
-  if $scope.options.dragSource? || $scope.options.startNewNode? || $scope.options.innerAction?
+  if $scope.options.dragSource? || $scope.options.innerAction?
     startNodeConfig()
   else
     if $scope.action.quick_replies? and $scope.action.quick_replies[currentLang] != undefined
