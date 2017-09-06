@@ -4,6 +4,8 @@ from __future__ import unicode_literals
 
 from django.db import migrations, models
 from temba.utils import chunk_list
+from django.db.models.functions import Concat
+from django.db.models import Value, TextField, F
 
 SQL_UPDATE_CHANNELEVENT = """
 -- Trigger procedure to update system labels on channel event changes
@@ -58,8 +60,28 @@ def delete_inactive_channelevents(apps, schema_editor):
     # delete all channel events that are inactive, we don't care to keep those around
     ids = ChannelEvent.objects.filter(is_active=False).values_list('id', flat=True)
     print("Found %d channel events to delete" % len(ids))
+    count = 0
     for chunk in chunk_list(ids, 1000):
         ChannelEvent.objects.filter(id__in=chunk).delete()
+        count += len(ids)
+        print("Deleted %d" % count)
+
+
+def migrate_duration_extra(apps, schema_editor):
+    ChannelEvent = apps.get_model('channels', 'ChannelEvent')
+
+    # find all events with a duration and convert them to extra
+    ids = ChannelEvent.objects.filter(duration__gte=0).values_list('id', flat=True)
+    print("Found %d channel events to set extra on" % len(ids))
+    count = 0
+    for chunk in chunk_list(ids, 250):
+        ChannelEvent.objects.filter(id__in=chunk).update(extra=Concat(Value('{"duration":'), F('duration'), Value('}'), output_field=TextField()))
+        count += len(ids)
+        print("Updated %d" % count)
+
+
+def noop(apps, schema_editor):
+    pass
 
 
 class Migration(migrations.Migration):
@@ -70,7 +92,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(delete_inactive_channelevents),
+        migrations.RunPython(delete_inactive_channelevents, noop),
         migrations.AlterField(
             model_name='channelevent',
             name='event_type',
@@ -79,10 +101,6 @@ class Migration(migrations.Migration):
         migrations.RemoveField(
             model_name='channelevent',
             name='is_active',
-        ),
-        migrations.RemoveField(
-            model_name='channelevent',
-            name='duration',
         ),
         migrations.RenameField(
             model_name='channelevent',
@@ -99,5 +117,10 @@ class Migration(migrations.Migration):
             field=models.TextField(help_text='Any extra properties on this event as JSON', null=True,
                                    verbose_name='Extra'),
         ),
-        migrations.RunSQL(SQL_UPDATE_CHANNELEVENT),
+        migrations.RunPython(migrate_duration_extra, noop),
+        migrations.RemoveField(
+            model_name='channelevent',
+            name='duration',
+        ),
+        migrations.RunSQL(SQL_UPDATE_CHANNELEVENT, ""),
     ]
