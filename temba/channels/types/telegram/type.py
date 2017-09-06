@@ -32,7 +32,7 @@ class TelegramType(ChannelType):
     messages.""")
     claim_view = ClaimView
 
-    scheme = TELEGRAM_SCHEME
+    schemes = [TELEGRAM_SCHEME]
     max_length = 1600
     attachment_support = True
     free_sending = True

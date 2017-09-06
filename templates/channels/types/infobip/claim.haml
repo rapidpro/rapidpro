@@ -1,19 +1,11 @@
 -extends "smartmin/form.html"
 -load i18n
 
--block extra-script
-  {{ block.super }}
-
-  :javascript
-    $(function(){
-      $("#id_country").select2();
-    });
-
 -block title
-  .medium-help.icon-phone.float-left
+  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
 
   %h2.font_normalize.header-margin
-    -trans "Connect Infobip"
+    {{ title }}
 
 -block pre-form
   .info
@@ -26,6 +18,14 @@
       -blocktrans with brand.name as brand
         After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want
         to push a message to {{ brand }}.
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $(function(){
+      $("#id_country").select2();
+    });
 
 -block extra-style
   {{ block.super }}

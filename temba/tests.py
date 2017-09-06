@@ -11,6 +11,7 @@ import shutil
 import string
 import six
 import time
+import urlparse
 
 from datetime import datetime, timedelta
 from django.conf import settings
@@ -20,7 +21,9 @@ from django.db import connection
 from django.test import LiveServerTestCase
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
+from django.utils.http import quote_plus
 from HTMLParser import HTMLParser
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, ContactField, URN
@@ -32,18 +35,60 @@ from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct, get_anonymous_user
 from temba.values.models import Value
+from threading import Thread
 from twilio.util import RequestValidator
 from uuid import uuid4
 
 
-class ExcludeTestRunner(DiscoverRunner):
+class MockServerRequestHandler(BaseHTTPRequestHandler):
+    """
+    A simple HTTP server for mocking external services. For example:
+
+    GET http://localhost:49999/echo?content=OK
+        ->  content: 'OK', status_code: 200
+    POST http://localhost:49999/echo?content=%7B%20%22status%22%3A%20%22valid%22%20%7D&status=400
+        ->  content: '{ "status": "valid" }', status_code: 400
+    """
+    def _handle_request(self, method):
+        # record this request so calling test can verify it was made
+        TembaTestRunner.MOCKED_REQUESTS.append({'method': method, 'url': 'http://localhost:49999%s' % self.path})
+
+        parsed = urlparse.urlparse(self.path)
+        params = urlparse.parse_qs(parsed.query)
+        if parsed.path == '/echo':
+            return self._handle_echo(params)
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def _handle_echo(self, params):
+        status = int(params.get('status', [200])[0])
+        content = params['content'][0]
+        content_type = params.get('type', ['text/plain'])[0]
+
+        self.send_response(status)
+        self.send_header("Content-type", content_type)
+        self.end_headers()
+        self.wfile.write(content.encode('utf-8'))
+
+    def do_GET(self):
+        return self._handle_request('GET')
+
+    def do_POST(self):
+        return self._handle_request('POST')
+
+
+class TembaTestRunner(DiscoverRunner):
+    MOCKED_SERVER_URL = 'http://localhost:49999'
+    MOCKED_REQUESTS = []
+
     def __init__(self, *args, **kwargs):
-        from django.conf import settings
         settings.TESTING = True
-        super(ExcludeTestRunner, self).__init__(*args, **kwargs)
+
+        super(TembaTestRunner, self).__init__(*args, **kwargs)
 
     def build_suite(self, *args, **kwargs):
-        suite = super(ExcludeTestRunner, self).build_suite(*args, **kwargs)
+        suite = super(TembaTestRunner, self).build_suite(*args, **kwargs)
         excluded = getattr(settings, 'TEST_EXCLUDE', [])
         if not getattr(settings, 'RUN_ALL_TESTS', False):
             tests = []
@@ -53,6 +98,15 @@ class ExcludeTestRunner(DiscoverRunner):
                     tests.append(case)
             suite._tests = tests
         return suite
+
+    def run_suite(self, suite, **kwargs):
+        # start running mock server in a daemon thread which will automatically shut down when the main process exits
+        mock_server = HTTPServer(('localhost', 49999), MockServerRequestHandler)
+        mock_server_thread = Thread(target=mock_server.serve_forever)
+        mock_server_thread.setDaemon(True)
+        mock_server_thread.start()
+
+        return super(TembaTestRunner, self).run_suite(suite, **kwargs)
 
 
 def add_testing_flag_to_context(*args):
@@ -224,7 +278,7 @@ class TembaTest(SmartminTest):
 
         self.org2.initialize(topup_size=topup_size)
 
-    def create_contact(self, name=None, number=None, twitter=None, urn=None, is_test=False, **kwargs):
+    def create_contact(self, name=None, number=None, twitter=None, twitterid=None, urn=None, is_test=False, **kwargs):
         """
         Create a contact in the master test org
         """
@@ -233,6 +287,8 @@ class TembaTest(SmartminTest):
             urns.append(URN.from_tel(number))
         if twitter:
             urns.append(URN.from_twitter(twitter))
+        if twitterid:
+            urns.append(URN.from_twitterid(twitterid))
         if urn:
             urns.append(urn)
 
@@ -361,6 +417,14 @@ class TembaTest(SmartminTest):
             ruleset.save()
         else:
             self.fail("Couldn't find node with uuid: %s" % node)
+
+    def mockedServerURL(self, content, status=200):
+        return '%s/echo?content=%s&status=%d' % (TembaTestRunner.MOCKED_SERVER_URL, quote_plus(content), status)
+
+    def assertMockedRequests(self, requests, reset=True):
+        self.assertEqual(TembaTestRunner.MOCKED_REQUESTS, requests)
+        if reset:
+            TembaTestRunner.MOCKED_REQUESTS = []
 
     def assertExcelRow(self, sheet, row_num, values, tz=None):
         """

@@ -17,7 +17,9 @@ from datetime import timedelta
 from django.conf import settings
 from django.conf.urls import url
 from django.contrib.auth.models import User, Group
+from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.urlresolvers import reverse
 from django.core.validators import URLValidator
 from django.db import models
@@ -79,7 +81,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 
     name = None
     icon = 'icon-channel-external'
-    scheme = None
+    schemes = None
     show_config_page = True
 
     claim_blurb = None
@@ -146,6 +148,12 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         return self.attachment_support
 
+    def setup_periodic_tasks(self, sender):
+        """
+        Allows a ChannelType to register periodic tasks it wants celery to run.
+        ex: sender.add_periodic_task(300, remap_twitter_ids)
+        """
+
     def get_quick_replies(self, **kwargs):
         """
         Method to get the payload to quick replies
@@ -167,7 +175,6 @@ class Channel(TembaModel):
     TYPE_GLOBE = 'GL'
     TYPE_HIGH_CONNECTION = 'HX'
     TYPE_HUB9 = 'H9'
-    TYPE_INFOBIP = 'IB'
     TYPE_JASMIN = 'JS'
     TYPE_JUNEBUG = 'JN'
     TYPE_JUNEBUG_USSD = 'JNU'
@@ -261,41 +268,43 @@ class Channel(TembaModel):
                             (CONTENT_TYPE_JSON, _("JSON - application/json")),
                             (CONTENT_TYPE_XML, _("XML - text/xml; charset=utf-8")))
 
+    # our default max tps is 50
+    DEFAULT_TPS = 50
+
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
-        TYPE_AFRICAS_TALKING: dict(scheme='tel', max_length=160),
-        TYPE_ANDROID: dict(scheme='tel', max_length=-1),
-        TYPE_BLACKMYNA: dict(scheme='tel', max_length=1600),
-        TYPE_CHIKKA: dict(scheme='tel', max_length=160),
-        TYPE_CLICKATELL: dict(scheme='tel', max_length=420),
-        TYPE_DARTMEDIA: dict(scheme='tel', max_length=160),
-        TYPE_DUMMY: dict(scheme='tel', max_length=160),
-        TYPE_GLOBE: dict(scheme='tel', max_length=160),
-        TYPE_HIGH_CONNECTION: dict(scheme='tel', max_length=1500),
-        TYPE_HUB9: dict(scheme='tel', max_length=1600),
-        TYPE_INFOBIP: dict(scheme='tel', max_length=1600),
-        TYPE_JASMIN: dict(scheme='tel', max_length=1600),
-        TYPE_JUNEBUG: dict(scheme='tel', max_length=1600),
-        TYPE_JUNEBUG_USSD: dict(scheme='tel', max_length=1600),
-        TYPE_KANNEL: dict(scheme='tel', max_length=1600),
-        TYPE_MACROKIOSK: dict(scheme='tel', max_length=1600),
-        TYPE_M3TECH: dict(scheme='tel', max_length=160),
-        TYPE_NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
-        TYPE_MBLOX: dict(scheme='tel', max_length=459),
-        TYPE_PLIVO: dict(scheme='tel', max_length=1600),
-        TYPE_RED_RABBIT: dict(scheme='tel', max_length=1600),
-        TYPE_SHAQODOON: dict(scheme='tel', max_length=1600),
-        TYPE_SMSCENTRAL: dict(scheme='tel', max_length=1600, max_tps=1),
-        TYPE_START: dict(scheme='tel', max_length=1600),
-        TYPE_TWILIO: dict(scheme='tel', max_length=1600),
-        TYPE_TWIML: dict(scheme='tel', max_length=1600),
-        TYPE_TWILIO_MESSAGING_SERVICE: dict(scheme='tel', max_length=1600),
-        TYPE_VERBOICE: dict(scheme='tel', max_length=1600),
-        TYPE_VIBER: dict(scheme='tel', max_length=1000),
-        TYPE_VUMI: dict(scheme='tel', max_length=1600),
-        TYPE_VUMI_USSD: dict(scheme='tel', max_length=182),
-        TYPE_YO: dict(scheme='tel', max_length=1600),
-        TYPE_ZENVIA: dict(scheme='tel', max_length=150),
+        TYPE_AFRICAS_TALKING: dict(schemes=['tel'], max_length=160),
+        TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
+        TYPE_BLACKMYNA: dict(schemes=['tel'], max_length=1600),
+        TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
+        TYPE_CLICKATELL: dict(schemes=['tel'], max_length=420),
+        TYPE_DARTMEDIA: dict(schemes=['tel'], max_length=160),
+        TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
+        TYPE_GLOBE: dict(schemes=['tel'], max_length=160),
+        TYPE_HIGH_CONNECTION: dict(schemes=['tel'], max_length=1500),
+        TYPE_HUB9: dict(schemes=['tel'], max_length=1600),
+        TYPE_JASMIN: dict(schemes=['tel'], max_length=1600),
+        TYPE_JUNEBUG: dict(schemes=['tel'], max_length=1600),
+        TYPE_JUNEBUG_USSD: dict(schemes=['tel'], max_length=1600),
+        TYPE_KANNEL: dict(schemes=['tel'], max_length=1600),
+        TYPE_MACROKIOSK: dict(schemes=['tel'], max_length=1600),
+        TYPE_M3TECH: dict(schemes=['tel'], max_length=160),
+        TYPE_NEXMO: dict(schemes=['tel'], max_length=1600, max_tps=1),
+        TYPE_MBLOX: dict(schemes=['tel'], max_length=459),
+        TYPE_PLIVO: dict(schemes=['tel'], max_length=1600),
+        TYPE_RED_RABBIT: dict(schemes=['tel'], max_length=1600),
+        TYPE_SHAQODOON: dict(schemes=['tel'], max_length=1600),
+        TYPE_SMSCENTRAL: dict(schemes=['tel'], max_length=1600, max_tps=1),
+        TYPE_START: dict(schemes=['tel'], max_length=1600),
+        TYPE_TWILIO: dict(schemes=['tel'], max_length=1600),
+        TYPE_TWIML: dict(schemes=['tel'], max_length=1600),
+        TYPE_TWILIO_MESSAGING_SERVICE: dict(schemes=['tel'], max_length=1600),
+        TYPE_VERBOICE: dict(schemes=['tel'], max_length=1600),
+        TYPE_VIBER: dict(schemes=['tel'], max_length=1000),
+        TYPE_VUMI: dict(schemes=['tel'], max_length=1600),
+        TYPE_VUMI_USSD: dict(schemes=['tel'], max_length=182),
+        TYPE_YO: dict(schemes=['tel'], max_length=1600),
+        TYPE_ZENVIA: dict(schemes=['tel'], max_length=150),
     }
 
     TYPE_CHOICES = ((TYPE_AFRICAS_TALKING, "Africa's Talking"),
@@ -308,7 +317,6 @@ class Channel(TembaModel):
                     (TYPE_GLOBE, "Globe Labs"),
                     (TYPE_HIGH_CONNECTION, "High Connection"),
                     (TYPE_HUB9, "Hub9"),
-                    (TYPE_INFOBIP, "Infobip"),
                     (TYPE_JASMIN, "Jasmin"),
                     (TYPE_JUNEBUG, "Junebug"),
                     (TYPE_JUNEBUG_USSD, "Junebug USSD"),
@@ -399,8 +407,8 @@ class Channel(TembaModel):
     config = models.TextField(verbose_name=_("Config"), null=True,
                               help_text=_("Any channel specific configuration, used for the various aggregators"))
 
-    scheme = models.CharField(verbose_name="URN Scheme", max_length=8, default='tel',
-                              help_text=_("The URN scheme this channel can handle"))
+    schemes = ArrayField(models.CharField(max_length=16), default=['tel'],
+                         verbose_name="URN Schemes", help_text=_("The URN schemes this channel supports"))
 
     role = models.CharField(verbose_name="Channel Role", max_length=4, default=DEFAULT_ROLE,
                             help_text=_("The roles this channel can fulfill"))
@@ -411,21 +419,24 @@ class Channel(TembaModel):
     bod = models.TextField(verbose_name=_("Optional Data"), null=True,
                            help_text=_("Any channel specific state data"))
 
+    tps = models.IntegerField(verbose_name=_("Maximum Transactions per Second"), null=True,
+                              help_text=_("The max number of messages that will be sent per second"))
+
     @classmethod
-    def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=DEFAULT_ROLE, scheme=None, **kwargs):
+    def create(cls, org, user, country, channel_type, name=None, address=None, config=None, role=DEFAULT_ROLE, schemes=None, **kwargs):
         if isinstance(channel_type, six.string_types):
             channel_type = cls.get_type_from_code(channel_type)
 
-        if scheme:
-            if channel_type.scheme and channel_type.scheme != scheme:
-                raise ValueError("Channel type '%s' cannot support scheme %s" % (channel_type, scheme))
+        if schemes:
+            if channel_type.schemes and not set(channel_type.schemes).intersection(schemes):
+                raise ValueError("Channel type '%s' cannot support schemes %s" % (channel_type, schemes))
         else:
-            scheme = channel_type.scheme
+            schemes = channel_type.schemes
 
-        if not scheme:
-            raise ValueError("Cannot create channel without scheme")
+        if not schemes:
+            raise ValueError("Cannot create channel without schemes")
 
-        if country and scheme != 'tel':
+        if country and schemes != ['tel']:
             raise ValueError("Only channels handling phone numbers can be country specific")
 
         if config is None:
@@ -436,7 +447,7 @@ class Channel(TembaModel):
                            channel_type=channel_type.code,
                            name=name, address=address,
                            config=json.dumps(config),
-                           role=role, scheme=scheme)
+                           role=role, schemes=schemes)
         create_args.update(kwargs)
 
         if 'uuid' not in create_args:
@@ -445,7 +456,7 @@ class Channel(TembaModel):
         channel = cls.objects.create(**create_args)
 
         # normalize any telephone numbers that we may now have a clue as to country
-        if org:
+        if org and country:
             org.normalize_contact_tels()
 
         if settings.IS_PROD:
@@ -489,9 +500,9 @@ class Channel(TembaModel):
 
     @classmethod
     def add_config_external_channel(cls, org, user, country, address, channel_type, config, role=DEFAULT_ROLE,
-                                    scheme='tel', parent=None):
+                                    schemes=['tel'], parent=None):
         return Channel.create(org, user, country, channel_type, name=address, address=address,
-                              config=config, role=role, scheme=scheme, parent=parent)
+                              config=config, role=role, schemes=schemes, parent=parent)
 
     @classmethod
     def add_plivo_channel(cls, org, user, country, phone_number, auth_id, auth_token):
@@ -945,7 +956,7 @@ class Channel(TembaModel):
         if not self.address:
             return ''
 
-        if self.address and self.scheme == TEL_SCHEME and self.country:
+        if self.address and TEL_SCHEME in self.schemes and self.country:
             # assume that a number not starting with + is a short code and return as is
             if self.address[0] != '+':
                 return self.address
@@ -958,10 +969,10 @@ class Channel(TembaModel):
                 # the number may be alphanumeric in the case of short codes
                 pass
 
-        elif self.scheme == TWITTER_SCHEME:
+        elif TWITTER_SCHEME in self.schemes:
             return '@%s' % self.address
 
-        elif self.scheme == FACEBOOK_SCHEME:
+        elif FACEBOOK_SCHEME in self.schemes:
             return "%s (%s)" % (self.config_json().get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
 
         return self.address
@@ -973,7 +984,7 @@ class Channel(TembaModel):
         default = address if address else six.text_type(self)
 
         # for backwards compatibility
-        if self.scheme == TEL_SCHEME:
+        if TEL_SCHEME in self.schemes:
             tel = address
             tel_e164 = self.get_address_display(e164=True)
         else:
@@ -1174,10 +1185,11 @@ class Channel(TembaModel):
                         if matching:
                             client.phone_numbers.update(matching[0].sid, **number_update_args)
 
-                try:
-                    client.applications.delete(sid=config['application_sid'])
-                except TwilioRestException:  # pragma: no cover
-                    pass
+                if 'application_sid' in config:
+                    try:
+                        client.applications.delete(sid=config['application_sid'])
+                    except TwilioRestException:  # pragma: no cover
+                        pass
 
         # save off our org and gcm id before nullifying
         org = self.org
@@ -1424,7 +1436,7 @@ class Channel(TembaModel):
         from temba.msgs.models import WIRED, Msg
         from temba.ussd.models import USSDSession
 
-        session = None
+        connection = None
 
         # if the channel config has specified and override hostname use that, otherwise use settings
         event_hostname = channel.config.get(Channel.CONFIG_RP_HOSTNAME_OVERRIDE, settings.HOSTNAME)
@@ -1446,7 +1458,7 @@ class Channel(TembaModel):
             payload['event_auth_token'] = channel.secret
 
         if is_ussd:
-            session = USSDSession.objects.get_session_with_status_only(msg.session_id)
+            connection = USSDSession.objects.get_with_status_only(msg.connection_id)
             # make sure USSD responses are only valid for a short window
             response_expiration = timezone.now() - timedelta(seconds=180)
             external_id = None
@@ -1458,7 +1470,7 @@ class Channel(TembaModel):
             else:
                 payload['to'] = msg.urn_path
             payload['channel_data'] = {
-                'continue_session': session and not session.should_end or False,
+                'continue_session': connection and not connection.should_end or False,
             }
         else:
             payload['from'] = channel.address
@@ -1490,8 +1502,8 @@ class Channel(TembaModel):
 
         data = response.json()
 
-        if is_ussd and session and session.should_end:
-            session.close()
+        if is_ussd and connection and connection.should_end:
+            connection.close()
 
         try:
             message_id = data['result']['message_id']
@@ -1976,7 +1988,7 @@ class Channel(TembaModel):
         in_reply_to = None
 
         if is_ussd:
-            session = USSDSession.objects.get_session_with_status_only(msg.session_id)
+            session = USSDSession.objects.get_with_status_only(msg.connection_id)
             if session and session.should_end:
                 session_event = "close"
             else:
@@ -2171,69 +2183,6 @@ class Channel(TembaModel):
                                 events=events, fatal=fatal, start=start)
 
         Channel.success(channel, msg, SENT, start, events=events)
-
-    @classmethod
-    def send_infobip_message(cls, channel, msg, text):
-        from temba.msgs.models import SENT
-
-        API_URL = 'http://api.infobip.com/api/v3/sendsms/json'
-        BACKUP_API_URL = 'http://api2.infobip.com/api/v3/sendsms/json'
-
-        url = API_URL
-
-        # build our message dict
-        message = dict(sender=channel.address.lstrip('+'),
-                       text=text,
-                       recipients=[dict(gsm=msg.urn_path.lstrip('+'))])
-
-        # infobip requires that long messages have a different type
-        if len(text) > 160:  # pragma: no cover
-            message['type'] = 'longSMS'
-
-        payload = {'authentication': dict(username=channel.config['username'], password=channel.config['password']),
-                   'messages': [message]}
-        payload_json = json.dumps(payload)
-
-        headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-        headers.update(TEMBA_HEADERS)
-
-        event = HttpEvent('POST', url, payload_json)
-        events = [event]
-        start = time.time()
-
-        try:
-            response = requests.post(url, data=payload_json, headers=headers, timeout=5)
-            event.status_code = response.status_code
-            event.response_body = response.text
-        except Exception:  # pragma: no cover
-            try:
-                # we failed to connect, try our backup URL
-                url = BACKUP_API_URL
-                event = HttpEvent('POST', url, payload_json)
-                events.append(event)
-                response = requests.post(url, data=payload_json, headers=headers, timeout=5)
-                event.status_code = response.status_code
-                event.response_body = response.text
-            except Exception as e:
-                payload['authentication']['password'] = 'x' * len(payload['authentication']['password'])
-                raise SendException(u"Unable to send message: %s" % six.text_type(e),
-                                    events=events, start=start)
-
-        if response.status_code != 200 and response.status_code != 201:
-            payload['authentication']['password'] = 'x' * len(payload['authentication']['password'])
-            raise SendException("Received non 200 status: %d" % response.status_code,
-                                events=events, start=start)
-
-        response_json = response.json()
-        messages = response_json['results']
-
-        # if it wasn't successfully delivered, throw
-        if int(messages[0]['status']) != 0:  # pragma: no cover
-            raise SendException("Received non-zero status code [%s]" % messages[0]['status'],
-                                events=events, start=start)
-
-        external_id = messages[0]['messageid']
-        Channel.success(channel, msg, SENT, start, events=events, external_id=external_id)
 
     @classmethod
     def send_hub9_or_dartmedia_message(cls, channel, msg, text):
@@ -2822,7 +2771,7 @@ class Channel(TembaModel):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE])
 
     def get_ivr_log_count(self):
-        return ChannelLog.objects.filter(channel=self).exclude(session=None).order_by('session').distinct('session').count()
+        return ChannelLog.objects.filter(channel=self).exclude(connection=None).order_by('connection').distinct('connection').count()
 
     def get_non_ivr_log_count(self):
         return self.get_log_count() - self.get_ivr_log_count()
@@ -2851,7 +2800,6 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_GLOBE: Channel.send_globe_message,
                   Channel.TYPE_HIGH_CONNECTION: Channel.send_high_connection_message,
                   Channel.TYPE_HUB9: Channel.send_hub9_or_dartmedia_message,
-                  Channel.TYPE_INFOBIP: Channel.send_infobip_message,
                   Channel.TYPE_JASMIN: Channel.send_jasmin_message,
                   Channel.TYPE_JUNEBUG: Channel.send_junebug_message,
                   Channel.TYPE_JUNEBUG_USSD: Channel.send_junebug_message,
@@ -3039,8 +2987,8 @@ class ChannelLog(models.Model):
     msg = models.ForeignKey('msgs.Msg', related_name='channel_logs', null=True,
                             help_text=_("The message that was sent"))
 
-    session = models.ForeignKey('channels.ChannelSession', related_name='channel_logs', null=True,
-                                help_text=_("The channel session for this log"))
+    connection = models.ForeignKey('channels.ChannelSession', related_name='channel_logs', null=True,
+                                   help_text=_("The channel session for this log"))
 
     description = models.CharField(max_length=255,
                                    help_text=_("A description of the status of this message send"))
@@ -3109,7 +3057,7 @@ class ChannelLog(models.Model):
     @classmethod
     def log_ivr_interaction(cls, call, description, event, is_error=False):
         ChannelLog.objects.create(channel_id=call.channel_id,
-                                  session_id=call.id,
+                                  connection_id=call.id,
                                   request=six.text_type(event.request_body),
                                   response=six.text_type(event.response_body),
                                   url=event.url,
@@ -3137,10 +3085,12 @@ class ChannelLog(models.Model):
         parsed = urlparse.urlparse(self.url)
         return '%s://%s%s' % (parsed.scheme, parsed.hostname, parsed.path)
 
-    def get_request_formatted(self):
+    def log_group(self):
+        return ChannelLog.objects.filter(msg=self.msg, connection=self.connection).order_by('-created_on')
 
-        if self.method == 'GET':
-            return self.url
+    def get_request_formatted(self):
+        if not self.request:
+            return self.method + " " + self.url
 
         try:
             return json.dumps(json.loads(self.request), indent=2)
@@ -3501,10 +3451,20 @@ class ChannelSession(SmartModel):
         pass
 
     def get(self):
-        if self.session_type == ChannelSession.IVR:
+        if self.session_type == self.IVR:
             from temba.ivr.models import IVRCall
             return IVRCall.objects.filter(id=self.id).first()
-        if self.session_type == ChannelSession.USSD:
+        if self.session_type == self.USSD:
             from temba.ussd.models import USSDSession
             return USSDSession.objects.filter(id=self.id).first()
         return self  # pragma: no cover
+
+    def get_session(self):
+        """
+        There is a one-to-one relationship between flow sessions and connections, but as connection can be null
+        it can throw an exception
+        """
+        try:
+            return self.session
+        except ObjectDoesNotExist:
+            return None

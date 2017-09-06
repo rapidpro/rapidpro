@@ -1,13 +1,14 @@
 from __future__ import print_function, unicode_literals
 
+import json
 import logging
 import pytz
 import regex
+import requests
 import six
 import time
 import traceback
-import json
-import requests
+import uuid
 
 from datetime import datetime, timedelta
 from django.conf import settings
@@ -23,13 +24,15 @@ from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
 from django_redis import get_redis_connection
 from temba_expressions.evaluator import EvaluationContext, DateStyle
+
+from temba.channels.courier import push_courier_msgs
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
-from temba.utils import datetime_to_ms, dict_to_json, get_anonymous_user, clean_string
+from temba.utils import datetime_to_s, dict_to_json, get_anonymous_user, clean_string
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField
@@ -680,6 +683,9 @@ class Msg(models.Model):
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
     MAX_QUICK_REPLY_TITLE_LEN = settings.QUICK_REPLY_TITLE_SIZE
 
+    uuid = models.UUIDField(null=True, default=uuid.uuid4,
+                            help_text=_("The UUID for this message"))
+
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))
 
@@ -758,10 +764,10 @@ class Msg(models.Model):
     attachments = ArrayField(models.URLField(max_length=255), null=True,
                              help_text=_("The media attachments on this message if any"))
 
-    metadata = models.TextField(null=True, help_text=_("The metadata for any type msgs"))
+    connection = models.ForeignKey('channels.ChannelSession', null=True,
+                                   help_text=_("The session this message was a part of if any"))
 
-    session = models.ForeignKey('channels.ChannelSession', null=True,
-                                help_text=_("The session this message was a part of if any"))
+    metadata = models.TextField(null=True, help_text=_("The metadata for any type msgs"))
 
     @classmethod
     def send_messages(cls, all_msgs):
@@ -770,21 +776,22 @@ class Msg(models.Model):
         queued.
         :return:
         """
-        task_msgs = []
-        task_priority = None
-        last_contact = None
-        batches = []
+        rapid_batches = []
+        courier_batches = []
 
         # we send in chunks of 1,000 to help with contention
-        for msg_chunk in chunk_list(all_msgs, 1000):
-            # create a temporary list of our chunk so we can iterate more than once
-            msgs = [msg for msg in msg_chunk]
-
+        for msgs in chunk_list(all_msgs, 1000):
             # build our id list
             msg_ids = set([m.id for m in msgs])
 
             with transaction.atomic():
                 queued_on = timezone.now()
+                courier_msgs = []
+                task_msgs = []
+
+                task_priority = None
+                last_contact = None
+                last_channel = None
 
                 # update them to queued
                 send_messages = Msg.objects.filter(id__in=msg_ids)\
@@ -796,16 +803,16 @@ class Msg(models.Model):
 
                 # now push each onto our queue
                 for msg in msgs:
-                    if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and \
-                            msg.topup and not msg.contact.is_test:
+                    if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and msg.topup and not msg.contact.is_test:
+                        if msg.channel.channel_type in settings.COURIER_CHANNELS and msg.uuid:
+                            courier_msgs.append(msg)
+                            continue
 
-                        # if this is a different contact than our last, and we have msgs for that last contact, queue the task
+                        # if this is a different contact than our last, and we have msgs, queue the task
                         if task_msgs and last_contact != msg.contact_id:
                             # if no priority was set, default to DEFAULT
-                            if task_priority is None:  # pragma: needs cover
-                                task_priority = DEFAULT_PRIORITY
-
-                            batches.append(dict(org=task_msgs[0]['org'], msgs=task_msgs, priority=task_priority))
+                            task_priority = DEFAULT_PRIORITY if task_priority is None else task_priority
+                            rapid_batches.append(dict(org=task_msgs[0]['org'], msgs=task_msgs, priority=task_priority))
                             task_msgs = []
                             task_priority = None
 
@@ -822,19 +829,47 @@ class Msg(models.Model):
                         task_msgs.append(task)
                         last_contact = msg.contact_id
 
-        # send our last msgs
-        if task_msgs:
-            if task_priority is None:
-                task_priority = DEFAULT_PRIORITY
-            batches.append(dict(org=task_msgs[0]['org'], msgs=task_msgs, priority=task_priority))
+                if task_msgs:
+                    task_priority = DEFAULT_PRIORITY if task_priority is None else task_priority
+                    rapid_batches.append(dict(org=task_msgs[0]['org'], msgs=task_msgs, priority=task_priority))
+                    task_msgs = []
+
+                # ok, now push our courier msgs
+                task_priority = None
+                last_contact = None
+                last_channel = None
+                for msg in courier_msgs:
+                    if task_msgs and (last_contact != msg.contact_id or last_channel != msg.channel_id):
+                        courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs,
+                                                    is_bulk=task_priority != Msg.PRIORITY_NORMAL))
+                        task_msgs = []
+                        task_priority = None
+
+                    if msg.priority != Msg.PRIORITY_BULK:
+                        task_priority = Msg.PRIORITY_NORMAL
+
+                    last_contact = msg.contact_id
+                    last_channel = msg.channel_id
+                    task_msgs.append(msg)
+
+                # push any remaining courier msgs
+                if task_msgs:
+                    courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs,
+                                                is_bulk=task_priority != Msg.PRIORITY_NORMAL))
 
         # send our batches
-        on_transaction_commit(lambda: cls._send_msg_batches(batches))
+        on_transaction_commit(lambda: cls._send_rapid_msg_batches(rapid_batches))
+        on_transaction_commit(lambda: cls._send_courier_msg_batches(courier_batches))
 
     @classmethod
-    def _send_msg_batches(cls, batches):
+    def _send_rapid_msg_batches(cls, batches):
         for batch in batches:
             push_task(batch['org'], MSG_QUEUE, SEND_MSG_TASK, batch['msgs'], priority=batch['priority'])
+
+    @classmethod
+    def _send_courier_msg_batches(cls, batches):
+        for batch in batches:
+            push_courier_msgs(batch['channel'], batch['msgs'], batch['is_bulk'])
 
     @classmethod
     def process_message(cls, msg):
@@ -1135,13 +1170,12 @@ class Msg(models.Model):
             sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
         return sorted_logs[0] if sorted_logs else None
 
-    def reply(self, text, user, trigger_send=False, message_context=None, session=None, attachments=None, msg_type=None,
+    def reply(self, text, user, trigger_send=False, message_context=None, connection=None, attachments=None, msg_type=None,
               send_all=False, created_on=None, metadata=None):
 
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None, session=session, metadata=metadata,
-                                 attachments=attachments, msg_type=msg_type or self.msg_type, created_on=created_on,
-                                 all_urns=send_all)
+                                 response_to=self if self.id else None, connection=connection, attachments=attachments,
+                                 msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all, metadata=metadata)
 
     def update(self, cmd):
         """
@@ -1190,7 +1224,7 @@ class Msg(models.Model):
         # first push our msg on our contact's queue using our created date
         r = get_redis_connection('default')
         queue_time = self.sent_on if self.sent_on else timezone.now()
-        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_ms(queue_time), dict_to_json(payload))
+        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_s(queue_time), dict_to_json(payload))
 
         # queue up our celery task
         push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)
@@ -1261,13 +1295,14 @@ class Msg(models.Model):
         Used internally to serialize to JSON when queueing messages in Redis
         """
         data = dict(id=self.id, org=self.org_id, channel=self.channel_id, broadcast=self.broadcast_id,
-                    text=self.text, urn_path=self.contact_urn.path,
+                    text=self.text, urn_path=self.contact_urn.path, urn=six.text_type(self.contact_urn),
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
                     status=self.status, direction=self.direction, attachments=self.attachments,
                     external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
-                    created_on=self.created_on, modified_on=self.modified_on, session_id=self.session_id)
+                    created_on=self.created_on, modified_on=self.modified_on,
+                    session_id=self.connection_id, connection_id=self.connection_id)  # TODO remove session_id
 
         if self.contact_urn.auth:
             data.update(dict(auth=self.contact_urn.auth))
@@ -1291,7 +1326,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
-                        status=PENDING, attachments=None, msg_type=None, topup=None, external_id=None, session=None):
+                        status=PENDING, attachments=None, msg_type=None, topup=None, external_id=None, connection=None):
 
         from temba.api.models import WebHookEvent
         if not org and channel:
@@ -1351,7 +1386,7 @@ class Msg(models.Model):
                         attachments=attachments,
                         status=status,
                         external_id=external_id,
-                        session=session)
+                        connection=connection)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
@@ -1436,7 +1471,7 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
-                        metadata=None, attachments=None, topup_id=None, msg_type=INBOX, session=None):
+                        attachments=None, topup_id=None, msg_type=INBOX, connection=None, metadata=None):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
@@ -1550,7 +1585,7 @@ class Msg(models.Model):
                         priority=priority,
                         attachments=attachments,
                         metadata=metadata,
-                        session=session,
+                        connection=connection,
                         has_template_error=len(errors) > 0)
 
         if topup_id is not None:
@@ -1567,7 +1602,7 @@ class Msg(models.Model):
         contact = None
         contact_urn = None
 
-        resolved_schemes = {channel.scheme} if channel else org.get_schemes(role)
+        resolved_schemes = set(channel.schemes) if channel else org.get_schemes(role)
 
         if isinstance(recipient, Contact):
             if recipient.is_test:
@@ -1581,7 +1616,7 @@ class Msg(models.Model):
                 contact = recipient.contact
                 contact_urn = recipient
         elif isinstance(recipient, six.string_types):
-            scheme, path = URN.to_parts(recipient)
+            scheme, path, display = URN.to_parts(recipient)
             if scheme in resolved_schemes:
                 contact = Contact.get_or_create(org, user, urns=[recipient])
                 contact_urn = contact.urn_objects[recipient]

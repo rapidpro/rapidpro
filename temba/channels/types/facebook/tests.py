@@ -15,7 +15,7 @@ class FacebookTypeTest(TembaTest):
         super(FacebookTypeTest, self).setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'FB', name="Facebook", address="12345",
-                                      role="SR", scheme='facebook', config={'auth_token': '09876543'})
+                                      role="SR", schemes=['facebook'], config={'auth_token': '09876543'})
 
     @override_settings(IS_PROD=True)
     @patch('requests.get')
