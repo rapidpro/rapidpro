@@ -154,11 +154,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         ex: sender.add_periodic_task(300, remap_twitter_ids)
         """
 
-    def get_quick_replies(self, **kwargs):
-        """
-        Method to get the payload to quick replies
-        """
-
     def __str__(self):
         return self.name
 

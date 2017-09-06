@@ -47,7 +47,8 @@ class TelegramType(ChannelType):
         bot = telegram.Bot(config['auth_token'])
         bot.delete_webhook()
 
-    def get_quick_replies(self, metadata, post_body):
+    @classmethod
+    def get_quick_replies(cls, metadata, post_body):
         metadata = json.loads(metadata)
         quick_replies = metadata.get('quick_replies', None)
         replies = []

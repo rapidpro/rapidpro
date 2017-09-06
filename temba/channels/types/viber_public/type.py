@@ -49,7 +49,8 @@ class ViberPublicType(ChannelType):
         auth_token = channel.config_json()['auth_token']
         requests.post('https://chatapi.viber.com/pa/set_webhook', json={'auth_token': auth_token, 'url': ''})
 
-    def get_quick_replies(self, metadata, post_body):
+    @classmethod
+    def get_quick_replies(cls, metadata, post_body):
         metadata = json.loads(metadata)
         quick_replies = metadata.get('quick_replies', None)
         buttons = []

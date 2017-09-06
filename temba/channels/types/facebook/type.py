@@ -51,7 +51,8 @@ class FacebookType(ChannelType):
         if trigger.trigger_type == Trigger.TYPE_NEW_CONVERSATION:
             self._set_call_to_action(trigger.channel, None)
 
-    def get_quick_replies(self, metadata, post_body):
+    @classmethod
+    def get_quick_replies(cls, metadata, post_body):
         metadata = json.loads(metadata)
         quick_replies = metadata.get('quick_replies', None)
         replies = []

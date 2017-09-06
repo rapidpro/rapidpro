@@ -32,7 +32,8 @@ class FirebaseCloudMessagingType(ChannelType):
     attachment_support = False
     free_sending = True
 
-    def get_quick_replies(self, metadata, post_body):
+    @classmethod
+    def get_quick_replies(cls, metadata, post_body):
         metadata = json.loads(metadata)
         quick_replies = metadata.get('quick_replies', None)
 
