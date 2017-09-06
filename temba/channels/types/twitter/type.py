@@ -2,6 +2,7 @@ from __future__ import unicode_literals, absolute_import
 
 import six
 import time
+import json
 
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import Contact, TWITTER_SCHEME, TWITTERID_SCHEME, URN
@@ -42,6 +43,36 @@ class TwitterType(ChannelType):
         # tell Mage to deactivate this channel
         notify_mage_task.delay(channel.uuid, MageStreamAction.deactivate.name)
 
+    @classmethod
+    def get_quick_replies(cls, metadata, post_body):
+        metadata = json.loads(metadata)
+        quick_replies = metadata.get('quick_replies', None)
+
+        if quick_replies:
+            replies = []
+            for quick_reply in quick_replies:
+                replies.append(dict(label=quick_reply.get('title')))
+
+            post_body = dict(
+                event=dict(
+                    type='message_create',
+                    message_create=dict(
+                        target=dict(
+                            recipient_id=post_body.get('user_id')
+                        ),
+                        message_data=dict(
+                            text=post_body.get('text'),
+                            quick_reply=dict(
+                                type='options',
+                                options=replies
+                            )
+                        )
+                    )
+                )
+            )
+
+        return post_body
+
     def send(self, channel, msg, text):
         twitter = TembaTwython.from_channel(channel)
         start = time.time()
@@ -53,10 +84,18 @@ class TwitterType(ChannelType):
             # this is a legacy URN (no display), the path is our screen name
             if scheme == TWITTER_SCHEME:
                 dm = twitter.send_direct_message(screen_name=path, text=text)
+                external_id = dm['id']
 
             # this is a new twitterid URN, our path is our user id
             else:
-                dm = twitter.send_direct_message(user_id=path, text=text)
+                post_body = dict(user_id=path, text=text)
+                if hasattr(msg, 'metadata'):
+                    params = self.get_quick_replies(msg.metadata, post_body)
+                    dm = twitter.post('direct_messages/events/new', params=params)
+                    external_id = dm['event']['id']
+                else:
+                    dm = twitter.send_direct_message(**post_body)
+                    external_id = dm['id']
 
         except Exception as e:
             error_code = getattr(e, 'error_code', 400)
@@ -77,5 +116,4 @@ class TwitterType(ChannelType):
 
             raise SendException(str(e), events=twitter.events, fatal=fatal, start=start)
 
-        external_id = dm['id']
         Channel.success(channel, msg, WIRED, start, events=twitter.events, external_id=external_id)

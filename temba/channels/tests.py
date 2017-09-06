@@ -7597,11 +7597,9 @@ class TelegramTest(TembaTest):
         {
             "quick_replies": [
                 {
-                    "payload": "yes",
                     "title": "Yes"
                 },
                 {
-                    "payload": "no",
                     "title": "No"
                 }
             ]
@@ -8068,6 +8066,73 @@ class TwitterTest(TembaTest):
                 self.assertTrue(contact.is_stopped)
                 self.assertEqual(contact.user_groups.count(), 0)
 
+                self.clear_cache()
+
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_send_quick_replies(self):
+        metadata = json.dumps(dict(quick_replies=[dict(title='Yes'), dict(title='No')]))
+        msg = self.joe.send("Hello, world!", self.admin, trigger_send=False, metadata=metadata)[0]
+
+        try:
+            settings.SEND_MESSAGES = True
+            with patch('requests.sessions.Session.post') as mock:
+                response_dict = {
+                    "event": {
+                        "created_timestamp": "1504717797522",
+                        "message_create": {
+                            "message_data": {
+                                "text": "Hello, choose\u200b an option, please.",
+                                "quick_reply": {
+                                    "type": "options",
+                                    "options": [{
+                                        "label": "Yes"
+                                    }, {
+                                        "label": "No"
+                                    }]
+                                },
+                                "entities": {
+                                    "symbols": [],
+                                    "user_mentions": [],
+                                    "hashtags": [],
+                                    "urls": []
+                                }
+                            },
+                            "sender_id": "000000",
+                            "target": {
+                                "recipient_id": "10002"
+                            }
+                        },
+                        "type": "message_create",
+                        "id": "000000000000000000"
+                    }
+                }
+                mock.return_value = MockResponse(200, json.dumps(response_dict))
+
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                mock.assert_called_with('https://api.twitter.com/1.1/direct_messages/events/new.json',
+                                        files=None,
+                                        data=json.dumps(dict(event=dict(message_create=dict(message_data=dict(
+                                            text='Hello, world!',
+                                            quick_reply=dict(
+                                                type='options',
+                                                options=[dict(label='Yes'), dict(label='No')]
+                                            )),
+                                            target=dict(recipient_id='10002')),
+                                            type='message_create')
+                                        )))
+
+                msg.refresh_from_db()
+                self.assertEqual(msg.status, WIRED)
+                self.assertTrue(msg.sent_on)
+                self.assertEqual(msg.external_id, "000000000000000000")
+                self.assertEqual(msg.metadata, metadata)
+                data_args = json.loads(mock.call_args[1]['data'])
+                message_data = data_args['event']['message_create']['message_data']
+                self.assertEqual(message_data['quick_reply']['options'][0]['label'], 'Yes')
+                self.assertEqual(message_data['quick_reply']['options'][1]['label'], 'No')
                 self.clear_cache()
 
         finally:
@@ -10048,14 +10113,10 @@ class FacebookTest(TembaTest):
         {
             "quick_replies": [
                 {
-                    "payload": "Yes",
-                    "title": "Yes",
-                    "content_type": "text"
+                    "title": "Yes"
                 },
                 {
-                    "payload": "No",
-                    "title": "No",
-                    "content_type": "text"
+                    "title": "No"
                 }
             ]
         }
@@ -11236,7 +11297,7 @@ class ViberPublicTest(TembaTest):
             self.clear_cache()
 
     def test_send_quick_replies(self):
-        metadata = json.dumps(dict(quick_replies=[dict(title='Yes', payload='Yes'), dict(title='No', payload='No')]))
+        metadata = json.dumps(dict(quick_replies=[dict(title='Yes'), dict(title='No')]))
         joe = self.create_contact("Joe", urn="viber:FXLP/JstS7kDuoiUGihkgA==")
         msg = joe.send("Hello, world!", self.admin, trigger_send=False, metadata=metadata)[0]
 
@@ -11459,11 +11520,9 @@ class FcmTest(TembaTest):
         {
             "quick_replies": [
                 {
-                    "payload": "Yes",
                     "title": "Yes"
                 },
                 {
-                    "payload": "No",
                     "title": "No"
                 }
             ]
@@ -11494,11 +11553,9 @@ class FcmTest(TembaTest):
                         'metadata': {
                             "quick_replies": [
                                 {
-                                    "payload": "Yes",
                                     "title": "Yes"
                                 },
                                 {
-                                    "payload": "No",
                                     "title": "No"
                                 }
                             ]
