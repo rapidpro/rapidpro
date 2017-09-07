@@ -692,7 +692,7 @@ class FlowTest(TembaTest):
 
         time.sleep(1)
 
-        with self.assertNumQueries(50):
+        with self.assertNumQueries(52):
             workbook = self.export_flow_results(flow)
 
         tz = self.org.timezone
@@ -814,7 +814,7 @@ class FlowTest(TembaTest):
                                              "This is the second message.", "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(41):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -872,7 +872,7 @@ class FlowTest(TembaTest):
         # ok, mark that one as finished and try again
         blocking_export.update_status(ExportFlowResultsTask.STATUS_COMPLETE)
 
-        with self.assertNumQueries(51):
+        with self.assertNumQueries(53):
             workbook = self.export_flow_results(self.flow)
 
         tz = self.org.timezone
@@ -965,7 +965,7 @@ class FlowTest(TembaTest):
                                             "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(49):
+        with self.assertNumQueries(51):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = self.org.timezone
