@@ -5323,8 +5323,47 @@ class FlowsTest(FlowFileTest):
         msg = Msg.objects.filter(direction='O', contact=tupac).first()
         self.assertEquals('Testing this out', msg.text)
 
+    def test_group_uuid_mapping(self):
+        flow = self.get_flow('group_split')
+
+        # make sure the groups in our rules exist as expected
+        ruleset = RuleSet.objects.filter(label="Member").first()
+        rules = ruleset.get_rules_dict()
+        group_count = 0
+        for rule in rules:
+            if rule['test']['type'] == 'in_group':
+                group = ContactGroup.user_groups.filter(uuid=rule['test']['test']['uuid']).first()
+                self.assertIsNotNone(group)
+                group_count += 1
+        self.assertEqual(2, group_count)
+
+        flow = self.get_flow('dependencies')
+        group_count = 0
+        for actionset in flow.action_sets.all():
+            actions = json.loads(actionset.actions)
+            for action in actions:
+                if action['type'] in ('add_group', 'del_group'):
+                    for group in action['groups']:
+                        group_count += 1
+                        self.assertIsNotNone(ContactGroup.user_groups.filter(uuid=group['uuid']).first())
+
+        # make sure we found both our group actions
+        self.assertEqual(2, group_count)
+
     def test_group_split(self):
         flow = self.get_flow('group_split')
+
+        rulesets = RuleSet.objects.filter(flow=flow)
+        group_count = 0
+        for ruleset in rulesets:
+            rules = ruleset.get_rules_dict()
+            for rule in rules:
+                if rule['test']['type'] == 'in_group':
+                    group = ContactGroup.user_groups.filter(uuid=rule['test']['test']['uuid']).first()
+                    self.assertIsNotNone(group)
+                    group_count += 1
+        self.assertEqual(2, group_count)
+
         flow.start_msg_flow([self.contact.id])
 
         # not in any group
