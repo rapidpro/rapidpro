@@ -1,3 +1,7 @@
+v3.0.197
+----------
+ * update triggers so that updates in migration work
+
 v3.0.196
 ----------
  * make sure new uuids are honored in in_group tests
