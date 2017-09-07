@@ -117,6 +117,7 @@ class Migration(migrations.Migration):
             field=models.TextField(help_text='Any extra properties on this event as JSON', null=True,
                                    verbose_name='Extra'),
         ),
+        migrations.RunSQL(SQL_UPDATE_CHANNELEVENT, ""),
         migrations.RunPython(migrate_duration_extra, noop),
         migrations.RemoveField(
             model_name='channelevent',
