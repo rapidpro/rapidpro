@@ -1,8 +1,10 @@
 from __future__ import print_function, unicode_literals
 
+import json
 import logging
 import pytz
 import regex
+import requests
 import six
 import time
 import traceback
@@ -30,7 +32,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
-from temba.utils import datetime_to_ms, dict_to_json, get_anonymous_user, clean_string
+from temba.utils import datetime_to_s, dict_to_json, get_anonymous_user, clean_string
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField
@@ -730,8 +732,8 @@ class Msg(models.Model):
     attachments = ArrayField(models.URLField(max_length=255), null=True,
                              help_text=_("The media attachments on this message if any"))
 
-    session = models.ForeignKey('channels.ChannelSession', null=True,
-                                help_text=_("The session this message was a part of if any"))
+    connection = models.ForeignKey('channels.ChannelSession', null=True,
+                                   help_text=_("The session this message was a part of if any"))
 
     @classmethod
     def send_messages(cls, all_msgs):
@@ -840,6 +842,8 @@ class Msg(models.Model):
         """
         Processes a message, running it through all our handlers
         """
+        from temba.orgs.models import CHATBASE_TYPE_USER
+
         handlers = get_message_handlers()
 
         if msg.contact.is_blocked:
@@ -866,9 +870,20 @@ class Msg(models.Model):
 
         cls.mark_handled(msg)
 
+        # Chatbase parameters to track logs
+        chatbase_not_handled = True
+
         # if this is an inbox message, increment our unread inbox count
         if msg.msg_type == INBOX:
             msg.org.increment_unread_msg_count(UNREAD_INBOX_MSGS)
+        elif msg.msg_type == FLOW:
+            chatbase_not_handled = False
+
+        # Sending data to Chatbase API
+        (chatbase_api_key, chatbase_version) = msg.org.get_chatbase_credentials()
+        if chatbase_api_key:
+            cls.send_chatbase_log(chatbase_api_key, chatbase_version, msg.channel.name, msg.text, msg.contact.id,
+                                  CHATBASE_TYPE_USER, chatbase_not_handled)
 
         # record our handling latency for this object
         if msg.queued_on:
@@ -877,6 +892,36 @@ class Msg(models.Model):
         # this is the latency from when the message was received at the channel, which may be different than
         # above if people above us are queueing (or just because clocks are out of sync)
         analytics.gauge('temba.channel_handling_latency', (msg.modified_on - msg.created_on).total_seconds())
+
+    @classmethod
+    def send_chatbase_log(cls, chatbase_api_key, chatbase_version, channel_name, text, contact_id, log_type,
+                          not_handled=True):
+        """
+        Send messages logs in batch to Chatbase
+        """
+        from temba.channels.models import TEMBA_HEADERS
+
+        if not settings.SEND_CHATBASE:
+            raise Exception("!! Skipping Chatbase request, SEND_CHATBASE set to False")
+
+        message = {
+            'type': log_type,
+            'user_id': contact_id,
+            'platform': channel_name,
+            'message': text,
+            'time_stamp': int(time.time()),
+            'api_key': chatbase_api_key
+        }
+
+        if chatbase_version:
+            message['version'] = chatbase_version
+
+        if log_type == 'user' and not_handled:
+            message['not_handled'] = not_handled
+
+        headers = {'Content-Type': 'application/json'}
+        headers.update(TEMBA_HEADERS)
+        requests.post(settings.CHATBASE_API_URL, data=json.dumps(message), headers=headers)
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
@@ -1090,11 +1135,11 @@ class Msg(models.Model):
             sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
         return sorted_logs[0] if sorted_logs else None
 
-    def reply(self, text, user, trigger_send=False, message_context=None, session=None, attachments=None, msg_type=None,
+    def reply(self, text, user, trigger_send=False, message_context=None, connection=None, attachments=None, msg_type=None,
               send_all=False, created_on=None):
 
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
-                                 response_to=self if self.id else None, session=session, attachments=attachments,
+                                 response_to=self if self.id else None, connection=connection, attachments=attachments,
                                  msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all)
 
     def update(self, cmd):
@@ -1144,7 +1189,7 @@ class Msg(models.Model):
         # first push our msg on our contact's queue using our created date
         r = get_redis_connection('default')
         queue_time = self.sent_on if self.sent_on else timezone.now()
-        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_ms(queue_time), dict_to_json(payload))
+        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_s(queue_time), dict_to_json(payload))
 
         # queue up our celery task
         push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)
@@ -1221,10 +1266,16 @@ class Msg(models.Model):
                     status=self.status, direction=self.direction, attachments=self.attachments,
                     external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
-                    created_on=self.created_on, modified_on=self.modified_on, session_id=self.session_id)
+                    created_on=self.created_on, modified_on=self.modified_on,
+                    session_id=self.connection_id, connection_id=self.connection_id)  # TODO remove session_id
 
         if self.contact_urn.auth:
             data.update(dict(auth=self.contact_urn.auth))
+
+        (chatbase_api_key, chatbase_version) = self.org.get_chatbase_credentials()
+        if chatbase_api_key:
+            data.update(dict(chatbase_api_key=chatbase_api_key, chatbase_version=chatbase_version,
+                             is_org_connected_to_chatbase=True))
 
         return data
 
@@ -1237,7 +1288,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
-                        status=PENDING, attachments=None, msg_type=None, topup=None, external_id=None, session=None):
+                        status=PENDING, attachments=None, msg_type=None, topup=None, external_id=None, connection=None):
 
         from temba.api.models import WebHookEvent
         if not org and channel:
@@ -1297,7 +1348,7 @@ class Msg(models.Model):
                         attachments=attachments,
                         status=status,
                         external_id=external_id,
-                        session=session)
+                        connection=connection)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
@@ -1369,7 +1420,7 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
-                        attachments=None, topup_id=None, msg_type=INBOX, session=None):
+                        attachments=None, topup_id=None, msg_type=INBOX, connection=None):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
@@ -1479,7 +1530,7 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         priority=priority,
                         attachments=attachments,
-                        session=session,
+                        connection=connection,
                         has_template_error=len(errors) > 0)
 
         if topup_id is not None:

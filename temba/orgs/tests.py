@@ -1349,6 +1349,60 @@ class OrgTest(TembaTest):
         self.assertContains(response, reverse('airtime.airtimetransfer_list'))
         self.assertContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
 
+    def test_chatbase_account(self):
+        self.login(self.admin)
+
+        self.org.refresh_from_db()
+        self.assertEquals((None, None), self.org.get_chatbase_credentials())
+
+        chatbase_account_url = reverse('orgs.org_chatbase')
+        response = self.client.get(chatbase_account_url)
+        self.assertContains(response, 'Chatbase')
+
+        payload = dict(version='1.0', not_handled=True, feedback=False, disconnect='false')
+
+        response = self.client.post(chatbase_account_url, payload, follow=True)
+        self.assertContains(response, "Missing data: Agent Name or API Key.Please check them again and retry.")
+        self.assertEquals((None, None), self.org.get_chatbase_credentials())
+
+        payload.update(dict(api_key='api_key', agent_name='chatbase_agent', type='user'))
+
+        self.client.post(chatbase_account_url, payload, follow=True)
+
+        self.org.refresh_from_db()
+        self.assertEquals(('api_key', '1.0'), self.org.get_chatbase_credentials())
+
+        self.assertEquals(self.org.config_json()['CHATBASE_API_KEY'], 'api_key')
+        self.assertEquals(self.org.config_json()['CHATBASE_AGENT_NAME'], 'chatbase_agent')
+        self.assertEquals(self.org.config_json()['CHATBASE_VERSION'], '1.0')
+
+        with self.assertRaises(Exception):
+            contact = self.create_contact('Anakin Skywalker', '+12067791212')
+            msg = self.create_msg(contact=contact, text="favs")
+            Msg.process_message(msg)
+
+        with self.settings(SEND_CHATBASE=True):
+            contact = self.create_contact('Anakin Skywalker', '+12067791212')
+            msg = self.create_msg(contact=contact, text="favs")
+            Msg.process_message(msg)
+
+        org_home_url = reverse('orgs.org_home')
+
+        response = self.client.get(org_home_url)
+        self.assertContains(response, self.org.config_json()['CHATBASE_AGENT_NAME'])
+
+        payload.update(dict(disconnect='true'))
+
+        self.client.post(chatbase_account_url, payload, follow=True)
+
+        self.org.refresh_from_db()
+        self.assertEquals((None, None), self.org.get_chatbase_credentials())
+
+        with self.settings(SEND_CHATBASE=True):
+            contact = self.create_contact('Anakin Skywalker', '+12067791212')
+            msg = self.create_msg(contact=contact, text="favs")
+            Msg.process_message(msg)
+
     def test_resthooks(self):
         # no hitting this page without auth
         resthook_url = reverse('orgs.org_resthooks')

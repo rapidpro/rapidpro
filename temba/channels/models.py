@@ -19,6 +19,7 @@ from django.conf.urls import url
 from django.contrib.auth.models import User, Group
 from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.urlresolvers import reverse
 from django.core.validators import URLValidator
 from django.db import models
@@ -35,7 +36,7 @@ from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
-from temba.orgs.models import Org, NEXMO_UUID, NEXMO_APP_ID
+from temba.orgs.models import Org, NEXMO_UUID, NEXMO_APP_ID, CHATBASE_TYPE_AGENT
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
@@ -1297,6 +1298,7 @@ class Channel(TembaModel):
         request_time = time.time() - start
 
         from temba.msgs.models import Msg
+
         Msg.mark_sent(channel.config['r'], msg, msg_status, external_id)
 
         # record stats for analytics
@@ -1329,6 +1331,12 @@ class Channel(TembaModel):
                                       response=event.response_body,
                                       response_status=event.status_code,
                                       request_time=request_time_ms)
+
+            # Sending data to Chatbase API
+            if hasattr(msg, 'is_org_connected_to_chatbase'):
+                chatbase_version = msg.chatbase_version if hasattr(msg, 'chatbase_version') else None
+                Msg.send_chatbase_log(msg.chatbase_api_key, chatbase_version, channel.name, msg.text, msg.contact,
+                                      CHATBASE_TYPE_AGENT)
 
     @classmethod
     def send_red_rabbit_message(cls, channel, msg, text):
@@ -1423,7 +1431,7 @@ class Channel(TembaModel):
         from temba.msgs.models import WIRED, Msg
         from temba.ussd.models import USSDSession
 
-        session = None
+        connection = None
 
         # if the channel config has specified and override hostname use that, otherwise use settings
         event_hostname = channel.config.get(Channel.CONFIG_RP_HOSTNAME_OVERRIDE, settings.HOSTNAME)
@@ -1445,7 +1453,7 @@ class Channel(TembaModel):
             payload['event_auth_token'] = channel.secret
 
         if is_ussd:
-            session = USSDSession.objects.get_session_with_status_only(msg.session_id)
+            connection = USSDSession.objects.get_with_status_only(msg.connection_id)
             # make sure USSD responses are only valid for a short window
             response_expiration = timezone.now() - timedelta(seconds=180)
             external_id = None
@@ -1457,7 +1465,7 @@ class Channel(TembaModel):
             else:
                 payload['to'] = msg.urn_path
             payload['channel_data'] = {
-                'continue_session': session and not session.should_end or False,
+                'continue_session': connection and not connection.should_end or False,
             }
         else:
             payload['from'] = channel.address
@@ -1489,8 +1497,8 @@ class Channel(TembaModel):
 
         data = response.json()
 
-        if is_ussd and session and session.should_end:
-            session.close()
+        if is_ussd and connection and connection.should_end:
+            connection.close()
 
         try:
             message_id = data['result']['message_id']
@@ -1975,7 +1983,7 @@ class Channel(TembaModel):
         in_reply_to = None
 
         if is_ussd:
-            session = USSDSession.objects.get_session_with_status_only(msg.session_id)
+            session = USSDSession.objects.get_with_status_only(msg.connection_id)
             if session and session.should_end:
                 session_event = "close"
             else:
@@ -2758,7 +2766,7 @@ class Channel(TembaModel):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE])
 
     def get_ivr_log_count(self):
-        return ChannelLog.objects.filter(channel=self).exclude(session=None).order_by('session').distinct('session').count()
+        return ChannelLog.objects.filter(channel=self).exclude(connection=None).order_by('connection').distinct('connection').count()
 
     def get_non_ivr_log_count(self):
         return self.get_log_count() - self.get_ivr_log_count()
@@ -2974,8 +2982,8 @@ class ChannelLog(models.Model):
     msg = models.ForeignKey('msgs.Msg', related_name='channel_logs', null=True,
                             help_text=_("The message that was sent"))
 
-    session = models.ForeignKey('channels.ChannelSession', related_name='channel_logs', null=True,
-                                help_text=_("The channel session for this log"))
+    connection = models.ForeignKey('channels.ChannelSession', related_name='channel_logs', null=True,
+                                   help_text=_("The channel session for this log"))
 
     description = models.CharField(max_length=255,
                                    help_text=_("A description of the status of this message send"))
@@ -3044,7 +3052,7 @@ class ChannelLog(models.Model):
     @classmethod
     def log_ivr_interaction(cls, call, description, event, is_error=False):
         ChannelLog.objects.create(channel_id=call.channel_id,
-                                  session_id=call.id,
+                                  connection_id=call.id,
                                   request=six.text_type(event.request_body),
                                   response=six.text_type(event.response_body),
                                   url=event.url,
@@ -3073,12 +3081,11 @@ class ChannelLog(models.Model):
         return '%s://%s%s' % (parsed.scheme, parsed.hostname, parsed.path)
 
     def log_group(self):
-        return ChannelLog.objects.filter(msg=self.msg, session=self.session).order_by('-created_on')
+        return ChannelLog.objects.filter(msg=self.msg, connection=self.connection).order_by('-created_on')
 
     def get_request_formatted(self):
-
-        if self.method == 'GET':
-            return self.url
+        if not self.request:
+            return self.method + " " + self.url
 
         try:
             return json.dumps(json.loads(self.request), indent=2)
@@ -3439,10 +3446,20 @@ class ChannelSession(SmartModel):
         pass
 
     def get(self):
-        if self.session_type == ChannelSession.IVR:
+        if self.session_type == self.IVR:
             from temba.ivr.models import IVRCall
             return IVRCall.objects.filter(id=self.id).first()
-        if self.session_type == ChannelSession.USSD:
+        if self.session_type == self.USSD:
             from temba.ussd.models import USSDSession
             return USSDSession.objects.filter(id=self.id).first()
         return self  # pragma: no cover
+
+    def get_session(self):
+        """
+        There is a one-to-one relationship between flow sessions and connections, but as connection can be null
+        it can throw an exception
+        """
+        try:
+            return self.session
+        except ObjectDoesNotExist:
+            return None

@@ -20,7 +20,7 @@ from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
-from django.db import models, connection
+from django.db import models, connection as db_connection
 from django.db.models import Q, Count, QuerySet, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
@@ -117,6 +117,23 @@ def edit_distance(s1, s2):  # pragma: no cover
                 d[(i, j)] = min(d[(i, j)], d[i - 2, j - 2] + cost)  # transposition
 
     return d[lenstr1 - 1, lenstr2 - 1]
+
+
+@six.python_2_unicode_compatible
+class FlowSession(models.Model):
+    org = models.ForeignKey(Org, help_text="The organization this session belongs to")
+
+    contact = models.ForeignKey('contacts.Contact', help_text="The contact that this session is with")
+
+    connection = models.OneToOneField('channels.ChannelSession', null=True, related_name='session',
+                                      help_text=_("The channel connection used for flow sessions over IVR or USSD"))
+
+    @classmethod
+    def create(cls, contact, connection):
+        return cls.objects.create(org=contact.org, contact=contact, connection=connection)
+
+    def __str__(self):  # pragma: no cover
+        return six.text_type(self.contact)
 
 
 @six.python_2_unicode_compatible
@@ -401,7 +418,7 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
-        run = FlowRun.objects.filter(session=call, is_active=True).order_by('-created_on').first()
+        run = FlowRun.objects.filter(connection=call, is_active=True).order_by('-created_on').first()
 
         # what we will send back
         voice_response = call.channel.generate_ivr_response()
@@ -432,7 +449,7 @@ class Flow(TembaModel):
             msg = Msg.create_incoming(call.channel, six.text_type(call.contact_urn),
                                       text, status=PENDING, msg_type=IVR,
                                       attachments=[saved_media_url] if saved_media_url else None,
-                                      session=run.session)
+                                      connection=run.connection)
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
@@ -529,7 +546,7 @@ class Flow(TembaModel):
         return name
 
     @classmethod
-    def should_close_session(cls, run, current_destination, next_destination):
+    def should_close_connection(cls, run, current_destination, next_destination):
         if run.flow.flow_type == Flow.USSD:
             # this might be our last node that sends msg
             if not next_destination:
@@ -538,12 +555,12 @@ class Flow(TembaModel):
                 if next_destination.is_messaging:
                     return False
                 else:
-                    return Flow.should_close_session_graph(next_destination)
+                    return Flow.should_close_connection_graph(next_destination)
         else:
             return False
 
     @classmethod
-    def should_close_session_graph(cls, start_node):
+    def should_close_connection_graph(cls, start_node):
         # modified DFS that is looking for nodes with messaging capabilities
         if start_node.get_step_type() == FlowStep.TYPE_RULE_SET:
             # keep rules only that have destination
@@ -556,7 +573,7 @@ class Flow(TembaModel):
                     if next_node.is_messaging:
                         return False
                     else:
-                        if Flow.should_close_session_graph(next_node):
+                        if Flow.should_close_connection_graph(next_node):
                             continue
                         else:
                             return False
@@ -567,7 +584,7 @@ class Flow(TembaModel):
                 if next_node.is_messaging:
                     return False
                 else:
-                    return Flow.should_close_session_graph(next_node)
+                    return Flow.should_close_connection_graph(next_node)
             else:
                 return True
 
@@ -647,13 +664,13 @@ class Flow(TembaModel):
 
                     # USSD check for session end
                     if not result.get('interrupted') and \
-                            Flow.should_close_session(run, destination, result.get('destination')):
+                            Flow.should_close_connection(run, destination, result.get('destination')):
 
                         end_message = Msg.create_outgoing(msg.org, get_flow_user(msg.org), msg.contact, '',
                                                           channel=msg.channel, priority=Msg.PRIORITY_HIGH,
-                                                          session=msg.session, response_to=msg if msg.id else None)
+                                                          connection=msg.connection, response_to=msg if msg.id else None)
 
-                        end_message.session.mark_ending()
+                        end_message.connection.mark_ending()
                         msgs.append(end_message)
                         ActionLog.create(run, _("USSD Session was marked to end"))
 
@@ -675,9 +692,9 @@ class Flow(TembaModel):
                 add_to_path(path, destination.uuid)
 
                 # USSD check for session end
-                if Flow.should_close_session(run, destination, result.get('destination')):
+                if Flow.should_close_connection(run, destination, result.get('destination')):
                     for msg in result['msgs']:
-                        msg.session.mark_ending()
+                        msg.connection.mark_ending()
                         ActionLog.create(run, _("USSD Session was marked to end"))
 
                 # add any generated messages to be sent at once
@@ -743,7 +760,7 @@ class Flow(TembaModel):
     def handle_ruleset(cls, ruleset, step, run, msg, started_flows, resume_parent_run=False, resume_after_timeout=False):
         msgs = []
 
-        if ruleset.is_ussd() and run.session_interrupted:
+        if ruleset.is_ussd() and run.connection_interrupted:
             rule, value = ruleset.find_interrupt_rule(step, run, msg)
             if not rule:
                 run.set_interrupted(final_step=step)
@@ -798,14 +815,14 @@ class Flow(TembaModel):
 
         # output the new value if in the simulator
         if run.contact.is_test:
-            if run.session_interrupted:  # pragma: no cover
+            if run.connection_interrupted:  # pragma: no cover
                 ActionLog.create(run, _("@flow.%s has been interrupted") % (Flow.label_to_slug(ruleset.label)))
             else:
                 ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(ruleset.label)))
 
         # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
         if not rule.destination:
-            if run.session_interrupted:
+            if run.connection_interrupted:
                 # run was interrupted and interrupt state not handled (not connected)
                 run.set_interrupted(final_step=step)
                 return dict(handled=True, destination=None, destination_type=None, interrupted=True, msgs=msgs)
@@ -1401,7 +1418,7 @@ class Flow(TembaModel):
         on_transaction_commit(lambda: start_flow_task.delay(flow_start.pk))
 
     def start(self, groups, contacts, restart_participants=False, started_flows=None,
-              start_msg=None, extra=None, flow_start=None, parent_run=None, interrupt=True, session=None, include_active=True):
+              start_msg=None, extra=None, flow_start=None, parent_run=None, interrupt=True, connection=None, include_active=True):
         """
         Starts a flow for the passed in groups and contacts.
         """
@@ -1491,13 +1508,13 @@ class Flow(TembaModel):
 
         elif self.flow_type == Flow.USSD:
             return self.start_ussd_flow(all_contact_ids, start_msg=start_msg,
-                                        extra=extra, flow_start=flow_start, parent_run=parent_run, session=session)
+                                        extra=extra, flow_start=flow_start, parent_run=parent_run, connection=connection)
         else:
             return self.start_msg_flow(all_contact_ids,
                                        started_flows=started_flows, start_msg=start_msg,
                                        extra=extra, flow_start=flow_start, parent_run=parent_run)
 
-    def start_ussd_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None, session=None):
+    def start_ussd_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None, connection=None):
         from temba.ussd.models import USSDSession
 
         runs = []
@@ -1517,23 +1534,24 @@ class Flow(TembaModel):
             if run.contact.is_test:  # pragma: no cover
                 ActionLog.create(run, '%s has entered the "%s" flow' % (run.contact.get_display(self.org, short=True), run.flow.name))
 
-            # [USSD PUSH] we have to create an outgoing session for the recipient
-            if not session:
+            # [USSD PUSH] we have to create an outgoing connection for the recipient
+            if not connection:
                 contact = Contact.objects.filter(pk=contact_id, org=self.org).first()
                 contact_urn = contact.get_urn(TEL_SCHEME)
                 channel = self.org.get_ussd_channel(contact_urn=contact_urn)
 
-                session = USSDSession.objects.create(channel=channel, contact=contact, contact_urn=contact_urn,
-                                                     org=self.org, direction=USSDSession.USSD_PUSH,
-                                                     started_on=timezone.now(), status=USSDSession.INITIATED)
+                connection = USSDSession.objects.create(channel=channel, contact=contact, contact_urn=contact_urn,
+                                                        org=self.org, direction=USSDSession.USSD_PUSH,
+                                                        started_on=timezone.now(), status=USSDSession.INITIATED)
 
-            run.session = session
-            run.save(update_fields=['session'])
+            run.session = connection.get_session()
+            run.connection = connection
+            run.save(update_fields=['session', 'connection'])
 
-            # if we were started by other session, save that off
-            if parent_run and parent_run.session:  # pragma: needs cover
-                session.parent = parent_run.session
-                session.save()
+            # if we were started by other connection, save that off
+            if parent_run and parent_run.connection:  # pragma: needs cover
+                connection.parent = parent_run.connection
+                connection.save()
             else:
                 entry_rule = RuleSet.objects.filter(uuid=self.entry_uuid).first()
 
@@ -1585,16 +1603,19 @@ class Flow(TembaModel):
                 run.update_fields(extra)
 
             # create our call objects
-            if parent_run and parent_run.session:
-                call = parent_run.session
+            if parent_run and parent_run.connection:
+                call = parent_run.connection
+                session = parent_run.session
             else:
                 call = IVRCall.create_outgoing(channel, contact, contact_urn, self.created_by)
+                session = FlowSession.create(contact, connection=call)
 
             # save away our created call
-            run.session = call
-            run.save(update_fields=['session'])
+            run.session = session
+            run.connection = call
+            run.save(update_fields=['connection'])
 
-            if not parent_run or not parent_run.session:
+            if not parent_run or not parent_run.connection:
                 # trigger the call to start (in the background)
                 IVRCall.objects.get(id=call.id).start_call()
 
@@ -2458,8 +2479,11 @@ class FlowRun(models.Model):
 
     contact = models.ForeignKey(Contact, related_name='runs')
 
-    session = models.ForeignKey('channels.ChannelSession', related_name='runs', null=True, blank=True,
+    session = models.ForeignKey(FlowSession, related_name='runs', null=True,
                                 help_text=_("The session that handled this flow run, only for voice flows"))
+
+    connection = models.ForeignKey('channels.ChannelSession', related_name='runs', null=True, blank=True,
+                                   help_text=_("The session that handled this flow run, only for voice flows"))
 
     is_active = models.BooleanField(default=True,
                                     help_text=_("Whether this flow run is currently active"))
@@ -2496,11 +2520,11 @@ class FlowRun(models.Model):
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
 
     @classmethod
-    def create(cls, flow, contact_id, start=None, session=None, fields=None,
+    def create(cls, flow, contact_id, start=None, session=None, connection=None, fields=None,
                created_on=None, db_insert=True, submitted_by=None, parent=None):
 
         args = dict(org=flow.org, flow=flow, contact_id=contact_id, start=start,
-                    session=session, fields=fields, submitted_by=submitted_by, parent=parent)
+                    session=session, connection=connection, fields=fields, submitted_by=submitted_by, parent=parent)
 
         if created_on:
             args['created_on'] = created_on
@@ -2511,8 +2535,8 @@ class FlowRun(models.Model):
             return FlowRun(**args)
 
     @property
-    def session_interrupted(self):
-        return self.session and self.session.status == ChannelSession.INTERRUPTED
+    def connection_interrupted(self):
+        return self.connection and self.connection.status == ChannelSession.INTERRUPTED
 
     @classmethod
     def normalize_field_key(cls, key):
@@ -2560,13 +2584,13 @@ class FlowRun(models.Model):
         Exits (expires, interrupts) runs in bulk
         """
         # when expiring phone calls, we want to issue hangups
-        session_runs = runs.exclude(session=None)
-        for run in session_runs:
-            session = run.session.get()
+        connection_runs = runs.exclude(connection=None)
+        for run in connection_runs:
+            connection = run.connection.get()
 
             # have our session close itself
             if exit_type == FlowRun.EXIT_TYPE_EXPIRED:
-                session.close()
+                connection.close()
 
         run_ids = list(runs.values_list('id', flat=True))
 
@@ -2635,16 +2659,16 @@ class FlowRun(models.Model):
 
     def is_ivr(self):
         """
-        If this run is over an IVR session
+        If this run is over an IVR connection
         """
-        return self.session and self.session.is_ivr()
+        return self.connection and self.connection.is_ivr()
 
     def keep_active_on_exit(self):
         """
         If our run should be completed when we leave the last node
         """
         # we let parent runs over ivr get closed by the provider
-        return self.is_ivr() and not self.parent and not self.session.is_done()
+        return self.is_ivr() and not self.parent and not self.connection.is_done()
 
     def resume_after_timeout(self, expired_timeout):
         """
@@ -2733,7 +2757,7 @@ class FlowRun(models.Model):
             self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
         if hasattr(self, 'voice_response') and self.parent and self.parent.is_active:
-            callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.session.pk]))
+            callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.connection.pk]))
             self.voice_response.redirect(url=callback + '?resume=1')
         else:
             # if we have a parent to continue
@@ -2822,7 +2846,7 @@ class FlowRun(models.Model):
     def is_interrupted(self):
         return self.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED
 
-    def create_outgoing_ivr(self, text, recording_url, session, response_to=None):
+    def create_outgoing_ivr(self, text, recording_url, connection, response_to=None):
 
         # create a Msg object to track what happened
         from temba.msgs.models import DELIVERED, IVR
@@ -2831,9 +2855,9 @@ class FlowRun(models.Model):
         if recording_url:
             attachments = ['%s/x-wav:%s' % (Msg.MEDIA_AUDIO, recording_url)]
 
-        msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.session.channel,
+        msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.connection.channel,
                                   response_to=response_to, attachments=attachments,
-                                  status=DELIVERED, msg_type=IVR, session=session)
+                                  status=DELIVERED, msg_type=IVR, connection=connection)
 
         # play a recording or read some text
         if msg:
@@ -3001,7 +3025,7 @@ class FlowStep(models.Model):
         steps = steps.order_by('-pk')
 
         # optimize lookups
-        return steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org', 'run__session')
+        return steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org', 'run__connection')
 
     def release(self):
         self.delete()
@@ -3822,7 +3846,7 @@ class FlowPathRecentMessage(models.Model):
               ) s WHERE s.pos > %(limit)d
             )""" % {'table': cls._meta.db_table, 'last_id': last_id, 'limit': cls.PRUNE_TO}
 
-        cursor = connection.cursor()
+        cursor = db_connection.cursor()
         cursor.execute(sql)
 
         cache.set(cls.LAST_PRUNED_KEY, newest_id)
@@ -5071,7 +5095,7 @@ class SayAction(Action):
         message = run.flow.get_localized_text(self.msg, run.contact)
         (message, errors) = Msg.substitute_variables(message, context)
 
-        msg = run.create_outgoing_ivr(message, media_url, run.session)
+        msg = run.create_outgoing_ivr(message, media_url, run.connection)
 
         if msg:
             if run.contact.is_test:
@@ -5106,7 +5130,7 @@ class PlayAction(Action):
 
     def execute(self, run, context, actionset_uuid, event, offline_on=None):
         (media, errors) = Msg.substitute_variables(self.url, context)
-        msg = run.create_outgoing_ivr(_('Played contact recording'), media, run.session)
+        msg = run.create_outgoing_ivr(_('Played contact recording'), media, run.connection)
 
         if msg:
             if run.contact.is_test:  # pragma: needs cover
@@ -5181,11 +5205,11 @@ class ReplyAction(Action):
 
             if msg:
                 replies = msg.reply(text, user, trigger_send=False, message_context=context,
-                                    session=run.session, msg_type=self.MSG_TYPE, attachments=attachments,
+                                    connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
                                     send_all=self.send_all, created_on=created_on)
             else:
                 replies = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                           session=run.session, msg_type=self.MSG_TYPE, attachments=attachments,
+                                           connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
                                            created_on=created_on, all_urns=self.send_all)
         return replies
 
@@ -5528,7 +5552,7 @@ class StartFlowAction(Action):
         if run.flow.flow_type == Flow.VOICE and self.flow.flow_type == Flow.VOICE:
             new_run = self.flow.start([], [run.contact], started_flows=started_flows,
                                       restart_participants=True, extra=extra, parent_run=run)[0]
-            url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[new_run.session.pk]))
+            url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[new_run.connection.pk]))
             run.voice_response.redirect(url)
         else:
             child_runs = self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
@@ -6886,8 +6910,8 @@ class RegexTest(Test):  # pragma: needs cover
             if match:
                 return_match = match.group(0)
 
-                # build up a dictionary that contains indexed values
-                group_dict = match.groupdict()
+                # build up a dictionary that contains indexed group matches
+                group_dict = {}
                 for idx in range(rexp.groups + 1):
                     group_dict[str(idx)] = match.group(idx)
 
@@ -6921,4 +6945,4 @@ class InterruptTest(Test):
         return dict(type=self.TYPE)
 
     def evaluate(self, run, msg, context, text):
-        return (True, self.TYPE) if run.session and run.session.status == ChannelSession.INTERRUPTED else (False, None)
+        return (True, self.TYPE) if run.connection and run.connection.status == ChannelSession.INTERRUPTED else (False, None)

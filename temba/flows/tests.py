@@ -1685,7 +1685,6 @@ class FlowTest(TembaTest):
         self.assertEquals("Isaac Newton", extra['0'])
         self.assertEquals("Isaac", extra['1'])
         self.assertEquals("Newton", extra['2'])
-        self.assertEquals("Isaac", extra['first_name'])
 
         # find that arabic unicode is handled right
         sms.text = "مرحبا العالم"
@@ -1694,7 +1693,6 @@ class FlowTest(TembaTest):
         self.assertEquals("مرحبا العالم", extra['0'])
         self.assertEquals("مرحبا", extra['1'])
         self.assertEquals("العالم", extra['2'])
-        self.assertEquals("مرحبا", extra['first_name'])
 
         # no matching groups, should return whole string as match
         test = RegexTest(dict(base="\w+ \w+"))
@@ -2286,7 +2284,7 @@ class FlowTest(TembaTest):
         self.assertIn('channels', response.json())
         self.assertIn('languages', response.json())
         self.assertIn('channel_countries', response.json())
-        self.assertEqual(ActionSet.objects.all().count(), 32)
+        self.assertEqual(ActionSet.objects.all().count(), 28)
 
         json_dict = response.json()['flow']
 
@@ -2298,7 +2296,7 @@ class FlowTest(TembaTest):
 
         response = self.client.post(reverse('flows.flow_json', args=[self.flow.id]), json.dumps(json_dict), content_type="application/json")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(ActionSet.objects.all().count(), 29)
+        self.assertEqual(ActionSet.objects.all().count(), 25)
 
         # check that the flow only has a single actionset
         ActionSet.objects.get(flow=self.flow)
@@ -4319,7 +4317,7 @@ class SimulationTest(FlowFileTest):
 
         self.assertEqual(handle_incoming.call_args[1]['status'], USSDSession.INTERRUPTED)
 
-    def test_ussd_simulation_session_end(self):
+    def test_ussd_simulation_connection_end(self):
         self.ussd_channel = Channel.create(
             self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
             schemes=['tel'], uuid='00000000-0000-0000-0000-000000002222',
@@ -4336,8 +4334,8 @@ class SimulationTest(FlowFileTest):
 
         self.assertEquals(response.status_code, 200)
 
-        session = USSDSession.objects.get()
-        self.assertEquals(session.status, USSDSession.COMPLETED)
+        connection = USSDSession.objects.get()
+        self.assertEquals(connection.status, USSDSession.COMPLETED)
 
     def test_ussd_simulation_without_channel_doesnt_run(self):
         Channel.objects.all().delete()
@@ -6697,7 +6695,7 @@ class FlowMigrationTest(FlowFileTest):
 
     def test_migrate_sample_flows(self):
         self.org.create_sample_flows('https://app.rapidpro.io')
-        self.assertEquals(4, self.org.flows.filter(name__icontains='Sample Flow').count())
+        self.assertEquals(3, self.org.flows.filter(name__icontains='Sample Flow').count())
 
         # make sure it is localized
         poll = self.org.flows.filter(name='Sample Flow - Simple Poll').first()
