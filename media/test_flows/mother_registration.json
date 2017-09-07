@@ -159,6 +159,10 @@
                   {
                     "id": "@flow.phone",
                     "name": "@flow.phone"
+                  },
+                  {
+                    "id": "@contact.uuid",
+                    "name": "@contact.uuid"
                   }
                 ],
                 "groups": [],

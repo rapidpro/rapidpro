@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from celery.task import task
 from temba.contacts.models import ContactURN
 from temba.triggers.models import Trigger
-from temba.utils.mage import mage_handle_new_contact
+from temba.utils.mage import handle_new_contact
 from temba.channels.models import Channel
 
 
@@ -20,6 +20,6 @@ def fire_follow_triggers(channel_id, contact_urn_id, new_mage_contact=False):
     # * its dynamic groups won't have been initialized
     # * we need to update our cached contact counts
     if new_mage_contact:
-        mage_handle_new_contact(contact.org, contact)
+        handle_new_contact(contact.org, contact)
 
     Trigger.catch_triggers(contact, Trigger.TYPE_FOLLOW, channel)

@@ -28,7 +28,7 @@ class LineType(ChannelType):
                 and receive messages.""")
     claim_view = ClaimView
 
-    scheme = LINE_SCHEME
+    schemes = [LINE_SCHEME]
     max_length = 1600
     attachment_support = False
     free_sending = True

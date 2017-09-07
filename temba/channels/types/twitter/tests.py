@@ -14,7 +14,7 @@ class TwitterTypeTest(TembaTest):
         super(TwitterTypeTest, self).setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'TT', name="Twitter", address="billy_bob",
-                                      role="SR", scheme='twitter', config={})
+                                      role="SR", config={})
 
     @override_settings(IS_PROD=True)
     @patch('twython.Twython.get_authentication_tokens')
