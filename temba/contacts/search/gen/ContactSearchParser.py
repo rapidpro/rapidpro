@@ -1,4 +1,4 @@
-# Generated from Search.g4 by ANTLR 4.7
+# Generated from ContactSearch.g4 by ANTLR 4.7
 # encoding: utf-8
 from __future__ import print_function
 from antlr4 import *
@@ -25,9 +25,9 @@ def serializedATN():
         return buf.getvalue()
 
 
-class SearchParser ( Parser ):
+class ContactSearchParser ( Parser ):
 
-    grammarFileName = "Search.g4"
+    grammarFileName = "ContactSearch.g4"
 
     atn = ATNDeserializer().deserialize(serializedATN())
 
@@ -58,7 +58,7 @@ class SearchParser ( Parser ):
     ERROR=9
 
     def __init__(self, input, output=sys.stdout):
-        super(SearchParser, self).__init__(input, output=output)
+        super(ContactSearchParser, self).__init__(input, output=output)
         self.checkVersion("4.7")
         self._interp = ParserATNSimulator(self, self.atn, self.decisionsToDFA, self.sharedContextCache)
         self._predicates = None
@@ -68,18 +68,18 @@ class SearchParser ( Parser ):
     class ParseContext(ParserRuleContext):
 
         def __init__(self, parser, parent=None, invokingState=-1):
-            super(SearchParser.ParseContext, self).__init__(parent, invokingState)
+            super(ContactSearchParser.ParseContext, self).__init__(parent, invokingState)
             self.parser = parser
 
         def expression(self):
-            return self.getTypedRuleContext(SearchParser.ExpressionContext,0)
+            return self.getTypedRuleContext(ContactSearchParser.ExpressionContext,0)
 
 
         def EOF(self):
-            return self.getToken(SearchParser.EOF, 0)
+            return self.getToken(ContactSearchParser.EOF, 0)
 
         def getRuleIndex(self):
-            return SearchParser.RULE_parse
+            return ContactSearchParser.RULE_parse
 
         def accept(self, visitor):
             if hasattr(visitor, "visitParse"):
@@ -92,14 +92,14 @@ class SearchParser ( Parser ):
 
     def parse(self):
 
-        localctx = SearchParser.ParseContext(self, self._ctx, self.state)
+        localctx = ContactSearchParser.ParseContext(self, self._ctx, self.state)
         self.enterRule(localctx, 0, self.RULE_parse)
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 6
             self.expression(0)
             self.state = 7
-            self.match(SearchParser.EOF)
+            self.match(ContactSearchParser.EOF)
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -111,26 +111,26 @@ class SearchParser ( Parser ):
     class ExpressionContext(ParserRuleContext):
 
         def __init__(self, parser, parent=None, invokingState=-1):
-            super(SearchParser.ExpressionContext, self).__init__(parent, invokingState)
+            super(ContactSearchParser.ExpressionContext, self).__init__(parent, invokingState)
             self.parser = parser
 
 
         def getRuleIndex(self):
-            return SearchParser.RULE_expression
+            return ContactSearchParser.RULE_expression
 
      
         def copyFrom(self, ctx):
-            super(SearchParser.ExpressionContext, self).copyFrom(ctx)
+            super(ContactSearchParser.ExpressionContext, self).copyFrom(ctx)
 
 
     class ImplicitConditionContext(ExpressionContext):
 
-        def __init__(self, parser, ctx): # actually a SearchParser.ExpressionContext)
-            super(SearchParser.ImplicitConditionContext, self).__init__(parser)
+        def __init__(self, parser, ctx): # actually a ContactSearchParser.ExpressionContext)
+            super(ContactSearchParser.ImplicitConditionContext, self).__init__(parser)
             self.copyFrom(ctx)
 
         def TEXT(self):
-            return self.getToken(SearchParser.TEXT, 0)
+            return self.getToken(ContactSearchParser.TEXT, 0)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitImplicitCondition"):
@@ -141,16 +141,16 @@ class SearchParser ( Parser ):
 
     class ConditionContext(ExpressionContext):
 
-        def __init__(self, parser, ctx): # actually a SearchParser.ExpressionContext)
-            super(SearchParser.ConditionContext, self).__init__(parser)
+        def __init__(self, parser, ctx): # actually a ContactSearchParser.ExpressionContext)
+            super(ContactSearchParser.ConditionContext, self).__init__(parser)
             self.copyFrom(ctx)
 
         def TEXT(self):
-            return self.getToken(SearchParser.TEXT, 0)
+            return self.getToken(ContactSearchParser.TEXT, 0)
         def COMPARATOR(self):
-            return self.getToken(SearchParser.COMPARATOR, 0)
+            return self.getToken(ContactSearchParser.COMPARATOR, 0)
         def literal(self):
-            return self.getTypedRuleContext(SearchParser.LiteralContext,0)
+            return self.getTypedRuleContext(ContactSearchParser.LiteralContext,0)
 
 
         def accept(self, visitor):
@@ -162,18 +162,18 @@ class SearchParser ( Parser ):
 
     class CombinationAndContext(ExpressionContext):
 
-        def __init__(self, parser, ctx): # actually a SearchParser.ExpressionContext)
-            super(SearchParser.CombinationAndContext, self).__init__(parser)
+        def __init__(self, parser, ctx): # actually a ContactSearchParser.ExpressionContext)
+            super(ContactSearchParser.CombinationAndContext, self).__init__(parser)
             self.copyFrom(ctx)
 
         def expression(self, i=None):
             if i is None:
-                return self.getTypedRuleContexts(SearchParser.ExpressionContext)
+                return self.getTypedRuleContexts(ContactSearchParser.ExpressionContext)
             else:
-                return self.getTypedRuleContext(SearchParser.ExpressionContext,i)
+                return self.getTypedRuleContext(ContactSearchParser.ExpressionContext,i)
 
         def AND(self):
-            return self.getToken(SearchParser.AND, 0)
+            return self.getToken(ContactSearchParser.AND, 0)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitCombinationAnd"):
@@ -184,15 +184,15 @@ class SearchParser ( Parser ):
 
     class CombinationImpicitAndContext(ExpressionContext):
 
-        def __init__(self, parser, ctx): # actually a SearchParser.ExpressionContext)
-            super(SearchParser.CombinationImpicitAndContext, self).__init__(parser)
+        def __init__(self, parser, ctx): # actually a ContactSearchParser.ExpressionContext)
+            super(ContactSearchParser.CombinationImpicitAndContext, self).__init__(parser)
             self.copyFrom(ctx)
 
         def expression(self, i=None):
             if i is None:
-                return self.getTypedRuleContexts(SearchParser.ExpressionContext)
+                return self.getTypedRuleContexts(ContactSearchParser.ExpressionContext)
             else:
-                return self.getTypedRuleContext(SearchParser.ExpressionContext,i)
+                return self.getTypedRuleContext(ContactSearchParser.ExpressionContext,i)
 
 
         def accept(self, visitor):
@@ -204,18 +204,18 @@ class SearchParser ( Parser ):
 
     class CombinationOrContext(ExpressionContext):
 
-        def __init__(self, parser, ctx): # actually a SearchParser.ExpressionContext)
-            super(SearchParser.CombinationOrContext, self).__init__(parser)
+        def __init__(self, parser, ctx): # actually a ContactSearchParser.ExpressionContext)
+            super(ContactSearchParser.CombinationOrContext, self).__init__(parser)
             self.copyFrom(ctx)
 
         def expression(self, i=None):
             if i is None:
-                return self.getTypedRuleContexts(SearchParser.ExpressionContext)
+                return self.getTypedRuleContexts(ContactSearchParser.ExpressionContext)
             else:
-                return self.getTypedRuleContext(SearchParser.ExpressionContext,i)
+                return self.getTypedRuleContext(ContactSearchParser.ExpressionContext,i)
 
         def OR(self):
-            return self.getToken(SearchParser.OR, 0)
+            return self.getToken(ContactSearchParser.OR, 0)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitCombinationOr"):
@@ -226,17 +226,17 @@ class SearchParser ( Parser ):
 
     class ExpressionGroupingContext(ExpressionContext):
 
-        def __init__(self, parser, ctx): # actually a SearchParser.ExpressionContext)
-            super(SearchParser.ExpressionGroupingContext, self).__init__(parser)
+        def __init__(self, parser, ctx): # actually a ContactSearchParser.ExpressionContext)
+            super(ContactSearchParser.ExpressionGroupingContext, self).__init__(parser)
             self.copyFrom(ctx)
 
         def LPAREN(self):
-            return self.getToken(SearchParser.LPAREN, 0)
+            return self.getToken(ContactSearchParser.LPAREN, 0)
         def expression(self):
-            return self.getTypedRuleContext(SearchParser.ExpressionContext,0)
+            return self.getTypedRuleContext(ContactSearchParser.ExpressionContext,0)
 
         def RPAREN(self):
-            return self.getToken(SearchParser.RPAREN, 0)
+            return self.getToken(ContactSearchParser.RPAREN, 0)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitExpressionGrouping"):
@@ -249,7 +249,7 @@ class SearchParser ( Parser ):
     def expression(self, _p=0):
         _parentctx = self._ctx
         _parentState = self.state
-        localctx = SearchParser.ExpressionContext(self, self._ctx, _parentState)
+        localctx = ContactSearchParser.ExpressionContext(self, self._ctx, _parentState)
         _prevctx = localctx
         _startState = 2
         self.enterRecursionRule(localctx, 2, self.RULE_expression, _p)
@@ -259,36 +259,36 @@ class SearchParser ( Parser ):
             self._errHandler.sync(self)
             la_ = self._interp.adaptivePredict(self._input,0,self._ctx)
             if la_ == 1:
-                localctx = SearchParser.ExpressionGroupingContext(self, localctx)
+                localctx = ContactSearchParser.ExpressionGroupingContext(self, localctx)
                 self._ctx = localctx
                 _prevctx = localctx
 
                 self.state = 10
-                self.match(SearchParser.LPAREN)
+                self.match(ContactSearchParser.LPAREN)
                 self.state = 11
                 self.expression(0)
                 self.state = 12
-                self.match(SearchParser.RPAREN)
+                self.match(ContactSearchParser.RPAREN)
                 pass
 
             elif la_ == 2:
-                localctx = SearchParser.ConditionContext(self, localctx)
+                localctx = ContactSearchParser.ConditionContext(self, localctx)
                 self._ctx = localctx
                 _prevctx = localctx
                 self.state = 14
-                self.match(SearchParser.TEXT)
+                self.match(ContactSearchParser.TEXT)
                 self.state = 15
-                self.match(SearchParser.COMPARATOR)
+                self.match(ContactSearchParser.COMPARATOR)
                 self.state = 16
                 self.literal()
                 pass
 
             elif la_ == 3:
-                localctx = SearchParser.ImplicitConditionContext(self, localctx)
+                localctx = ContactSearchParser.ImplicitConditionContext(self, localctx)
                 self._ctx = localctx
                 _prevctx = localctx
                 self.state = 17
-                self.match(SearchParser.TEXT)
+                self.match(ContactSearchParser.TEXT)
                 pass
 
 
@@ -305,20 +305,20 @@ class SearchParser ( Parser ):
                     self._errHandler.sync(self)
                     la_ = self._interp.adaptivePredict(self._input,1,self._ctx)
                     if la_ == 1:
-                        localctx = SearchParser.CombinationAndContext(self, SearchParser.ExpressionContext(self, _parentctx, _parentState))
+                        localctx = ContactSearchParser.CombinationAndContext(self, ContactSearchParser.ExpressionContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 20
                         if not self.precpred(self._ctx, 6):
                             from antlr4.error.Errors import FailedPredicateException
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 6)")
                         self.state = 21
-                        self.match(SearchParser.AND)
+                        self.match(ContactSearchParser.AND)
                         self.state = 22
                         self.expression(7)
                         pass
 
                     elif la_ == 2:
-                        localctx = SearchParser.CombinationImpicitAndContext(self, SearchParser.ExpressionContext(self, _parentctx, _parentState))
+                        localctx = ContactSearchParser.CombinationImpicitAndContext(self, ContactSearchParser.ExpressionContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 23
                         if not self.precpred(self._ctx, 5):
@@ -329,14 +329,14 @@ class SearchParser ( Parser ):
                         pass
 
                     elif la_ == 3:
-                        localctx = SearchParser.CombinationOrContext(self, SearchParser.ExpressionContext(self, _parentctx, _parentState))
+                        localctx = ContactSearchParser.CombinationOrContext(self, ContactSearchParser.ExpressionContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
                         self.state = 25
                         if not self.precpred(self._ctx, 4):
                             from antlr4.error.Errors import FailedPredicateException
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 4)")
                         self.state = 26
-                        self.match(SearchParser.OR)
+                        self.match(ContactSearchParser.OR)
                         self.state = 27
                         self.expression(5)
                         pass
@@ -357,27 +357,27 @@ class SearchParser ( Parser ):
     class LiteralContext(ParserRuleContext):
 
         def __init__(self, parser, parent=None, invokingState=-1):
-            super(SearchParser.LiteralContext, self).__init__(parent, invokingState)
+            super(ContactSearchParser.LiteralContext, self).__init__(parent, invokingState)
             self.parser = parser
 
 
         def getRuleIndex(self):
-            return SearchParser.RULE_literal
+            return ContactSearchParser.RULE_literal
 
      
         def copyFrom(self, ctx):
-            super(SearchParser.LiteralContext, self).copyFrom(ctx)
+            super(ContactSearchParser.LiteralContext, self).copyFrom(ctx)
 
 
 
     class StringLiteralContext(LiteralContext):
 
-        def __init__(self, parser, ctx): # actually a SearchParser.LiteralContext)
-            super(SearchParser.StringLiteralContext, self).__init__(parser)
+        def __init__(self, parser, ctx): # actually a ContactSearchParser.LiteralContext)
+            super(ContactSearchParser.StringLiteralContext, self).__init__(parser)
             self.copyFrom(ctx)
 
         def STRING(self):
-            return self.getToken(SearchParser.STRING, 0)
+            return self.getToken(ContactSearchParser.STRING, 0)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitStringLiteral"):
@@ -388,12 +388,12 @@ class SearchParser ( Parser ):
 
     class TextLiteralContext(LiteralContext):
 
-        def __init__(self, parser, ctx): # actually a SearchParser.LiteralContext)
-            super(SearchParser.TextLiteralContext, self).__init__(parser)
+        def __init__(self, parser, ctx): # actually a ContactSearchParser.LiteralContext)
+            super(ContactSearchParser.TextLiteralContext, self).__init__(parser)
             self.copyFrom(ctx)
 
         def TEXT(self):
-            return self.getToken(SearchParser.TEXT, 0)
+            return self.getToken(ContactSearchParser.TEXT, 0)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitTextLiteral"):
@@ -405,23 +405,23 @@ class SearchParser ( Parser ):
 
     def literal(self):
 
-        localctx = SearchParser.LiteralContext(self, self._ctx, self.state)
+        localctx = ContactSearchParser.LiteralContext(self, self._ctx, self.state)
         self.enterRule(localctx, 4, self.RULE_literal)
         try:
             self.state = 35
             self._errHandler.sync(self)
             token = self._input.LA(1)
-            if token in [SearchParser.TEXT]:
-                localctx = SearchParser.TextLiteralContext(self, localctx)
+            if token in [ContactSearchParser.TEXT]:
+                localctx = ContactSearchParser.TextLiteralContext(self, localctx)
                 self.enterOuterAlt(localctx, 1)
                 self.state = 33
-                self.match(SearchParser.TEXT)
+                self.match(ContactSearchParser.TEXT)
                 pass
-            elif token in [SearchParser.STRING]:
-                localctx = SearchParser.StringLiteralContext(self, localctx)
+            elif token in [ContactSearchParser.STRING]:
+                localctx = ContactSearchParser.StringLiteralContext(self, localctx)
                 self.enterOuterAlt(localctx, 2)
                 self.state = 34
-                self.match(SearchParser.STRING)
+                self.match(ContactSearchParser.STRING)
                 pass
             else:
                 raise NoViableAltException(self)

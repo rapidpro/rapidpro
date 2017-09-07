@@ -1,6 +1,6 @@
-grammar Search;
+grammar ContactSearch;
 
-// rebuild with % antlr4 -Dlanguage=Python2 Search.g4 -o ./gen -visitor -no-listener
+// rebuild with % antlr4 -Dlanguage=Python2 ContactSearch.g4 -o ../temba/contacts/search/gen -visitor -no-listener
 
 import LexUnicode;
 

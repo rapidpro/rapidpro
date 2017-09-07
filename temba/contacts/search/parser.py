@@ -548,26 +548,28 @@ class ContactSearchVisitor(ParseTreeVisitor):
 
 
 def parse_query(text, optimize=True):
-    from .gen.SearchLexer import SearchLexer
-    from .gen.SearchParser import SearchParser
+    from .gen.ContactSearchLexer import ContactSearchLexer
+    from .gen.ContactSearchParser import ContactSearchParser
 
     stream = InputStream(text)
-    lexer = SearchLexer(stream)
+    lexer = ContactSearchLexer(stream)
     tokens = CommonTokenStream(lexer)
-    parser = SearchParser(tokens)
+    parser = ContactSearchParser(tokens)
     parser._errHandler = BailErrorStrategy()
 
     try:
         tree = parser.parse()
     except ParseCancellationException as ex:
+        message = None
+        if ex.args and isinstance(ex.args[0], NoViableAltException):
+            token = ex.args[0].offendingToken
+            if token is not None and token.type != ContactSearchParser.EOF:
+                message = "Search query contains an error at: %s" % token.text
 
-        # TODO
+        if message is None:
+            message = "Search query contains an error"
 
-        # raise SearchException(_("Invalid character %s") % t.value[0])
-
-        # msg = _("Search query contains an error at '%s'" % p.value) if p else _("Search query contains an error")
-        #    raise SearchException(msg)
-        raise SearchException("TODO")
+        raise SearchException(message)
 
     visitor = ContactSearchVisitor()
 
