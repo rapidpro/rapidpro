@@ -3983,28 +3983,30 @@ class ExportFlowResultsTask(BaseExportTask):
                 for rule in ruleset.get_rules():
                     category_map[rule.uuid] = rule.get_category_name(ruleset.flow.base_language)
 
-        ruleset_steps = FlowStep.objects.filter(run__flow__in=flows, step_type=FlowStep.TYPE_RULE_SET)
-        ruleset_steps = ruleset_steps.order_by('contact', 'run', 'arrived_on', 'pk')
+        runs = FlowRun.objects.filter(flow__in=flows)
 
         if responded_only:
-            ruleset_steps = ruleset_steps.filter(run__responded=True)
+            runs = runs.filter(responded=True)
 
         # count of unique flow runs
         with SegmentProfiler("# of runs"):
-            all_runs_count = ruleset_steps.values('run').distinct().count()
+            all_runs_count = runs.count()
 
         # count of unique contacts
         with SegmentProfiler("# of contacts"):
-            contacts_count = ruleset_steps.values('contact').distinct().count()
+            contacts_count = runs.distinct('contact').count()
 
         # grab the ids for all our steps so we don't have to ever calculate them again
         with SegmentProfiler("calculate step ids"):
-            all_steps = FlowStep.objects.filter(run__flow__in=flows)\
+            node_uuids = list(RuleSet.objects.filter(flow__in=flows).values_list('uuid', flat=True))
+            node_uuids += list(ActionSet.objects.filter(flow__in=flows).values_list('uuid', flat=True))
+
+            all_steps = FlowStep.objects.filter(step_uuid__in=node_uuids)\
                                         .order_by('contact', 'run', 'arrived_on', 'pk')\
                                         .values('id')
 
             if responded_only:
-                all_steps = all_steps.filter(run__responded=True)
+                all_steps = all_steps.filter(run__in=runs)
             else:
                 broadcast_only_flow = not all_steps.exclude(step_type=FlowStep.TYPE_ACTION_SET).exists()
 
@@ -5327,11 +5329,10 @@ class VariableContactAction(Action):
                     groups.append(variable_group)
                 else:
                     country = run.flow.org.get_country_code()
-                    if country:
-                        (number, valid) = URN.normalize_number(variable, country)
-                        if number and valid:
-                            contact = Contact.get_or_create(run.org, get_flow_user(run.org), urns=[URN.from_tel(number)])
-                            contacts.append(contact)
+                    (number, valid) = URN.normalize_number(variable, country)
+                    if number and valid:
+                        contact = Contact.get_or_create(run.org, get_flow_user(run.org), urns=[URN.from_tel(number)])
+                        contacts.append(contact)
 
         return groups, contacts
 
