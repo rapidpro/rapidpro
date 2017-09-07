@@ -5983,7 +5983,7 @@ class InGroupTest(Test):
         uuid = group.get(InGroupTest.UUID)
         return InGroupTest(ContactGroup.get_or_create(org, org.created_by, name, uuid))
 
-    def as_json(self):  # pragma: needs cover
+    def as_json(self):
         group = ContactGroup.get_or_create(self.group.org, self.group.org.created_by, self.group.name, self.group.uuid)
         return dict(type=InGroupTest.TYPE, test=dict(name=group.name, uuid=group.uuid))
 
