@@ -5323,11 +5323,10 @@ class VariableContactAction(Action):
                     groups.append(variable_group)
                 else:
                     country = run.flow.org.get_country_code()
-                    if country:
-                        (number, valid) = URN.normalize_number(variable, country)
-                        if number and valid:
-                            contact = Contact.get_or_create(run.org, get_flow_user(run.org), urns=[URN.from_tel(number)])
-                            contacts.append(contact)
+                    (number, valid) = URN.normalize_number(variable, country)
+                    if number and valid:
+                        contact = Contact.get_or_create(run.org, get_flow_user(run.org), urns=[URN.from_tel(number)])
+                        contacts.append(contact)
 
         return groups, contacts
 
