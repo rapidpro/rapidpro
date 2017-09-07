@@ -2235,8 +2235,12 @@ class Flow(TembaModel):
                     top_y = y
                     top_uuid = uuid
 
-                # validate we can parse our rules, this will throw if not
-                Rule.from_json_array(self.org, rules)
+                # parse our rules, this will materialize any necessary dependencies
+                parsed_rules = []
+                rule_objects = Rule.from_json_array(self.org, rules)
+                for r in rule_objects:
+                    parsed_rules.append(r.as_json())
+                rules = parsed_rules
 
                 for rule in rules:
                     if 'destination' in rule:
@@ -5980,8 +5984,9 @@ class InGroupTest(Test):
         uuid = group.get(InGroupTest.UUID)
         return InGroupTest(ContactGroup.get_or_create(org, org.created_by, name, uuid))
 
-    def as_json(self):  # pragma: needs cover
-        return dict(type=InGroupTest.TYPE, name=self.group.name, uuid=self.group.uuid)
+    def as_json(self):
+        group = ContactGroup.get_or_create(self.group.org, self.group.org.created_by, self.group.name, self.group.uuid)
+        return dict(type=InGroupTest.TYPE, test=dict(name=group.name, uuid=group.uuid))
 
     def evaluate(self, run, sms, context, text):
         if run.contact.user_groups.filter(id=self.group.id).first():
