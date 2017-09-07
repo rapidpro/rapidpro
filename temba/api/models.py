@@ -419,14 +419,14 @@ class WebHookEvent(SmartModel):
 
         api_user = get_api_user()
 
-        json_time = call.time.strftime('%Y-%m-%dT%H:%M:%S.%f')
+        json_time = call.occurred_on.strftime('%Y-%m-%dT%H:%M:%S.%f')
         data = dict(call=call.pk,
                     phone=call.contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=call.contact.uuid,
                     contact_name=call.contact.name,
                     urn=six.text_type(call.contact_urn),
-                    duration=call.duration,
-                    time=json_time)
+                    extra=call.extra_json(),
+                    occurred_on=json_time)
         hook_event = cls.objects.create(org=org, channel=call.channel, event=event, data=json.dumps(data),
                                         created_by=api_user, modified_by=api_user)
         hook_event.fire()

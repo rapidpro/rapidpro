@@ -1115,8 +1115,8 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
      * **channel** - the UUID and name of the channel that handled this call (object).
      * **type** - the type of event (one of "call-in", "call-in-missed", "call-out", "call-out-missed").
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
-     * **time** - when this event happened on the channel (datetime).
-     * **duration** - the duration in seconds if event is a call (int, 0 for missed calls).
+     * **extra** - any extra attributes collected for this event
+     * **occurred_on** - when this event happened on the channel (datetime).
      * **created_on** - when this event was created (datetime), filterable as `before` and `after`.
 
     Example:
@@ -1134,8 +1134,8 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
                 "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Nexmo"},
                 "type": "call-in"
                 "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
-                "time": "2013-02-27T09:06:12.123"
-                "duration": 606,
+                "extra": { "duration": 606 },
+                "occurred_on": "2013-02-27T09:06:12.123"
                 "created_on": "2013-02-27T09:06:15.456"
             },
             ...
@@ -1148,7 +1148,6 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
-        queryset = queryset.filter(is_active=True)
         org = self.request.user.get_org()
 
         # filter by id (optional)

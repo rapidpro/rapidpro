@@ -36,6 +36,7 @@ from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
+
 from temba.orgs.models import Org, NEXMO_UUID, NEXMO_APP_ID, CHATBASE_TYPE_AGENT
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
@@ -58,6 +59,9 @@ HUB9_ENDPOINT = 'http://175.103.48.29:28078/testing/smsmt.php'
 
 # Dart Media is another aggregator in Indonesia, set this to the endpoint for your service
 DART_MEDIA_ENDPOINT = 'http://202.43.169.11/APIhttpU/receive2waysms.php'
+
+# the event type for channel events in the handler queue
+CHANNEL_EVENT = 'channel_event'
 
 
 class Encoding(Enum):
@@ -2897,13 +2901,21 @@ class ChannelEvent(models.Model):
     TYPE_CALL_OUT_MISSED = 'mt_miss'
     TYPE_CALL_IN = 'mo_call'
     TYPE_CALL_IN_MISSED = 'mo_miss'
+    TYPE_NEW_CONVERSATION = 'new_conversation'
+    TYPE_REFERRAL = 'referral'
+    TYPE_FOLLOW = 'follow'
+
+    EXTRA_REFERRER_ID = 'referrer_id'
 
     # single char flag, human readable name, API readable name
     TYPE_CONFIG = ((TYPE_UNKNOWN, _("Unknown Call Type"), 'unknown'),
                    (TYPE_CALL_OUT, _("Outgoing Call"), 'call-out'),
                    (TYPE_CALL_OUT_MISSED, _("Missed Outgoing Call"), 'call-out-missed'),
                    (TYPE_CALL_IN, _("Incoming Call"), 'call-in'),
-                   (TYPE_CALL_IN_MISSED, _("Missed Incoming Call"), 'call-in-missed'))
+                   (TYPE_CALL_IN_MISSED, _("Missed Incoming Call"), 'call-in-missed'),
+                   (TYPE_NEW_CONVERSATION, _("New Conversation"), 'new-conversation'),
+                   (TYPE_REFERRAL, _("Referral"), 'referral'),
+                   (TYPE_FOLLOW, _("Follow"), 'follow'))
 
     TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
 
@@ -2919,17 +2931,15 @@ class ChannelEvent(models.Model):
                                 help_text=_("The contact associated with this event"))
     contact_urn = models.ForeignKey('contacts.ContactURN', null=True, verbose_name=_("URN"), related_name='channel_events',
                                     help_text=_("The contact URN associated with this event"))
-    time = models.DateTimeField(verbose_name=_("Time"),
-                                help_text=_("When this event took place"))
-    duration = models.IntegerField(default=0, verbose_name=_("Duration"),
-                                   help_text=_("Duration in seconds if event is a call"))
+    extra = models.TextField(verbose_name=_("Extra"), null=True,
+                             help_text=_("Any extra properties on this event as JSON"))
+    occurred_on = models.DateTimeField(verbose_name=_("Occurred On"),
+                                       help_text=_("When this event took place"))
     created_on = models.DateTimeField(verbose_name=_("Created On"), default=timezone.now,
                                       help_text=_("When this event was created"))
-    is_active = models.BooleanField(default=True,
-                                    help_text="Whether this item is active, use this instead of deleting")
 
     @classmethod
-    def create(cls, channel, urn, event_type, date, duration=0):
+    def create(cls, channel, urn, event_type, occurred_on, extra=None):
         from temba.api.models import WebHookEvent
         from temba.contacts.models import Contact
         from temba.triggers.models import Trigger
@@ -2940,12 +2950,12 @@ class ChannelEvent(models.Model):
         contact = Contact.get_or_create(org, user, name=None, urns=[urn], channel=channel)
         contact_urn = contact.urn_objects[urn]
 
+        extra_json = None if not extra else json.dumps(extra)
         event = cls.objects.create(org=org, channel=channel, contact=contact, contact_urn=contact_urn,
-                                   time=date, duration=duration, event_type=event_type)
+                                   occurred_on=occurred_on, event_type=event_type, extra=extra_json)
 
         if event_type in cls.CALL_TYPES:
             analytics.gauge('temba.call_%s' % event.get_event_type_display().lower().replace(' ', '_'))
-
             WebHookEvent.trigger_call_event(event)
 
         if event_type == cls.TYPE_CALL_IN_MISSED:
@@ -2955,11 +2965,36 @@ class ChannelEvent(models.Model):
 
     @classmethod
     def get_all(cls, org):
-        return cls.objects.filter(org=org, is_active=True)
+        return cls.objects.filter(org=org)
+
+    def handle(self):
+        """
+        Handles takes care of any processing of this channel event that needs to take place, such as
+        trigger any flows based on new conversations or referrals.
+        """
+        from temba.triggers.models import Trigger
+        handled = False
+
+        if self.event_type == ChannelEvent.TYPE_NEW_CONVERSATION:
+            handled = Trigger.catch_triggers(self, Trigger.TYPE_NEW_CONVERSATION, self.channel)
+
+        elif self.event_type == ChannelEvent.TYPE_REFERRAL:
+            handled = Trigger.catch_triggers(self, Trigger.TYPE_REFERRAL, self.channel,
+                                             referrer_id=self.extra_json().get('referrer_id'), extra=self.extra_json())
+
+        elif self.event_type == ChannelEvent.TYPE_FOLLOW:
+            handled = Trigger.catch_triggers(self, Trigger.TYPE_FOLLOW, self.channel)
+
+        return handled
 
     def release(self):
-        self.is_active = False
-        self.save(update_fields=('is_active',))
+        self.delete()
+
+    def extra_json(self):
+        if self.extra:
+            return json.loads(self.extra)
+        else:
+            return dict()
 
 
 class SendException(Exception):

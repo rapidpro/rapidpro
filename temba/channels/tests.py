@@ -26,10 +26,13 @@ from django.template import loader
 from django_redis import get_redis_connection
 from mock import patch
 from smartmin.tests import SmartminTest
+
+from temba.flows.models import FlowRun
 from temba.api.models import WebHookEvent
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, \
     LINE_SCHEME, JIOCHAT_SCHEME
-from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING, QUEUED
+from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING, QUEUED, \
+    HANDLER_QUEUE, HANDLE_EVENT_TASK
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME, FCM_SCHEME
 from temba.ivr.models import IVRCall
@@ -41,13 +44,16 @@ from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, datetime_to_str, get_anonymous_user
 from temba.utils.jiochat import JiochatClient
 from temba.utils.twitter import generate_twitter_signature
+from temba.utils.queues import push_task
 from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
 from xml.etree import ElementTree as ET
+
+
 from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, TEMBA_HEADERS, HUB9_ENDPOINT, \
-    ChannelSession
+    ChannelSession, CHANNEL_EVENT
 from .models import DART_MEDIA_ENDPOINT
 from .tasks import check_channels_task, squash_channelcounts, refresh_jiochat_access_tokens
 from .views import TWILIO_SUPPORTED_COUNTRIES
@@ -2442,7 +2448,7 @@ class ChannelEventTest(TembaTest):
 
     def test_create(self):
         now = timezone.now()
-        event = ChannelEvent.create(self.channel, "tel:+250783535665", ChannelEvent.TYPE_CALL_OUT, now, 300)
+        event = ChannelEvent.create(self.channel, "tel:+250783535665", ChannelEvent.TYPE_CALL_OUT, now, extra=dict(duration=300))
 
         contact = Contact.objects.get()
         self.assertEqual(six.text_type(contact.get_urn()), "tel:+250783535665")
@@ -2451,17 +2457,17 @@ class ChannelEventTest(TembaTest):
         self.assertEqual(event.channel, self.channel)
         self.assertEqual(event.contact, contact)
         self.assertEqual(event.event_type, ChannelEvent.TYPE_CALL_OUT)
-        self.assertEqual(event.time, now)
-        self.assertEqual(event.duration, 300)
+        self.assertEqual(event.occurred_on, now)
+        self.assertEqual(event.extra_json()['duration'], 300)
 
 
 class ChannelEventCRUDLTest(TembaTest):
 
     def test_calls(self):
         now = timezone.now()
-        ChannelEvent.create(self.channel, "tel:12345", ChannelEvent.TYPE_CALL_IN, now, 600)
-        ChannelEvent.create(self.channel, "tel:890", ChannelEvent.TYPE_CALL_IN_MISSED, now, 0)
-        ChannelEvent.create(self.channel, "tel:456767", ChannelEvent.TYPE_UNKNOWN, now, 0)
+        ChannelEvent.create(self.channel, "tel:12345", ChannelEvent.TYPE_CALL_IN, now, dict(duration=600))
+        ChannelEvent.create(self.channel, "tel:890", ChannelEvent.TYPE_CALL_IN_MISSED, now)
+        ChannelEvent.create(self.channel, "tel:456767", ChannelEvent.TYPE_UNKNOWN, now)
 
         list_url = reverse('channels.channelevent_calls')
 
@@ -9680,11 +9686,14 @@ class FacebookTest(TembaTest):
         data['entry'][0]['messaging'][0].update(json.loads(postback))
         response = self.client.post(callback_url, json.dumps(data).replace('PAGE_ID', '1234'), content_type='application/json')
         self.assertEqual(200, response.status_code)
-        self.assertEqual('{"status": ["Triggered flow for ref: signup"]}', response.content)
+        self.assertEqual('{"status": ["Referral posted with referral id: signup"]}', response.content)
 
         # check that the user started the flow
         contact1 = Contact.objects.get(org=self.org, urns__path='1122')
         self.assertEqual("What is your favorite color?", contact1.msgs.all().first().text)
+
+        # and that we created an event for it
+        self.assertTrue(ChannelEvent.objects.filter(contact=contact1, event_type=ChannelEvent.TYPE_REFERRAL))
 
     def test_receive(self):
         data = json.loads(FacebookTest.TEST_INCOMING)
@@ -11028,6 +11037,10 @@ class ViberPublicTest(TembaTest):
             contact = Contact.objects.get(org=self.org, urns__path='01234567890A=', urns__scheme=VIBER_SCHEME)
             self.assertEqual(contact.name, None)
 
+            # and a new channel event for the conversation
+            self.assertTrue(ChannelEvent.objects.filter(channel=self.channel, contact=contact,
+                                                        event_type=ChannelEvent.TYPE_NEW_CONVERSATION))
+
     def test_conversation_started(self):
         # this is a no-op
         data = {
@@ -11321,3 +11334,16 @@ class CourierTest(TembaTest):
             # should have one msg in each queue (based on priority)
             self.assertEqual(1, r.zcard(queue_name + "/1"))
             self.assertEqual(1, r.zcard(queue_name + "/0"))
+
+
+class HandleEventTest(TembaTest):
+    def test_stop_contact_task(self):
+        self.joe = self.create_contact("Joe", "+12065551212")
+        flow = self.get_flow('favorites')
+        Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow)
+
+        event = ChannelEvent.create(self.channel, "tel:+12065551212", ChannelEvent.TYPE_NEW_CONVERSATION, timezone.now())
+        push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=CHANNEL_EVENT, event_id=event.id))
+
+        # should have been started in our flow
+        self.assertTrue(FlowRun.objects.filter(flow=flow, contact=self.joe))
