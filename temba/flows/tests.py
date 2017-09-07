@@ -3014,8 +3014,20 @@ class ActionTest(TembaTest):
         flow = self.create_flow()
         run = FlowRun.create(self.flow, self.contact.pk)
 
-        action = TriggerFlowAction(flow, [], [self.contact], [])
+        # add a channel to make sure that country is ambiguous
+        Channel.create(self.org, self.admin, 'US', 'EX', schemes=['tel'])
+        delattr(self.org, '_country_code')
+        self.org.country = None
+        self.org.save()
+
+        # set a contact field with another phone number
+        self.contact.set_field(self.admin, "other_contact_tel", "+12065551212", "Other Contact Tel")
+
+        action = TriggerFlowAction(flow, [], [self.contact], ["@contact.other_contact_tel"])
         self.execute_action(action, run, None)
+
+        # should have created a new contact with the above variable
+        self.assertIsNotNone(Contact.from_urn(self.org, "tel:+12065551212"))
 
         action_json = action.as_json()
         action = TriggerFlowAction.from_json(self.org, action_json)
