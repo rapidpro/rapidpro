@@ -673,7 +673,7 @@ class FlowTest(TembaTest):
         contact1_run1, contact2_run1, contact3_run1 = flow.start([], [self.contact, self.contact2, self.contact3])
         contact1_run2, contact2_run2 = flow.start([], [self.contact, self.contact2], restart_participants=True)
 
-        with self.assertNumQueries(50):
+        with self.assertNumQueries(52):
             workbook = self.export_flow_results(flow)
 
         tz = self.org.timezone
@@ -795,7 +795,7 @@ class FlowTest(TembaTest):
                                              "This is the second message.", "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(41):
             workbook = self.export_flow_results(flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -853,7 +853,7 @@ class FlowTest(TembaTest):
         # ok, mark that one as finished and try again
         blocking_export.update_status(ExportFlowResultsTask.STATUS_COMPLETE)
 
-        with self.assertNumQueries(51):
+        with self.assertNumQueries(53):
             workbook = self.export_flow_results(self.flow)
 
         tz = self.org.timezone
@@ -946,7 +946,7 @@ class FlowTest(TembaTest):
                                             "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(49):
+        with self.assertNumQueries(51):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -973,7 +973,7 @@ class FlowTest(TembaTest):
         # insert a duplicate age field, this can happen due to races
         Value.objects.create(org=self.org, contact=self.contact, contact_field=age, string_value='36', decimal_value='36')
 
-        with self.assertNumQueries(57):
+        with self.assertNumQueries(59):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
                                                 contact_fields=[age], extra_urns=['twitter', 'line'])
 
