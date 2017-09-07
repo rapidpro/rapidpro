@@ -233,6 +233,9 @@ class Flow(TembaModel):
     version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION,
                                          help_text=_("The flow version this definition is in"))
 
+    group_dependencies = models.ManyToManyField(ContactGroup, related_name='group_dependencies', verbose_name=_("Group Dependencies"), blank=True,
+                                                help_text=_("Any groups this flow uses"))
+
     @classmethod
     def create(cls, org, user, name, flow_type=FLOW, expires_after_minutes=FLOW_DEFAULT_EXPIRES_AFTER, base_language=None):
         flow = Flow.objects.create(org=org, name=name, flow_type=flow_type,
@@ -2412,6 +2415,8 @@ class Flow(TembaModel):
                                   spec_version=CURRENT_EXPORT_VERSION,
                                   revision=revision)
 
+            self.update_dependencies()
+
             return dict(status="success", description="Flow Saved",
                         saved_on=datetime_to_str(self.saved_on), revision=revision)
 
@@ -2423,6 +2428,28 @@ class Flow(TembaModel):
             import traceback
             traceback.print_exc(e)
             raise e
+
+    def update_dependencies(self):
+        groups = set()
+
+        # find any references in our actions
+        for actionset in self.action_sets.all():
+            for action in actionset.get_actions():
+                if action.TYPE in ('add_group', 'del_group'):
+                    # iterate over them so we can type crack to ignore expression strings :(
+                    for group in action.groups:
+                        if isinstance(group, ContactGroup):
+                            groups.add(group)
+
+        # find references in our rulesets
+        for ruleset in self.rule_sets.all():
+            rules = ruleset.get_rules()
+            for rule in rules:
+                if isinstance(rule.test, InGroupTest):
+                    groups.add(rule.test.group)
+
+        self.group_dependencies.clear()
+        self.group_dependencies.add(*groups)
 
     def __str__(self):
         return self.name

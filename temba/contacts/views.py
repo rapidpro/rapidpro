@@ -1193,8 +1193,18 @@ class ContactGroupCRUDL(SmartCRUDL):
             triggers = group.trigger_set.filter(is_archived=False)
             if triggers.count() > 0:
                 trigger_list = ', '.join([six.text_type(trigger) for trigger in triggers])
-                messages.error(self.request, _("You cannot remove this group while it has active triggers (%s)" % trigger_list))
+                messages.error(self.request,
+                               _("You cannot remove this group while it has active triggers (%s)" % trigger_list))
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
+
+            from temba.flows.models import Flow
+            flows = Flow.objects.filter(org=group.org, group_dependencies__in=[group])
+            if flows.count():
+                flow_list = ', '.join([six.text_type(flow) for flow in flows])
+                messages.error(self.request,
+                               _("This group cannot be removed without being removed from all flows. (%s)" % flow_list))
+                return HttpResponseRedirect(smart_url(self.cancel_url, group))
+
             return super(ContactGroupCRUDL.Delete, self).pre_process(request, *args, **kwargs)
 
         def post(self, request, *args, **kwargs):

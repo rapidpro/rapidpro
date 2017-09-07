@@ -358,7 +358,7 @@ class ContactGroupTest(TembaTest):
 
         self.login(self.admin)
 
-        response = self.client.post(reverse('contacts.contactgroup_delete', args=[group.pk]), dict())
+        self.client.post(reverse('contacts.contactgroup_delete', args=[group.pk]), dict())
         self.assertIsNone(ContactGroup.user_groups.filter(pk=group.pk).first())
         self.assertFalse(ContactGroup.all_groups.get(pk=group.pk).is_active)
 
@@ -390,12 +390,32 @@ class ContactGroupTest(TembaTest):
         trigger.is_archived = True
         trigger.save()
 
-        response = self.client.post(delete_url, dict())
+        self.client.post(delete_url, dict())
         # group should have is_active = False and all its triggers
         self.assertIsNone(ContactGroup.user_groups.filter(pk=group.pk).first())
         self.assertFalse(ContactGroup.all_groups.get(pk=group.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=trigger.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=second_trigger.pk).is_active)
+
+    def test_delete_fail_with_dependencies(self):
+        self.login(self.admin)
+
+        flow = self.get_flow('dependencies')
+        cats = ContactGroup.user_groups.filter(name='Cat Facts').first()
+        delete_url = reverse('contacts.contactgroup_delete', args=[cats.pk])
+
+        # can't delete if it is a dependency
+        response = self.client.post(delete_url, dict())
+        self.assertEquals(302, response.status_code)
+        self.assertTrue(ContactGroup.user_groups.get(id=cats.id).is_active)
+
+        # remove it from our list of dependencies
+        flow.group_dependencies.remove(cats)
+
+        # now it should be gone
+        response = self.client.post(delete_url, dict())
+        self.assertEquals(302, response.status_code)
+        self.assertIsNone(ContactGroup.user_groups.filter(id=cats.id).first())
 
 
 class ContactGroupCRUDLTest(TembaTest):

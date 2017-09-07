@@ -5323,6 +5323,26 @@ class FlowsTest(FlowFileTest):
         msg = Msg.objects.filter(direction='O', contact=tupac).first()
         self.assertEquals('Testing this out', msg.text)
 
+    def test_dependencies(self):
+        flow = self.get_flow('dependencies')
+
+        group_names = ['Dog Facts', 'Cat Facts', 'Fish Facts', 'Monkey Facts']
+        for name in group_names:
+            self.assertIsNotNone(flow.group_dependencies.filter(name=name).first())
+
+        # trim off our first action which is remove from Dog Facts
+        update_json = flow.as_json()
+        update_json['action_sets'][0]['actions'] = update_json['action_sets'][0]['actions'][1:]
+
+        flow.update(update_json)
+
+        # dog facts should be removed
+        self.assertIsNone(flow.group_dependencies.filter(name='Dog Facts').first())
+
+        # but others should still be there
+        for name in group_names[1:]:
+            self.assertIsNotNone(flow.group_dependencies.filter(name=name).first())
+
     def test_group_uuid_mapping(self):
         flow = self.get_flow('group_split')
 

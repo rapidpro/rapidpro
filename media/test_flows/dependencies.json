@@ -9,54 +9,115 @@
         {
           "y": 0, 
           "x": 51, 
-          "destination": null, 
-          "uuid": "f60cf4f6-df30-4e6e-a87e-05b8d84cd05a", 
+          "destination": "acb8780e-53ac-4e29-bbbc-8782f63321fd",
+          "uuid": "fcb470c0-74cf-4f4b-b4b6-a82d853fd6c4",
           "actions": [
             {
-              "type": "del_group", 
+              "type": "del_group",
               "groups": [
                 {
-                  "name": "Dog Facts", 
-                  "uuid": "35fa7196-c1f2-4d61-ae3d-f5819f7561ed"
+                  "name": "Dog Facts",
+                  "uuid": "1656e780-415e-47cc-bc49-1739dd2ef462"
                 }
               ]
-            }, 
+            },
             {
-              "type": "add_group", 
+              "type": "add_group",
               "groups": [
                 {
-                  "name": "Cat Facts", 
+                  "name": "Cat Facts",
                   "uuid": "c7bc1eef-b7aa-4959-ab90-3e33e0d3b1f9"
                 }
               ]
-            }, 
+            },
             {
-              "field": "favorite_cat", 
-              "type": "save", 
-              "value": "Scottish Fold", 
+              "field": "favorite_cat",
+              "type": "save",
+              "value": "Scottish Fold",
               "label": "Favorite Cat"
-            }, 
+            },
             {
               "msg": {
                 "eng": "You are @contact.contact_age years old. @(CONCATENATE(\"Your CHW is \", contact.chw))."
-              }, 
-              "media": {}, 
-              "send_all": false, 
+              },
+              "media": {},
+              "send_all": false,
               "type": "reply"
             }
           ]
         }
-      ], 
-      "version": 10, 
-      "flow_type": "F", 
-      "entry": "f60cf4f6-df30-4e6e-a87e-05b8d84cd05a", 
-      "rule_sets": [], 
+      ],
+      "version": 10,
+      "flow_type": "F",
+      "entry": "fcb470c0-74cf-4f4b-b4b6-a82d853fd6c4",
+      "rule_sets": [
+        {
+          "uuid": "acb8780e-53ac-4e29-bbbc-8782f63321fd",
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "name": "Fish Facts"
+                },
+                "type": "in_group"
+              },
+              "category": {
+                "eng": "Fish Facts"
+              },
+              "uuid": "1854d1b9-ecd6-4e49-9536-f63d65f0625a"
+            },
+            {
+              "test": {
+                "test": {
+                  "name": "Monkey Facts"
+                },
+                "type": "in_group"
+              },
+              "category": {
+                "eng": "Monkey Facts"
+              },
+              "uuid": "ff52816e-59fc-43cb-a518-74dab3a07893"
+            },
+            {
+              "test": {
+                "test": {
+                  "name": "Cat Facts",
+                  "uuid": "c7bc1eef-b7aa-4959-ab90-3e33e0d3b1f9"
+                },
+                "type": "in_group"
+              },
+              "category": {
+                "eng": "Cat Facts"
+              },
+              "uuid": "dc1becdd-1372-4531-a4da-3427bc83bf9c"
+            },
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "eng": "Other"
+              },
+              "uuid": "2e7cf86b-b6eb-4163-830d-ae66818d1fce"
+            }
+          ],
+          "ruleset_type": "group",
+          "label": "Split By Membership",
+          "operand": "@step.value",
+          "finished_key": null,
+          "response_type": "",
+          "y": 341,
+          "x": 211,
+          "config": {}
+        }
+      ],
       "metadata": {
-        "expires": 10080, 
-        "revision": 9, 
-        "uuid": "17aebbfb-eb4f-4884-a550-50cbbae996fa", 
+        "expires": 10080,
+        "revision": 4,
+        "uuid": "ae1c0e9d-3de9-49d3-885f-e5f3070746d0",
         "name": "Dependencies",
-        "saved_on": "2017-09-06T18:27:56.501698Z"
+        "saved_on": "2017-09-07T18:38:35.362505Z"
       }
     }
   ], 
