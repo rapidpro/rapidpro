@@ -3973,13 +3973,15 @@ class ExportFlowResultsTask(BaseExportTask):
         # build a cache of rule uuid to category name, we want to use the most recent name the user set
         # if possible and back down to the cached rule_category only when necessary
         category_map = dict()
+        ruleset_uuids = []
 
         with SegmentProfiler("rule uuid to category to name"):
             for ruleset in RuleSet.objects.filter(flow__in=flows).select_related('flow'):
+                ruleset_uuids.append(ruleset.uuid)
                 for rule in ruleset.get_rules():
                     category_map[rule.uuid] = rule.get_category_name(ruleset.flow.base_language)
 
-        ruleset_steps = FlowStep.objects.filter(run__flow__in=flows, step_type=FlowStep.TYPE_RULE_SET)
+        ruleset_steps = FlowStep.objects.filter(step_uuid__in=ruleset_uuids)
         ruleset_steps = ruleset_steps.order_by('contact', 'run', 'arrived_on', 'pk')
 
         if responded_only:
