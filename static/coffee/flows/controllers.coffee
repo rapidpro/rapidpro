@@ -655,7 +655,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           DragHelper.showSendReply($('#' + category.sources[0] + ' .source'))
         ,0
 
-  $scope.addAction = (actionset, innerAction=null) ->
+  $scope.addAction = (actionset, newStepAction=null) ->
 
     if window.dragging or not window.mutable
       return
@@ -666,7 +666,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         action:
           type: defaultActionSetType()
           uuid: uuid()
-        innerAction: innerAction
+        newStepAction: newStepAction
 
       flowController: -> $scope
 
@@ -727,18 +727,12 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
         fromText = action.msg[Flow.flow.base_language]
 
-        try
-          fromQuickReply = action.quick_replies[Flow.flow.base_language]
-          toQuickReply = action.quick_replies[Flow.language.iso_code]
+        fromQuickReply = action.quick_replies[Flow.flow.base_language] || []
+        toQuickReply = action.quick_replies[Flow.language.iso_code] || []
 
-          if typeof toQuickReply == "undefined" && (fromQuickReply != [] && fromQuickReply?)
-            toQuickReply = []
-            for obj in fromQuickReply
-              toQuickReply.push({title:''})
-
-        catch
-          fromQuickReply = []
-          toQuickReply = []
+        if toQuickReply.length == 0 && (fromQuickReply != [] && fromQuickReply?)
+          for obj in fromQuickReply
+            toQuickReply.push({title:''})
 
         resolveObj =
           languages: ->
@@ -1798,7 +1792,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.actions_quick_reply = []
     $scope.action.quick_replies = {}
 
-  if $scope.options.dragSource? || $scope.options.innerAction?
+  if $scope.options.dragSource? || $scope.options.newStepAction?
     startNodeConfig()
   else
     if $scope.action.quick_replies? and $scope.action.quick_replies[currentLang] != undefined
