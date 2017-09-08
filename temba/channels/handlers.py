@@ -677,8 +677,8 @@ class TelegramHandler(BaseChannelHandler):
             attachments.append('geo:%s,%s' % (location['latitude'], location['longitude']))
 
         if text.strip() == "/start":
-
-            Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
+            event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_NEW_CONVERSATION, timezone.now())
+            event.handle()
             return make_response("Conversation started")
 
         if text or attachments:
