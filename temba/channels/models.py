@@ -166,7 +166,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_CHIKKA = 'CK'
-    TYPE_DARTMEDIA = 'DA'
     TYPE_DUMMY = 'DM'
     TYPE_GLOBE = 'GL'
     TYPE_HIGH_CONNECTION = 'HX'
@@ -2136,10 +2135,7 @@ class Channel(TembaModel):
         #   &message=Test+Normal+Single+Message&dcs=0
         #   &udhl=0&charset=utf-8
         #
-        if channel.channel_type == Channel.TYPE_HUB9:
-            url = HUB9_ENDPOINT
-        elif channel.channel_type == Channel.TYPE_DARTMEDIA:
-            url = DART_MEDIA_ENDPOINT
+        url = HUB9_ENDPOINT
 
         payload = dict(userid=channel.config['username'], password=channel.config['password'],
                        original=channel.address.lstrip('+'), sendto=msg.urn_path.lstrip('+'),
