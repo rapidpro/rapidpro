@@ -917,7 +917,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender',
                'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
-               'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
+               'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
                'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_globe',
                'claim_twiml_api', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
@@ -1625,10 +1625,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                                      data.get('url'))
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
-    class ClaimBlackmyna(ClaimAuthenticatedExternal):
-        title = _("Connect Blackmyna")
-        channel_type = Channel.TYPE_BLACKMYNA
 
     class ClaimSmscentral(ClaimAuthenticatedExternal):
         title = _("Connect SMSCentral")
