@@ -12,7 +12,7 @@ RPAREN     : ')';
 AND        : [Aa][Nn][Dd];
 OR         : [Oo][Rr];
 COMPARATOR : ('=' | '!=' | '~' | '>=' | '<=' | '>' | '<' | HAS | IS);
-TEXT       : (UnicodeLetter | UnicodeDigit | '_' | '.' | '-')+;
+TEXT       : (UnicodeLetter | UnicodeDigit | '_' | '.' | '-' | '+' | '/')+;
 STRING     : '"' (~["] | '""')* '"';
 
 WS         : [ \t\n\r]+ -> skip;        // ignore whitespace
