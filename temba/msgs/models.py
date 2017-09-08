@@ -880,8 +880,10 @@ class Msg(models.Model):
             chatbase_not_handled = False
 
         # Sending data to Chatbase API
-        (chatbase_api_key, chatbase_version) = msg.org.get_chatbase_credentials()
-        if chatbase_api_key and msg.channel:
+        (chatbase_api_key, chatbase_version) = msg.org.get_chatbase_credentials() if not msg.contact.is_test \
+            else (None, None)
+
+        if chatbase_api_key:
             cls.send_chatbase_log(chatbase_api_key, chatbase_version, msg.channel.name, msg.text, msg.contact.id,
                                   CHATBASE_TYPE_USER, chatbase_not_handled)
 
