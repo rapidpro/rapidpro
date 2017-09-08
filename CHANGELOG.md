@@ -1,3 +1,15 @@
+v3.0.197
+----------
+ * update triggers so that updates in migration work
+
+v3.0.196
+----------
+ * make sure new uuids are honored in in_group tests
+ * removes giant join through run/flow to figure out flow steps during export
+ * create contacts from start flow action with ambiguous country
+ * add tasks for handling of channel events, update handlers to use ChannelEvent.handle
+ * add org level dashboard for multi-org organizations
+
 v3.0.195
 ----------
  * Tweaks to allow message handling straight from courier

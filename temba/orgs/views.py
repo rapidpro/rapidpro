@@ -1301,6 +1301,10 @@ class OrgCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
+            if self.has_org_perm("orgs.org_dashboard"):
+                links.append(dict(title='Dashboard',
+                                  href=reverse('dashboard.dashboard_home')))
+
             if self.has_org_perm("orgs.org_create_sub_org"):
                 links.append(dict(title='New',
                                   js_class='add-sub-org',

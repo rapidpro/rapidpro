@@ -5,6 +5,7 @@ import json
 import nexmo
 import pytz
 import six
+import stripe
 
 from bs4 import BeautifulSoup
 from context_processors import GroupPermWrapper
@@ -3038,7 +3039,7 @@ class EmailContextProcessorsTest(SmartminTest):
             self.assertTrue('app.rapidpro.io' in sent_email.body)
 
 
-class TestStripeCredits(TembaTest):
+class StripeCreditsTest(TembaTest):
 
     @patch('stripe.Customer.create')
     @patch('stripe.Charge.create')
@@ -3146,11 +3147,17 @@ class TestStripeCredits(TembaTest):
                 pass
 
         class MockCards(object):
+            def __init__(self):
+                self.throw = False
+
             def all(self):
                 return dict_to_struct('MockCardData', dict(data=[MockCard(), MockCard()]))
 
             def create(self, card):
-                return MockCard()
+                if self.throw:
+                    raise stripe.CardError("Card declined", None, 400)
+                else:
+                    return MockCard()
 
         class MockCustomer(object):
             def __init__(self, id, email):
@@ -3188,6 +3195,14 @@ class TestStripeCredits(TembaTest):
         self.assertTrue('Rudolph' in email.body)
         self.assertTrue('Visa' in email.body)
         self.assertTrue('$20' in email.body)
+
+        # try with an invalid card
+        customer_retrieve.return_value.cards.throw = True
+        try:
+            self.org.add_credits('2000', 'stripe-token', self.admin)
+            self.fail("should have thrown")
+        except ValidationError as e:
+            self.assertEqual("Sorry, your card was declined, please contact your provider or try another card.", e.message)
 
         # do it again with a different user, should create a new stripe customer
         self.org.add_credits('2000', 'stripe-token', self.admin2)

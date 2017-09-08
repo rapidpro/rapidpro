@@ -652,7 +652,7 @@ def sync(request, channel_id):
                         if cmd['phone']:
                             urn = URN.from_parts(TEL_SCHEME, cmd['phone'])
                             try:
-                                ChannelEvent.create(channel, urn, cmd['type'], date, duration)
+                                ChannelEvent.create(channel, urn, cmd['type'], date, extra=dict(duration=duration))
                             except ValueError:
                                 # in some cases Android passes us invalid URNs, in those cases just ignore them
                                 pass
@@ -2730,8 +2730,8 @@ class ChannelEventCRUDL(SmartCRUDL):
 
     class Calls(InboxView):
         title = _("Calls")
-        fields = ('contact', 'event_type', 'channel', 'time')
-        default_order = '-time'
+        fields = ('contact', 'event_type', 'channel', 'occurred_on')
+        default_order = '-occurred_on'
         search_fields = ('contact__urns__path__icontains', 'contact__name__icontains')
         system_label = SystemLabel.TYPE_CALLS
         select_related = ('contact', 'channel')
