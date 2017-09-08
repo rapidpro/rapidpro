@@ -1685,8 +1685,8 @@ class ChannelTest(TembaTest):
                 response = self.client.get(config_url)
                 self.assertEquals(200, response.status_code)
 
-                self.assertContains(response, reverse('handlers.nexmo_handler', args=['receive', channel.org.nexmo_uuid()]))
-                self.assertContains(response, reverse('handlers.nexmo_handler', args=['status', channel.org.nexmo_uuid()]))
+                self.assertContains(response, reverse('courier.nx', args=[channel.org.nexmo_uuid(), 'receive']))
+                self.assertContains(response, reverse('courier.nx', args=[channel.org.nexmo_uuid(), 'status']))
                 self.assertContains(response, reverse('handlers.nexmo_call_handler', args=['answer', channel.uuid]))
 
                 call_handler_event_url = reverse('handlers.nexmo_call_handler', args=['event', channel.uuid])
@@ -2563,8 +2563,8 @@ class ChannelClaimTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('handlers.clickatell_handler', args=['status', channel.uuid]))
-        self.assertContains(response, reverse('handlers.clickatell_handler', args=['receive', channel.uuid]))
+        self.assertContains(response, reverse('courier.ct', args=[channel.uuid, 'status']))
+        self.assertContains(response, reverse('courier.ct', args=[channel.uuid, 'receive']))
 
     def test_high_connection(self):
         Channel.objects.all().delete()
@@ -2597,7 +2597,7 @@ class ChannelClaimTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('handlers.hcnx_handler', args=['receive', channel.uuid]))
+        self.assertContains(response, reverse('courier.hx', args=[channel.uuid, 'receive']))
 
     @override_settings(IP_ADDRESSES=('10.10.10.10', '172.16.20.30'))
     def test_claim_dart_media(self):
@@ -2633,7 +2633,7 @@ class ChannelClaimTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('handlers.dartmedia_handler', args=['received', channel.uuid]))
+        self.assertContains(response, reverse('courier.da', args=[channel.uuid, 'receive']))
 
         # check we show the IP to whitelist
         self.assertContains(response, "10.10.10.10")
@@ -2671,7 +2671,7 @@ class ChannelClaimTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('handlers.shaqodoon_handler', args=['received', channel.uuid]))
+        self.assertContains(response, reverse('courier.sq', args=[channel.uuid, 'receive']))
 
     def test_kannel(self):
         Channel.objects.all().delete()
@@ -2715,7 +2715,7 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # our configuration page should list our receive URL
-        self.assertContains(response, reverse('handlers.kannel_handler', args=['receive', channel.uuid]))
+        self.assertContains(response, reverse('courier.kn', args=[channel.uuid, 'receive']))
 
     def test_zenvia(self):
         Channel.objects.all().delete()
@@ -2757,8 +2757,8 @@ class ChannelClaimTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('handlers.zenvia_handler', args=['status', channel.uuid]))
-        self.assertContains(response, reverse('handlers.zenvia_handler', args=['receive', channel.uuid]))
+        self.assertContains(response, reverse('courier.zv', args=[channel.uuid, 'status']))
+        self.assertContains(response, reverse('courier.zv', args=[channel.uuid, 'receive']))
 
     def test_claim_africa(self):
         Channel.objects.all().delete()
@@ -2790,8 +2790,8 @@ class ChannelClaimTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('handlers.africas_talking_handler', args=['callback', channel.uuid]))
-        self.assertContains(response, reverse('handlers.africas_talking_handler', args=['delivery', channel.uuid]))
+        self.assertContains(response, reverse('courier.at', args=[channel.uuid, 'receive']))
+        self.assertContains(response, reverse('courier.at', args=[channel.uuid, 'status']))
 
     def test_claim_viber(self):
         Channel.objects.all().delete()
@@ -2815,8 +2815,8 @@ class ChannelClaimTest(TembaTest):
 
         response = self.client.get(claim_url)
 
-        self.assertContains(response, reverse('handlers.viber_handler', args=['status', channel.uuid]))
-        self.assertContains(response, reverse('handlers.viber_handler', args=['receive', channel.uuid]))
+        self.assertContains(response, reverse('courier.vi', args=[channel.uuid, 'status']))
+        self.assertContains(response, reverse('courier.vi', args=[channel.uuid, 'receive']))
 
         # going to our account home should link to our claim page
         response = self.client.get(reverse('orgs.org_home'))
@@ -2836,8 +2836,8 @@ class ChannelClaimTest(TembaTest):
 
         response = self.client.get(config_url)
 
-        self.assertContains(response, reverse('handlers.viber_handler', args=['status', channel.uuid]))
-        self.assertContains(response, reverse('handlers.viber_handler', args=['receive', channel.uuid]))
+        self.assertContains(response, reverse('courier.vi', args=[channel.uuid, 'status']))
+        self.assertContains(response, reverse('courier.vi', args=[channel.uuid, 'receive']))
 
         # once claimed, account page should go to read page
         response = self.client.get(reverse('orgs.org_home'))
@@ -2873,7 +2873,7 @@ class ChannelClaimTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('handlers.chikka_handler', args=[channel.uuid]))
+        self.assertContains(response, reverse('courier.ck', args=[channel.uuid]))
 
     def test_claim_junebug(self):
         Channel.objects.all().delete()
@@ -2909,7 +2909,7 @@ class ChannelClaimTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('handlers.junebug_handler', args=['inbound', channel.uuid]))
+        self.assertContains(response, reverse('courier.jn', args=[channel.uuid, 'inbound']))
 
     def test_claim_junebug_with_secret(self):
         Channel.objects.all().delete()
@@ -2947,7 +2947,7 @@ class ChannelClaimTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('handlers.junebug_handler', args=['inbound', channel.uuid]))
+        self.assertContains(response, reverse('courier.jn', args=[channel.uuid, 'inbound']))
 
     def test_claim_junebug_ussd(self):
         Channel.objects.all().delete()
@@ -3004,8 +3004,8 @@ class ChannelClaimTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('handlers.vumi_handler', args=['receive', channel.uuid]))
-        self.assertContains(response, reverse('handlers.vumi_handler', args=['event', channel.uuid]))
+        self.assertContains(response, reverse('courier.vm', args=[channel.uuid, 'receive']))
+        self.assertContains(response, reverse('courier.vm', args=[channel.uuid, 'event']))
 
     def test_claim_vumi_ussd_custom_api(self):
         Channel.objects.all().delete()
@@ -3127,8 +3127,8 @@ class ChannelClaimTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('handlers.macrokiosk_handler', args=['receive', channel.uuid]))
-        self.assertContains(response, reverse('handlers.macrokiosk_handler', args=['status', channel.uuid]))
+        self.assertContains(response, reverse('courier.mk', args=[channel.uuid, 'receive']))
+        self.assertContains(response, reverse('courier.mk', args=[channel.uuid, 'status']))
 
     def test_m3tech(self):
         Channel.objects.all().delete()
@@ -3160,10 +3160,10 @@ class ChannelClaimTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('handlers.m3tech_handler', args=['received', channel.uuid]))
-        self.assertContains(response, reverse('handlers.m3tech_handler', args=['sent', channel.uuid]))
-        self.assertContains(response, reverse('handlers.m3tech_handler', args=['failed', channel.uuid]))
-        self.assertContains(response, reverse('handlers.m3tech_handler', args=['delivered', channel.uuid]))
+        self.assertContains(response, reverse('courier.m3', args=[channel.uuid, 'receive']))
+        self.assertContains(response, reverse('courier.m3', args=[channel.uuid, 'sent']))
+        self.assertContains(response, reverse('courier.m3', args=[channel.uuid, 'failed']))
+        self.assertContains(response, reverse('courier.m3', args=[channel.uuid, 'delivered']))
 
     @override_settings(SEND_EMAILS=True)
     def test_sms_alert(self):
