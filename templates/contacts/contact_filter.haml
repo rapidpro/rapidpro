@@ -27,45 +27,25 @@
   - if org_perms.msgs.broadcast_send
     - include "msgs/msg_send_modal.haml"
 
-  - if org_perms.contacts.contactgroup_delete
-    .group-deletion.hide
-      .title
-        -trans "Delete Contact Group"
-
-      .body
-        %p
-          -trans "Are you sure you want to delete this Contact Group?"
-        %p
-          %b {{ current_group }}
-          %p
-            -trans "No contacts will be deleted. However, once this group is deleted, it will be gone forever. There is no way to undo this operation."
-
-      %a#delete-form.posterize{href:'{% url "contacts.contactgroup_delete" current_group.pk %}'}
-
 -block extra-script
   {{ block.super }}
+    -if org_perms.contacts.contactgroup_update
+      :javascript
+        $(".update-contactgroup").live('click', function(){
+          var modal = new Modax('{% trans "Update Contact Group" %}', '{% url "contacts.contactgroup_update" current_group.id %}');
+          modal.setIcon('icon-users-2');
+          modal.setListeners({
+            onSuccess: function(data){ location.reload(); },
+            onFormLoaded: function(){ $('#id_join_flow').select2(); }
+          });
+          modal.show();
+        });
 
-  :javascript
-    {% if org_perms.contacts.contactgroup_update %}
-    $(".update-contactgroup").live('click', function(){
-      var modal = new Modax('{% trans "Update Contact Group" %}', '{% url "contacts.contactgroup_update" current_group.pk %}');
-      modal.setIcon('icon-users-2');
-      modal.setListeners({
-        onSuccess: function(data){location.reload(); },
-        onFormLoaded: function(){$('#id_join_flow').select2(); }
-      });
-      modal.show();
-    });
-    {% endif %}
-
-    {% if org_perms.contacts.contactgroup_delete %}
-    $(".delete-contactgroup").live('click', function(){
-      modal = new ConfirmationModal($('.group-deletion > .title').html(), $('.group-deletion > .body').html());
-      modal.addClass('alert');
-      modal.setListeners({onPrimary: function(){
-        $('#delete-form').click();
-      }}, false);
-      modal.setPrimaryButton('{% trans "Delete" %}');
-      modal.show();
-   });
-   {% endif %}
+    -if org_perms.contacts.contactgroup_delete
+      :javascript
+        $(".delete-contactgroup").live('click', function() {    
+          var modal = new Modax('{% trans "Delete Group" %}', '{% url "contacts.contactgroup_delete" current_group.id %}');
+          modal.addClass("alert");
+          modal.setRedirectOnSuccess(true);
+          modal.show();
+        });

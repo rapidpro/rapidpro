@@ -233,7 +233,10 @@ class Flow(TembaModel):
     version_number = models.IntegerField(default=CURRENT_EXPORT_VERSION,
                                          help_text=_("The flow version this definition is in"))
 
-    group_dependencies = models.ManyToManyField(ContactGroup, related_name='group_dependencies', verbose_name=_("Group Dependencies"), blank=True,
+    flow_dependencies = models.ManyToManyField('Flow', related_name='dependent_flows', verbose_name=("Flow Dependencies"), blank=True,
+                                               help_text=_("Any flows this flow uses"))
+
+    group_dependencies = models.ManyToManyField(ContactGroup, related_name='dependent_flows', verbose_name=_("Group Dependencies"), blank=True,
                                                 help_text=_("Any groups this flow uses"))
 
     @classmethod
@@ -919,6 +922,9 @@ class Flow(TembaModel):
         from temba.triggers.models import Trigger
         for trigger in Trigger.objects.filter(flow=self, is_active=True):
             trigger.release()
+
+        self.group_dependencies.clear()
+        self.flow_dependencies.clear()
 
         # delete our results in the background
         on_transaction_commit(lambda: delete_flow_results_task.delay(self.id))
@@ -2431,6 +2437,7 @@ class Flow(TembaModel):
 
     def update_dependencies(self):
         groups = set()
+        flows = set()
 
         # find any references in our actions
         for actionset in self.action_sets.all():
@@ -2441,15 +2448,27 @@ class Flow(TembaModel):
                         if isinstance(group, ContactGroup):
                             groups.add(group)
 
+                if action.TYPE == 'trigger-flow':
+                    flows.add(action.flow)
+
         # find references in our rulesets
         for ruleset in self.rule_sets.all():
-            rules = ruleset.get_rules()
-            for rule in rules:
-                if isinstance(rule.test, InGroupTest):
-                    groups.add(rule.test.group)
+            if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                flow_uuid = json.loads(ruleset.config).get('flow').get('uuid')
+                flow = Flow.objects.filter(org=self.org, uuid=flow_uuid).first()
+                if flow:
+                    flows.add(flow)
+            else:
+                rules = ruleset.get_rules()
+                for rule in rules:
+                    if isinstance(rule.test, InGroupTest):
+                        groups.add(rule.test.group)
 
         self.group_dependencies.clear()
         self.group_dependencies.add(*groups)
+
+        self.flow_dependencies.clear()
+        self.flow_dependencies.add(*flows)
 
     def __str__(self):
         return self.name

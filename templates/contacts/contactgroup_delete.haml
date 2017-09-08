@@ -1,0 +1,63 @@
+{% extends "smartmin/delete_confirm.html" %}
+-load i18n temba
+
+-block modal
+  {{block.super}}
+
+  -with flows=object.dependent_flows.all
+
+    -if flows or triggers
+      -blocktrans with group_name=object.name
+        Sorry, {{group_name}} cannot be deleted quite yet.
+      %p
+
+    -if triggers
+      -blocktrans count counter=triggers|length
+        This group is used by an active trigger. In order to delete it,
+        first remove the
+        -plural
+          This group is used by {{counter}} triggers. In order to delete it,
+          first remove the
+
+      -for trigger in triggers
+        <a href="{%url 'triggers.trigger_list'%}">{{trigger}}</a>{{forloop|oxford}}
+
+      -blocktrans count counter=triggers|length
+        trigger.
+      -plural
+        triggers.
+      
+    -if flows
+      -blocktrans count counter=flows|length
+        There is an active flow using this group. It cannot be deleted until it is removed from the
+        
+        -plural
+          There are {{counter}} flows using this group. It cannot be deleted until it is removed from the
+
+      -for flow in flows
+        <a href="{%url 'flows.flow_editor' flow.uuid%}">{{flow.name}}</a>{{forloop|oxford}}
+      
+      -blocktrans count counter=flows|length
+        flow.
+      -plural
+        flows.
+
+      :javascript
+        $(".modal-footer .btn.primary").hide();
+        $(".modal-footer .btn.secondary").text("Ok");
+        
+    -else
+      :javascript
+        $(".modal-footer .btn.primary").show();
+        $(".modal-footer .btn.secondary").text("Cancel");
+
+      -blocktrans
+        You are about to delete
+        %span.group_name
+          {{object}}.
+        No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?
+
+  :css
+    .group_name {
+      font-weight: 400;
+    }

@@ -99,7 +99,9 @@
               "category": {
                 "eng": "Other"
               },
-              "uuid": "2e7cf86b-b6eb-4163-830d-ae66818d1fce"
+              "destination": "4fc16c3d-f2ca-47fd-899c-5ebd9fd06cd0",
+              "uuid": "2e7cf86b-b6eb-4163-830d-ae66818d1fce",
+              "destination_type": "R"
             }
           ],
           "ruleset_type": "group",
@@ -110,14 +112,163 @@
           "y": 341,
           "x": 211,
           "config": {}
+        },
+        {
+          "uuid": "4fc16c3d-f2ca-47fd-899c-5ebd9fd06cd0",
+          "rules": [
+            {
+              "test": {
+                "type": "subflow",
+                "exit_type": "completed"
+              },
+              "category": {
+                "eng": "Completed"
+              },
+              "uuid": "b2db5d2d-5eb1-4d5a-af2f-fcec726f541f"
+            },
+            {
+              "test": {
+                "type": "subflow",
+                "exit_type": "expired"
+              },
+              "category": {
+                "eng": "Expired"
+              },
+              "uuid": "8cdf2eed-11a0-4b77-b736-948128d6b493"
+            }
+          ],
+          "ruleset_type": "subflow",
+          "label": "Subflow",
+          "operand": "@step.value",
+          "finished_key": null,
+          "response_type": "",
+          "y": 476,
+          "x": 482,
+          "config": {
+            "flow": {
+              "name": "Child Flow",
+              "uuid": "e1fa3c52-3616-499e-b1be-c759f4645247"
+            }
+          }
         }
       ],
       "metadata": {
         "expires": 10080,
-        "revision": 4,
+        "revision": 7,
         "uuid": "ae1c0e9d-3de9-49d3-885f-e5f3070746d0",
         "name": "Dependencies",
-        "saved_on": "2017-09-07T18:38:35.362505Z"
+        "saved_on": "2017-09-07T19:48:56.790344Z"
+      }
+    },
+    {
+      "base_language": "eng",
+      "action_sets": [
+        {
+          "y": 0,
+          "x": 100,
+          "destination": "778741a8-47df-4fe8-a853-2470eed00eb9",
+          "uuid": "6175bb69-d3a8-4a40-a898-f9505b9498f4",
+          "actions": [
+            {
+              "msg": {
+                "eng": "What is your favorite color? @step.value"
+              },
+              "media": {},
+              "send_all": false,
+              "type": "reply"
+            }
+          ]
+        },
+        {
+          "y": 89,
+          "x": 725,
+          "destination": "778741a8-47df-4fe8-a853-2470eed00eb9",
+          "uuid": "dee2737a-9e76-4095-a4f0-07fc15b59f75",
+          "actions": [
+            {
+              "msg": {
+                "eng": "don't know that one"
+              },
+              "media": {},
+              "send_all": false,
+              "type": "reply"
+            }
+          ]
+        }
+      ],
+      "version": 10,
+      "flow_type": "F",
+      "entry": "6175bb69-d3a8-4a40-a898-f9505b9498f4",
+      "rule_sets": [
+        {
+          "uuid": "778741a8-47df-4fe8-a853-2470eed00eb9",
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "Red"
+                },
+                "type": "contains_any"
+              },
+              "category": {
+                "eng": "Red"
+              },
+              "uuid": "b48fa375-c3ad-4b3e-bf93-43292e3b1cfa"
+            },
+            {
+              "test": {
+                "test": {
+                  "fre": "grune",
+                  "eng": "Green"
+                },
+                "type": "contains_any"
+              },
+              "category": {
+                "eng": "Green"
+              },
+              "uuid": "83562725-1f39-4dd6-a167-f4280f94fa15"
+            },
+            {
+              "test": {
+                "test": {
+                  "eng": "Blue"
+                },
+                "type": "contains_any"
+              },
+              "category": {
+                "eng": "Blue"
+              },
+              "uuid": "480acf40-4abb-4661-b2af-6ac31d21251c"
+            },
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "eng": "Other"
+              },
+              "destination": "dee2737a-9e76-4095-a4f0-07fc15b59f75",
+              "uuid": "bc11051b-efa8-4562-9f9a-37d831299694",
+              "destination_type": "A"
+            }
+          ],
+          "ruleset_type": "wait_message",
+          "label": "Color",
+          "operand": "@step.value",
+          "finished_key": null,
+          "response_type": "",
+          "y": 146,
+          "x": 258,
+          "config": {}
+        }
+      ],
+      "metadata": {
+        "expires": 10080,
+        "revision": 15,
+        "uuid": "e1fa3c52-3616-499e-b1be-c759f4645247",
+        "name": "Child Flow",
+        "saved_on": "2017-09-07T19:48:29.597877Z"
       }
     }
   ], 

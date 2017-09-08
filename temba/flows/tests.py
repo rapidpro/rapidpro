@@ -5323,8 +5323,9 @@ class FlowsTest(FlowFileTest):
         msg = Msg.objects.filter(direction='O', contact=tupac).first()
         self.assertEquals('Testing this out', msg.text)
 
-    def test_dependencies(self):
-        flow = self.get_flow('dependencies')
+    def test_group_dependencies(self):
+        self.get_flow('dependencies')
+        flow = Flow.objects.filter(name='Dependencies').first()
 
         group_names = ['Dog Facts', 'Cat Facts', 'Fish Facts', 'Monkey Facts']
         for name in group_names:
@@ -5333,7 +5334,6 @@ class FlowsTest(FlowFileTest):
         # trim off our first action which is remove from Dog Facts
         update_json = flow.as_json()
         update_json['action_sets'][0]['actions'] = update_json['action_sets'][0]['actions'][1:]
-
         flow.update(update_json)
 
         # dog facts should be removed
@@ -5342,6 +5342,22 @@ class FlowsTest(FlowFileTest):
         # but others should still be there
         for name in group_names[1:]:
             self.assertIsNotNone(flow.group_dependencies.filter(name=name).first())
+
+    def test_flow_dependencies(self):
+
+        self.get_flow('dependencies')
+        flow = Flow.objects.filter(name='Dependencies').first()
+
+        # we should depend on our child flow
+        self.assertIsNotNone(flow.flow_dependencies.filter(name='Child Flow').first())
+
+        # remove our subflow call
+        update_json = flow.as_json()
+        update_json['rule_sets'] = update_json['rule_sets'][:1]
+        flow.update(update_json)
+
+        # now we no longer depend on it
+        self.assertIsNone(flow.flow_dependencies.filter(name='Child Flow').first())
 
     def test_group_uuid_mapping(self):
         flow = self.get_flow('group_split')
@@ -5357,7 +5373,8 @@ class FlowsTest(FlowFileTest):
                 group_count += 1
         self.assertEqual(2, group_count)
 
-        flow = self.get_flow('dependencies')
+        self.get_flow('dependencies')
+        flow = Flow.objects.filter(name='Dependencies').first()
         group_count = 0
         for actionset in flow.action_sets.all():
             actions = json.loads(actionset.actions)
@@ -5548,6 +5565,23 @@ class FlowsTest(FlowFileTest):
         # nor should our trigger
         trigger.refresh_from_db()
         self.assertFalse(trigger.is_active)
+
+    def test_flow_delete_with_dependencies(self):
+        self.login(self.admin)
+        self.get_flow('dependencies')
+        child = Flow.objects.filter(name='Child Flow').first()
+
+        # deleting should fail since the 'Dependencies' flow depends on us
+        self.client.post(reverse('flows.flow_delete', args=[child.id]))
+        self.assertIsNotNone(Flow.objects.filter(id=child.id, is_active=True).first())
+
+        # remove our child dependency
+        parent = Flow.objects.filter(name='Dependencies').first()
+        parent.flow_dependencies.remove(child)
+
+        # now the child can be deleted
+        self.client.post(reverse('flows.flow_delete', args=[child.id]))
+        self.assertIsNotNone(Flow.objects.filter(id=child.id, is_active=False).first())
 
     def test_start_flow_action(self):
         self.import_file('flow_starts')

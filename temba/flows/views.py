@@ -24,7 +24,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 from functools import cmp_to_key
 from itertools import chain
-from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartListView, SmartUpdateView
+from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartListView, SmartUpdateView, smart_url
 from smartmin.views import SmartDeleteView, SmartTemplateView, SmartFormView
 from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
@@ -520,17 +520,29 @@ class FlowCRUDL(SmartCRUDL):
             return obj
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-        fields = ('pk',)
+        fields = ('id',)
         cancel_url = 'uuid@flows.flow_editor'
-        redirect_url = '@flows.flow_list'
-        default_template = 'smartmin/delete_confirm.html'
-        success_message = _("Your flow has been removed.")
+        success_message = ''
+
+        def get_success_url(self):
+            return reverse("flows.flow_list")
 
         def post(self, request, *args, **kwargs):
-            self.get_object().release()
-            redirect_url = self.get_redirect_url()
+            flow = self.get_object()
+            self.object = flow
+            flows = Flow.objects.filter(org=flow.org, flow_dependencies__in=[flow])
+            if flows.count():
+                return HttpResponseRedirect(smart_url(self.cancel_url, flow))
 
-            return HttpResponseRedirect(redirect_url)
+            # do the actual deletion
+            flow.release()
+
+            # we can't just redirect so as to make our modal do the right thing
+            response = self.render_to_response(self.get_context_data(success_url=self.get_success_url(),
+                                                                     success_script=getattr(self, 'success_script', None)))
+            response['Temba-Success'] = self.get_success_url()
+
+            return response
 
     class Copy(OrgObjPermsMixin, SmartUpdateView):
         fields = []
@@ -1000,11 +1012,16 @@ class FlowCRUDL(SmartCRUDL):
                                   href='#'))
 
             if self.has_org_perm('flows.flow_delete'):
-                links.append(dict(divider=True)),
-                links.append(dict(title=_("Delete"),
-                                  delete=True,
-                                  success_url=reverse('flows.flow_list'),
-                                  href=reverse('flows.flow_delete', args=[flow.id])))
+                links.append(dict(title=_('Delete'),
+                                  js_class='delete-flow',
+                                  href="#"))
+
+            # if self.has_org_perm('flows.flow_delete'):
+            #     links.append(dict(divider=True)),
+            #     links.append(dict(title=_("Delete"),
+            #                       delete=True,
+            #                       success_url=reverse('flows.flow_list'),
+            #                       href=reverse('flows.flow_delete', args=[flow.id])))
 
             return links
 

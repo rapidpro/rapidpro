@@ -1183,38 +1183,45 @@ class ContactGroupCRUDL(SmartCRUDL):
                 obj.update_query(obj.query)
             return obj
 
-    class Delete(OrgObjPermsMixin, SmartDeleteView):
+    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         cancel_url = 'uuid@contacts.contact_filter'
         redirect_url = '@contacts.contact_list'
         success_message = ''
+        fields = ('id',)
 
-        def pre_process(self, request, *args, **kwargs):
-            group = self.get_object()
+        def get_context_data(self, **kwargs):
+            context = super(ContactGroupCRUDL.Delete, self).get_context_data(**kwargs)
+            context['triggers'] = self.get_object().trigger_set.filter(is_archived=False)
+            return context
+
+        def get_success_url(self):
+            return reverse("contacts.contact_list")
+
+        def post(self, request, *args, **kwargs):
+            # we need a self.object for get_context_data
+            self.object = self.get_object()
+            group = self.object
+
+            # if there are still dependencies, give up
             triggers = group.trigger_set.filter(is_archived=False)
             if triggers.count() > 0:
-                trigger_list = ', '.join([six.text_type(trigger) for trigger in triggers])
-                messages.error(self.request,
-                               _("You cannot remove this group while it has active triggers (%s)" % trigger_list))
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
-
             from temba.flows.models import Flow
             flows = Flow.objects.filter(org=group.org, group_dependencies__in=[group])
             if flows.count():
-                flow_list = ', '.join([six.text_type(flow) for flow in flows])
-                messages.error(self.request,
-                               _("This group cannot be removed without being removed from all flows. (%s)" % flow_list))
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
 
-            return super(ContactGroupCRUDL.Delete, self).pre_process(request, *args, **kwargs)
-
-        def post(self, request, *args, **kwargs):
-            group = self.get_object()
+            # remove our group
             group.release()
 
             # make is_active False for all its triggers too
             group.trigger_set.all().update(is_active=False)
 
-            return HttpResponseRedirect(reverse("contacts.contact_list"))
+            # we can't just redirect so as to make our modal do the right thing
+            response = self.render_to_response(self.get_context_data(success_url=self.get_success_url(),
+                                                                     success_script=getattr(self, 'success_script', None)))
+            response['Temba-Success'] = self.get_success_url()
+            return response
 
 
 class ManageFieldsForm(forms.Form):
