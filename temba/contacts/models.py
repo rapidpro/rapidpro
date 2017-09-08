@@ -73,6 +73,8 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
 
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
+STOP_CONTACT_EVENT = 'stop_contact'
+
 
 class URN(object):
     """
@@ -1606,9 +1608,8 @@ class Contact(TembaModel):
         if context[TWITTERID_SCHEME] and not context[TWITTER_SCHEME]:
             context[TWITTER_SCHEME] = context[TWITTERID_SCHEME]
 
-        field_values = Value.objects.filter(contact=self).exclude(contact_field=None)\
-                                                         .exclude(contact_field__is_active=False)\
-                                                         .select_related('contact_field')
+        active_ids = ContactField.objects.filter(org_id=self.org_id, is_active=True).values_list('id', flat=True)
+        field_values = Value.objects.filter(contact=self, contact_field_id__in=active_ids).select_related('contact_field')
 
         # get all the values for this contact
         contact_values = {v.contact_field.key: v for v in field_values}
@@ -1850,7 +1851,7 @@ class Contact(TembaModel):
         if tel:
             return tel.path
 
-    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, session=None,
+    def send(self, text, user, trigger_send=True, response_to=None, message_context=None, connection=None,
              attachments=None, msg_type=None, created_on=None, all_urns=False):
         from temba.msgs.models import Msg, INBOX, PENDING, SENT, UnreachableException
 
@@ -1865,7 +1866,7 @@ class Contact(TembaModel):
         for recipient in recipients:
             try:
                 msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH,
-                                          response_to=response_to, message_context=message_context, session=session,
+                                          response_to=response_to, message_context=message_context, connection=connection,
                                           attachments=attachments, msg_type=msg_type or INBOX, status=status,
                                           created_on=created_on)
                 if msg is not None:

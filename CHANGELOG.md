@@ -1,3 +1,37 @@
+v3.0.197
+----------
+ * update triggers so that updates in migration work
+
+v3.0.196
+----------
+ * make sure new uuids are honored in in_group tests
+ * removes giant join through run/flow to figure out flow steps during export
+ * create contacts from start flow action with ambiguous country
+ * add tasks for handling of channel events, update handlers to use ChannelEvent.handle
+ * add org level dashboard for multi-org organizations
+
+v3.0.195
+----------
+ * Tweaks to allow message handling straight from courier
+
+v3.0.193
+----------
+ * Add flow session model and start creating instances for IVR and USSD channel sessions
+
+v3.0.192
+----------
+ * Allow empty contact names for surveyor submissions but make them null
+ * Honor admin org brand in get_user_orgs
+ * Fix external channel bulk sender URL
+ * Send broadcast in the same task as it is created in and JS utility method to format number
+ * Try the variable as a contact uuid and use its contact when building recipients
+ * Fix org lookup, use the same code path for sending a broadcast
+ * Fix broadcast to flow node to consider all current contacts on the the step
+
+v3.0.191
+----------
+ * Update test_db to generate deterministic UUIDs which are also valid UUID4
+
 v3.0.190
 ----------
  * Turn down default courier TPS to 10/s

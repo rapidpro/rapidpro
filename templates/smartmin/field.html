@@ -12,7 +12,7 @@
   <div class="controls">{{ form_field }}
     {% with view|field_help:field as help %}
     {% if help %}
-    <p class="help-block">{{ help }}</p>
+    <p class="help-block">{{ help|safe }}</p>
     {% endif %}
     {% endwith %}
 
