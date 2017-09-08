@@ -1,4 +1,4 @@
-# Generated from ContactSearch.g4 by ANTLR 4.7
+# Generated from ContactQL.g4 by ANTLR 4.7
 # encoding: utf-8
 from __future__ import print_function
 from antlr4 import *
@@ -157,7 +157,7 @@ def serializedATN():
         return buf.getvalue()
 
 
-class ContactSearchLexer(Lexer):
+class ContactQLLexer(Lexer):
 
     atn = ATNDeserializer().deserialize(serializedATN())
 
@@ -189,10 +189,10 @@ class ContactSearchLexer(Lexer):
                   u"UnicodeClass_LU", u"UnicodeClass_LL", u"UnicodeClass_LT", 
                   u"UnicodeClass_LM", u"UnicodeClass_LO", u"UnicodeDigit" ]
 
-    grammarFileName = u"ContactSearch.g4"
+    grammarFileName = u"ContactQL.g4"
 
     def __init__(self, input=None, output=sys.stdout):
-        super(ContactSearchLexer, self).__init__(input, output=output)
+        super(ContactQLLexer, self).__init__(input, output=output)
         self.checkVersion("4.7")
         self._interp = LexerATNSimulator(self, self.atn, self.decisionsToDFA, PredictionContextCache())
         self._actions = None

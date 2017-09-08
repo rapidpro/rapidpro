@@ -485,7 +485,7 @@ class SinglePropCombination(BoolCombination):
         return '%s[%s](%s)' % (op, self.prop, ', '.join(['%s%s' % (c.comparator, c.value) for c in self.children]))
 
 
-class ContactSearchVisitor(ParseTreeVisitor):
+class ContactQLVisitor(ParseTreeVisitor):
 
     def visitParse(self, ctx):
         return self.visit(ctx.expression())
@@ -548,13 +548,13 @@ class ContactSearchVisitor(ParseTreeVisitor):
 
 
 def parse_query(text, optimize=True):
-    from .gen.ContactSearchLexer import ContactSearchLexer
-    from .gen.ContactSearchParser import ContactSearchParser
+    from .gen.ContactQLLexer import ContactQLLexer
+    from .gen.ContactQLParser import ContactQLParser
 
     stream = InputStream(text)
-    lexer = ContactSearchLexer(stream)
+    lexer = ContactQLLexer(stream)
     tokens = CommonTokenStream(lexer)
-    parser = ContactSearchParser(tokens)
+    parser = ContactQLParser(tokens)
     parser._errHandler = BailErrorStrategy()
 
     try:
@@ -563,7 +563,7 @@ def parse_query(text, optimize=True):
         message = None
         if ex.args and isinstance(ex.args[0], NoViableAltException):
             token = ex.args[0].offendingToken
-            if token is not None and token.type != ContactSearchParser.EOF:
+            if token is not None and token.type != ContactQLParser.EOF:
                 message = "Search query contains an error at: %s" % token.text
 
         if message is None:
@@ -571,7 +571,7 @@ def parse_query(text, optimize=True):
 
         raise SearchException(message)
 
-    visitor = ContactSearchVisitor()
+    visitor = ContactQLVisitor()
 
     query = ContactQuery(visitor.visit(tree))
     return query.optimized() if optimize else query
