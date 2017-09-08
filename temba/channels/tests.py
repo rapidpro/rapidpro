@@ -1817,7 +1817,7 @@ class ChannelTest(TembaTest):
         response = self.client.post(claim_url, dict(number=21586380, app_id="AppId", app_secret="AppSecret", passphrase="Passphrase"), follow=True)
         self.assertEqual(200, response.status_code)
 
-        channel = Channel.objects.get(channel_type=Channel.TYPE_GLOBE)
+        channel = Channel.objects.get(channel_type='GL')
         self.assertEqual('21586380', channel.address)
         self.assertEqual('PH', channel.country)
         config = channel.config_json()

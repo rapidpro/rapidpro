@@ -272,7 +272,6 @@ class Channel(TembaModel):
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
-        TYPE_GLOBE: dict(schemes=['tel'], max_length=160),
         TYPE_HIGH_CONNECTION: dict(schemes=['tel'], max_length=1500),
         TYPE_HUB9: dict(schemes=['tel'], max_length=1600),
         TYPE_JASMIN: dict(schemes=['tel'], max_length=1600),
@@ -302,7 +301,6 @@ class Channel(TembaModel):
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
                     (TYPE_CHIKKA, "Chikka"),
                     (TYPE_DUMMY, "Dummy"),
-                    (TYPE_GLOBE, "Globe Labs"),
                     (TYPE_HIGH_CONNECTION, "High Connection"),
                     (TYPE_HUB9, "Hub9"),
                     (TYPE_JASMIN, "Jasmin"),
@@ -1998,45 +1996,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_globe_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        payload = {
-            'address': msg.urn_path.lstrip('+'),
-            'message': text,
-            'passphrase': channel.config['passphrase'],
-            'app_id': channel.config['app_id'],
-            'app_secret': channel.config['app_secret']
-        }
-        headers = dict(TEMBA_HEADERS)
-
-        url = 'https://devapi.globelabs.com.ph/smsmessaging/v1/outbound/%s/requests' % channel.address
-
-        event = HttpEvent('POST', url, json.dumps(payload))
-
-        start = time.time()
-
-        try:
-            response = requests.post(url,
-                                     data=payload,
-                                     headers=headers,
-                                     timeout=5)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code != 200 and response.status_code != 201:
-            raise SendException("Got non-200 response [%d] from API" % response.status_code,
-                                event=event, start=start)
-
-        # parse our response
-        response.json()
-
-        Channel.success(channel, msg, WIRED, start, event=event)
-
-    @classmethod
     def send_nexmo_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
         from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
@@ -2631,7 +2590,6 @@ STATUS_FULL = "FUL"
 
 SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
-                  Channel.TYPE_GLOBE: Channel.send_globe_message,
                   Channel.TYPE_HIGH_CONNECTION: Channel.send_high_connection_message,
                   Channel.TYPE_HUB9: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_JASMIN: Channel.send_jasmin_message,
