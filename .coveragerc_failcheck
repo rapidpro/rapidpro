@@ -21,6 +21,7 @@ exclude_lines =
 
 omit =
     */migrations/*
+    */gen/*
     */tests*,
     *__init__*,
     *settings*,
