@@ -35,9 +35,6 @@ class MageClient(object):  # pragma: needs cover
     def activate_twitter_stream(self, channel_uuid):
         return self._request('POST', 'twitter', {'uuid': channel_uuid})
 
-    def refresh_twitter_stream(self, channel_uuid):
-        return self._request('POST', 'twitter/%s' % channel_uuid)
-
     def deactivate_twitter_stream(self, channel_uuid):
         return self._request('DELETE', 'twitter/%s' % channel_uuid)
 
@@ -74,9 +71,9 @@ class MageClient(object):  # pragma: needs cover
             return ''
 
 
-def mage_handle_new_message(org, msg):
+def handle_new_message(org, msg):
     """
-    Messages created Mage are only saved to the database. Here we take care of the other stuff
+    Messages created by mage or courier are only saved to the database. Here we take care of the other stuff
     """
     # Mage no longer assigns topups
     if not msg.topup_id:
@@ -89,9 +86,9 @@ def mage_handle_new_message(org, msg):
     analytics.gauge('temba.msg_incoming_%s' % msg.channel.channel_type.lower())
 
 
-def mage_handle_new_contact(org, contact):
+def handle_new_contact(org, contact):
     """
-    Contacts created Mage are only saved to the database. Here we take care of the other stuff
+    Contacts created by mage or courier are only saved to the database. Here we take care of the other stuff
     """
     # possible to have dynamic groups based on name
     contact.handle_update(attrs=('name',))

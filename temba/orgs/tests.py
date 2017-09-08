@@ -5,6 +5,7 @@ import json
 import nexmo
 import pytz
 import six
+import stripe
 
 from bs4 import BeautifulSoup
 from context_processors import GroupPermWrapper
@@ -25,7 +26,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME
 from temba.flows.models import Flow, ActionSet
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
@@ -118,7 +119,7 @@ class OrgTest(TembaTest):
                                                                  currency_name='US Dollar', currency_code='USD')])
 
         Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
-                       address="billy_bob", role="SR", scheme='twitter')
+                       address="billy_bob", role="SR")
 
         self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
                                                                  currency_code='RWF'),
@@ -1161,100 +1162,85 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_org_tier())
 
     @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_twilio_connect(self):
-
         with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get:
-            with patch('temba.tests.MockTwilioClient.MockApplications.list') as mock_apps_list:
+            mock_get.return_value = MockTwilioClient.MockAccount('Full')
 
-                org = self.org
+            connect_url = reverse("orgs.org_twilio_connect")
 
-                connect_url = reverse("orgs.org_twilio_connect")
+            self.login(self.admin)
+            self.admin.set_org(self.org)
 
-                self.login(self.admin)
-                self.admin.set_org(self.org)
+            response = self.client.get(connect_url)
+            self.assertEquals(200, response.status_code)
+            self.assertEqual(list(response.context['form'].fields.keys()), ['account_sid', 'account_token', 'loc'])
 
-                response = self.client.get(connect_url)
-                self.assertEquals(200, response.status_code)
-                self.assertTrue(response.context['form'])
-                self.assertEquals(len(response.context['form'].fields.keys()), 3)
-                self.assertIn('account_sid', response.context['form'].fields.keys())
-                self.assertIn('account_token', response.context['form'].fields.keys())
+            # try posting without an account token
+            post_data = {'account_sid': "AccountSid"}
+            response = self.client.post(connect_url, post_data)
+            self.assertFormError(response, 'form', 'account_token', 'This field is required.')
 
-                mock_get.return_value = MockTwilioClient.MockAccount('Full')
-                mock_apps_list.return_value = [MockTwilioClient.MockApplication("%s/%d" % (settings.TEMBA_HOST.lower(),
-                                                                                           self.org.pk))]
+            # now add the account token and try again
+            post_data['account_token'] = "AccountToken"
 
-                # try posting without an account token
-                post_data = dict()
-                post_data['account_sid'] = "AccountSid"
+            # but with an unexpected exception
+            with patch('temba.tests.MockTwilioClient.__init__') as mock:
+                mock.side_effect = Exception('Unexpected')
                 response = self.client.post(connect_url, post_data)
-                self.assertEquals(response.context['form'].errors['account_token'][0], 'This field is required.')
+                self.assertFormError(response, 'form', '__all__', 'The Twilio account SID and Token seem invalid. '
+                                                                  'Please check them again and retry.')
 
-                # now add the account token and try again
-                post_data['account_token'] = "AccountToken"
+            self.client.post(connect_url, post_data)
 
-                # but with an unexpected exception
-                with patch('temba.tests.MockTwilioClient.__init__') as mock:
-                    mock.side_effect = Exception('Unexpected')
-                    response = self.client.post(connect_url, post_data)
-                    self.assertEquals('The Twilio account SID and Token seem invalid. '
-                                      'Please check them again and retry.',
-                                      response.context['form'].errors['__all__'][0])
+            self.org.refresh_from_db()
+            self.assertEquals(self.org.config_json()['ACCOUNT_SID'], "AccountSid")
+            self.assertEquals(self.org.config_json()['ACCOUNT_TOKEN'], "AccountToken")
+
+            # when the user submit the secondary token, we use it to get the primary one from the rest API
+            with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get_primary:
+                mock_get_primary.return_value = MockTwilioClient.MockAccount('Full', 'PrimaryAccountToken')
 
                 self.client.post(connect_url, post_data)
-                org.refresh_from_db()
-                self.assertEquals(org.config_json()['ACCOUNT_SID'], "AccountSid")
-                self.assertEquals(org.config_json()['ACCOUNT_TOKEN'], "AccountToken")
-                self.assertTrue(org.config_json()['APPLICATION_SID'])
+                self.org.refresh_from_db()
+                self.assertEquals(self.org.config_json()['ACCOUNT_SID'], "AccountSid")
+                self.assertEquals(self.org.config_json()['ACCOUNT_TOKEN'], "PrimaryAccountToken")
 
-                # when the user submit the secondary token, we use it to get the primary one from the rest API
-                with patch('temba.tests.MockTwilioClient.MockAccounts.get') as mock_get_primary:
-                    mock_get_primary.return_value = MockTwilioClient.MockAccount('Full', 'PrimaryAccountToken')
+                twilio_account_url = reverse('orgs.org_twilio_account')
+                response = self.client.get(twilio_account_url)
+                self.assertEquals("AccountSid", response.context['account_sid'])
 
-                    self.client.post(connect_url, post_data)
-                    org.refresh_from_db()
-                    self.assertEquals(org.config_json()['ACCOUNT_SID'], "AccountSid")
-                    self.assertEquals(org.config_json()['ACCOUNT_TOKEN'], "PrimaryAccountToken")
-                    self.assertTrue(org.config_json()['APPLICATION_SID'])
+                self.org.refresh_from_db()
+                config = self.org.config_json()
+                self.assertEquals('AccountSid', config['ACCOUNT_SID'])
+                self.assertEquals('PrimaryAccountToken', config['ACCOUNT_TOKEN'])
 
-                    twilio_account_url = reverse('orgs.org_twilio_account')
-                    response = self.client.get(twilio_account_url)
-                    self.assertEquals("AccountSid", response.context['account_sid'])
+                # post without a sid or token, should get a form validation error
+                response = self.client.post(twilio_account_url, dict(disconnect='false'), follow=True)
+                self.assertEquals('[{"message": "You must enter your Twilio Account SID", "code": ""}]',
+                                  response.context['form'].errors['__all__'].as_json())
 
-                    org.refresh_from_db()
-                    config = org.config_json()
-                    self.assertEquals('AccountSid', config['ACCOUNT_SID'])
-                    self.assertEquals('PrimaryAccountToken', config['ACCOUNT_TOKEN'])
+                # all our twilio creds should remain the same
+                self.org.refresh_from_db()
+                config = self.org.config_json()
+                self.assertEquals(config['ACCOUNT_SID'], "AccountSid")
+                self.assertEquals(config['ACCOUNT_TOKEN'], "PrimaryAccountToken")
 
-                    # post without a sid or token, should get a form validation error
-                    response = self.client.post(twilio_account_url, dict(disconnect='false'), follow=True)
-                    self.assertEquals('[{"message": "You must enter your Twilio Account SID", "code": ""}]',
-                                      response.context['form'].errors['__all__'].as_json())
+                # now try with all required fields, and a bonus field we shouldn't change
+                self.client.post(twilio_account_url, dict(account_sid='AccountSid',
+                                                          account_token='SecondaryToken',
+                                                          disconnect='false',
+                                                          name='DO NOT CHANGE ME'), follow=True)
+                # name shouldn't change
+                self.org.refresh_from_db()
+                self.assertEquals(self.org.name, "Temba")
 
-                    # all our twilio creds should remain the same
-                    org.refresh_from_db()
-                    config = org.config_json()
-                    self.assertEquals(config['ACCOUNT_SID'], "AccountSid")
-                    self.assertEquals(config['ACCOUNT_TOKEN'], "PrimaryAccountToken")
-                    self.assertEquals(config['APPLICATION_SID'], "TwilioTestSid")
+                # now disconnect our twilio connection
+                self.assertTrue(self.org.is_connected_to_twilio())
+                self.client.post(twilio_account_url, dict(disconnect='true', follow=True))
 
-                    # now try with all required fields, and a bonus field we shouldn't change
-                    self.client.post(twilio_account_url, dict(account_sid='AccountSid',
-                                                              account_token='SecondaryToken',
-                                                              disconnect='false',
-                                                              name='DO NOT CHANGE ME'), follow=True)
-                    # name shouldn't change
-                    org.refresh_from_db()
-                    self.assertEquals(org.name, "Temba")
-
-                    # now disconnect our twilio connection
-                    self.assertTrue(org.is_connected_to_twilio())
-                    self.client.post(twilio_account_url, dict(disconnect='true', follow=True))
-
-                    org.refresh_from_db()
-                    self.assertFalse(org.is_connected_to_twilio())
+                self.org.refresh_from_db()
+                self.assertFalse(self.org.is_connected_to_twilio())
 
     def test_has_airtime_transfers(self):
         AirtimeTransfer.objects.filter(org=self.org).delete()
@@ -1363,6 +1349,60 @@ class OrgTest(TembaTest):
         response = self.client.get(transferto_account_url, HTTP_X_FORMAX=True)
         self.assertContains(response, reverse('airtime.airtimetransfer_list'))
         self.assertContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
+
+    def test_chatbase_account(self):
+        self.login(self.admin)
+
+        self.org.refresh_from_db()
+        self.assertEquals((None, None), self.org.get_chatbase_credentials())
+
+        chatbase_account_url = reverse('orgs.org_chatbase')
+        response = self.client.get(chatbase_account_url)
+        self.assertContains(response, 'Chatbase')
+
+        payload = dict(version='1.0', not_handled=True, feedback=False, disconnect='false')
+
+        response = self.client.post(chatbase_account_url, payload, follow=True)
+        self.assertContains(response, "Missing data: Agent Name or API Key.Please check them again and retry.")
+        self.assertEquals((None, None), self.org.get_chatbase_credentials())
+
+        payload.update(dict(api_key='api_key', agent_name='chatbase_agent', type='user'))
+
+        self.client.post(chatbase_account_url, payload, follow=True)
+
+        self.org.refresh_from_db()
+        self.assertEquals(('api_key', '1.0'), self.org.get_chatbase_credentials())
+
+        self.assertEquals(self.org.config_json()['CHATBASE_API_KEY'], 'api_key')
+        self.assertEquals(self.org.config_json()['CHATBASE_AGENT_NAME'], 'chatbase_agent')
+        self.assertEquals(self.org.config_json()['CHATBASE_VERSION'], '1.0')
+
+        with self.assertRaises(Exception):
+            contact = self.create_contact('Anakin Skywalker', '+12067791212')
+            msg = self.create_msg(contact=contact, text="favs")
+            Msg.process_message(msg)
+
+        with self.settings(SEND_CHATBASE=True):
+            contact = self.create_contact('Anakin Skywalker', '+12067791212')
+            msg = self.create_msg(contact=contact, text="favs")
+            Msg.process_message(msg)
+
+        org_home_url = reverse('orgs.org_home')
+
+        response = self.client.get(org_home_url)
+        self.assertContains(response, self.org.config_json()['CHATBASE_AGENT_NAME'])
+
+        payload.update(dict(disconnect='true'))
+
+        self.client.post(chatbase_account_url, payload, follow=True)
+
+        self.org.refresh_from_db()
+        self.assertEquals((None, None), self.org.get_chatbase_credentials())
+
+        with self.settings(SEND_CHATBASE=True):
+            contact = self.create_contact('Anakin Skywalker', '+12067791212')
+            msg = self.create_msg(contact=contact, text="favs")
+            Msg.process_message(msg)
 
     def test_resthooks(self):
         # no hitting this page without auth
@@ -1486,6 +1526,31 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertEquals(self.org.name, "Temba")
         self.assertTrue(self.org.has_smtp_config())
+
+        self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
+                                               smtp_host='smtp.example.com',
+                                               smtp_username='support@example.com',
+                                               smtp_password='',
+                                               smtp_port='465',
+                                               smtp_encryption='T',
+                                               disconnect='false'), follow=True)
+
+        # password shouldn't change
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.has_smtp_config())
+        self.assertEquals(self.org.config_json()['SMTP_PASSWORD'], 'secret')
+
+        response = self.client.post(smtp_server_url, dict(smtp_from_email='support@example.com',
+                                                          smtp_host='smtp.example.com',
+                                                          smtp_username='help@example.com',
+                                                          smtp_password='',
+                                                          smtp_port='465',
+                                                          smtp_encryption='T',
+                                                          disconnect='false'), follow=True)
+
+        # should have error for blank password
+        self.assertEquals('[{"message": "You must enter the SMTP password", "code": ""}]',
+                          response.context['form'].errors['__all__'].as_json())
 
         self.client.post(smtp_server_url, dict(disconnect='true'), follow=True)
 
@@ -1888,8 +1953,6 @@ class AnonOrgTest(TembaTest):
         self.org.save()
 
     def test_contacts(self):
-        from temba.contacts.models import ContactURN
-
         # are there real phone numbers on the contact list page?
         contact = self.create_contact(None, "+250788123123")
         self.login(self.admin)
@@ -1912,7 +1975,7 @@ class AnonOrgTest(TembaTest):
         self.assertNotContains(response, "123123")
 
         # create a flow
-        flow = self.create_flow()
+        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
 
         # start the contact down it
         flow.start([], [contact])
@@ -1926,13 +1989,13 @@ class AnonOrgTest(TembaTest):
         self.assertNotContains(response, "788 123 123")
 
         # create an incoming SMS, check our flow page
-        Msg.create_incoming(self.channel, contact.get_urn().urn, "Blue")
+        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Blue")
         response = self.client.get(reverse('msgs.msg_flow'))
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
 
         # send another, this will be in our inbox this time
-        Msg.create_incoming(self.channel, contact.get_urn().urn, "Where's the beef?")
+        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Where's the beef?")
         response = self.client.get(reverse('msgs.msg_flow'))
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
@@ -2209,10 +2272,10 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a twitter channel
-        Channel.create(self.org, self.user, None, Channel.TYPE_TWITTER, "Twitter")
+        Channel.create(self.org, self.user, None, 'TT', "Twitter")
         self.org = Org.objects.get(pk=self.org.id)
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
+        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
     def test_login_case_not_sensitive(self):
         login_url = reverse('users.user_login')
@@ -2369,7 +2432,7 @@ class LanguageTest(TembaTest):
         self.assertEquals('French, Old (842-ca.1400)', matches[3]['text'])
 
         # try a language that doesn't exist
-        self.assertEquals(None, languages.get_language_name('klingon'))
+        self.assertEquals(None, languages.get_language_name('xyz'))
 
     def test_get_localized_text(self):
         text_translations = dict(eng="Hello", esp="Hola")
@@ -2976,7 +3039,7 @@ class EmailContextProcessorsTest(SmartminTest):
             self.assertTrue('app.rapidpro.io' in sent_email.body)
 
 
-class TestStripeCredits(TembaTest):
+class StripeCreditsTest(TembaTest):
 
     @patch('stripe.Customer.create')
     @patch('stripe.Charge.create')
@@ -3065,10 +3128,14 @@ class TestStripeCredits(TembaTest):
         self.assertEqual(1, self.org.topups.all().count())
         self.assertEqual(1000, self.org.get_credits_total())
 
+    @patch('stripe.Customer.create')
     @patch('stripe.Customer.retrieve')
     @patch('stripe.Charge.create')
     @override_settings(SEND_EMAILS=True)
-    def test_add_credits_existing_customer(self, charge_create, customer_retrieve):
+    def test_add_credits_existing_customer(self, charge_create, customer_retrieve, customer_create):
+        self.admin2 = self.create_user("Administrator 2")
+        self.org.administrators.add(self.admin2)
+
         self.org.stripe_customer = 'stripe-cust-1'
         self.org.save()
 
@@ -3080,21 +3147,30 @@ class TestStripeCredits(TembaTest):
                 pass
 
         class MockCards(object):
+            def __init__(self):
+                self.throw = False
+
             def all(self):
                 return dict_to_struct('MockCardData', dict(data=[MockCard(), MockCard()]))
 
             def create(self, card):
-                return MockCard()
+                if self.throw:
+                    raise stripe.CardError("Card declined", None, 400)
+                else:
+                    return MockCard()
 
         class MockCustomer(object):
-            def __init__(self):
-                self.id = 'stripe-cust-1'
+            def __init__(self, id, email):
+                self.id = id
+                self.email = email
                 self.cards = MockCards()
 
             def save(self):
                 pass
 
-        customer_retrieve.return_value = MockCustomer()
+        customer_retrieve.return_value = MockCustomer(id='stripe-cust-1', email=self.admin.email)
+        customer_create.return_value = MockCustomer(id='stripe-cust-2', email=self.admin2.email)
+
         charge_create.return_value = \
             dict_to_struct('Charge', dict(id='stripe-charge-1',
                                           card=dict_to_struct('Card', dict(last4='1234', type='Visa', name='Rudolph'))))
@@ -3112,13 +3188,29 @@ class TestStripeCredits(TembaTest):
         org = Org.objects.get(id=self.org.id)
         self.assertEqual('stripe-cust-1', org.stripe_customer)
 
-        # assert we sent our confirmation emai
+        # assert we sent our confirmation email
         self.assertEqual(1, len(mail.outbox))
         email = mail.outbox[0]
         self.assertEquals("RapidPro Receipt", email.subject)
         self.assertTrue('Rudolph' in email.body)
         self.assertTrue('Visa' in email.body)
         self.assertTrue('$20' in email.body)
+
+        # try with an invalid card
+        customer_retrieve.return_value.cards.throw = True
+        try:
+            self.org.add_credits('2000', 'stripe-token', self.admin)
+            self.fail("should have thrown")
+        except ValidationError as e:
+            self.assertEqual("Sorry, your card was declined, please contact your provider or try another card.", e.message)
+
+        # do it again with a different user, should create a new stripe customer
+        self.org.add_credits('2000', 'stripe-token', self.admin2)
+        self.assertTrue(4000, self.org.get_credits_total())
+
+        # should have a different customer now
+        org = Org.objects.get(id=self.org.id)
+        self.assertEqual('stripe-cust-2', org.stripe_customer)
 
 
 class ParsingTest(TembaTest):

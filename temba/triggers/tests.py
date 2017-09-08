@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import six
 import time
 import json
 from uuid import uuid4
@@ -8,6 +9,7 @@ from uuid import uuid4
 from mock import patch
 from datetime import timedelta
 from django.core.urlresolvers import reverse
+from django.test import override_settings
 from django.utils import timezone
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME, Contact
@@ -232,7 +234,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         response = self.client.post(create_url, post_data)
-        self.assertEquals(response.context['form'].errors.keys(), ['referrer_id', 'flow'])
+        self.assertEquals(response.context['form'].errors.keys(), ['flow'])
 
         # ok, valid referrer id and flow
         post_data = dict(flow=flow.id, referrer_id='signup')
@@ -244,6 +246,11 @@ class TriggerTest(TembaTest):
         self.assertEqual(first_trigger.trigger_type, Trigger.TYPE_REFERRAL)
         self.assertEqual(first_trigger.flow, flow)
         self.assertIsNone(first_trigger.channel)
+
+        # empty referrer_id should create the trigger
+        post_data = dict(flow=flow.id, referrer_id='')
+        response = self.client.post(create_url, post_data)
+        self.assertNoFormErrors(response)
 
         # try to create the same trigger, should fail as we can only have one per referrer
         post_data = dict(flow=flow.id, referrer_id='signup')
@@ -536,6 +543,11 @@ class TriggerTest(TembaTest):
         self.login(self.admin)
         group = self.create_group(name='Chat', contacts=[])
 
+        # no keyword must show validation error
+        post_data = dict(action_join_group=group.pk, keyword='@#$')
+        response = self.client.post(reverse("triggers.trigger_register"), data=post_data)
+        self.assertEquals(1, len(response.context['form'].errors))
+
         # create a trigger that sets up a group join flow
         post_data = dict(action_join_group=group.pk, keyword=u'١٠٠')
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
@@ -589,7 +601,7 @@ class TriggerTest(TembaTest):
 
         self.assertFalse(missed_call_trigger)
 
-        ChannelEvent.create(self.channel, contact.get_urn(TEL_SCHEME).urn, ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
+        ChannelEvent.create(self.channel, six.text_type(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
         self.assertEqual(ChannelEvent.objects.all().count(), 1)
         self.assertEqual(flow.runs.all().count(), 0)
 
@@ -610,7 +622,7 @@ class TriggerTest(TembaTest):
 
         self.assertEquals(missed_call_trigger.pk, trigger.pk)
 
-        ChannelEvent.create(self.channel, contact.get_urn(TEL_SCHEME).urn, ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
+        ChannelEvent.create(self.channel, six.text_type(contact.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
         self.assertEqual(ChannelEvent.objects.all().count(), 2)
         self.assertEqual(flow.runs.all().count(), 1)
         self.assertEqual(flow.runs.all()[0].contact.pk, contact.pk)
@@ -656,7 +668,7 @@ class TriggerTest(TembaTest):
         self.assertNotContains(response, "conversation is started")
 
         # add a viber public channel
-        viber_channel = Channel.create(self.org, self.user, None, Channel.TYPE_VIBER_PUBLIC, None, '1001',
+        viber_channel = Channel.create(self.org, self.user, None, 'VP', None, '1001',
                                        uuid='00000000-0000-0000-0000-000000001234',
                                        config={Channel.CONFIG_AUTH_TOKEN: "auth_token"})
 
@@ -669,7 +681,8 @@ class TriggerTest(TembaTest):
         self.assertTrue(viber_channel in response.context['form'].fields['channel'].queryset.all())
 
         # create a facebook channel
-        fb_channel = Channel.add_facebook_channel(self.org, self.user, 'Temba', 1001, 'fb_token')
+        fb_channel = Channel.create(self.org, self.user, None, 'FB', address='1001',
+                                    config={'page_name': "Temba", 'auth_token': 'fb_token'})
 
         response = self.client.get(reverse('triggers.trigger_new_conversation', args=[]))
         self.assertEqual(response.context['form'].fields['channel'].queryset.count(), 2)
@@ -690,7 +703,19 @@ class TriggerTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response, 'form', 'channel', 'Trigger with this Channel already exists.')
 
-    def test_new_conversation_trigger(self):
+        # try to change the existing trigger
+        response = self.client.post(reverse('triggers.trigger_update', args=[trigger.id]),
+                                    data=dict(id=trigger.id, flow=flow2.id, channel=viber_channel.id),
+                                    follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        trigger.refresh_from_db()
+        self.assertEqual(flow2, trigger.flow)
+        self.assertEqual(viber_channel, trigger.channel)
+
+    @override_settings(IS_PROD=True)
+    @patch('requests.post')
+    def test_new_conversation_trigger(self, mock_post):
         self.login(self.admin)
         flow = self.create_flow()
         flow2 = self.create_flow()
@@ -701,20 +726,20 @@ class TriggerTest(TembaTest):
         self.assertNotContains(response, "conversation is started")
 
         # create a facebook channel
-        fb_channel = Channel.add_facebook_channel(self.org, self.user, 'Temba', 1001, 'fb_token')
+        fb_channel = Channel.create(self.org, self.user, None, 'FB', address='1001',
+                                    config={'page_name': "Temba", 'auth_token': 'fb_token'})
 
         # should now be able to create one
         response = self.client.get(create_trigger_url)
         self.assertContains(response, "conversation is started")
 
         # go create it
-        with patch('requests.post') as mock_post:
-            mock_post.return_value = MockResponse(200, '{"message": "Success"}')
+        mock_post.return_value = MockResponse(200, '{"message": "Success"}')
 
-            response = self.client.post(reverse('triggers.trigger_new_conversation', args=[]),
-                                        data=dict(channel=fb_channel.id, flow=flow.id))
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(mock_post.call_count, 1)
+        response = self.client.post(reverse('triggers.trigger_new_conversation', args=[]),
+                                    data=dict(channel=fb_channel.id, flow=flow.id))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(mock_post.call_count, 1)
 
         # check that it is right
         trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False)
@@ -763,6 +788,9 @@ class TriggerTest(TembaTest):
             contact = Contact.from_urn(self.org, 'facebook:1001')
             self.assertTrue(contact.name, "Ben Haggerty")
 
+            # and a new channel event for the conversation
+            self.assertTrue(ChannelEvent.objects.filter(channel=fb_channel, contact=contact, event_type=ChannelEvent.TYPE_NEW_CONVERSATION))
+
             run = FlowRun.objects.get(contact=contact)
             self.assertEqual(run.flow, flow)
 
@@ -780,7 +808,7 @@ class TriggerTest(TembaTest):
     def test_catch_all_trigger(self):
         self.login(self.admin)
         catch_all_trigger = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_CATCH_ALL).first()
-        flow = self.create_flow()
+        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
 
         contact = self.create_contact("Ali", "250788739305")
 
@@ -793,7 +821,7 @@ class TriggerTest(TembaTest):
 
         self.assertFalse(catch_all_trigger)
 
-        Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
+        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hi")
         self.assertEquals(1, Msg.objects.all().count())
         self.assertEquals(0, flow.runs.all().count())
 
@@ -814,7 +842,7 @@ class TriggerTest(TembaTest):
 
         self.assertEquals(catch_all_trigger.pk, trigger.pk)
 
-        incoming = Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
+        incoming = Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hi")
         self.assertEquals(1, flow.runs.all().count())
         self.assertEquals(flow.runs.all()[0].contact.pk, contact.pk)
         reply = Msg.objects.get(response_to=incoming)
@@ -883,7 +911,7 @@ class TriggerTest(TembaTest):
         FlowRun.objects.all().delete()
         Msg.objects.all().delete()
 
-        incoming = Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
+        incoming = Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hi")
         self.assertEquals(0, FlowRun.objects.all().count())
         self.assertFalse(Msg.objects.filter(response_to=incoming))
 
@@ -891,7 +919,7 @@ class TriggerTest(TembaTest):
         group.contacts.add(contact)
 
         # this time should trigger the flow
-        incoming = Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
+        incoming = Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hi")
         self.assertEquals(1, FlowRun.objects.all().count())
         self.assertEquals(other_flow.runs.all()[0].contact.pk, contact.pk)
         reply = Msg.objects.get(response_to=incoming)
@@ -938,6 +966,11 @@ class TriggerTest(TembaTest):
         self.assertEquals(len(response.context['form'].fields), 5)
 
         group = self.create_group("first", [])
+
+        # show validation error if keyword is None or not defined
+        post_data = dict(flow=flow.id, match_type='O', groups=[group.id])
+        response = self.client.post(update_url, post_data, follow=True)
+        self.assertEquals(1, len(response.context['form'].errors))
 
         post_data = dict(keyword='koko', flow=flow.id, match_type='O', groups=[group.id])
         self.client.post(update_url, post_data, follow=True)
@@ -1081,7 +1114,7 @@ class TriggerTest(TembaTest):
 
     def test_export_import(self):
         # tweak our current channel to be twitter so we can create a channel-based trigger
-        Channel.objects.filter(id=self.channel.id).update(channel_type=Channel.TYPE_TWITTER)
+        Channel.objects.filter(id=self.channel.id).update(channel_type='TT')
         flow = self.create_flow()
 
         group = self.create_group("Trigger Group", [])
@@ -1151,8 +1184,8 @@ class TriggerTest(TembaTest):
         post_data = dict(channel=channel.pk, keyword='*111#', flow=flow.pk)
         response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
         self.assertEquals(1, len(response.context['form'].errors))
-        self.assertEquals(response.context['form'].errors['keyword'],
-                          [u'An active trigger already uses this keyword on this channel.'])
+        self.assertEquals(response.context['form'].errors['__all__'],
+                          [u'An active trigger already exists, triggers must be unique for each group'])
 
         # different code on same channel should work
         post_data = dict(channel=channel.pk, keyword='*112#', flow=flow.pk)

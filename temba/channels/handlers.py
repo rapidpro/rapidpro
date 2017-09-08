@@ -17,26 +17,27 @@ from django.core.files.temp import NamedTemporaryFile
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
+from django.utils.crypto import constant_time_compare
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from django_redis import get_redis_connection
-from guardian.utils import get_anonymous_user
 from requests import Request
 from temba.api.models import WebHookEvent
-from temba.channels.models import Channel, ChannelLog
+from temba.channels.models import Channel, ChannelLog, ChannelEvent
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, OUTGOING
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
-from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit
+from temba.utils import decode_base64, get_anonymous_user, json_date_to_datetime, ms_to_datetime, on_transaction_commit
 from temba.utils.queues import push_task
 from temba.utils.http import HttpEvent
-from temba.utils import decode_base64
+from temba.utils.jiochat import JiochatClient
+from temba.utils.twitter import generate_twitter_signature
 from twilio import twiml
-from .tasks import fb_channel_subscribe
+from .tasks import fb_channel_subscribe, refresh_jiochat_access_tokens
 
 
 class BaseChannelHandler(View):
@@ -87,11 +88,13 @@ class TwimlAPIHandler(BaseChannelHandler):
 
     def post(self, request, *args, **kwargs):
         from twilio.util import RequestValidator
+        from temba.flows.models import FlowSession
         from temba.msgs.models import Msg
 
         signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
         url = "https://" + settings.TEMBA_HOST + "%s" % request.get_full_path()
 
+        channel_uuid = kwargs.get('uuid')
         call_sid = self.get_param('CallSid')
         direction = self.get_param('Direction')
         status = self.get_param('CallStatus')
@@ -107,7 +110,7 @@ class TwimlAPIHandler(BaseChannelHandler):
         if to_number and call_sid and direction == 'inbound' and status == 'ringing':
 
             # find a channel that knows how to answer twilio calls
-            channel = self.get_ringing_channel(to_number=to_number)
+            channel = self.get_ringing_channel(uuid=channel_uuid)
             if not channel:
                 response = twiml.Response()
                 response.say('Sorry, there is no channel configured to take this call. Goodbye.')
@@ -137,13 +140,14 @@ class TwimlAPIHandler(BaseChannelHandler):
 
                 if flow:
                     call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, call_sid)
+                    session = FlowSession.create(contact, connection=call)
 
                     call.update_status(request.POST.get('CallStatus', None),
                                        request.POST.get('CallDuration', None),
                                        Channel.TYPE_TWILIO)
                     call.save()
 
-                    FlowRun.create(flow, contact.pk, session=call)
+                    FlowRun.create(flow, contact.pk, session=session, connection=call)
                     response = Flow.handle_call(call)
                     return HttpResponse(six.text_type(response))
 
@@ -165,7 +169,6 @@ class TwimlAPIHandler(BaseChannelHandler):
                     return HttpResponse(six.text_type(response))
 
         action = request.GET.get('action', 'received')
-        channel_uuid = kwargs.get('uuid')
 
         # check for call progress events, these include post-call hangup notifications
         if request.POST.get('CallbackSource', None) == 'call-progress-events':
@@ -221,7 +224,7 @@ class TwimlAPIHandler(BaseChannelHandler):
             if not to_number:
                 return HttpResponse("Must provide To number for received messages", status=400)
 
-            channel = self.get_receive_channel(channel_uuid=channel_uuid, to_number=to_number)
+            channel = self.get_receive_channel(uuid=channel_uuid)
             if not channel:
                 return HttpResponse("No active channel found for number: %s" % to_number, status=400)
 
@@ -236,29 +239,26 @@ class TwimlAPIHandler(BaseChannelHandler):
             if not validator.validate(url, request.POST, signature):
                 return HttpResponse("Invalid request signature.", status=400)
 
-            body = request.POST['Body']
+            # Twilio sometimes sends concat sms as base64 encoded MMS
+            body = decode_base64(request.POST['Body'])
             urn = URN.from_tel(request.POST['From'])
+            attachments = []
 
-            # process any attached media
+            # download any attached media
             for i in range(int(request.POST.get('NumMedia', 0))):
-                media_url = client.download_media(request.POST['MediaUrl%d' % i])
-                path = media_url.partition(':')[2]
-                Msg.create_incoming(channel, urn, path, attachments=[media_url])
+                attachments.append(client.download_media(request.POST['MediaUrl%d' % i]))
 
-            if body:
-                # Twilio sometimes sends concat sms as base64 encoded MMS
-                body = decode_base64(body)
-                Msg.create_incoming(channel, urn, body)
+            Msg.create_incoming(channel, urn, body, attachments=attachments)
 
             return HttpResponse("", status=201)
 
         return HttpResponse("Not Handled, unknown action", status=400)  # pragma: no cover
 
-    def get_ringing_channel(self, to_number):
-        return Channel.objects.filter(address=to_number, channel_type=self.get_channel_type(), role__contains='A', is_active=True).exclude(org=None).first()
+    def get_ringing_channel(self, uuid):
+        return Channel.objects.filter(uuid=uuid, channel_type=self.get_channel_type(), role__contains='A', is_active=True).exclude(org=None).first()
 
-    def get_receive_channel(self, channel_uuid=None, to_number=None):
-        return Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
+    def get_receive_channel(self, uuid=None):
+        return Channel.objects.filter(uuid=uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
 
     def get_client(self, channel):
         if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
@@ -272,11 +272,8 @@ class TwimlAPIHandler(BaseChannelHandler):
 
 class TwilioHandler(TwimlAPIHandler):
 
-    url = r'^twilio/$'
+    url = r'^twilio/(?P<action>receive|status|voice)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.twilio_handler'
-
-    def get_receive_channel(self, channel_uuid=None, to_number=None):
-        return Channel.objects.filter(address=to_number, is_active=True).exclude(org=None).first()
 
     def get_channel_type(self):
         return Channel.TYPE_TWILIO
@@ -452,7 +449,7 @@ class ExternalHandler(BaseChannelHandler):
     url_name = 'handlers.external_handler'
 
     def get_channel_type(self):
-        return Channel.TYPE_EXTERNAL
+        return 'EX'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -512,7 +509,7 @@ class ExternalHandler(BaseChannelHandler):
                 except ValueError as e:
                     return HttpResponse("Bad parameter error: %s" % e.message, status=400)
 
-            urn = URN.from_parts(channel.scheme, sender)
+            urn = URN.from_parts(channel.schemes[0], sender)
             sms = Msg.create_incoming(channel, urn, text, date=date)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
@@ -570,7 +567,7 @@ class TelegramHandler(BaseChannelHandler):
                     try:
                         m = magic.Magic(mime=True)
                         content_type = m.from_buffer(response.content)
-                    except:  # pragma: no cover
+                    except Exception:  # pragma: no cover
                         pass
 
                     # fallback on the content type in our response header
@@ -603,7 +600,7 @@ class TelegramHandler(BaseChannelHandler):
             ChannelLog.log_message(msg, description, event)
 
         channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_TELEGRAM).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='TG').exclude(org=None).first()
 
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
@@ -635,81 +632,53 @@ class TelegramHandler(BaseChannelHandler):
             if name:
                 Contact.get_or_create(channel.org, channel.created_by, name, urns=[urn])
 
+        text = ""
+        attachments = []
         msg_date = datetime.utcfromtimestamp(body['message']['date']).replace(tzinfo=pytz.utc)
 
-        def create_media_message(body, name):
-            msg = None
+        def fetch_attachment(media_type):
+            attachment = body['message'][media_type]
+            if isinstance(attachment, list):
+                attachment = attachment[-1]
+                if isinstance(attachment, list):  # pragma: needs cover
+                    attachment = attachment[0]
 
-            # if we have a caption add it
-            if 'caption' in body['message']:
-                msg = Msg.create_incoming(channel, urn, body['message']['caption'], date=msg_date)
-                log(msg, 'Inbound message', json.dumps(dict(description='Message accepted')))
+            # if we got a media URL for this attachment, save it away
+            media_url = TelegramHandler.download_file(channel, attachment['file_id'])
+            if media_url:
+                attachments.append(media_url)
 
-            # pull out the media body, download it and create our msg
-            if name in body['message']:
-                attachment = body['message'][name]
-                if isinstance(attachment, list):
-                    attachment = attachment[-1]
-                    if isinstance(attachment, list):  # pragma: needs cover
-                        attachment = attachment[0]
-
-                media_url = TelegramHandler.download_file(channel, attachment['file_id'])
-
-                # if we got a media URL for this attachment, save it away
-                if media_url:
-                    url = media_url.partition(':')[2]
-                    msg = Msg.create_incoming(channel, urn, url, date=msg_date, attachments=[media_url])
-                    log(msg, 'Incoming media', json.dumps(dict(description='Message accepted')))
-
-            # this one's a little kludgy cause we might create more than
-            # one message, so we need to log them both above instead
-            return make_response("Message accepted")
-
-        if 'sticker' in body['message']:
-            return create_media_message(body, 'sticker')
-
-        if 'video' in body['message']:
-            return create_media_message(body, 'video')
-
-        if 'voice' in body['message']:
-            return create_media_message(body, 'voice')
-
-        if 'document' in body['message']:  # pragma: needs cover
-            return create_media_message(body, 'document')
-
-        if 'location' in body['message']:
-            location = body['message']['location']
-            location = '%s,%s' % (location['latitude'], location['longitude'])
-
-            msg_text = location
-            if 'venue' in body['message']:
-                if 'title' in body['message']['venue']:
-                    msg_text = '%s (%s)' % (msg_text, body['message']['venue']['title'])
-            media_url = 'geo:%s' % location
-            msg = Msg.create_incoming(channel, urn, msg_text, date=msg_date, attachments=[media_url])
-            return make_response('Message accepted', msg)
-
-        if 'photo' in body['message']:
-            create_media_message(body, 'photo')
-
-        if 'contact' in body['message']:  # pragma: needs cover
+        if 'text' in body['message']:
+            text = body['message']['text']
+        elif 'caption' in body['message']:
+            text = body['message']['caption']
+        elif 'contact' in body['message']:  # pragma: needs cover
             contact = body['message']['contact']
 
             if 'first_name' in contact and 'phone_number' in contact:
-                body['message']['text'] = '%(first_name)s (%(phone_number)s)' % contact
-
+                text = '%(first_name)s (%(phone_number)s)' % contact
             elif 'first_name' in contact:
-                body['message']['text'] = '%(first_name)s' % contact
-
+                text = '%(first_name)s' % contact
             elif 'phone_number' in contact:
-                body['message']['text'] = '%(phone_number)s' % contact
+                text = '%(phone_number)s' % contact
+        elif 'venue' in body['message']:
+            if 'title' in body['message']['venue']:
+                text = body['message']['venue']['title']
 
-        # skip if there is no message block (could be a sticker or voice)
-        if 'text' in body['message']:
-            msg = Msg.create_incoming(channel, urn, body['message']['text'], date=msg_date)
+        for msg_type in ('sticker', 'video', 'voice', 'document', 'photo'):
+            if msg_type in body['message']:
+                fetch_attachment(msg_type)
+
+        if 'location' in body['message']:
+            location = body['message']['location']
+            attachments.append('geo:%s,%s' % (location['latitude'], location['longitude']))
+
+        if text or attachments:
+            msg = Msg.create_incoming(channel, urn, text, attachments=attachments, date=msg_date)
+            log(msg, 'Inbound message', json.dumps(dict(description='Message accepted')))
             return make_response('Message accepted', msg)
-
-        return make_response("Ignored, nothing provided in payload to create a message")
+        else:
+            return make_response("Ignored, nothing provided in payload to create a message")
 
 
 class InfobipHandler(BaseChannelHandler):
@@ -717,12 +686,15 @@ class InfobipHandler(BaseChannelHandler):
     url = r'^infobip/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.infobip_handler'
 
+    def get_channel_type(self):
+        return 'IB'
+
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_INFOBIP).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -771,7 +743,7 @@ class InfobipHandler(BaseChannelHandler):
         if sender is None or text is None or receiver is None:  # pragma: needs cover
             return HttpResponse("Missing parameters, must have 'sender', 'text' and 'receiver'", status=400)
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_INFOBIP).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -1094,6 +1066,7 @@ class NexmoCallHandler(BaseChannelHandler):
         return self.get(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
+        from temba.flows.models import FlowSession
         from temba.ivr.models import IVRCall
 
         action = kwargs['action'].lower()
@@ -1141,7 +1114,7 @@ class NexmoCallHandler(BaseChannelHandler):
 
             if call.status == IVRCall.COMPLETED:
                 # if our call is completed, hangup
-                runs = FlowRun.objects.filter(session=call)
+                runs = FlowRun.objects.filter(connection=call)
                 for run in runs:
                     if not run.is_completed():
                         final_step = FlowStep.objects.filter(run=run).order_by('-arrived_on').first()
@@ -1182,8 +1155,9 @@ class NexmoCallHandler(BaseChannelHandler):
 
             if flow:
                 call = IVRCall.create_incoming(channel, contact, urn_obj, channel.created_by, external_id)
+                session = FlowSession.create(contact, connection=call)
 
-                FlowRun.create(flow, contact.pk, session=call)
+                FlowRun.create(flow, contact.pk, session=session, connection=call)
                 response = Flow.handle_call(call)
 
                 event = HttpEvent(request_method, request_path, request_body, 200, six.text_type(response))
@@ -1415,12 +1389,12 @@ class VumiHandler(BaseChannelHandler):
 
                 session_id = str(session_id_part1 + session_id_part2)
 
-                session = USSDSession.handle_incoming(channel=channel, urn=body['from_addr'], content=content,
-                                                      status=status, date=gmt_date, external_id=session_id,
-                                                      message_id=body['message_id'], starcode=body.get('to_addr'))
+                connection = USSDSession.handle_incoming(channel=channel, urn=body['from_addr'], content=content,
+                                                         status=status, date=gmt_date, external_id=session_id,
+                                                         message_id=body['message_id'], starcode=body.get('to_addr'))
 
-                if session:
-                    return HttpResponse("Accepted: %d" % session.id)
+                if connection:
+                    return HttpResponse("Accepted: %d" % connection.id)
                 else:
                     return HttpResponse("Session not handled", status=400)
 
@@ -1757,7 +1731,7 @@ class PlivoHandler(BaseChannelHandler):
 
 class MageHandler(BaseChannelHandler):
 
-    url = r'^mage/(?P<action>handle_message|follow_notification)$'
+    url = r'^mage/(?P<action>handle_message|follow_notification|stop_contact)$'
     url_name = 'handlers.mage_handler'
 
     def get(self, request, *args, **kwargs):
@@ -1787,6 +1761,7 @@ class MageHandler(BaseChannelHandler):
 
             # fire an event off for this message
             WebHookEvent.trigger_sms_event(WebHookEvent.TYPE_SMS_RECEIVED, msg, msg.created_on)
+
         elif action == 'follow_notification':
             try:
                 channel_id = int(request.POST.get('channel_id', ''))
@@ -1796,6 +1771,13 @@ class MageHandler(BaseChannelHandler):
 
             on_transaction_commit(lambda: fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact),
                                                                            queue='handler'))
+
+        elif action == 'stop_contact':
+            contact = Contact.objects.filter(is_active=True, id=request.POST.get('contact_id', '-1')).first()
+            if not contact:
+                return JsonResponse(dict(error="Invalid contact_id"), status=400)
+
+            contact.stop(contact.modified_by)
 
         return JsonResponse(dict(error=None))
 
@@ -2029,6 +2011,13 @@ class JunebugHandler(BaseChannelHandler):
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
+        authorization = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
+
+        if channel.secret is not None and (
+                len(authorization) != 2 or authorization[0] != 'Token' or
+                authorization[1] != channel.secret):
+            return JsonResponse(dict(error="Incorrect authentication token"), status=401)
+
         # Junebug is sending an event
         if action == 'event':
             expected_keys = ["event_type", "message_id", "timestamp"]
@@ -2097,17 +2086,18 @@ class JunebugHandler(BaseChannelHandler):
 
                 message_date = datetime.strptime(data['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
                 gmt_date = pytz.timezone('GMT').localize(message_date)
-                session_id = '%s.%s' % (data['from'], gmt_date.toordinal())
+                # Use a session id if provided, otherwise fall back to using the `from` address as the identifier
+                session_id = channel_data.get('session_id') or data['from']
 
-                session = USSDSession.handle_incoming(channel=channel, urn=data['from'], content=data['content'],
-                                                      status=status, date=gmt_date, external_id=session_id,
-                                                      message_id=data['message_id'], starcode=data['to'])
+                connection = USSDSession.handle_incoming(channel=channel, urn=data['from'], content=data['content'],
+                                                         status=status, date=gmt_date, external_id=session_id,
+                                                         message_id=data['message_id'], starcode=data['to'])
 
-                if session:
+                if connection:
                     status = 200
                     response_body = {
                         'status': self.ACK,
-                        'session_id': session.pk,
+                        'session_id': connection.pk,
                     }
                     event = HttpEvent(request_method, request_path, request_body, status, json.dumps(response_body))
                     log_channel(channel, 'Handled USSD message of %s session_event' % (
@@ -2206,6 +2196,92 @@ class MbloxHandler(BaseChannelHandler):
             return HttpResponse("Not handled, unknown type: %s" % body['type'], status=400)
 
 
+class JioChatHandler(BaseChannelHandler):
+
+    # Jiochat expected the URL to receive message on CONFIG_URL/rcv/msg/message
+    # and for event message on CONFIG_URL/rcv/event/menu
+    # and for follow event on CONFIG_URL/rcv/event/follow
+    url = r'^jiochat/(?P<uuid>[a-z0-9\-]+)(/rcv/msg/message|/rcv/event/menu|/rcv/event/follow)?/?$'
+    url_name = 'handlers.jiochat_handler'
+
+    def lookup_channel(self, kwargs):
+        # look up the channel
+        return Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
+                                      channel_type='JC').exclude(org=None).first()
+
+    def get(self, request, *args, **kwargs):
+        channel = self.lookup_channel(kwargs)
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
+
+        client = JiochatClient.from_channel(channel)
+        if client:
+            verified, echostr = client.verify_request(request, channel.secret)
+
+            if verified:
+                refresh_jiochat_access_tokens.delay(channel.id)
+                return HttpResponse(echostr)
+
+        return JsonResponse(dict(error="Unknown request"), status=400)
+
+    def post(self, request, *args, **kwargs):
+        channel = self.lookup_channel(kwargs)
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
+
+        try:
+            body = json.loads(request.body)
+        except Exception as e:  # pragma: needs cover
+            return HttpResponse("Invalid JSON in POST body: %s" % str(e), status=400)
+
+        if 'FromUserName' not in body or 'MsgType' not in body or ('MsgId' not in body and 'Event' not in body):
+            return HttpResponse("Missing parameters", status=400)
+
+        client = JiochatClient.from_channel(channel)
+
+        sender_id = body.get('FromUserName')
+        create_time = body.get('CreateTime', None)
+        msg_date = None
+        if create_time:
+            msg_date = datetime.utcfromtimestamp(float(unicode(create_time)[:10])).replace(tzinfo=pytz.utc)
+        msg_type = body.get('MsgType')
+        external_id = body.get('MsgId', None)
+
+        urn = URN.from_jiochat(sender_id)
+        contact_name = None
+        if not channel.org.is_anon:
+            contact_detail = client.get_user_detail(sender_id, channel.id)
+            contact_name = contact_detail.get('nickname')
+
+        contact = Contact.get_or_create(channel.org, channel.created_by, name=contact_name,
+                                        urns=[urn], channel=channel)
+
+        if msg_type == 'event':
+            event = body.get('Event')
+            if event == 'subscribe':
+                channel_event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_FOLLOW, timezone.now())
+                channel_event.handle()
+
+                return HttpResponse("New follow handled: %s" % sender_id)
+
+        text = ""
+        attachments = []
+
+        if msg_type == 'text':
+            text = body.get('Content', "")
+        elif msg_type in ['image', 'video', 'voice']:
+            media_response = client.request_media(body.get('MediaId'), channel.id)
+            content_type, downloaded_url = channel.org.save_response_media(media_response)
+            attachments.append('%s:%s' % (content_type, downloaded_url))
+
+        if text or attachments:
+            msg = Msg.create_incoming(channel, urn, text, date=msg_date, contact=contact, attachments=attachments,
+                                      external_id=external_id)
+            return HttpResponse("Msgs Accepted: %s" % msg.id)
+
+        return HttpResponse("Not handled", status=400)
+
+
 class FacebookHandler(BaseChannelHandler):
 
     url = r'^facebook/(?P<uuid>[a-z0-9\-]+)/?$'
@@ -2214,7 +2290,7 @@ class FacebookHandler(BaseChannelHandler):
     def lookup_channel(self, kwargs):
         # look up the channel
         channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
-                                         channel_type=Channel.TYPE_FACEBOOK).exclude(org=None).first()
+                                         channel_type='FB').exclude(org=None).first()
         return channel
 
     def get(self, request, *args, **kwargs):
@@ -2257,13 +2333,24 @@ class FacebookHandler(BaseChannelHandler):
                 status = []
 
                 for envelope in entry['messaging']:
-                    if 'optin' in envelope:
+                    if 'optin' in envelope or 'referral' in envelope:
                         # check that the recipient is correct for this channel
                         channel_address = str(envelope['recipient']['id'])
                         if channel_address != channel.address:  # pragma: needs cover
                             return HttpResponse("Msg Ignored for recipient id: %s" % channel_address, status=200)
 
-                        referrer_id = envelope['optin'].get('ref')
+                        referrer_id = None
+                        trigger_extra = None
+
+                        if 'optin' in envelope:
+                            referrer_id = envelope['optin'].get('ref')
+                            trigger_extra = envelope['optin']
+                            trigger_extra[ChannelEvent.EXTRA_REFERRER_ID] = referrer_id
+
+                        elif 'referral' in envelope:
+                            referrer_id = envelope['referral'].get('ref')
+                            trigger_extra = envelope['referral']
+                            trigger_extra[ChannelEvent.EXTRA_REFERRER_ID] = referrer_id
 
                         # This is a standard opt in, we know the sender id:
                         #   https://developers.facebook.com/docs/messenger-platform/webhook-reference/optins
@@ -2303,8 +2390,9 @@ class FacebookHandler(BaseChannelHandler):
                             contact = Contact.get_or_create(channel.org, channel.created_by,
                                                             urns=[urn], channel=channel)
 
-                        caught = Trigger.catch_triggers(contact, Trigger.TYPE_REFERRAL, channel,
-                                                        referrer_id=referrer_id, extra=envelope['optin'])
+                        event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_REFERRAL, timezone.now(),
+                                                    extra=trigger_extra)
+                        caught = event.handle()
 
                         if caught:
                             status.append("Triggered flow for ref: %s" % referrer_id)
@@ -2324,6 +2412,8 @@ class FacebookHandler(BaseChannelHandler):
 
                         content = None
                         postback = None
+                        referrer_id = None
+                        trigger_extra = None
 
                         if 'message' in envelope:
                             if 'text' in envelope['message']:
@@ -2342,6 +2432,10 @@ class FacebookHandler(BaseChannelHandler):
 
                         elif 'postback' in envelope:
                             postback = envelope['postback']['payload']
+                            if 'referral' in envelope['postback']:
+                                trigger_extra = envelope['postback']['referral']
+                                referrer_id = trigger_extra['ref']
+                                trigger_extra[ChannelEvent.EXTRA_REFERRER_ID] = referrer_id
 
                         # if we have some content, load the contact
                         if content or postback:
@@ -2380,9 +2474,18 @@ class FacebookHandler(BaseChannelHandler):
                             Msg.objects.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
                             status.append("Msg %d accepted." % msg.id)
 
+                        # conversation started with a referrer_id that catches a trigger
+                        elif referrer_id:
+                            event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_REFERRAL, timezone.now(),
+                                                        extra=trigger_extra)
+                            event.handle()
+
+                            status.append("Referral posted with referral id: %s" % referrer_id)
+
                         # a contact pressed "Get Started", trigger any new conversation triggers
-                        elif postback == Channel.GET_STARTED:
-                            Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
+                        elif postback == 'get_started':
+                            event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_NEW_CONVERSATION, timezone.now())
+                            event.handle()
                             status.append("Postback handled.")
 
                         else:
@@ -2461,7 +2564,7 @@ class GlobeHandler(BaseChannelHandler):
                     return HttpResponse("Missing one of dateTime, senderAddress, message, messageId or destinationAddress in message", status=400)
 
                 try:
-                    scheme, destination = URN.to_parts(inbound_msg['destinationAddress'])
+                    scheme, destination, display = URN.to_parts(inbound_msg['destinationAddress'])
                 except ValueError as v:
                     return HttpResponse("Error parsing destination address: " + str(v), status=400)
 
@@ -2471,7 +2574,7 @@ class GlobeHandler(BaseChannelHandler):
 
                 # parse our sender address out, it is a URN looking thing
                 try:
-                    scheme, sender_tel = URN.to_parts(inbound_msg['senderAddress'])
+                    scheme, sender_tel, display = URN.to_parts(inbound_msg['senderAddress'])
                 except ValueError as v:
                     return HttpResponse("Error parsing sender address: " + str(v), status=400)
 
@@ -2567,7 +2670,7 @@ class LineHandler(BaseChannelHandler):
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_LINE).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='LN').exclude(org=None).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -2614,7 +2717,7 @@ class ViberPublicHandler(BaseChannelHandler):
         request_uuid = kwargs['uuid']
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_VIBER_PUBLIC).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='VP').exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=200)
 
@@ -2663,8 +2766,10 @@ class ViberPublicHandler(BaseChannelHandler):
             # }
             viber_id = body['user']['id']
             contact_name = None if channel.org.is_anon else body['user'].get('name')
-            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[URN.from_viber(viber_id)])
-            Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
+            urn = URN.from_viber(viber_id)
+            contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
+            event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_NEW_CONVERSATION, timezone.now())
+            event.handle()
             return HttpResponse("Subscription for contact: %s handled" % viber_id)
 
         # we currently ignore conversation started events
@@ -2747,38 +2852,26 @@ class ViberPublicHandler(BaseChannelHandler):
 
             message = body['message']
             msg_date = datetime.utcfromtimestamp(body['timestamp'] / 1000).replace(tzinfo=pytz.utc)
-            media = None
-            caption = None
+            text = message.get('text', "")
+            attachments = []
 
             # convert different messages types to the right thing
             message_type = message['type']
+
             if message_type == 'text':
-                # "text": "a message from pa"
-                text = message.get('text', None)
+                pass
 
             elif message_type == 'picture':
                 # "media": "http://www.images.com/img.jpg"
-                caption = message.get('text')
                 if message.get('media', None):  # pragma: needs cover
-                    media = '%s:%s' % (Msg.MEDIA_IMAGE, channel.org.download_and_save_media(Request('GET',
-                                                                                                    message['media'])))
-                else:
-                    # not media then make it the caption and ignore the caption
-                    media = caption
-                    caption = None
-                text = media
+                    downloaded_url = channel.org.download_and_save_media(Request('GET', message['media']))
+                    attachments.append('%s:%s' % (Msg.MEDIA_IMAGE, downloaded_url))
 
-            elif message_type == 'video':
-                caption = message.get('text')
+            elif message_type == 'video':  # pragma: needs cover
                 # "media": "http://www.images.com/video.mp4"
                 if message.get('media', None):  # pragma: needs cover
-                    media = '%s:%s' % (Msg.MEDIA_VIDEO, channel.org.download_and_save_media(Request('GET',
-                                                                                                    message['media'])))
-                else:
-                    # not media then make it the caption and ignore the caption
-                    media = caption
-                    caption = None
-                text = media
+                    downloaded_url = channel.org.download_and_save_media(Request('GET', message['media']))
+                    attachments.append('%s:%s' % (Msg.MEDIA_VIDEO, downloaded_url))
 
             elif message_type == 'contact':
                 # "contact": {
@@ -2793,14 +2886,13 @@ class ViberPublicHandler(BaseChannelHandler):
 
             elif message_type == 'location':
                 # "location": {"lat": "37.7898", "lon": "-122.3942"}
-                text = '%s:%s,%s' % (Msg.MEDIA_GPS, message['location']['lat'], message['location']['lon'])
-                media = text
+                attachments.append('%s:%s,%s' % (Msg.MEDIA_GPS, message['location']['lat'], message['location']['lon']))
 
             else:  # pragma: needs cover
                 return HttpResponse("Unknown message type: %s" % message_type, status=400)
 
-            if text is None:
-                return HttpResponse("Missing 'text' key in 'message' in request_body.", status=400)
+            if not text and not attachments:
+                return HttpResponse("Missing text or media in message in request body.", status=400)
 
             # get or create our contact with any name sent in
             urn = URN.from_viber(body['sender']['id'])
@@ -2808,12 +2900,8 @@ class ViberPublicHandler(BaseChannelHandler):
             contact_name = None if channel.org.is_anon else body['sender'].get('name')
             contact = Contact.get_or_create(channel.org, channel.created_by, contact_name, urns=[urn])
 
-            # add our caption first if it is present
-            if caption:  # pragma: needs cover
-                Msg.create_incoming(channel, urn, caption, contact=contact, date=msg_date)
-
             msg = Msg.create_incoming(channel, urn, text, contact=contact, date=msg_date,
-                                      external_id=body['message_token'], attachments=[media] if media else None)
+                                      external_id=body['message_token'], attachments=attachments)
             return HttpResponse('Msg Accepted: %d' % msg.id)
 
         else:  # pragma: no cover
@@ -2833,7 +2921,7 @@ class FCMHandler(BaseChannelHandler):
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_FCM).exclude(
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='FCM').exclude(
             org=None).first()
 
         if not channel:
@@ -2878,3 +2966,62 @@ class FCMHandler(BaseChannelHandler):
 
         except Exception as e:  # pragma: no cover
             return HttpResponse(e.args, status=400)
+
+
+class TwitterHandler(BaseChannelHandler):
+
+    url = r'^twitter/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.twitter_handler'
+
+    def get(self, request, *args, **kwargs):
+        crc_token = request.GET['crc_token']
+
+        channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
+                                         channel_type='TWT').exclude(org=None).first()
+        if not channel:
+            return HttpResponse("No such Twitter channel", status=400)
+
+        consumer_secret = channel.config_json()['api_secret']
+        resp_token = generate_twitter_signature(crc_token, consumer_secret)
+
+        return JsonResponse({'response_token': resp_token}, status=200)
+
+    def post(self, request, *args, **kwargs):
+        channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
+                                         channel_type='TWT').exclude(org=None).first()
+        if not channel:
+            return HttpResponse("No such Twitter channel", status=400)
+
+        channel_config = channel.config_json()
+
+        # validate that request has come from Twitter
+        expected_signature = request.META['HTTP_X_TWITTER_WEBHOOKS_SIGNATURE']
+        calculated_signature = generate_twitter_signature(request.body, channel_config['api_secret'])
+
+        if not constant_time_compare(expected_signature, calculated_signature):
+            return HttpResponse("Invalid request signature", status=400)
+
+        body = json.loads(request.body)
+        dm_events = body.get('direct_message_events', [])
+        users = body.get('users', {})
+
+        msgs = []
+        for dm_event in dm_events:
+            if dm_event['type'] == 'message_create':
+                sender_id = dm_event['message_create']['sender_id']
+
+                # check that this isn't a message that we sent
+                if int(sender_id) == channel_config['handle_id']:
+                    continue
+
+                urn = URN.from_twitterid(users[sender_id]['id'], users[sender_id]['screen_name'])
+                name = None if channel.org.is_anon else users[sender_id]['name']
+                contact = Contact.get_or_create(channel.org, channel.created_by, name=name, urns=[urn], channel=channel)
+
+                external_id = dm_event['id']
+                created_on = ms_to_datetime(int(dm_event['created_timestamp']))
+                text = dm_event['message_create']['message_data']['text']
+
+                msgs.append(Msg.create_incoming(channel, urn, text, date=created_on, contact=contact, external_id=external_id))
+
+        return HttpResponse("Accepted %d messages" % len(msgs), status=200)

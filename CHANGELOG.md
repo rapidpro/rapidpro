@@ -1,3 +1,194 @@
+v3.0.197
+----------
+ * update triggers so that updates in migration work
+
+v3.0.196
+----------
+ * make sure new uuids are honored in in_group tests
+ * removes giant join through run/flow to figure out flow steps during export
+ * create contacts from start flow action with ambiguous country
+ * add tasks for handling of channel events, update handlers to use ChannelEvent.handle
+ * add org level dashboard for multi-org organizations
+
+v3.0.195
+----------
+ * Tweaks to allow message handling straight from courier
+
+v3.0.193
+----------
+ * Add flow session model and start creating instances for IVR and USSD channel sessions
+
+v3.0.192
+----------
+ * Allow empty contact names for surveyor submissions but make them null
+ * Honor admin org brand in get_user_orgs
+ * Fix external channel bulk sender URL
+ * Send broadcast in the same task as it is created in and JS utility method to format number
+ * Try the variable as a contact uuid and use its contact when building recipients
+ * Fix org lookup, use the same code path for sending a broadcast
+ * Fix broadcast to flow node to consider all current contacts on the the step
+
+v3.0.191
+----------
+ * Update test_db to generate deterministic UUIDs which are also valid UUID4
+
+v3.0.190
+----------
+ * Turn down default courier TPS to 10/s
+
+v3.0.189
+----------
+ * Make sure msg time never wraps in the inbox
+
+v3.0.188
+----------
+ * Use a real but mockable HTTP server to test flows that hit external URLs instead of mocking the requests
+ * Add infobip as dynamic channel type and Update it to use the latest Infobip API
+ * Add support for Courier message sending
+
+v3.0.183
+----------
+ * Use twitter icon for twitter id urns
+
+v3.0.182
+----------
+ * Tweak test_start_flow_action to test parent run states only after child runs have completed
+ * Stop contacts when they have only an invalid twitter screen name
+ * Change to max USSD session length
+
+v3.0.181
+----------
+ * Ignore case when looking up twitter screen names
+
+v3.0.180
+----------
+ * Switch to using twitterid scheme for Twitter messages
+ * Should be shipped before Mage v0.1.84
+
+v3.0.179
+----------
+ * Allow editing of start conversation triggers
+
+v3.0.178
+----------
+ * Remove urn field, urn compound index, remove last uses of urn field
+
+v3.0.177
+----------
+ * remove all uses of urn (except when writing)
+ * create display index, backfill identity
+ * Allow users to specify extra URNs columns to include on the flow results export
+
+v3.0.176
+----------
+ * Add display and identity fields to ContactURN
+ * Add schemes field to allow channels to support more than one scheme
+
+v3.0.175
+----------
+ * Fix incorrect lambda use so message sending works
+
+v3.0.174
+----------
+ * Make ContactField.uuid unique and non-null
+
+v3.0.173
+----------
+ * Add migration to populate ContactField.uuid
+
+v3.0.172
+----------
+ * Only try to delete Twilio app when channel config contains 'application_sid'
+ * Surveyor submissions should try rematching the rules if the same ruleset got updated by the user and old rules were removed
+ * Add uuid field to ContactField
+ * Convert more channel types to dynamic types 
+
+v3.0.171
+----------
+ * Fixes for Twitter Activity channels
+ * Add stop contact command to mage handler
+ * Convert Firebase Cloud Messaging to a dynamic channel type
+ * Convert Viber Public to a dynamic channel type
+ * Change to the correct way for dynamic channel
+ * Convert LINE to a dynamic channel type
+ * Better message in SMS alert email
+
+v3.0.170
+----------
+ * Hide SMTP config password and do not change the set password if blank is submitted
+ * Validate the length of message campaigns for better user feedback
+ * Make FlowRun.uuid unique and non-null (advise faking this and building index concurrently)
+
+v3.0.169
+----------
+ * Migration to populate FlowRun.uuid. Advise faking this and running manually.
+ * More channel logs for Jiochat channel interactions
+
+v3.0.167
+----------
+ * Fix inclusion of attachment urls in webhook payloads and add tests
+ * Install lxml to improve performance of large Excel exports
+ * Add proper deactivation of Telegram channels
+ * Converted Facebook and Telegram to dynamic channel types
+ * Add nullable uuid field to FlowRun
+ * Make sure we consider all URN schemes we can send to when looking up the if we have a send channel
+ * Split Twitter and Twitter Beta into separate channel types
+ * Remove support for old-style Twilio endpoints
+
+v3.0.166
+----------
+ * Release channels before Twilio/Nexmo configs are cleared
+ * Expose flow start UUID on runs from the runs endpoint
+
+v3.0.165
+----------
+ * Migration to populate FlowStart.uuid on existing objects (advise faking and run manually)
+
+v3.0.163
+----------
+ * Add uuid field to FlowStart
+ * Migration to convert TwiML apps
+
+v3.0.160
+----------
+ * Add support for Twitter channels using new beta Activity API
+
+v3.0.159
+----------
+ * Clean incoming message text to remove invalid chars
+
+v3.0.158
+----------
+ * Add more exception currencies for pycountry
+ * Support channel specific Twilio endpoints
+
+v3.0.156
+----------
+ * Clean up pip-requires and reset pip-freeze
+
+v3.0.155
+----------
+ * Reduce the rate limit for SMS central to 1 requests per second
+ * Display Jiochat on channel claim page
+ * Fix date pickers on modal forms
+ * Update channels to generate messages with multiple attachments
+
+v3.0.154
+----------
+ * Rate limit sending throught SMS central to 10 messages per second
+ * Fix some more uses of Context objects no longer supported in django 1.11
+ * Fix channel log list request time display
+ * Add @step.text and @step.attachments to message context
+
+v3.0.153
+----------
+ * Jiochat channels
+ * Django 1.11
+
+v3.0.151
+----------
+ * Convert all squashable and prunable models to use big primary keys
+
 v3.0.150
 ----------
  * Drop database-level length restrictions on msg and values

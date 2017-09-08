@@ -1,0 +1,67 @@
+-extends "smartmin/form.html"
+-load i18n compress temba
+
+-block title
+  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
+
+  %h2.font_normalize.header-margin
+    {{ title }}
+
+-block pre-form
+  .info
+    .important
+      %p
+        This channel type uses the new <a href="https://dev.twitter.com/webhooks/account-activity">Twitter Activity API</a> which is
+        still in beta. If your Twitter account has not been granted access to this API, then you can still
+        <a href="{% url 'channels.claim_twitter' %}">add a regular Twitter channel</a>.
+    %p
+      -blocktrans with name=brand.name
+        After connecting your account, any incoming direct messages will automatically be read by {{ name }},
+        you'll also be able to send direct messages to contacts you know using their twitter handle.
+    %p
+      -blocktrans
+        Note that Twitter places a limit of 250 direct messages sent or received per day, so if you expect to exceed
+        this number you'll want to contact Twitter directly to task for them to lift the limits on your account.
+
+    .important
+      %p
+        -blocktrans
+          In order to receive direct messages from new followers, you'll need to update your Twitter account to enable
+          the option to <b>Receive Direct Messages from anyone</b>. You can do so from your <a href="https://twitter.com/settings/security" target="_blank">
+          Twitter Security Settings</a>.
+
+      %p
+        -blocktrans
+          Check the box (as seen below) then click "Save Changes".
+
+      %p
+        <img src="{{STATIC_URL}}images/twitter_settings.png"/>
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    .info {
+      width: 800px;
+      margin-bottom: 20px;
+    }
+
+    .important {
+      background-color: #efefef;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    .medium-help {
+      font-size: 50px;
+      height: 50px;
+    }
+
+    .header-margin {
+      margin-left: 60px;
+    }
+
+    .form-group {
+      margin-bottom:15px;
+    }

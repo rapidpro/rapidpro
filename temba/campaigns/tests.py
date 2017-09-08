@@ -11,6 +11,7 @@ from django.utils import timezone
 from temba.campaigns.tasks import check_campaigns_task
 from temba.contacts.models import ContactField
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet, FlowRevision
+from temba.msgs.models import Msg
 from temba.orgs.models import Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest
 from .models import Campaign, CampaignEvent, EventFire
@@ -27,17 +28,12 @@ class CampaignTest(TembaTest):
         self.nonfarmer = self.create_contact("Trey Anastasio", "+250788333333")
         self.farmers = self.create_group("Farmers", [self.farmer1, self.farmer2])
 
-        self.reminder_flow = self.create_flow()
-        self.reminder2_flow = self.create_flow()
-        self.reminder2_flow.name = 'Planting Reminder'
-        self.reminder2_flow.save()
+        self.reminder_flow = self.create_flow(name="Reminder Flow")
+        self.reminder2_flow = self.create_flow(name="Planting Reminder")
 
         # create a voice flow to make sure they work too, not a proper voice flow but
         # sufficient for assuring these flow types show up where they should
-        self.voice_flow = self.create_flow()
-        self.voice_flow.name = 'IVR flow'
-        self.voice_flow.flow_type = 'V'
-        self.voice_flow.save()
+        self.voice_flow = self.create_flow(name="IVR flow", flow_type='V')
 
         # create a contact field for our planting date
         self.planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date")
@@ -292,6 +288,14 @@ class CampaignTest(TembaTest):
         self.assertTrue(response.context['form'].errors)
         self.assertTrue('A message is required' in six.text_type(response.context['form'].errors['__all__']))
 
+        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=-1, base='allo!' * 500, direction='A',
+                         offset=2, unit='D', event_type='M', flow_to_start=self.reminder_flow.pk)
+
+        response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
+
+        self.assertTrue(response.context['form'].errors)
+        self.assertTrue("Translation for &#39;Default&#39; exceeds the %d character limit." % Msg.MAX_TEXT_LEN in six.text_type(response.context['form'].errors['__all__']))
+
         post_data = dict(relative_to=self.planting_date.pk, delivery_hour=-1, base='', direction='A', offset=2, unit='D', event_type='F')
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
 
@@ -312,7 +316,7 @@ class CampaignTest(TembaTest):
 
         # read the campaign read page
         response = self.client.get(reverse('campaigns.campaign_read', args=[campaign.pk]))
-        self.assertContains(response, "Color Flow")
+        self.assertContains(response, "Reminder Flow")
         self.assertContains(response, "1")
 
         # convert our planting date to UTC and calculate with our offset
@@ -360,11 +364,11 @@ class CampaignTest(TembaTest):
         response = self.client.post(reverse('flows.flow_list'), post_data)
         self.reminder_flow.refresh_from_db()
         self.assertFalse(self.reminder_flow.is_archived)
-        self.assertEqual('Color Flow is used inside a campaign. To archive it, first remove it from your campaigns.', response.get('Temba-Toast'))
+        self.assertEqual('Reminder Flow is used inside a campaign. To archive it, first remove it from your campaigns.', response.get('Temba-Toast'))
 
         post_data = dict(action='archive', objects=[self.reminder_flow.pk, self.reminder2_flow.pk])
         response = self.client.post(reverse('flows.flow_list'), post_data)
-        self.assertEqual('Planting Reminder and Color Flow are used inside a campaign. To archive them, first remove them from your campaigns.', response.get('Temba-Toast'))
+        self.assertEqual('Planting Reminder and Reminder Flow are used inside a campaign. To archive them, first remove them from your campaigns.', response.get('Temba-Toast'))
         CampaignEvent.objects.filter(flow=self.reminder2_flow.pk).delete()
 
         # archive the campaign
@@ -593,7 +597,7 @@ class CampaignTest(TembaTest):
         planting_reminder = CampaignEvent.create_flow_event(self.org, self.admin, campaign, relative_to=self.planting_date,
                                                             offset=0, unit='D', flow=self.reminder_flow, delivery_hour=17)
 
-        self.assertEquals("Planting Date == 0 -> Color Flow", six.text_type(planting_reminder))
+        self.assertEquals("Planting Date == 0 -> Reminder Flow", six.text_type(planting_reminder))
 
         # schedule our reminders
         EventFire.update_campaign_events(campaign)

@@ -4,6 +4,8 @@ from __future__ import absolute_import, unicode_literals
 
 import datetime
 import json
+
+import pycountry
 import pytz
 import six
 import time
@@ -1098,12 +1100,19 @@ class ExportTest(TembaTest):
 class CurrencyTest(TembaTest):
 
     def test_currencies(self):
-        self.assertEqual(currency_for_country('US').letter, 'USD')
-        self.assertEqual(currency_for_country('EC').letter, 'USD')
-        self.assertEqual(currency_for_country('FR').letter, 'EUR')
-        self.assertEqual(currency_for_country('DE').letter, 'EUR')
-        self.assertEqual(currency_for_country('YE').letter, 'YER')
-        self.assertEqual(currency_for_country('AF').letter, 'AFN')
+
+        self.assertEqual(currency_for_country('US').alpha_3, 'USD')
+        self.assertEqual(currency_for_country('EC').alpha_3, 'USD')
+        self.assertEqual(currency_for_country('FR').alpha_3, 'EUR')
+        self.assertEqual(currency_for_country('DE').alpha_3, 'EUR')
+        self.assertEqual(currency_for_country('YE').alpha_3, 'YER')
+        self.assertEqual(currency_for_country('AF').alpha_3, 'AFN')
+
+        for country in list(pycountry.countries):
+            try:
+                currency_for_country(country.alpha_2)
+            except KeyError:
+                self.fail('Country missing currency: %s' % country)
 
 
 class VoiceXMLTest(TembaTest):
@@ -1519,7 +1528,8 @@ class MakeTestDBTest(SimpleTestCase):
         def assertOrgCounts(qs, counts):
             self.assertEqual([qs.filter(org=o).count() for o in (org1, org2, org3)], counts)
 
-        self.assertEqual(User.objects.count(), 15)  # 4 for each org + superuser + anonymous + flow user
+        print(User.objects.all())
+        self.assertEqual(User.objects.exclude(username__in=["AnonymousUser", "root", "rapidpro_flow", "temba_flow"]).count(), 12)
         assertOrgCounts(ContactField.objects.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
         assertOrgCounts(Contact.objects.filter(is_test=True), [4, 4, 4])  # 1 for each user
@@ -1531,7 +1541,7 @@ class MakeTestDBTest(SimpleTestCase):
         self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(17,)])
 
         # same seed should generate objects with same UUIDs
-        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'ea60312b-25f5-47a0-cac7-4fe0c2064f3e')
+        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'ea60312b-25f5-47a0-8ac7-4fe0c2064f3e')
 
         # check generate can't be run again on a now non-empty database
         with self.assertRaises(CommandError):

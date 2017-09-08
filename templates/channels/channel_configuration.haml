@@ -631,33 +631,32 @@
     %b
       -trans "Make sure to change the forced-smsc and default-smsc values to the appropriate values for your configuration."
 
-    :markdown
-      &nbsp;
+    %pre
+      :escaped
+        ######################################################################
+        # {{channel.address}} - {{user_org.name}}
+        ######################################################################
 
-          ######################################################################
-          # {{channel.address}} - {{user_org.name}}
-          ######################################################################
+        group = sendsms-user
+        username = "{{channel.config_json.username}}"
+        password = "{{channel.config_json.password}}"
+        concatenation = true
+        max-messages = 10
+        user-allow-ip = "*.*.*.*"
+        faked-sender = {{channel.address}}
+        forced-smsc = YOUR-SMSC
+        default-smsc = YOUR-SMSC
 
-          group = sendsms-user
-          username = "{{channel.config_json.username}}"
-          password = "{{channel.config_json.password}}"
-          concatenation = true
-          max-messages = 10
-          user-allow-ip = "*.*.*.*"
-          faked-sender = {{channel.address}}
-          forced-smsc = YOUR-SMSC
-          default-smsc = YOUR-SMSC
-
-          group = sms-service
-          keyword = default
-          allowed-receiver-prefix = {{channel.address}}
-          max-messages = 0
-          post-url = "https://{{domain}}{% url 'handlers.kannel_handler' 'receive' object.uuid %}/?backend=%i&sender=%p&message=%b&ts=%T&id=%I&to=%P"
-          concatenation = true
-          assume-plain-text = true
-          accept-x-kannel-headers = true
-          omit-empty = true
-          accepted-smsc = YOUR-SMSC
+        group = sms-service
+        keyword = default
+        allowed-receiver-prefix = {{channel.address}}
+        max-messages = 0
+        post-url = "https://{{domain}}{% url 'handlers.kannel_handler' 'receive' object.uuid %}/?backend=%i&sender=%p&message=%b&ts=%T&id=%I&to=%P"
+        concatenation = true
+        assume-plain-text = true
+        accept-x-kannel-headers = true
+        omit-empty = true
+        accepted-smsc = YOUR-SMSC
 
   -elif object.channel_type == 'JS'
     %h4
@@ -730,7 +729,8 @@
       -blocktrans
         To finish configuring your Facebook connection, you'll need to enter the following webhook URL and token on your application's
         Messenger settings page. Make sure to check all boxes within the 'Webhooks' section to subscribe to all incoming Facebook events
-        and, within the same section, select the page whose events you'd like the webhook to subscribe to.
+        and referral parameters (<code>messaging_referrals</code>), within the same section, select the page whose events you'd like the 
+        webhook to subscribe to. 
 
     .important
       %p
@@ -757,6 +757,26 @@
 
     %code
       {{ channel.secret }}
+
+  -elif object.channel_type == 'JC'
+    %h4
+      -blocktrans
+        To finish configuring your JioChat connection, you'll need to enter the following webhook URL and token on JioChat Developer Center configuration
+
+    %hr
+
+    %h4
+      -trans "Webhook URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.jiochat_handler' object.uuid %}
+
+    %h4
+      -trans "Token"
+
+    %code
+      {{ channel.secret }}
+
 
   -elif object.channel_type == 'VI'
     %h4

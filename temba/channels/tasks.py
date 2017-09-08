@@ -14,6 +14,7 @@ from temba.msgs.models import SEND_MSG_TASK, MSG_QUEUE
 from temba.utils import dict_to_struct
 from temba.utils.queues import start_task, push_task, nonoverlapping_task, complete_task
 from temba.utils.mage import MageClient
+from temba.temba_celery import app as celery_app
 from .models import Channel, Alert, ChannelLog, ChannelCount
 
 
@@ -24,6 +25,18 @@ class MageStreamAction(Enum):
     activate = 1
     refresh = 2
     deactivate = 3
+
+
+@celery_app.on_after_finalize.connect
+def setup_periodic_tasks(sender, **kwargs):
+    try:
+        from .types import TYPES
+        for channel_type in TYPES.values():
+            channel_type.setup_periodic_tasks(sender)
+    except Exception as e:  # pragma: no cover
+        # we print this out because celery just silently swallows exceptions here
+        import traceback
+        traceback.print_exc(e)
 
 
 @task(track_started=True, name='sync_channel_gcm_task')
@@ -64,6 +77,11 @@ def send_msg_task():
                 msg = dict_to_struct('MockMsg', msg_task,
                                      datetime_fields=['modified_on', 'sent_on', 'created_on', 'queued_on',
                                                       'next_attempt'])
+
+                # we renamed msg.session_id to msg.connection_id but might still have queued messages with the former
+                if hasattr(msg, 'session_id'):
+                    msg.connection_id = msg.session_id
+
                 Channel.send_message(msg)
 
                 # if there are more messages to send for this contact, sleep a second before moving on
@@ -93,6 +111,11 @@ def check_channels_task():
 def send_alert_task(alert_id, resolved):
     alert = Alert.objects.get(pk=alert_id)
     alert.send_email(resolved)
+
+
+@task(track_started=True, name='refresh_jiochat_access_tokens')
+def refresh_jiochat_access_tokens(channel_id=None):
+    Channel.refresh_all_jiochat_access_token(channel_id=channel_id)
 
 
 @nonoverlapping_task(track_started=True, name='trim_channel_log_task')
@@ -126,8 +149,6 @@ def notify_mage_task(channel_uuid, action):
 
     if action == MageStreamAction.activate:
         mage.activate_twitter_stream(channel_uuid)
-    elif action == MageStreamAction.refresh:
-        mage.refresh_twitter_stream(channel_uuid)
     elif action == MageStreamAction.deactivate:
         mage.deactivate_twitter_stream(channel_uuid)
     else:  # pragma: no cover

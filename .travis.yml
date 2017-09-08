@@ -1,23 +1,40 @@
-language: python
-python:
-- '2.7.11'
-services:
-- redis-server
+dist:
+  - trusty
+
+sudo:
+  - false
+
 addons:
-  postgresql: '9.4'
-sudo: false
+  apt:
+    packages:
+      - postgresql-9.4-postgis-2.3
+  postgresql: "9.4"
+
 cache:
   directories:
-  - $HOME/.cache/pip
+    - "$HOME/.cache/pip"
+
+language: python
+
+python: 
+  - "2.7.11"
+
+services:
+- redis-server
+
 matrix:
   fast_finish: true
+
 install:
 - pip install --upgrade pip
 - pip --version
 - pip install -r pip-freeze.txt --upgrade
 - pip install setuptools==33.1.1  # Recent version breaks packaging.requirements, this is a temp fix: https://github.com/pypa/setuptools/issues/942
 - pip install coveralls
+- nvm install 6
+- nvm use 6
 - npm install
+
 before_script:
 - psql -U postgres -c "CREATE USER temba WITH PASSWORD 'temba';"
 - psql -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"
@@ -26,6 +43,7 @@ before_script:
 - psql -d 'template1' -U postgres -c "CREATE EXTENSION hstore;"
 - psql -U temba postgres -c "CREATE DATABASE temba;"
 - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
+
 script:
 - flake8
 - python manage.py makemigrations --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
@@ -33,6 +51,7 @@ script:
 - (! python manage.py compress --extension=".haml" --settings=temba.settings_travis | grep 'Error') || exit 1
 - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
 - coverage run manage.py test --noinput --verbosity=2
+
 after_success:
 - coveralls --rcfile .coveragerc_failcheck
 - coverage report -i --rcfile .coveragerc
@@ -40,4 +59,4 @@ after_success:
 
 notifications:
   slack:
-    secure: b2/RUpO6gWEDgOI/sEWsjt2cVnwp3hOWUSMnHpVuY0pZBzzrICZ5MeqEulwCoKy+8ohaCmYUL42RzJwq1v2FITo5YDeiLrqmrkYR0Zieel/Vey+o6sBdR6y2yPvWjBmydHNvfUyMshT5iqEn4bS6bjhm57F0rLJX7mTqp19A+68=
+    secure: "b2/RUpO6gWEDgOI/sEWsjt2cVnwp3hOWUSMnHpVuY0pZBzzrICZ5MeqEulwCoKy+8ohaCmYUL42RzJwq1v2FITo5YDeiLrqmrkYR0Zieel/Vey+o6sBdR6y2yPvWjBmydHNvfUyMshT5iqEn4bS6bjhm57F0rLJX7mTqp19A+68="

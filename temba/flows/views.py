@@ -80,35 +80,42 @@ IVR_EXPIRES_CHOICES = (
 class BaseFlowForm(forms.ModelForm):
     def clean_keyword_triggers(self):
         org = self.user.get_org()
-        wrong_format = []
-        existing_keywords = []
-        keyword_triggers = self.cleaned_data.get('keyword_triggers', '').strip()
+        value = self.cleaned_data.get('keyword_triggers', '')
 
-        for keyword in keyword_triggers.split(','):
-            if keyword and not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0):
+        duplicates = []
+        wrong_format = []
+        cleaned_keywords = []
+
+        for keyword in value.split(','):
+            keyword = keyword.lower().strip()
+            if not keyword:
+                continue
+
+            if not regex.match('^\w+$', keyword, flags=regex.UNICODE | regex.V0) or len(keyword) > Trigger.KEYWORD_MAX_LEN:
                 wrong_format.append(keyword)
 
             # make sure it is unique on this org
-            if keyword and org:
-                existing = Trigger.objects.filter(org=org, keyword__iexact=keyword, is_archived=False, is_active=True)
+            existing = Trigger.objects.filter(org=org, keyword__iexact=keyword, is_archived=False, is_active=True)
+            if self.instance:
+                existing = existing.exclude(flow=self.instance.pk)
 
-                if self.instance:
-                    existing = existing.exclude(flow=self.instance.pk)
-
-                if existing:
-                    existing_keywords.append(keyword)
+            if existing:
+                duplicates.append(keyword)
+            else:
+                cleaned_keywords.append(keyword)
 
         if wrong_format:
-            raise forms.ValidationError(_('"%s" must be a single word containing only letter and numbers') % ', '.join(wrong_format))
+            raise forms.ValidationError(_('"%s" must be a single word, less than %d characters, containing only letter '
+                                          'and numbers') % (', '.join(wrong_format), Trigger.KEYWORD_MAX_LEN))
 
-        if existing_keywords:
-            if len(existing_keywords) > 1:
-                error_message = _('The keywords "%s" are already used for another flow') % ', '.join(existing_keywords)
+        if duplicates:
+            if len(duplicates) > 1:
+                error_message = _('The keywords "%s" are already used for another flow') % ', '.join(duplicates)
             else:
-                error_message = _('The keyword "%s" is already used for another flow') % ', '.join(existing_keywords)
+                error_message = _('The keyword "%s" is already used for another flow') % ', '.join(duplicates)
             raise forms.ValidationError(error_message)
 
-        return keyword_triggers.lower()
+        return ','.join(cleaned_keywords)
 
     class Meta:
         model = Flow
@@ -872,7 +879,13 @@ class FlowCRUDL(SmartCRUDL):
                 dict(name='step', display=six.text_type(_('Sent to'))),
                 dict(name='step.value', display=six.text_type(_('Sent to')))
             ]
-            flow_variables += [dict(name='step.%s' % v['name'], display=v['display']) for v in contact_variables]
+
+            parent_variables = [dict(name='parent.%s' % v['name'], display=v['display']) for v in contact_variables]
+            parent_variables += [dict(name='parent.%s' % v['name'], display=v['display']) for v in flow_variables]
+
+            child_variables = [dict(name='child.%s' % v['name'], display=v['display']) for v in contact_variables]
+            child_variables += [dict(name='child.%s' % v['name'], display=v['display']) for v in flow_variables]
+
             flow_variables.append(dict(name='flow', display=six.text_type(_('All flow variables'))))
 
             flow_id = self.request.GET.get('flow', None)
@@ -888,7 +901,9 @@ class FlowCRUDL(SmartCRUDL):
                     flow_variables.append(dict(name='flow.%s.time' % key, display='%s Time' % rule_set.label))
 
             function_completions = get_function_listing()
-            return JsonResponse(dict(message_completions=contact_variables + date_variables + flow_variables,
+            messages_completions = contact_variables + date_variables + flow_variables
+            messages_completions += parent_variables + child_variables
+            return JsonResponse(dict(message_completions=messages_completions,
                                      function_completions=function_completions))
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -1028,6 +1043,12 @@ class FlowCRUDL(SmartCRUDL):
             contact_fields = forms.ModelMultipleChoiceField(ContactField.objects.filter(id__lt=0), required=False,
                                                             help_text=_("Which contact fields, if any, to include "
                                                                         "in the export"))
+
+            extra_urns = forms.MultipleChoiceField(required=False, label=_("Extra URNs"),
+                                                   choices=ContactURN.EXPORT_SCHEME_HEADERS,
+                                                   help_text=_("Extra URNs to include in the export in addition to "
+                                                               "the URN used in the flow"))
+
             responded_only = forms.BooleanField(required=False, label=_("Responded Only"), initial=True,
                                                 help_text=_("Only export results for contacts which responded"))
             include_messages = forms.BooleanField(required=False, label=_("Include Messages"),
@@ -1085,7 +1106,8 @@ class FlowCRUDL(SmartCRUDL):
                                                       contact_fields=form.cleaned_data['contact_fields'],
                                                       include_runs=form.cleaned_data['include_runs'],
                                                       include_msgs=form.cleaned_data['include_messages'],
-                                                      responded_only=form.cleaned_data['responded_only'])
+                                                      responded_only=form.cleaned_data['responded_only'],
+                                                      extra_urns=form.cleaned_data['extra_urns'])
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: needs cover
@@ -1412,7 +1434,7 @@ class FlowCRUDL(SmartCRUDL):
                                                     status=status)
                     else:
                         Msg.create_incoming(None,
-                                            test_contact.get_urn(TEL_SCHEME).urn,
+                                            six.text_type(test_contact.get_urn(TEL_SCHEME)),
                                             new_message,
                                             attachments=[media] if media else None,
                                             org=user.get_org(),
@@ -1427,8 +1449,8 @@ class FlowCRUDL(SmartCRUDL):
 
             if flow.flow_type == Flow.USSD:
                 for msg in messages:
-                    if msg.session.should_end:
-                        msg.session.close()
+                    if msg.connection.should_end:
+                        msg.connection.close()
 
                 # don't show the empty closing message on the simulator
                 messages = messages.exclude(text='', direction='O')

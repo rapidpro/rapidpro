@@ -10,22 +10,30 @@ from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from django_redis import get_redis_connection
+from django.db import transaction
+from django.contrib.auth.models import User
+from django.test import override_settings
 from mock import patch
 from openpyxl import load_workbook
-from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
+from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME, STOP_CONTACT_EVENT
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
+from temba.flows.models import RuleSet
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
 from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, SystemLabelCount, UnreachableException
-from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
+from temba.msgs.models import Attachment, HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW, HANDLE_EVENT_TASK, HANDLER_QUEUE
 from temba.orgs.models import Language, Debit, Org
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct, datetime_to_str
+from temba.utils.queues import push_task
 from temba.utils.expressions import get_function_listing
 from temba.values.models import Value
 from .management.commands.msg_console import MessageConsole
 from .tasks import squash_labelcounts, clear_old_msg_external_ids, purge_broadcasts_task
 from .templatetags.sms import as_icon
+from temba.locations.models import AdminBoundary
+from temba.msgs import models
+from temba.utils.queues import DEFAULT_PRIORITY
 
 
 class MsgTest(TembaTest):
@@ -212,6 +220,7 @@ class MsgTest(TembaTest):
         # a Twitter channel
         Channel.create(self.org, self.user, None, 'TT')
         completions.insert(-2, dict(name="contact.%s" % 'twitter', display="Contact %s" % "Twitter handle"))
+        completions.insert(-2, dict(name="contact.%s" % 'twitterid', display="Contact %s" % "Twitter ID"))
 
         response = self.client.get(outbox_url)
         # the Twitter URN scheme is included
@@ -317,7 +326,7 @@ class MsgTest(TembaTest):
         contact = self.create_contact("Blocked contact", "250728739305")
         contact.is_blocked = True
         contact.save()
-        ignored_msg = Msg.create_incoming(self.channel, contact.get_urn().urn, "My msg should be archived")
+        ignored_msg = Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "My msg should be archived")
         ignored_msg = Msg.objects.get(pk=ignored_msg.pk)
         self.assertEqual(ignored_msg.visibility, Msg.VISIBILITY_ARCHIVED)
         self.assertEqual(ignored_msg.status, HANDLED)
@@ -327,6 +336,10 @@ class MsgTest(TembaTest):
         self.client.get(reverse('msgs.msg_inbox'))
 
         self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
+
+        # test that invalid chars are stripped from message text
+        msg5 = Msg.create_incoming(self.channel, "tel:250788382382", "Don't be null!\x00")
+        self.assertEqual(msg5.text, "Don't be null!")
 
     def test_empty(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
@@ -431,7 +444,7 @@ class MsgTest(TembaTest):
     def test_inbox(self):
         inbox_url = reverse('msgs.msg_inbox')
 
-        joe_tel = self.joe.get_urn(TEL_SCHEME).urn
+        joe_tel = six.text_type(self.joe.get_urn(TEL_SCHEME))
         msg1 = Msg.create_incoming(self.channel, joe_tel, "message number 1")
         msg2 = Msg.create_incoming(self.channel, joe_tel, "message number 2")
         msg3 = Msg.create_incoming(self.channel, joe_tel, "message number 3")
@@ -551,7 +564,7 @@ class MsgTest(TembaTest):
 
         # messages from test contact are not included in the inbox
         test_contact = Contact.get_test_contact(self.admin)
-        Msg.create_incoming(self.channel, test_contact.get_urn().urn, 'Bla Blah')
+        Msg.create_incoming(self.channel, six.text_type(test_contact.get_urn()), 'Bla Blah')
 
         response = self.client.get(inbox_url)
         self.assertEqual(Msg.objects.all().count(), 7)
@@ -600,7 +613,7 @@ class MsgTest(TembaTest):
     def test_flows(self):
         url = reverse('msgs.msg_flow')
 
-        msg1 = Msg.create_incoming(self.channel, self.joe.get_urn().urn, "test 1", msg_type='F')
+        msg1 = Msg.create_incoming(self.channel, six.text_type(self.joe.get_urn()), "test 1", msg_type='F')
 
         # user not in org can't access
         self.login(self.non_org_user)
@@ -679,9 +692,6 @@ class MsgTest(TembaTest):
         self.joe.name = "Jo\02e Blow"
         self.joe.save()
 
-        # create some messages...
-        # joe_urn = self.joe.get_urn(TEL_SCHEME).urn
-
         msg1 = self.create_msg(contact=self.joe, text="hello 1", direction='I', status=HANDLED,
                                msg_type='I', created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
         msg2 = self.create_msg(contact=self.joe, text="hello 2", direction='I', status=HANDLED,
@@ -708,8 +718,7 @@ class MsgTest(TembaTest):
         msg9 = self.create_msg(contact=self.joe, text="Hey out 9", direction='O', status=FAILED,
                                created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC))
 
-        self.assertTrue(msg5.is_media_type_audio())
-        self.assertEqual('http://rapidpro.io/audio/sound.mp3', msg5.get_media_path())
+        self.assertEqual(msg5.get_attachments(), [Attachment('audio', 'http://rapidpro.io/audio/sound.mp3')])
 
         # label first message
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
@@ -795,6 +804,11 @@ class MsgTest(TembaTest):
             [msg6.created_on, "123", "tel", "Joe Blow", msg6.contact.uuid, "Outgoing", "Hey out 6", "", "Sent"],
             [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming", "Media message", "", "Handled"],
         ], self.org.timezone)
+
+        # check sending an invalid date
+        response = self.client.post(reverse('msgs.msg_export') + '?l=I', {'export_all': 1, 'start_date': 'xyz'})
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, 'form', 'start_date', "Enter a valid date.")
 
         # test as anon org to check that URNs don't end up in exports
         with AnonymousOrg(self.org):
@@ -977,7 +991,7 @@ class BroadcastTest(TembaTest):
     def test_send(self):
         # remove all channels first
         for channel in Channel.objects.all():
-            channel.release(notify_mage=False)
+            channel.release()
 
         send_url = reverse('msgs.broadcast_send')
         self.login(self.admin)
@@ -989,7 +1003,7 @@ class BroadcastTest(TembaTest):
 
         # test when we are simulating
         response = self.client.get(send_url + "?simulation=true")
-        self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
+        self.assertEquals(['omnibox', 'text', 'schedule', 'step_node'], response.context['fields'])
 
         test_contact = Contact.get_test_contact(self.admin)
 
@@ -1009,7 +1023,7 @@ class BroadcastTest(TembaTest):
         Channel.create(self.org, self.user, None, "TT")
 
         response = self.client.get(send_url)
-        self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
+        self.assertEquals(['omnibox', 'text', 'schedule', 'step_node'], response.context['fields'])
 
         post_data = dict(text="message #1", omnibox="g-%s,c-%s,c-%s" % (self.joe_and_frank.uuid, self.joe.uuid, self.lucy.uuid))
         self.client.post(send_url, post_data, follow=True)
@@ -1024,12 +1038,12 @@ class BroadcastTest(TembaTest):
 
         # test with one channel now
         for channel in Channel.objects.all():
-            channel.release(notify_mage=False)
+            channel.release()
 
         Channel.create(self.org, self.user, None, 'A', None, secret="12345", gcm_id="123")
 
         response = self.client.get(send_url)
-        self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
+        self.assertEquals(['omnibox', 'text', 'schedule', 'step_node'], response.context['fields'])
 
         post_data = dict(text="message #2", omnibox='g-%s,c-%s' % (self.joe_and_frank.uuid, self.kevin.uuid))
         self.client.post(send_url, post_data, follow=True)
@@ -1070,6 +1084,40 @@ class BroadcastTest(TembaTest):
         response = self.client.post(send_url, post_data, follow=True)
         self.assertIn("success", response.content)
 
+        # add flow steps
+        flow = self.get_flow('favorites')
+        flow.start([], [self.joe, test_contact], restart_participants=True)
+
+        step_uuid = RuleSet.objects.first().uuid
+
+        # no error if we are sending from a flow node
+        post_data = dict(text="message content", omnibox='', step_node=step_uuid)
+        response = self.client.post(send_url + '?_format=json', post_data, follow=True)
+        self.assertIn("success", response.content)
+
+        response = self.client.post(send_url, post_data)
+        self.assertRedirect(response, reverse('msgs.msg_inbox'))
+
+        response = self.client.post(send_url + '?_format=json', post_data, follow=True)
+        self.assertIn("success", response.content)
+        broadcast = Broadcast.objects.order_by('-id').first()
+        self.assertEqual(broadcast.text, {'base': "message content"})
+        self.assertEquals(broadcast.groups.count(), 0)
+        self.assertEquals(broadcast.contacts.count(), 1)
+        self.assertTrue(self.joe in broadcast.contacts.all())
+
+        # Activate simulation mode
+        Contact.set_simulation(True)
+        flow.start([], [self.joe, test_contact], restart_participants=True)
+
+        response = self.client.post(send_url + '?_format=json&simulation=true', post_data, follow=True)
+        self.assertIn("success", response.content)
+        broadcast = Broadcast.objects.order_by('-id').first()
+        self.assertEqual(broadcast.text, {'base': "message content"})
+        self.assertEquals(broadcast.groups.count(), 0)
+        self.assertEquals(broadcast.contacts.count(), 1)
+        self.assertTrue(test_contact in broadcast.contacts.all())
+
     def test_unreachable(self):
         no_urns = Contact.get_or_create(self.org, self.admin, name="Ben Haggerty", urns=[])
         tel_contact = self.create_contact("Ryan Lewis", number="+12067771234")
@@ -1095,7 +1143,7 @@ class BroadcastTest(TembaTest):
         self.assertTrue(msgs[0].contact, twitter_contact)
 
         # remove twitter relayer
-        self.twitter.release(trigger_sync=False, notify_mage=False)
+        self.twitter.release(trigger_sync=False)
 
         # send another broadcast to all
         broadcast = Broadcast.create(self.org, self.admin, "Want to go thrift shopping?", recipients)
@@ -1233,12 +1281,33 @@ class BroadcastTest(TembaTest):
 
         self.assertEqual(context['__default__'], "keyword remainder-remainder")
         self.assertEqual(context['value'], "keyword remainder-remainder")
+        self.assertEqual(context['text'], "keyword remainder-remainder")
+        self.assertEqual(context['attachments'], {})
         self.assertEqual(context['contact']['__default__'], "Joe Blow")
         self.assertEqual(context['contact']['superhero_name'], "batman")
 
         # time should be in org format and timezone
-        msg_time = datetime_to_str(msg.created_on, '%d-%m-%Y %H:%M', tz=self.org.timezone)
-        self.assertEqual(msg_time, context['time'])
+        self.assertEqual(context['time'], datetime_to_str(msg.created_on, '%d-%m-%Y %H:%M', tz=self.org.timezone))
+
+        # add some attachments to this message
+        msg.attachments = ["image/jpeg:http://e.com/test.jpg", "audio/mp3:http://e.com/test.mp3"]
+        msg.save()
+        context = msg.build_expressions_context()
+
+        self.assertEqual(context['__default__'], "keyword remainder-remainder\nhttp://e.com/test.jpg\nhttp://e.com/test.mp3")
+        self.assertEqual(context['value'], "keyword remainder-remainder\nhttp://e.com/test.jpg\nhttp://e.com/test.mp3")
+        self.assertEqual(context['text'], "keyword remainder-remainder")
+        self.assertEqual(context['attachments'], {"0": "http://e.com/test.jpg", "1": "http://e.com/test.mp3"})
+
+        # clear the text of the message
+        msg.text = ""
+        msg.save()
+        context = msg.build_expressions_context()
+
+        self.assertEqual(context['__default__'], "http://e.com/test.jpg\nhttp://e.com/test.mp3")
+        self.assertEqual(context['value'], "http://e.com/test.jpg\nhttp://e.com/test.mp3")
+        self.assertEqual(context['text'], "")
+        self.assertEqual(context['attachments'], {"0": "http://e.com/test.jpg", "1": "http://e.com/test.mp3"})
 
     def test_variables_substitution(self):
         ContactField.get_or_create(self.org, self.admin, "sector", "sector")
@@ -1805,7 +1874,7 @@ class ConsoleTest(TembaTest):
         self.john = self.create_contact("John Doe", "0788123123")
 
         # create a flow and set "color" as its trigger
-        self.flow = self.create_flow()
+        self.flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
         Trigger.objects.create(flow=self.flow, keyword="color", created_by=self.admin, modified_by=self.admin, org=self.org)
 
     def assertEchoed(self, needle, clear=True):
@@ -2050,19 +2119,19 @@ class TagsTest(TembaTest):
         # default cause is pending sent
         self.assertHasClass(as_icon(None), 'icon-bubble-dots-2 green')
 
-        in_call = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
+        in_call = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
                                       ChannelEvent.TYPE_CALL_IN, timezone.now(), 5)
         self.assertHasClass(as_icon(in_call), 'icon-call-incoming green')
 
-        in_miss = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
+        in_miss = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
                                       ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 5)
         self.assertHasClass(as_icon(in_miss), 'icon-call-incoming red')
 
-        out_call = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
+        out_call = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
                                        ChannelEvent.TYPE_CALL_OUT, timezone.now(), 5)
         self.assertHasClass(as_icon(out_call), 'icon-call-outgoing green')
 
-        out_miss = ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn,
+        out_miss = ChannelEvent.create(self.channel, six.text_type(self.joe.get_urn(TEL_SCHEME)),
                                        ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), 5)
         self.assertHasClass(as_icon(out_miss), 'icon-call-outgoing red')
 
@@ -2074,3 +2143,77 @@ class TagsTest(TembaTest):
         # exception if tag not used correctly
         self.assertRaises(ValueError, self.render_template, '{% load sms %}{% render with bob %}{% endrender %}')
         self.assertRaises(ValueError, self.render_template, '{% load sms %}{% render as %}{% endrender %}')
+
+
+class CeleryTaskTest(TembaTest):
+
+    def setUp(self):
+        super(CeleryTaskTest, self).setUp()
+
+        self.applied_tasks = []
+
+        self.joe = self.create_contact("Joe", "+250788383444")
+
+        self.channel2 = Channel.create(
+            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '1234',
+            config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
+            uuid='00000000-0000-0000-0000-000000001234', role=Channel.ROLE_USSD)
+
+    def _fixture_teardown(self):
+        Msg.objects.all().delete()
+        Channel.objects.all().delete()
+        AdminBoundary.objects.all().delete()
+        Org.objects.all().delete()
+        Contact.objects.all().delete()
+        User.objects.all().exclude(username=settings.ANONYMOUS_USER_NAME).delete()
+
+    @classmethod
+    def _enter_atomics(cls):
+        return {}
+
+    @classmethod
+    def _rollback_atomics(cls, atomics):
+        pass
+
+    def handle_push_task(self, task_name):
+        self.applied_tasks.append(task_name)
+
+    def assert_task_sent(self, task_name):
+        was_sent = task_name in self.applied_tasks
+        self.assertTrue(was_sent, 'Task not called w/class %s' % (task_name))
+
+    def assertInDB(self, obj, msg=None):
+        """Test for obj's presence in the database."""
+        fullmsg = "Object %r unexpectedly not found in the database" % obj
+        fullmsg += ": " + msg if msg else ""
+        try:
+            type(obj).objects.using('default2').get(pk=obj.pk)
+        except obj.DoesNotExist:
+            self.fail(fullmsg)
+
+    @override_settings(CELERY_ALWAYS_EAGER=False, SEND_MESSAGES=True)
+    def test_reply_task_added(self):
+        orig_push_task = models.push_task
+
+        def new_send_task(name, args=(), kwargs={}, **opts):
+            self.handle_push_task(name)
+
+        def new_push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
+            orig_push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY)
+
+            self.assertInDB(msg1)
+            self.assert_task_sent('send_msg_task')
+
+        with patch('celery.current_app.send_task', new_send_task), patch('temba.msgs.models.push_task', new_push_task), transaction.atomic():
+            msg1 = Msg.create_outgoing(self.org, self.user, self.joe, "Hello, we heard from you.", channel=self.channel2)
+
+            Msg.send_messages([msg1])
+
+
+class HandleEventTest(TembaTest):
+
+    def test_stop_contact_task(self):
+        self.joe = self.create_contact("Joe", "+12065551212")
+        push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=STOP_CONTACT_EVENT, contact_id=self.joe.id))
+        self.joe.refresh_from_db()
+        self.assertTrue(self.joe.is_stopped)

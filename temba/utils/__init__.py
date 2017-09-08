@@ -4,6 +4,7 @@ import calendar
 import json
 import datetime
 import locale
+
 import pytz
 import random
 import regex
@@ -159,6 +160,14 @@ def json_date_to_datetime(date_str):
     if date_str.endswith('Z'):
         iso_format += 'Z'
     return datetime.datetime.strptime(date_str, iso_format).replace(tzinfo=pytz.utc)
+
+
+def datetime_to_s(dt):
+    """
+    Converts a datetime to a fractional second epoch
+    """
+    seconds = calendar.timegm(dt.utctimetuple())
+    return seconds + dt.microsecond / float(100000)
 
 
 def datetime_to_ms(dt):
@@ -494,3 +503,11 @@ def decode_base64(original):
         return original
 
     return decoded
+
+
+def get_anonymous_user():
+    """
+    Returns the anonymous user, originally created by django-guardian
+    """
+    from django.contrib.auth.models import User
+    return User.objects.get(username=settings.ANONYMOUS_USER_NAME)

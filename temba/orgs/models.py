@@ -4,9 +4,12 @@ import calendar
 import itertools
 import json
 import logging
+import mimetypes
 import os
 import pycountry
 import random
+
+import re
 import regex
 import six
 import stripe
@@ -41,7 +44,6 @@ from temba.utils.email import send_template_email, send_simple_email, send_custo
 from temba.utils.models import SquashableModel
 from temba.utils.timezones import timezone_to_country_code
 from timezone_field import TimeZoneField
-from twilio.rest import TwilioRestClient
 from urlparse import urlparse
 from uuid import uuid4
 
@@ -105,6 +107,13 @@ SMTP_USERNAME = 'SMTP_USERNAME'
 SMTP_PASSWORD = 'SMTP_PASSWORD'
 SMTP_PORT = 'SMTP_PORT'
 SMTP_ENCRYPTION = 'SMTP_ENCRYPTION'
+
+CHATBASE_AGENT_NAME = 'CHATBASE_AGENT_NAME'
+CHATBASE_API_KEY = 'CHATBASE_API_KEY'
+CHATBASE_TYPE_AGENT = 'agent'
+CHATBASE_TYPE_USER = 'user'
+CHATBASE_FEEDBACK = 'CHATBASE_FEEDBACK'
+CHATBASE_VERSION = 'CHATBASE_VERSION'
 
 ORG_STATUS = 'STATUS'
 SUSPENDED = 'suspended'
@@ -431,16 +440,18 @@ class Org(SmartModel):
         """
         from temba.channels.models import Channel
 
-        channel = self.channels.filter(is_active=True, scheme=scheme, role__contains=role).order_by('-pk')
-        if country_code:
-            channel = channel.filter(country=country_code)
+        channels = self.channels.filter(is_active=True, role__contains=role).order_by('-pk')
 
-        channel = channel.first()
+        if scheme is not None:
+            channels = channels.filter(schemes__contains=[scheme])
+
+        channel = None
+        if country_code:
+            channel = channels.filter(country=country_code).first()
 
         # no channel? try without country
-        if not channel and country_code:
-            channel = self.channels.filter(is_active=True, scheme=scheme,
-                                           role__contains=role).order_by('-pk').first()
+        if not channel:
+            channel = channels.first()
 
         if channel and (role == Channel.ROLE_SEND or role == Channel.ROLE_CALL):
             return channel.get_delegate(role)
@@ -451,9 +462,6 @@ class Org(SmartModel):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import Channel
         from temba.contacts.models import ContactURN
-
-        if not scheme and not contact_urn:
-            raise ValueError("Must specify scheme or contact URN")
 
         if contact_urn:
             if contact_urn:
@@ -486,7 +494,7 @@ class Org(SmartModel):
 
                 # no country specific channel, try to find any channel at all
                 if not channels:
-                    channels = [c for c in self.channels.all()]
+                    channels = [c for c in self.channels.filter(schemes__contains=[TEL_SCHEME])]
 
                 # filter based on role and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
                 senders = []
@@ -567,7 +575,8 @@ class Org(SmartModel):
 
         schemes = set()
         for channel in self.channels.filter(is_active=True, role__contains=role):
-            schemes.add(channel.scheme)
+            for scheme in channel.schemes:
+                schemes.add(scheme)
 
         setattr(self, cache_attr, schemes)
         return schemes
@@ -615,10 +624,10 @@ class Org(SmartModel):
         channel_country_codes = set(channel_country_codes.values_list('country', flat=True))
 
         for country_code in channel_country_codes:
-            country_obj = pycountry.countries.get(alpha2=country_code)
+            country_obj = pycountry.countries.get(alpha_2=country_code)
             country_name = country_obj.name
             currency = currency_for_country(country_code)
-            channel_countries.append(dict(code=country_code, name=country_name, currency_code=currency.letter,
+            channel_countries.append(dict(code=country_code, name=country_name, currency_code=currency.alpha_3,
                                           currency_name=currency.name))
 
         return sorted(channel_countries, key=lambda k: k['name'])
@@ -801,28 +810,7 @@ class Org(SmartModel):
         return config.get(NEXMO_UUID, None)
 
     def connect_twilio(self, account_sid, account_token, user):
-        client = TwilioRestClient(account_sid, account_token)
-        app_name = "%s/%d" % (settings.TEMBA_HOST.lower(), self.pk)
-        apps = client.applications.list(friendly_name=app_name)
-        if apps:
-            temba_app = apps[0]
-        else:  # pragma: needs cover
-            app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler')
-
-            # the the twiml to run when the voice app fails
-            fallback_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/voice_unavailable.xml"
-
-            temba_app = client.applications.create(friendly_name=app_name,
-                                                   voice_url=app_url,
-                                                   voice_fallback_url=fallback_url,
-                                                   voice_fallback_method='GET',
-                                                   status_callback=app_url,
-                                                   status_callback_method='POST',
-                                                   sms_url=app_url,
-                                                   sms_method="POST")
-
-        application_sid = temba_app.sid
-        twilio_config = {ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token, APPLICATION_SID: application_sid}
+        twilio_config = {ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token}
 
         config = self.config_json()
         config.update(twilio_config)
@@ -849,13 +837,17 @@ class Org(SmartModel):
             config = self.config_json()
             account_sid = config.get(ACCOUNT_SID, None)
             account_token = config.get(ACCOUNT_TOKEN, None)
-            application_sid = config.get(APPLICATION_SID, None)
-            if account_sid and account_token and application_sid:
+            if account_sid and account_token:
                 return True
         return False
 
     def remove_nexmo_account(self, user):
         if self.config:
+            # release any nexmo channels
+            from temba.channels.models import Channel
+            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_NEXMO):  # pragma: needs cover
+                channel.release()
+
             config = self.config_json()
             config[NEXMO_KEY] = ''
             config[NEXMO_SECRET] = ''
@@ -863,17 +855,16 @@ class Org(SmartModel):
             self.modified_by = user
             self.save()
 
-            # release any nexmo channels
-            from temba.channels.models import Channel
-            channels = self.channels.filter(is_active=True, channel_type=Channel.TYPE_NEXMO)
-            for channel in channels:  # pragma: needs cover
-                channel.release()
-
             # clear all our channel configurations
             self.clear_channel_caches()
 
     def remove_twilio_account(self, user):
         if self.config:
+            # release any twilio channels
+            from temba.channels.models import Channel
+            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_TWILIO):
+                channel.release()
+
             config = self.config_json()
             config[ACCOUNT_SID] = ''
             config[ACCOUNT_TOKEN] = ''
@@ -882,14 +873,46 @@ class Org(SmartModel):
             self.modified_by = user
             self.save()
 
-            # release any twilio channels
-            from temba.channels.models import Channel
-            channels = self.channels.filter(is_active=True, channel_type=Channel.TYPE_TWILIO)
-            for channel in channels:
-                channel.release()
-
             # clear all our channel configurations
             self.clear_channel_caches()
+
+    def connect_chatbase(self, agent_name, api_key, version, user):
+        chatbase_config = {
+            CHATBASE_AGENT_NAME: agent_name,
+            CHATBASE_API_KEY: api_key,
+            CHATBASE_VERSION: version
+        }
+
+        config = self.config_json()
+        config.update(chatbase_config)
+        self.config = json.dumps(config)
+        self.modified_by = user
+        self.save()
+
+    def remove_chatbase_account(self, user):
+        config = self.config_json()
+
+        if CHATBASE_AGENT_NAME in config:
+            del config[CHATBASE_AGENT_NAME]
+
+        if CHATBASE_API_KEY in config:
+            del config[CHATBASE_API_KEY]
+
+        if CHATBASE_VERSION in config:
+            del config[CHATBASE_VERSION]
+
+        self.config = json.dumps(config)
+        self.modified_by = user
+        self.save()
+
+    def get_chatbase_credentials(self):
+        if self.config:
+            config = self.config_json()
+            chatbase_api_key = config.get(CHATBASE_API_KEY, None)
+            chatbase_version = config.get(CHATBASE_VERSION, None)
+            return chatbase_api_key, chatbase_version
+        else:
+            return None, None
 
     def get_verboice_client(self):  # pragma: needs cover
         from temba.ivr.clients import VerboiceClient
@@ -944,7 +967,7 @@ class Org(SmartModel):
             try:
                 country = pycountry.countries.get(name=self.country.name)
                 if country:
-                    return country.alpha2
+                    return country.alpha_2
             except KeyError:  # pragma: no cover
                 # pycountry blows up if we pass it a country name it doesn't know
                 pass
@@ -1511,9 +1534,9 @@ class Org(SmartModel):
         # for our purposes, #1 and #2 are treated the same, we just always update the default card
 
         try:
-            if not customer:
+            if not customer or customer.email != user.email:
                 # then go create a customer object for this user
-                customer = stripe.Customer.create(card=token, email=user,
+                customer = stripe.Customer.create(card=token, email=user.email,
                                                   description="{ org: %d }" % self.pk)
 
                 stripe_customer = customer.id
@@ -1529,7 +1552,10 @@ class Org(SmartModel):
                 for card in existing_cards:
                     card.delete()
 
-                card = customer.cards.create(card=token)
+                try:
+                    card = customer.cards.create(card=token)
+                except stripe.CardError:
+                    raise ValidationError(_("Sorry, your card was declined, please contact your provider or try another card."))
 
                 customer.default_card = card.id
                 customer.save()
@@ -1583,8 +1609,12 @@ class Org(SmartModel):
 
             return topup
 
+        except ValidationError as e:
+            raise e
+
         except Exception as e:
-            traceback.print_exc(e)
+            logger = logging.getLogger(__name__)
+            logger.error("Error adding credits to org", exc_info=True)
             raise ValidationError(_("Sorry, we were unable to process your payment, please try again later or contact us."))
 
     def account_value(self):
@@ -1854,6 +1884,32 @@ class Org(SmartModel):
 
         return self.save_media(File(temp), extension)
 
+    def save_response_media(self, response):
+        disposition = response.headers.get('Content-Disposition', None)
+        content_type = response.headers.get('Content-Type', None)
+
+        downloaded = None
+
+        if content_type:
+            extension = None
+            if disposition == 'inline':
+                extension = mimetypes.guess_extension(content_type)
+                extension = extension.strip('.')
+            elif disposition:
+                filename = re.findall("filename=\"(.+)\"", disposition)[0]
+                extension = filename.rpartition('.')[2]
+            elif content_type == 'audio/x-wav':
+                extension = 'wav'
+
+            temp = NamedTemporaryFile(delete=True)
+            temp.write(response.content)
+            temp.flush()
+
+            # save our file off
+            downloaded = self.save_media(File(temp), extension)
+
+        return content_type, downloaded
+
     def save_media(self, file, extension):
         """
         Saves the given file data with the extension and returns an absolute url to the result
@@ -1899,8 +1955,8 @@ class Org(SmartModel):
 # ===================== monkey patch User class with a few extra functions ========================
 
 def get_user_orgs(user, brand=None):
-    org = user.get_org()
     if not brand:
+        org = Org.get_org(user)
         brand = org.brand if org else settings.DEFAULT_BRAND
 
     if user.is_superuser:
