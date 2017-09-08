@@ -1739,7 +1739,7 @@ class PlivoHandler(BaseChannelHandler):
 
 class MageHandler(BaseChannelHandler):
 
-    url = r'^mage/(?P<action>handle_message|follow_notification|stop_contact|trigger_new_conversation)$'
+    url = r'^mage/(?P<action>handle_message|follow_notification|stop_contact)$'
     url_name = 'handlers.mage_handler'
 
     def get(self, request, *args, **kwargs):
@@ -1786,18 +1786,6 @@ class MageHandler(BaseChannelHandler):
                 return JsonResponse(dict(error="Invalid contact_id"), status=400)
 
             contact.stop(contact.modified_by)
-
-        elif action == 'trigger_new_conversation':
-            contact = Contact.objects.filter(is_active=True, id=request.POST.get('contact_id', '-1')).first()
-            channel = Channel.objects.filter(is_active=True, id=request.POST.get('channel_id', '-1')).first()
-
-            if not contact:
-                return JsonResponse(dict(error="Invalid contact_id"), status=400)
-
-            if not channel:
-                return JsonResponse(dict(error="Invalid channel_id"), status=400)
-
-            Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
 
         return JsonResponse(dict(error=None))
 
