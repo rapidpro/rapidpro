@@ -164,7 +164,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 
 @six.python_2_unicode_compatible
 class Channel(TembaModel):
-    TYPE_AFRICAS_TALKING = 'AT'
     TYPE_ANDROID = 'A'
     TYPE_CHIKKA = 'CK'
     TYPE_CLICKATELL = 'CT'
@@ -271,7 +270,6 @@ class Channel(TembaModel):
 
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
-        TYPE_AFRICAS_TALKING: dict(schemes=['tel'], max_length=160),
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
         TYPE_CLICKATELL: dict(schemes=['tel'], max_length=420),
@@ -304,8 +302,7 @@ class Channel(TembaModel):
         TYPE_ZENVIA: dict(schemes=['tel'], max_length=150),
     }
 
-    TYPE_CHOICES = ((TYPE_AFRICAS_TALKING, "Africa's Talking"),
-                    (TYPE_ANDROID, "Android"),
+    TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
                     (TYPE_CHIKKA, "Chikka"),
                     (TYPE_CLICKATELL, "Clickatell"),
                     (TYPE_DARTMEDIA, "Dart Media"),
@@ -707,13 +704,6 @@ class Channel(TembaModel):
             return existing
 
         return Channel.create(org, user, country, Channel.TYPE_TWIML, name=name, address=address, config=config, role=role)
-
-    @classmethod
-    def add_africas_talking_channel(cls, org, user, country, phone, username, api_key, is_shared=False):
-        config = dict(username=username, api_key=api_key, is_shared=is_shared)
-
-        return Channel.create(org, user, country, Channel.TYPE_AFRICAS_TALKING,
-                              name="Africa's Talking: %s" % phone, address=phone, config=config)
 
     @classmethod
     def add_zenvia_channel(cls, org, user, phone, account, code):
@@ -2250,54 +2240,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_africas_talking_message(cls, channel, msg, text):
-        from temba.msgs.models import SENT
-
-        payload = dict(username=channel.config['username'],
-                       to=msg.urn_path,
-                       message=text)
-
-        # if this isn't a shared shortcode, send the from address
-        if not channel.config.get('is_shared', False):
-            payload['from'] = channel.address
-
-        headers = dict(Accept='application/json', apikey=channel.config['api_key'])
-        headers.update(TEMBA_HEADERS)
-
-        api_url = "https://api.africastalking.com/version1/messaging"
-
-        event = HttpEvent('POST', api_url, urlencode(payload))
-
-        start = time.time()
-
-        try:
-            response = requests.post(api_url,
-                                     data=payload, headers=headers, timeout=5)
-            event.status_code = response.status_code
-            event.response_body = response.text
-        except Exception as e:
-            raise SendException(u"Unable to send message: %s" % six.text_type(e),
-                                event=event, start=start)
-
-        if response.status_code != 200 and response.status_code != 201:
-            raise SendException("Got non-200 response from API: %d" % response.status_code,
-                                event=event, start=start)
-
-        response_data = response.json()
-
-        # grab the status out of our response
-        status = response_data['SMSMessageData']['Recipients'][0]['status']
-        if status != 'Success':
-            raise SendException("Got non success status from API: %s" % status,
-                                event=event, start=start)
-
-        # set our external id so we know when it is actually sent, this is missing in cases where
-        # it wasn't sent, in which case we'll become an errored message
-        external_id = response_data['SMSMessageData']['Recipients'][0]['messageId']
-
-        Channel.success(channel, msg, SENT, start, event=event, external_id=external_id)
-
-    @classmethod
     def send_twilio_message(cls, channel, msg, text):
         from temba.msgs.models import Attachment, WIRED
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
@@ -2745,8 +2687,7 @@ STATUS_DISCHARGING = "DIS"
 STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
 
-SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_message,
-                  Channel.TYPE_CHIKKA: Channel.send_chikka_message,
+SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_CLICKATELL: Channel.send_clickatell_message,
                   Channel.TYPE_DARTMEDIA: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
