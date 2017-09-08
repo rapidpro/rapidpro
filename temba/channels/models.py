@@ -166,7 +166,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_CHIKKA = 'CK'
-    TYPE_CLICKATELL = 'CT'
     TYPE_DARTMEDIA = 'DA'
     TYPE_DUMMY = 'DM'
     TYPE_GLOBE = 'GL'
@@ -272,7 +271,6 @@ class Channel(TembaModel):
     CHANNEL_SETTINGS = {
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
-        TYPE_CLICKATELL: dict(schemes=['tel'], max_length=420),
         TYPE_DARTMEDIA: dict(schemes=['tel'], max_length=160),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
         TYPE_GLOBE: dict(schemes=['tel'], max_length=160),
@@ -304,7 +302,6 @@ class Channel(TembaModel):
 
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
                     (TYPE_CHIKKA, "Chikka"),
-                    (TYPE_CLICKATELL, "Clickatell"),
                     (TYPE_DARTMEDIA, "Dart Media"),
                     (TYPE_DUMMY, "Dummy"),
                     (TYPE_GLOBE, "Globe Labs"),
@@ -341,7 +338,6 @@ class Channel(TembaModel):
         TYPE_TWIML: "icon-channel-twilio",
         TYPE_TWILIO_MESSAGING_SERVICE: "icon-channel-twilio",
         TYPE_PLIVO: "icon-channel-plivo",
-        TYPE_CLICKATELL: "icon-channel-clickatell",
         TYPE_VIBER: "icon-viber"
     }
 
@@ -2688,7 +2684,6 @@ STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
 
 SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
-                  Channel.TYPE_CLICKATELL: Channel.send_clickatell_message,
                   Channel.TYPE_DARTMEDIA: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
                   Channel.TYPE_GLOBE: Channel.send_globe_message,
