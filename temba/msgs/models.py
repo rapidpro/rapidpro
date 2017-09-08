@@ -881,7 +881,7 @@ class Msg(models.Model):
 
         # Sending data to Chatbase API
         (chatbase_api_key, chatbase_version) = msg.org.get_chatbase_credentials()
-        if chatbase_api_key:
+        if chatbase_api_key and msg.channel:
             cls.send_chatbase_log(chatbase_api_key, chatbase_version, msg.channel.name, msg.text, msg.contact.id,
                                   CHATBASE_TYPE_USER, chatbase_not_handled)
 
