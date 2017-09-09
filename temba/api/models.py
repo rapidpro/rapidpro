@@ -311,7 +311,7 @@ class WebHookEvent(SmartModel):
                 body = 'Skipped actual send'
                 status_code = 200
 
-            if 200 <= status_code < 300:
+            if (200 <= status_code < 300) or (400 <= status_code < 500):
                 try:
                     response_json = json.loads(body, object_pairs_hook=OrderedDict)
 
