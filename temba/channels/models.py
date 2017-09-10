@@ -223,6 +223,7 @@ class Channel(TembaModel):
     CONFIG_MACROKIOSK_SENDER_ID = 'macrokiosk_sender_id'
     CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
     CONFIG_RP_HOSTNAME_OVERRIDE = 'rp_hostname_override'
+    CONFIG_ACCOUNT_SID = 'account_sid'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -2345,7 +2346,6 @@ class Channel(TembaModel):
     @classmethod
     def send_twilio_message(cls, channel, msg, text):
         from temba.msgs.models import Attachment, WIRED
-        from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
         from temba.utils.twilio import TembaTwilioRestClient
 
         callback_url = Channel.build_twilio_callback_url(channel.uuid, msg.id)
@@ -2360,10 +2360,11 @@ class Channel(TembaModel):
 
         if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
             config = channel.config
-            client = TembaTwilioRestClient(config.get(ACCOUNT_SID), config.get(ACCOUNT_TOKEN),
+            client = TembaTwilioRestClient(config.get(Channel.CONFIG_ACCOUNT_SID), config.get(Channel.CONFIG_AUTH_TOKEN),
                                            base=config.get(Channel.CONFIG_SEND_URL))
         else:
-            client = TembaTwilioRestClient(channel.org_config[ACCOUNT_SID], channel.org_config[ACCOUNT_TOKEN])
+            config = channel.config
+            client = TembaTwilioRestClient(config.get(Channel.CONFIG_ACCOUNT_SID), config.get(Channel.CONFIG_AUTH_TOKEN))
 
         try:
             if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
