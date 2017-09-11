@@ -510,4 +510,4 @@ def get_anonymous_user():
     Returns the anonymous user, originally created by django-guardian
     """
     from django.contrib.auth.models import User
-    return User.objects.get_or_create(username=settings.ANONYMOUS_USER_NAME)[0]
+    return User.objects.get(username=settings.ANONYMOUS_USER_NAME)
