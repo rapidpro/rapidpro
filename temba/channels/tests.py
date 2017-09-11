@@ -1804,27 +1804,6 @@ class ChannelTest(TembaTest):
                         self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
                         self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
 
-    def test_claim_globe(self):
-        # disassociate all of our channels
-        self.org.channels.all().update(org=None, is_active=False)
-
-        self.login(self.admin)
-        claim_url = reverse('channels.channel_claim_globe')
-
-        response = self.client.get(claim_url)
-        self.assertEqual(200, response.status_code)
-
-        response = self.client.post(claim_url, dict(number=21586380, app_id="AppId", app_secret="AppSecret", passphrase="Passphrase"), follow=True)
-        self.assertEqual(200, response.status_code)
-
-        channel = Channel.objects.get(channel_type='GL')
-        self.assertEqual('21586380', channel.address)
-        self.assertEqual('PH', channel.country)
-        config = channel.config_json()
-        self.assertEqual(config['app_secret'], 'AppSecret')
-        self.assertEqual(config['app_id'], 'AppId')
-        self.assertEqual(config['passphrase'], 'Passphrase')
-
     def test_release(self):
         Channel.objects.all().delete()
         self.login(self.admin)
