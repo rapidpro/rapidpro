@@ -917,7 +917,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_android', 'claim_chikka', 'configuration',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender',
                'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
-               'claim_verboice', 'claim_plivo', 'search_plivo', 'claim_high_connection',
+               'claim_verboice', 'claim_plivo', 'search_plivo',
                'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_globe',
                'claim_twiml_api', 'claim_junebug', 'facebook_whitelist',
@@ -1845,10 +1845,6 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_submitted_country(self, data):  # pragma: needs cover
             return "ID"
-
-    class ClaimHighConnection(ClaimAuthenticatedExternal):
-        title = _("Claim High Connection")
-        channel_type = Channel.TYPE_HIGH_CONNECTION
 
     class ClaimShaqodoon(ClaimAuthenticatedExternal):
         class ShaqodoonForm(forms.Form):
