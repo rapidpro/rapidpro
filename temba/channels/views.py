@@ -919,7 +919,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
                'claim_verboice', 'claim_plivo', 'search_plivo',
                'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
-               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_globe',
+               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox',
                'claim_twiml_api', 'claim_junebug', 'facebook_whitelist',
                'claim_red_rabbit', 'claim_macrokiosk')
     permissions = True
@@ -1795,43 +1795,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                                    password=data['password'],
                                                                    channel=data['channel']),
                                                               role=Channel.ROLE_CALL + Channel.ROLE_ANSWER)
-
-            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
-    class ClaimGlobe(ClaimAuthenticatedExternal):
-        class GlobeClaimForm(forms.Form):
-            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The shortcode you have been assigned by Globe Labs "
-                                                 "ex: 15543"))
-            app_id = forms.CharField(label=_("Application Id"),
-                                     help_text=_("The id of your Globe Labs application"))
-            app_secret = forms.CharField(label=_("Application Secret"),
-                                         help_text=_("The secret assigned to your Globe Labs application"))
-            passphrase = forms.CharField(label=_("Passphrase"),
-                                         help_text=_("The passphrase assigned to you by Globe Labs to support sending"))
-
-        title = _("Connect Globe")
-        template_name = 'channels/channel_claim_globe.html'
-        channel_type = Channel.TYPE_GLOBE
-        form_class = GlobeClaimForm
-        fields = ('number', 'app_id', 'app_secret', 'passphrase')
-
-        def get_submitted_country(self, data):  # pragma: needs cover
-            return 'PH'
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-
-            if not org:  # pragma: no cover
-                raise Exception(_("No org for this user, cannot claim"))
-
-            data = form.cleaned_data
-            self.object = Channel.add_config_external_channel(org, self.request.user,
-                                                              'PH', data['number'], Channel.TYPE_GLOBE,
-                                                              dict(app_id=data['app_id'],
-                                                                   app_secret=data['app_secret'],
-                                                                   passphrase=data['passphrase']),
-                                                              role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
