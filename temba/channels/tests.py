@@ -2889,6 +2889,29 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(channel.channel_type, Channel.TYPE_VUMI_USSD)
         self.assertEquals(channel.role, Channel.ROLE_USSD)
 
+    def test_claim_vumi_ussd_custom_api_short_code(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        response = self.client.get(reverse('channels.channel_claim_vumi_ussd'))
+        self.assertEquals(200, response.status_code)
+
+        post_data = {
+            "country": "ZA",
+            "number": "8080",
+            "account_key": "account1",
+            "conversation_key": "conversation1",
+            "api_url": "http://custom.api.url"
+        }
+
+        response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertTrue(uuid.UUID(channel.config_json()['access_token'], version=4))
+        self.assertEquals(channel.country, post_data['country'])
+        self.assertEquals(channel.address, post_data['number'])
+
     @override_settings(SEND_EMAILS=True)
     def test_disconnected_alert(self):
         # set our last seen to a while ago
