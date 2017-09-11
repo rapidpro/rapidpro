@@ -57,6 +57,7 @@ class FacebookType(ChannelType):
         payload = {'message': {'text': text}}
         ###################### MX ABIERTO   ######################
         # Parse options like "1.- .. 2.- "
+        t = text
         text = re.compile("\([0-9]+-[0-9]\)").split(t)[0]
         end = [(m.end(0)) for m in re.finditer("[0-9]+[:\.\)](-)?", text)]
         start = [(m.start(0)) for m in re.finditer("[0-9]+[:\.\)](-)?", text)]
