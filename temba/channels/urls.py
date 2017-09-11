@@ -16,10 +16,12 @@ handler_urls = []
 
 for handler in get_channel_handlers():
     rel_url, url_name = handler.get_courier_url()
-    courier_urls.append(url(rel_url, handler.as_view(), name=url_name))
+    if rel_url:
+        courier_urls.append(url(rel_url, handler.as_view(), name=url_name))
 
     rel_url, url_name = handler.get_handler_url()
-    handler_urls.append(url(rel_url, handler.as_view(), name=url_name))
+    if rel_url:
+        handler_urls.append(url(rel_url, handler.as_view(), name=url_name))
 
 urlpatterns = [
     url(r'^', include(ChannelEventCRUDL().as_urlpatterns())),

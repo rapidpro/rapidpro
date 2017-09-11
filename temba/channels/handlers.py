@@ -1844,6 +1844,8 @@ class MageHandler(BaseChannelHandler):
 
 class StartHandler(BaseChannelHandler):
     courier_url = r'^st/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
+    courier_name = 'courier.st'
+
     handler_url = r'^start/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.start_handler'
 
