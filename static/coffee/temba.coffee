@@ -474,7 +474,6 @@ class @Modax extends @ConfirmationModal
             modal.ele.find('.loader').show()
 
             redirect = xhr.getResponseHeader("Temba-Success")
-            console.log(redirect)
 
             if redirect
               document.location.href = redirect

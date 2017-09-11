@@ -400,7 +400,10 @@ class ContactGroupTest(TembaTest):
     def test_delete_fail_with_dependencies(self):
         self.login(self.admin)
 
-        flow = self.get_flow('dependencies')
+        self.get_flow('dependencies')
+
+        from temba.flows.models import Flow
+        flow = Flow.objects.filter(name='Dependencies').first()
         cats = ContactGroup.user_groups.filter(name='Cat Facts').first()
         delete_url = reverse('contacts.contactgroup_delete', args=[cats.pk])
 
@@ -409,12 +412,19 @@ class ContactGroupTest(TembaTest):
         self.assertEquals(302, response.status_code)
         self.assertTrue(ContactGroup.user_groups.get(id=cats.id).is_active)
 
+        # get the dependency details
+        response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
+        self.assertEquals(200, response.status_code)
+        self.assertContains(response, "Dependencies")
+
         # remove it from our list of dependencies
         flow.group_dependencies.remove(cats)
 
         # now it should be gone
-        response = self.client.post(delete_url, dict())
-        self.assertEquals(302, response.status_code)
+        response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
+        self.assertNotContains(response, "Dependencies")
+
+        response = self.client.post(delete_url, dict(), HTTP_X_PJAX=True)
         self.assertIsNone(ContactGroup.user_groups.filter(id=cats.id).first())
 
 
@@ -512,8 +522,9 @@ class ContactGroupCRUDLTest(TembaTest):
 
         # can as admin user
         self.login(self.admin)
-        response = self.client.post(url)
-        self.assertRedirect(response, reverse('contacts.contact_list'))
+        response = self.client.post(url, HTTP_X_PJAX=True)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, '/contact/')
 
         self.joe_and_frank.refresh_from_db()
         self.assertFalse(self.joe_and_frank.is_active)
@@ -2036,8 +2047,8 @@ class ContactTest(TembaTest):
         self.assertEquals("New Test", group.name)
 
         # post to our delete url
-        response = self.client.post(delete_url, dict())
-        self.assertRedirect(response, reverse('contacts.contact_list'))
+        response = self.client.post(delete_url, dict(), HTTP_X_PJAX=True)
+        self.assertEqual(200, response.status_code)
 
         # make sure it is inactive
         self.assertIsNone(ContactGroup.user_groups.filter(name="New Test").first())

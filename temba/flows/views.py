@@ -530,6 +530,7 @@ class FlowCRUDL(SmartCRUDL):
         def post(self, request, *args, **kwargs):
             flow = self.get_object()
             self.object = flow
+
             flows = Flow.objects.filter(org=flow.org, flow_dependencies__in=[flow])
             if flows.count():
                 return HttpResponseRedirect(smart_url(self.cancel_url, flow))
