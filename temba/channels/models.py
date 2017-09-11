@@ -166,7 +166,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 class Channel(TembaModel):
     TYPE_AFRICAS_TALKING = 'AT'
     TYPE_ANDROID = 'A'
-    TYPE_BLACKMYNA = 'BM'
     TYPE_CHIKKA = 'CK'
     TYPE_CLICKATELL = 'CT'
     TYPE_DARTMEDIA = 'DA'
@@ -274,7 +273,6 @@ class Channel(TembaModel):
     CHANNEL_SETTINGS = {
         TYPE_AFRICAS_TALKING: dict(schemes=['tel'], max_length=160),
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
-        TYPE_BLACKMYNA: dict(schemes=['tel'], max_length=1600),
         TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
         TYPE_CLICKATELL: dict(schemes=['tel'], max_length=420),
         TYPE_DARTMEDIA: dict(schemes=['tel'], max_length=160),
@@ -308,7 +306,6 @@ class Channel(TembaModel):
 
     TYPE_CHOICES = ((TYPE_AFRICAS_TALKING, "Africa's Talking"),
                     (TYPE_ANDROID, "Android"),
-                    (TYPE_BLACKMYNA, "Blackmyna"),
                     (TYPE_CHIKKA, "Chikka"),
                     (TYPE_CLICKATELL, "Clickatell"),
                     (TYPE_DARTMEDIA, "Dart Media"),
@@ -1799,48 +1796,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_blackmyna_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        payload = {
-            'address': msg.urn_path,
-            'senderaddress': channel.address,
-            'message': text,
-        }
-
-        url = 'http://api.blackmyna.com/2/smsmessaging/outbound'
-        external_id = None
-        start = time.time()
-
-        event = HttpEvent('POST', url, payload)
-
-        try:
-            response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=30,
-                                     auth=(channel.config[Channel.CONFIG_USERNAME], channel.config[Channel.CONFIG_PASSWORD]))
-            # parse our response, should be JSON that looks something like:
-            # [{
-            #   "recipient" : recipient_number_1,
-            #   "id" : Unique_identifier (universally unique identifier UUID)
-            # }]
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-            response_json = response.json()
-
-            # we only care about the first piece
-            if response_json and len(response_json) > 0:
-                external_id = response_json[0].get('id', None)
-
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:  # pragma: needs cover
-            raise SendException("Got non-200 response [%d] from API" % response.status_code,
-                                event=event, start=start)
-
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
-
-    @classmethod
     def send_start_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -2787,7 +2742,6 @@ STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
 
 SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_message,
-                  Channel.TYPE_BLACKMYNA: Channel.send_blackmyna_message,
                   Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_CLICKATELL: Channel.send_clickatell_message,
                   Channel.TYPE_DARTMEDIA: Channel.send_hub9_or_dartmedia_message,
