@@ -625,7 +625,7 @@ class Channel(TembaModel):
 
         # create new TwiML app
         new_receive_url = "https://" + settings.TEMBA_HOST + reverse('courier.t', args=[channel_uuid, 'receive'])
-        new_status_url = "https://" + settings.TEMBA_HOST + reverse('courier.t', args=[channel_uuid, 'status'])
+        new_status_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['status', channel_uuid])
         new_voice_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['voice', channel_uuid])
 
         new_app = client.applications.create(
@@ -2685,7 +2685,7 @@ class Channel(TembaModel):
 
     @classmethod
     def build_twilio_callback_url(cls, channel_uuid, sms_id):
-        url = reverse('handlers.twilio_handler', args=['status', channel_uuid])
+        url = reverse('courier.t', args=[channel_uuid, 'status'])
         url = "https://" + settings.TEMBA_HOST + url + "?action=callback&id=%d" % sms_id
         return url
 
