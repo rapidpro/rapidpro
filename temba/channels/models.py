@@ -679,16 +679,18 @@ class Channel(TembaModel):
 
             number_sid = twilio_phone.sid
 
+        org_config = json.loads(org.config)
         config = {Channel.CONFIG_APPLICATION_SID: new_app.sid, Channel.CONFIG_NUMBER_SID: number_sid,
-                  Channel.CONFIG_ACCOUNT_SID: org.config[ACCOUNT_SID], Channel.CONFIG_AUTH_TOKEN: org.config[ACCOUNT_TOKEN]}
+                  Channel.CONFIG_ACCOUNT_SID: org_config[ACCOUNT_SID], Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN]}
 
         return Channel.create(org, user, country, Channel.TYPE_TWILIO, name=phone, address=phone_number, role=role,
                               config=config, uuid=channel_uuid)
 
     @classmethod
     def add_twilio_messaging_service_channel(cls, org, user, messaging_service_sid, country):
+        org_config = json.loads(org.config)
         config = {Channel.CONFIG_MESSAGING_SERVICE_SID: messaging_service_sid,
-                  Channel.CONFIG_ACCOUNT_SID: org.config[ACCOUNT_SID], Channel.CONFIG_AUTH_TOKEN: org.config[ACCOUNT_TOKEN]}
+                  Channel.CONFIG_ACCOUNT_SID: org_config[ACCOUNT_SID], Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN]}
 
         return Channel.create(org, user, country, Channel.TYPE_TWILIO_MESSAGING_SERVICE,
                               name=messaging_service_sid, address=None, config=config)
