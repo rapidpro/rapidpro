@@ -63,7 +63,7 @@ def delete_inactive_channelevents(apps, schema_editor):
     count = 0
     for chunk in chunk_list(ids, 1000):
         ChannelEvent.objects.filter(id__in=chunk).delete()
-        count += len(ids)
+        count += len(chunk)
         print("Deleted %d" % count)
 
 
@@ -76,7 +76,7 @@ def migrate_duration_extra(apps, schema_editor):
     count = 0
     for chunk in chunk_list(ids, 250):
         ChannelEvent.objects.filter(id__in=chunk).update(extra=Concat(Value('{"duration":'), F('duration'), Value('}'), output_field=TextField()))
-        count += len(ids)
+        count += len(chunk)
         print("Updated %d" % count)
 
 
