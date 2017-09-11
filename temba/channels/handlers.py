@@ -766,7 +766,7 @@ class Hub9Handler(BaseChannelHandler):
     url_name = 'handlers.hub9_handler'
 
     def get_channel_type(self):
-        return Channel.TYPE_HUB9
+        return 'H9'
 
     def get(self, request, *args, **kwargs):
         from temba.msgs.models import Msg

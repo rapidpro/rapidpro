@@ -916,7 +916,7 @@ class ChannelCRUDL(SmartCRUDL):
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
                'claim_android', 'claim_chikka', 'configuration',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender',
-               'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
+               'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
                'claim_verboice', 'claim_plivo', 'search_plivo',
                'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_globe',
@@ -1834,17 +1834,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                               role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
-    class ClaimHub9(ClaimAuthenticatedExternal):
-        title = _("Connect Hub9")
-        channel_type = Channel.TYPE_HUB9
-        readonly = ('country',)
-
-        def get_country(self, obj):  # pragma: needs cover
-            return "Indonesia"
-
-        def get_submitted_country(self, data):  # pragma: needs cover
-            return "ID"
 
     class ClaimShaqodoon(ClaimAuthenticatedExternal):
         class ShaqodoonForm(forms.Form):
