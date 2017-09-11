@@ -1738,42 +1738,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, events=events)
 
     @classmethod
-    def send_high_connection_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        payload = {
-            'accountid': channel.config[Channel.CONFIG_USERNAME],
-            'password': channel.config[Channel.CONFIG_PASSWORD],
-            'text': text,
-            'to': msg.urn_path,
-            'ret_id': msg.id,
-            'datacoding': 8,
-            'userdata': 'textit',
-            'ret_url': 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.hcnx_handler', args=['status', channel.uuid])),
-            'ret_mo_url': 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.hcnx_handler', args=['receive', channel.uuid]))
-        }
-
-        # build our send URL
-        url = 'https://highpushfastapi-v2.hcnx.eu/api' + '?' + urlencode(payload)
-        log_payload = urlencode(payload)
-        start = time.time()
-
-        event = HttpEvent('GET', url, log_payload)
-
-        try:
-            response = requests.get(url, headers=TEMBA_HEADERS, timeout=30)
-            event.status_code = response.status_code
-            event.response_body = response.text
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
-            raise SendException("Got non-200 response [%d] from API" % response.status_code,
-                                event=event, start=start)
-
-        Channel.success(channel, msg, WIRED, start, event=event)
-
-    @classmethod
     def send_start_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
