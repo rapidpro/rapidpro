@@ -23,6 +23,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from django_redis import get_redis_connection
 from requests import Request
+
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelLog, ChannelEvent
 from temba.contacts.models import Contact, URN
@@ -354,7 +355,7 @@ class AfricasTalkingHandler(BaseChannelHandler):
         action = kwargs['action']
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_AFRICAS_TALKING).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='AT').exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -646,10 +647,10 @@ class TelegramHandler(BaseChannelHandler):
         # look up the contact
         telegram_id = str(body['message']['from']['id'])
         urn = URN.from_telegram(telegram_id)
-        existing_contact = Contact.from_urn(channel.org, urn)
+        contact = Contact.from_urn(channel.org, urn)
 
         # if the contact doesn't exist, try to create one
-        if not existing_contact and not channel.org.is_anon:
+        if not contact:
             # "from": {
             # "id": 25028612,
             # "first_name": "Eric",
@@ -662,8 +663,10 @@ class TelegramHandler(BaseChannelHandler):
             if not name and username:  # pragma: needs cover
                 name = username
 
-            if name:
-                Contact.get_or_create(channel.org, channel.created_by, name, urns=[urn])
+            if channel.org.is_anon:
+                name = None
+
+            contact = Contact.get_or_create(channel.org, channel.created_by, name, urns=[urn])
 
         text = ""
         attachments = []
@@ -686,14 +689,14 @@ class TelegramHandler(BaseChannelHandler):
         elif 'caption' in body['message']:
             text = body['message']['caption']
         elif 'contact' in body['message']:  # pragma: needs cover
-            contact = body['message']['contact']
+            contact_block = body['message']['contact']
 
-            if 'first_name' in contact and 'phone_number' in contact:
-                text = '%(first_name)s (%(phone_number)s)' % contact
-            elif 'first_name' in contact:
-                text = '%(first_name)s' % contact
-            elif 'phone_number' in contact:
-                text = '%(phone_number)s' % contact
+            if 'first_name' in contact_block and 'phone_number' in contact_block:
+                text = '%(first_name)s (%(phone_number)s)' % contact_block
+            elif 'first_name' in contact_block:
+                text = '%(first_name)s' % contact_block
+            elif 'phone_number' in contact_block:
+                text = '%(phone_number)s' % contact_block
         elif 'venue' in body['message']:
             if 'title' in body['message']['venue']:
                 text = body['message']['venue']['title']
@@ -705,6 +708,11 @@ class TelegramHandler(BaseChannelHandler):
         if 'location' in body['message']:
             location = body['message']['location']
             attachments.append('geo:%s,%s' % (location['latitude'], location['longitude']))
+
+        if text.strip() == "/start":
+            event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_NEW_CONVERSATION, timezone.now())
+            event.handle()
+            return make_response("Conversation started")
 
         if text or attachments:
             msg = Msg.create_incoming(channel, urn, text, attachments=attachments, date=msg_date)
@@ -2539,8 +2547,8 @@ class FacebookHandler(BaseChannelHandler):
                                         import traceback
                                         traceback.print_exc()
 
-                                contact = Contact.get_or_create(channel.org, channel.created_by,
-                                                                name=name, urns=[urn], channel=channel)
+                                    contact = Contact.get_or_create(channel.org, channel.created_by,
+                                                                    name=name, urns=[urn], channel=channel)
 
                         # we received a new message, create and handle it
                         if content:

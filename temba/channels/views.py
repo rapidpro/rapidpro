@@ -914,7 +914,7 @@ class UpdateTwitterForm(UpdateChannelForm):
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
-               'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration',
+               'claim_android', 'claim_chikka', 'configuration',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender',
                'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
@@ -1990,38 +1990,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                                    password=data['password']))
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
-    class ClaimAfricasTalking(OrgPermsMixin, SmartFormView):
-        class ATClaimForm(forms.Form):
-            shortcode = forms.CharField(max_length=6, min_length=1,
-                                        help_text=_("Your short code on Africa's Talking"))
-            country = forms.ChoiceField(choices=(('KE', _("Kenya")), ('UG', _("Uganda")), ('MW', _("Malawi"))))
-            is_shared = forms.BooleanField(initial=False, required=False,
-                                           help_text=_("Whether this short code is shared with others"))
-            username = forms.CharField(max_length=32,
-                                       help_text=_("Your username on Africa's Talking"))
-            api_key = forms.CharField(max_length=64,
-                                      help_text=_("Your api key, should be 64 characters"))
-
-        title = _("Connect Africa's Talking Account")
-        fields = ('shortcode', 'country', 'is_shared', 'username', 'api_key')
-        form_class = ATClaimForm
-        permission = 'channels.channel_claim'
-        success_url = "id@channels.channel_configuration"
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-
-            if not org:  # pragma: no cover
-                raise Exception(_("No org for this user, cannot claim"))
-
-            data = form.cleaned_data
-            self.object = Channel.add_africas_talking_channel(org, self.request.user,
-                                                              country=data['country'],
-                                                              phone=data['shortcode'], username=data['username'],
-                                                              api_key=data['api_key'], is_shared=data['is_shared'])
-
-            return super(ChannelCRUDL.ClaimAfricasTalking, self).form_valid(form)
 
     class ClaimTwilioMessagingService(OrgPermsMixin, SmartFormView):
         class TwilioMessagingServiceForm(forms.Form):
