@@ -1,3 +1,4 @@
+import random
 import re
 import string
 from collections import Counter
@@ -132,3 +133,11 @@ def slugify_with(value, sep='_'):
     Slugifies a value using a word separator other than -
     """
     return slugify(value).replace('-', sep)
+
+
+def random_string(length):
+    """
+    Generates a random alphanumeric string
+    """
+    letters = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"  # avoid things that could be mistaken ex: 'I' and '1'
+    return ''.join([random.choice(letters) for _ in range(length)])

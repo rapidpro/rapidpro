@@ -6,7 +6,6 @@ import datetime
 import locale
 
 import pytz
-import random
 import resource
 import six
 
@@ -230,14 +229,6 @@ def format_decimal(val):
         val = val.rstrip('0').rstrip('.')  # e.g. 12.3000 -> 12.3
 
     return val
-
-
-def random_string(length):
-    """
-    Generates a random alphanumeric string
-    """
-    letters = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"  # avoid things that could be mistaken ex: 'I' and '1'
-    return ''.join([random.choice(letters) for _ in range(length)])
 
 
 def get_dict_from_cursor(cursor):
