@@ -2760,39 +2760,6 @@ class ChannelClaimTest(TembaTest):
         self.assertContains(response, reverse('courier.zv', args=[channel.uuid, 'status']))
         self.assertContains(response, reverse('courier.zv', args=[channel.uuid, 'receive']))
 
-    def test_claim_africa(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        # visit the africa's talking page
-        response = self.client.get(reverse('channels.channel_claim_africas_talking'))
-        self.assertEquals(200, response.status_code)
-        post_data = response.context['form'].initial
-
-        post_data['shortcode'] = '5259'
-        post_data['username'] = 'temba'
-        post_data['api_key'] = 'asdf-asdf-asdf-asdf-asdf'
-        post_data['country'] = 'KE'
-
-        response = self.client.post(reverse('channels.channel_claim_africas_talking'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('temba', channel.config_json()['username'])
-        self.assertEquals('asdf-asdf-asdf-asdf-asdf', channel.config_json()['api_key'])
-        self.assertEquals('5259', channel.address)
-        self.assertEquals('KE', channel.country)
-        self.assertEquals('AT', channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.at', args=[channel.uuid, 'receive']))
-        self.assertContains(response, reverse('courier.at', args=[channel.uuid, 'status']))
-
     def test_claim_viber(self):
         Channel.objects.all().delete()
         self.login(self.admin)

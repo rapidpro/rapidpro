@@ -1111,6 +1111,7 @@ MESSAGE_HANDLERS = [
 ]
 
 CHANNEL_TYPES = [
+    'temba.channels.types.africastalking.AfricasTalkingType',
     'temba.channels.types.blackmyna.BlackmynaType',
     'temba.channels.types.external.ExternalType',
     'temba.channels.types.facebook.FacebookType',

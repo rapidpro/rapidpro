@@ -60,30 +60,6 @@
                   code from <a href="http://www.zenvia.com.br/">Zenvia</a> and connect it
                   in a few simple steps.
 
-    -if org_timezone == 'Africa/Nairobi' or org_timezone == 'Africa/Kampala' or org_timezone == 'Africa/Lilongwe'
-      .claim-row.africastalking-channel{class:"{% if recommended_channel == 'africastalking' %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans with "<a href='http://africastalking.com'>" as link_start and "</a>" as link_end
-            We recommend using an Africa's Talking shortcode in Kenya, Uganda or Malawi. Visit {{link_start}}their website{{link_end}} for details.
-
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_africas_talking' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Africa's Talking Short Code"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans with "<a href='http://africastalking.com'>" as link_start and "</a>" as link_end
-                  If you are based in Kenya, Uganda or Malawi you can purchase a short
-                  code from {{link_start}}Africa's Talking{{link_end}} and connect it
-                  in a few simple steps.
-
     -if org_timezone == 'Africa/Kampala'
       .claim-row.yo-channel{class:"{% if recommended_channel == 'yo' %}recommended{% endif %}"}
         .recommendation.hide
