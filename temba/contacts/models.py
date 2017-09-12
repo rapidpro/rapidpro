@@ -1896,7 +1896,7 @@ class ContactURN(models.Model):
 
     SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME, TWITTERID_SCHEME, JIOCHAT_SCHEME}  # schemes that support "follow" triggers
     # schemes that support "new conversation" triggers
-    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME}
+    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME, TELEGRAM_SCHEME}
     SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
     EXPORT_FIELDS = {

@@ -48,5 +48,5 @@ class AfricastalkingTypeTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('handlers.africas_talking_handler', args=['callback', channel.uuid]))
-        self.assertContains(response, reverse('handlers.africas_talking_handler', args=['delivery', channel.uuid]))
+        self.assertContains(response, reverse('courier.at', args=[channel.uuid, 'receive']))
+        self.assertContains(response, reverse('courier.at', args=[channel.uuid, 'status']))
