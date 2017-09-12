@@ -1,3 +1,7 @@
+v3.0.201
+----------
+ * Make clean string method replace non characteres correctly
+
 v3.0.200
 ----------
  * Support Telegram /start command to trigger new conversation trigger
