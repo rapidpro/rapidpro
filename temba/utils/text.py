@@ -38,7 +38,7 @@ if sys.maxunicode > 65535:
     NON_CHARACTERES_REGEX += r"|[\U000FFFFE-\U000FFFFF]"
     NON_CHARACTERES_REGEX += r"|[\U0010FFFE-\U0010FFFF]"
 
-else:
+else:  # pragma: no cover
     NON_CHARACTERES_REGEX = r"[\uFDD0-\uFDEF]"
     NON_CHARACTERES_REGEX += r"|[\uFFFE-\uFFFF]"
     NON_CHARACTERES_REGEX += r"|\uD83F[\uDFFE-\uDFFF]"
