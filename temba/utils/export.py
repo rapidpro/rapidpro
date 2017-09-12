@@ -121,7 +121,7 @@ class BaseExportTask(TembaModel):
         elif isinstance(value, datetime):
             return value.astimezone(self.org.timezone).replace(microsecond=0, tzinfo=None)
         else:
-            return six.text_type(value)
+            return clean_string(six.text_type(value))
 
     def set_sheet_column_widths(self, sheet, widths):
         for index, width in enumerate(widths):
