@@ -311,19 +311,20 @@ class WebHookEvent(SmartModel):
                 body = 'Skipped actual send'
                 status_code = 200
 
-            if (200 <= status_code < 300) or (400 <= status_code < 500):
-                try:
-                    response_json = json.loads(body, object_pairs_hook=OrderedDict)
+            # process the webhook response
+            try:
+                response_json = json.loads(body, object_pairs_hook=OrderedDict)
 
-                    # only update if we got a valid JSON dictionary or list
-                    if not isinstance(response_json, dict) and not isinstance(response_json, list):
-                        raise ValueError("Response must be a JSON dictionary or list, ignoring response.")
+                # only update if we got a valid JSON dictionary or list
+                if not isinstance(response_json, dict) and not isinstance(response_json, list):
+                    raise ValueError("Response must be a JSON dictionary or list, ignoring response.")
 
-                    run.update_fields(response_json)
-                    message = "Webhook called successfully."
-                except ValueError:
-                    message = "Response must be a JSON dictionary, ignoring response."
+                run.update_fields(response_json)
+                message = "Webhook called successfully."
+            except ValueError:
+                message = "Response must be a JSON dictionary, ignoring response."
 
+            if 200 <= status_code < 300:
                 webhook_event.status = cls.STATUS_COMPLETE
             else:
                 webhook_event.status = cls.STATUS_FAILED
