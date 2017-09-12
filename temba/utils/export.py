@@ -15,9 +15,10 @@ from openpyxl import Workbook
 from openpyxl.utils.cell import get_column_letter
 from openpyxl.writer.write_only import WriteOnlyCell
 from temba.assets.models import BaseAssetStore, get_asset_store
-from . import clean_string, analytics
+from . import analytics
 from .models import TembaModel
 from .email import send_template_email
+from .text import clean_string
 
 
 class BaseExportAssetStore(BaseAssetStore):

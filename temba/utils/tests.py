@@ -31,7 +31,7 @@ from temba.tests import TembaTest
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, date_to_utc_range, truncate, random_string
 from . import json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
-from . import percentage, datetime_to_json_date, json_date_to_datetime, clean_string
+from . import percentage, datetime_to_json_date, json_date_to_datetime
 from . import datetime_to_str, chunk_list, get_country_code_by_name, datetime_to_epoch, voicexml
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing, QueueRecord
 from .currencies import currency_for_country
@@ -44,6 +44,7 @@ from .nexmo import NCCOException, NCCOResponse
 from .profiler import time_monitor
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .timezones import TimeZoneFormField, timezone_to_country_code
+from .text import clean_string
 from .voicexml import VoiceXMLException
 from . import decode_base64
 
