@@ -7,12 +7,8 @@ import locale
 
 import pytz
 import random
-import re
 import resource
-import string
 import six
-
-from collections import Counter
 
 from dateutil.parser import parse
 from decimal import Decimal
@@ -454,42 +450,6 @@ def on_transaction_commit(func):
         func()
     else:
         transaction.on_commit(func)
-
-
-def decode_base64(original):
-    """
-    Try to detect base64 messages by doing:
-    * Check divisible by 4
-    * check there's no whitespace
-    * check it's at least 60 characters
-    * check the decoded string contains at least 50% ascii
-
-    Returns decoded base64 or the original string
-    """
-    stripped = original.replace('\r', '').replace('\n', '').strip()
-
-    if len(stripped) < 60:
-        return original
-
-    if len(stripped) % 4 != 0:
-        return original
-
-    p = re.compile(r'^([a-zA-Z0-9+/=]{4})+$')
-    if not p.match(stripped[:-4]):
-        return original
-
-    decoded = original
-    try:
-        decoded = stripped.decode('base64', 'strict').decode('utf-8', 'ignore')
-        count = Counter(decoded)
-        letters = sum(count[letter] for letter in string.ascii_letters)
-        if float(letters) / len(decoded) < 0.5:
-            return original
-
-    except:
-        return original
-
-    return decoded
 
 
 def get_anonymous_user():

@@ -46,7 +46,7 @@ from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRI
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .text import clean_string
 from .voicexml import VoiceXMLException
-from . import decode_base64
+from .text import decode_base64
 
 
 class InitTest(TembaTest):
