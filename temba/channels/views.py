@@ -652,7 +652,7 @@ def sync(request, channel_id):
                         if cmd['phone']:
                             urn = URN.from_parts(TEL_SCHEME, cmd['phone'])
                             try:
-                                ChannelEvent.create(channel, urn, cmd['type'], date, duration)
+                                ChannelEvent.create(channel, urn, cmd['type'], date, extra=dict(duration=duration))
                             except ValueError:
                                 # in some cases Android passes us invalid URNs, in those cases just ignore them
                                 pass
@@ -774,6 +774,59 @@ class ClaimViewMixin(OrgPermsMixin):
             return reverse('channels.channel_read', args=[self.object.uuid])
 
 
+class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
+    class Form(ClaimViewMixin.Form):
+        country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+                                    help_text=_("The country this phone number is used in"))
+        number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
+                                 help_text=_(
+                                     "The phone number or short code you are connecting with country code. ex: +250788123124"))
+        username = forms.CharField(label=_("Username"),
+                                   help_text=_("The username provided by the provider to use their API"))
+        password = forms.CharField(label=_("Password"),
+                                   help_text=_("The password provided by the provider to use their API"))
+
+        def clean_number(self):
+            number = self.data['number']
+
+            # number is a shortcode, accept as is
+            if len(number) > 0 and len(number) < 7:
+                return number
+
+            # otherwise, try to parse into an international format
+            if number and number[0] != '+':
+                number = '+' + number
+
+            try:
+                cleaned = phonenumbers.parse(number, None)
+                return phonenumbers.format_number(cleaned, phonenumbers.PhoneNumberFormat.E164)
+            except Exception:  # pragma: needs cover
+                raise forms.ValidationError(
+                    _("Invalid phone number, please include the country code. ex: +250788123123"))
+
+    form_class = Form
+
+    def get_submitted_country(self, data):
+        return data['country']
+
+    def form_valid(self, form):
+        org = self.request.user.get_org()
+
+        if not org:  # pragma: no cover
+            raise Exception("No org for this user, cannot claim")
+
+        data = form.cleaned_data
+        self.object = Channel.add_authenticated_external_channel(org, self.request.user,
+                                                                 self.get_submitted_country(data),
+                                                                 data['number'],
+                                                                 data['username'],
+                                                                 data['password'],
+                                                                 self.channel_type,
+                                                                 data.get('url'))
+
+        return super(AuthenticatedExternalClaimView, self).form_valid(form)
+
+
 class ClaimAndroidForm(forms.Form):
     claim_code = forms.CharField(max_length=12, help_text=_("The claim code from your Android phone"))
     phone_number = forms.CharField(max_length=15, help_text=_("The phone number of the phone"))
@@ -864,7 +917,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender',
                'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
-               'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
+               'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
                'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_globe',
                'claim_twiml_api', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
@@ -1572,10 +1625,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                                      data.get('url'))
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
-    class ClaimBlackmyna(ClaimAuthenticatedExternal):
-        title = _("Connect Blackmyna")
-        channel_type = Channel.TYPE_BLACKMYNA
 
     class ClaimSmscentral(ClaimAuthenticatedExternal):
         title = _("Connect SMSCentral")
@@ -2730,8 +2779,8 @@ class ChannelEventCRUDL(SmartCRUDL):
 
     class Calls(InboxView):
         title = _("Calls")
-        fields = ('contact', 'event_type', 'channel', 'time')
-        default_order = '-time'
+        fields = ('contact', 'event_type', 'channel', 'occurred_on')
+        default_order = '-occurred_on'
         search_fields = ('contact__urns__path__icontains', 'contact__name__icontains')
         system_label = SystemLabel.TYPE_CALLS
         select_related = ('contact', 'channel')

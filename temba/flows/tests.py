@@ -673,7 +673,8 @@ class FlowTest(TembaTest):
         contact1_run1, contact2_run1, contact3_run1 = flow.start([], [self.contact, self.contact2, self.contact3])
         contact1_run2, contact2_run2 = flow.start([], [self.contact, self.contact2], restart_participants=True)
 
-        with self.assertNumQueries(50):
+        time.sleep(1)
+        with self.assertNumQueries(52):
             workbook = self.export_flow_results(flow)
 
         tz = self.org.timezone
@@ -795,7 +796,7 @@ class FlowTest(TembaTest):
                                              "This is the second message.", "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(41):
             workbook = self.export_flow_results(flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -853,7 +854,7 @@ class FlowTest(TembaTest):
         # ok, mark that one as finished and try again
         blocking_export.update_status(ExportFlowResultsTask.STATUS_COMPLETE)
 
-        with self.assertNumQueries(51):
+        with self.assertNumQueries(53):
             workbook = self.export_flow_results(self.flow)
 
         tz = self.org.timezone
@@ -946,7 +947,7 @@ class FlowTest(TembaTest):
                                             "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(49):
+        with self.assertNumQueries(51):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -973,7 +974,7 @@ class FlowTest(TembaTest):
         # insert a duplicate age field, this can happen due to races
         Value.objects.create(org=self.org, contact=self.contact, contact_field=age, string_value='36', decimal_value='36')
 
-        with self.assertNumQueries(57):
+        with self.assertNumQueries(59):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
                                                 contact_fields=[age], extra_urns=['twitter', 'line'])
 
@@ -3014,8 +3015,20 @@ class ActionTest(TembaTest):
         flow = self.create_flow()
         run = FlowRun.create(self.flow, self.contact.pk)
 
-        action = TriggerFlowAction(flow, [], [self.contact], [])
+        # add a channel to make sure that country is ambiguous
+        Channel.create(self.org, self.admin, 'US', 'EX', schemes=['tel'])
+        delattr(self.org, '_country_code')
+        self.org.country = None
+        self.org.save()
+
+        # set a contact field with another phone number
+        self.contact.set_field(self.admin, "other_contact_tel", "+12065551212", "Other Contact Tel")
+
+        action = TriggerFlowAction(flow, [], [self.contact], ["@contact.other_contact_tel"])
         self.execute_action(action, run, None)
+
+        # should have created a new contact with the above variable
+        self.assertIsNotNone(Contact.from_urn(self.org, "tel:+12065551212"))
 
         action_json = action.as_json()
         action = TriggerFlowAction.from_json(self.org, action_json)

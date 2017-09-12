@@ -5,14 +5,20 @@ from temba.tests import TembaTest
 from ...models import Channel
 
 
-class InfobipTypeTest(TembaTest):
+class BlackmynaTypeTest(TembaTest):
 
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse('channels.claim_infobip')
+        url = reverse('channels.claim_blackmyna')
 
         self.login(self.admin)
+
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertNotContains(response, url)
+
+        self.org.timezone = "Asia/Kathmandu"
+        self.org.save()
 
         # check that claim page URL appears on claim list page
         response = self.client.get(reverse('channels.channel_claim'))
@@ -35,7 +41,7 @@ class InfobipTypeTest(TembaTest):
         self.assertEquals(post_data['username'], channel.config_json()['username'])
         self.assertEquals(post_data['password'], channel.config_json()['password'])
         self.assertEquals('+250788123123', channel.address)
-        self.assertEquals('IB', channel.channel_type)
+        self.assertEquals('BM', channel.channel_type)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
@@ -43,8 +49,8 @@ class InfobipTypeTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('courier.ib', args=[channel.uuid, 'receive']))
-        self.assertContains(response, reverse('courier.ib', args=[channel.uuid, 'delivered']))
+        self.assertContains(response, reverse('courier.bm', args=[channel.uuid, 'status']))
+        self.assertContains(response, reverse('courier.bm', args=[channel.uuid, 'receive']))
 
         Channel.objects.all().delete()
 
@@ -64,4 +70,4 @@ class InfobipTypeTest(TembaTest):
         self.assertEquals(post_data['username'], channel.config_json()['username'])
         self.assertEquals(post_data['password'], channel.config_json()['password'])
         self.assertEquals('20050', channel.address)
-        self.assertEquals('IB', channel.channel_type)
+        self.assertEquals('BM', channel.channel_type)

@@ -214,6 +214,9 @@ class InitTest(TembaTest):
         self.assertEqual(clean_string("ngert\x07in."), "ngertin.")
         self.assertEqual(clean_string("Norbért"), "Norbért")
 
+    def test_replace_non_characters(self):
+        self.assertEqual(clean_string("Bangsa\ufddfBangsa"), "Bangsa\ufffdBangsa")
+
 
 class TimezonesTest(TembaTest):
     def test_field(self):
