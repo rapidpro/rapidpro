@@ -2100,6 +2100,7 @@ class Channel(TembaModel):
 
             event = HttpEvent('GET', log_url)
             events.append(event)
+            response_qs = dict()
 
             failed = False
             try:
@@ -3070,7 +3071,7 @@ class ChannelLog(models.Model):
 
     def get_request_formatted(self):
         if not self.request:
-            return self.method + " " + self.url
+            return "%s %s" % (self.method, self.url)
 
         try:
             return json.dumps(json.loads(self.request), indent=2)
