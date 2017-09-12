@@ -280,6 +280,30 @@ class TemplateTagTest(TembaTest):
         # non-delta arg
         self.assertEqual('', delta_filter('Invalid'))
 
+    def test_oxford(self):
+        from temba.utils.templatetags.temba import oxford
+
+        def forloop(idx, total):
+            """
+            Creates a dict like that available inside a template tag
+            """
+            return dict(counter0=idx, counter=idx + 1, revcounter=total - idx, last=total == idx + 1)
+
+        # list of two
+        self.assertEqual(" and ", oxford(forloop(0, 2)))
+        self.assertEqual(".", oxford(forloop(1, 2), "."))
+
+        # list of three
+        self.assertEqual(", ", oxford(forloop(0, 3)))
+        self.assertEqual(", and ", oxford(forloop(1, 3)))
+        self.assertEqual(".", oxford(forloop(2, 3), "."))
+
+        # list of four
+        self.assertEqual(", ", oxford(forloop(0, 4)))
+        self.assertEqual(", ", oxford(forloop(1, 4)))
+        self.assertEqual(", and ", oxford(forloop(2, 4)))
+        self.assertEqual(".", oxford(forloop(3, 4), "."))
+
 
 class CacheTest(TembaTest):
 

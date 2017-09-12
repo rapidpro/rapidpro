@@ -371,6 +371,9 @@ class ContactGroupTest(TembaTest):
         second_trigger = Trigger.objects.create(org=self.org, flow=flow, keyword="register", created_by=self.admin, modified_by=self.admin)
         second_trigger.groups.add(group)
 
+        response = self.client.get(delete_url, dict(), HTTP_X_PJAX=True)
+        self.assertContains(response, "This group is used by 2 triggers.")
+
         response = self.client.post(delete_url, dict())
         self.assertEquals(302, response.status_code)
         response = self.client.post(delete_url, dict(), follow=True)
