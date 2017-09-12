@@ -57,12 +57,12 @@ class FacebookTypeTest(TembaTest):
         self.assertContains(response, channel.secret)
 
         # test validating our secret
-        handler_url = reverse('handlers.facebook_handler', args=['invalid'])
+        handler_url = reverse('courier.fb', args=['invalid'])
         response = self.client.get(handler_url)
         self.assertEqual(response.status_code, 400)
 
         # test invalid token
-        handler_url = reverse('handlers.facebook_handler', args=[channel.uuid])
+        handler_url = reverse('courier.fb', args=[channel.uuid])
         payload = {'hub.mode': 'subscribe', 'hub.verify_token': 'invalid', 'hub.challenge': 'challenge'}
         response = self.client.get(handler_url, payload)
         self.assertEqual(response.status_code, 400)

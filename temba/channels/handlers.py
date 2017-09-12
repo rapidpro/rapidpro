@@ -23,6 +23,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from django_redis import get_redis_connection
 from requests import Request
+
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelLog, ChannelEvent
 from temba.contacts.models import Contact, URN
@@ -44,16 +45,26 @@ class BaseChannelHandler(View):
     """
     Base class for all channel handlers
     """
-    url = None
-    url_name = None
+
+    # the url pattern for this handler on courier
+    courier_url = None
+    courier_name = None
+
+    # the url pattern for this handler on rapidpro (legacy)
+    handler_url = None
+    handler_name = None
 
     @csrf_exempt
     def dispatch(self, request, *args, **kwargs):
         return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
 
     @classmethod
-    def get_url(cls):
-        return cls.url, cls.url_name
+    def get_courier_url(cls):
+        return cls.courier_url, cls.courier_name
+
+    @classmethod
+    def get_handler_url(cls):
+        return cls.handler_url, cls.handler_name
 
     def get_param(self, name, default=None):
         """
@@ -80,8 +91,8 @@ def get_channel_handlers():
 
 class TwimlAPIHandler(BaseChannelHandler):
 
-    url = r'^twiml_api/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.twiml_api_handler'
+    handler_url = r'^twiml_api/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.twiml_api_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: no cover
         return HttpResponse("ILLEGAL METHOD")
@@ -272,8 +283,11 @@ class TwimlAPIHandler(BaseChannelHandler):
 
 class TwilioHandler(TwimlAPIHandler):
 
-    url = r'^twilio/(?P<action>receive|status|voice)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.twilio_handler'
+    courier_url = r'^t/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status|voice)$'
+    courier_name = 'courier.t'
+
+    handler_url = r'^twilio/(?P<action>receive|status|voice)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.twilio_handler'
 
     def get_channel_type(self):
         return Channel.TYPE_TWILIO
@@ -281,8 +295,11 @@ class TwilioHandler(TwimlAPIHandler):
 
 class TwilioMessagingServiceHandler(BaseChannelHandler):
 
-    url = r'^twilio_messaging_service/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.twilio_messaging_service_handler'
+    courier_url = r'^tms/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
+    courier_name = 'courier.tms'
+
+    handler_url = r'^twilio_messaging_service/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.twilio_messaging_service_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: no cover
         return self.post(request, *args, **kwargs)
@@ -323,8 +340,11 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
 
 class AfricasTalkingHandler(BaseChannelHandler):
 
-    url = r'^africastalking/(?P<action>delivery|callback)/(?P<uuid>[a-z0-9\-]+)/$'
-    url_name = 'handlers.africas_talking_handler'
+    courier_url = r'^at/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|delivery|callback|status)$'
+    courier_name = 'courier.at'
+
+    handler_url = r'^africastalking/(?P<action>receive|delivery|callback|status)/(?P<uuid>[a-z0-9\-]+)/$'
+    handler_name = 'handlers.africas_talking_handler'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("ILLEGAL METHOD", status=400)
@@ -335,12 +355,12 @@ class AfricasTalkingHandler(BaseChannelHandler):
         action = kwargs['action']
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_AFRICAS_TALKING).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='AT').exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
         # this is a callback for a message we sent
-        if action == 'delivery':
+        if action in ['delivery', 'status']:
             if 'status' not in request.POST or 'id' not in request.POST:
                 return HttpResponse("Missing status or id parameters", status=400)
 
@@ -364,7 +384,7 @@ class AfricasTalkingHandler(BaseChannelHandler):
             return HttpResponse("SMS Status Updated")
 
         # this is a new incoming message
-        elif action == 'callback':
+        elif action in ['receive', 'callback']:
             if 'from' not in request.POST or 'text' not in request.POST:
                 return HttpResponse("Missing from or text parameters", status=400)
 
@@ -378,8 +398,11 @@ class AfricasTalkingHandler(BaseChannelHandler):
 
 class ZenviaHandler(BaseChannelHandler):
 
-    url = r'^zenvia/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
-    url_name = 'handlers.zenvia_handler'
+    courier_url = r'^zv/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.zv'
+
+    handler_url = r'^zenvia/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
+    handler_name = 'handlers.zenvia_handler'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -445,8 +468,11 @@ class ZenviaHandler(BaseChannelHandler):
 
 class ExternalHandler(BaseChannelHandler):
 
-    url = r'^external/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$'
-    url_name = 'handlers.external_handler'
+    courier_url = r'^ex/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$'
+    courier_name = 'courier.ex'
+
+    handler_url = r'^external/(?P<action>sent|delivered|failed|received|receive)/(?P<uuid>[a-z0-9\-]+)/$'
+    handler_name = 'handlers.external_handler'
 
     def get_channel_type(self):
         return 'EX'
@@ -492,7 +518,7 @@ class ExternalHandler(BaseChannelHandler):
             return HttpResponse("SMS Status Updated")
 
         # this is a new incoming message
-        elif action == 'received':
+        elif action in ['received', 'receive']:
             sender = self.get_param('from', self.get_param('sender'))
             if not sender:
                 return HttpResponse("Missing 'from' or 'sender' parameter, invalid call.", status=400)
@@ -522,8 +548,11 @@ class ShaqodoonHandler(ExternalHandler):
     """
     Overloaded external channel for accepting Shaqodoon messages
     """
-    url = r'^shaqodoon/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$'
-    url_name = 'handlers.shaqodoon_handler'
+    courier_url = r'^sq/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$'
+    courier_name = 'courier.sq'
+
+    handler_url = r'^shaqodoon/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$'
+    handler_name = 'handlers.shaqodoon_handler'
 
     def get_channel_type(self):
         return Channel.TYPE_SHAQODOON
@@ -533,17 +562,22 @@ class YoHandler(ExternalHandler):
     """
     Overloaded external channel for accepting Yo! Messages.
     """
-    url = r'^yo/(?P<action>received)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.yo_handler'
+    courier_url = r'^yo/(?P<uuid>[a-z0-9\-]+)/(?P<action>received)$'
+    courier_name = 'courier.yo'
+
+    handler_url = r'^yo/(?P<action>received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.yo_handler'
 
     def get_channel_type(self):
         return Channel.TYPE_YO
 
 
 class TelegramHandler(BaseChannelHandler):
+    courier_url = r'^tg/(?P<uuid>[a-z0-9\-]+)/receive$'
+    courier_name = 'courier.tg'
 
-    url = r'^telegram/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.telegram_handler'
+    handler_url = r'^telegram/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.telegram_handler'
 
     @classmethod
     def download_file(cls, channel, file_id):
@@ -613,10 +647,10 @@ class TelegramHandler(BaseChannelHandler):
         # look up the contact
         telegram_id = str(body['message']['from']['id'])
         urn = URN.from_telegram(telegram_id)
-        existing_contact = Contact.from_urn(channel.org, urn)
+        contact = Contact.from_urn(channel.org, urn)
 
         # if the contact doesn't exist, try to create one
-        if not existing_contact and not channel.org.is_anon:
+        if not contact:
             # "from": {
             # "id": 25028612,
             # "first_name": "Eric",
@@ -629,8 +663,10 @@ class TelegramHandler(BaseChannelHandler):
             if not name and username:  # pragma: needs cover
                 name = username
 
-            if name:
-                Contact.get_or_create(channel.org, channel.created_by, name, urns=[urn])
+            if channel.org.is_anon:
+                name = None
+
+            contact = Contact.get_or_create(channel.org, channel.created_by, name, urns=[urn])
 
         text = ""
         attachments = []
@@ -653,14 +689,14 @@ class TelegramHandler(BaseChannelHandler):
         elif 'caption' in body['message']:
             text = body['message']['caption']
         elif 'contact' in body['message']:  # pragma: needs cover
-            contact = body['message']['contact']
+            contact_block = body['message']['contact']
 
-            if 'first_name' in contact and 'phone_number' in contact:
-                text = '%(first_name)s (%(phone_number)s)' % contact
-            elif 'first_name' in contact:
-                text = '%(first_name)s' % contact
-            elif 'phone_number' in contact:
-                text = '%(phone_number)s' % contact
+            if 'first_name' in contact_block and 'phone_number' in contact_block:
+                text = '%(first_name)s (%(phone_number)s)' % contact_block
+            elif 'first_name' in contact_block:
+                text = '%(first_name)s' % contact_block
+            elif 'phone_number' in contact_block:
+                text = '%(phone_number)s' % contact_block
         elif 'venue' in body['message']:
             if 'title' in body['message']['venue']:
                 text = body['message']['venue']['title']
@@ -673,6 +709,11 @@ class TelegramHandler(BaseChannelHandler):
             location = body['message']['location']
             attachments.append('geo:%s,%s' % (location['latitude'], location['longitude']))
 
+        if text.strip() == "/start":
+            event = ChannelEvent.create(channel, urn, ChannelEvent.TYPE_NEW_CONVERSATION, timezone.now())
+            event.handle()
+            return make_response("Conversation started")
+
         if text or attachments:
             msg = Msg.create_incoming(channel, urn, text, attachments=attachments, date=msg_date)
             log(msg, 'Inbound message', json.dumps(dict(description='Message accepted')))
@@ -683,8 +724,11 @@ class TelegramHandler(BaseChannelHandler):
 
 class InfobipHandler(BaseChannelHandler):
 
-    url = r'^infobip/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.infobip_handler'
+    courier_url = r'^ib/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$'
+    courier_name = 'courier.ib'
+
+    handler_url = r'^infobip/(?P<action>sent|delivered|failed|received|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.infobip_handler'
 
     def get_channel_type(self):
         return 'IB'
@@ -761,9 +805,11 @@ class InfobipHandler(BaseChannelHandler):
 
 
 class Hub9Handler(BaseChannelHandler):
+    courier_url = r'^h9/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|receive|received)$'
+    courier_name = 'courier.h9'
 
-    url = r'^hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.hub9_handler'
+    handler_url = r'^hub9/(?P<action>sent|delivered|failed|receive|received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.hub9_handler'
 
     def get_channel_type(self):
         return Channel.TYPE_HUB9
@@ -808,7 +854,7 @@ class Hub9Handler(BaseChannelHandler):
             return HttpResponse("000")
 
         # An MO message
-        if action == 'received':
+        if action in ['received', 'receive']:
 
             if message is None or from_number is None or to_number is None:
                 return HttpResponse("Parameters message, original and sendto should not be null.",
@@ -825,18 +871,22 @@ class Hub9Handler(BaseChannelHandler):
 
 
 class DartMediaHandler(Hub9Handler):
+    courier_url = r'^da/(?P<uuid>[a-z0-9\-]+)/(?P<action>delivered|received|receive)$'
+    courier_name = 'courier.da'
 
-    url = r'^dartmedia/(?P<action>delivered|received)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.dartmedia_handler'
+    handler_url = r'^dartmedia/(?P<action>delivered|received|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.dartmedia_handler'
 
     def get_channel_type(self):
         return Channel.TYPE_DARTMEDIA
 
 
 class HighConnectionHandler(BaseChannelHandler):
+    courier_url = r'^hx/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.hx'
 
-    url = r'^hcnx/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.hcnx_handler'
+    handler_url = r'^hcnx/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.hcnx_handler'
 
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)
@@ -894,9 +944,11 @@ class HighConnectionHandler(BaseChannelHandler):
 
 
 class BlackmynaHandler(BaseChannelHandler):
+    courier_url = r'^bm/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.bm'
 
-    url = r'^blackmyna/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.blackmyna_handler'
+    handler_url = r'^blackmyna/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.blackmyna_handler'
 
     def post(self, request, *args, **kwargs):  # pragma: needs cover
         return self.get(request, *args, **kwargs)
@@ -905,7 +957,7 @@ class BlackmynaHandler(BaseChannelHandler):
         from temba.msgs.models import Msg
 
         channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_BLACKMYNA).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='BM').exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
 
@@ -950,9 +1002,11 @@ class BlackmynaHandler(BaseChannelHandler):
 
 
 class SMSCentralHandler(BaseChannelHandler):
+    courier_url = r'^sc/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
+    courier_name = 'courier.sc'
 
-    url = r'^smscentral/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.smscentral_handler'
+    handler_url = r'^smscentral/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.smscentral_handler'
 
     def post(self, request, *args, **kwargs):  # pragma: needs cover
         return self.get(request, *args, **kwargs)
@@ -982,9 +1036,11 @@ class SMSCentralHandler(BaseChannelHandler):
 
 
 class MacroKioskHandler(BaseChannelHandler):
+    courier_url = r'^mk/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.mk'
 
-    url = r'^macrokiosk/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.macrokiosk_handler'
+    handler_url = r'^macrokiosk/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.macrokiosk_handler'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -1050,8 +1106,11 @@ class M3TechHandler(ExternalHandler):
     """
     Exposes our API for handling and receiving messages, same as external handlers.
     """
-    url = r'^m3tech/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.m3tech_handler'
+    courier_url = r'^m3/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$'
+    courier_name = 'courier.m3'
+
+    handler_url = r'^m3tech/(?P<action>sent|delivered|failed|received|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.m3tech_handler'
 
     def get_channel_type(self):
         return Channel.TYPE_M3TECH
@@ -1059,8 +1118,8 @@ class M3TechHandler(ExternalHandler):
 
 class NexmoCallHandler(BaseChannelHandler):
 
-    url = r'^nexmo/(?P<action>answer|event)/(?P<uuid>[a-z0-9\-]+)/$'
-    url_name = 'handlers.nexmo_call_handler'
+    handler_url = r'^nexmo/(?P<action>answer|event)/(?P<uuid>[a-z0-9\-]+)/$'
+    handler_name = 'handlers.nexmo_call_handler'
 
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)
@@ -1181,9 +1240,11 @@ class NexmoCallHandler(BaseChannelHandler):
 
 
 class NexmoHandler(BaseChannelHandler):
+    courier_url = r'^nx/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.nx'
 
-    url = r'^nexmo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
-    url_name = 'handlers.nexmo_handler'
+    handler_url = r'^nexmo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
+    handler_name = 'handlers.nexmo_handler'
 
     def post(self, request, *args, **kwargs):  # pragma: needs cover
         return self.get(request, *args, **kwargs)
@@ -1244,9 +1305,8 @@ class NexmoHandler(BaseChannelHandler):
 
 
 class VerboiceHandler(BaseChannelHandler):
-
-    url = r'^verboice/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.verboice_handler'
+    handler_url = r'^verboice/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.verboice_handler'
 
     def post(self, request, *args, **kwargs):
         return HttpResponse("Illegal method, must be GET", status=405)
@@ -1279,9 +1339,11 @@ class VerboiceHandler(BaseChannelHandler):
 
 
 class VumiHandler(BaseChannelHandler):
+    courier_url = r'^vm/(?P<uuid>[a-z0-9\-]+)/(?P<action>event|receive)$'
+    courier_name = 'courier.vm'
 
-    url = r'^vumi/(?P<action>event|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.vumi_handler'
+    handler_url = r'^vumi/(?P<action>event|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.vumi_handler'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Illegal method, must be POST", status=405)
@@ -1414,9 +1476,11 @@ class VumiHandler(BaseChannelHandler):
 
 
 class KannelHandler(BaseChannelHandler):
+    courier_url = r'^kn/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.kn'
 
-    url = r'^kannel/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.kannel_handler'
+    handler_url = r'^kannel/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.kannel_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: needs cover
         return self.post(request, *args, **kwargs)
@@ -1499,9 +1563,11 @@ class KannelHandler(BaseChannelHandler):
 
 
 class ClickatellHandler(BaseChannelHandler):
+    courier_url = r'^ct/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.ct'
 
-    url = r'^clickatell/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.clickatell_handler'
+    handler_url = r'^clickatell/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.clickatell_handler'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -1622,9 +1688,11 @@ class ClickatellHandler(BaseChannelHandler):
 
 
 class PlivoHandler(BaseChannelHandler):
+    courier_url = r'^pl/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.pl'
 
-    url = r'^plivo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.plivo_handler'
+    handler_url = r'^plivo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.plivo_handler'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -1731,8 +1799,8 @@ class PlivoHandler(BaseChannelHandler):
 
 class MageHandler(BaseChannelHandler):
 
-    url = r'^mage/(?P<action>handle_message|follow_notification|stop_contact)$'
-    url_name = 'handlers.mage_handler'
+    handler_url = r'^mage/(?P<action>handle_message|follow_notification|stop_contact)$'
+    handler_name = 'handlers.mage_handler'
 
     def get(self, request, *args, **kwargs):
         return JsonResponse(dict(error="Illegal method, must be POST"), status=405)
@@ -1783,9 +1851,11 @@ class MageHandler(BaseChannelHandler):
 
 
 class StartHandler(BaseChannelHandler):
+    courier_url = r'^st/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
+    courier_name = 'courier.st'
 
-    url = r'^start/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.start_handler'
+    handler_url = r'^start/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.start_handler'
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
@@ -1829,9 +1899,11 @@ class StartHandler(BaseChannelHandler):
 
 
 class ChikkaHandler(BaseChannelHandler):
+    courier_url = r'^ck/(?P<uuid>[a-z0-9\-]+)/receive$'
+    courier_name = 'courier.ck'
 
-    url = r'^chikka/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.chikka_handler'
+    handler_url = r'^chikka/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.chikka_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: needs cover
         return self.post(request, *args, **kwargs)
@@ -1907,9 +1979,11 @@ class ChikkaHandler(BaseChannelHandler):
 
 
 class JasminHandler(BaseChannelHandler):
+    courier_url = r'^js/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.js'
 
-    url = r'^jasmin/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.jasmin_handler'
+    handler_url = r'^jasmin/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.jasmin_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: needs cover
         return HttpResponse("Must be called as a POST", status=400)
@@ -1970,9 +2044,11 @@ class JasminHandler(BaseChannelHandler):
 
 
 class JunebugHandler(BaseChannelHandler):
+    courier_url = r'^jn/(?P<uuid>[a-z0-9\-]+)/(?P<action>event|inbound)$'
+    courier_name = 'courier.jn'
 
-    url = r'^junebug/(?P<action>event|inbound)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.junebug_handler'
+    handler_url = r'^junebug/(?P<action>event|inbound)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.junebug_handler'
     ACK = 'ack'
     NACK = 'nack'
 
@@ -2128,9 +2204,11 @@ class JunebugHandler(BaseChannelHandler):
 
 
 class MbloxHandler(BaseChannelHandler):
+    courier_url = r'^mb/(?P<uuid>[a-z0-9\-]+)/receive$'
+    courier_name = 'courier.mb'
 
-    url = r'^mblox/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.mblox_handler'
+    handler_url = r'^mblox/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.mblox_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: needs cover
         return HttpResponse("Must be called as a POST", status=400)
@@ -2201,8 +2279,11 @@ class JioChatHandler(BaseChannelHandler):
     # Jiochat expected the URL to receive message on CONFIG_URL/rcv/msg/message
     # and for event message on CONFIG_URL/rcv/event/menu
     # and for follow event on CONFIG_URL/rcv/event/follow
-    url = r'^jiochat/(?P<uuid>[a-z0-9\-]+)(/rcv/msg/message|/rcv/event/menu|/rcv/event/follow)?/?$'
-    url_name = 'handlers.jiochat_handler'
+    courier_url = r'^jc/(?P<uuid>[a-z0-9\-]+)(/rcv/msg/message|/rcv/event/menu|/rcv/event/follow)?/?$'
+    courier_name = 'courier.jc'
+
+    handler_url = r'^jiochat/(?P<uuid>[a-z0-9\-]+)(/rcv/msg/message|/rcv/event/menu|/rcv/event/follow)?/?$'
+    handler_name = 'handlers.jiochat_handler'
 
     def lookup_channel(self, kwargs):
         # look up the channel
@@ -2283,9 +2364,11 @@ class JioChatHandler(BaseChannelHandler):
 
 
 class FacebookHandler(BaseChannelHandler):
+    courier_url = r'^fb/(?P<uuid>[a-z0-9\-]+)/receive'
+    courier_name = 'courier.fb'
 
-    url = r'^facebook/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.facebook_handler'
+    handler_url = r'^facebook/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.facebook_handler'
 
     def lookup_channel(self, kwargs):
         # look up the channel
@@ -2464,8 +2547,8 @@ class FacebookHandler(BaseChannelHandler):
                                         import traceback
                                         traceback.print_exc()
 
-                                contact = Contact.get_or_create(channel.org, channel.created_by,
-                                                                name=name, urns=[urn], channel=channel)
+                                    contact = Contact.get_or_create(channel.org, channel.created_by,
+                                                                    name=name, urns=[urn], channel=channel)
 
                         # we received a new message, create and handle it
                         if content:
@@ -2509,9 +2592,11 @@ class FacebookHandler(BaseChannelHandler):
 
 
 class GlobeHandler(BaseChannelHandler):
+    courier_url = r'^gl/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
+    courier_name = 'courier.gl'
 
-    url = r'^globe/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.globe_handler'
+    handler_url = r'^globe/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.globe_handler'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Illegal method, must be POST", status=405)
@@ -2590,9 +2675,11 @@ class GlobeHandler(BaseChannelHandler):
 
 
 class ViberHandler(BaseChannelHandler):
+    courier_url = r'^vi/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$'
+    courier_name = 'courier.vi'
 
-    url = r'^viber/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.viber_handler'
+    handler_url = r'^viber/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.viber_handler'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=405)
@@ -2658,9 +2745,11 @@ class ViberHandler(BaseChannelHandler):
 
 
 class LineHandler(BaseChannelHandler):
+    courier_url = r'^ln/(?P<uuid>[a-z0-9\-]+)/receive$'
+    courier_name = 'courier.ln'
 
-    url = r'^line/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.line_handler'
+    handler_url = r'^line/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.line_handler'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -2700,9 +2789,11 @@ class LineHandler(BaseChannelHandler):
 
 
 class ViberPublicHandler(BaseChannelHandler):
+    courier_url = r'^vp/(?P<uuid>[a-z0-9\-]+)/receive$'
+    courier_name = 'courier.vp'
 
-    url = r'^viber_public/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.viber_public_handler'
+    handler_url = r'^viber_public/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.viber_public_handler'
 
     @classmethod
     def calculate_sig(cls, request_body, auth_token):
@@ -2909,9 +3000,8 @@ class ViberPublicHandler(BaseChannelHandler):
 
 
 class FCMHandler(BaseChannelHandler):
-
-    url = r'^fcm/(?P<action>register|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.fcm_handler'
+    handler_url = r'^fcm/(?P<action>register|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.fcm_handler'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=405)
@@ -2969,9 +3059,11 @@ class FCMHandler(BaseChannelHandler):
 
 
 class TwitterHandler(BaseChannelHandler):
+    courier_url = r'^twt/(?P<uuid>[a-z0-9\-]+)/receive$'
+    courier_name = 'courier.twt'
 
-    url = r'^twitter/(?P<uuid>[a-z0-9\-]+)/?$'
-    url_name = 'handlers.twitter_handler'
+    handler_url = r'^twitter/(?P<uuid>[a-z0-9\-]+)/?$'
+    handler_name = 'handlers.twitter_handler'
 
     def get(self, request, *args, **kwargs):
         crc_token = request.GET['crc_token']

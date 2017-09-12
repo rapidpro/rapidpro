@@ -40,13 +40,13 @@
     -trans "Status URL"
 
   %code
-    https://{{ domain }}{% url 'handlers.viber_handler' 'status' object.uuid %}
+    https://{{ domain }}{% url 'courier.vi' object.uuid 'status' %}
 
   %h4
     -trans "Receive URL"
 
   %code
-    https://{{ domain }}{% url 'handlers.viber_handler' 'receive' object.uuid %}
+    https://{{ domain }}{% url 'courier.vi' object.uuid 'receive' %}
 
   %hr
 
