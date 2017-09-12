@@ -2132,7 +2132,6 @@ class ContactGroup(TembaModel):
 
     # define some custom managers to do the filtering of user / system groups for us
     all_groups = models.Manager()
-    objects = models.Manager()
     system_groups = SystemContactGroupManager()
     user_groups = UserContactGroupManager()
 
