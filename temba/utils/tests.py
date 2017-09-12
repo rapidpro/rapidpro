@@ -29,7 +29,7 @@ from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
 from temba.tests import TembaTest
 from temba_expressions.evaluator import EvaluationContext, DateStyle
-from . import format_decimal, slugify_with, str_to_datetime, str_to_time, date_to_utc_range, truncate, random_string
+from . import format_decimal, slugify_with, str_to_datetime, str_to_time, date_to_utc_range, random_string
 from . import json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime
 from . import datetime_to_str, chunk_list, get_country_code_by_name, datetime_to_epoch, voicexml
@@ -46,7 +46,7 @@ from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRI
 from .timezones import TimeZoneFormField, timezone_to_country_code
 from .text import clean_string
 from .voicexml import VoiceXMLException
-from .text import decode_base64
+from .text import decode_base64, truncate
 
 
 class InitTest(TembaTest):

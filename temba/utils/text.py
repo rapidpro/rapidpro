@@ -113,3 +113,13 @@ def decode_base64(original):
         return original
 
     return decoded
+
+
+def truncate(text, max_len):
+    """
+    Truncates text to be less than max_len characters. If truncation is required, text ends with ...
+    """
+    if len(text) > max_len:
+        return "%s..." % text[:(max_len - 3)]
+    else:
+        return text

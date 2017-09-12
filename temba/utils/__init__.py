@@ -248,16 +248,6 @@ def slugify_with(value, sep='_'):
     return slugify(value).replace('-', sep)
 
 
-def truncate(text, max_len):
-    """
-    Truncates text to be less than max_len characters. If truncation is required, text ends with ...
-    """
-    if len(text) > max_len:
-        return "%s..." % text[:(max_len - 3)]
-    else:
-        return text
-
-
 def get_dict_from_cursor(cursor):
     """
     Returns all rows from a cursor as a dict
