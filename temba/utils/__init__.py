@@ -15,7 +15,6 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
-from django.utils.text import slugify
 from django.utils.timezone import is_aware
 from django_countries import countries
 from itertools import islice
@@ -239,13 +238,6 @@ def random_string(length):
     """
     letters = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"  # avoid things that could be mistaken ex: 'I' and '1'
     return ''.join([random.choice(letters) for _ in range(length)])
-
-
-def slugify_with(value, sep='_'):
-    """
-    Slugifies a value using a word separator other than -
-    """
-    return slugify(value).replace('-', sep)
 
 
 def get_dict_from_cursor(cursor):

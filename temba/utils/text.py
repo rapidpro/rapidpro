@@ -5,6 +5,8 @@ from collections import Counter
 import regex
 import sys
 
+from django.utils.text import slugify
+
 CONTROL_CHARACTERES_REGEX = r"[\000-\010]|[\013-\014]|[\016-\037]"
 
 #  http://www.unicode.org/faq/private_use.html#noncharacters
@@ -123,3 +125,10 @@ def truncate(text, max_len):
         return "%s..." % text[:(max_len - 3)]
     else:
         return text
+
+
+def slugify_with(value, sep='_'):
+    """
+    Slugifies a value using a word separator other than -
+    """
+    return slugify(value).replace('-', sep)
