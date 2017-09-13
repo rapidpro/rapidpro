@@ -1798,17 +1798,6 @@ class ChannelCRUDL(SmartCRUDL):
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
-    class ClaimHub9(ClaimAuthenticatedExternal):
-        title = _("Connect Hub9")
-        channel_type = Channel.TYPE_HUB9
-        readonly = ('country',)
-
-        def get_country(self, obj):  # pragma: needs cover
-            return "Indonesia"
-
-        def get_submitted_country(self, data):  # pragma: needs cover
-            return "ID"
-
     class ClaimShaqodoon(ClaimAuthenticatedExternal):
         class ShaqodoonForm(forms.Form):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),

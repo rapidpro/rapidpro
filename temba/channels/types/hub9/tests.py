@@ -54,8 +54,8 @@ class Hub9TypeTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEquals(200, response.status_code)
 
-        self.assertContains(response, reverse('handlers.hub9_handler', args=['received', channel.uuid]))
-        self.assertContains(response, reverse('handlers.hub9_handler', args=['delivered', channel.uuid]))
+        self.assertContains(response, reverse('courier.h9', args=[channel.uuid, 'receive']))
+        self.assertContains(response, reverse('courier.h9', args=[channel.uuid, 'delivered']))
 
         # check we show the IP to whitelist
         self.assertContains(response, "10.10.10.10")
