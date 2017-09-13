@@ -60,6 +60,14 @@
 .icon-facebook-official:before {
   content: "\e904";
 }
+.icon-facebook-telegram:before {
+  font-size: 25px;
+  content: "\e904";
+}
+.icon-facebook-telegram:after {
+  font-size: 25px;
+  content: "\e900";
+}
 .icon-viber:before {
   content: "\e908";
 }
@@ -789,4 +797,3 @@
 .icon-chatbase:before {
   content: "\e902";
 }
-
