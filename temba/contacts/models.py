@@ -1044,6 +1044,10 @@ class Contact(TembaModel):
         is_admin = org.administrators.filter(id=user.id).exists()
         uuid = field_dict.pop('contact uuid', None)
 
+        # for backward compatibility
+        if uuid is None:
+            uuid = field_dict.pop('uuid', None)
+
         country = org.get_country_code()
         urns = []
 

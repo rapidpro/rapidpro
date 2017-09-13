@@ -3367,6 +3367,14 @@ class ContactTest(TembaTest):
         self.assertEqual(c4.pk, c1.pk)
         self.assertEqual(c4.name, "Josh Childress")
 
+        field_dict = dict(phone='0788123123', created_by=user, modified_by=user,
+                          org=self.org, name='Goran Dragic')
+        field_dict['uuid'] = c1.uuid
+
+        c5 = Contact.create_instance(field_dict)
+        self.assertEqual(c5.pk, c1.pk)
+        self.assertEqual(c5.name, "Goran Dragic")
+
     def test_fields(self):
         # set a field on joe
         self.joe.set_field(self.user, 'abc_1234', 'Joe', label="Name")
