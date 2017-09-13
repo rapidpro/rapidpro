@@ -1583,7 +1583,7 @@ class ChannelCRUDL(SmartCRUDL):
             password = forms.CharField(label=_("Password"),
                                        help_text=_("The password provided by the provider to use their API"))
 
-            def clean_number(self):
+            def clean_number(self):  # pragma: no cover
                 number = self.data['number']
 
                 # number is a shortcode, accept as is
