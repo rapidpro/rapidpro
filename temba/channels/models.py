@@ -564,7 +564,7 @@ class Channel(TembaModel):
                                   "Note that you can only claim numbers after "
                                   "adding credit to your Nexmo account.") + "\n" + str(e))
 
-        mo_path = reverse('handlers.nexmo_handler', args=['receive', org_uuid])
+        mo_path = reverse('courier.nx', args=[org_uuid, 'receive'])
 
         channel_uuid = generate_uuid()
 
@@ -609,7 +609,7 @@ class Channel(TembaModel):
         channel_uuid = uuid4()
 
         # create new TwiML app
-        new_receive_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['receive', channel_uuid])
+        new_receive_url = "https://" + settings.TEMBA_HOST + reverse('courier.t', args=[channel_uuid, 'receive'])
         new_status_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['status', channel_uuid])
         new_voice_url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler', args=['voice', channel_uuid])
 
@@ -631,7 +631,7 @@ class Channel(TembaModel):
             if short_codes:
                 short_code = short_codes[0]
                 number_sid = short_code.sid
-                app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler', args=['receive', channel_uuid])
+                app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('courier.t', args=[channel_uuid, 'receive'])
                 client.sms.short_codes.update(number_sid, sms_url=app_url, sms_method='POST')
 
                 role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
@@ -1358,7 +1358,7 @@ class Channel(TembaModel):
         from temba.utils import gsm7
 
         # build our callback dlr url, jasmin will call this when our message is sent or delivered
-        dlr_url = 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.jasmin_handler', args=['status', channel.uuid]))
+        dlr_url = 'https://%s%s' % (settings.HOSTNAME, reverse('courier.js', args=[channel.uuid, 'status']))
 
         # encode to GSM7
         encoded = gsm7.encode(text, 'replace')[0]
@@ -1416,10 +1416,7 @@ class Channel(TembaModel):
         event_hostname = channel.config.get(Channel.CONFIG_RP_HOSTNAME_OVERRIDE, settings.HOSTNAME)
 
         # the event url Junebug will relay events to
-        event_url = 'http://%s%s' % (
-            event_hostname,
-            reverse('handlers.junebug_handler',
-                    args=['event', channel.uuid]))
+        event_url = 'http://%s%s' % (event_hostname, reverse('courier.jn', args=[channel.uuid, 'event']))
 
         is_ussd = channel.channel_type == Channel.TYPE_JUNEBUG_USSD
 
@@ -1550,7 +1547,7 @@ class Channel(TembaModel):
         from temba.msgs.models import WIRED
 
         # build our callback dlr url, kannel will call this when our message is sent or delivered
-        dlr_url = 'https://%s%s?id=%d&status=%%d' % (settings.HOSTNAME, reverse('handlers.kannel_handler', args=['status', channel.uuid]), msg.id)
+        dlr_url = 'https://%s%s?id=%d&status=%%d' % (settings.HOSTNAME, reverse('courier.kn', args=[channel.uuid, 'status']), msg.id)
         dlr_mask = 31
 
         # build our payload
@@ -2006,6 +2003,7 @@ class Channel(TembaModel):
 
             event = HttpEvent('GET', log_url)
             events.append(event)
+            response_qs = dict()
 
             failed = False
             try:
@@ -2213,8 +2211,7 @@ class Channel(TembaModel):
         url = 'https://api.plivo.com/v1/Account/%s/Message/' % channel.config[Channel.CONFIG_PLIVO_AUTH_ID]
 
         client = plivo.RestAPI(channel.config[Channel.CONFIG_PLIVO_AUTH_ID], channel.config[Channel.CONFIG_PLIVO_AUTH_TOKEN])
-        status_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.plivo_handler',
-                                                                       args=['status', channel.uuid])
+        status_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('courier.pl', args=[channel.uuid, 'status'])
 
         payload = {'src': channel.address.lstrip('+'),
                    'dst': msg.urn_path.lstrip('+'),
@@ -2489,7 +2486,7 @@ class Channel(TembaModel):
 
     @classmethod
     def build_twilio_callback_url(cls, channel_uuid, sms_id):
-        url = reverse('handlers.twilio_handler', args=['status', channel_uuid])
+        url = reverse('courier.t', args=[channel_uuid, 'status'])
         url = "https://" + settings.TEMBA_HOST + url + "?action=callback&id=%d" % sms_id
         return url
 
@@ -2869,7 +2866,7 @@ class ChannelLog(models.Model):
 
     def get_request_formatted(self):
         if not self.request:
-            return self.method + " " + self.url
+            return "%s %s" % (self.method, self.url)
 
         try:
             return json.dumps(json.loads(self.request), indent=2)
