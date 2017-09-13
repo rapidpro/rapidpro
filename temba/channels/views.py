@@ -917,7 +917,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_android', 'claim_chikka', 'configuration',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender',
                'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
-               'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
+               'claim_verboice', 'claim_plivo', 'search_plivo', 'claim_high_connection',
                'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_globe',
                'claim_twiml_api', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
@@ -1945,51 +1945,6 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimVumiUssd(ClaimVumi):
         channel_type = Channel.TYPE_VUMI_USSD
         channel_role = Channel.ROLE_USSD
-
-    class ClaimClickatell(ClaimAuthenticatedExternal):
-        class ClickatellForm(forms.Form):
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                        help_text=_("The country this phone number is used in"))
-            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The phone number with country code or short code you are connecting. ex: +250788123124 or 15543"))
-            api_id = forms.CharField(label=_("API ID"),
-                                     help_text=_("Your API ID as provided by Clickatell"))
-            username = forms.CharField(label=_("Username"),
-                                       help_text=_("The username for your Clickatell account"))
-            password = forms.CharField(label=_("Password"),
-                                       help_text=_("The password for your Clickatell account"))
-
-            def clean_number(self):
-                # if this is a long number, try to normalize it
-                number = self.data['number']
-                if len(number) >= 8:
-                    try:
-                        cleaned = phonenumbers.parse(number, self.data['country'])
-                        return phonenumbers.format_number(cleaned, phonenumbers.PhoneNumberFormat.E164)
-                    except Exception:  # pragma: needs cover
-                        raise forms.ValidationError(_("Invalid phone number, please include the country code. ex: +250788123123"))
-                else:  # pragma: needs cover
-                    return number
-
-        title = _("Connect Clickatell")
-        channel_type = Channel.TYPE_CLICKATELL
-        form_class = ClickatellForm
-        fields = ('country', 'number', 'api_id', 'username', 'password')
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-
-            if not org:  # pragma: no cover
-                raise Exception(_("No org for this user, cannot claim"))
-
-            data = form.cleaned_data
-            self.object = Channel.add_config_external_channel(org, self.request.user,
-                                                              data['country'], data['number'], Channel.TYPE_CLICKATELL,
-                                                              dict(api_id=data['api_id'],
-                                                                   username=data['username'],
-                                                                   password=data['password']))
-
-            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
     class ClaimTwilioMessagingService(OrgPermsMixin, SmartFormView):
         class TwilioMessagingServiceForm(forms.Form):

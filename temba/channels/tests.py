@@ -2526,46 +2526,6 @@ class ChannelAlertTest(TembaTest):
 
 class ChannelClaimTest(TembaTest):
 
-    def test_clickatell(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-
-        # should see the general channel claim page
-        response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, reverse('channels.channel_claim_clickatell'))
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_clickatell'))
-        post_data = response.context['form'].initial
-
-        post_data['api_id'] = '12345'
-        post_data['username'] = 'uname'
-        post_data['password'] = 'pword'
-        post_data['country'] = 'US'
-        post_data['number'] = '(206) 555-1212'
-
-        response = self.client.post(reverse('channels.channel_claim_clickatell'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('US', channel.country)
-        self.assertTrue(channel.uuid)
-        self.assertEquals('+12065551212', channel.address)
-        self.assertEquals(post_data['api_id'], channel.config_json()['api_id'])
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals(Channel.TYPE_CLICKATELL, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.ct', args=[channel.uuid, 'status']))
-        self.assertContains(response, reverse('courier.ct', args=[channel.uuid, 'receive']))
-
     def test_high_connection(self):
         Channel.objects.all().delete()
 
