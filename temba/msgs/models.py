@@ -32,11 +32,12 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
-from temba.utils import datetime_to_s, dict_to_json, get_anonymous_user, clean_string
+from temba.utils import datetime_to_s, dict_to_json, get_anonymous_user
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
+from temba.utils.text import clean_string
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
