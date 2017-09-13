@@ -2076,7 +2076,7 @@ class JunebugHandler(BaseChannelHandler):
         data = json.load(request)
         is_ussd = self.is_ussd_message(data)
         channel_data = data.get('channel_data', {})
-        channel_types = (Channel.TYPE_JUNEBUG_USSD, Channel.TYPE_JUNEBUG)
+        channel_types = ('JNU', 'JN')
 
         # look up the channel
         channel = Channel.objects.filter(
