@@ -1,8 +1,10 @@
 from __future__ import print_function, unicode_literals
 
+import json
 import logging
 import pytz
 import regex
+import requests
 import six
 import time
 import traceback
@@ -30,11 +32,12 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, on_transaction_commit
-from temba.utils import datetime_to_ms, dict_to_json, get_anonymous_user, clean_string
+from temba.utils import datetime_to_s, dict_to_json, get_anonymous_user
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import SquashableModel, TembaModel, TranslatableField
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
+from temba.utils.text import clean_string
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -845,6 +848,8 @@ class Msg(models.Model):
         """
         Processes a message, running it through all our handlers
         """
+        from temba.orgs.models import CHATBASE_TYPE_USER
+
         handlers = get_message_handlers()
 
         if msg.contact.is_blocked:
@@ -871,9 +876,20 @@ class Msg(models.Model):
 
         cls.mark_handled(msg)
 
+        # Chatbase parameters to track logs
+        chatbase_not_handled = True
+
         # if this is an inbox message, increment our unread inbox count
         if msg.msg_type == INBOX:
             msg.org.increment_unread_msg_count(UNREAD_INBOX_MSGS)
+        elif msg.msg_type == FLOW:
+            chatbase_not_handled = False
+
+        # Sending data to Chatbase API
+        (chatbase_api_key, chatbase_version) = msg.org.get_chatbase_credentials()
+        if chatbase_api_key:
+            cls.send_chatbase_log(chatbase_api_key, chatbase_version, msg.channel.name, msg.text, msg.contact.id,
+                                  CHATBASE_TYPE_USER, chatbase_not_handled)
 
         # record our handling latency for this object
         if msg.queued_on:
@@ -882,6 +898,36 @@ class Msg(models.Model):
         # this is the latency from when the message was received at the channel, which may be different than
         # above if people above us are queueing (or just because clocks are out of sync)
         analytics.gauge('temba.channel_handling_latency', (msg.modified_on - msg.created_on).total_seconds())
+
+    @classmethod
+    def send_chatbase_log(cls, chatbase_api_key, chatbase_version, channel_name, text, contact_id, log_type,
+                          not_handled=True):
+        """
+        Send messages logs in batch to Chatbase
+        """
+        from temba.channels.models import TEMBA_HEADERS
+
+        if not settings.SEND_CHATBASE:
+            raise Exception("!! Skipping Chatbase request, SEND_CHATBASE set to False")
+
+        message = {
+            'type': log_type,
+            'user_id': contact_id,
+            'platform': channel_name,
+            'message': text,
+            'time_stamp': int(time.time()),
+            'api_key': chatbase_api_key
+        }
+
+        if chatbase_version:
+            message['version'] = chatbase_version
+
+        if log_type == 'user' and not_handled:
+            message['not_handled'] = not_handled
+
+        headers = {'Content-Type': 'application/json'}
+        headers.update(TEMBA_HEADERS)
+        requests.post(settings.CHATBASE_API_URL, data=json.dumps(message), headers=headers)
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
@@ -1149,7 +1195,7 @@ class Msg(models.Model):
         # first push our msg on our contact's queue using our created date
         r = get_redis_connection('default')
         queue_time = self.sent_on if self.sent_on else timezone.now()
-        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_ms(queue_time), dict_to_json(payload))
+        r.zadd(Msg.CONTACT_HANDLING_QUEUE % self.contact_id, datetime_to_s(queue_time), dict_to_json(payload))
 
         # queue up our celery task
         push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, payload, priority=HIGH_PRIORITY)
@@ -1231,6 +1277,11 @@ class Msg(models.Model):
 
         if self.contact_urn.auth:
             data.update(dict(auth=self.contact_urn.auth))
+
+        (chatbase_api_key, chatbase_version) = self.org.get_chatbase_credentials()
+        if chatbase_api_key:
+            data.update(dict(chatbase_api_key=chatbase_api_key, chatbase_version=chatbase_version,
+                             is_org_connected_to_chatbase=True))
 
         return data
 
@@ -1704,7 +1755,7 @@ class SystemLabel(object):
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.exclude(schedule=None)
         elif label_type == cls.TYPE_CALLS:
-            qs = ChannelEvent.objects.filter(is_active=True, event_type__in=ChannelEvent.CALL_TYPES)
+            qs = ChannelEvent.objects.filter(event_type__in=ChannelEvent.CALL_TYPES)
         else:  # pragma: needs cover
             raise ValueError("Invalid label type: %s" % label_type)
 

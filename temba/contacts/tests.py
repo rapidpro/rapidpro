@@ -1082,13 +1082,13 @@ class ContactTest(TembaTest):
 
         # boolean operator precedence is AND before OR, even when AND is implicit
         self.assertEqual(parse_query('will and felix or matt amber', optimize=False), ContactQuery(
-            BoolCombination(BoolCombination.AND,
-                            BoolCombination(BoolCombination.OR,
-                                            BoolCombination(BoolCombination.AND,
-                                                            Condition('*', '=', 'will'),
-                                                            Condition('*', '=', 'felix')),
-                                            Condition('*', '=', 'matt')),
-                            Condition('*', '=', 'amber'))
+            BoolCombination(BoolCombination.OR,
+                            BoolCombination(BoolCombination.AND,
+                                            Condition('*', '=', 'will'),
+                                            Condition('*', '=', 'felix')),
+                            BoolCombination(BoolCombination.AND,
+                                            Condition('*', '=', 'matt'),
+                                            Condition('*', '=', 'amber')))
         ))
 
         # boolean combinations can themselves be combined
@@ -2339,18 +2339,14 @@ class ContactTest(TembaTest):
         self.assertNotContains(response, "blow80")
 
         # try delete action
-        call = ChannelEvent.create(self.channel, six.text_type(self.frank.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED,
-                                   timezone.now(), 5)
+        event = ChannelEvent.create(self.channel, six.text_type(self.frank.get_urn(TEL_SCHEME)),
+                                    ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), 5)
         post_data['action'] = 'delete'
         post_data['objects'] = self.frank.pk
 
         self.client.post(list_url, post_data)
-        self.frank.refresh_from_db()
-        self.assertFalse(self.frank.is_active)
-        call.refresh_from_db()
-
-        # the call should be inactive now too
-        self.assertFalse(call.is_active)
+        self.assertFalse(ChannelEvent.objects.filter(contact=self.frank))
+        self.assertFalse(ChannelEvent.objects.filter(id=event.id))
 
     def test_number_normalized(self):
         self.org.country = None

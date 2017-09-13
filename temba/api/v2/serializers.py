@@ -152,13 +152,20 @@ class ChannelEventReadSerializer(ReadSerializer):
     type = serializers.SerializerMethodField()
     contact = fields.ContactField()
     channel = fields.ChannelField()
+    extra = serializers.SerializerMethodField()
 
     def get_type(self, obj):
         return self.TYPES.get(obj.event_type)
 
+    def get_extra(self, obj):
+        if obj.extra:
+            return obj.extra_json()
+        else:
+            return None
+
     class Meta:
         model = ChannelEvent
-        fields = ('id', 'type', 'contact', 'channel', 'time', 'duration', 'created_on')
+        fields = ('id', 'type', 'contact', 'channel', 'extra', 'occurred_on', 'created_on')
 
 
 class CampaignReadSerializer(ReadSerializer):

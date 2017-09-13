@@ -674,7 +674,8 @@ class FlowTest(TembaTest):
         contact1_run1, contact2_run1, contact3_run1 = flow.start([], [self.contact, self.contact2, self.contact3])
         contact1_run2, contact2_run2 = flow.start([], [self.contact, self.contact2], restart_participants=True)
 
-        with self.assertNumQueries(50):
+        time.sleep(1)
+        with self.assertNumQueries(52):
             workbook = self.export_flow_results(flow)
 
         tz = self.org.timezone
@@ -796,7 +797,7 @@ class FlowTest(TembaTest):
                                              "This is the second message.", "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(41):
             workbook = self.export_flow_results(flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -854,7 +855,7 @@ class FlowTest(TembaTest):
         # ok, mark that one as finished and try again
         blocking_export.update_status(ExportFlowResultsTask.STATUS_COMPLETE)
 
-        with self.assertNumQueries(51):
+        with self.assertNumQueries(53):
             workbook = self.export_flow_results(self.flow)
 
         tz = self.org.timezone
@@ -947,7 +948,7 @@ class FlowTest(TembaTest):
                                             "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(49):
+        with self.assertNumQueries(51):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -974,7 +975,7 @@ class FlowTest(TembaTest):
         # insert a duplicate age field, this can happen due to races
         Value.objects.create(org=self.org, contact=self.contact, contact_field=age, string_value='36', decimal_value='36')
 
-        with self.assertNumQueries(57):
+        with self.assertNumQueries(59):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
                                                 contact_fields=[age], extra_urns=['twitter', 'line'])
 
@@ -2285,7 +2286,7 @@ class FlowTest(TembaTest):
         self.assertIn('channels', response.json())
         self.assertIn('languages', response.json())
         self.assertIn('channel_countries', response.json())
-        self.assertEqual(ActionSet.objects.all().count(), 32)
+        self.assertEqual(ActionSet.objects.all().count(), 28)
 
         json_dict = response.json()['flow']
 
@@ -2297,7 +2298,7 @@ class FlowTest(TembaTest):
 
         response = self.client.post(reverse('flows.flow_json', args=[self.flow.id]), json.dumps(json_dict), content_type="application/json")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(ActionSet.objects.all().count(), 29)
+        self.assertEqual(ActionSet.objects.all().count(), 25)
 
         # check that the flow only has a single actionset
         ActionSet.objects.get(flow=self.flow)
@@ -3015,8 +3016,20 @@ class ActionTest(TembaTest):
         flow = self.create_flow()
         run = FlowRun.create(self.flow, self.contact.pk)
 
-        action = TriggerFlowAction(flow, [], [self.contact], [])
+        # add a channel to make sure that country is ambiguous
+        Channel.create(self.org, self.admin, 'US', 'EX', schemes=['tel'])
+        delattr(self.org, '_country_code')
+        self.org.country = None
+        self.org.save()
+
+        # set a contact field with another phone number
+        self.contact.set_field(self.admin, "other_contact_tel", "+12065551212", "Other Contact Tel")
+
+        action = TriggerFlowAction(flow, [], [self.contact], ["@contact.other_contact_tel"])
         self.execute_action(action, run, None)
+
+        # should have created a new contact with the above variable
+        self.assertIsNotNone(Contact.from_urn(self.org, "tel:+12065551212"))
 
         action_json = action.as_json()
         action = TriggerFlowAction.from_json(self.org, action_json)
@@ -5391,8 +5404,47 @@ class FlowsTest(FlowFileTest):
         msg = Msg.objects.filter(direction='O', contact=tupac).first()
         self.assertEquals('Testing this out', msg.text)
 
+    def test_group_uuid_mapping(self):
+        flow = self.get_flow('group_split')
+
+        # make sure the groups in our rules exist as expected
+        ruleset = RuleSet.objects.filter(label="Member").first()
+        rules = ruleset.get_rules_dict()
+        group_count = 0
+        for rule in rules:
+            if rule['test']['type'] == 'in_group':
+                group = ContactGroup.user_groups.filter(uuid=rule['test']['test']['uuid']).first()
+                self.assertIsNotNone(group)
+                group_count += 1
+        self.assertEqual(2, group_count)
+
+        flow = self.get_flow('dependencies')
+        group_count = 0
+        for actionset in flow.action_sets.all():
+            actions = json.loads(actionset.actions)
+            for action in actions:
+                if action['type'] in ('add_group', 'del_group'):
+                    for group in action['groups']:
+                        group_count += 1
+                        self.assertIsNotNone(ContactGroup.user_groups.filter(uuid=group['uuid']).first())
+
+        # make sure we found both our group actions
+        self.assertEqual(2, group_count)
+
     def test_group_split(self):
         flow = self.get_flow('group_split')
+
+        rulesets = RuleSet.objects.filter(flow=flow)
+        group_count = 0
+        for ruleset in rulesets:
+            rules = ruleset.get_rules_dict()
+            for rule in rules:
+                if rule['test']['type'] == 'in_group':
+                    group = ContactGroup.user_groups.filter(uuid=rule['test']['test']['uuid']).first()
+                    self.assertIsNotNone(group)
+                    group_count += 1
+        self.assertEqual(2, group_count)
+
         flow.start_msg_flow([self.contact.id])
 
         # not in any group
@@ -6756,7 +6808,7 @@ class FlowMigrationTest(FlowFileTest):
 
     def test_migrate_sample_flows(self):
         self.org.create_sample_flows('https://app.rapidpro.io')
-        self.assertEquals(4, self.org.flows.filter(name__icontains='Sample Flow').count())
+        self.assertEquals(3, self.org.flows.filter(name__icontains='Sample Flow').count())
 
         # make sure it is localized
         poll = self.org.flows.filter(name='Sample Flow - Simple Poll').first()

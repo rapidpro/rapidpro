@@ -25,10 +25,11 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string, get_anonymous_user
+from temba.utils import analytics, format_decimal, datetime_to_str, chunk_list, get_anonymous_user
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.profiler import time_monitor
+from temba.utils.text import clean_string, truncate
 from temba.values.models import Value
 
 
@@ -72,6 +73,8 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
 
 
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
+
+STOP_CONTACT_EVENT = 'stop_contact'
 
 
 class URN(object):
@@ -1606,9 +1609,8 @@ class Contact(TembaModel):
         if context[TWITTERID_SCHEME] and not context[TWITTER_SCHEME]:
             context[TWITTER_SCHEME] = context[TWITTERID_SCHEME]
 
-        field_values = Value.objects.filter(contact=self).exclude(contact_field=None)\
-                                                         .exclude(contact_field__is_active=False)\
-                                                         .select_related('contact_field')
+        active_ids = ContactField.objects.filter(org_id=self.org_id, is_active=True).values_list('id', flat=True)
+        field_values = Value.objects.filter(contact=self, contact_field_id__in=active_ids).select_related('contact_field')
 
         # get all the values for this contact
         contact_values = {v.contact_field.key: v for v in field_values}
@@ -1895,7 +1897,7 @@ class ContactURN(models.Model):
 
     SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME, TWITTERID_SCHEME, JIOCHAT_SCHEME}  # schemes that support "follow" triggers
     # schemes that support "new conversation" triggers
-    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME}
+    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME, TELEGRAM_SCHEME}
     SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
     EXPORT_FIELDS = {

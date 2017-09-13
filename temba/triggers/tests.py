@@ -234,7 +234,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         response = self.client.post(create_url, post_data)
-        self.assertEquals(response.context['form'].errors.keys(), ['referrer_id', 'flow'])
+        self.assertEquals(response.context['form'].errors.keys(), ['flow'])
 
         # ok, valid referrer id and flow
         post_data = dict(flow=flow.id, referrer_id='signup')
@@ -247,10 +247,10 @@ class TriggerTest(TembaTest):
         self.assertEqual(first_trigger.flow, flow)
         self.assertIsNone(first_trigger.channel)
 
-        # empty referrer_id should show a validation error for the field
+        # empty referrer_id should create the trigger
         post_data = dict(flow=flow.id, referrer_id='')
         response = self.client.post(create_url, post_data)
-        self.assertEquals(response.context['form'].errors.keys(), ['referrer_id'])
+        self.assertNoFormErrors(response)
 
         # try to create the same trigger, should fail as we can only have one per referrer
         post_data = dict(flow=flow.id, referrer_id='signup')
@@ -787,6 +787,9 @@ class TriggerTest(TembaTest):
             # should have a new flow run for Ben
             contact = Contact.from_urn(self.org, 'facebook:1001')
             self.assertTrue(contact.name, "Ben Haggerty")
+
+            # and a new channel event for the conversation
+            self.assertTrue(ChannelEvent.objects.filter(channel=fb_channel, contact=contact, event_type=ChannelEvent.TYPE_NEW_CONVERSATION))
 
             run = FlowRun.objects.get(contact=contact)
             self.assertEqual(run.flow, flow)
