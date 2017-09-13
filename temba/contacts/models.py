@@ -487,12 +487,13 @@ class Contact(TembaModel):
     LANGUAGE = 'language'
     PHONE = 'phone'
     UUID = 'uuid'
+    CONTACT_UUID = 'contact uuid'
     GROUPS = 'groups'
     ID = 'id'
 
     # reserved contact fields
     RESERVED_FIELDS = [
-        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, 'created_by', 'modified_by', 'org', 'is', 'has'
+        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, CONTACT_UUID, 'created_by', 'modified_by', 'org', 'is', 'has'
     ] + [c[0] for c in IMPORT_HEADERS]
 
     @property
@@ -1041,7 +1042,7 @@ class Contact(TembaModel):
         org = field_dict.pop('org')
         user = field_dict.pop('created_by')
         is_admin = org.administrators.filter(id=user.id).exists()
-        uuid = field_dict.pop('uuid', None)
+        uuid = field_dict.pop('contact uuid', None)
 
         country = org.get_country_code()
         urns = []
@@ -1218,7 +1219,7 @@ class Contact(TembaModel):
 
         capitalized_possible_headers = '", "'.join([h.capitalize() for h in possible_headers])
 
-        if 'uuid' in headers:
+        if 'uuid' in headers or 'contact uuid' in headers:
             return
 
         if not found_headers:
@@ -2452,7 +2453,7 @@ class ExportContactsTask(BaseExportTask):
 
     def get_export_fields_and_schemes(self):
 
-        fields = [dict(label='UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
+        fields = [dict(label='Contact UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
                   dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
 
         # anon orgs also get an ID column that is just the PK
