@@ -653,8 +653,8 @@ class OrgCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse("orgs.org_nexmo_connect"))
 
             nexmo_uuid = org.nexmo_uuid()
-            mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
-            dl_path = reverse('handlers.nexmo_handler', args=['status', nexmo_uuid])
+            mo_path = reverse('courier.nx', args=[nexmo_uuid, 'receive'])
+            dl_path = reverse('courier.nx', args=[nexmo_uuid, 'status'])
             try:
                 from temba.settings import TEMBA_HOST
                 nexmo_client.update_account('http://%s%s' % (TEMBA_HOST, mo_path),
@@ -675,8 +675,8 @@ class OrgCRUDL(SmartCRUDL):
             context['nexmo_api_secret'] = config[NEXMO_SECRET]
 
             nexmo_uuid = config.get(NEXMO_UUID, None)
-            mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
-            dl_path = reverse('handlers.nexmo_handler', args=['status', nexmo_uuid])
+            mo_path = reverse('courier.nx', args=[nexmo_uuid, 'receive'])
+            dl_path = reverse('courier.nx', args=[nexmo_uuid, 'status'])
             context['mo_path'] = 'https://%s%s' % (TEMBA_HOST, mo_path)
             context['dl_path'] = 'https://%s%s' % (TEMBA_HOST, dl_path)
 
