@@ -1507,7 +1507,7 @@ class ChannelCRUDL(SmartCRUDL):
                       Channel.CONFIG_USERNAME: data.get('username', None),
                       Channel.CONFIG_PASSWORD: data.get('password', None),
                       Channel.CONFIG_ENCODING: data.get('encoding', Channel.ENCODING_DEFAULT)}
-            self.object = Channel.add_config_external_channel(org, self.request.user, country, number, Channel.TYPE_KANNEL,
+            self.object = Channel.add_config_external_channel(org, self.request.user, country, number, 'KN',
                                                               config, role=role, parent=None)
 
             # if they didn't set a username or password, generate them, we do this after the addition above

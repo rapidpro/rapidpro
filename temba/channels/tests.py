@@ -2539,50 +2539,6 @@ class ChannelClaimTest(TembaTest):
 
         self.assertContains(response, reverse('courier.sq', args=[channel.uuid, 'receive']))
 
-    def test_kannel(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-
-        # should see the general channel claim page
-        response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, reverse('channels.channel_claim_kannel'))
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_kannel'))
-        post_data = response.context['form'].initial
-
-        post_data['number'] = '3071'
-        post_data['country'] = 'RW'
-        post_data['url'] = 'http://kannel.temba.com/cgi-bin/sendsms'
-        post_data['verify_ssl'] = False
-        post_data['encoding'] = Channel.ENCODING_SMART
-
-        response = self.client.post(reverse('channels.channel_claim_kannel'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('RW', channel.country)
-        self.assertTrue(channel.uuid)
-        self.assertEquals(post_data['number'], channel.address)
-        self.assertEquals(post_data['url'], channel.config_json()['send_url'])
-        self.assertEquals(False, channel.config_json()['verify_ssl'])
-        self.assertEquals(Channel.ENCODING_SMART, channel.config_json()[Channel.CONFIG_ENCODING])
-
-        # make sure we generated a username and password
-        self.assertTrue(channel.config_json()['username'])
-        self.assertTrue(channel.config_json()['password'])
-        self.assertEquals(Channel.TYPE_KANNEL, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        # our configuration page should list our receive URL
-        self.assertContains(response, reverse('courier.kn', args=[channel.uuid, 'receive']))
-
     def test_zenvia(self):
         Channel.objects.all().delete()
 
