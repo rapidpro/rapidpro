@@ -918,7 +918,7 @@ class ChannelCRUDL(SmartCRUDL):
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender',
                'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_shaqodoon',
                'claim_verboice', 'claim_plivo', 'search_plivo',
-               'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
+               'claim_smscentral', 'claim_start', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_mblox',
                'claim_twiml_api', 'facebook_whitelist',
                'claim_red_rabbit', 'claim_macrokiosk')
@@ -1573,10 +1573,6 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimStart(ClaimAuthenticatedExternal):
         title = _("Connect Start")
         channel_type = Channel.TYPE_START
-
-    class ClaimM3tech(ClaimAuthenticatedExternal):
-        title = _("Connect M3 Tech")
-        channel_type = Channel.TYPE_M3TECH
 
     class ClaimRedRabbit(ClaimAuthenticatedExternal):
         title = _("Connect Red Rabbit")

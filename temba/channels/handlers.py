@@ -1114,7 +1114,7 @@ class M3TechHandler(ExternalHandler):
     handler_name = 'handlers.m3tech_handler'
 
     def get_channel_type(self):
-        return Channel.TYPE_M3TECH
+        return 'M3'
 
 
 class NexmoCallHandler(BaseChannelHandler):

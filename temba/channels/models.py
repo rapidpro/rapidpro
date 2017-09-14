@@ -275,7 +275,6 @@ class Channel(TembaModel):
         TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
         TYPE_MACROKIOSK: dict(schemes=['tel'], max_length=1600),
-        TYPE_M3TECH: dict(schemes=['tel'], max_length=160),
         TYPE_NEXMO: dict(schemes=['tel'], max_length=1600, max_tps=1),
         TYPE_MBLOX: dict(schemes=['tel'], max_length=459),
         TYPE_PLIVO: dict(schemes=['tel'], max_length=1600),
@@ -298,7 +297,6 @@ class Channel(TembaModel):
                     (TYPE_CHIKKA, "Chikka"),
                     (TYPE_DUMMY, "Dummy"),
                     (TYPE_MACROKIOSK, "Macrokiosk"),
-                    (TYPE_M3TECH, "M3 Tech"),
                     (TYPE_MBLOX, "Mblox"),
                     (TYPE_NEXMO, "Nexmo"),
                     (TYPE_PLIVO, "Plivo"),
@@ -1957,62 +1955,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_m3tech_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        # determine our encoding
-        encoding, text = Channel.determine_encoding(text, replace=True)
-
-        # if this looks like unicode, ask m3tech to send as unicode
-        if encoding == Encoding.UNICODE:
-            sms_type = '7'
-        else:
-            sms_type = '0'
-
-        url = 'https://secure.m3techservice.com/GenericServiceRestAPI/api/SendSMS'
-        payload = {'AuthKey': 'm3-Tech',
-                   'UserId': channel.config[Channel.CONFIG_USERNAME],
-                   'Password': channel.config[Channel.CONFIG_PASSWORD],
-                   'MobileNo': msg.urn_path.lstrip('+'),
-                   'MsgId': msg.id,
-                   'SMS': text,
-                   'MsgHeader': channel.address.lstrip('+'),
-                   'SMSType': sms_type,
-                   'HandsetPort': '0',
-                   'SMSChannel': '0',
-                   'Telco': '0'}
-
-        event = HttpEvent('GET', url + "?" + urlencode(payload))
-
-        start = time.time()
-
-        try:
-            response = requests.get(url, params=payload, headers=TEMBA_HEADERS, timeout=5)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
-            raise SendException("Got non-200 response [%d] from API" % response.status_code,
-                                event=event, start=start)
-
-        # our response is JSON and should contain a 0 as a status code:
-        # [{"Response":"0"}]
-        try:
-            response_code = json.loads(response.text)[0]["Response"]
-        except Exception as e:
-            response_code = str(e)
-
-        # <Response>0</Response>
-        if response_code != "0":
-            raise SendException("Received non-zero status from API: %s" % str(response_code),
-                                event=event, start=start)
-
-        Channel.success(channel, msg, WIRED, start, event=event)
-
-    @classmethod
     def send_viber_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -2261,7 +2203,6 @@ STATUS_FULL = "FUL"
 
 SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
-                  Channel.TYPE_M3TECH: Channel.send_m3tech_message,
                   Channel.TYPE_MACROKIOSK: Channel.send_macrokiosk_message,
                   Channel.TYPE_MBLOX: Channel.send_mblox_message,
                   Channel.TYPE_NEXMO: Channel.send_nexmo_message,
