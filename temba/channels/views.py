@@ -1501,7 +1501,7 @@ class ChannelCRUDL(SmartCRUDL):
         channel_type = "AE"
         template_name = 'channels/channel_claim_authenticated.html'
 
-        def get_submitted_country(self, data):
+        def get_submitted_country(self, data):  # pragma no cover
             return data['country']
 
         def form_valid(self, form):
