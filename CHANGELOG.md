@@ -1,3 +1,7 @@
+v3.0.204
+----------
+ * separate create and drop index operations in migration
+
 v3.0.203
 ----------
  * create new compound index on channel id and external id, remove old external id index
