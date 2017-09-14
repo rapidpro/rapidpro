@@ -1,3 +1,15 @@
+v3.0.203
+----------
+ * create new compound index on channel id and external id, remove old external id index
+ * consistent header for contact uuid in exports and imports
+ * unstop contacts in handle message for new messages
+ * populate @extra even on webhook failures
+ * fix flow simulator with chatbase connected
+ * use ContactQL for name of contact querying grammar
+ * dynamic channels: Clickatell
+ * fix contact searching where text includes + or / chars
+ * replace Ply with ANTLR for contact searching (WIP)
+
 v3.0.201
 ----------
  * Make clean string method replace non characteres correctly
