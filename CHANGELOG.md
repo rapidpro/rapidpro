@@ -1,3 +1,8 @@
+v3.0.205
+----------
+ * add way to show recommended channel on claim page for dynamic channels
+ * change Org.get_recommended_channel to return the channel type instead of a random string
+
 v3.0.204
 ----------
  * separate create and drop index operations in migration
