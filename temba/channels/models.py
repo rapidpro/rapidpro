@@ -44,6 +44,7 @@ from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
 from temba.utils.http import HttpEvent
 from temba.utils.nexmo import NexmoClient, NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid
+from temba.utils.text import random_string
 from time import sleep
 from twilio import twiml, TwilioRestException
 from uuid import uuid4
@@ -166,7 +167,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_CHIKKA = 'CK'
-    TYPE_CLICKATELL = 'CT'
     TYPE_DARTMEDIA = 'DA'
     TYPE_DUMMY = 'DM'
     TYPE_GLOBE = 'GL'
@@ -276,7 +276,6 @@ class Channel(TembaModel):
     CHANNEL_SETTINGS = {
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
-        TYPE_CLICKATELL: dict(schemes=['tel'], max_length=420),
         TYPE_DARTMEDIA: dict(schemes=['tel'], max_length=160),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
         TYPE_GLOBE: dict(schemes=['tel'], max_length=160),
@@ -308,7 +307,6 @@ class Channel(TembaModel):
 
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
                     (TYPE_CHIKKA, "Chikka"),
-                    (TYPE_CLICKATELL, "Clickatell"),
                     (TYPE_DARTMEDIA, "Dart Media"),
                     (TYPE_DUMMY, "Dummy"),
                     (TYPE_GLOBE, "Globe Labs"),
@@ -345,7 +343,6 @@ class Channel(TembaModel):
         TYPE_TWIML: "icon-channel-twilio",
         TYPE_TWILIO_MESSAGING_SERVICE: "icon-channel-twilio",
         TYPE_PLIVO: "icon-channel-plivo",
-        TYPE_CLICKATELL: "icon-channel-clickatell",
         TYPE_VIBER: "icon-viber"
     }
 
@@ -2301,58 +2298,6 @@ class Channel(TembaModel):
             raise SendException(six.text_type(e), events=client.messages.events)
 
     @classmethod
-    def send_clickatell_message(cls, channel, msg, text):
-        """
-        Sends a message to Clickatell, they expect a GET in the following format:
-             https://api.clickatell.com/http/sendmsg?api_id=xxx&user=xxxx&password=xxxx&to=xxxxx&text=xxxx
-        """
-        from temba.msgs.models import WIRED
-
-        # determine our encoding
-        encoding, text = Channel.determine_encoding(text, replace=True)
-
-        # if this looks like unicode, ask clickatell to send as unicode
-        if encoding == Encoding.UNICODE:
-            unicode_switch = 1
-        else:
-            unicode_switch = 0
-
-        url = 'https://api.clickatell.com/http/sendmsg'
-        payload = {'api_id': channel.config[Channel.CONFIG_API_ID],
-                   'user': channel.config[Channel.CONFIG_USERNAME],
-                   'password': channel.config[Channel.CONFIG_PASSWORD],
-                   'from': channel.address.lstrip('+'),
-                   'concat': 3,
-                   'callback': 7,
-                   'mo': 1,
-                   'unicode': unicode_switch,
-                   'to': msg.urn_path.lstrip('+'),
-                   'text': text}
-
-        event = HttpEvent('GET', url + "?" + urlencode(payload))
-
-        start = time.time()
-
-        try:
-            response = requests.get(url, params=payload, headers=TEMBA_HEADERS, timeout=5)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
-            raise SendException("Got non-200 response [%d] from API" % response.status_code,
-                                event=event, start=start)
-
-        # parse out the external id for the message, comes in the format: "ID: id12312312312"
-        external_id = None
-        if response.text.startswith("ID: "):
-            external_id = response.text[4:]
-
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
-
-    @classmethod
     def send_plivo_message(cls, channel, msg, text):
         import plivo
         from temba.msgs.models import WIRED
@@ -2693,7 +2638,6 @@ STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
 
 SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
-                  Channel.TYPE_CLICKATELL: Channel.send_clickatell_message,
                   Channel.TYPE_DARTMEDIA: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
                   Channel.TYPE_GLOBE: Channel.send_globe_message,

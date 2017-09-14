@@ -6,7 +6,7 @@
 #
 amqp==2.1.4               # via kombu
 analytics-python==0.4.4
-antlr4-python2-runtime==4.5.3
+antlr4-python2-runtime==4.7
 asn1crypto==0.22.0        # via cryptography
 beautifulsoup4==4.6.0     # via google
 billiard==3.5.0.2         # via celery
@@ -74,7 +74,6 @@ pbr==3.1.0                # via mock
 phonenumbers==8.5.1
 pisa==3.0.33
 plivo==0.11.3
-ply==3.10
 polib==1.0.8              # via django-rosetta
 psycopg2==2.7.1
 pycodestyle==2.3.1        # via flake8
@@ -95,7 +94,7 @@ python-magic==0.4.13
 python-telegram-bot==6.1.0
 pytz==2017.2
 pyyaml==3.12              # via uservoice
-rapidpro-expressions==1.1.10
+rapidpro-expressions==1.2
 raven==6.1.0
 rcssmin==1.0.6            # via django-compressor
 redis==2.10.5

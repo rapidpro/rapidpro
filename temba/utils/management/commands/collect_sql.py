@@ -12,7 +12,7 @@ from enum import Enum
 from six.moves import filter
 from sqlparse import sql
 from sqlparse import tokens as sql_tokens
-from temba.utils import truncate
+from temba.utils.text import truncate
 from textwrap import dedent
 
 

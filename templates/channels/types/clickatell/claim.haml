@@ -1,19 +1,12 @@
--extends "smartmin/form.html"
+-extends "channels/channel_claim_authenticated.html"
+
 -load i18n
 
--block extra-script
-  {{ block.super }}
-
-  :javascript
-    $(function(){
-      $("#id_country").select2();
-    });
-
 -block title
-  .medium-help.icon-channel-clickatell.float-left
+  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
 
   %h2.font_normalize.header-margin
-    -trans "Connect Clickatell"
+    {{ title }}
 
 -block pre-form
   .info
@@ -26,6 +19,14 @@
       -blocktrans with brand.name as brand
         After connecting your service we will provide URLs for the endpoints for Clickatell to call when they want
         to push a message to {{ brand }}.
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $(function(){
+      $("#id_country").select2();
+    });
 
 -block extra-style
   {{ block.super }}
@@ -52,4 +53,3 @@
     .form-group {
       margin-bottom:15px;
     }
-
