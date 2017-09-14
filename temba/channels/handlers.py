@@ -2577,9 +2577,7 @@ class FacebookHandler(BaseChannelHandler):
 
                     elif 'delivery' in envelope and 'mids' in envelope['delivery']:
                         for external_id in envelope['delivery']['mids']:
-                            msg = Msg.objects.filter(channel=channel,
-                                                     direction=OUTGOING,
-                                                     external_id=external_id).first()
+                            msg = Msg.objects.filter(channel=channel, external_id=external_id, direction=OUTGOING).first()
                             if msg:
                                 msg.status_delivered()
                                 status.append("Msg %d updated." % msg.id)
@@ -2710,7 +2708,7 @@ class ViberHandler(BaseChannelHandler):
             # }
             external_id = body['message_token']
 
-            msg = Msg.objects.filter(channel=channel, direction='O', external_id=external_id).select_related('channel').first()
+            msg = Msg.objects.filter(channel=channel, external_id=external_id, direction=OUTGOING).select_related('channel').first()
             if not msg:
                 # viber is hammers us incessantly if we give 400s for non-existant message_ids
                 return HttpResponse("Message with external id of '%s' not found" % external_id)
@@ -2907,7 +2905,7 @@ class ViberPublicHandler(BaseChannelHandler):
             #    "message_token": 4912661846655238145,
             #    "user_id": "01234567890A="
             # }
-            msg = Msg.objects.filter(channel=channel, direction='O', external_id=body['message_token']).select_related('channel').first()
+            msg = Msg.objects.filter(channel=channel, direction=OUTGOING, external_id=body['message_token']).select_related('channel').first()
             if not msg:
                 return HttpResponse("Message with external id of '%s' not found" % body['message_token'])
 
