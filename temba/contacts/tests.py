@@ -1082,13 +1082,13 @@ class ContactTest(TembaTest):
 
         # boolean operator precedence is AND before OR, even when AND is implicit
         self.assertEqual(parse_query('will and felix or matt amber', optimize=False), ContactQuery(
-            BoolCombination(BoolCombination.AND,
-                            BoolCombination(BoolCombination.OR,
-                                            BoolCombination(BoolCombination.AND,
-                                                            Condition('*', '=', 'will'),
-                                                            Condition('*', '=', 'felix')),
-                                            Condition('*', '=', 'matt')),
-                            Condition('*', '=', 'amber'))
+            BoolCombination(BoolCombination.OR,
+                            BoolCombination(BoolCombination.AND,
+                                            Condition('*', '=', 'will'),
+                                            Condition('*', '=', 'felix')),
+                            BoolCombination(BoolCombination.AND,
+                                            Condition('*', '=', 'matt'),
+                                            Condition('*', '=', 'amber')))
         ))
 
         # boolean combinations can themselves be combined
