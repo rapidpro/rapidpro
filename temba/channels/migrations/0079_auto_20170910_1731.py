@@ -18,7 +18,7 @@ def populate_twilio_auth(apps, schema_editor):
         channel.config = json.dumps(config)
         channel.save(update_fields=['config'])
 
-    # for consistency, remap twilio message service keys as well
+    # for consistency, remap TWIML keys as well
     for channel in Channel.objects.filter(channel_type=['TW'], is_active=True):
         config = json.loads(channel.config)
         config['account_sid'] = config.get('ACCOUNT_SID')
