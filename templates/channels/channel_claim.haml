@@ -19,7 +19,7 @@
     %h3
       -trans "Phone Channels"
 
-    .claim-row.android-channel{class:"{% if recommended_channel == 'android' %}recommended{% endif %}"}
+    .claim-row.android-channel{class:"{% if recommended_channel == 'A' %}recommended{% endif %}"}
       .recommendation.hide
         %h3
           -trans "Recommendation"
@@ -61,7 +61,7 @@
                   in a few simple steps.
 
     -if org_timezone == 'Africa/Kampala'
-      .claim-row.yo-channel{class:"{% if recommended_channel == 'yo' %}recommended{% endif %}"}
+      .claim-row.yo-channel{class:"{% if recommended_channel == 'YO' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -84,7 +84,7 @@
                   and receive messages on your shortcode.
 
     -if org_timezone == 'Africa/Mogadishu'
-      .claim-row.shaqodoon-channel{class:"{% if recommended_channel == 'shaqodoon' %}recommended{% endif %}"}
+      .claim-row.shaqodoon-channel{class:"{% if recommended_channel == 'SQ' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -107,7 +107,7 @@
                   and receive messages on your shortcode.
 
     -if org_timezone == 'Asia/Manila'
-      .claim-row.globe-channel{class:"{% if recommended_channel == 'globe' %}recommended{% endif %}"}
+      .claim-row.globe-channel{class:"{% if recommended_channel == 'GL' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -146,7 +146,7 @@
                   and receive messages on your shortcode.
 
     -if org_timezone == 'Asia/Jakarta'
-      .claim-row.hub9-channel{class:"{% if recommended_channel == 'hub9' %}recommended{% endif %}"}
+      .claim-row.hub9-channel{class:"{% if recommended_channel == 'H9' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -167,7 +167,7 @@
                 -blocktrans
                   Easily add a two way number you have configured with Hub9 in Indonesia.
 
-      .claim-row.dartmedia-channel{class:"{% if recommended_channel == 'dartmedia' %}recommended{% endif %}"}
+      .claim-row.dartmedia-channel{class:"{% if recommended_channel == 'DA' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -190,7 +190,7 @@
 
 
     -if not user_org.is_connected_to_twilio
-      .claim-row.twilio-channel{class:"{% if recommended_channel == 'twilio' %}recommended{% endif %}"}
+      .claim-row.twilio-channel{class:"{% if recommended_channel == 'T' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -216,7 +216,7 @@
 
 
     -else
-      .claim-row.twilio-channel{class:"{% if recommended_channel == 'twilio' %}recommended{% endif %}"}
+      .claim-row.twilio-channel{class:"{% if recommended_channel == 'T' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -260,7 +260,7 @@
                   You can connect a messaging service from your Twilio account to benefit from <a href="https://www.twilio.com/copilot">Twilio Copilot features</a></br>
 
     -if not user_org.is_connected_to_nexmo
-      .claim-row.nexmo-channel{class:"{% if recommended_channel == 'nexmo' %}recommended{% endif %}"}
+      .claim-row.nexmo-channel{class:"{% if recommended_channel == 'NX' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -323,7 +323,7 @@
                   <a href="http://www.highconnexion.com/en/">High Connection</a> and connect it in a few simple steps.
 
 
-    .claim-row.plivo-channel{class:"{% if recommended_channel == 'plivo' %}recommended{% endif %}"}
+    .claim-row.plivo-channel{class:"{% if recommended_channel == 'PL' %}recommended{% endif %}"}
       .recommendation.hide
         %h3
           -trans "Recommendation"
@@ -457,7 +457,7 @@
                   Easily add a two way number you have configured with <a href="https://bulk.startmobile.ua/">Start Mobile</a> using their APIs.
 
     -if org_timezone == 'Asia/Karachi'
-      .claim-row.m3tech-channel{class:"{% if recommended_channel == 'm3tech' %}recommended{% endif %}"}
+      .claim-row.m3tech-channel{class:"{% if recommended_channel == 'M3' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -540,7 +540,10 @@
                   Easily connect your <a href="http://go.vumi.org/">Vumi</a> account to take advantage of session based messaging across USSD transports.
 
     -for ch_type in channel_types.PHONE
-      .claim-row
+      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
@@ -555,7 +558,10 @@
       -trans "Social Network Channels"
 
     -for ch_type in channel_types.SOCIAL_MEDIA
-      .claim-row
+      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
@@ -570,7 +576,10 @@
       -trans "API Channels"
 
     -for ch_type in channel_types.API
-      .claim-row
+      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
