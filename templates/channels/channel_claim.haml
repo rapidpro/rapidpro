@@ -540,7 +540,10 @@
                   Easily connect your <a href="http://go.vumi.org/">Vumi</a> account to take advantage of session based messaging across USSD transports.
 
     -for ch_type in channel_types.PHONE
-      .claim-row
+      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
@@ -555,7 +558,10 @@
       -trans "Social Network Channels"
 
     -for ch_type in channel_types.SOCIAL_MEDIA
-      .claim-row
+      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
@@ -570,7 +576,10 @@
       -trans "API Channels"
 
     -for ch_type in channel_types.API
-      .claim-row
+      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
