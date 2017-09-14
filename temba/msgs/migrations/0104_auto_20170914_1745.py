@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     CREATE INDEX CONCURRENTLY msgs_msg_channel_external_id_not_null
     ON msgs_msg (channel_id, external_id)
     WHERE external_id IS NOT NULL;
-    DROP INDEX CONCURRENTLY IF EXISTS msgs_msg_external_id_not_null;
+    DROP INDEX CONCURRENTLY msgs_msg_external_id_where_nonnull;
     """
 
     dependencies = [
