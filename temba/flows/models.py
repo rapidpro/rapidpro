@@ -1556,6 +1556,9 @@ class Flow(TembaModel):
         if flow_start:  # pragma: needs cover
             flow_start.update_status()
 
+        if start_msg:
+            Msg.mark_handled(start_msg)
+
         return runs
 
     def start_call_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None):

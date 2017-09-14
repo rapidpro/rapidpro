@@ -1116,13 +1116,13 @@ class ContactTest(TembaTest):
 
         # boolean operator precedence is AND before OR, even when AND is implicit
         self.assertEqual(parse_query('will and felix or matt amber', optimize=False), ContactQuery(
-            BoolCombination(BoolCombination.AND,
-                            BoolCombination(BoolCombination.OR,
-                                            BoolCombination(BoolCombination.AND,
-                                                            Condition('*', '=', 'will'),
-                                                            Condition('*', '=', 'felix')),
-                                            Condition('*', '=', 'matt')),
-                            Condition('*', '=', 'amber'))
+            BoolCombination(BoolCombination.OR,
+                            BoolCombination(BoolCombination.AND,
+                                            Condition('*', '=', 'will'),
+                                            Condition('*', '=', 'felix')),
+                            BoolCombination(BoolCombination.AND,
+                                            Condition('*', '=', 'matt'),
+                                            Condition('*', '=', 'amber')))
         ))
 
         # boolean combinations can themselves be combined
@@ -2792,7 +2792,7 @@ class ContactTest(TembaTest):
                                       error_messages=[dict(line=3,
                                                            error="Missing any valid URNs; at least one among phone, "
                                                                  "facebook, twitter, twitterid, viber, line, telegram, email, "
-                                                                 "external, jiochat, fcm should be provided"),
+                                                                 "external, jiochat, fcm should be provided or a Contact UUID"),
                                                       dict(line=4, error="Invalid Phone number 12345")]))
 
         # import a spreadsheet with a name and a twitter columns only
@@ -2864,7 +2864,7 @@ class ContactTest(TembaTest):
                                           error_messages=[dict(line=3,
                                                           error="Missing any valid URNs; at least one among phone, "
                                                                 "facebook, twitter, twitterid, viber, line, telegram, email, "
-                                                                "external, jiochat, fcm should be provided")]))
+                                                                "external, jiochat, fcm should be provided or a Contact UUID")]))
 
             # lock for creates only
             self.assertEquals(mock_lock.call_count, 1)
@@ -2932,7 +2932,7 @@ class ContactTest(TembaTest):
                                           error_messages=[dict(line=3,
                                                           error="Missing any valid URNs; at least one among phone, "
                                                                 "facebook, twitter, twitterid, viber, line, telegram, email, "
-                                                                "external, jiochat, fcm should be provided")]))
+                                                                "external, jiochat, fcm should be provided or a Contact UUID")]))
 
             # only lock for create
             self.assertEquals(mock_lock.call_count, 1)
@@ -3071,7 +3071,7 @@ class ContactTest(TembaTest):
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
                              '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Email", "External", '
-                             '"Jiochat", "Fcm" should be included.')
+                             '"Jiochat", "Fcm" or "Contact UUID" should be included.')
 
         csv_file = open('%s/test_imports/sample_contacts_missing_name_phone_headers.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
@@ -3079,7 +3079,7 @@ class ContactTest(TembaTest):
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
                              '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Email", "External", '
-                             '"Jiochat", "Fcm" should be included.')
+                             '"Jiochat", "Fcm" or "Contact UUID" should be included.')
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
@@ -3386,10 +3386,28 @@ class ContactTest(TembaTest):
                 Contact.create_instance(field_dict)
 
             field_dict = dict(phone='0788123123', created_by=user, modified_by=user,
-                              org=self.org, name='Janet Jackson', uuid=c1.uuid)
+                              org=self.org, name='Janet Jackson')
+            field_dict['contact uuid'] = c1.uuid
+
             c3 = Contact.create_instance(field_dict)
             self.assertEqual(c3.pk, c1.pk)
             self.assertEqual(c3.name, "Janet Jackson")
+
+        field_dict = dict(phone='0788123123', created_by=user, modified_by=user,
+                          org=self.org, name='Josh Childress')
+        field_dict['contact uuid'] = c1.uuid
+
+        c4 = Contact.create_instance(field_dict)
+        self.assertEqual(c4.pk, c1.pk)
+        self.assertEqual(c4.name, "Josh Childress")
+
+        field_dict = dict(phone='0788123123', created_by=user, modified_by=user,
+                          org=self.org, name='Goran Dragic')
+        field_dict['uuid'] = c1.uuid
+
+        c5 = Contact.create_instance(field_dict)
+        self.assertEqual(c5.pk, c1.pk)
+        self.assertEqual(c5.name, "Goran Dragic")
 
     def test_fields(self):
         # set a field on joe
@@ -3936,7 +3954,7 @@ class ContactFieldTest(TembaTest):
         # no group specified, so will default to 'All Contacts'
         with self.assertNumQueries(40):
             self.assertExcelSheet(request_export(), [
-                ["UUID", "Name", "Email", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                ["Contact UUID", "Name", "Email", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "1234", "adam", "", "", ""],
                 [contact.uuid, "Ben Haggerty", "", "+12067799294", "", "", "One", "", "20-12-2015 08:30"],
             ])
@@ -3949,7 +3967,7 @@ class ContactFieldTest(TembaTest):
         # but should have additional Twitter and phone columns
         with self.assertNumQueries(40):
             self.assertExcelSheet(request_export(), [
-                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                ["Contact UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
                 [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
                 [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", ""],
@@ -3959,7 +3977,7 @@ class ContactFieldTest(TembaTest):
         # export a specified group of contacts (only Ben and Adam are in the group)
         with self.assertNumQueries(41):
             self.assertExcelSheet(request_export('?g=%s' % group.uuid), [
-                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                ["Contact UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
                 [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
             ])
@@ -3967,7 +3985,7 @@ class ContactFieldTest(TembaTest):
         # export a search
         with self.assertNumQueries(41):
             self.assertExcelSheet(request_export('?s=name+has+adam+or+name+has+deng'), [
-                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                ["Contact UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""],
                 [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", ""],
             ])
@@ -3975,14 +3993,14 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         with self.assertNumQueries(41):
             self.assertExcelSheet(request_export('?g=%s&s=Hagg' % group.uuid), [
-                ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
+                ["Contact UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"],
                 [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"],
             ])
 
         # now try with an anonymous org
         with AnonymousOrg(self.org):
             self.assertExcelSheet(request_export(), [
-                ["ID", "UUID", "Name", "First", "Second", "Third"],
+                ["ID", "Contact UUID", "Name", "First", "Second", "Third"],
                 [six.text_type(contact2.id), contact2.uuid, "Adam Sumner", "", "", ""],
                 [six.text_type(contact.id), contact.uuid, "Ben Haggerty", "One", "", "20-12-2015 08:30"],
                 [six.text_type(contact3.id), contact3.uuid, "Luol Deng", "", "", ""],
