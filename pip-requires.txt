@@ -45,7 +45,7 @@ python-magic
 xlutils
 
 ########################## misc ##########################
-antlr4-python2-runtime==4.5.3
+antlr4-python2-runtime
 celery[redis]
 colorama
 enum34
@@ -54,7 +54,6 @@ iptools
 iso639
 isoweek
 phonenumbers
-ply
 pycountry
 pycrypto
 python-dateutil==2.2
