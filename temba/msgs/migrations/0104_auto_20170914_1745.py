@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     atomic = False
 
     INDEX_SQL = """
-    CREATE INDEX CONCURRENTLY IF NOT EXISTS msgs_msg_channel_external_id_not_null
+    CREATE INDEX CONCURRENTLY msgs_msg_channel_external_id_not_null
     ON msgs_msg (channel_id, external_id)
     WHERE external_id IS NOT NULL;
     DROP INDEX CONCURRENTLY IF EXISTS msgs_msg_external_id_not_null;
