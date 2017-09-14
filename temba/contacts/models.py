@@ -25,10 +25,11 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string, get_anonymous_user
+from temba.utils import analytics, format_decimal, datetime_to_str, chunk_list, get_anonymous_user
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.profiler import time_monitor
+from temba.utils.text import clean_string, truncate
 from temba.values.models import Value
 
 
