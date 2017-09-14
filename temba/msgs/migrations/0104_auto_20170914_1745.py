@@ -8,10 +8,13 @@ from django.db import migrations
 class Migration(migrations.Migration):
     atomic = False
 
-    INDEX_SQL = """
+    CREATE_SQL = """
     CREATE INDEX CONCURRENTLY msgs_msg_channel_external_id_not_null
     ON msgs_msg (channel_id, external_id)
     WHERE external_id IS NOT NULL;
+    """
+
+    DROP_SQL = """
     DROP INDEX CONCURRENTLY msgs_msg_external_id_where_nonnull;
     """
 
@@ -20,5 +23,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(INDEX_SQL),
+        migrations.RunSQL(CREATE_SQL),
+        migrations.RunSQL(DROP_SQL),
     ]
