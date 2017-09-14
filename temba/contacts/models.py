@@ -1107,7 +1107,7 @@ class Contact(TembaModel):
 
         if not urns and not (org.is_anon or uuid):
             error_str = "Missing any valid URNs"
-            error_str += "; at least one among %s should be provided" % ", ".join(possible_urn_headers)
+            error_str += "; at least one among %s should be provided or a Contact UUID" % ", ".join(possible_urn_headers)
 
             raise SmartImportRowError(error_str)
 
@@ -1228,7 +1228,7 @@ class Contact(TembaModel):
 
         if not found_headers:
             raise Exception(ugettext('The file you provided is missing a required header. At least one of "%s" '
-                                     'should be included.' % capitalized_possible_headers))
+                                     'or "Contact UUID" should be included.' % capitalized_possible_headers))
 
         if 'name' not in headers:
             raise Exception(ugettext('The file you provided is missing a required header called "Name".'))
