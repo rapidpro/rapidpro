@@ -2442,13 +2442,13 @@ class Flow(TembaModel):
         # find any references in our actions
         for actionset in self.action_sets.all():
             for action in actionset.get_actions():
-                if action.TYPE in ('add_group', 'del_group'):
+                if action.TYPE in (AddToGroupAction.TYPE, DeleteFromGroupAction.TYPE):
                     # iterate over them so we can type crack to ignore expression strings :(
                     for group in action.groups:
                         if isinstance(group, ContactGroup):
                             groups.add(group)
 
-                if action.TYPE == 'trigger-flow':
+                if action.TYPE == TriggerFlowAction.TYPE:
                     flows.add(action.flow)
 
         # find references in our rulesets
