@@ -39,12 +39,13 @@ from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, FAI
 from temba.msgs.models import PENDING, DELIVERED, USSD as MSG_TYPE_USSD, OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
-from temba.utils import chunk_list, on_transaction_commit, goflow, slugify_with
+from temba.utils import chunk_list, on_transaction_commit, goflow
 from temba.utils.email import is_valid_address
 from temba.utils.export import BaseExportTask, BaseExportAssetStore
 from temba.utils.models import SquashableModel, TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
+from temba.utils.text import slugify_with
 from temba.values.models import Value
 from temba_expressions.utils import tokenize
 from uuid import uuid4
@@ -191,7 +192,7 @@ class FlowSession(models.Model):
                     request = request.include_flow(f)
                 for channel in flow.org.channels.filter(is_active=True):
                     request = request.include_channel(channel)
-                request = request.include_groups(flow.org).include_labels(flow.org)
+                request = request.include_fields(flow.org).include_groups(flow.org).include_labels(flow.org)
 
             # only include message if it's a real message
             if msg_in and msg_in.created_on:
@@ -239,7 +240,7 @@ class FlowSession(models.Model):
                 request = request.include_flow(f)
             for channel in self.org.channels.filter(is_active=True):
                 request = request.include_channel(channel)
-            request = request.include_groups(self.org).include_labels(self.org)
+            request = request.include_fields(self.org).include_groups(self.org).include_labels(self.org)
 
         # only include message if it's a real message
         if msg_in and msg_in.created_on:
@@ -2930,18 +2931,33 @@ class FlowRun(models.Model):
 
         self.contact.save(update_fields=update_fields)
 
+        if self.contact.is_test:
+            ActionLog.create(self, _("Updated %s to '%s'") % (event['field_name'], event['value']))
+
     def apply_save_contact_field(self, event, msg):
         """
         Properties of this contact being updated
         """
         user = get_flow_user(self.org)
-        field = ContactField.objects.get(org=self.org, uuid=event['field_uuid'])
+        field = ContactField.objects.get(org=self.org, key=event['field_key'])
         self.contact.set_field(user, field.key, event['value'])
 
-    def apply_save_flow_result(self, event, msg):
         if self.contact.is_test:
-            ActionLog.create(self, "Saved '%s' as @flow.%s" % (event['value'], slugify_with(event['result_name'])),
+            ActionLog.create(self, _("Updated %s to '%s'") % (field.label, event['value']))
+
+    def apply_save_flow_result(self, event, msg):
+        # flow results are actually saved in FlowRun.create_or_update_from_goflow
+        if self.contact.is_test:
+            ActionLog.create(self, _("Saved '%s' as @flow.%s") % (event['value'], slugify_with(event['result_name'])),
                              created_on=iso8601.parse_date(event['created_on']))
+
+    def apply_add_label(self, event, msg):
+        if msg:
+            label = Label.label_objects.get(org=self.org, uuid=event['label_uuid'])
+            if not self.contact.is_test:
+                label.toggle_label([msg], True)
+            else:
+                ActionLog.info(self, _("Added %s label to msg '%s'") % (label.name, msg.text))
 
     def apply_add_to_group(self, event, msg):
         """
@@ -2949,12 +2965,12 @@ class FlowRun(models.Model):
         """
         user = get_flow_user(self.org)
         for group_uuid in event['group_uuids']:
-            group = ContactGroup.get_user_groups(self.org).filter(uuid=group_uuid).first()
-            if group and not self.contact.is_stopped:
+            group = ContactGroup.get_user_groups(self.org).get(uuid=group_uuid)
+            if not self.contact.is_stopped:
                 group.update_contacts(user, [self.contact], add=True)
 
-                if self.contact.is_test:
-                    ActionLog.info(self, _("Added %s to %s") % (self.contact.name, group.name))
+            if self.contact.is_test:
+                ActionLog.info(self, _("Added %s to %s") % (self.contact.name, group.name))
 
     def apply_remove_from_group(self, event, msg):
         """
@@ -2962,12 +2978,12 @@ class FlowRun(models.Model):
         """
         user = get_flow_user(self.org)
         for group_uuid in event['group_uuids']:
-            group = ContactGroup.get_user_groups(self.org).filter(uuid=group_uuid).first()
-            if group and not self.contact.is_stopped:
+            group = ContactGroup.get_user_groups(self.org).get(uuid=group_uuid)
+            if not self.contact.is_stopped:
                 group.update_contacts(user, [self.contact], add=False)
 
-                if self.contact.is_test:
-                    ActionLog.info(self, _("Removed %s from %s") % (self.contact.name, group.name))
+            if self.contact.is_test:
+                ActionLog.info(self, _("Removed %s from %s") % (self.contact.name, group.name))
 
     def apply_send_email(self, event, msg):
         """

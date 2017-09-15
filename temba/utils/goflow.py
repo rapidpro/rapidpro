@@ -9,6 +9,10 @@ from django.db.models import Prefetch
 from django.utils.timezone import now
 from mptt.utils import get_cached_trees
 from temba.utils import datetime_to_str
+from temba.values.models import Value
+
+
+VALUE_TYPE_NAMES = {c[0]: c[2] for c in Value.TYPE_CONFIG}
 
 
 def serialize_flow(flow, strip_ui=True):
@@ -16,21 +20,7 @@ def serialize_flow(flow, strip_ui=True):
     Migrates the given flow, returning None if the flow or any of its dependencies can't be run in
     goflow because of unsupported features.
     """
-    from temba.contacts.models import ContactField, ContactURN
-    from temba.flows.models import get_flow_user
-
     flow_def = flow.as_json(expand_contacts=True)
-
-    # contact fields need to have UUIDs in the new world
-    for actionset in flow_def.get('action_sets', []):
-        for action in actionset.get('actions', []):
-            if action['type'] == 'save':
-                field_key = action['field']
-                if field_key in ('name', 'first_name', 'tel_e164') or field_key in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
-                    continue
-
-                field = ContactField.get_or_create(flow.org, get_flow_user(flow.org), field_key)
-                action['field_uuid'] = str(field.uuid)
 
     migrated_flow_def = get_client().migrate({'flows': [flow_def]})[0]
 
@@ -42,19 +32,23 @@ def serialize_flow(flow, strip_ui=True):
 
 def serialize_channel(channel):
     return {
-        'uuid': channel.uuid,
+        'uuid': str(channel.uuid),
         'name': six.text_type(channel.get_name()),
         'type': channel.channel_type,
         'address': channel.address
     }
 
 
+def serialize_field(field):
+    return {'key': field.key, 'label': field.label, 'value_type': VALUE_TYPE_NAMES[field.value_type]}
+
+
 def serialize_group(group):
-    return {'uuid': group.uuid, 'name': group.name, 'query': group.query}
+    return {'uuid': str(group.uuid), 'name': group.name, 'query': group.query}
 
 
 def serialize_label(label):
-    return {'uuid': label.uuid, 'name': label.name}
+    return {'uuid': str(label.uuid), 'name': label.name}
 
 
 def serialize_country(org):
@@ -107,19 +101,30 @@ class RequestBuilder(object):
         self.asset_timestamp = asset_timestamp
         self.request = {'assets': [], 'events': []}
 
-    def include_flow(self, flow):
-        self.request['assets'].append({
-            'type': "flow",
-            'url': get_assets_url(flow.org, self.asset_timestamp, 'flow', str(flow.uuid)),
-            'content': serialize_flow(flow)
-        })
-        return self
-
     def include_channel(self, channel):
         self.request['assets'].append({
             'type': "channel",
             'url': get_assets_url(channel.org, self.asset_timestamp, 'channel', str(channel.uuid)),
             'content': serialize_channel(channel)
+        })
+        return self
+
+    def include_fields(self, org):
+        from temba.contacts.models import ContactField
+
+        self.request['assets'].append({
+            'type': "field",
+            'url': get_assets_url(org, self.asset_timestamp, 'field'),
+            'content': [serialize_field(f) for f in ContactField.objects.filter(org=org, is_active=True)],
+            'is_set': True
+        })
+        return self
+
+    def include_flow(self, flow):
+        self.request['assets'].append({
+            'type': "flow",
+            'url': get_assets_url(flow.org, self.asset_timestamp, 'flow', str(flow.uuid)),
+            'content': serialize_flow(flow)
         })
         return self
 
@@ -159,6 +164,7 @@ class RequestBuilder(object):
         return self
 
     def set_contact(self, contact):
+        from temba.contacts.models import Contact
         from temba.msgs.models import Msg
         from temba.values.models import Value
 
@@ -168,9 +174,8 @@ class RequestBuilder(object):
         for v in values:
             field = org_fields[v.contact_field_id]
             field_values[field.key] = {
-                'field_uuid': str(field.uuid),
-                'field_name': field.label,
-                'value': v.string_value
+                'value': Contact.serialize_field_value(field, v),
+                'created_on': datetime_to_str(v.created_on),
             }
 
         _contact, contact_urn = Msg.resolve_recipient(contact.org, None, contact, None)
@@ -236,8 +241,10 @@ class RequestBuilder(object):
     def asset_urls(self, org):
         self.request['asset_urls'] = {
             'channel': get_assets_url(org, self.asset_timestamp, 'channel'),
+            'field': get_assets_url(org, self.asset_timestamp, 'field'),
             'flow': get_assets_url(org, self.asset_timestamp, 'flow'),
             'group': get_assets_url(org, self.asset_timestamp, 'group'),
+            'label': get_assets_url(org, self.asset_timestamp, 'label'),
         }
         return self
 
