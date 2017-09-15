@@ -43,23 +43,6 @@
                 you already have. You just need an Android phone
                 to get started.
 
-    -if org_timezone == 'America/Sao_Paulo'
-      .claim-row.zenvia-channel
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_zenvia' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Zenvia Short Code"
-          .span9.no-margin
-            .claim-description
-              %div
-                -blocktrans
-                  If you are based in Brazil, you can purchase a short
-                  code from <a href="http://www.zenvia.com.br/">Zenvia</a> and connect it
-                  in a few simple steps.
-
     -if org_timezone == 'Asia/Manila'
       .claim-row.chikka-channel
         .row

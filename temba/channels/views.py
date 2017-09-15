@@ -1046,7 +1046,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_vumi', 'claim_vumi_ussd', 'create_caller',
                'claim_verboice', 'search_plivo',
                'claim_viber', 'create_viber',
-               'claim_twilio_messaging_service', 'claim_zenvia',
+               'claim_twilio_messaging_service',
                'claim_twiml_api', 'facebook_whitelist')
     permissions = True
 
@@ -1511,36 +1511,6 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_success_url(self):
             return reverse('orgs.org_home')
-
-    class ClaimZenvia(OrgPermsMixin, SmartFormView):
-        class ZVClaimForm(forms.Form):
-            shortcode = forms.CharField(max_length=6, min_length=1,
-                                        help_text=_("The Zenvia short code"))
-            account = forms.CharField(max_length=32,
-                                      help_text=_("Your account name on Zenvia"))
-            code = forms.CharField(max_length=64,
-                                   help_text=_("Your api code on Zenvia for authentication"))
-
-        title = _("Connect Zenvia Account")
-        fields = ('shortcode', 'account', 'code')
-        form_class = ZVClaimForm
-        permission = 'channels.channel_claim'
-        success_url = "id@channels.channel_configuration"
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-
-            if not org:  # pragma: no cover
-                raise Exception(_("No org for this user, cannot claim"))
-
-            data = form.cleaned_data
-            self.object = Channel.add_zenvia_channel(org,
-                                                     self.request.user,
-                                                     phone=data['shortcode'],
-                                                     account=data['account'],
-                                                     code=data['code'])
-
-            return super(ChannelCRUDL.ClaimZenvia, self).form_valid(form)
 
     class CreateViber(OrgPermsMixin, SmartFormView):
         class ViberCreateForm(forms.Form):
