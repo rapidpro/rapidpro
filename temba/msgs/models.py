@@ -881,10 +881,11 @@ class Msg(models.Model):
             chatbase_not_handled = False
 
         # Sending data to Chatbase API
-        (chatbase_api_key, chatbase_version) = msg.org.get_chatbase_credentials()
-        if chatbase_api_key:
-            cls.send_chatbase_log(chatbase_api_key, chatbase_version, msg.channel.name, msg.text, msg.contact.id,
-                                  CHATBASE_TYPE_USER, chatbase_not_handled)
+        if not msg.contact.is_test:
+            (chatbase_api_key, chatbase_version) = msg.org.get_chatbase_credentials()
+            if chatbase_api_key:
+                cls.send_chatbase_log(chatbase_api_key, chatbase_version, msg.channel.name, msg.text, msg.contact.id,
+                                      CHATBASE_TYPE_USER, chatbase_not_handled)
 
         # record our handling latency for this object
         if msg.queued_on:
@@ -1181,11 +1182,14 @@ class Msg(models.Model):
 
         return handled
 
-    def queue_handling(self):
+    def queue_handling(self, new_message=False, new_contact=False):
         """
         Queues this message to be handled by one of our celery queues
+
+        new_message - should be true for messages which were created outside rapidpro
+        new_contact - should be true for contacts which were created outside rapidpro
         """
-        payload = dict(type=MSG_EVENT, contact_id=self.contact.id, id=self.id, from_mage=False, new_contact=False)
+        payload = dict(type=MSG_EVENT, contact_id=self.contact.id, id=self.id, new_message=new_message, new_contact=new_contact)
 
         # first push our msg on our contact's queue using our created date
         r = get_redis_connection('default')
