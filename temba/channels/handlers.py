@@ -563,14 +563,14 @@ class YoHandler(ExternalHandler):
     """
     Overloaded external channel for accepting Yo! Messages.
     """
-    courier_url = r'^yo/(?P<uuid>[a-z0-9\-]+)/(?P<action>received)$'
+    courier_url = r'^yo/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
     courier_name = 'courier.yo'
 
     handler_url = r'^yo/(?P<action>received)/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.yo_handler'
 
     def get_channel_type(self):
-        return Channel.TYPE_YO
+        return 'YO'
 
 
 class TelegramHandler(BaseChannelHandler):

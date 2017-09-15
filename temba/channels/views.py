@@ -1045,7 +1045,7 @@ class ChannelCRUDL(SmartCRUDL):
                'search_nexmo', 'bulk_sender_options', 'create_bulk_sender',
                'claim_vumi', 'claim_vumi_ussd', 'create_caller',
                'claim_verboice', 'search_plivo',
-               'claim_yo', 'claim_viber', 'create_viber',
+               'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia',
                'claim_twiml_api', 'facebook_whitelist')
     permissions = True
@@ -1666,23 +1666,6 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_submitted_country(self, data):
             return 'PH'
-
-    class ClaimYo(ClaimAuthenticatedExternal):
-        class YoClaimForm(forms.Form):
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                        help_text=_("The country this phone number is used in"))
-            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The phone number or short code you are connecting with country code. "
-                                                 "ex: +250788123124"))
-            username = forms.CharField(label=_("Account Number"),
-                                       help_text=_("Your Yo! account YBS account number"))
-            password = forms.CharField(label=_("Gateway Password"),
-                                       help_text=_("Your Yo! SMS Gateway password"))
-
-        title = _("Connect Yo!")
-        template_name = 'channels/channel_claim_yo.html'
-        channel_type = Channel.TYPE_YO
-        form_class = YoClaimForm
 
     class ClaimVerboice(ClaimAuthenticatedExternal):
         class VerboiceClaimForm(forms.Form):
