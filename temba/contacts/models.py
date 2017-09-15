@@ -25,10 +25,11 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string, get_anonymous_user
+from temba.utils import analytics, format_decimal, datetime_to_str, chunk_list, get_anonymous_user
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.profiler import time_monitor
+from temba.utils.text import clean_string, truncate
 from temba.values.models import Value
 
 
@@ -486,12 +487,13 @@ class Contact(TembaModel):
     LANGUAGE = 'language'
     PHONE = 'phone'
     UUID = 'uuid'
+    CONTACT_UUID = 'contact uuid'
     GROUPS = 'groups'
     ID = 'id'
 
     # reserved contact fields
     RESERVED_FIELDS = [
-        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, 'created_by', 'modified_by', 'org', 'is', 'has'
+        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, CONTACT_UUID, 'created_by', 'modified_by', 'org', 'is', 'has'
     ] + [c[0] for c in IMPORT_HEADERS]
 
     @property
@@ -1040,7 +1042,11 @@ class Contact(TembaModel):
         org = field_dict.pop('org')
         user = field_dict.pop('created_by')
         is_admin = org.administrators.filter(id=user.id).exists()
-        uuid = field_dict.pop('uuid', None)
+        uuid = field_dict.pop('contact uuid', None)
+
+        # for backward compatibility
+        if uuid is None:
+            uuid = field_dict.pop('uuid', None)
 
         country = org.get_country_code()
         urns = []
@@ -1101,7 +1107,7 @@ class Contact(TembaModel):
 
         if not urns and not (org.is_anon or uuid):
             error_str = "Missing any valid URNs"
-            error_str += "; at least one among %s should be provided" % ", ".join(possible_urn_headers)
+            error_str += "; at least one among %s should be provided or a Contact UUID" % ", ".join(possible_urn_headers)
 
             raise SmartImportRowError(error_str)
 
@@ -1217,12 +1223,12 @@ class Contact(TembaModel):
 
         capitalized_possible_headers = '", "'.join([h.capitalize() for h in possible_headers])
 
-        if 'uuid' in headers:
+        if 'uuid' in headers or 'contact uuid' in headers:
             return
 
         if not found_headers:
             raise Exception(ugettext('The file you provided is missing a required header. At least one of "%s" '
-                                     'should be included.' % capitalized_possible_headers))
+                                     'or "Contact UUID" should be included.' % capitalized_possible_headers))
 
         if 'name' not in headers:
             raise Exception(ugettext('The file you provided is missing a required header called "Name".'))
@@ -1896,7 +1902,7 @@ class ContactURN(models.Model):
 
     SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME, TWITTERID_SCHEME, JIOCHAT_SCHEME}  # schemes that support "follow" triggers
     # schemes that support "new conversation" triggers
-    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME}
+    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME, TELEGRAM_SCHEME}
     SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
     EXPORT_FIELDS = {
@@ -2451,7 +2457,7 @@ class ExportContactsTask(BaseExportTask):
 
     def get_export_fields_and_schemes(self):
 
-        fields = [dict(label='UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
+        fields = [dict(label='Contact UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
                   dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
 
         # anon orgs also get an ID column that is just the PK
