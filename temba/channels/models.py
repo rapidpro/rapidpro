@@ -35,7 +35,7 @@ from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
 
-from temba.orgs.models import Org, NEXMO_UUID, NEXMO_APP_ID, CHATBASE_TYPE_AGENT, ACCOUNT_SID, ACCOUNT_TOKEN
+from temba.orgs.models import Org, CHATBASE_TYPE_AGENT, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
@@ -451,123 +451,6 @@ class Channel(TembaModel):
                                     schemes=['tel'], parent=None):
         return Channel.create(org, user, country, channel_type, name=address, address=address,
                               config=config, role=role, schemes=schemes, parent=parent)
-
-    @classmethod
-    def add_plivo_channel(cls, org, user, country, phone_number, auth_id, auth_token):
-        plivo_uuid = generate_uuid()
-        app_name = "%s/%s" % (settings.TEMBA_HOST.lower(), plivo_uuid)
-
-        client = plivo.RestAPI(auth_id, auth_token)
-
-        message_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.plivo_handler', args=['receive', plivo_uuid])
-        answer_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/plivo_voice_unavailable.xml"
-
-        plivo_response_status, plivo_response = client.create_application(params=dict(app_name=app_name,
-                                                                                      answer_url=answer_url,
-                                                                                      message_url=message_url))
-
-        if plivo_response_status in [201, 200, 202]:
-            plivo_app_id = plivo_response['app_id']
-        else:  # pragma: no cover
-            plivo_app_id = None
-
-        plivo_config = {Channel.CONFIG_PLIVO_AUTH_ID: auth_id,
-                        Channel.CONFIG_PLIVO_AUTH_TOKEN: auth_token,
-                        Channel.CONFIG_PLIVO_APP_ID: plivo_app_id}
-
-        plivo_number = phone_number.strip('+ ').replace(' ', '')
-
-        plivo_response_status, plivo_response = client.get_number(params=dict(number=plivo_number))
-
-        if plivo_response_status != 200:
-            plivo_response_status, plivo_response = client.buy_phone_number(params=dict(number=plivo_number))
-
-            if plivo_response_status != 201:  # pragma: no cover
-                raise Exception(_("There was a problem claiming that number, please check the balance on your account."))
-
-            plivo_response_status, plivo_response = client.get_number(params=dict(number=plivo_number))
-
-        if plivo_response_status == 200:
-            plivo_response_status, plivo_response = client.modify_number(params=dict(number=plivo_number,
-                                                                                     app_id=plivo_app_id))
-            if plivo_response_status != 202:  # pragma: no cover
-                raise Exception(_("There was a problem updating that number, please try again."))
-
-        phone_number = '+' + plivo_number
-        phone = phonenumbers.format_number(phonenumbers.parse(phone_number, None),
-                                           phonenumbers.PhoneNumberFormat.NATIONAL)
-
-        return Channel.create(org, user, country, 'PL', name=phone, address=phone_number,
-                              config=plivo_config, uuid=plivo_uuid)
-
-    @classmethod
-    def add_nexmo_channel(cls, org, user, country, phone_number):
-        client = org.get_nexmo_client()
-        org_config = org.config_json()
-        org_uuid = org_config.get(NEXMO_UUID)
-        app_id = org_config.get(NEXMO_APP_ID)
-
-        nexmo_phones = client.get_numbers(phone_number)
-        is_shortcode = False
-
-        # try it with just the national code (for short codes)
-        if not nexmo_phones:
-            parsed = phonenumbers.parse(phone_number, None)
-            shortcode = str(parsed.national_number)
-
-            nexmo_phones = client.get_numbers(shortcode)
-
-            if nexmo_phones:
-                is_shortcode = True
-                phone_number = shortcode
-
-        # buy the number if we have to
-        if not nexmo_phones:
-            try:
-                client.buy_nexmo_number(country, phone_number)
-            except Exception as e:
-                raise Exception(_("There was a problem claiming that number, "
-                                  "please check the balance on your account. " +
-                                  "Note that you can only claim numbers after "
-                                  "adding credit to your Nexmo account.") + "\n" + str(e))
-
-        mo_path = reverse('courier.nx', args=[org_uuid, 'receive'])
-
-        channel_uuid = generate_uuid()
-
-        nexmo_phones = client.get_numbers(phone_number)
-
-        features = [elt.upper() for elt in nexmo_phones[0]['features']]
-        role = ''
-        if 'SMS' in features:
-            role += Channel.ROLE_SEND + Channel.ROLE_RECEIVE
-
-        if 'VOICE' in features:
-            role += Channel.ROLE_ANSWER + Channel.ROLE_CALL
-
-        # update the delivery URLs for it
-        from temba.settings import TEMBA_HOST
-        try:
-            client.update_nexmo_number(country, phone_number, 'https://%s%s' % (TEMBA_HOST, mo_path), app_id)
-
-        except Exception as e:  # pragma: no cover
-            # shortcodes don't seem to claim right on nexmo, move forward anyways
-            if not is_shortcode:
-                raise Exception(_("There was a problem claiming that number, please check the balance on your account.") +
-                                "\n" + str(e))
-
-        if is_shortcode:
-            phone = phone_number
-            nexmo_phone_number = phone_number
-        else:
-            parsed = phonenumbers.parse(phone_number, None)
-            phone = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
-
-            # nexmo ships numbers around as E164 without the leading +
-            nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
-
-        return Channel.create(org, user, country, 'NX', name=phone, address=phone_number, role=role,
-                              bod=nexmo_phone_number, uuid=channel_uuid)
 
     @classmethod
     def add_twilio_channel(cls, org, user, phone_number, country, role):
