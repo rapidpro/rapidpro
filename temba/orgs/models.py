@@ -1791,31 +1791,31 @@ class Org(SmartModel):
                                      'LT', 'NL', 'NO', 'PL', 'SE', 'CH', 'BE', 'ES', 'ZA']
 
         countrycode = timezone_to_country_code(self.timezone)
-        recommended = 'android'
+        recommended = 'A'
 
         if countrycode in [country[0] for country in TWILIO_SEARCH_COUNTRIES]:
-            recommended = 'twilio'
+            recommended = 'T'
 
         elif countrycode in NEXMO_RECOMMEND_COUNTRIES:
-            recommended = 'nexmo'
+            recommended = 'NX'
 
         elif countrycode == 'KE':
-            recommended = 'africastalking'
+            recommended = 'AT'
 
         elif countrycode == 'ID':
-            recommended = 'hub9'
+            recommended = 'H9'
 
         elif countrycode == 'SO':
-            recommended = 'shaqodoon'
+            recommended = 'SQ'
 
         elif countrycode == 'NP':  # pragma: needs cover
-            recommended = 'blackmyna'
+            recommended = 'BM'
 
         elif countrycode == 'UG':  # pragma: needs cover
-            recommended = 'yo'
+            recommended = 'YO'
 
         elif countrycode == 'PH':  # pragma: needs cover
-            recommended = 'globe'
+            recommended = 'GL'
 
         return recommended
 
