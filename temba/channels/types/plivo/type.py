@@ -30,6 +30,8 @@ class PlivoType(ChannelType):
     claim_blurb = _("""Easily add a two way number you have configured with <a href="https://www.plivo.com/">Plivo</a> using their APIs.""")
     claim_view = ClaimView
 
+    show_config_page = False
+
     schemes = [TEL_SCHEME]
     max_length = 1600
 

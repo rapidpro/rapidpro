@@ -7,7 +7,6 @@ import hmac
 import json
 import phonenumbers
 import plivo
-import pycountry
 import pytz
 import six
 import time
@@ -1043,9 +1042,9 @@ class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
                'claim_android', 'claim_chikka', 'configuration',
-               'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender',
+               'search_nexmo', 'bulk_sender_options', 'create_bulk_sender',
                'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_shaqodoon',
-               'claim_verboice', 'claim_plivo', 'search_plivo',
+               'claim_verboice', 'search_plivo',
                'claim_smscentral', 'claim_start', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia',
                'claim_twiml_api', 'facebook_whitelist')
@@ -2306,81 +2305,6 @@ class ChannelCRUDL(SmartCRUDL):
             # add this channel
             return Channel.add_twilio_channel(user.get_org(), user, phone_number, country, role)
 
-    class ClaimNexmo(BaseClaimNumber):
-        class ClaimNexmoForm(forms.Form):
-            country = forms.ChoiceField(choices=NEXMO_SUPPORTED_COUNTRIES)
-            phone_number = forms.CharField(help_text=_("The phone number being added"))
-
-            def clean_phone_number(self):
-                if not self.cleaned_data.get('country', None):  # pragma: needs cover
-                    raise ValidationError(_("That number is not currently supported."))
-
-                phone = self.cleaned_data['phone_number']
-                phone = phonenumbers.parse(phone, self.cleaned_data['country'])
-
-                return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
-
-        form_class = ClaimNexmoForm
-
-        template_name = 'channels/channel_claim_nexmo.html'
-
-        def pre_process(self, *args, **kwargs):
-            org = Org.objects.get(pk=self.request.user.get_org().pk)
-            try:
-                client = org.get_nexmo_client()
-            except Exception:  # pragma: needs cover
-                client = None
-
-            if client:
-                return None
-            else:  # pragma: needs cover
-                return HttpResponseRedirect(reverse('channels.channel_claim'))
-
-        def is_valid_country(self, country_code):
-            return country_code in NEXMO_SUPPORTED_COUNTRY_CODES
-
-        def is_messaging_country(self, country):
-            return country in [c[0] for c in NEXMO_SUPPORTED_COUNTRIES]
-
-        def get_search_url(self):
-            return reverse('channels.channel_search_nexmo')
-
-        def get_claim_url(self):
-            return reverse('channels.channel_claim_nexmo')
-
-        def get_supported_countries_tuple(self):
-            return NEXMO_SUPPORTED_COUNTRIES
-
-        def get_search_countries_tuple(self):
-            return NEXMO_SUPPORTED_COUNTRIES
-
-        def get_existing_numbers(self, org):
-            client = org.get_nexmo_client()
-            if client:
-                account_numbers = client.get_numbers(size=100)
-
-            numbers = []
-            for number in account_numbers:
-                if number['type'] == 'mobile-shortcode':  # pragma: needs cover
-                    phone_number = number['msisdn']
-                else:
-                    parsed = phonenumbers.parse(number['msisdn'], number['country'])
-                    phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
-                numbers.append(dict(number=phone_number, country=number['country']))
-
-            return numbers
-
-        def claim_number(self, user, phone_number, country, role):
-            analytics.track(user.username, 'temba.channel_claim_nexmo', dict(number=phone_number))
-
-            # add this channel
-            channel = Channel.add_nexmo_channel(user.get_org(),
-                                                user,
-                                                country,
-                                                phone_number)
-
-            return channel
-
     class SearchNexmo(SearchNumbers):
         class SearchNexmoForm(forms.Form):
             area_code = forms.CharField(max_length=7, required=False,
@@ -2405,111 +2329,6 @@ class ChannelCRUDL(SmartCRUDL):
                 return JsonResponse(numbers, safe=False)
             except Exception as e:
                 return JsonResponse(dict(error=str(e)))
-
-    class ClaimPlivo(BaseClaimNumber):
-        class ClaimPlivoForm(forms.Form):
-            country = forms.ChoiceField(choices=PLIVO_SUPPORTED_COUNTRIES)
-            phone_number = forms.CharField(help_text=_("The phone number being added"))
-
-            def clean_phone_number(self):
-                if not self.cleaned_data.get('country', None):  # pragma: needs cover
-                    raise ValidationError(_("That number is not currently supported."))
-
-                phone = self.cleaned_data['phone_number']
-                phone = phonenumbers.parse(phone, self.cleaned_data['country'])
-
-                return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
-
-        form_class = ClaimPlivoForm
-        template_name = 'channels/channel_claim_plivo.html'
-
-        def pre_process(self, *args, **kwargs):
-            client = self.get_valid_client()
-
-            if client:
-                return None
-            else:
-                return HttpResponseRedirect(reverse('channels.channel_claim'))
-
-        def get_valid_client(self):
-            auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
-            auth_token = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_TOKEN, None)
-
-            try:
-                client = plivo.RestAPI(auth_id, auth_token)
-                validation_response = client.get_account()
-                if validation_response[0] != 200:
-                    client = None
-            except plivo.PlivoError:  # pragma: needs cover
-                client = None
-
-            return client
-
-        def is_valid_country(self, country_code):
-            return country_code in PLIVO_SUPPORTED_COUNTRY_CODES
-
-        def is_messaging_country(self, country):
-            return country in [c[0] for c in PLIVO_SUPPORTED_COUNTRIES]
-
-        def get_search_url(self):
-            return reverse('channels.channel_search_plivo')
-
-        def get_claim_url(self):
-            return reverse('channels.channel_claim_plivo')
-
-        def get_supported_countries_tuple(self):
-            return PLIVO_SUPPORTED_COUNTRIES
-
-        def get_search_countries_tuple(self):
-            return PLIVO_SUPPORTED_COUNTRIES
-
-        def get_existing_numbers(self, org):
-            client = self.get_valid_client()
-
-            account_numbers = []
-            if client:
-                status, data = client.get_numbers()
-
-                if status == 200:
-                    for number_dict in data['objects']:
-
-                        region = number_dict['region']
-                        country_name = region.split(',')[-1].strip().title()
-                        country = pycountry.countries.get(name=country_name).alpha_2
-
-                        if len(number_dict['number']) <= 6:
-                            phone_number = number_dict['number']
-                        else:
-                            parsed = phonenumbers.parse('+' + number_dict['number'], None)
-                            phone_number = phonenumbers.format_number(parsed,
-                                                                      phonenumbers.PhoneNumberFormat.INTERNATIONAL)
-
-                        account_numbers.append(dict(number=phone_number, country=country))
-
-            return account_numbers
-
-        def claim_number(self, user, phone_number, country, role):
-
-            auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
-            auth_token = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_TOKEN, None)
-
-            # add this channel
-            channel = Channel.add_plivo_channel(user.get_org(),
-                                                user,
-                                                country,
-                                                phone_number,
-                                                auth_id,
-                                                auth_token)
-
-            analytics.track(user.username, 'temba.channel_claim_plivo', dict(number=phone_number))
-
-            return channel
-
-        def remove_api_credentials_from_session(self):
-            if Channel.CONFIG_PLIVO_AUTH_ID in self.request.session:
-                del self.request.session[Channel.CONFIG_PLIVO_AUTH_ID]
-            if Channel.CONFIG_PLIVO_AUTH_TOKEN in self.request.session:
-                del self.request.session[Channel.CONFIG_PLIVO_AUTH_TOKEN]
 
     class SearchPlivo(SearchNumbers):
         class SearchPlivoForm(forms.Form):
