@@ -29,7 +29,6 @@ class DartMediaType(ChannelType):
     category = ChannelType.Category.PHONE
 
     name = "DartMedia"
-    slug = "dart_media"
 
     claim_blurb = _("""Easily add a two way number you have configured with <a href="http://dartmedia.biz/">Dart Media</a> in Indonesia.""")
     claim_view = ClaimView
