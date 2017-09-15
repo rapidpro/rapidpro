@@ -1197,7 +1197,7 @@ class NexmoCallHandler(BaseChannelHandler):
             # look up the channel
             address_q = Q(address=channel_number) | Q(address=('+' + channel_number))
             channel = Channel.objects.filter(address_q).filter(is_active=True,
-                                                               channel_type=Channel.TYPE_NEXMO).exclude(org=None).first()
+                                                               channel_type='NX').exclude(org=None).first()
 
             # make sure we got one, and that it matches the key for our org
             org_uuid = None
@@ -1266,7 +1266,7 @@ class NexmoHandler(BaseChannelHandler):
 
         # look up the channel
         address_q = Q(address=channel_number) | Q(address=('+' + channel_number))
-        channel = Channel.objects.filter(address_q).filter(is_active=True, channel_type=Channel.TYPE_NEXMO).exclude(org=None).first()
+        channel = Channel.objects.filter(address_q).filter(is_active=True, channel_type='NX').exclude(org=None).first()
 
         # make sure we got one, and that it matches the key for our org
         org_uuid = None

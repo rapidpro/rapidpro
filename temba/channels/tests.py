@@ -2350,7 +2350,7 @@ class ChannelTest(TembaTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
-        channel.channel_type = Channel.TYPE_NEXMO
+        channel.channel_type = 'NX'
         channel.save()
 
         self.assertIsNotNone(channel.get_ivr_client())
@@ -4318,7 +4318,7 @@ class NexmoTest(TembaTest):
         self.org.config = json.dumps(org_config)
         self.org.clear_channel_caches()
 
-        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.channel_type = 'NX'
         self.channel.save()
 
         joe = self.create_contact("Joe", "+250788383383")
@@ -4453,7 +4453,7 @@ class NexmoTest(TembaTest):
         self.org.config = json.dumps(org_config)
         self.org.clear_channel_caches()
 
-        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.channel_type = 'NX'
         self.channel.save()
 
         joe = self.create_contact("Joe", "+250788383383")
