@@ -1432,7 +1432,9 @@ class ChannelTest(TembaTest):
         channel = self.org.channels.get()
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
         self.assertEqual(channel.channel_type, "TMS")
-        self.assertEqual(channel.config_json(), dict(messaging_service_sid="MSG-SERVICE-SID"))
+        self.assertEqual(channel.config_json(), dict(messaging_service_sid="MSG-SERVICE-SID",
+                                                     account_sid="account-sid",
+                                                     auth_token="account-token"))
 
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
@@ -6152,7 +6154,10 @@ class TwilioTest(TembaTest):
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'RW', 'T', None, '+250785551212',
-                                      uuid='00000000-0000-0000-0000-000000001234')
+                                      uuid='00000000-0000-0000-0000-000000001234',
+                                      config={Channel.CONFIG_AUTH_TOKEN: '0b14d47901387c03f92253a4e4449d5e',
+                                              Channel.CONFIG_ACCOUNT_SID: 'ACe54dc36bfd2a3b483b7ed854b2dd40c1',
+                                              Channel.CONFIG_APPLICATION_SID: 'AP6fe2069df7f9482a8031cb61dc155de2'})
 
         # twilio test credentials
         self.account_sid = "ACe54dc36bfd2a3b483b7ed854b2dd40c1"
@@ -6412,7 +6417,9 @@ class TwilioTest(TembaTest):
 
                     self.channel.channel_type = channel_type
                     if channel_type == 'TMS':
-                        self.channel.config = json.dumps(dict(messaging_service_sid="MSG-SERVICE-SID"))
+                        self.channel.config = json.dumps(dict(messaging_service_sid="MSG-SERVICE-SID",
+                                                              auth_token='twilio_token',
+                                                              account_sid='twilio_sid'))
                     self.channel.save()
 
                     mock.return_value = MockResponse(200, '{ "account_sid": "ac1232", "sid": "12345"}')
