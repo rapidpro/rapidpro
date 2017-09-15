@@ -660,7 +660,7 @@ class OrgCRUDL(SmartCRUDL):
                 nexmo_client.update_account('http://%s%s' % (TEMBA_HOST, mo_path),
                                             'http://%s%s' % (TEMBA_HOST, dl_path))
 
-                return HttpResponseRedirect(reverse("channels.channel_claim_nexmo"))
+                return HttpResponseRedirect(reverse("channels.claim_nexmo"))
 
             except nexmo.Error:
                 return super(OrgCRUDL.NexmoConfiguration, self).get(request, *args, **kwargs)
