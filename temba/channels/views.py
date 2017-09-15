@@ -1043,7 +1043,7 @@ class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
                'claim_android', 'claim_chikka', 'configuration',
-               'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender',
+               'search_nexmo', 'bulk_sender_options', 'create_bulk_sender',
                'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_shaqodoon',
                'claim_verboice', 'claim_plivo', 'search_plivo',
                'claim_smscentral', 'claim_start', 'claim_yo', 'claim_viber', 'create_viber',
@@ -2310,81 +2310,6 @@ class ChannelCRUDL(SmartCRUDL):
 
             # add this channel
             return Channel.add_twilio_channel(user.get_org(), user, phone_number, country, role)
-
-    class ClaimNexmo(BaseClaimNumber):
-        class ClaimNexmoForm(forms.Form):
-            country = forms.ChoiceField(choices=NEXMO_SUPPORTED_COUNTRIES)
-            phone_number = forms.CharField(help_text=_("The phone number being added"))
-
-            def clean_phone_number(self):
-                if not self.cleaned_data.get('country', None):  # pragma: needs cover
-                    raise ValidationError(_("That number is not currently supported."))
-
-                phone = self.cleaned_data['phone_number']
-                phone = phonenumbers.parse(phone, self.cleaned_data['country'])
-
-                return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
-
-        form_class = ClaimNexmoForm
-
-        template_name = 'channels/channel_claim_nexmo.html'
-
-        def pre_process(self, *args, **kwargs):
-            org = Org.objects.get(pk=self.request.user.get_org().pk)
-            try:
-                client = org.get_nexmo_client()
-            except Exception:  # pragma: needs cover
-                client = None
-
-            if client:
-                return None
-            else:  # pragma: needs cover
-                return HttpResponseRedirect(reverse('channels.channel_claim'))
-
-        def is_valid_country(self, country_code):
-            return country_code in NEXMO_SUPPORTED_COUNTRY_CODES
-
-        def is_messaging_country(self, country):
-            return country in [c[0] for c in NEXMO_SUPPORTED_COUNTRIES]
-
-        def get_search_url(self):
-            return reverse('channels.channel_search_nexmo')
-
-        def get_claim_url(self):
-            return reverse('channels.channel_claim_nexmo')
-
-        def get_supported_countries_tuple(self):
-            return NEXMO_SUPPORTED_COUNTRIES
-
-        def get_search_countries_tuple(self):
-            return NEXMO_SUPPORTED_COUNTRIES
-
-        def get_existing_numbers(self, org):
-            client = org.get_nexmo_client()
-            if client:
-                account_numbers = client.get_numbers(size=100)
-
-            numbers = []
-            for number in account_numbers:
-                if number['type'] == 'mobile-shortcode':  # pragma: needs cover
-                    phone_number = number['msisdn']
-                else:
-                    parsed = phonenumbers.parse(number['msisdn'], number['country'])
-                    phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
-                numbers.append(dict(number=phone_number, country=number['country']))
-
-            return numbers
-
-        def claim_number(self, user, phone_number, country, role):
-            analytics.track(user.username, 'temba.channel_claim_nexmo', dict(number=phone_number))
-
-            # add this channel
-            channel = Channel.add_nexmo_channel(user.get_org(),
-                                                user,
-                                                country,
-                                                phone_number)
-
-            return channel
 
     class SearchNexmo(SearchNumbers):
         class SearchNexmoForm(forms.Form):
