@@ -1,10 +1,11 @@
 from __future__ import print_function, unicode_literals
 
-import ply.lex as lex
 import operator
-import re
 import six
 
+from antlr4 import InputStream, CommonTokenStream, ParseTreeVisitor
+from antlr4.error.Errors import ParseCancellationException, NoViableAltException
+from antlr4.error.ErrorStrategy import BailErrorStrategy
 from collections import OrderedDict
 from decimal import Decimal
 from django.db.models import Q, Func, Value as Val, CharField
@@ -12,11 +13,10 @@ from django.db.models.functions import Upper, Substr
 from django.utils.encoding import force_unicode
 from django.utils.translation import gettext as _
 from functools import reduce
-from ply import yacc
 from temba.locations.models import AdminBoundary
 from temba.utils import str_to_datetime, date_to_utc_range
 from temba.values.models import Value
-from .models import ContactField, ContactURN
+from temba.contacts.models import ContactField, ContactURN
 
 # our index for equality checks on string values is limited to the first 32 characters
 STRING_VALUE_COMPARISON_LIMIT = 32
@@ -47,62 +47,6 @@ class SearchException(Exception):
 
     def __str__(self):
         return force_unicode(self.message)
-
-
-class SearchLexer(object):
-    """
-    Lexer for complex search queries
-    """
-    t_LPAREN = r'\('
-    t_RPAREN = r'\)'
-    t_ignore = ' \t'  # ignore tabs and spaces
-
-    tokens = ('AND', 'OR', 'COMPARATOR', 'TEXT', 'STRING', 'LPAREN', 'RPAREN')
-
-    literals = '()'
-
-    reserved = {
-        'and': 'AND',
-        'or': 'OR',
-        'has': 'COMPARATOR',
-        'is': 'COMPARATOR',
-    }
-
-    def __init__(self, **kwargs):
-        self.lexer = lex.lex(module=self, reflags=re.UNICODE, **kwargs)
-
-    def input(self, s):
-        return self.lexer.input(s)
-
-    def token(self):
-        return self.lexer.token()
-
-    def t_COMPARATOR(self, t):
-        r"""(?i)=|!=|~|[<>]=?"""
-        return t
-
-    def t_STRING(self, t):
-        r"""("[^"]*")"""
-        t.value = t.value[1:-1]
-        return t
-
-    def t_TEXT(self, t):
-        r"""[\w_\.\+\-\/]+"""
-        t.type = self.reserved.get(t.value.lower(), 'TEXT')
-        return t
-
-    def t_error(self, t):
-        raise SearchException(_("Invalid character %s") % t.value[0])
-
-    def test(self, data):  # pragma: no cover
-        toks = []
-        self.lexer.input(data)
-        while True:
-            tok = self.lexer.token()
-            if not tok:
-                break
-            toks.append(tok)
-        return toks
 
 
 @six.python_2_unicode_compatible
@@ -541,68 +485,95 @@ class SinglePropCombination(BoolCombination):
         return '%s[%s](%s)' % (op, self.prop, ', '.join(['%s%s' % (c.comparator, c.value) for c in self.children]))
 
 
-# ================================== Parser definition ==================================
+class ContactQLVisitor(ParseTreeVisitor):
 
-precedence = (
-    ('left', 'OR'),
-    ('left', 'AND'),
-)
+    def visitParse(self, ctx):
+        return self.visit(ctx.expression())
 
+    def visitImplicitCondition(self, ctx):
+        """
+        expression : TEXT
+        """
+        return Condition(Condition.IMPLICIT_PROP, '=', ctx.TEXT().getText())
 
-def p_expression_and(p):
-    """expression : expression AND expression"""
-    p[0] = BoolCombination(BoolCombination.AND, p[1], p[3])
+    def visitCondition(self, ctx):
+        """
+        expression : TEXT COMPARATOR literal
+        """
+        prop = ctx.TEXT().getText().lower()
+        comparator = ctx.COMPARATOR().getText().lower()
+        value = self.visit(ctx.literal())
 
+        if value == "":
+            return IsSetCondition(prop, comparator)
+        else:
+            return Condition(prop, comparator, value)
 
-def p_expression_or(p):
-    """expression : expression OR expression"""
-    p[0] = BoolCombination(BoolCombination.OR, p[1], p[3])
+    def visitCombinationAnd(self, ctx):
+        """
+        expression : expression AND expression
+        """
+        return BoolCombination(BoolCombination.AND, self.visit(ctx.expression(0)), self.visit(ctx.expression(1)))
 
+    def visitCombinationImpicitAnd(self, ctx):
+        """
+        expression : expression expression
+        """
+        return BoolCombination(BoolCombination.AND, self.visit(ctx.expression(0)), self.visit(ctx.expression(1)))
 
-def p_expression_implicit_and(p):
-    """expression : expression expression %prec AND"""
-    p[0] = BoolCombination(BoolCombination.AND, p[1], p[2])
+    def visitCombinationOr(self, ctx):
+        """
+        expression : expression OR expression
+        """
+        return BoolCombination(BoolCombination.OR, self.visit(ctx.expression(0)), self.visit(ctx.expression(1)))
 
+    def visitExpressionGrouping(self, ctx):
+        """
+        expression : LPAREN expression RPAREN
+        """
+        return self.visit(ctx.expression())
 
-def p_expression_grouping(p):
-    """expression : LPAREN expression RPAREN"""
-    p[0] = p[2]
+    def visitTextLiteral(self, ctx):
+        """
+        literal : TEXT
+        """
+        return ctx.getText()
 
-
-def p_condition(p):
-    """expression : TEXT COMPARATOR literal"""
-    if p[3] == "":
-        p[0] = IsSetCondition(p[1].lower(), p[2].lower())
-    else:
-        p[0] = Condition(p[1].lower(), p[2].lower(), p[3])
-
-
-def p_condition_implicit(p):
-    """expression : TEXT"""
-    p[0] = Condition(Condition.IMPLICIT_PROP, '=', p[1])
-
-
-def p_literal(p):
-    """literal : TEXT
-               | STRING"""
-    p[0] = p[1]
-
-
-def p_error(p):
-    msg = _("Search query contains an error at '%s'" % p.value) if p else _("Search query contains an error")
-    raise SearchException(msg)
-
-
-search_lexer = SearchLexer()
-tokens = search_lexer.tokens
-search_parser = yacc.yacc(write_tables=False)
+    def visitStringLiteral(self, ctx):
+        """
+        literal : STRING
+        """
+        value = ctx.getText()[1:-1]
+        return value.replace('""', '"')  # unescape embedded quotes
 
 
 def parse_query(text, optimize=True):
-    """
-    Parses a text query but doesn't perform it
-    """
-    query = ContactQuery(search_parser.parse(text, lexer=search_lexer))
+    from .gen.ContactQLLexer import ContactQLLexer
+    from .gen.ContactQLParser import ContactQLParser
+
+    stream = InputStream(text)
+    lexer = ContactQLLexer(stream)
+    tokens = CommonTokenStream(lexer)
+    parser = ContactQLParser(tokens)
+    parser._errHandler = BailErrorStrategy()
+
+    try:
+        tree = parser.parse()
+    except ParseCancellationException as ex:
+        message = None
+        if ex.args and isinstance(ex.args[0], NoViableAltException):
+            token = ex.args[0].offendingToken
+            if token is not None and token.type != ContactQLParser.EOF:
+                message = "Search query contains an error at: %s" % token.text
+
+        if message is None:
+            message = "Search query contains an error"
+
+        raise SearchException(message)
+
+    visitor = ContactQLVisitor()
+
+    query = ContactQuery(visitor.visit(tree))
     return query.optimized() if optimize else query
 
 

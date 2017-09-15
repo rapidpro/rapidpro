@@ -2217,3 +2217,19 @@ class HandleEventTest(TembaTest):
         push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=STOP_CONTACT_EVENT, contact_id=self.joe.id))
         self.joe.refresh_from_db()
         self.assertTrue(self.joe.is_stopped)
+
+    def test_unstop_contact(self):
+        self.joe = self.create_contact("Joe", "+12065551212")
+
+        # create a new incoming message with a status of H so that it isn't handled right away
+        msg = Msg.create_incoming(self.channel, 'tel:+12065551212', "incoming message", status=HANDLED)
+        msg.status = PENDING
+        msg.save()
+        self.joe.stop(self.admin)
+
+        # then queue it the same way courier would
+        msg.queue_handling(new_message=True)
+
+        # joe should be unstopped
+        self.joe.refresh_from_db()
+        self.assertFalse(self.joe.is_stopped)
