@@ -556,7 +556,7 @@ class ShaqodoonHandler(ExternalHandler):
     handler_name = 'handlers.shaqodoon_handler'
 
     def get_channel_type(self):
-        return Channel.TYPE_SHAQODOON
+        return 'SQ'
 
 
 class YoHandler(ExternalHandler):

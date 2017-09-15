@@ -2216,40 +2216,6 @@ class ChannelAlertTest(TembaTest):
 
 class ChannelClaimTest(TembaTest):
 
-    def test_shaqodoon(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_shaqodoon'))
-        post_data = response.context['form'].initial
-
-        post_data['username'] = 'uname'
-        post_data['password'] = 'pword'
-        post_data['url'] = 'http://test.com/send.php'
-        post_data['number'] = '301'
-
-        response = self.client.post(reverse('channels.channel_claim_shaqodoon'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('SO', channel.country)
-        self.assertTrue(channel.uuid)
-        self.assertEquals(post_data['number'], channel.address)
-        self.assertEquals(post_data['url'], channel.config_json()['send_url'])
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals(Channel.TYPE_SHAQODOON, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.sq', args=[channel.uuid, 'receive']))
-
     def test_zenvia(self):
         Channel.objects.all().delete()
 
