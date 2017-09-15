@@ -157,27 +157,27 @@ class OrgTest(TembaTest):
     def test_recommended_channel(self):
         self.org.timezone = pytz.timezone('Africa/Nairobi')
         self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'africastalking')
+        self.assertEquals(self.org.get_recommended_channel(), 'AT')
 
         self.org.timezone = pytz.timezone('America/Phoenix')
         self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'twilio')
+        self.assertEquals(self.org.get_recommended_channel(), 'T')
 
         self.org.timezone = pytz.timezone('Asia/Jakarta')
         self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'hub9')
+        self.assertEquals(self.org.get_recommended_channel(), 'H9')
 
         self.org.timezone = pytz.timezone('Africa/Mogadishu')
         self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'shaqodoon')
+        self.assertEquals(self.org.get_recommended_channel(), 'SQ')
 
         self.org.timezone = pytz.timezone('Europe/Amsterdam')
         self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'nexmo')
+        self.assertEquals(self.org.get_recommended_channel(), 'NX')
 
         self.org.timezone = pytz.timezone('Africa/Kigali')
         self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'android')
+        self.assertEquals(self.org.get_recommended_channel(), 'A')
 
     def test_country(self):
         country_url = reverse('orgs.org_country')
