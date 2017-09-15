@@ -33,6 +33,10 @@ class NexmoType(ChannelType):
     max_length = 1600
     max_tps = 1
 
+    def is_available_to(self, user):
+        org = user.get_org()
+        return org.is_connected_to_nexmo()
+
     def send(self, channel, msg, text):
 
         client = NexmoClient(channel.org_config[NEXMO_KEY], channel.org_config[NEXMO_SECRET],
