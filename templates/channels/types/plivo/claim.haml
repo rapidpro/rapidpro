@@ -1,0 +1,15 @@
+-extends "channels/channel_claim_number.html"
+
+-load compress temba
+-load i18n
+
+-block title-icon
+  .title-icon
+    %span.glyph{class:"{{ view.channel_type.icon }}"}
+
+
+-block country-select
+  %select#country{ name:"country" }
+    - for country in search_countries
+      %option{ value:"{{country.key}}" }
+        {{country.label}}

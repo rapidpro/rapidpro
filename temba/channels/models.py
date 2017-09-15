@@ -173,7 +173,6 @@ class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_CHIKKA = 'CK'
     TYPE_DUMMY = 'DM'
-    TYPE_PLIVO = 'PL'
     TYPE_RED_RABBIT = 'RR'
     TYPE_SHAQODOON = 'SQ'
     TYPE_SMSCENTRAL = 'SC'
@@ -270,7 +269,6 @@ class Channel(TembaModel):
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
-        TYPE_PLIVO: dict(schemes=['tel'], max_length=1600),
         TYPE_RED_RABBIT: dict(schemes=['tel'], max_length=1600),
         TYPE_SHAQODOON: dict(schemes=['tel'], max_length=1600),
         TYPE_SMSCENTRAL: dict(schemes=['tel'], max_length=1600, max_tps=1),
@@ -289,7 +287,6 @@ class Channel(TembaModel):
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
                     (TYPE_CHIKKA, "Chikka"),
                     (TYPE_DUMMY, "Dummy"),
-                    (TYPE_PLIVO, "Plivo"),
                     (TYPE_RED_RABBIT, "Red Rabbit"),
                     (TYPE_SHAQODOON, "Shaqodoon"),
                     (TYPE_SMSCENTRAL, "SMSCentral"),
@@ -309,7 +306,6 @@ class Channel(TembaModel):
         TYPE_TWILIO: "icon-channel-twilio",
         TYPE_TWIML: "icon-channel-twilio",
         TYPE_TWILIO_MESSAGING_SERVICE: "icon-channel-twilio",
-        TYPE_PLIVO: "icon-channel-plivo",
         TYPE_VIBER: "icon-viber"
     }
 
@@ -510,7 +506,7 @@ class Channel(TembaModel):
         phone = phonenumbers.format_number(phonenumbers.parse(phone_number, None),
                                            phonenumbers.PhoneNumberFormat.NATIONAL)
 
-        return Channel.create(org, user, country, Channel.TYPE_PLIVO, name=phone, address=phone_number,
+        return Channel.create(org, user, country, 'PL', name=phone, address=phone_number,
                               config=plivo_config, uuid=plivo_uuid)
 
     @classmethod
@@ -1119,7 +1115,7 @@ class Channel(TembaModel):
                 call.close()
 
             # delete Plivo application
-            if self.channel_type == Channel.TYPE_PLIVO:
+            if self.channel_type == 'PL':
                 client = plivo.RestAPI(self.config_json()[Channel.CONFIG_PLIVO_AUTH_ID], self.config_json()[Channel.CONFIG_PLIVO_AUTH_TOKEN])
                 client.delete_application(params=dict(app_id=self.config_json()[Channel.CONFIG_PLIVO_APP_ID]))
 
@@ -1781,43 +1777,6 @@ class Channel(TembaModel):
             raise SendException(six.text_type(e), events=client.messages.events)
 
     @classmethod
-    def send_plivo_message(cls, channel, msg, text):
-        import plivo
-        from temba.msgs.models import WIRED
-
-        # url used for logs and exceptions
-        url = 'https://api.plivo.com/v1/Account/%s/Message/' % channel.config[Channel.CONFIG_PLIVO_AUTH_ID]
-
-        client = plivo.RestAPI(channel.config[Channel.CONFIG_PLIVO_AUTH_ID], channel.config[Channel.CONFIG_PLIVO_AUTH_TOKEN])
-        status_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('courier.pl', args=[channel.uuid, 'status'])
-
-        payload = {'src': channel.address.lstrip('+'),
-                   'dst': msg.urn_path.lstrip('+'),
-                   'text': text,
-                   'url': status_url,
-                   'method': 'POST'}
-
-        event = HttpEvent('POST', url, json.dumps(payload))
-
-        start = time.time()
-
-        try:
-            # TODO: Grab real request and response here
-            plivo_response_status, plivo_response = client.send_message(params=payload)
-            event.status_code = plivo_response_status
-            event.response_body = plivo_response
-
-        except Exception as e:  # pragma: no cover
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if plivo_response_status != 200 and plivo_response_status != 201 and plivo_response_status != 202:
-            raise SendException("Got non-200 response [%d] from API" % plivo_response_status,
-                                event=event, start=start)
-
-        external_id = plivo_response['message_uuid'][0]
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
-
-    @classmethod
     def send_viber_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -2066,7 +2025,6 @@ STATUS_FULL = "FUL"
 
 SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
-                  Channel.TYPE_PLIVO: Channel.send_plivo_message,
                   Channel.TYPE_RED_RABBIT: Channel.send_red_rabbit_message,
                   Channel.TYPE_SHAQODOON: Channel.send_shaqodoon_message,
                   Channel.TYPE_SMSCENTRAL: Channel.send_smscentral_message,
