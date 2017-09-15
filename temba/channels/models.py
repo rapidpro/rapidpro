@@ -459,54 +459,6 @@ class Channel(TembaModel):
                               config=config, role=role, schemes=schemes, parent=parent)
 
     @classmethod
-    def add_plivo_channel(cls, org, user, country, phone_number, auth_id, auth_token):
-        plivo_uuid = generate_uuid()
-        app_name = "%s/%s" % (settings.TEMBA_HOST.lower(), plivo_uuid)
-
-        client = plivo.RestAPI(auth_id, auth_token)
-
-        message_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.plivo_handler', args=['receive', plivo_uuid])
-        answer_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/plivo_voice_unavailable.xml"
-
-        plivo_response_status, plivo_response = client.create_application(params=dict(app_name=app_name,
-                                                                                      answer_url=answer_url,
-                                                                                      message_url=message_url))
-
-        if plivo_response_status in [201, 200, 202]:
-            plivo_app_id = plivo_response['app_id']
-        else:  # pragma: no cover
-            plivo_app_id = None
-
-        plivo_config = {Channel.CONFIG_PLIVO_AUTH_ID: auth_id,
-                        Channel.CONFIG_PLIVO_AUTH_TOKEN: auth_token,
-                        Channel.CONFIG_PLIVO_APP_ID: plivo_app_id}
-
-        plivo_number = phone_number.strip('+ ').replace(' ', '')
-
-        plivo_response_status, plivo_response = client.get_number(params=dict(number=plivo_number))
-
-        if plivo_response_status != 200:
-            plivo_response_status, plivo_response = client.buy_phone_number(params=dict(number=plivo_number))
-
-            if plivo_response_status != 201:  # pragma: no cover
-                raise Exception(_("There was a problem claiming that number, please check the balance on your account."))
-
-            plivo_response_status, plivo_response = client.get_number(params=dict(number=plivo_number))
-
-        if plivo_response_status == 200:
-            plivo_response_status, plivo_response = client.modify_number(params=dict(number=plivo_number,
-                                                                                     app_id=plivo_app_id))
-            if plivo_response_status != 202:  # pragma: no cover
-                raise Exception(_("There was a problem updating that number, please try again."))
-
-        phone_number = '+' + plivo_number
-        phone = phonenumbers.format_number(phonenumbers.parse(phone_number, None),
-                                           phonenumbers.PhoneNumberFormat.NATIONAL)
-
-        return Channel.create(org, user, country, 'PL', name=phone, address=phone_number,
-                              config=plivo_config, uuid=plivo_uuid)
-
-    @classmethod
     def add_twilio_channel(cls, org, user, phone_number, country, role):
         client = org.get_twilio_client()
         twilio_phones = client.phone_numbers.list(phone_number=phone_number)
