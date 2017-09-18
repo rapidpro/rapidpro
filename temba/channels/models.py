@@ -173,9 +173,6 @@ class Channel(TembaModel):
     TYPE_CHIKKA = 'CK'
     TYPE_DUMMY = 'DM'
     TYPE_START = 'ST'
-    TYPE_TWILIO = 'T'
-    TYPE_TWIML = 'TW'
-    TYPE_TWILIO_MESSAGING_SERVICE = 'TMS'
     TYPE_VERBOICE = 'VB'
     TYPE_VIBER = 'VI'
 
@@ -261,9 +258,6 @@ class Channel(TembaModel):
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
-        TYPE_TWILIO: dict(schemes=['tel'], max_length=1600),
-        TYPE_TWIML: dict(schemes=['tel'], max_length=1600),
-        TYPE_TWILIO_MESSAGING_SERVICE: dict(schemes=['tel'], max_length=1600),
         TYPE_VERBOICE: dict(schemes=['tel'], max_length=1600),
         TYPE_VIBER: dict(schemes=['tel'], max_length=1000)
     }
@@ -271,17 +265,11 @@ class Channel(TembaModel):
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
                     (TYPE_CHIKKA, "Chikka"),
                     (TYPE_DUMMY, "Dummy"),
-                    (TYPE_TWILIO, "Twilio"),
-                    (TYPE_TWIML, "TwiML Rest API"),
-                    (TYPE_TWILIO_MESSAGING_SERVICE, "Twilio Messaging Service"),
                     (TYPE_VERBOICE, "Verboice"),
                     (TYPE_VIBER, "Viber"))
 
     TYPE_ICONS = {
         TYPE_ANDROID: "icon-channel-android",
-        TYPE_TWILIO: "icon-channel-twilio",
-        TYPE_TWIML: "icon-channel-twilio",
-        TYPE_TWILIO_MESSAGING_SERVICE: "icon-channel-twilio",
         TYPE_VIBER: "icon-viber"
     }
 
@@ -290,13 +278,13 @@ class Channel(TembaModel):
     # list of all USSD channels
     USSD_CHANNELS = []
 
-    TWIML_CHANNELS = [TYPE_TWILIO, TYPE_VERBOICE, TYPE_TWIML]
+    TWIML_CHANNELS = ['T', TYPE_VERBOICE, 'TW']
 
     NCCO_CHANNELS = ['NX']
 
-    MEDIA_CHANNELS = [TYPE_TWILIO, TYPE_TWIML, TYPE_TWILIO_MESSAGING_SERVICE]
+    MEDIA_CHANNELS = []
 
-    HIDE_CONFIG_PAGE = [TYPE_TWILIO, TYPE_ANDROID]
+    HIDE_CONFIG_PAGE = [TYPE_ANDROID]
 
     VIBER_NO_SERVICE_ID = 'no_service_id'
 
@@ -496,7 +484,7 @@ class Channel(TembaModel):
         config = {Channel.CONFIG_APPLICATION_SID: new_app.sid, Channel.CONFIG_NUMBER_SID: number_sid,
                   Channel.CONFIG_ACCOUNT_SID: org_config[ACCOUNT_SID], Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN]}
 
-        return Channel.create(org, user, country, Channel.TYPE_TWILIO, name=phone, address=phone_number, role=role,
+        return Channel.create(org, user, country, 'T', name=phone, address=phone_number, role=role,
                               config=config, uuid=channel_uuid)
 
     @classmethod
@@ -505,8 +493,7 @@ class Channel(TembaModel):
         config = {Channel.CONFIG_MESSAGING_SERVICE_SID: messaging_service_sid,
                   Channel.CONFIG_ACCOUNT_SID: org_config[ACCOUNT_SID], Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN]}
 
-        return Channel.create(org, user, country, Channel.TYPE_TWILIO_MESSAGING_SERVICE,
-                              name=messaging_service_sid, address=None, config=config)
+        return Channel.create(org, user, country, 'TMS', name=messaging_service_sid, address=None, config=config)
 
     @classmethod
     def add_twiml_api_channel(cls, org, user, country, address, config, role):
@@ -520,7 +507,7 @@ class Channel(TembaModel):
             address = "+%s" % address
             name = phonenumbers.format_number(phonenumbers.parse(address, None), phonenumbers.PhoneNumberFormat.NATIONAL)
 
-        existing = Channel.objects.filter(address=address, org=org, channel_type=Channel.TYPE_TWIML).first()
+        existing = Channel.objects.filter(address=address, org=org, channel_type='TW').first()
         if existing:
             existing.name = name
             existing.address = address
@@ -530,7 +517,7 @@ class Channel(TembaModel):
             existing.save()
             return existing
 
-        return Channel.create(org, user, country, Channel.TYPE_TWIML, name=name, address=address, config=config, role=role)
+        return Channel.create(org, user, country, 'TW', name=name, address=address, config=config, role=role)
 
     @classmethod
     def add_send_channel(cls, user, channel):
@@ -543,7 +530,7 @@ class Channel(TembaModel):
 
     @classmethod
     def add_call_channel(cls, org, user, channel):
-        return Channel.create(org, user, channel.country, Channel.TYPE_TWILIO, name="Twilio Caller",
+        return Channel.create(org, user, channel.country, 'T', name="Twilio Caller",
                               address=channel.address, role=Channel.ROLE_CALL, parent=channel)
 
     @classmethod
@@ -653,7 +640,7 @@ class Channel(TembaModel):
         with ChannelStructs or Channels
         """
         # Twilio only supports mms in the US and Canada
-        if channel.channel_type == cls.TYPE_TWILIO:
+        if channel.channel_type == 'T':
             return channel.country in ('US', 'CA')
         else:
             return cls.get_type_from_code(channel.channel_type).has_attachment_support(channel)
@@ -711,9 +698,9 @@ class Channel(TembaModel):
         if not (self.is_active and self.org):
             return None
 
-        if self.channel_type == Channel.TYPE_TWILIO:
+        if self.channel_type == 'T':
             return self.org.get_twilio_client()
-        elif self.channel_type == Channel.TYPE_TWIML:
+        elif self.channel_type == 'TW':
             return self.get_twiml_client()
         elif self.channel_type == Channel.TYPE_VERBOICE:  # pragma: no cover
             return self.org.get_verboice_client()
@@ -973,7 +960,7 @@ class Channel(TembaModel):
                 client.delete_application(params=dict(app_id=self.config_json()[Channel.CONFIG_PLIVO_APP_ID]))
 
             # delete Twilio SMS application
-            elif self.channel_type == Channel.TYPE_TWILIO:
+            elif self.channel_type == 'T':
                 client = self.org.get_twilio_client()
                 number_update_args = dict()
 
@@ -1237,61 +1224,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, events=events)
 
     @classmethod
-    def send_twilio_message(cls, channel, msg, text):
-        from temba.msgs.models import Attachment, WIRED
-        from temba.utils.twilio import TembaTwilioRestClient
-
-        callback_url = Channel.build_twilio_callback_url(channel.uuid, msg.id)
-
-        start = time.time()
-        media_urls = []
-
-        if msg.attachments:
-            # for now we only support sending one attachment per message but this could change in future
-            attachment = Attachment.parse_all(msg.attachments)[0]
-            media_urls = [attachment.url]
-
-        if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
-            config = channel.config
-            client = TembaTwilioRestClient(config.get(Channel.CONFIG_ACCOUNT_SID), config.get(Channel.CONFIG_AUTH_TOKEN),
-                                           base=config.get(Channel.CONFIG_SEND_URL))
-        else:
-            config = channel.config
-            client = TembaTwilioRestClient(config.get(Channel.CONFIG_ACCOUNT_SID), config.get(Channel.CONFIG_AUTH_TOKEN))
-
-        try:
-            if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
-                messaging_service_sid = channel.config['messaging_service_sid']
-                client.messages.create(to=msg.urn_path,
-                                       messaging_service_sid=messaging_service_sid,
-                                       body=text,
-                                       media_url=media_urls,
-                                       status_callback=callback_url)
-            else:
-                client.messages.create(to=msg.urn_path,
-                                       from_=channel.address,
-                                       body=text,
-                                       media_url=media_urls,
-                                       status_callback=callback_url)
-
-            Channel.success(channel, msg, WIRED, start, events=client.messages.events)
-
-        except TwilioRestException as e:
-            fatal = False
-
-            # user has blacklisted us, stop the contact
-            if e.code == 21610:
-                from temba.contacts.models import Contact
-                fatal = True
-                contact = Contact.objects.get(id=msg.contact)
-                contact.stop(contact.modified_by)
-
-            raise SendException(e.msg, events=client.messages.events, fatal=fatal)
-
-        except Exception as e:
-            raise SendException(six.text_type(e), events=client.messages.events)
-
-    @classmethod
     def send_viber_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -1540,9 +1472,6 @@ STATUS_FULL = "FUL"
 
 SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
-                  Channel.TYPE_TWILIO: Channel.send_twilio_message,
-                  Channel.TYPE_TWIML: Channel.send_twilio_message,
-                  Channel.TYPE_TWILIO_MESSAGING_SERVICE: Channel.send_twilio_message,
                   Channel.TYPE_VIBER: Channel.send_viber_message}
 
 

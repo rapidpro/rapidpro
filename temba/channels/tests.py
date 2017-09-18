@@ -146,8 +146,8 @@ class ChannelTest(TembaTest):
         channel_types = (
             ('JN', Channel.DEFAULT_ROLE, 'Sending Log'),
             ('JNU', Channel.ROLE_USSD, 'USSD Log'),
-            (Channel.TYPE_TWILIO, Channel.ROLE_CALL, 'Call Log'),
-            (Channel.TYPE_TWILIO, Channel.ROLE_SEND + Channel.ROLE_CALL, 'Channel Log')
+            ('T', Channel.ROLE_CALL, 'Call Log'),
+            ('T', Channel.ROLE_SEND + Channel.ROLE_CALL, 'Channel Log')
         )
 
         for channel_type, channel_role, link_text in channel_types:
@@ -595,7 +595,7 @@ class ChannelTest(TembaTest):
         self.assertEquals(channel.address, "+250785551313")
 
         # if we change the channel to a twilio type, shouldn't be able to edit our address
-        channel.channel_type = Channel.TYPE_TWILIO
+        channel.channel_type = 'T'
         channel.save()
 
         response = self.client.get(update_url)

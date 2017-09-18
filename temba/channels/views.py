@@ -1309,7 +1309,7 @@ class ChannelCRUDL(SmartCRUDL):
             try:
                 channel.release(trigger_sync=self.request.META['SERVER_NAME'] != "testserver")
 
-                if channel.channel_type == Channel.TYPE_TWILIO and not channel.is_delegate_sender():
+                if channel.channel_type == 'T' and not channel.is_delegate_sender():
                     messages.info(request, _("We have disconnected your Twilio number. If you do not need this number you can delete it from the Twilio website."))
                 else:
                     messages.info(request, _("Your phone number has been removed."))
@@ -1479,7 +1479,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             def clean_connection(self):
                 connection = self.cleaned_data['connection']
-                if connection == Channel.TYPE_TWILIO and not self.org.is_connected_to_twilio():
+                if connection == 'T' and not self.org.is_connected_to_twilio():
                     raise forms.ValidationError(_("A connection to a Twilio account is required"))
                 return connection
 

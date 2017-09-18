@@ -44,7 +44,7 @@ class IVRCall(ChannelSession):
         runs = FlowRun.objects.filter(flow=flow, contact__is_test=True).exclude(connection=None)
         for run in runs:
             test_call = IVRCall.objects.filter(id=run.connection.id).first()
-            if test_call.channel.channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_TWIML]:
+            if test_call.channel.channel_type in ['T', 'TW']:
                 if not test_call.is_done():
                     test_call.close()
 
