@@ -209,47 +209,6 @@
                 -blocktrans
                   Use a <a href="http://verboice.instedd.org">Verboice</a> connection to leverage in-country SIP connections for building voice (IVR) flows.
 
-    -if False
-      .claim-row.vumi-channel
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans
-            We recommend using Vumi to connect a short code in your country, select this option to configure your number.
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_vumi' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Vumi Number"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Easily connect your <a href="http://vumi.com/">Vumi</a> account to take advantage of two way texting across different mediums.
-
-    -if org_timezone == 'Africa/Johannesburg'
-      .claim-row.vumi-ussd-channel
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans
-            We recommend using Vumi USSD to connect a USSD code in your country, select this option to configure your channel.
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_vumi_ussd' %}"}
-              .claim-glyph.icon-channel-external
-              %p.claim-text
-                -trans "Vumi USSD"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Easily connect your <a href="http://go.vumi.org/">Vumi</a> account to take advantage of session based messaging across USSD transports.
-
     -for ch_type in channel_types.PHONE
       .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
         .recommendation.hide
@@ -287,6 +246,24 @@
       -trans "API Channels"
 
     -for ch_type in channel_types.API
+      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+              .btn-container
+                .claim-glyph{class:"{{ ch_type.icon }}"}
+                %p.claim-text= ch_type.name
+          .span9
+            .claim-description
+              %div= ch_type.get_claim_blurb
+
+    %h3
+      -trans "USSD Channels"
+
+    -for ch_type in channel_types.USSD
       .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
         .recommendation.hide
           %h3

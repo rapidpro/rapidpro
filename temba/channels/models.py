@@ -19,7 +19,6 @@ from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.urlresolvers import reverse
-from django.core.validators import URLValidator
 from django.db import models
 from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
@@ -179,8 +178,6 @@ class Channel(TembaModel):
     TYPE_TWILIO_MESSAGING_SERVICE = 'TMS'
     TYPE_VERBOICE = 'VB'
     TYPE_VIBER = 'VI'
-    TYPE_VUMI = 'VM'
-    TYPE_VUMI_USSD = 'VMU'
 
     # keys for various config options stored in the channel config dict
     CONFIG_SEND_URL = 'send_url'
@@ -268,9 +265,7 @@ class Channel(TembaModel):
         TYPE_TWIML: dict(schemes=['tel'], max_length=1600),
         TYPE_TWILIO_MESSAGING_SERVICE: dict(schemes=['tel'], max_length=1600),
         TYPE_VERBOICE: dict(schemes=['tel'], max_length=1600),
-        TYPE_VIBER: dict(schemes=['tel'], max_length=1000),
-        TYPE_VUMI: dict(schemes=['tel'], max_length=1600),
-        TYPE_VUMI_USSD: dict(schemes=['tel'], max_length=182),
+        TYPE_VIBER: dict(schemes=['tel'], max_length=1000)
     }
 
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
@@ -280,9 +275,7 @@ class Channel(TembaModel):
                     (TYPE_TWIML, "TwiML Rest API"),
                     (TYPE_TWILIO_MESSAGING_SERVICE, "Twilio Messaging Service"),
                     (TYPE_VERBOICE, "Verboice"),
-                    (TYPE_VIBER, "Viber"),
-                    (TYPE_VUMI, "Vumi"),
-                    (TYPE_VUMI_USSD, "Vumi USSD"))
+                    (TYPE_VIBER, "Viber"))
 
     TYPE_ICONS = {
         TYPE_ANDROID: "icon-channel-android",
@@ -295,7 +288,7 @@ class Channel(TembaModel):
     FREE_SENDING_CHANNEL_TYPES = [TYPE_VIBER]
 
     # list of all USSD channels
-    USSD_CHANNELS = [TYPE_VUMI_USSD]
+    USSD_CHANNELS = []
 
     TWIML_CHANNELS = [TYPE_TWILIO, TYPE_VERBOICE, TYPE_TWIML]
 
@@ -929,7 +922,7 @@ class Channel(TembaModel):
         return self.created_on > timezone.now() - timedelta(hours=1) or not self.get_last_sync()
 
     def is_ussd(self):
-        return self.channel_type in Channel.USSD_CHANNELS
+        return self.channel_type in ['JNU', 'VMU']
 
     def claim(self, org, user, phone):
         """
@@ -1244,91 +1237,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, events=events)
 
     @classmethod
-    def send_vumi_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED, Msg
-        from temba.contacts.models import Contact
-        from temba.ussd.models import USSDSession
-
-        is_ussd = channel.channel_type in Channel.USSD_CHANNELS
-        channel.config['transport_name'] = 'ussd_transport' if is_ussd else 'mtech_ng_smpp_transport'
-
-        session = None
-        session_event = None
-        in_reply_to = None
-
-        if is_ussd:
-            session = USSDSession.objects.get_with_status_only(msg.connection_id)
-            if session and session.should_end:
-                session_event = "close"
-            else:
-                session_event = "resume"
-
-        if msg.response_to_id:
-            in_reply_to = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
-
-        payload = dict(message_id=msg.id,
-                       in_reply_to=in_reply_to,
-                       session_event=session_event,
-                       to_addr=msg.urn_path,
-                       from_addr=channel.address,
-                       content=text,
-                       transport_name=channel.config['transport_name'],
-                       transport_type='ussd' if is_ussd else 'sms',
-                       transport_metadata={},
-                       helper_metadata={})
-
-        payload = json.dumps(payload)
-
-        headers = dict(TEMBA_HEADERS)
-        headers['content-type'] = 'application/json'
-
-        api_url_base = channel.config.get('api_url', cls.VUMI_GO_API_URL)
-
-        url = "%s/%s/messages.json" % (api_url_base, channel.config['conversation_key'])
-
-        event = HttpEvent('PUT', url, json.dumps(payload))
-
-        start = time.time()
-
-        validator = URLValidator()
-        validator(url)
-
-        try:
-            response = requests.put(url,
-                                    data=payload,
-                                    headers=headers,
-                                    timeout=30,
-                                    auth=(channel.config['account_key'], channel.config['access_token']))
-
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code not in (200, 201):
-            # this is a fatal failure, don't retry
-            fatal = response.status_code == 400
-
-            # if this is fatal due to the user opting out, stop them
-            if response.text and response.text.find('has opted out') >= 0:
-                contact = Contact.objects.get(id=msg.contact)
-                contact.stop(contact.modified_by)
-                fatal = True
-
-            raise SendException("Got non-200 response [%d] from API" % response.status_code,
-                                event=event, fatal=fatal, start=start)
-
-        # parse our response
-        body = response.json()
-        external_id = body.get('message_id', '')
-
-        if is_ussd and session and session.should_end:
-            session.close()
-
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
-
-    @classmethod
     def send_twilio_message(cls, channel, msg, text):
         from temba.msgs.models import Attachment, WIRED
         from temba.utils.twilio import TembaTwilioRestClient
@@ -1635,9 +1543,7 @@ SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_TWILIO: Channel.send_twilio_message,
                   Channel.TYPE_TWIML: Channel.send_twilio_message,
                   Channel.TYPE_TWILIO_MESSAGING_SERVICE: Channel.send_twilio_message,
-                  Channel.TYPE_VIBER: Channel.send_viber_message,
-                  Channel.TYPE_VUMI: Channel.send_vumi_message,
-                  Channel.TYPE_VUMI_USSD: Channel.send_vumi_message}
+                  Channel.TYPE_VIBER: Channel.send_viber_message}
 
 
 @six.python_2_unicode_compatible

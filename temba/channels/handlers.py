@@ -1363,7 +1363,7 @@ class VumiHandler(BaseChannelHandler):
 
         # determine if it's a USSD session message or a regular SMS
         is_ussd = "ussd" in body.get('transport_name', '') or body.get('transport_type', '') == 'ussd'
-        channel_type = Channel.TYPE_VUMI_USSD if is_ussd else Channel.TYPE_VUMI
+        channel_type = 'VMU' if is_ussd else 'VM'
 
         # look up the channel
         channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=channel_type).exclude(

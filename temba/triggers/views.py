@@ -340,7 +340,7 @@ class UssdTriggerForm(BaseTriggerForm):
         super(UssdTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
         self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
-                                                                 channel_type__in=Channel.USSD_CHANNELS)
+                                                                 channel_type__in=['JNU', 'VMU'])
 
     def clean_keyword(self):
         keyword = self.cleaned_data.get('keyword', '').strip()

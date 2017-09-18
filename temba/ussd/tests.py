@@ -408,7 +408,7 @@ class VumiUssdTest(TembaTest):
         super(VumiUssdTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_VUMI_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'VMU', None, '+250788123123',
                                       config=dict(account_key='vumi-key', access_token='vumi-token',
                                                   conversation_key='key'),
                                       uuid='00000000-0000-0000-0000-000000001234',

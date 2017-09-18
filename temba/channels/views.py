@@ -1043,7 +1043,7 @@ class ChannelCRUDL(SmartCRUDL):
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
                'claim_android', 'claim_chikka', 'configuration',
                'search_nexmo', 'bulk_sender_options', 'create_bulk_sender',
-               'claim_vumi', 'claim_vumi_ussd', 'create_caller',
+               'create_caller',
                'claim_verboice', 'search_plivo',
                'claim_viber', 'create_viber',
                'claim_twilio_messaging_service',
@@ -1671,51 +1671,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                               role=Channel.ROLE_CALL + Channel.ROLE_ANSWER)
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
-    class ClaimVumi(ClaimAuthenticatedExternal):
-        class VumiClaimForm(forms.Form):
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                        help_text=_("The country this phone number is used in"))
-            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The phone number with country code or short code you are connecting. ex: +250788123124 or 15543"))
-            account_key = forms.CharField(label=_("Account Key"),
-                                          help_text=_("Your Vumi account key as found under Account -> Details"))
-            conversation_key = forms.CharField(label=_("Conversation Key"),
-                                               help_text=_("The key for your Vumi conversation, can be found in the URL"))
-            api_url = forms.URLField(label=_("API URL"), required=False,
-                                     help_text=_("Custom VUMI API Endpoint. Leave blank to use default of: '%s'" % Channel.VUMI_GO_API_URL))
-
-        title = _("Connect Vumi")
-        channel_type = Channel.TYPE_VUMI
-        channel_role = Channel.DEFAULT_ROLE
-        form_class = VumiClaimForm
-        fields = ('country', 'number', 'account_key', 'conversation_key', 'api_url')
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-
-            if not org:  # pragma: no cover
-                raise Exception(_("No org for this user, cannot claim"))
-
-            data = form.cleaned_data
-            if not data.get('api_url'):
-                api_url = Channel.VUMI_GO_API_URL
-            else:
-                api_url = data.get('api_url')
-
-            self.object = Channel.add_config_external_channel(org, self.request.user,
-                                                              data['country'], data['number'], self.channel_type,
-                                                              dict(account_key=data['account_key'],
-                                                                   access_token=str(uuid4()),
-                                                                   conversation_key=data['conversation_key'],
-                                                                   api_url=api_url),
-                                                              role=self.channel_role)
-
-            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
-    class ClaimVumiUssd(ClaimVumi):
-        channel_type = Channel.TYPE_VUMI_USSD
-        channel_role = Channel.ROLE_USSD
 
     class ClaimTwilioMessagingService(OrgPermsMixin, SmartFormView):
         class TwilioMessagingServiceForm(forms.Form):
