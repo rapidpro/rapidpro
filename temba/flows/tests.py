@@ -1650,6 +1650,9 @@ class FlowTest(TembaTest):
         sms.text = "I have 7"
         self.assertTest(True, Decimal("7"), test)
 
+        sms.text = "$250"
+        self.assertTest(True, Decimal("250"), test)
+
         # phone tests
 
         test = PhoneTest()

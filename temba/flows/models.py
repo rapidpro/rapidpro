@@ -6633,11 +6633,16 @@ class NumericTest(Test):
             if original_word == word:
                 # does this start with a number?  just use that part if so
                 match = regex.match(r"^(\d+).*$", word, regex.UNICODE | regex.V0)
-                if match:  # pragma: needs cover
+
+                if not match:
+                    # does this end with a number?  just use that part if so
+                    match = regex.match(r"^\D*(\d+)$", word, regex.UNICODE | regex.V0)
+
+                if match:
                     return (match.group(1), Decimal(match.group(1)))
                 else:
                     raise e
-            else:  # pragma: needs cover
+            else:
                 raise e
 
     # test every word in the message against our test
