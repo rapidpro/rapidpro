@@ -173,7 +173,6 @@ class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_CHIKKA = 'CK'
     TYPE_DUMMY = 'DM'
-    TYPE_START = 'ST'
     TYPE_TWILIO = 'T'
     TYPE_TWIML = 'TW'
     TYPE_TWILIO_MESSAGING_SERVICE = 'TMS'
