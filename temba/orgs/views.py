@@ -1993,35 +1993,9 @@ class OrgCRUDL(SmartCRUDL):
 
     class CustomChannels(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class CustomChannelForm(forms.ModelForm):
-            resthook = forms.SlugField(required=False, label=_("New Event"),
-                                       help_text="Enter a name for your event. ex: new-registration")
-
-            def add_resthook_fields(self):
-                resthooks = []
-                field_mapping = []
-
-                for resthook in self.instance.get_resthooks():
-                    check_field = forms.BooleanField(required=False)
-                    field_name = "resthook_%d" % resthook.pk
-
-                    field_mapping.append((field_name, check_field))
-                    resthooks.append(dict(resthook=resthook, field=field_name))
-
-                self.fields = OrderedDict(self.fields.items() + field_mapping)
-                return resthooks
-
-            def clean_resthook(self):
-                new_resthook = self.data.get('resthook')
-
-                if new_resthook:
-                    if self.instance.resthooks.filter(is_active=True, slug__iexact=new_resthook):
-                        raise ValidationError("This event name has already been used")
-
-                return new_resthook
-
             class Meta:
                 model = Org
-                fields = ('id', 'resthook')
+                fields = ('id', 'use_customize')
 
         form_class = CustomChannelForm
         success_message = ''
@@ -2030,29 +2004,6 @@ class OrgCRUDL(SmartCRUDL):
             self.org = self.derive_org()
             return self.has_org_perm('orgs.org_edit')
 
-        def get_form(self):
-            form = super(OrgCRUDL.CustomChannels, self).get_form()
-            self.current_resthooks = form.add_resthook_fields()
-            return form
-
-        def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.CustomChannels, self).get_context_data(**kwargs)
-            context['current_resthooks'] = self.current_resthooks
-            return context
-
-        def pre_save(self, obj):
-            from temba.api.models import Resthook
-
-            new_resthook = self.form.data.get('resthook')
-            if new_resthook:
-                Resthook.get_or_create(obj, new_resthook, self.request.user)
-
-            # release any resthooks that the user removed
-            for resthook in self.current_resthooks:
-                if self.form.data.get(resthook['field']):
-                    resthook['resthook'].release(self.request.user)
-
-            return super(OrgCRUDL.CustomChannels, self).pre_save(obj)
 
     class Home(FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
