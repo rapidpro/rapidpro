@@ -2266,38 +2266,6 @@ class ChannelClaimTest(TembaTest):
         response = self.client.get(reverse('orgs.org_home'))
         self.assertContains(response, reverse('channels.channel_read', args=[channel.uuid]))
 
-    def test_claim_chikka(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        response = self.client.get(reverse('channels.channel_claim_chikka'))
-        self.assertEquals(200, response.status_code)
-        self.assertEquals(response.context['view'].get_country({}), 'Philippines')
-
-        post_data = response.context['form'].initial
-
-        post_data['number'] = '5259'
-        post_data['username'] = 'chikka'
-        post_data['password'] = 'password'
-
-        response = self.client.post(reverse('channels.channel_claim_chikka'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('chikka', channel.config_json()[Channel.CONFIG_USERNAME])
-        self.assertEquals('password', channel.config_json()[Channel.CONFIG_PASSWORD])
-        self.assertEquals('5259', channel.address)
-        self.assertEquals('PH', channel.country)
-        self.assertEquals(Channel.TYPE_CHIKKA, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.ck', args=[channel.uuid]))
-
     @override_settings(SEND_EMAILS=True)
     def test_disconnected_alert(self):
         # set our last seen to a while ago
@@ -7729,7 +7697,7 @@ class ChikkaTest(TembaTest):
         super(ChikkaTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'PH', Channel.TYPE_CHIKKA, None, '920920',
+        self.channel = Channel.create(self.org, self.user, 'PH', 'CK', None, '920920',
                                       uuid='00000000-0000-0000-0000-000000001234')
 
         config = {Channel.CONFIG_USERNAME: 'username', Channel.CONFIG_PASSWORD: 'password'}

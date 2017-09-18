@@ -170,7 +170,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 @six.python_2_unicode_compatible
 class Channel(TembaModel):
     TYPE_ANDROID = 'A'
-    TYPE_CHIKKA = 'CK'
     TYPE_DUMMY = 'DM'
     TYPE_START = 'ST'
     TYPE_VERBOICE = 'VB'
@@ -256,14 +255,12 @@ class Channel(TembaModel):
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
-        TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
         TYPE_VERBOICE: dict(schemes=['tel'], max_length=1600),
         TYPE_VIBER: dict(schemes=['tel'], max_length=1000)
     }
 
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
-                    (TYPE_CHIKKA, "Chikka"),
                     (TYPE_DUMMY, "Dummy"),
                     (TYPE_VERBOICE, "Verboice"),
                     (TYPE_VIBER, "Viber"))
@@ -1153,77 +1150,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_chikka_message(cls, channel, msg, text):
-        from temba.msgs.models import Msg, WIRED
-
-        payload = {
-            'message_type': 'SEND',
-            'mobile_number': msg.urn_path.lstrip('+'),
-            'shortcode': channel.address,
-            'message_id': msg.id,
-            'message': text,
-            'request_cost': 'FREE',
-            'client_id': channel.config[Channel.CONFIG_USERNAME],
-            'secret_key': channel.config[Channel.CONFIG_PASSWORD]
-        }
-
-        # if this is a response to a user SMS, then we need to set this as a reply
-        # response ids are only valid for up to 24 hours
-        response_window = timedelta(hours=24)
-        if msg.response_to_id and msg.created_on > timezone.now() - response_window:
-            response_to = Msg.objects.filter(id=msg.response_to_id).first()
-            if response_to:
-                payload['message_type'] = 'REPLY'
-                payload['request_id'] = response_to.external_id
-
-        # build our send URL
-        url = 'https://post.chikka.com/smsapi/request'
-        start = time.time()
-
-        log_payload = payload.copy()
-        log_payload['secret_key'] = 'x' * len(log_payload['secret_key'])
-
-        event = HttpEvent('POST', url, log_payload)
-        events = [event]
-
-        try:
-            response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
-            event.status_code = response.status_code
-            event.response_body = response.text
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        # if they reject our request_id, send it as a normal send
-        if response.status_code == 400 and 'request_id' in payload:
-            error = response.json()
-            if error.get('message', None) == 'BAD REQUEST' and error.get('description', None) == 'Invalid/Used Request ID':
-                try:
-
-                    # operate on a copy so we can still inspect our original call
-                    payload = payload.copy()
-                    del payload['request_id']
-                    payload['message_type'] = 'SEND'
-
-                    event = HttpEvent('POST', url, payload)
-                    events.append(event)
-
-                    response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
-                    event.status_code = response.status_code
-                    event.response_body = response.text
-
-                    log_payload = payload.copy()
-                    log_payload['secret_key'] = 'x' * len(log_payload['secret_key'])
-
-                except Exception as e:
-                    raise SendException(six.text_type(e), events=events, start=start)
-
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
-            raise SendException("Got non-200 response [%d] from API" % response.status_code,
-                                events=events, start=start)
-
-        Channel.success(channel, msg, WIRED, start, events=events)
-
-    @classmethod
     def send_viber_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -1470,8 +1396,7 @@ STATUS_DISCHARGING = "DIS"
 STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
 
-SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
-                  Channel.TYPE_DUMMY: Channel.send_dummy_message,
+SEND_FUNCTIONS = {Channel.TYPE_DUMMY: Channel.send_dummy_message,
                   Channel.TYPE_VIBER: Channel.send_viber_message}
 
 

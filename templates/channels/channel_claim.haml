@@ -43,23 +43,6 @@
                 you already have. You just need an Android phone
                 to get started.
 
-    -if org_timezone == 'Asia/Manila'
-      .claim-row.chikka-channel
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_chikka' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Chikka Short Code"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans with brand.name as brand
-                  If you are based in the Phillipines, you can integrate {{ brand }} with Chikka to send
-                  and receive messages on your shortcode.
-
     -if not user_org.is_connected_to_twilio
       .claim-row.twilio-channel{class:"{% if recommended_channel == 'T' %}recommended{% endif %}"}
         .recommendation.hide

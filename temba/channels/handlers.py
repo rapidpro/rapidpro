@@ -1914,7 +1914,7 @@ class ChikkaHandler(BaseChannelHandler):
         action = self.get_param('message_type').lower()
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_CHIKKA).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='CK').exclude(org=None).first()
         if not channel:
             return HttpResponse("Error, channel not found for id: %s" % request_uuid, status=400)
 
