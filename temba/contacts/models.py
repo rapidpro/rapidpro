@@ -719,20 +719,21 @@ class Contact(TembaModel):
             else:
                 loc_value = None
 
+            category = loc_value.name if loc_value else None
+
             # find the existing value
             existing = Value.objects.filter(contact=self, contact_field__pk=field.id).first()
 
-            # update it if it exists
             if existing:
+                # we can do nothing if the existing value won't change
+                if existing.string_value == str_value and existing.decimal_value == dec_value and existing.datetime_value == dt_value and existing.location_value == loc_value and existing.category == category:
+                    return
+
                 existing.string_value = str_value
                 existing.decimal_value = dec_value
                 existing.datetime_value = dt_value
                 existing.location_value = loc_value
-
-                if loc_value:
-                    existing.category = loc_value.name
-                else:
-                    existing.category = None
+                existing.category = category
 
                 existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
                                              'location_value', 'category', 'modified_on'])
@@ -742,7 +743,6 @@ class Contact(TembaModel):
 
             # otherwise, create a new value for it
             else:
-                category = loc_value.name if loc_value else None
                 existing = Value.objects.create(contact=self, contact_field=field, org=self.org,
                                                 string_value=str_value, decimal_value=dec_value, datetime_value=dt_value,
                                                 location_value=loc_value, category=category)
