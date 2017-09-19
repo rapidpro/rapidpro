@@ -720,30 +720,33 @@ class Contact(TembaModel):
             else:
                 loc_value = None
 
+            category = loc_value.name if loc_value else None
+
             # find the existing value
             existing = Value.objects.filter(contact=self, contact_field__pk=field.id).first()
 
-            # update it if it exists
             if existing:
-                existing.string_value = str_value
-                existing.decimal_value = dec_value
-                existing.datetime_value = dt_value
-                existing.location_value = loc_value
+                # only update the existing value if it will be different
+                if existing.string_value != str_value \
+                        or existing.decimal_value != dec_value \
+                        or existing.datetime_value != dt_value \
+                        or existing.location_value != loc_value \
+                        or existing.category != category:
 
-                if loc_value:
-                    existing.category = loc_value.name
-                else:
-                    existing.category = None
+                    existing.string_value = str_value
+                    existing.decimal_value = dec_value
+                    existing.datetime_value = dt_value
+                    existing.location_value = loc_value
+                    existing.category = category
 
-                existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
-                                             'location_value', 'category', 'modified_on'])
+                    existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
+                                                 'location_value', 'category', 'modified_on'])
 
                 # remove any others on the same field that may exist
                 Value.objects.filter(contact=self, contact_field__pk=field.id).exclude(id=existing.id).delete()
 
             # otherwise, create a new value for it
             else:
-                category = loc_value.name if loc_value else None
                 existing = Value.objects.create(contact=self, contact_field=field, org=self.org,
                                                 string_value=str_value, decimal_value=dec_value, datetime_value=dt_value,
                                                 location_value=loc_value, category=category)
