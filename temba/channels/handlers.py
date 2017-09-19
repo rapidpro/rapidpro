@@ -879,7 +879,7 @@ class DartMediaHandler(Hub9Handler):
     handler_name = 'handlers.dartmedia_handler'
 
     def get_channel_type(self):
-        return Channel.TYPE_DARTMEDIA
+        return 'DA'
 
 
 class HighConnectionHandler(BaseChannelHandler):
