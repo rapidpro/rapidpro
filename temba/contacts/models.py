@@ -725,18 +725,21 @@ class Contact(TembaModel):
             existing = Value.objects.filter(contact=self, contact_field__pk=field.id).first()
 
             if existing:
-                # we can do nothing if the existing value won't change
-                if existing.string_value == str_value and existing.decimal_value == dec_value and existing.datetime_value == dt_value and existing.location_value == loc_value and existing.category == category:
-                    return
+                # only update the existing value if it will be different
+                if existing.string_value != str_value \
+                        or existing.decimal_value != dec_value \
+                        or existing.datetime_value != dt_value \
+                        or existing.location_value != loc_value \
+                        or existing.category != category:
 
-                existing.string_value = str_value
-                existing.decimal_value = dec_value
-                existing.datetime_value = dt_value
-                existing.location_value = loc_value
-                existing.category = category
+                    existing.string_value = str_value
+                    existing.decimal_value = dec_value
+                    existing.datetime_value = dt_value
+                    existing.location_value = loc_value
+                    existing.category = category
 
-                existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
-                                             'location_value', 'category', 'modified_on'])
+                    existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
+                                                 'location_value', 'category', 'modified_on'])
 
                 # remove any others on the same field that may exist
                 Value.objects.filter(contact=self, contact_field__pk=field.id).exclude(id=existing.id).delete()
