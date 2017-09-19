@@ -691,8 +691,12 @@ class Contact(TembaModel):
         field = ContactField.get_or_create(self.org, user, key, label)
 
         existing = None
+        has_changed = False
+
         if value is None or value == '':
+            # setting a blank value is equivalent to removing the value
             Value.objects.filter(contact=self, contact_field__pk=field.id).delete()
+            has_changed = True
         else:
             # parse as all value data types
             str_value = six.text_type(value)[:Value.MAX_VALUE_LEN]
@@ -741,6 +745,7 @@ class Contact(TembaModel):
 
                     existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
                                                  'location_value', 'category', 'modified_on'])
+                    has_changed = True
 
                 # remove any others on the same field that may exist
                 Value.objects.filter(contact=self, contact_field__pk=field.id).exclude(id=existing.id).delete()
@@ -750,19 +755,21 @@ class Contact(TembaModel):
                 existing = Value.objects.create(contact=self, contact_field=field, org=self.org,
                                                 string_value=str_value, decimal_value=dec_value, datetime_value=dt_value,
                                                 location_value=loc_value, category=category)
+                has_changed = True
 
-        # cache
+        # cache this field value
         self.set_cached_field_value(key, existing)
 
-        self.modified_by = user
-        self.save(update_fields=('modified_by', 'modified_on'))
+        if has_changed:
+            self.modified_by = user
+            self.save(update_fields=('modified_by', 'modified_on'))
 
-        # update any groups or campaigns for this contact if not importing
-        if not importing:
-            self.handle_update(field=field)
+            # update any groups or campaigns for this contact if not importing
+            if not importing:
+                self.handle_update(field=field)
 
-        # invalidate our value cache for this contact field
-        Value.invalidate_cache(contact_field=field)
+            # invalidate our value cache for this contact field
+            Value.invalidate_cache(contact_field=field)
 
     def set_cached_field_value(self, key, value):
         setattr(self, '__field__%s' % key, value)
