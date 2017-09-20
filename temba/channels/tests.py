@@ -5550,7 +5550,7 @@ class TwilioTest(TembaTest):
 
         with self.settings(SEND_MESSAGES=True):
             with patch('twilio.rest.resources.base.make_request') as mock:
-                for channel_type in ['T', 'TMS']:
+                for channel_type in ['T', 'TMS', 'TW']:
                     ChannelLog.objects.all().delete()
                     Msg.objects.all().delete()
 
@@ -5561,6 +5561,11 @@ class TwilioTest(TembaTest):
                         self.channel.config = json.dumps(dict(messaging_service_sid="MSG-SERVICE-SID",
                                                               auth_token='twilio_token',
                                                               account_sid='twilio_sid'))
+                    elif channel_type == 'TW':
+                        self.channel.config = json.dumps({Channel.CONFIG_SEND_URL: 'https://api.twilio.com',
+                                                          ACCOUNT_SID: 'twilio_sid',
+                                                          ACCOUNT_TOKEN: 'twilio_token'})
+
                     self.channel.save()
 
                     mock.return_value = MockResponse(200, '{ "account_sid": "ac1232", "sid": "12345"}')
