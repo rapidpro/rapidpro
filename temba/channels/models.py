@@ -168,7 +168,6 @@ class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_CHIKKA = 'CK'
     TYPE_DUMMY = 'DM'
-    TYPE_GLOBE = 'GL'
     TYPE_HUB9 = 'H9'
     TYPE_JASMIN = 'JS'
     TYPE_JUNEBUG = 'JN'
