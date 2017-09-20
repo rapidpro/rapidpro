@@ -274,10 +274,7 @@ class TwimlAPIHandler(BaseChannelHandler):
         return Channel.objects.filter(uuid=uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
 
     def get_client(self, channel):
-        if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
-            return channel.org.get_twilio_client()
-        else:
-            return channel.get_ivr_client()
+        return channel.get_ivr_client()
 
     def get_channel_type(self):
         return Channel.TYPE_TWIML
@@ -353,7 +350,7 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
                 return HttpResponse("No Twilio account is connected", status=400)
 
             channel = sms.channel
-            if not channel:  # pragma: needs cover
+            if not channel:
                 channel = org.channels.filter(channel_type=self.get_channel_type()).first()
 
             client = self.get_client(channel=channel)
