@@ -210,9 +210,7 @@ class TwimlAPIHandler(BaseChannelHandler):
             # validate this request is coming from twilio
             org = sms.org
 
-            if self.get_channel_type() in [Channel.TYPE_TWILIO,
-                                           Channel.TYPE_TWIML,
-                                           Channel.TYPE_TWILIO_MESSAGING_SERVICE] and not org.is_connected_to_twilio():
+            if not org.is_connected_to_twilio():
                 return HttpResponse("No Twilio account is connected", status=400)
 
             channel = sms.channel
@@ -351,9 +349,7 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
             # validate this request is coming from twilio
             org = sms.org
 
-            if self.get_channel_type() in [Channel.TYPE_TWILIO,
-                                           Channel.TYPE_TWIML,
-                                           Channel.TYPE_TWILIO_MESSAGING_SERVICE] and not org.is_connected_to_twilio():
+            if not org.is_connected_to_twilio():
                 return HttpResponse("No Twilio account is connected", status=400)
 
             channel = sms.channel
