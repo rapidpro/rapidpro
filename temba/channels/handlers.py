@@ -92,6 +92,9 @@ def get_channel_handlers():
 
 class TwimlAPIHandler(BaseChannelHandler):
 
+    courier_url = r'^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
+    courier_name = 'courier.tw'
+
     handler_url = r'^twiml_api/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.twiml_api_handler'
 
@@ -296,7 +299,7 @@ class TwilioHandler(TwimlAPIHandler):
 
 class TwilioMessagingServiceHandler(BaseChannelHandler):
 
-    courier_url = r'^tms/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
+    courier_url = r'^tms/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
     courier_name = 'courier.tms'
 
     handler_url = r'^twilio_messaging_service/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
@@ -336,7 +339,50 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
 
             return HttpResponse("", status=201)
 
+        if action == 'status':
+            smsId = request.GET.get('id', None)
+            status = request.POST.get('SmsStatus', None)
+
+            # get the SMS
+            sms = Msg.objects.select_related('channel').filter(id=smsId).first()
+            if sms is None:
+                return HttpResponse("No message found with id: %s" % smsId, status=400)
+
+            # validate this request is coming from twilio
+            org = sms.org
+
+            if self.get_channel_type() in [Channel.TYPE_TWILIO,
+                                           Channel.TYPE_TWIML,
+                                           Channel.TYPE_TWILIO_MESSAGING_SERVICE] and not org.is_connected_to_twilio():
+                return HttpResponse("No Twilio account is connected", status=400)
+
+            channel = sms.channel
+            if not channel:  # pragma: needs cover
+                channel = org.channels.filter(channel_type=self.get_channel_type()).first()
+
+            client = self.get_client(channel=channel)
+            validator = RequestValidator(client.auth[1])
+
+            if not validator.validate(url, request.POST, signature):  # pragma: needs cover
+                return HttpResponse("Invalid request signature.", status=400)
+
+            # queued, sending, sent, failed, or received.
+            if status == 'sent':
+                sms.status_sent()
+            elif status == 'delivered':
+                sms.status_delivered()
+            elif status == 'failed':
+                sms.status_fail()
+
+            return HttpResponse("", status=200)
+
         return HttpResponse("Not Handled, unknown action", status=400)  # pragma: no cover
+
+    def get_channel_type(self):
+        return 'TMS'
+
+    def get_client(self, channel):
+        return channel.org.get_twilio_client()
 
 
 class AfricasTalkingHandler(BaseChannelHandler):

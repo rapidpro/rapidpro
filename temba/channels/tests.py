@@ -6543,7 +6543,9 @@ class TwilioTest(TembaTest):
                     self.clear_cache()
 
                     # handle the status callback
-                    callback_url = Channel.build_twilio_callback_url(self.channel.uuid, msg.id)
+                    callback_url = Channel.build_twilio_callback_url(channel_type, self.channel.uuid, msg.id)
+
+                    self.assertTrue(callback_url.find("c/%s/%s/status" % (channel_type.lower(), self.channel.uuid)) >= 0)
 
                     client = self.org.get_twilio_client()
                     validator = RequestValidator(client.auth[1])
@@ -6639,7 +6641,7 @@ class TwilioTest(TembaTest):
             self.clear_cache()
 
             # handle the status callback
-            callback_url = Channel.build_twilio_callback_url(self.channel.uuid, msg.id)
+            callback_url = Channel.build_twilio_callback_url(self.channel.channel_type, self.channel.uuid, msg.id)
 
             client = self.org.get_twilio_client()
             validator = RequestValidator(client.auth[1])
