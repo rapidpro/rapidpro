@@ -1111,10 +1111,14 @@ MESSAGE_HANDLERS = [
 ]
 
 CHANNEL_TYPES = [
+    'temba.channels.types.africastalking.AfricasTalkingType',
     'temba.channels.types.blackmyna.BlackmynaType',
+    'temba.channels.types.clickatell.ClickatellType',
+    'temba.channels.types.dartmedia.DartMediaType',
     'temba.channels.types.external.ExternalType',
     'temba.channels.types.facebook.FacebookType',
     'temba.channels.types.firebase.FirebaseCloudMessagingType',
+    'temba.channels.types.globe.GlobeType',
     'temba.channels.types.infobip.InfobipType',
     'temba.channels.types.jiochat.JioChatType',
     'temba.channels.types.line.LineType',
