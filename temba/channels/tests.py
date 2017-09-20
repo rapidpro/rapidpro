@@ -6627,6 +6627,11 @@ class TwilioTest(TembaTest):
                     response = self.client.post(missing_sms_callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
                     self.assertEquals(response.status_code, 400)
 
+                    with patch('temba.orgs.models.Org.is_connected_to_twilio') as mock_connected_twilio:
+                        mock_connected_twilio.return_value = False
+                        response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+                        self.assertEquals(response.status_code, 400)
+
             # check that our channel log works as well
             self.login(self.admin)
 
