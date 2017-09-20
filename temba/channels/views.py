@@ -1554,62 +1554,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             return super(ChannelCRUDL.ClaimViber, self).form_valid(form)
 
-    class ClaimAuthenticatedExternal(OrgPermsMixin, SmartFormView):
-        class AEClaimForm(forms.Form):
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                        help_text=_("The country this phone number is used in"))
-            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_(
-                                         "The phone number or short code you are connecting with country code. ex: +250788123124"))
-            username = forms.CharField(label=_("Username"),
-                                       help_text=_("The username provided by the provider to use their API"))
-            password = forms.CharField(label=_("Password"),
-                                       help_text=_("The password provided by the provider to use their API"))
-
-            def clean_number(self):  # pragma: no cover
-                number = self.data['number']
-
-                # number is a shortcode, accept as is
-                if len(number) > 0 and len(number) < 7:
-                    return number
-
-                # otherwise, try to parse into an international format
-                if number and number[0] != '+':
-                    number = '+' + number
-
-                try:
-                    cleaned = phonenumbers.parse(number, None)
-                    return phonenumbers.format_number(cleaned, phonenumbers.PhoneNumberFormat.E164)
-                except Exception:  # pragma: needs cover
-                    raise forms.ValidationError(_("Invalid phone number, please include the country code. ex: +250788123123"))
-
-        title = "Connect External Service"
-        fields = ('country', 'number', 'username', 'password')
-        form_class = AEClaimForm
-        permission = 'channels.channel_claim'
-        success_url = "id@channels.channel_configuration"
-        channel_type = "AE"
-        template_name = 'channels/channel_claim_authenticated.html'
-
-        def get_submitted_country(self, data):  # pragma: no cover
-            return data['country']
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-
-            if not org:  # pragma: no cover
-                raise Exception("No org for this user, cannot claim")
-
-            data = form.cleaned_data
-            self.object = Channel.add_authenticated_external_channel(org, self.request.user,
-                                                                     self.get_submitted_country(data),
-                                                                     data['number'], data['username'],
-                                                                     data['password'], self.channel_type,
-                                                                     data.get('url'))
-
-            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
-    class ClaimVerboice(ClaimAuthenticatedExternal):
+    class ClaimVerboice(OrgPermsMixin, SmartFormView):
         class VerboiceClaimForm(forms.Form):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
                                         help_text=_("The country this phone number is used in"))
@@ -1626,6 +1571,9 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Connect Verboice")
         channel_type = Channel.TYPE_VERBOICE
         form_class = VerboiceClaimForm
+        permission = 'channels.channel_claim'
+        success_url = "id@channels.channel_configuration"
+        template_name = 'channels/channel_claim_verboice.html'
         fields = ('country', 'number', 'username', 'password', 'channel')
 
         def form_valid(self, form):  # pragma: needs cover
@@ -1641,8 +1589,7 @@ class ChannelCRUDL(SmartCRUDL):
                                                                    password=data['password'],
                                                                    channel=data['channel']),
                                                               role=Channel.ROLE_CALL + Channel.ROLE_ANSWER)
-
-            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
+            return super(ChannelCRUDL.ClaimVerboice, self).form_valid(form)
 
     class Configuration(OrgPermsMixin, SmartReadView):
 
