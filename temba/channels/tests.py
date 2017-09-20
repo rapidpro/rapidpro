@@ -2507,39 +2507,6 @@ class ChannelAlertTest(TembaTest):
 
 class ChannelClaimTest(TembaTest):
 
-    def test_high_connection(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_high_connection'))
-        post_data = response.context['form'].initial
-
-        post_data['username'] = 'uname'
-        post_data['password'] = 'pword'
-        post_data['number'] = '5151'
-        post_data['country'] = 'FR'
-
-        response = self.client.post(reverse('channels.channel_claim_high_connection'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('FR', channel.country)
-        self.assertTrue(channel.uuid)
-        self.assertEquals(post_data['number'], channel.address)
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals(Channel.TYPE_HIGH_CONNECTION, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.hx', args=[channel.uuid, 'receive']))
-
     def test_shaqodoon(self):
         Channel.objects.all().delete()
 
@@ -2902,6 +2869,29 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(channel.config_json()['api_url'], "http://custom.api.url")
         self.assertEquals(channel.channel_type, Channel.TYPE_VUMI_USSD)
         self.assertEquals(channel.role, Channel.ROLE_USSD)
+
+    def test_claim_vumi_ussd_custom_api_short_code(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        response = self.client.get(reverse('channels.channel_claim_vumi_ussd'))
+        self.assertEquals(200, response.status_code)
+
+        post_data = {
+            "country": "ZA",
+            "number": "8080",
+            "account_key": "account1",
+            "conversation_key": "conversation1",
+            "api_url": "http://custom.api.url"
+        }
+
+        response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertTrue(uuid.UUID(channel.config_json()['access_token'], version=4))
+        self.assertEquals(channel.country, post_data['country'])
+        self.assertEquals(channel.address, post_data['number'])
 
     @override_settings(SEND_EMAILS=True)
     def test_disconnected_alert(self):
