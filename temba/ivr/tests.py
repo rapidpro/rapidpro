@@ -905,7 +905,7 @@ class IVRTests(FlowFileTest):
         config = {Channel.CONFIG_SEND_URL: 'https://api.twilio.com',
                   ACCOUNT_SID: 'TEST_SID',
                   ACCOUNT_TOKEN: 'TEST_TOKEN'}
-        channel = Channel.add_twiml_api_channel(self.org, self.org.get_user(), 'BR', '558299990000', config, 'AC')
+        channel = Channel.create(self.org, self.org.get_user(), 'BR', 'TW', '+558299990000', '+558299990000', config, 'AC')
         self.assertEqual(channel.org, self.org)
         self.assertEqual(channel.address, '+558299990000')
 
