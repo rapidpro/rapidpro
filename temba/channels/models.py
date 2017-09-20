@@ -901,13 +901,12 @@ class Channel(TembaModel):
 
     def get_twiml_client(self):
         from temba.ivr.clients import TwilioClient
-        from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
 
         config = self.config_json()
 
         if config:
-            account_sid = config.get(ACCOUNT_SID, None)
-            auth_token = config.get(ACCOUNT_TOKEN, None)
+            account_sid = config.get(Channel.CONFIG_ACCOUNT_SID, None)
+            auth_token = config.get(Channel.CONFIG_AUTH_TOKEN, None)
             base = config.get(Channel.CONFIG_SEND_URL, None)
 
             if account_sid and auth_token:
@@ -2539,7 +2538,7 @@ class Channel(TembaModel):
         elif channel_type == 'TMS':
             url = reverse('courier.tms', args=[channel_uuid, 'status'])
         elif channel_type == 'TW':
-            url = reverse('courier.tms', args=[channel_uuid, 'status'])
+            url = reverse('courier.tw', args=[channel_uuid, 'status'])
 
         url = "https://" + settings.TEMBA_HOST + url + "?action=callback&id=%d" % sms_id
         return url
