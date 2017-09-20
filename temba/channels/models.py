@@ -37,7 +37,7 @@ from phonenumbers import NumberParseException
 from pyfcm import FCMNotification
 from smartmin.models import SmartModel
 
-from temba.orgs.models import Org, NEXMO_UUID, NEXMO_APP_ID, CHATBASE_TYPE_AGENT
+from temba.orgs.models import Org, NEXMO_UUID, NEXMO_APP_ID, CHATBASE_TYPE_AGENT, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
@@ -167,7 +167,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
 class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_CHIKKA = 'CK'
-    TYPE_DARTMEDIA = 'DA'
     TYPE_DUMMY = 'DM'
     TYPE_GLOBE = 'GL'
     TYPE_HIGH_CONNECTION = 'HX'
@@ -221,6 +220,10 @@ class Channel(TembaModel):
     CONFIG_MACROKIOSK_SENDER_ID = 'macrokiosk_sender_id'
     CONFIG_MACROKIOSK_SERVICE_ID = 'macrokiosk_service_id'
     CONFIG_RP_HOSTNAME_OVERRIDE = 'rp_hostname_override'
+    CONFIG_ACCOUNT_SID = 'account_sid'
+    CONFIG_APPLICATION_SID = 'application_sid'
+    CONFIG_NUMBER_SID = 'number_sid'
+    CONFIG_MESSAGING_SERVICE_SID = 'messaging_service_sid'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -272,9 +275,7 @@ class Channel(TembaModel):
     CHANNEL_SETTINGS = {
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
-        TYPE_DARTMEDIA: dict(schemes=['tel'], max_length=160),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
-        TYPE_GLOBE: dict(schemes=['tel'], max_length=160),
         TYPE_HIGH_CONNECTION: dict(schemes=['tel'], max_length=1500),
         TYPE_HUB9: dict(schemes=['tel'], max_length=1600),
         TYPE_JASMIN: dict(schemes=['tel'], max_length=1600),
@@ -303,9 +304,7 @@ class Channel(TembaModel):
 
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
                     (TYPE_CHIKKA, "Chikka"),
-                    (TYPE_DARTMEDIA, "Dart Media"),
                     (TYPE_DUMMY, "Dummy"),
-                    (TYPE_GLOBE, "Globe Labs"),
                     (TYPE_HIGH_CONNECTION, "High Connection"),
                     (TYPE_HUB9, "Hub9"),
                     (TYPE_JASMIN, "Jasmin"),
@@ -666,14 +665,18 @@ class Channel(TembaModel):
 
             number_sid = twilio_phone.sid
 
-        config = {'application_sid': new_app.sid, 'number_sid': number_sid}
+        org_config = json.loads(org.config)
+        config = {Channel.CONFIG_APPLICATION_SID: new_app.sid, Channel.CONFIG_NUMBER_SID: number_sid,
+                  Channel.CONFIG_ACCOUNT_SID: org_config[ACCOUNT_SID], Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN]}
 
         return Channel.create(org, user, country, Channel.TYPE_TWILIO, name=phone, address=phone_number, role=role,
                               config=config, uuid=channel_uuid)
 
     @classmethod
     def add_twilio_messaging_service_channel(cls, org, user, messaging_service_sid, country):
-        config = dict(messaging_service_sid=messaging_service_sid)
+        org_config = json.loads(org.config)
+        config = {Channel.CONFIG_MESSAGING_SERVICE_SID: messaging_service_sid,
+                  Channel.CONFIG_ACCOUNT_SID: org_config[ACCOUNT_SID], Channel.CONFIG_AUTH_TOKEN: org_config[ACCOUNT_TOKEN]}
 
         return Channel.create(org, user, country, Channel.TYPE_TWILIO_MESSAGING_SERVICE,
                               name=messaging_service_sid, address=None, config=config)
@@ -1998,45 +2001,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_globe_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        payload = {
-            'address': msg.urn_path.lstrip('+'),
-            'message': text,
-            'passphrase': channel.config['passphrase'],
-            'app_id': channel.config['app_id'],
-            'app_secret': channel.config['app_secret']
-        }
-        headers = dict(TEMBA_HEADERS)
-
-        url = 'https://devapi.globelabs.com.ph/smsmessaging/v1/outbound/%s/requests' % channel.address
-
-        event = HttpEvent('POST', url, json.dumps(payload))
-
-        start = time.time()
-
-        try:
-            response = requests.post(url,
-                                     data=payload,
-                                     headers=headers,
-                                     timeout=5)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code != 200 and response.status_code != 201:
-            raise SendException("Got non-200 response [%d] from API" % response.status_code,
-                                event=event, start=start)
-
-        # parse our response
-        response.json()
-
-        Channel.success(channel, msg, WIRED, start, event=event)
-
-    @classmethod
     def send_nexmo_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
         from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
@@ -2137,10 +2101,7 @@ class Channel(TembaModel):
         #   &message=Test+Normal+Single+Message&dcs=0
         #   &udhl=0&charset=utf-8
         #
-        if channel.channel_type == Channel.TYPE_HUB9:
-            url = HUB9_ENDPOINT
-        elif channel.channel_type == Channel.TYPE_DARTMEDIA:
-            url = DART_MEDIA_ENDPOINT
+        url = HUB9_ENDPOINT
 
         payload = dict(userid=channel.config['username'], password=channel.config['password'],
                        original=channel.address.lstrip('+'), sendto=msg.urn_path.lstrip('+'),
@@ -2237,7 +2198,6 @@ class Channel(TembaModel):
     @classmethod
     def send_twilio_message(cls, channel, msg, text):
         from temba.msgs.models import Attachment, WIRED
-        from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
         from temba.utils.twilio import TembaTwilioRestClient
 
         callback_url = Channel.build_twilio_callback_url(channel.uuid, msg.id)
@@ -2252,10 +2212,11 @@ class Channel(TembaModel):
 
         if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
             config = channel.config
-            client = TembaTwilioRestClient(config.get(ACCOUNT_SID), config.get(ACCOUNT_TOKEN),
+            client = TembaTwilioRestClient(config.get(Channel.CONFIG_ACCOUNT_SID), config.get(Channel.CONFIG_AUTH_TOKEN),
                                            base=config.get(Channel.CONFIG_SEND_URL))
         else:
-            client = TembaTwilioRestClient(channel.org_config[ACCOUNT_SID], channel.org_config[ACCOUNT_TOKEN])
+            config = channel.config
+            client = TembaTwilioRestClient(config.get(Channel.CONFIG_ACCOUNT_SID), config.get(Channel.CONFIG_AUTH_TOKEN))
 
         try:
             if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
@@ -2630,9 +2591,7 @@ STATUS_NOT_CHARGING = "NOT"
 STATUS_FULL = "FUL"
 
 SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
-                  Channel.TYPE_DARTMEDIA: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
-                  Channel.TYPE_GLOBE: Channel.send_globe_message,
                   Channel.TYPE_HIGH_CONNECTION: Channel.send_high_connection_message,
                   Channel.TYPE_HUB9: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_JASMIN: Channel.send_jasmin_message,

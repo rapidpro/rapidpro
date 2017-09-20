@@ -1432,7 +1432,9 @@ class ChannelTest(TembaTest):
         channel = self.org.channels.get()
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
         self.assertEqual(channel.channel_type, "TMS")
-        self.assertEqual(channel.config_json(), dict(messaging_service_sid="MSG-SERVICE-SID"))
+        self.assertEqual(channel.config_json(), dict(messaging_service_sid="MSG-SERVICE-SID",
+                                                     account_sid="account-sid",
+                                                     auth_token="account-token"))
 
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
@@ -1803,27 +1805,6 @@ class ChannelTest(TembaTest):
                         # no more credential in the session
                         self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
                         self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
-
-    def test_claim_globe(self):
-        # disassociate all of our channels
-        self.org.channels.all().update(org=None, is_active=False)
-
-        self.login(self.admin)
-        claim_url = reverse('channels.channel_claim_globe')
-
-        response = self.client.get(claim_url)
-        self.assertEqual(200, response.status_code)
-
-        response = self.client.post(claim_url, dict(number=21586380, app_id="AppId", app_secret="AppSecret", passphrase="Passphrase"), follow=True)
-        self.assertEqual(200, response.status_code)
-
-        channel = Channel.objects.get(channel_type=Channel.TYPE_GLOBE)
-        self.assertEqual('21586380', channel.address)
-        self.assertEqual('PH', channel.country)
-        config = channel.config_json()
-        self.assertEqual(config['app_secret'], 'AppSecret')
-        self.assertEqual(config['app_id'], 'AppId')
-        self.assertEqual(config['passphrase'], 'Passphrase')
 
     def test_release(self):
         Channel.objects.all().delete()
@@ -2558,46 +2539,6 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         self.assertContains(response, reverse('courier.hx', args=[channel.uuid, 'receive']))
-
-    @override_settings(IP_ADDRESSES=('10.10.10.10', '172.16.20.30'))
-    def test_claim_dart_media(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_dart_media'))
-        self.assertEquals(response.context['view'].get_country({}), 'Indonesia')
-
-        post_data = response.context['form'].initial
-
-        post_data['username'] = 'uname'
-        post_data['password'] = 'pword'
-        post_data['number'] = '5151'
-        post_data['country'] = 'ID'
-
-        response = self.client.post(reverse('channels.channel_claim_dart_media'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('ID', channel.country)
-        self.assertTrue(channel.uuid)
-        self.assertEquals(post_data['number'], channel.address)
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals(Channel.TYPE_DARTMEDIA, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.da', args=[channel.uuid, 'receive']))
-
-        # check we show the IP to whitelist
-        self.assertContains(response, "10.10.10.10")
-        self.assertContains(response, "172.16.20.30")
 
     def test_shaqodoon(self):
         Channel.objects.all().delete()
@@ -6319,7 +6260,10 @@ class TwilioTest(TembaTest):
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'RW', 'T', None, '+250785551212',
-                                      uuid='00000000-0000-0000-0000-000000001234')
+                                      uuid='00000000-0000-0000-0000-000000001234',
+                                      config={Channel.CONFIG_AUTH_TOKEN: '0b14d47901387c03f92253a4e4449d5e',
+                                              Channel.CONFIG_ACCOUNT_SID: 'ACe54dc36bfd2a3b483b7ed854b2dd40c1',
+                                              Channel.CONFIG_APPLICATION_SID: 'AP6fe2069df7f9482a8031cb61dc155de2'})
 
         # twilio test credentials
         self.account_sid = "ACe54dc36bfd2a3b483b7ed854b2dd40c1"
@@ -6579,7 +6523,9 @@ class TwilioTest(TembaTest):
 
                     self.channel.channel_type = channel_type
                     if channel_type == 'TMS':
-                        self.channel.config = json.dumps(dict(messaging_service_sid="MSG-SERVICE-SID"))
+                        self.channel.config = json.dumps(dict(messaging_service_sid="MSG-SERVICE-SID",
+                                                              auth_token='twilio_token',
+                                                              account_sid='twilio_sid'))
                     self.channel.save()
 
                     mock.return_value = MockResponse(200, '{ "account_sid": "ac1232", "sid": "12345"}')

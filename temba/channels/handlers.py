@@ -879,7 +879,7 @@ class DartMediaHandler(Hub9Handler):
     handler_name = 'handlers.dartmedia_handler'
 
     def get_channel_type(self):
-        return Channel.TYPE_DARTMEDIA
+        return 'DA'
 
 
 class HighConnectionHandler(BaseChannelHandler):
@@ -2577,9 +2577,7 @@ class FacebookHandler(BaseChannelHandler):
 
                     elif 'delivery' in envelope and 'mids' in envelope['delivery']:
                         for external_id in envelope['delivery']['mids']:
-                            msg = Msg.objects.filter(channel=channel,
-                                                     direction=OUTGOING,
-                                                     external_id=external_id).first()
+                            msg = Msg.objects.filter(channel=channel, external_id=external_id, direction=OUTGOING).first()
                             if msg:
                                 msg.status_delivered()
                                 status.append("Msg %d updated." % msg.id)
@@ -2628,7 +2626,7 @@ class GlobeHandler(BaseChannelHandler):
         request_uuid = kwargs['uuid']
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_GLOBE).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='GL').exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
@@ -2710,7 +2708,7 @@ class ViberHandler(BaseChannelHandler):
             # }
             external_id = body['message_token']
 
-            msg = Msg.objects.filter(channel=channel, direction='O', external_id=external_id).select_related('channel').first()
+            msg = Msg.objects.filter(channel=channel, external_id=external_id, direction=OUTGOING).select_related('channel').first()
             if not msg:
                 # viber is hammers us incessantly if we give 400s for non-existant message_ids
                 return HttpResponse("Message with external id of '%s' not found" % external_id)
@@ -2907,7 +2905,7 @@ class ViberPublicHandler(BaseChannelHandler):
             #    "message_token": 4912661846655238145,
             #    "user_id": "01234567890A="
             # }
-            msg = Msg.objects.filter(channel=channel, direction='O', external_id=body['message_token']).select_related('channel').first()
+            msg = Msg.objects.filter(channel=channel, direction=OUTGOING, external_id=body['message_token']).select_related('channel').first()
             if not msg:
                 return HttpResponse("Message with external id of '%s' not found" % body['message_token'])
 
