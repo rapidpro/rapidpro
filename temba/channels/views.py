@@ -1969,8 +1969,8 @@ class ChannelCRUDL(SmartCRUDL):
             role = data.get('role')
 
             config = {Channel.CONFIG_SEND_URL: url,
-                      ACCOUNT_SID: data.get('account_sid', None),
-                      ACCOUNT_TOKEN: data.get('account_token', None)}
+                      Channel.CONFIG_ACCOUNT_SID: data.get('account_sid', None),
+                      Channel.CONFIG_AUTH_TOKEN: data.get('account_token', None)}
 
             is_short_code = len(number) <= 6
 
@@ -1984,10 +1984,10 @@ class ChannelCRUDL(SmartCRUDL):
             # because we use the channel id in the configuration
             config = self.object.config_json()
             if not config.get(ACCOUNT_SID, None):  # pragma: needs cover
-                config[ACCOUNT_SID] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
+                config[Channel.CONFIG_ACCOUNT_SID] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
 
             if not config.get(ACCOUNT_TOKEN, None):  # pragma: needs cover
-                config[ACCOUNT_TOKEN] = str(uuid4())
+                config[Channel.CONFIG_AUTH_TOKEN] = str(uuid4())
 
             self.object.config = json.dumps(config)
             self.object.save()
