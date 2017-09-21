@@ -3429,6 +3429,15 @@ class ContactTest(TembaTest):
         self.assertEquals('Joe', self.joe.get_field_raw('abc_1234'))
         ContactField.objects.get(key='abc_1234', label="First Name", org=self.joe.org)
 
+        modified_on = self.joe.modified_on
+
+        # set_field should only write to the database if the value changes
+        with self.assertNumQueries(7):
+            self.joe.set_field(self.user, 'abc_1234', 'Joe')
+
+        self.joe.refresh_from_db()
+        self.assertEqual(self.joe.modified_on, modified_on)
+
     def test_date_field(self):
         # create a new date field
         ContactField.get_or_create(self.org, self.admin, 'birth_date', label='Birth Date', value_type=Value.TYPE_TEXT)

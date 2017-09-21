@@ -851,7 +851,7 @@ class Flow(TembaModel):
 
             # don't archive flows that belong to campaigns
             from temba.campaigns.models import CampaignEvent
-            if not CampaignEvent.objects.filter(flow=flow, campaign__org=user.get_org()).exists():
+            if not CampaignEvent.objects.filter(flow=flow, campaign__org=user.get_org(), campaign__is_archived=False).exists():
                 flow.archive()
                 changed.append(flow.pk)
 

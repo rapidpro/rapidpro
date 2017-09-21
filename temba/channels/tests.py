@@ -1462,13 +1462,13 @@ class ChannelTest(TembaTest):
         channel = self.org.channels.all().first()
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
         self.assertEqual(channel.channel_type, "TW")
-        self.assertEqual(channel.config_json(), dict(ACCOUNT_TOKEN='abcd1234', send_url='https://twilio.com', ACCOUNT_SID='abcd1234'))
+        self.assertEqual(channel.config_json(), dict(auth_token='abcd1234', send_url='https://twilio.com', account_sid='abcd1234'))
 
         response = self.client.post(claim_url, dict(country='US', number='12345678', url='https://twilio.com', role='SR', account_sid='abcd4321', account_token='abcd4321'))
         channel = self.org.channels.all().first()
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
         self.assertEqual(channel.channel_type, "TW")
-        self.assertEqual(channel.config_json(), dict(ACCOUNT_TOKEN='abcd4321', send_url='https://twilio.com', ACCOUNT_SID='abcd4321'))
+        self.assertEqual(channel.config_json(), dict(auth_token='abcd4321', send_url='https://twilio.com', account_sid='abcd4321'))
 
         self.org.channels.update(is_active=False, org=None)
 
@@ -1476,7 +1476,7 @@ class ChannelTest(TembaTest):
         channel = self.org.channels.all().first()
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
         self.assertEqual(channel.channel_type, "TW")
-        self.assertEqual(channel.config_json(), dict(ACCOUNT_TOKEN='abcd1234', send_url='https://twilio.com', ACCOUNT_SID='abcd1234'))
+        self.assertEqual(channel.config_json(), dict(auth_token='abcd1234', send_url='https://twilio.com', account_sid='abcd1234'))
 
     def test_search_nexmo(self):
         self.login(self.admin)
@@ -1805,27 +1805,6 @@ class ChannelTest(TembaTest):
                         # no more credential in the session
                         self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
                         self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
-
-    def test_claim_globe(self):
-        # disassociate all of our channels
-        self.org.channels.all().update(org=None, is_active=False)
-
-        self.login(self.admin)
-        claim_url = reverse('channels.channel_claim_globe')
-
-        response = self.client.get(claim_url)
-        self.assertEqual(200, response.status_code)
-
-        response = self.client.post(claim_url, dict(number=21586380, app_id="AppId", app_secret="AppSecret", passphrase="Passphrase"), follow=True)
-        self.assertEqual(200, response.status_code)
-
-        channel = Channel.objects.get(channel_type=Channel.TYPE_GLOBE)
-        self.assertEqual('21586380', channel.address)
-        self.assertEqual('PH', channel.country)
-        config = channel.config_json()
-        self.assertEqual(config['app_secret'], 'AppSecret')
-        self.assertEqual(config['app_id'], 'AppId')
-        self.assertEqual(config['passphrase'], 'Passphrase')
 
     def test_release(self):
         Channel.objects.all().delete()
@@ -2528,79 +2507,6 @@ class ChannelAlertTest(TembaTest):
 
 class ChannelClaimTest(TembaTest):
 
-    def test_high_connection(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_high_connection'))
-        post_data = response.context['form'].initial
-
-        post_data['username'] = 'uname'
-        post_data['password'] = 'pword'
-        post_data['number'] = '5151'
-        post_data['country'] = 'FR'
-
-        response = self.client.post(reverse('channels.channel_claim_high_connection'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('FR', channel.country)
-        self.assertTrue(channel.uuid)
-        self.assertEquals(post_data['number'], channel.address)
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals(Channel.TYPE_HIGH_CONNECTION, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.hx', args=[channel.uuid, 'receive']))
-
-    @override_settings(IP_ADDRESSES=('10.10.10.10', '172.16.20.30'))
-    def test_claim_dart_media(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_dart_media'))
-        self.assertEquals(response.context['view'].get_country({}), 'Indonesia')
-
-        post_data = response.context['form'].initial
-
-        post_data['username'] = 'uname'
-        post_data['password'] = 'pword'
-        post_data['number'] = '5151'
-        post_data['country'] = 'ID'
-
-        response = self.client.post(reverse('channels.channel_claim_dart_media'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('ID', channel.country)
-        self.assertTrue(channel.uuid)
-        self.assertEquals(post_data['number'], channel.address)
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals(Channel.TYPE_DARTMEDIA, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.da', args=[channel.uuid, 'receive']))
-
-        # check we show the IP to whitelist
-        self.assertContains(response, "10.10.10.10")
-        self.assertContains(response, "172.16.20.30")
-
     def test_shaqodoon(self):
         Channel.objects.all().delete()
 
@@ -2963,6 +2869,29 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(channel.config_json()['api_url'], "http://custom.api.url")
         self.assertEquals(channel.channel_type, Channel.TYPE_VUMI_USSD)
         self.assertEquals(channel.role, Channel.ROLE_USSD)
+
+    def test_claim_vumi_ussd_custom_api_short_code(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        response = self.client.get(reverse('channels.channel_claim_vumi_ussd'))
+        self.assertEquals(200, response.status_code)
+
+        post_data = {
+            "country": "ZA",
+            "number": "8080",
+            "account_key": "account1",
+            "conversation_key": "conversation1",
+            "api_url": "http://custom.api.url"
+        }
+
+        response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertTrue(uuid.UUID(channel.config_json()['access_token'], version=4))
+        self.assertEquals(channel.country, post_data['country'])
+        self.assertEquals(channel.address, post_data['number'])
 
     @override_settings(SEND_EMAILS=True)
     def test_disconnected_alert(self):
@@ -6495,6 +6424,10 @@ class TwilioTest(TembaTest):
                                               APPLICATION_SID: self.application_sid})
         self.channel.org.save()
 
+        self.channel.config = json.dumps(dict(auth_token=self.account_token,
+                                              account_sid=self.account_sid))
+        self.channel.save()
+
         response = self.signed_request(twilio_url + "?action=callback&id=%d" % msg.id, post_data)
         self.assertEqual(response.status_code, 200)
 
@@ -6537,7 +6470,8 @@ class TwilioTest(TembaTest):
 
         send_url = "https://api.twilio.com"
 
-        self.channel.config = json.dumps({ACCOUNT_SID: self.account_sid, ACCOUNT_TOKEN: self.account_token,
+        self.channel.config = json.dumps({Channel.CONFIG_ACCOUNT_SID: self.account_sid,
+                                          Channel.CONFIG_AUTH_TOKEN: self.account_token,
                                           Channel.CONFIG_SEND_URL: send_url})
         self.channel.save()
 
@@ -6576,7 +6510,7 @@ class TwilioTest(TembaTest):
 
         with self.settings(SEND_MESSAGES=True):
             with patch('twilio.rest.resources.base.make_request') as mock:
-                for channel_type in ['T', 'TMS']:
+                for channel_type in ['T', 'TMS', 'TW']:
                     ChannelLog.objects.all().delete()
                     Msg.objects.all().delete()
 
@@ -6587,6 +6521,10 @@ class TwilioTest(TembaTest):
                         self.channel.config = json.dumps(dict(messaging_service_sid="MSG-SERVICE-SID",
                                                               auth_token='twilio_token',
                                                               account_sid='twilio_sid'))
+                    elif channel_type == 'TW':
+                        self.channel.config = json.dumps({Channel.CONFIG_SEND_URL: 'https://api.twilio.com',
+                                                          Channel.CONFIG_ACCOUNT_SID: 'twilio_sid',
+                                                          Channel.CONFIG_AUTH_TOKEN: 'twilio_token'})
                     self.channel.save()
 
                     mock.return_value = MockResponse(200, '{ "account_sid": "ac1232", "sid": "12345"}')
@@ -6604,7 +6542,9 @@ class TwilioTest(TembaTest):
                     self.clear_cache()
 
                     # handle the status callback
-                    callback_url = Channel.build_twilio_callback_url(self.channel.uuid, msg.id)
+                    callback_url = Channel.build_twilio_callback_url(channel_type, self.channel.uuid, msg.id)
+
+                    self.assertTrue(callback_url.find("c/%s/%s/status" % (channel_type.lower(), self.channel.uuid)) >= 0)
 
                     client = self.org.get_twilio_client()
                     validator = RequestValidator(client.auth[1])
@@ -6616,6 +6556,32 @@ class TwilioTest(TembaTest):
                     self.assertEquals(response.status_code, 200)
                     msg.refresh_from_db()
                     self.assertEquals(msg.status, DELIVERED)
+
+                    msg.status = WIRED
+                    msg.save()
+
+                    validator = RequestValidator(client.auth[1])
+                    post_data = dict(SmsStatus='sent', To='+250788383383')
+                    signature = validator.compute_signature(callback_url, post_data)
+
+                    response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+                    self.assertEquals(response.status_code, 200)
+                    msg.refresh_from_db()
+                    self.assertEquals(msg.status, SENT)
+
+                    msg.status = WIRED
+                    msg.save()
+
+                    validator = RequestValidator(client.auth[1])
+                    post_data = dict(SmsStatus='failed', To='+250788383383')
+                    signature = validator.compute_signature(callback_url, post_data)
+
+                    response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+                    self.assertEquals(response.status_code, 200)
+                    msg.refresh_from_db()
+                    self.assertEquals(msg.status, FAILED)
 
                     msg.status = WIRED
                     msg.save()
@@ -6641,6 +6607,20 @@ class TwilioTest(TembaTest):
                     msg.refresh_from_db()
                     self.assertEquals(FAILED, msg.status)
                     self.assertTrue(Contact.objects.get(id=msg.contact_id))
+
+                    msg.channel = None
+                    msg.save()
+                    response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+                    self.assertEquals(response.status_code, 200)
+
+                    missing_sms_callback_url = Channel.build_twilio_callback_url(channel_type, self.channel.uuid, msg.id + 100)
+                    response = self.client.post(missing_sms_callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+                    self.assertEquals(response.status_code, 400)
+
+                    with patch('temba.orgs.models.Org.is_connected_to_twilio') as mock_connected_twilio:
+                        mock_connected_twilio.return_value = False
+                        response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+                        self.assertEquals(response.status_code, 400)
 
             # check that our channel log works as well
             self.login(self.admin)
@@ -6700,7 +6680,7 @@ class TwilioTest(TembaTest):
             self.clear_cache()
 
             # handle the status callback
-            callback_url = Channel.build_twilio_callback_url(self.channel.uuid, msg.id)
+            callback_url = Channel.build_twilio_callback_url(self.channel.channel_type, self.channel.uuid, msg.id)
 
             client = self.org.get_twilio_client()
             validator = RequestValidator(client.auth[1])
