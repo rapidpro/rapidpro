@@ -92,6 +92,9 @@ def get_channel_handlers():
 
 class TwimlAPIHandler(BaseChannelHandler):
 
+    courier_url = r'^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
+    courier_name = 'courier.tw'
+
     handler_url = r'^twiml_api/(?P<uuid>[a-z0-9\-]+)/?$'
     handler_name = 'handlers.twiml_api_handler'
 
@@ -207,9 +210,7 @@ class TwimlAPIHandler(BaseChannelHandler):
             # validate this request is coming from twilio
             org = sms.org
 
-            if self.get_channel_type() in [Channel.TYPE_TWILIO,
-                                           Channel.TYPE_TWIML,
-                                           Channel.TYPE_TWILIO_MESSAGING_SERVICE] and not org.is_connected_to_twilio():
+            if not org.is_connected_to_twilio():
                 return HttpResponse("No Twilio account is connected", status=400)
 
             channel = sms.channel
@@ -273,10 +274,7 @@ class TwimlAPIHandler(BaseChannelHandler):
         return Channel.objects.filter(uuid=uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
 
     def get_client(self, channel):
-        if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
-            return channel.org.get_twilio_client()
-        else:
-            return channel.get_ivr_client()
+        return channel.get_ivr_client()
 
     def get_channel_type(self):
         return Channel.TYPE_TWIML
@@ -296,7 +294,7 @@ class TwilioHandler(TwimlAPIHandler):
 
 class TwilioMessagingServiceHandler(BaseChannelHandler):
 
-    courier_url = r'^tms/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
+    courier_url = r'^tms/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$'
     courier_name = 'courier.tms'
 
     handler_url = r'^twilio_messaging_service/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
@@ -336,7 +334,48 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
 
             return HttpResponse("", status=201)
 
+        if action == 'status':
+            smsId = request.GET.get('id', None)
+            status = request.POST.get('SmsStatus', None)
+
+            # get the SMS
+            sms = Msg.objects.select_related('channel').filter(id=smsId).first()
+            if sms is None:
+                return HttpResponse("No message found with id: %s" % smsId, status=400)
+
+            # validate this request is coming from twilio
+            org = sms.org
+
+            if not org.is_connected_to_twilio():
+                return HttpResponse("No Twilio account is connected", status=400)
+
+            channel = sms.channel
+            if not channel:
+                channel = org.channels.filter(channel_type=self.get_channel_type()).first()
+
+            client = self.get_client(channel=channel)
+            validator = RequestValidator(client.auth[1])
+
+            if not validator.validate(url, request.POST, signature):  # pragma: needs cover
+                return HttpResponse("Invalid request signature.", status=400)
+
+            # queued, sending, sent, failed, or received.
+            if status == 'sent':
+                sms.status_sent()
+            elif status == 'delivered':
+                sms.status_delivered()
+            elif status == 'failed':
+                sms.status_fail()
+
+            return HttpResponse("", status=200)
+
         return HttpResponse("Not Handled, unknown action", status=400)  # pragma: no cover
+
+    def get_channel_type(self):
+        return 'TMS'
+
+    def get_client(self, channel):
+        return channel.org.get_twilio_client()
 
 
 class AfricasTalkingHandler(BaseChannelHandler):
@@ -879,7 +918,7 @@ class DartMediaHandler(Hub9Handler):
     handler_name = 'handlers.dartmedia_handler'
 
     def get_channel_type(self):
-        return Channel.TYPE_DARTMEDIA
+        return 'DA'
 
 
 class HighConnectionHandler(BaseChannelHandler):
@@ -896,7 +935,7 @@ class HighConnectionHandler(BaseChannelHandler):
         from temba.msgs.models import Msg
 
         channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_HIGH_CONNECTION).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='HX').exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
 
@@ -2577,9 +2616,7 @@ class FacebookHandler(BaseChannelHandler):
 
                     elif 'delivery' in envelope and 'mids' in envelope['delivery']:
                         for external_id in envelope['delivery']['mids']:
-                            msg = Msg.objects.filter(channel=channel,
-                                                     direction=OUTGOING,
-                                                     external_id=external_id).first()
+                            msg = Msg.objects.filter(channel=channel, external_id=external_id, direction=OUTGOING).first()
                             if msg:
                                 msg.status_delivered()
                                 status.append("Msg %d updated." % msg.id)
@@ -2628,7 +2665,7 @@ class GlobeHandler(BaseChannelHandler):
         request_uuid = kwargs['uuid']
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_GLOBE).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='GL').exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
@@ -2710,7 +2747,7 @@ class ViberHandler(BaseChannelHandler):
             # }
             external_id = body['message_token']
 
-            msg = Msg.objects.filter(channel=channel, direction='O', external_id=external_id).select_related('channel').first()
+            msg = Msg.objects.filter(channel=channel, external_id=external_id, direction=OUTGOING).select_related('channel').first()
             if not msg:
                 # viber is hammers us incessantly if we give 400s for non-existant message_ids
                 return HttpResponse("Message with external id of '%s' not found" % external_id)
@@ -2907,7 +2944,7 @@ class ViberPublicHandler(BaseChannelHandler):
             #    "message_token": 4912661846655238145,
             #    "user_id": "01234567890A="
             # }
-            msg = Msg.objects.filter(channel=channel, direction='O', external_id=body['message_token']).select_related('channel').first()
+            msg = Msg.objects.filter(channel=channel, direction=OUTGOING, external_id=body['message_token']).select_related('channel').first()
             if not msg:
                 return HttpResponse("Message with external id of '%s' not found" % body['message_token'])
 

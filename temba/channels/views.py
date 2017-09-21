@@ -32,7 +32,7 @@ from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, 
 from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
-from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
+from temba.orgs.models import Org, ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin, AnonMixin
 from temba.channels.models import ChannelSession
 from temba.utils import analytics
@@ -917,10 +917,10 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_android', 'claim_chikka', 'configuration',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender',
                'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
-               'claim_verboice', 'claim_plivo', 'search_plivo', 'claim_high_connection',
+               'claim_verboice', 'claim_plivo', 'search_plivo',
                'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
-               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_globe',
-               'claim_twiml_api', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
+               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox',
+               'claim_twiml_api', 'claim_junebug', 'facebook_whitelist',
                'claim_red_rabbit', 'claim_macrokiosk')
     permissions = True
 
@@ -1583,7 +1583,7 @@ class ChannelCRUDL(SmartCRUDL):
             password = forms.CharField(label=_("Password"),
                                        help_text=_("The password provided by the provider to use their API"))
 
-            def clean_number(self):
+            def clean_number(self):  # pragma: no cover
                 number = self.data['number']
 
                 # number is a shortcode, accept as is
@@ -1798,43 +1798,6 @@ class ChannelCRUDL(SmartCRUDL):
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
-    class ClaimGlobe(ClaimAuthenticatedExternal):
-        class GlobeClaimForm(forms.Form):
-            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The shortcode you have been assigned by Globe Labs "
-                                                 "ex: 15543"))
-            app_id = forms.CharField(label=_("Application Id"),
-                                     help_text=_("The id of your Globe Labs application"))
-            app_secret = forms.CharField(label=_("Application Secret"),
-                                         help_text=_("The secret assigned to your Globe Labs application"))
-            passphrase = forms.CharField(label=_("Passphrase"),
-                                         help_text=_("The passphrase assigned to you by Globe Labs to support sending"))
-
-        title = _("Connect Globe")
-        template_name = 'channels/channel_claim_globe.html'
-        channel_type = Channel.TYPE_GLOBE
-        form_class = GlobeClaimForm
-        fields = ('number', 'app_id', 'app_secret', 'passphrase')
-
-        def get_submitted_country(self, data):  # pragma: needs cover
-            return 'PH'
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-
-            if not org:  # pragma: no cover
-                raise Exception(_("No org for this user, cannot claim"))
-
-            data = form.cleaned_data
-            self.object = Channel.add_config_external_channel(org, self.request.user,
-                                                              'PH', data['number'], Channel.TYPE_GLOBE,
-                                                              dict(app_id=data['app_id'],
-                                                                   app_secret=data['app_secret'],
-                                                                   passphrase=data['passphrase']),
-                                                              role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
-
-            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
     class ClaimHub9(ClaimAuthenticatedExternal):
         title = _("Connect Hub9")
         channel_type = Channel.TYPE_HUB9
@@ -1845,21 +1808,6 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_submitted_country(self, data):  # pragma: needs cover
             return "ID"
-
-    class ClaimDartMedia(ClaimAuthenticatedExternal):
-        title = _("Connect Dart Media")
-        channel_type = Channel.TYPE_DARTMEDIA
-        readonly = ('country',)
-
-        def get_country(self, obj):
-            return "Indonesia"
-
-        def get_submitted_country(self, data):
-            return "ID"
-
-    class ClaimHighConnection(ClaimAuthenticatedExternal):
-        title = _("Claim High Connection")
-        channel_type = Channel.TYPE_HIGH_CONNECTION
 
     class ClaimShaqodoon(ClaimAuthenticatedExternal):
         class ShaqodoonForm(forms.Form):
@@ -2021,8 +1969,8 @@ class ChannelCRUDL(SmartCRUDL):
             role = data.get('role')
 
             config = {Channel.CONFIG_SEND_URL: url,
-                      ACCOUNT_SID: data.get('account_sid', None),
-                      ACCOUNT_TOKEN: data.get('account_token', None)}
+                      Channel.CONFIG_ACCOUNT_SID: data.get('account_sid', None),
+                      Channel.CONFIG_AUTH_TOKEN: data.get('account_token', None)}
 
             is_short_code = len(number) <= 6
 
@@ -2035,11 +1983,11 @@ class ChannelCRUDL(SmartCRUDL):
             # if they didn't set a username or password, generate them, we do this after the addition above
             # because we use the channel id in the configuration
             config = self.object.config_json()
-            if not config.get(ACCOUNT_SID, None):  # pragma: needs cover
-                config[ACCOUNT_SID] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
+            if not config.get(Channel.CONFIG_ACCOUNT_SID, None):  # pragma: needs cover
+                config[Channel.CONFIG_ACCOUNT_SID] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
 
-            if not config.get(ACCOUNT_TOKEN, None):  # pragma: needs cover
-                config[ACCOUNT_TOKEN] = str(uuid4())
+            if not config.get(Channel.CONFIG_AUTH_TOKEN, None):  # pragma: needs cover
+                config[Channel.CONFIG_AUTH_TOKEN] = str(uuid4())
 
             self.object.config = json.dumps(config)
             self.object.save()

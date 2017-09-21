@@ -359,6 +359,34 @@ class FlowTest(TembaTest):
         self.assertContains(response, 'Stop Notifications')
         self.assertContains(response, 'Appointment Followup')
 
+    def test_flow_archive_with_campaign(self):
+        self.login(self.admin)
+        self.get_flow('the_clinic')
+
+        from temba.campaigns.models import Campaign
+        campaign = Campaign.objects.filter(name='Appointment Schedule').first()
+        self.assertIsNotNone(campaign)
+        flow = Flow.objects.filter(name="Confirm Appointment").first()
+        self.assertIsNotNone(flow)
+
+        # do not archive if the campaign is active
+        changed = Flow.apply_action_archive(self.admin, Flow.objects.filter(pk=flow.pk))
+        self.assertFalse(changed)
+
+        flow.refresh_from_db()
+        self.assertFalse(flow.is_archived)
+
+        campaign.is_archived = True
+        campaign.save()
+
+        # can archive if the campaign is archived
+        changed = Flow.apply_action_archive(self.admin, Flow.objects.filter(pk=flow.pk))
+        self.assertTrue(changed)
+        self.assertEqual(changed, [flow.pk])
+
+        flow.refresh_from_db()
+        self.assertTrue(flow.is_archived)
+
     def test_flows_select2(self):
         self.login(self.admin)
 
@@ -4169,6 +4197,20 @@ class WebhookTest(TembaTest):
             self.assertIsNone(match)
             self.assertIsNone(value)
             self.assertEquals("1001", incoming.text)
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(400, '{ "text": "Valid", "error": "400", "message": "Missing field in request" }')
+            rule_step.run.fields = None
+            rule_step.run.save()
+
+            (match, value) = webhook.find_matching_rule(webhook_step, run, incoming)
+            (match, value) = rules.find_matching_rule(rule_step, run, incoming)
+            self.assertEquals(valid_uuid, match.uuid)
+            self.assertEquals("Valid", value)
+            self.assertEquals(dict(text="Valid", error="400", message="Missing field in request"), run.field_dict())
+
+            message_context = self.flow.build_expressions_context(self.contact, incoming)
+            self.assertEquals(dict(text="Valid", error="400", message="Missing field in request"), message_context['extra'])
 
     def test_resthook(self):
         self.contact = self.create_contact("Macklemore", "+12067799294")
