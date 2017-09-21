@@ -32,7 +32,7 @@ from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, 
 from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
-from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
+from temba.orgs.models import Org, ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin, AnonMixin
 from temba.channels.models import ChannelSession
 from temba.utils import analytics
@@ -1983,10 +1983,10 @@ class ChannelCRUDL(SmartCRUDL):
             # if they didn't set a username or password, generate them, we do this after the addition above
             # because we use the channel id in the configuration
             config = self.object.config_json()
-            if not config.get(ACCOUNT_SID, None):  # pragma: needs cover
+            if not config.get(Channel.CONFIG_ACCOUNT_SID, None):  # pragma: needs cover
                 config[Channel.CONFIG_ACCOUNT_SID] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
 
-            if not config.get(ACCOUNT_TOKEN, None):  # pragma: needs cover
+            if not config.get(Channel.CONFIG_AUTH_TOKEN, None):  # pragma: needs cover
                 config[Channel.CONFIG_AUTH_TOKEN] = str(uuid4())
 
             self.object.config = json.dumps(config)
