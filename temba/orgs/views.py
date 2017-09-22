@@ -43,7 +43,8 @@ from temba.utils import analytics, languages
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.email import is_valid_address
 from twilio.rest import TwilioRestClient
-from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials
+from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials, ACCOUNT_SID, \
+    ACCOUNT_TOKEN
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
 from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
 from .models import TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_LOGIN, SMTP_FROM_EMAIL
@@ -2259,8 +2260,8 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super(OrgCRUDL.TwilioAccount, self).derive_initial()
             config = json.loads(self.object.config)
-            initial['account_sid'] = config['ACCOUNT_SID']
-            initial['account_token'] = config['ACCOUNT_TOKEN']
+            initial['account_sid'] = config[ACCOUNT_SID]
+            initial['account_token'] = config[ACCOUNT_TOKEN]
             initial['disconnect'] = 'false'
             return initial
 

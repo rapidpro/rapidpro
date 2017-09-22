@@ -168,7 +168,6 @@ class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_CHIKKA = 'CK'
     TYPE_DUMMY = 'DM'
-    TYPE_GLOBE = 'GL'
     TYPE_JASMIN = 'JS'
     TYPE_JUNEBUG = 'JN'
     TYPE_JUNEBUG_USSD = 'JNU'
@@ -895,13 +894,12 @@ class Channel(TembaModel):
 
     def get_twiml_client(self):
         from temba.ivr.clients import TwilioClient
-        from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
 
         config = self.config_json()
 
         if config:
-            account_sid = config.get(ACCOUNT_SID, None)
-            auth_token = config.get(ACCOUNT_TOKEN, None)
+            account_sid = config.get(Channel.CONFIG_ACCOUNT_SID, None)
+            auth_token = config.get(Channel.CONFIG_AUTH_TOKEN, None)
             base = config.get(Channel.CONFIG_SEND_URL, None)
 
             if account_sid and auth_token:
@@ -2093,7 +2091,7 @@ class Channel(TembaModel):
         from temba.msgs.models import Attachment, WIRED
         from temba.utils.twilio import TembaTwilioRestClient
 
-        callback_url = Channel.build_twilio_callback_url(channel.uuid, msg.id)
+        callback_url = Channel.build_twilio_callback_url(channel.channel_type, channel.uuid, msg.id)
 
         start = time.time()
         media_urls = []
@@ -2426,8 +2424,14 @@ class Channel(TembaModel):
             analytics.gauge('temba.channel_%s_%s' % (status.lower(), channel.channel_type.lower()))
 
     @classmethod
-    def build_twilio_callback_url(cls, channel_uuid, sms_id):
-        url = reverse('courier.t', args=[channel_uuid, 'status'])
+    def build_twilio_callback_url(cls, channel_type, channel_uuid, sms_id):
+        if channel_type == 'T':
+            url = reverse('courier.t', args=[channel_uuid, 'status'])
+        elif channel_type == 'TMS':
+            url = reverse('courier.tms', args=[channel_uuid, 'status'])
+        elif channel_type == 'TW':
+            url = reverse('courier.tw', args=[channel_uuid, 'status'])
+
         url = "https://" + settings.TEMBA_HOST + url + "?action=callback&id=%d" % sms_id
         return url
 
