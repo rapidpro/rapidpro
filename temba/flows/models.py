@@ -6632,11 +6632,7 @@ class NumericTest(Test):
             # we only try this hard if we haven't already substituted characters
             if original_word == word:
                 # does this start with a number?  just use that part if so
-                match = regex.match(r"^(\d+).*$", word, regex.UNICODE | regex.V0)
-
-                if not match:
-                    # does this end with a number?  just use that part if so
-                    match = regex.match(r"^\D*(\d+)$", word, regex.UNICODE | regex.V0)
+                match = regex.match(r"^[$£€]?(\d[\d,\.]*([\.,]\d+)?)°?[CFM]?\D*$", word, regex.UNICODE | regex.V0)
 
                 if match:
                     return (match.group(1), Decimal(match.group(1)))

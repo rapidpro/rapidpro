@@ -1681,8 +1681,22 @@ class FlowTest(TembaTest):
         sms.text = "$250"
         self.assertTest(True, Decimal("250"), test)
 
-        # phone tests
+        sms.text = "Where is my £5,656.56?"
+        self.assertTest(True, Decimal("5656.56"), test)
 
+        sms.text = "Very hot in here, temp at 38°c"
+        self.assertTest(True, Decimal("38"), test)
+
+        sms.text = "This is aw350me"
+        self.assertTest(False, None, test)
+
+        sms.text = "random typing 12333xg333"
+        self.assertTest(False, None, test)
+
+        sms.text = ",34"
+        self.assertTest(True, Decimal("34"), test)
+
+        # phone tests
         test = PhoneTest()
         sms.text = "My phone number is 0788 383 383"
         self.assertTest(True, "+250788383383", test)
