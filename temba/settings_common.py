@@ -1118,6 +1118,8 @@ CHANNEL_TYPES = [
     'temba.channels.types.external.ExternalType',
     'temba.channels.types.facebook.FacebookType',
     'temba.channels.types.firebase.FirebaseCloudMessagingType',
+    'temba.channels.types.globe.GlobeType',
+    'temba.channels.types.highconnection.HighConnectionType',
     'temba.channels.types.infobip.InfobipType',
     'temba.channels.types.jiochat.JioChatType',
     'temba.channels.types.line.LineType',
