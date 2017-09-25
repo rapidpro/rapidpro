@@ -47,6 +47,10 @@ class TelegramType(ChannelType):
         bot.delete_webhook()
 
     def send(self, channel, msg, text):
+        print type(channel)
+        this_org = Org.objects.get(id=channel.org)
+        print this_org.use_customize
+
         auth_token = channel.config['auth_token']
         send_url = 'https://api.telegram.org/bot%s/sendMessage' % auth_token
         post_body = {'chat_id': msg.urn_path, 'text': text}

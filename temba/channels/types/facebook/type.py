@@ -57,49 +57,52 @@ class FacebookType(ChannelType):
         payload = {'message': {'text': text}}
         ###################### MX ABIERTO   ######################
         # Parse options like "1.- .. 2.- "
-        t = text
-        text = re.compile("\([0-9]+-[0-9]\)").split(t)[0]
-        end = [(m.end(0)) for m in re.finditer("[0-9]+[:\.\)](-)?", text)]
-        start = [(m.start(0)) for m in re.finditer("[0-9]+[:\.\)](-)?", text)]
-        start.append(len(text))
-        if end and start:
-            title = text[0:start[0]].strip()
-            options = [text[s:e].strip()
-                        for s,e in zip(end,start[1:])
-                          if text[s:e].strip()]
-            valid_items = len(options)
-            numbers = [re.sub("\D", "",text[s:e].strip())
-                         for s,e in zip(start[:valid_items], end[:valid_items])]
-            #### Maybe last element has explanation not necesary now
-            options[-1] = re.compile("([\(\.]+)").split(options[-1])[0]
-            #If all options has lenght less than 20, send like list option
-            if (len(max(options, key=len)) <= 20):
-                elements = [ {"type":"postback",  "title":o, "payload":n }
-                             for o, n in zip(options, numbers) if o]
-                payload = {"message":
-                              {"attachment":
-                                {"type":"template",
-                                  "payload":{
-                                    "template_type":"generic",
-                                    "elements": {
-                                    "title":title,
-                                    "subtitle":"",
-                                    "buttons": elements,
-                            }}}}}
-            #If is too large, only send number like options
-            else:
-                elements = [{"content_type":"text",  "title":n, "payload":n}
-                            for n,o in zip(numbers,options) if o]
+        print type(channel)
+        this_org = Org.objects.get(id=channel.org)
+        if this_org.use_customize:
+            t = text
+            text = re.compile("\([0-9]+-[0-9]\)").split(t)[0]
+            end = [(m.end(0)) for m in re.finditer("[0-9]+[:\.\)](-)?", text)]
+            start = [(m.start(0)) for m in re.finditer("[0-9]+[:\.\)](-)?", text)]
+            start.append(len(text))
+            if end and start:
+                title = text[0:start[0]].strip()
+                options = [text[s:e].strip()
+                            for s,e in zip(end,start[1:])
+                              if text[s:e].strip()]
+                valid_items = len(options)
+                numbers = [re.sub("\D", "",text[s:e].strip())
+                             for s,e in zip(start[:valid_items], end[:valid_items])]
+                #### Maybe last element has explanation not necesary now
+                options[-1] = re.compile("([\(\.]+)").split(options[-1])[0]
+                #If all options has lenght less than 20, send like list option
+                if (len(max(options, key=len)) <= 20):
+                    elements = [ {"type":"postback",  "title":o, "payload":n }
+                                 for o, n in zip(options, numbers) if o]
+                    payload = {"message":
+                                  {"attachment":
+                                    {"type":"template",
+                                      "payload":{
+                                        "template_type":"generic",
+                                        "elements": {
+                                        "title":title,
+                                        "subtitle":"",
+                                        "buttons": elements,
+                                }}}}}
+                #If is too large, only send number like options
+                else:
+                    elements = [{"content_type":"text",  "title":n, "payload":n}
+                                for n,o in zip(numbers,options) if o]
+                    payload = {'message': {'text': title,'quick_replies' : elements}}
+            # Parse yes/no
+            # If last item is (Si/No) or Si/No
+            has_yesno = re.findall("Si/No",(t.split()[-1]))
+            if has_yesno:
+                title = ' '.join(t.split()[:-1])
+                elements = [{"content_type":"text",  "title":"Si", "payload":"Si"},
+                            {"content_type":"text",  "title":"No", "payload":"No"}]
                 payload = {'message': {'text': title,'quick_replies' : elements}}
-        # Parse yes/no
-        # If last item is (Si/No) or Si/No
-        has_yesno = re.findall("Si/No",(t.split()[-1]))
-        if has_yesno:
-            title = ' '.join(t.split()[:-1])
-            elements = [{"content_type":"text",  "title":"Si", "payload":"Si"},
-                        {"content_type":"text",  "title":"No", "payload":"No"}]
-            payload = {'message': {'text': title,'quick_replies' : elements}}
-        # this is a ref facebook id, temporary just for this message
+            # this is a ref facebook id, temporary just for this message
         if URN.is_path_fb_ref(msg.urn_path):
             payload['recipient'] = dict(user_ref=URN.fb_ref_from_path(msg.urn_path))
         else:
