@@ -786,8 +786,6 @@ class Msg(models.Model):
                         # only be low priority if no priority has been set for this task group
                         if msg.bulk_priority and task_priority is None:
                             task_priority = LOW_PRIORITY
-                        else:
-                            task_priority = HIGH_PRIORITY
 
                         task_msgs.append(task)
                         last_contact = msg.contact_id
@@ -813,7 +811,7 @@ class Msg(models.Model):
                 # push any remaining courier msgs
                 if task_msgs:
                     courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs,
-                                                is_bulk=msg.bulk_priority))
+                                                is_bulk=task_msgs[0].bulk_priority))
 
         # send our batches
         on_transaction_commit(lambda: cls._send_rapid_msg_batches(rapid_batches))
@@ -1510,7 +1508,7 @@ class Msg(models.Model):
         if response_to:
             msg_type = response_to.msg_type
 
-        # if bulk priority has been explicitly set, then it depends on whether this is a reply to an incoming message
+        # if bulk priority has not been explicitly set, then it depends on whether this is a reply
         if bulk_priority is None:
             bulk_priority = not response_to
 
