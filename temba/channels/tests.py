@@ -11343,9 +11343,9 @@ class CourierTest(TembaTest):
             # create some outgoing messages for our channel
             msg1 = Msg.create_outgoing(self.org, self.admin, 'telegram:1', "Outgoing 1")
             msg2 = Msg.create_outgoing(self.org, self.admin, 'telegram:2', "Outgoing 2", response_to=incoming)
-            msg3 = Msg.create_outgoing(self.org, self.admin, 'telegram:3', "Outgoing 3", bulk_priority=True)
-            msg4 = Msg.create_outgoing(self.org, self.admin, 'telegram:4', "Outgoing 4", bulk_priority=False)
-            msg5 = Msg.create_outgoing(self.org, self.admin, 'telegram:4', "Outgoing 5", bulk_priority=False)
+            msg3 = Msg.create_outgoing(self.org, self.admin, 'telegram:3', "Outgoing 3", high_priority=False)
+            msg4 = Msg.create_outgoing(self.org, self.admin, 'telegram:4', "Outgoing 4", high_priority=True)
+            msg5 = Msg.create_outgoing(self.org, self.admin, 'telegram:4', "Outgoing 5", high_priority=True)
             all_msgs = [msg1, msg2, msg3, msg4, msg5]
 
             Msg.send_messages(all_msgs)
@@ -11355,11 +11355,11 @@ class CourierTest(TembaTest):
                 msg.refresh_from_db()
                 self.assertEqual(msg.status, QUEUED)
 
-            self.assertTrue(msg1.bulk_priority)
-            self.assertFalse(msg2.bulk_priority)  # is a response
-            self.assertTrue(msg3.bulk_priority)
-            self.assertFalse(msg4.bulk_priority)  # explicitly not bulk
-            self.assertFalse(msg5.bulk_priority)
+            self.assertFalse(msg1.high_priority)
+            self.assertTrue(msg2.high_priority)  # is a response
+            self.assertFalse(msg3.high_priority)
+            self.assertTrue(msg4.high_priority)  # explicitly high
+            self.assertTrue(msg5.high_priority)
 
             # TODO remove numeric priority
             self.assertEqual(msg1.priority, 100)
@@ -11377,11 +11377,11 @@ class CourierTest(TembaTest):
             self.assertEqual(0, r.zrank("msgs:active", queue_name))
 
             # check that messages went into the correct queues
-            def_priority_msgs = [json.loads(t) for t in r.zrange(queue_name + "/1", 0, -1)]
-            bulk_priority_msgs = [json.loads(t) for t in r.zrange(queue_name + "/0", 0, -1)]
+            high_priority_msgs = [json.loads(t) for t in r.zrange(queue_name + "/1", 0, -1)]
+            low_priority_msgs = [json.loads(t) for t in r.zrange(queue_name + "/0", 0, -1)]
 
-            self.assertEqual([[m['text'] for m in b] for b in def_priority_msgs], [["Outgoing 2"], ["Outgoing 4", "Outgoing 5"]])
-            self.assertEqual([[m['text'] for m in b] for b in bulk_priority_msgs], [["Outgoing 1"], ["Outgoing 3"]])
+            self.assertEqual([[m['text'] for m in b] for b in high_priority_msgs], [["Outgoing 2"], ["Outgoing 4", "Outgoing 5"]])
+            self.assertEqual([[m['text'] for m in b] for b in low_priority_msgs], [["Outgoing 1"], ["Outgoing 3"]])
 
 
 class HandleEventTest(TembaTest):

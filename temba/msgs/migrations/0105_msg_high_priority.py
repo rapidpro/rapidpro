@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='msg',
-            name='bulk_priority',
-            field=models.NullBooleanField(help_text='The priority for this message to be sent, higher is higher priority'),
+            name='high_priority',
+            field=models.NullBooleanField(help_text='Give this message higher priority than other messages'),
         ),
     ]

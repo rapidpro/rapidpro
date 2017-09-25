@@ -1836,9 +1836,9 @@ class ScheduleTest(TembaTest):
         # create our messages, but don't sync
         broadcast.send(trigger_send=False)
 
-        # get one of our messages, should be at bulk priority since it was to more than one recipient
+        # get one of our messages, should be at low priority since it was to more than one recipient
         sms = broadcast.get_messages()[0]
-        self.assertTrue(sms.bulk_priority)
+        self.assertFalse(sms.high_priority)
 
         # we should now have 11 messages pending
         self.assertEquals(11, Msg.objects.filter(channel=self.channel, status=PENDING).count())
