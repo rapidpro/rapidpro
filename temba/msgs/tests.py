@@ -1820,11 +1820,7 @@ class ScheduleTest(TembaTest):
         channel_models.SEND_QUEUE_DEPTH = 500
         channel_models.SEND_BATCH_SIZE = 100
 
-        Broadcast.BULK_THRESHOLD = 50
-
     def test_batch(self):
-        Broadcast.BULK_THRESHOLD = 10
-
         # broadcast out to 11 contacts to test our batching
         contacts = []
         for i in range(1, 12):
@@ -1840,9 +1836,9 @@ class ScheduleTest(TembaTest):
         # create our messages, but don't sync
         broadcast.send(trigger_send=False)
 
-        # get one of our messages, should be at bulk priority since it was in a broadcast over our bulk threshold
+        # get one of our messages, should be at bulk priority since it was to more than one recipient
         sms = broadcast.get_messages()[0]
-        self.assertEqual(sms.priority, Msg.PRIORITY_BULK)
+        self.assertTrue(sms.bulk_priority)
 
         # we should now have 11 messages pending
         self.assertEquals(11, Msg.objects.filter(channel=self.channel, status=PENDING).count())

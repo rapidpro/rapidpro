@@ -11339,7 +11339,7 @@ class CourierTest(TembaTest):
 
             # create some outgoing messages for our channel
             msg1 = Msg.create_outgoing(self.org, self.admin, 'telegram:1', "Outgoing message 1")
-            msg2 = Msg.create_outgoing(self.org, self.admin, 'telegram:2', "Outgoing message 2", priority=Msg.PRIORITY_BULK)
+            msg2 = Msg.create_outgoing(self.org, self.admin, 'telegram:2', "Outgoing message 2", bulk_priority=True)
             Msg.send_messages([msg1, msg2])
 
             # we should have been queued to our courier queues and our msg should be marked as such

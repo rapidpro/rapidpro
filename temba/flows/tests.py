@@ -554,8 +554,8 @@ class FlowTest(TembaTest):
         self.assertEquals(self.contact, reply.contact)
         self.assertEquals("I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange", reply.text)
 
-        # should be high priority
-        self.assertEqual(reply.priority, Msg.PRIORITY_HIGH)
+        # shouldn't be bulk priority as this is a reply
+        self.assertFalse(reply.bulk_priority)
 
         # our previous state should be executed
         step = FlowStep.objects.get(run__contact=self.contact, pk=step.id)
