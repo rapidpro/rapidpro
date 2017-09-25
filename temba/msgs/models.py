@@ -763,7 +763,7 @@ class Msg(models.Model):
                 # now push each onto our queue
                 for msg in msgs:
                     # TODO remove numeric priority from msg JSON
-                    if not hasattr(msg, 'bulk_priority'):
+                    if not hasattr(msg, 'bulk_priority') and hasattr(msg, 'priority'):  # pragma: no cover
                         msg.bulk_priority = msg.priority < 500
 
                     if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and msg.topup and not msg.contact.is_test:
