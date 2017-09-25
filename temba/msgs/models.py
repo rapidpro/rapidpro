@@ -801,7 +801,7 @@ class Msg(models.Model):
                 for msg in courier_msgs:
                     if task_msgs and (last_contact != msg.contact_id or last_channel != msg.channel_id):
                         courier_batches.append(dict(channel=task_msgs[0].channel, msgs=task_msgs,
-                                                    is_bulk=msg.bulk_priority))
+                                                    is_bulk=task_msgs[0].bulk_priority))
                         task_msgs = []
 
                     last_contact = msg.contact_id
