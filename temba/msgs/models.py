@@ -828,7 +828,7 @@ class Msg(models.Model):
     def _send_courier_msg_batches(cls, batches):
         for batch in batches:
             high_priority = batch.get('high_priority')
-            if high_priority is None:
+            if high_priority is None:  # pragma: no cover
                 # TODO remove
                 high_priority = not batch['is_bulk']
 
