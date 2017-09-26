@@ -652,7 +652,7 @@ class Flow(TembaModel):
                             Flow.should_close_connection(run, destination, result.get('destination')):
 
                         end_message = Msg.create_outgoing(msg.org, get_flow_user(msg.org), msg.contact, '',
-                                                          channel=msg.channel, priority=Msg.PRIORITY_HIGH,
+                                                          channel=msg.channel,
                                                           connection=msg.connection, response_to=msg if msg.id else None)
 
                         end_message.connection.mark_ending()
