@@ -49,7 +49,8 @@ def msg_as_task(msg):
                     status=msg.status,
                     direction=msg.direction,
                     text=msg.text,
-                    priority=500,  # TODO remove this from courier side as it isn't used
+                    high_priority=msg.high_priority,
+                    priority=500 if msg.high_priority else 100,  # TODO remove this from courier side
                     urn=msg.contact_urn.urn,
                     error_count=msg.error_count,
                     attachments=msg.attachments,
