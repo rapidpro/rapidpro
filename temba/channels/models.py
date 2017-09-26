@@ -2241,9 +2241,8 @@ class Channel(TembaModel):
         # only SMS'es that have a topup and aren't the test contact
         pending = pending.exclude(topup=None).exclude(contact__is_test=True)
 
-        # order then first by priority, then date
-        pending = pending.order_by('-priority', 'created_on')
-        return pending
+        # order by date created
+        return pending.order_by('created_on')
 
     @classmethod
     def send_message(cls, msg):  # pragma: no cover
