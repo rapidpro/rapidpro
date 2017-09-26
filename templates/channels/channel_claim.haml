@@ -123,28 +123,6 @@
                   If you are based in the Phillipines, you can integrate {{ brand }} with Chikka to send
                   and receive messages on your shortcode.
 
-    -if org_timezone == 'Asia/Jakarta'
-      .claim-row.hub9-channel{class:"{% if recommended_channel == 'H9' %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans with "<a href='http://www.hub9.biz'>" as link_start and "</a>" as link_end
-            We recommend using a Hub9 phone number in Indonesia, please visit {{link_start}}http://www.hub9.biz{{link_end}} for details.
-
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_hub9' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Hub9 Number"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Easily add a two way number you have configured with Hub9 in Indonesia.
-
     -if not user_org.is_connected_to_twilio
       .claim-row.twilio-channel{class:"{% if recommended_channel == 'T' %}recommended{% endif %}"}
         .recommendation.hide
@@ -297,22 +275,6 @@
               -blocktrans
                 Connect your <a href="http://www.kannel.org/" target="_blank">Kannel</a> instance, we'll walk you through
                 the steps necessary to get your SMSC connection working in a few minutes.
-
-    .claim-row.jasmin-channel
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_jasmin' %}"}
-            .btn-container
-              .claim-glyph.icon-channel-external
-              %p.claim-text
-                -trans "Jasmin"
-
-        .span9
-          .claim-description
-            %div
-              -blocktrans
-                Connect your <a href="http://www.jasminsms.com/" target="_blank">Jasmin</a> instance that you have
-                already connected to an SMSC.
 
     .claim-row.junebug-channel
       .row

@@ -1881,7 +1881,7 @@ class Contact(TembaModel):
         msgs = []
         for recipient in recipients:
             try:
-                msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH,
+                msg = Msg.create_outgoing(self.org, user, recipient, text,
                                           response_to=response_to, message_context=message_context, connection=connection,
                                           attachments=attachments, msg_type=msg_type or INBOX, status=status,
                                           created_on=created_on)

@@ -6,7 +6,6 @@ import phonenumbers
 import plivo
 import regex
 import requests
-import re
 import six
 import time
 import urlparse
@@ -168,8 +167,6 @@ class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_CHIKKA = 'CK'
     TYPE_DUMMY = 'DM'
-    TYPE_HUB9 = 'H9'
-    TYPE_JASMIN = 'JS'
     TYPE_JUNEBUG = 'JN'
     TYPE_JUNEBUG_USSD = 'JNU'
     TYPE_KANNEL = 'KN'
@@ -274,8 +271,6 @@ class Channel(TembaModel):
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
-        TYPE_HUB9: dict(schemes=['tel'], max_length=1600),
-        TYPE_JASMIN: dict(schemes=['tel'], max_length=1600),
         TYPE_JUNEBUG: dict(schemes=['tel'], max_length=1600),
         TYPE_JUNEBUG_USSD: dict(schemes=['tel'], max_length=1600),
         TYPE_KANNEL: dict(schemes=['tel'], max_length=1600),
@@ -302,8 +297,6 @@ class Channel(TembaModel):
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
                     (TYPE_CHIKKA, "Chikka"),
                     (TYPE_DUMMY, "Dummy"),
-                    (TYPE_HUB9, "Hub9"),
-                    (TYPE_JASMIN, "Jasmin"),
                     (TYPE_JUNEBUG, "Junebug"),
                     (TYPE_JUNEBUG_USSD, "Junebug USSD"),
                     (TYPE_KANNEL, "Kannel"),
@@ -1360,59 +1353,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_jasmin_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-        from temba.utils import gsm7
-
-        # build our callback dlr url, jasmin will call this when our message is sent or delivered
-        dlr_url = 'https://%s%s' % (settings.HOSTNAME, reverse('courier.js', args=[channel.uuid, 'status']))
-
-        # encode to GSM7
-        encoded = gsm7.encode(text, 'replace')[0]
-
-        # build our payload
-        payload = dict()
-        payload['from'] = channel.address.lstrip('+')
-        payload['to'] = msg.urn_path.lstrip('+')
-        payload['username'] = channel.config[Channel.CONFIG_USERNAME]
-        payload['password'] = channel.config[Channel.CONFIG_PASSWORD]
-        payload['dlr'] = dlr_url
-        payload['dlr-level'] = '2'
-        payload['dlr-method'] = 'POST'
-        payload['coding'] = '0'
-        payload['content'] = encoded
-
-        log_payload = payload.copy()
-        log_payload['password'] = 'x' * len(log_payload['password'])
-
-        log_url = channel.config[Channel.CONFIG_SEND_URL] + "?" + urlencode(log_payload)
-        start = time.time()
-
-        event = HttpEvent('GET', log_url, log_payload)
-
-        try:
-            response = requests.get(channel.config[Channel.CONFIG_SEND_URL], verify=True, params=payload, timeout=15)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-        except Exception as e:
-            raise SendException(six.text_type(e),
-                                event=event, start=start)
-
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
-            raise SendException("Got non-200 response [%d] from Jasmin" % response.status_code,
-                                event=event, start=start)
-
-        # save the external id, response should be in format:
-        # Success "07033084-5cfd-4812-90a4-e4d24ffb6e3d"
-        external_id = None
-        match = re.match(r"Success \"(.*)\"", response.text)
-        if match:
-            external_id = match.group(1)
-
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
-
-    @classmethod
     def send_junebug_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED, Msg
         from temba.ussd.models import USSDSession
@@ -2047,71 +1987,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, SENT, start, events=events)
 
     @classmethod
-    def send_hub9_or_dartmedia_message(cls, channel, msg, text):
-        from temba.msgs.models import SENT
-
-        # http://175.103.48.29:28078/testing/smsmt.php?
-        #   userid=xxx
-        #   &password=xxxx
-        #   &original=6282881134567
-        #   &sendto=628159152565
-        #   &messagetype=0
-        #   &messageid=1897869768
-        #   &message=Test+Normal+Single+Message&dcs=0
-        #   &udhl=0&charset=utf-8
-        #
-        url = HUB9_ENDPOINT
-
-        payload = dict(userid=channel.config['username'], password=channel.config['password'],
-                       original=channel.address.lstrip('+'), sendto=msg.urn_path.lstrip('+'),
-                       messageid=msg.id, message=text, dcs=0, udhl=0)
-
-        # build up our querystring and send it as a get
-        send_url = "%s?%s" % (url, urlencode(payload))
-        payload['password'] = 'x' * len(payload['password'])
-        masked_url = "%s?%s" % (url, urlencode(payload))
-
-        event = HttpEvent('GET', masked_url)
-
-        start = time.time()
-
-        try:
-            response = requests.get(send_url, headers=TEMBA_HEADERS, timeout=15)
-            event.status_code = response.status_code
-            event.response_body = response.text
-            if not response:  # pragma: no cover
-                raise SendException("Unable to send message",
-                                    event=event, start=start)
-
-            if response.status_code != 200 and response.status_code != 201:
-                raise SendException("Received non 200 status: %d" % response.status_code,
-                                    event=event, start=start)
-
-            # if it wasn't successfully delivered, throw
-            if response.text != "000":  # pragma: no cover
-                error = "Unknown error"
-                if response.text == "001":
-                    error = "Error 001: Authentication Error"
-                elif response.text == "101":
-                    error = "Error 101: Account expired or invalid parameters"
-
-                raise SendException(error, event=event, start=start)
-
-            Channel.success(channel, msg, SENT, start, event=event)
-
-        except SendException as e:
-            raise e
-        except Exception as e:  # pragma: no cover
-            reason = "Unknown error"
-            try:
-                if e.message and e.message.reason:
-                    reason = e.message.reason
-            except Exception:
-                pass
-            raise SendException(u"Unable to send message: %s" % six.text_type(reason)[:64],
-                                event=event, start=start)
-
-    @classmethod
     def send_zenvia_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -2557,8 +2432,6 @@ STATUS_FULL = "FUL"
 
 SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
-                  Channel.TYPE_HUB9: Channel.send_hub9_or_dartmedia_message,
-                  Channel.TYPE_JASMIN: Channel.send_jasmin_message,
                   Channel.TYPE_JUNEBUG: Channel.send_junebug_message,
                   Channel.TYPE_JUNEBUG_USSD: Channel.send_junebug_message,
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,

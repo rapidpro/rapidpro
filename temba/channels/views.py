@@ -916,10 +916,10 @@ class ChannelCRUDL(SmartCRUDL):
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
                'claim_android', 'claim_chikka', 'configuration',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender',
-               'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
+               'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
                'claim_verboice', 'claim_plivo', 'search_plivo',
                'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
-               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox',
+               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_mblox',
                'claim_twiml_api', 'claim_junebug', 'facebook_whitelist',
                'claim_red_rabbit', 'claim_macrokiosk')
     permissions = True
@@ -1638,24 +1638,6 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Connect M3 Tech")
         channel_type = Channel.TYPE_M3TECH
 
-    class ClaimJasmin(ClaimAuthenticatedExternal):
-        class JasminForm(forms.Form):
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                        help_text=_("The country this phone number is used in"))
-            number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
-                                     help_text=_("The short code or phone number you are connecting."))
-            url = forms.URLField(label=_("URL"),
-                                 help_text=_("The URL for the Jasmin server send path. ex: https://jasmin.gateway.io/send"))
-            username = forms.CharField(label=_("Username"),
-                                       help_text=_("The username to be used to authenticate to Jasmin"))
-            password = forms.CharField(label=_("Password"),
-                                       help_text=_("The password to be used to authenticate to Jasmin"))
-
-        title = _("Connect Jasmin")
-        channel_type = Channel.TYPE_JASMIN
-        form_class = JasminForm
-        fields = ('country', 'number', 'url', 'username', 'password')
-
     class ClaimRedRabbit(ClaimAuthenticatedExternal):
         title = _("Connect Red Rabbit")
         channel_type = Channel.TYPE_RED_RABBIT
@@ -1797,17 +1779,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                               role=Channel.ROLE_CALL + Channel.ROLE_ANSWER)
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
-    class ClaimHub9(ClaimAuthenticatedExternal):
-        title = _("Connect Hub9")
-        channel_type = Channel.TYPE_HUB9
-        readonly = ('country',)
-
-        def get_country(self, obj):  # pragma: needs cover
-            return "Indonesia"
-
-        def get_submitted_country(self, data):  # pragma: needs cover
-            return "ID"
 
     class ClaimShaqodoon(ClaimAuthenticatedExternal):
         class ShaqodoonForm(forms.Form):
@@ -2623,7 +2594,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             return client
 
-        def form_valid(self, form, *args, **kwargs):  # pragma: needs cover
+        def form_valid(self, form, *args, **kwargs):
             data = form.cleaned_data
             client = self.get_valid_client()
 
@@ -2632,14 +2603,12 @@ class ChannelCRUDL(SmartCRUDL):
                 status, response_data = client.search_phone_numbers(dict(country_iso=data['country'], pattern=data['area_code']))
 
                 if status == 200:
-                    for number_dict in response_data['objects']:
-                        results_numbers.append('+' + number_dict['number'])
+                    results_numbers = ['+' + number_dict['number'] for number_dict in response_data['objects']]
 
-                numbers = []
-                for number in results_numbers:
-                    numbers.append(phonenumbers.format_number(phonenumbers.parse(number, None),
-                                                              phonenumbers.PhoneNumberFormat.INTERNATIONAL))
-                return JsonResponse(numbers)
+                numbers = [phonenumbers.format_number(phonenumbers.parse(number, None),
+                                                      phonenumbers.PhoneNumberFormat.INTERNATIONAL)
+                           for number in results_numbers]
+                return JsonResponse(numbers, safe=False)
             except Exception as e:
                 return JsonResponse(dict(error=str(e)))
 

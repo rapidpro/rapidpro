@@ -852,7 +852,7 @@ class Hub9Handler(BaseChannelHandler):
     handler_name = 'handlers.hub9_handler'
 
     def get_channel_type(self):
-        return Channel.TYPE_HUB9
+        return 'H9'
 
     def get(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
@@ -2036,7 +2036,7 @@ class JasminHandler(BaseChannelHandler):
         request_uuid = kwargs['uuid']
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_JASMIN).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type='JS').exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 

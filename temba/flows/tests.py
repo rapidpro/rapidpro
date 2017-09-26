@@ -464,7 +464,7 @@ class FlowTest(TembaTest):
         contact1_msg = broadcast.msgs.get(contact=self.contact)
         self.assertEqual(contact1_msg.text, "What is your favorite color?")
         self.assertEqual(contact1_msg.status, PENDING)
-        self.assertEqual(contact1_msg.priority, Msg.PRIORITY_NORMAL)
+        self.assertFalse(contact1_msg.high_priority)
 
         # should have a flow run for each contact
         contact1_run = FlowRun.objects.get(contact=self.contact)
@@ -554,8 +554,8 @@ class FlowTest(TembaTest):
         self.assertEquals(self.contact, reply.contact)
         self.assertEquals("I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange", reply.text)
 
-        # should be high priority
-        self.assertEqual(reply.priority, Msg.PRIORITY_HIGH)
+        # should be high priority as this is a reply
+        self.assertTrue(reply.high_priority)
 
         # our previous state should be executed
         step = FlowStep.objects.get(run__contact=self.contact, pk=step.id)
@@ -1678,8 +1678,25 @@ class FlowTest(TembaTest):
         sms.text = "I have 7"
         self.assertTest(True, Decimal("7"), test)
 
-        # phone tests
+        sms.text = "$250"
+        self.assertTest(True, Decimal("250"), test)
 
+        sms.text = "Where is my £5,656.56?"
+        self.assertTest(True, Decimal("5656.56"), test)
+
+        sms.text = "Very hot in here, temp at 38°c"
+        self.assertTest(True, Decimal("38"), test)
+
+        sms.text = "This is aw350me"
+        self.assertTest(False, None, test)
+
+        sms.text = "random typing 12333xg333"
+        self.assertTest(False, None, test)
+
+        sms.text = ",34"
+        self.assertTest(True, Decimal("34"), test)
+
+        # phone tests
         test = PhoneTest()
         sms.text = "My phone number is 0788 383 383"
         self.assertTest(True, "+250788383383", test)

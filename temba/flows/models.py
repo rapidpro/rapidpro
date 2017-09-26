@@ -652,7 +652,7 @@ class Flow(TembaModel):
                             Flow.should_close_connection(run, destination, result.get('destination')):
 
                         end_message = Msg.create_outgoing(msg.org, get_flow_user(msg.org), msg.contact, '',
-                                                          channel=msg.channel, priority=Msg.PRIORITY_HIGH,
+                                                          channel=msg.channel,
                                                           connection=msg.connection, response_to=msg if msg.id else None)
 
                         end_message.connection.mark_ending()
@@ -6632,12 +6632,13 @@ class NumericTest(Test):
             # we only try this hard if we haven't already substituted characters
             if original_word == word:
                 # does this start with a number?  just use that part if so
-                match = regex.match(r"^(\d+).*$", word, regex.UNICODE | regex.V0)
-                if match:  # pragma: needs cover
+                match = regex.match(r"^[$£€]?([\d,][\d,\.]*([\.,]\d+)?)\D*$", word, regex.UNICODE | regex.V0)
+
+                if match:
                     return (match.group(1), Decimal(match.group(1)))
                 else:
                     raise e
-            else:  # pragma: needs cover
+            else:
                 raise e
 
     # test every word in the message against our test
