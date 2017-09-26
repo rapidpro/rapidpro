@@ -77,8 +77,8 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     class Category(Enum):
         PHONE = 1
         SOCIAL_MEDIA = 2
-        API = 3
-        USSD = 4
+        USSD = 3
+        API = 4
 
     code = None
     slug = None
@@ -96,7 +96,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     max_tps = None
     attachment_support = False
     free_sending = False
-    is_ussd = False
 
     def is_available_to(self, user):
         """
@@ -158,7 +157,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         Whether the given channel instance supports USSD messages
         """
-        return self.is_ussd
+        return self.category and self.category == ChannelType.Category.USSD
 
     def setup_periodic_tasks(self, sender):
         """
