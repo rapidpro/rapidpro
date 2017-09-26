@@ -34,7 +34,7 @@
 -block post-form
   -if object.get_chatbase_credentials.0 and request.META.HTTP_X_FORMAX
     %p
-      -trans "Your Chatbase account is connected"
+      -trans "Your Chatbase account is connected to the Agent"
       {{chatbase_agent_name}}.
 
     %p
