@@ -46,16 +46,10 @@ class JasminType(ChannelType):
         encoded = gsm7.encode(text, 'replace')[0]
 
         # build our payload
-        payload = dict()
-        payload['from'] = channel.address.lstrip('+')
-        payload['to'] = msg.urn_path.lstrip('+')
-        payload['username'] = channel.config[Channel.CONFIG_USERNAME]
-        payload['password'] = channel.config[Channel.CONFIG_PASSWORD]
-        payload['dlr'] = dlr_url
-        payload['dlr-level'] = '2'
-        payload['dlr-method'] = 'POST'
-        payload['coding'] = '0'
-        payload['content'] = encoded
+        payload = {'from': channel.address.lstrip('+'), 'to': msg.urn_path.lstrip('+'),
+                   'username': channel.config[Channel.CONFIG_USERNAME],
+                   'password': channel.config[Channel.CONFIG_PASSWORD], 'dlr': dlr_url, 'dlr-level': '2',
+                   'dlr-method': 'POST', 'coding': '0', 'content': encoded}
 
         log_payload = payload.copy()
         log_payload['password'] = 'x' * len(log_payload['password'])
