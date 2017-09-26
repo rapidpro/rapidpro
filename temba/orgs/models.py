@@ -863,7 +863,11 @@ class Org(SmartModel):
         if self.config:
             # release any twilio channels
             from temba.channels.models import Channel
-            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_TWILIO):
+
+            twilio_channels = self.channels.filter(is_active=True,
+                                                   channel_type__in=[Channel.TYPE_TWILIO,
+                                                                     Channel.TYPE_TWILIO_MESSAGING_SERVICE])
+            for channel in twilio_channels:
                 channel.release()
 
             config = self.config_json()
