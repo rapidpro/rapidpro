@@ -1982,7 +1982,7 @@ class OrgCRUDL(SmartCRUDL):
             api_key = forms.CharField(max_length=255, label=_("API Key"), required=False,
                                       help_text="You can find your Agent's API Key "
                                                 "<a href='https://chatbase.com/agents/main-page' target='_new'>here</a>")
-            version = forms.CharField(max_length=10, label=_("Version"), required=False, help_text="E.g. 1.0, 1.2.1")
+            version = forms.CharField(max_length=10, label=_("Version"), required=False, help_text="Any will do, e.g. 1.0, 1.2.1")
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
 
             def clean(self):
