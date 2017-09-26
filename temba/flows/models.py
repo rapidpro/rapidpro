@@ -845,7 +845,7 @@ class Flow(TembaModel):
 
             # don't archive flows that belong to campaigns
             from temba.campaigns.models import CampaignEvent
-            if not CampaignEvent.objects.filter(flow=flow, campaign__org=user.get_org()).exists():
+            if not CampaignEvent.objects.filter(flow=flow, campaign__org=user.get_org(), campaign__is_archived=False).exists():
                 flow.archive()
                 changed.append(flow.pk)
 
@@ -6632,12 +6632,13 @@ class NumericTest(Test):
             # we only try this hard if we haven't already substituted characters
             if original_word == word:
                 # does this start with a number?  just use that part if so
-                match = regex.match(r"^(\d+).*$", word, regex.UNICODE | regex.V0)
-                if match:  # pragma: needs cover
+                match = regex.match(r"^[$£€]?([\d,][\d,\.]*([\.,]\d+)?)\D*$", word, regex.UNICODE | regex.V0)
+
+                if match:
                     return (match.group(1), Decimal(match.group(1)))
                 else:
                     raise e
-            else:  # pragma: needs cover
+            else:
                 raise e
 
     # test every word in the message against our test

@@ -1,3 +1,15 @@
+v3.0.207
+----------
+ * Fix Twiml config JSON keys
+ * Unarchiving a campaign should unarchive all its flows
+
+v3.0.206
+----------
+ * Fix broken Twilio Messaging Service status callback URL
+ * Only update dynamic groups from set_field if value has changed
+ * Optimize how we lookup contacts for some API endpoints
+ * More dynamic channels
+
 v3.0.205
 ----------
  * add way to show recommended channel on claim page for dynamic channels
