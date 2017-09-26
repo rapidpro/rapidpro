@@ -1697,6 +1697,26 @@ class ChannelTest(TembaTest):
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.content, "")
 
+    def test_plivo_search_numbers(self):
+        self.login(self.admin)
+
+        plivo_search_url = reverse('channels.channel_search_plivo')
+
+        with patch('requests.get') as plivo_get:
+            plivo_get.return_value = MockResponse(200, json.dumps(dict(objects=[])))
+
+            response = self.client.post(plivo_search_url, dict(country='US', area_code=''), follow=True)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertNotContains(response, 'error')
+
+            # missing key to throw exception
+            plivo_get.return_value = MockResponse(200, json.dumps(dict()))
+            response = self.client.post(plivo_search_url, dict(country='US', area_code=''), follow=True)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, 'error')
+
     def test_claim_plivo(self):
         self.login(self.admin)
 
