@@ -1,3 +1,9 @@
+v3.0.208
+----------
+ * Msg.bulk_priority -> Msg.high_priority
+ * Change for currencies for numeric rule
+ * Dynamic channels for Jasmin, Infobip, and Hub9
+
 v3.0.207
 ----------
  * Fix Twiml config JSON keys
