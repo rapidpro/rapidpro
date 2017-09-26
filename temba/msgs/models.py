@@ -638,6 +638,7 @@ class Msg(models.Model):
 
     MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
 
+
     CONTACT_HANDLING_QUEUE = 'ch:%d'
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
