@@ -193,6 +193,8 @@ class FlowSession(models.Model):
                 for channel in flow.org.channels.filter(is_active=True):
                     request = request.include_channel(channel)
                 request = request.include_fields(flow.org).include_groups(flow.org).include_labels(flow.org)
+                if flow.org.country_id:
+                    request = request.include_country(flow.org)
 
             # only include message if it's a real message
             if msg_in and msg_in.created_on:
@@ -241,6 +243,8 @@ class FlowSession(models.Model):
             for channel in self.org.channels.filter(is_active=True):
                 request = request.include_channel(channel)
             request = request.include_fields(self.org).include_groups(self.org).include_labels(self.org)
+            if self.org.country_id:
+                request = request.include_country(self.org)
 
         # only include message if it's a real message
         if msg_in and msg_in.created_on:
@@ -7517,10 +7521,10 @@ FLOW_FEATURES = [
     ('T', GtTest.TYPE, True),
     ('T', GteTest.TYPE, True),
     ('T', HasDateTest.TYPE, True),
-    ('T', HasDistrictTest.TYPE, False),          # https://github.com/nyaruka/goflow/issues/71
+    ('T', HasDistrictTest.TYPE, True),
     ('T', HasEmailTest.TYPE, True),
-    ('T', HasStateTest.TYPE, False),             # https://github.com/nyaruka/goflow/issues/71
-    ('T', HasWardTest.TYPE, False),              # https://github.com/nyaruka/goflow/issues/71
+    ('T', HasStateTest.TYPE, True),
+    ('T', HasWardTest.TYPE, True),
     ('T', InGroupTest.TYPE, True),
     ('T', InterruptTest.TYPE, False),
     ('T', LtTest.TYPE, True),

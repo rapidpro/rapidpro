@@ -51,39 +51,38 @@ def serialize_label(label):
     return {'uuid': str(label.uuid), 'name': label.name}
 
 
-def serialize_country(org):
+def serialize_location_hierarchy(country, aliases_from_org):
     """
-    Serializes country data for the given org, e.g.
+    Serializes a country as a location hierarchy, e.g.
     {
+        "id": "34354",
         "name": "Rwanda",
         "children": [
             {
+                "id": "23452561"
                 "name": "Kigali City",
+                "aliases": ["Kigali", "Kigari"],
                 "children": [
-                    {
-                        "name": "Nyarugenge",
-                        "children": []
-                    }
+                    ...
                 ]
-            },
-            ...
+            }
+        ]
+    }
     """
-    from temba.locations.models import BoundaryAlias
+    queryset = country.get_descendants(include_self=True)
 
-    if not org.country:
-        return
+    if aliases_from_org:
+        from temba.locations.models import BoundaryAlias
 
-    queryset = org.country.get_descendants(include_self=True)
-    queryset = queryset.prefetch_related(
-        Prefetch('aliases', queryset=BoundaryAlias.objects.filter(org=org)),
-    )
+        queryset = queryset.prefetch_related(
+            Prefetch('aliases', queryset=BoundaryAlias.objects.filter(org=aliases_from_org)),
+        )
 
     def _serialize_node(node):
-        names = [node.name]
-        for alias in node.aliases.all():
-            names.append(alias.name)
+        rendered = {'name': node.name}
 
-        rendered = {'names': names}
+        if aliases_from_org:
+            rendered['aliases'] = [a.name for a in node.aliases.all()]
 
         children = node.get_children()
         if children:
@@ -150,6 +149,14 @@ class RequestBuilder(object):
         })
         return self
 
+    def include_country(self, org):
+        self.request['assets'].append({
+            'type': "location_hierarchy",
+            'url': get_assets_url(org, self.asset_timestamp, 'location_hierarchy'),
+            'content': serialize_location_hierarchy(org.country, org)
+        })
+        return self
+
     def set_environment(self, org):
         languages = [org.primary_language.iso_code] if org.primary_language else []
 
@@ -174,7 +181,7 @@ class RequestBuilder(object):
         for v in values:
             field = org_fields[v.contact_field_id]
             field_values[field.key] = {
-                'value': Contact.serialize_field_value(field, v),
+                'value': Contact.serialize_field_value(field, v, use_location_names=False),
                 'created_on': datetime_to_str(v.created_on),
             }
 
@@ -239,13 +246,18 @@ class RequestBuilder(object):
         return self
 
     def asset_urls(self, org):
-        self.request['asset_urls'] = {
+        asset_urls = {
             'channel': get_assets_url(org, self.asset_timestamp, 'channel'),
             'field': get_assets_url(org, self.asset_timestamp, 'field'),
             'flow': get_assets_url(org, self.asset_timestamp, 'flow'),
             'group': get_assets_url(org, self.asset_timestamp, 'group'),
             'label': get_assets_url(org, self.asset_timestamp, 'label'),
         }
+
+        if org.country_id:
+            asset_urls['location_hierarchy'] = get_assets_url(org, self.asset_timestamp, 'location_hierarchy')
+
+        self.request['asset_urls'] = asset_urls
         return self
 
     def start(self, flow):

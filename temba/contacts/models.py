@@ -666,7 +666,7 @@ class Contact(TembaModel):
             return value.string_value
 
     @classmethod
-    def serialize_field_value(cls, field, value):
+    def serialize_field_value(cls, field, value, use_location_names=True):
         """
         Utility method to give the serialized value for the passed in field, value pair.
         """
@@ -678,7 +678,7 @@ class Contact(TembaModel):
         elif field.value_type == Value.TYPE_DECIMAL:
             return format_decimal(value.decimal_value)
         elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
-            return value.location_value.name
+            return value.location_value.name if use_location_names else value.location_value.osm_id
         elif value.category:
             return value.category
         else:

@@ -15,7 +15,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.core.urlresolvers import reverse
-from django.db.models import Count, Min, Max, Sum
+from django.db.models import Count, Min, Max, Sum, QuerySet
 from django import forms
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
@@ -1717,6 +1717,7 @@ class FlowAssets(View):
     /flow_assets/123/xyz/flow/0a9f4ddd-895d-4c64-917e-b004fb048306/     -> the flow with that UUID in org #123
     /flow_assets/123/xyz/channel/b432261a-7117-4885-8815-8f04e7a15779/  -> the channel with that UUID in org #123
     /flow_assets/123/xyz/group/                                         -> all groups for org #123
+    /flow_assets/123/xyz/location_hierarchy/                            -> country>states>districts>wards for org #123
 
     TODO authentication
     """
@@ -1725,12 +1726,26 @@ class FlowAssets(View):
             self.queryset = queryset
             self.serializer = serializer
 
+        def get_root(self, org):
+            return self.queryset.filter(org=org)
+
+        def get_item(self, org, uuid):
+            return self.get_all(org).filter(uuid=uuid).first()
+
+    class BoundaryResource(object):
+        def __init__(self, serializer):
+            self.serializer = serializer
+
+        def get_root(self, org):
+            return org.country
+
     resources = {
         'channel': Resource(Channel.objects.filter(is_active=True), goflow.serialize_channel),
         'field': Resource(ContactField.objects.filter(is_active=True), goflow.serialize_field),
         'flow': Resource(Flow.objects.filter(is_active=True), goflow.serialize_flow),
         'group': Resource(ContactGroup.user_groups.filter(is_active=True), goflow.serialize_group),
         'label': Resource(Label.label_objects.filter(is_active=True), goflow.serialize_label),
+        'location_hierarchy': BoundaryResource(goflow.serialize_location_hierarchy),
     }
 
     def get(self, *args, **kwargs):
@@ -1738,24 +1753,26 @@ class FlowAssets(View):
         uuid = kwargs.get('uuid')
 
         resource = self.resources[kwargs['type']]
-        queryset = resource.queryset.filter(org=org)
-
         if uuid:
-            result = queryset.filter(uuid=uuid).first()
-            return JsonResponse(resource.serializer(result))
+            result = resource.get_item(org, uuid)
         else:
+            result = resource.get_root(org)
+
+        if isinstance(result, QuerySet):
             page_size = self.request.GET.get('page_size')
             page_num = self.request.GET.get('page')
 
             if page_size is None:
                 # the flow engine doesn't want results paged, so just return the entire set
-                return JsonResponse([resource.serializer(o) for o in queryset], safe=False)
+                return JsonResponse([resource.serializer(o) for o in result], safe=False)
             else:
                 # the flow editor however will specify what kind of pagination it wants
-                paginator = Paginator(queryset, page_size)
+                paginator = Paginator(result, page_size)
                 page = paginator.page(page_num)
 
                 return JsonResponse({
                     'results': [resource.serializer(o) for o in page.object_list],
                     'has_next': page.has_next()
                 })
+        else:
+            return JsonResponse(resource.serializer(result))
