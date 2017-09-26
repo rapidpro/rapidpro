@@ -14,6 +14,10 @@ class JunebugTypeTest(TembaTest):
 
         url = reverse('channels.claim_junebug_ussd')
 
+        # check that claim page URL appears on claim list page
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertContains(response, url)
+
         response = self.client.get(url)
         self.assertEquals(200, response.status_code)
 
