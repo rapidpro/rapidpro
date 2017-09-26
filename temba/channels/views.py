@@ -919,7 +919,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
                'claim_verboice', 'claim_plivo', 'search_plivo',
                'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
-               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox',
+               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_mblox',
                'claim_twiml_api', 'claim_junebug', 'facebook_whitelist',
                'claim_red_rabbit', 'claim_macrokiosk')
     permissions = True
@@ -1637,24 +1637,6 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimM3tech(ClaimAuthenticatedExternal):
         title = _("Connect M3 Tech")
         channel_type = Channel.TYPE_M3TECH
-
-    class ClaimJasmin(ClaimAuthenticatedExternal):
-        class JasminForm(forms.Form):
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                        help_text=_("The country this phone number is used in"))
-            number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
-                                     help_text=_("The short code or phone number you are connecting."))
-            url = forms.URLField(label=_("URL"),
-                                 help_text=_("The URL for the Jasmin server send path. ex: https://jasmin.gateway.io/send"))
-            username = forms.CharField(label=_("Username"),
-                                       help_text=_("The username to be used to authenticate to Jasmin"))
-            password = forms.CharField(label=_("Password"),
-                                       help_text=_("The password to be used to authenticate to Jasmin"))
-
-        title = _("Connect Jasmin")
-        channel_type = Channel.TYPE_JASMIN
-        form_class = JasminForm
-        fields = ('country', 'number', 'url', 'username', 'password')
 
     class ClaimRedRabbit(ClaimAuthenticatedExternal):
         title = _("Connect Red Rabbit")
