@@ -252,6 +252,18 @@ class ChannelTest(TembaTest):
         self.assertEquals(tigo, msg.channel)
         self.assertEquals(tigo, self.org.get_send_channel(contact_urn=msg.contact_urn))
 
+        # if we have prefixes matching set should honor those
+        mtn.config = json.dumps({Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES: ['25078', '25072']})
+        mtn.save()
+
+        msg = self.send_message(['+250788382382'], "Sent to an MTN number with shortcode channels and prefixes set")
+        self.assertEquals(mtn, msg.channel)
+        self.assertEquals(mtn, self.org.get_send_channel(contact_urn=msg.contact_urn))
+
+        msg = self.send_message(['+250728382382'], "Sent to a TIGO number with shortcode channels and prefixes set")
+        self.assertEquals(mtn, msg.channel)
+        self.assertEquals(mtn, self.org.get_send_channel(contact_urn=msg.contact_urn))
+
         # check for twitter
         self.assertEquals(self.twitter_channel, self.org.get_send_channel(scheme=TWITTER_SCHEME))
 

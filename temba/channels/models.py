@@ -220,6 +220,8 @@ class Channel(TembaModel):
     CONFIG_NUMBER_SID = 'number_sid'
     CONFIG_MESSAGING_SERVICE_SID = 'messaging_service_sid'
 
+    CONFIG_SHORTCODE_MATCHING_PREFIXES = 'matching_prefixes'
+
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
     ENCODING_UNICODE = 'U'  # we send everything as unicode

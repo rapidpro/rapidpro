@@ -508,13 +508,16 @@ class Org(SmartModel):
                 if len(senders) > 1:
                     for sender in senders:
                         channel_number = sender.address.strip('+')
+                        config = sender.config_json()
+                        channel_prefixes = config.get(Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES, []) + [channel_number]
 
-                        for idx in range(prefix, len(channel_number)):
-                            if idx >= prefix and channel_number[0:idx] == contact_number[0:idx]:
-                                prefix = idx
-                                channel = sender
-                            else:
-                                break
+                        for chan_prefix in channel_prefixes:
+                            for idx in range(prefix, len(chan_prefix)):
+                                if idx >= prefix and chan_prefix[0:idx] == contact_number[0:idx]:
+                                    prefix = idx
+                                    channel = sender
+                                else:
+                                    break
                 elif senders:
                     channel = senders[0]
 
