@@ -153,12 +153,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         return self.attachment_support
 
-    def has_ussd_support(self, channel):
-        """
-        Whether the given channel instance supports USSD messages
-        """
-        return self.category and self.category == ChannelType.Category.USSD
-
     def setup_periodic_tasks(self, sender):
         """
         Allows a ChannelType to register periodic tasks it wants celery to run.

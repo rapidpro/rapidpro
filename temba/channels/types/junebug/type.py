@@ -48,7 +48,7 @@ class JunebugType(ChannelType):
         # the event url Junebug will relay events to
         event_url = 'http://%s%s' % (event_hostname, reverse('courier.jn', args=[channel.uuid, 'event']))
 
-        is_ussd = Channel.get_type_from_code(channel.channel_type).has_ussd_support(channel)
+        is_ussd = Channel.get_type_from_code(channel.channel_type).category == ChannelType.Category.USSD
 
         # build our payload
         payload = {'event_url': event_url, 'content': text}
