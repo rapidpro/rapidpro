@@ -51,9 +51,7 @@ class JunebugType(ChannelType):
         is_ussd = Channel.get_type_from_code(channel.channel_type).has_ussd_support(channel)
 
         # build our payload
-        payload = dict()
-        payload['event_url'] = event_url
-        payload['content'] = text
+        payload = {'event_url': event_url, 'content': text}
 
         if channel.secret is not None:
             payload['event_auth_token'] = channel.secret
