@@ -1126,6 +1126,7 @@ CHANNEL_TYPES = [
     'temba.channels.types.jiochat.JioChatType',
     'temba.channels.types.junebug.JunebugType',
     'temba.channels.types.junebug_ussd.JunebugUSSDType',
+    'temba.channels.types.kannel.KannelType',
     'temba.channels.types.line.LineType',
     'temba.channels.types.telegram.TelegramType',
     'temba.channels.types.twitter.TwitterType',
