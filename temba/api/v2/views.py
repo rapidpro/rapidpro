@@ -668,7 +668,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
         queryset = queryset.prefetch_related(
             Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name').order_by('pk')),
-            Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name').oder_by('pk')),
+            Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name').order_by('pk')),
         )
 
         if not org.is_anon:
