@@ -4848,13 +4848,8 @@ class AddToGroupAction(Action):
                     if not errors:
                         group = ContactGroup.get_user_group(contact.org, value)
                         if not group:
+                            ActionLog.error(run, _("Unable to find group with name '%s'") % value)
 
-                            try:
-                                group = ContactGroup.create_static(contact.org, user, name=value)
-                                if run.contact.is_test:  # pragma: needs cover
-                                    ActionLog.info(run, _("Group '%s' created") % value)
-                            except ValueError:  # pragma: needs cover
-                                    ActionLog.error(run, _("Unable to create group with name '%s'") % value)
                     else:  # pragma: needs cover
                         ActionLog.error(run, _("Group name could not be evaluated: %s") % ', '.join(errors))
 
