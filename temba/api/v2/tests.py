@@ -2562,23 +2562,26 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['next'], None)
         self.assertResultsById(response, [start2, start1])
-        self.assertEqual(response.json()['results'][0], {
-            'id': start2.id,
-            'uuid': six.text_type(start2.uuid),
-            'flow': {'uuid': flow.uuid, 'name': 'Favorites'},
-            'contacts': [
-                {'uuid': self.joe.uuid, 'name': 'Joe Blow'},
-                {'uuid': anon_contact.uuid, 'name': None}
-            ],
-            'groups': [
-                {'uuid': hans_group.uuid, 'name': 'hans'}
-            ],
-            'restart_participants': False,
-            'status': 'complete',
-            'extra': {"first_name": "Ryan", "last_name": "Lewis"},
-            'created_on': format_datetime(start2.created_on),
-            'modified_on': format_datetime(start2.modified_on),
-        })
+
+        result_json = response.json()['results'][0]
+
+        self.assertEqual(set(result_json.keys()), {'id', 'uuid', 'flow', 'contacts', 'groups', 'restart_participants',
+                                                   'status', 'extra', 'created_on', 'modified_on'})
+
+        self.assertEqual(result_json['id'], start2.id)
+        self.assertEqual(result_json['uuid'], six.text_type(start2.uuid))
+        self.assertEqual(result_json['flow'], {'uuid': flow.uuid, 'name': 'Favorites'})
+        self.assertEqual(result_json['groups'], [{'uuid': hans_group.uuid, 'name': 'hans'}])
+
+        self.assertEqual(len(result_json['contacts']), 2)
+        self.assertIn({'uuid': self.joe.uuid, 'name': 'Joe Blow'}, result_json['contacts'])
+        self.assertIn({'uuid': anon_contact.uuid, 'name': None}, result_json['contacts'])
+
+        self.assertFalse(result_json['restart_participants'])
+        self.assertEqual(result_json['status'], 'complete')
+        self.assertEqual(result_json['extra'], {"first_name": "Ryan", "last_name": "Lewis"})
+        self.assertEqual(result_json['created_on'], format_datetime(start2.created_on))
+        self.assertEqual(result_json['modified_on'], format_datetime(start2.modified_on))
 
         # check filtering by UUID
         response = self.fetchJSON(url, "uuid=%s" % str(start2.uuid))
