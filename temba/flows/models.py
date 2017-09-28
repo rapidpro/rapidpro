@@ -2947,7 +2947,17 @@ class FlowRun(models.Model):
         """
         user = get_flow_user(self.org)
         field = ContactField.objects.get(org=self.org, key=event['field_key'])
-        self.contact.set_field(user, field.key, event['value'])
+        value = event['value']
+
+        # TODO goflow will send location values back as OSM IDs, but set_field currently needs location names
+        if field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
+            boundary = AdminBoundary.objects.filter(osm_id=value).first()
+            if boundary:
+                value = boundary.name
+            else:
+                raise Exception("No such admin boundary with OSM ID: '%s'" % value)
+
+        self.contact.set_field(user, field.key, value)
 
         if self.contact.is_test:
             ActionLog.create(self, _("Updated %s to '%s'") % (field.label, event['value']))
