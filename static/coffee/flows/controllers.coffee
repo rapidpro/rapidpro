@@ -776,8 +776,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         , (-> $log.info "Modal dismissed at: " + new Date())
 
     else
-      action._attachType = 'image'
-
       resolveObj =
         options: ->
           nodeType: 'actions'
