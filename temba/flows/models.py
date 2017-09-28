@@ -4982,7 +4982,7 @@ class AddLabelAction(Action):
                 if not errors:
                     label = Label.label_objects.filter(org=contact.org, name__iexact=value.strip()).first()
                     if not label:
-                        ActionLog.error(run, _("Unable to label label with name '%s'") % value.strip())
+                        ActionLog.error(run, _("Unable to find label with name '%s'") % value.strip())
 
                 else:  # pragma: needs cover
                     label = None
