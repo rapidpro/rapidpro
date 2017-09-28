@@ -3672,9 +3672,9 @@ class ActionTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(flow, self.contact.pk)
 
-        label = Label.get_or_create(self.org, self.user, "green label")
+        label1 = Label.get_or_create(self.org, self.user, "green label")
 
-        action = AddLabelAction([label, "@step.contact"])
+        action = AddLabelAction([label1, "@step.contact"])
 
         action_json = action.as_json()
         action = AddLabelAction.from_json(self.org, action_json)
@@ -3682,29 +3682,37 @@ class ActionTest(TembaTest):
         # no message yet; such Add Label action on entry Actionset. No error should be raised
         self.execute_action(action, run, None)
 
-        self.assertFalse(label.get_messages())
-        self.assertEqual(label.get_visible_count(), 0)
+        self.assertFalse(label1.get_messages())
+        self.assertEqual(label1.get_visible_count(), 0)
 
         self.execute_action(action, run, msg)
 
-        # new label should have been created with the name of the contact
-        new_label = Label.label_objects.get(name=self.contact.name)
-        label = Label.label_objects.get(pk=label.pk)
+        # only label one was added to the message and no new label created
+        self.assertEqual(set(label1.get_messages()), {msg})
+        self.assertEqual(label1.get_visible_count(), 1)
+        self.assertEqual(Label.label_objects.all().count(), 1)
+
+        # make sure the expression variable label exists too
+        label1 = Label.label_objects.get(pk=label1.pk)
+        label2 = Label.label_objects.create(org=self.org, name=self.contact.name, created_by=self.admin,
+                                            modified_by=self.admin)
+
+        self.execute_action(action, run, msg)
 
         # and message should have been labeled with both labels
         msg = Msg.objects.get(pk=msg.pk)
-        self.assertEqual(set(msg.labels.all()), {label, new_label})
-        self.assertEqual(set(label.get_messages()), {msg})
-        self.assertEqual(label.get_visible_count(), 1)
-        self.assertTrue(set(new_label.get_messages()), {msg})
-        self.assertEqual(new_label.get_visible_count(), 1)
+        self.assertEqual(set(msg.labels.all()), {label1, label2})
+        self.assertEqual(set(label1.get_messages()), {msg})
+        self.assertEqual(label1.get_visible_count(), 1)
+        self.assertTrue(set(label2.get_messages()), {msg})
+        self.assertEqual(label2.get_visible_count(), 1)
 
         # passing through twice doesn't change anything
         self.execute_action(action, run, msg)
 
-        self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label, new_label})
-        self.assertEquals(Label.label_objects.get(pk=label.pk).get_visible_count(), 1)
-        self.assertEquals(Label.label_objects.get(pk=new_label.pk).get_visible_count(), 1)
+        self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label1, label2})
+        self.assertEquals(Label.label_objects.get(pk=label1.pk).get_visible_count(), 1)
+        self.assertEquals(Label.label_objects.get(pk=label2.pk).get_visible_count(), 1)
 
     @override_settings(SEND_WEBHOOKS=True)
     @patch('django.utils.timezone.now')
