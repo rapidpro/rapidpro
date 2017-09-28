@@ -252,6 +252,18 @@ class ChannelTest(TembaTest):
         self.assertEquals(tigo, msg.channel)
         self.assertEquals(tigo, self.org.get_send_channel(contact_urn=msg.contact_urn))
 
+        # if we have prefixes matching set should honor those
+        mtn.config = json.dumps({Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES: ['25078', '25072']})
+        mtn.save()
+
+        msg = self.send_message(['+250788382382'], "Sent to an MTN number with shortcode channels and prefixes set")
+        self.assertEquals(mtn, msg.channel)
+        self.assertEquals(mtn, self.org.get_send_channel(contact_urn=msg.contact_urn))
+
+        msg = self.send_message(['+250728382382'], "Sent to a TIGO number with shortcode channels and prefixes set")
+        self.assertEquals(mtn, msg.channel)
+        self.assertEquals(mtn, self.org.get_send_channel(contact_urn=msg.contact_urn))
+
         # check for twitter
         self.assertEquals(self.twitter_channel, self.org.get_send_channel(scheme=TWITTER_SCHEME))
 
@@ -1696,6 +1708,26 @@ class ChannelTest(TembaTest):
 
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.content, "")
+
+    def test_plivo_search_numbers(self):
+        self.login(self.admin)
+
+        plivo_search_url = reverse('channels.channel_search_plivo')
+
+        with patch('requests.get') as plivo_get:
+            plivo_get.return_value = MockResponse(200, json.dumps(dict(objects=[])))
+
+            response = self.client.post(plivo_search_url, dict(country='US', area_code=''), follow=True)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertNotContains(response, 'error')
+
+            # missing key to throw exception
+            plivo_get.return_value = MockResponse(200, json.dumps(dict()))
+            response = self.client.post(plivo_search_url, dict(country='US', area_code=''), follow=True)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, 'error')
 
     def test_claim_plivo(self):
         self.login(self.admin)
@@ -11197,17 +11229,36 @@ class CourierTest(TembaTest):
             self.channel.schemes = [TELEGRAM_SCHEME]
             self.channel.save()
 
+            bob = self.create_contact("Bob", urn='telegram:2')
+            incoming = self.create_msg(contact=bob, text="Hello", direction="I")
+
             # create some outgoing messages for our channel
-            msg1 = Msg.create_outgoing(self.org, self.admin, 'telegram:1', "Outgoing message 1")
-            msg2 = Msg.create_outgoing(self.org, self.admin, 'telegram:2', "Outgoing message 2", priority=Msg.PRIORITY_BULK)
-            Msg.send_messages([msg1, msg2])
+            msg1 = Msg.create_outgoing(self.org, self.admin, 'telegram:1', "Outgoing 1")
+            msg2 = Msg.create_outgoing(self.org, self.admin, 'telegram:2', "Outgoing 2", response_to=incoming)
+            msg3 = Msg.create_outgoing(self.org, self.admin, 'telegram:3', "Outgoing 3", high_priority=False)
+            msg4 = Msg.create_outgoing(self.org, self.admin, 'telegram:4', "Outgoing 4", high_priority=True)
+            msg5 = Msg.create_outgoing(self.org, self.admin, 'telegram:4', "Outgoing 5", high_priority=True)
+            all_msgs = [msg1, msg2, msg3, msg4, msg5]
 
-            # we should have been queued to our courier queues and our msg should be marked as such
-            msg1.refresh_from_db()
-            self.assertEqual(msg1.status, QUEUED)
+            Msg.send_messages(all_msgs)
 
-            msg2.refresh_from_db()
-            self.assertEqual(msg2.status, QUEUED)
+            # we should have been queued to our courier queues and our msgs should be marked as such
+            for msg in all_msgs:
+                msg.refresh_from_db()
+                self.assertEqual(msg.status, QUEUED)
+
+            self.assertFalse(msg1.high_priority)
+            self.assertTrue(msg2.high_priority)  # is a response
+            self.assertFalse(msg3.high_priority)
+            self.assertTrue(msg4.high_priority)  # explicitly high
+            self.assertTrue(msg5.high_priority)
+
+            # TODO remove numeric priority
+            self.assertEqual(msg1.priority, 100)
+            self.assertEqual(msg2.priority, 500)
+            self.assertEqual(msg3.priority, 100)
+            self.assertEqual(msg4.priority, 500)
+            self.assertEqual(msg5.priority, 500)
 
             # check against redis
             r = get_redis_connection()
@@ -11217,9 +11268,12 @@ class CourierTest(TembaTest):
             self.assertEqual(1, r.zcard("msgs:active"))
             self.assertEqual(0, r.zrank("msgs:active", queue_name))
 
-            # should have one msg in each queue (based on priority)
-            self.assertEqual(1, r.zcard(queue_name + "/1"))
-            self.assertEqual(1, r.zcard(queue_name + "/0"))
+            # check that messages went into the correct queues
+            high_priority_msgs = [json.loads(t) for t in r.zrange(queue_name + "/1", 0, -1)]
+            low_priority_msgs = [json.loads(t) for t in r.zrange(queue_name + "/0", 0, -1)]
+
+            self.assertEqual([[m['text'] for m in b] for b in high_priority_msgs], [["Outgoing 2"], ["Outgoing 4", "Outgoing 5"]])
+            self.assertEqual([[m['text'] for m in b] for b in low_priority_msgs], [["Outgoing 1"], ["Outgoing 3"]])
 
 
 class HandleEventTest(TembaTest):

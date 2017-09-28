@@ -2486,7 +2486,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             return client
 
-        def form_valid(self, form, *args, **kwargs):  # pragma: needs cover
+        def form_valid(self, form, *args, **kwargs):
             data = form.cleaned_data
             client = self.get_valid_client()
 
@@ -2495,14 +2495,12 @@ class ChannelCRUDL(SmartCRUDL):
                 status, response_data = client.search_phone_numbers(dict(country_iso=data['country'], pattern=data['area_code']))
 
                 if status == 200:
-                    for number_dict in response_data['objects']:
-                        results_numbers.append('+' + number_dict['number'])
+                    results_numbers = ['+' + number_dict['number'] for number_dict in response_data['objects']]
 
-                numbers = []
-                for number in results_numbers:
-                    numbers.append(phonenumbers.format_number(phonenumbers.parse(number, None),
-                                                              phonenumbers.PhoneNumberFormat.INTERNATIONAL))
-                return JsonResponse(numbers)
+                numbers = [phonenumbers.format_number(phonenumbers.parse(number, None),
+                                                      phonenumbers.PhoneNumberFormat.INTERNATIONAL)
+                           for number in results_numbers]
+                return JsonResponse(numbers, safe=False)
             except Exception as e:
                 return JsonResponse(dict(error=str(e)))
 

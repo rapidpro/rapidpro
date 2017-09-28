@@ -153,12 +153,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         return self.attachment_support
 
-    def has_ussd_support(self, channel):
-        """
-        Whether the given channel instance supports USSD messages
-        """
-        return self.category and self.category == ChannelType.Category.USSD
-
     def setup_periodic_tasks(self, sender):
         """
         Allows a ChannelType to register periodic tasks it wants celery to run.
@@ -224,6 +218,8 @@ class Channel(TembaModel):
     CONFIG_APPLICATION_SID = 'application_sid'
     CONFIG_NUMBER_SID = 'number_sid'
     CONFIG_MESSAGING_SERVICE_SID = 'messaging_service_sid'
+
+    CONFIG_SHORTCODE_MATCHING_PREFIXES = 'matching_prefixes'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
