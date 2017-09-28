@@ -2970,8 +2970,8 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
-            Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name')),
-            Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name')),
+            Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name').order_by('pk')),
+            Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name').order_by('pk')),
         )
 
         return self.filter_before_after(queryset, 'modified_on')
