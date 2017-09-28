@@ -77,8 +77,8 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     class Category(Enum):
         PHONE = 1
         SOCIAL_MEDIA = 2
-        API = 3
-        USSD = 4
+        USSD = 3
+        API = 4
 
     code = None
     slug = None
@@ -96,7 +96,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     max_tps = None
     attachment_support = False
     free_sending = False
-    is_ussd = False
 
     def is_available_to(self, user):
         """
@@ -154,12 +153,6 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         """
         return self.attachment_support
 
-    def has_ussd_support(self, channel):
-        """
-        Whether the given channel instance supports USSD messages
-        """
-        return self.is_ussd
-
     def setup_periodic_tasks(self, sender):
         """
         Allows a ChannelType to register periodic tasks it wants celery to run.
@@ -175,7 +168,6 @@ class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_CHIKKA = 'CK'
     TYPE_DUMMY = 'DM'
-    TYPE_GLOBE = 'GL'
     TYPE_KANNEL = 'KN'
     TYPE_MACROKIOSK = 'MK'
     TYPE_M3TECH = 'M3'
@@ -226,6 +218,8 @@ class Channel(TembaModel):
     CONFIG_APPLICATION_SID = 'application_sid'
     CONFIG_NUMBER_SID = 'number_sid'
     CONFIG_MESSAGING_SERVICE_SID = 'messaging_service_sid'
+
+    CONFIG_SHORTCODE_MATCHING_PREFIXES = 'matching_prefixes'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -888,13 +882,12 @@ class Channel(TembaModel):
 
     def get_twiml_client(self):
         from temba.ivr.clients import TwilioClient
-        from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
 
         config = self.config_json()
 
         if config:
-            account_sid = config.get(ACCOUNT_SID, None)
-            auth_token = config.get(ACCOUNT_TOKEN, None)
+            account_sid = config.get(Channel.CONFIG_ACCOUNT_SID, None)
+            auth_token = config.get(Channel.CONFIG_AUTH_TOKEN, None)
             base = config.get(Channel.CONFIG_SEND_URL, None)
 
             if account_sid and auth_token:
@@ -1875,7 +1868,7 @@ class Channel(TembaModel):
         from temba.msgs.models import Attachment, WIRED
         from temba.utils.twilio import TembaTwilioRestClient
 
-        callback_url = Channel.build_twilio_callback_url(channel.uuid, msg.id)
+        callback_url = Channel.build_twilio_callback_url(channel.channel_type, channel.uuid, msg.id)
 
         start = time.time()
         media_urls = []
@@ -2152,8 +2145,14 @@ class Channel(TembaModel):
             analytics.gauge('temba.channel_%s_%s' % (status.lower(), channel.channel_type.lower()))
 
     @classmethod
-    def build_twilio_callback_url(cls, channel_uuid, sms_id):
-        url = reverse('courier.t', args=[channel_uuid, 'status'])
+    def build_twilio_callback_url(cls, channel_type, channel_uuid, sms_id):
+        if channel_type == 'T':
+            url = reverse('courier.t', args=[channel_uuid, 'status'])
+        elif channel_type == 'TMS':
+            url = reverse('courier.tms', args=[channel_uuid, 'status'])
+        elif channel_type == 'TW':
+            url = reverse('courier.tw', args=[channel_uuid, 'status'])
+
         url = "https://" + settings.TEMBA_HOST + url + "?action=callback&id=%d" % sms_id
         return url
 

@@ -5,12 +5,12 @@ from django_redis import get_redis_connection
 from temba.utils import datetime_to_str
 
 
-def push_courier_msgs(channel, msgs, is_bulk=False):
+def push_courier_msgs(channel, msgs, high_priority=False):
     """
     Adds the passed in msgs to our courier queue for channel
     """
     r = get_redis_connection('default')
-    priority = COURIER_BULK_PRIORITY if is_bulk else COURIER_DEFAULT_PRIORITY
+    priority = COURIER_HIGH_PRIORITY if high_priority else COURIER_LOW_PRIORITY
     tps = channel.tps if channel.tps else COURIER_DEFAULT_TPS
 
     # create our payload
@@ -49,7 +49,8 @@ def msg_as_task(msg):
                     status=msg.status,
                     direction=msg.direction,
                     text=msg.text,
-                    priority=msg.priority,
+                    high_priority=msg.high_priority,
+                    priority=500 if msg.high_priority else 100,  # TODO stop using this on courier side and then remove
                     urn=msg.contact_urn.urn,
                     error_count=msg.error_count,
                     attachments=msg.attachments,
@@ -68,8 +69,8 @@ def msg_as_task(msg):
     return msg_json
 
 
-COURIER_DEFAULT_PRIORITY = 1
-COURIER_BULK_PRIORITY = 0
+COURIER_HIGH_PRIORITY = 1
+COURIER_LOW_PRIORITY = 0
 COURIER_DEFAULT_TPS = 10
 
 
