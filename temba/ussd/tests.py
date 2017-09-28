@@ -32,7 +32,7 @@ class USSDSessionTest(TembaTest):
         super(USSDSessionTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE,
                                       uuid='00000000-0000-0000-0000-000000001234')
 
@@ -808,7 +808,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
         self.channel.delete()
         self.channel = Channel.create(
-            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '1234',
+            self.org, self.user, 'RW', 'JNU', None, '1234',
             config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
             uuid='00000000-0000-0000-0000-000000001234', role=Channel.ROLE_USSD)
 

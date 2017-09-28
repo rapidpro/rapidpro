@@ -920,7 +920,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_verboice', 'claim_plivo', 'search_plivo',
                'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_mblox',
-               'claim_twiml_api', 'claim_junebug', 'facebook_whitelist',
+               'claim_twiml_api', 'facebook_whitelist',
                'claim_red_rabbit', 'claim_macrokiosk')
     permissions = True
 
@@ -1641,54 +1641,6 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimRedRabbit(ClaimAuthenticatedExternal):
         title = _("Connect Red Rabbit")
         channel_type = Channel.TYPE_RED_RABBIT
-
-    class ClaimJunebug(ClaimAuthenticatedExternal):
-        class JunebugForm(forms.Form):
-            channel_type = forms.ChoiceField(choices=((Channel.TYPE_JUNEBUG, 'SMS'),
-                                                      (Channel.TYPE_JUNEBUG_USSD, 'USSD')),
-                                             widget=forms.RadioSelect,
-                                             label=_('Channel Type'),
-                                             help_text=_('The type of channel you are wanting to connect.'))
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                        help_text=_("The country this phone number is used in"))
-            number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
-                                     help_text=("The shortcode or phone number you are connecting."))
-            url = forms.URLField(label=_("URL"),
-                                 help_text=_("The URL for the Junebug channel. ex: https://junebug.praekelt.org/jb/channels/3853bb51-d38a-4bca-b332-8a57c00f2a48/messages.json"))
-            username = forms.CharField(label=_("Username"),
-                                       help_text=_("The username to be used to authenticate to Junebug"),
-                                       required=False)
-            password = forms.CharField(label=_("Password"),
-                                       help_text=_("The password to be used to authenticate to Junebug"),
-                                       required=False)
-            secret = forms.CharField(label=_("Secret"),
-                                     help_text=_("The token Junebug should use to authenticate"),
-                                     required=False)
-
-        title = _("Connect Junebug")
-        form_class = JunebugForm
-        fields = ('channel_type', 'country', 'number', 'url', 'username', 'password', 'secret')
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-            data = form.cleaned_data
-
-            if data['channel_type'] == Channel.TYPE_JUNEBUG_USSD:
-                role = Channel.ROLE_USSD
-            else:
-                role = Channel.DEFAULT_ROLE
-
-            self.object = Channel.add_authenticated_external_channel(org, self.request.user,
-                                                                     self.get_submitted_country(data),
-                                                                     data['number'], data['username'],
-                                                                     data['password'], data['channel_type'],
-                                                                     data.get('url'),
-                                                                     role=role)
-            if data['secret']:
-                self.object.secret = data['secret']
-                self.object.save()
-
-            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
     class ClaimMblox(ClaimAuthenticatedExternal):
         class MBloxForm(forms.Form):

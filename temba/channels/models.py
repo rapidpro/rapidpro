@@ -77,7 +77,8 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     class Category(Enum):
         PHONE = 1
         SOCIAL_MEDIA = 2
-        API = 3
+        USSD = 3
+        API = 4
 
     code = None
     slug = None
@@ -167,8 +168,6 @@ class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_CHIKKA = 'CK'
     TYPE_DUMMY = 'DM'
-    TYPE_JUNEBUG = 'JN'
-    TYPE_JUNEBUG_USSD = 'JNU'
     TYPE_KANNEL = 'KN'
     TYPE_MACROKIOSK = 'MK'
     TYPE_M3TECH = 'M3'
@@ -273,8 +272,6 @@ class Channel(TembaModel):
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
-        TYPE_JUNEBUG: dict(schemes=['tel'], max_length=1600),
-        TYPE_JUNEBUG_USSD: dict(schemes=['tel'], max_length=1600),
         TYPE_KANNEL: dict(schemes=['tel'], max_length=1600),
         TYPE_MACROKIOSK: dict(schemes=['tel'], max_length=1600),
         TYPE_M3TECH: dict(schemes=['tel'], max_length=160),
@@ -299,8 +296,6 @@ class Channel(TembaModel):
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
                     (TYPE_CHIKKA, "Chikka"),
                     (TYPE_DUMMY, "Dummy"),
-                    (TYPE_JUNEBUG, "Junebug"),
-                    (TYPE_JUNEBUG_USSD, "Junebug USSD"),
                     (TYPE_KANNEL, "Kannel"),
                     (TYPE_MACROKIOSK, "Macrokiosk"),
                     (TYPE_M3TECH, "M3 Tech"),
@@ -335,7 +330,7 @@ class Channel(TembaModel):
     FREE_SENDING_CHANNEL_TYPES = [TYPE_VIBER]
 
     # list of all USSD channels
-    USSD_CHANNELS = [TYPE_VUMI_USSD, TYPE_JUNEBUG_USSD]
+    USSD_CHANNELS = [TYPE_VUMI_USSD]
 
     TWIML_CHANNELS = [TYPE_TWILIO, TYPE_VERBOICE, TYPE_TWIML]
 
@@ -1355,87 +1350,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event)
 
     @classmethod
-    def send_junebug_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED, Msg
-        from temba.ussd.models import USSDSession
-
-        connection = None
-
-        # if the channel config has specified and override hostname use that, otherwise use settings
-        event_hostname = channel.config.get(Channel.CONFIG_RP_HOSTNAME_OVERRIDE, settings.HOSTNAME)
-
-        # the event url Junebug will relay events to
-        event_url = 'http://%s%s' % (event_hostname, reverse('courier.jn', args=[channel.uuid, 'event']))
-
-        is_ussd = channel.channel_type == Channel.TYPE_JUNEBUG_USSD
-
-        # build our payload
-        payload = dict()
-        payload['event_url'] = event_url
-        payload['content'] = text
-
-        if channel.secret is not None:
-            payload['event_auth_token'] = channel.secret
-
-        if is_ussd:
-            connection = USSDSession.objects.get_with_status_only(msg.connection_id)
-            # make sure USSD responses are only valid for a short window
-            response_expiration = timezone.now() - timedelta(seconds=180)
-            external_id = None
-            if msg.response_to_id and msg.created_on > response_expiration:
-                external_id = Msg.objects.values_list('external_id', flat=True).filter(pk=msg.response_to_id).first()
-            # NOTE: Only one of `to` or `reply_to` may be specified, use external_id if we have it.
-            if external_id:
-                payload['reply_to'] = external_id
-            else:
-                payload['to'] = msg.urn_path
-            payload['channel_data'] = {
-                'continue_session': connection and not connection.should_end or False,
-            }
-        else:
-            payload['from'] = channel.address
-            payload['to'] = msg.urn_path
-
-        log_url = channel.config[Channel.CONFIG_SEND_URL]
-        start = time.time()
-
-        event = HttpEvent('POST', log_url, json.dumps(payload))
-        headers = {'Content-Type': 'application/json'}
-        headers.update(TEMBA_HEADERS)
-
-        try:
-            response = requests.post(
-                channel.config[Channel.CONFIG_SEND_URL], verify=True,
-                json=payload, timeout=15, headers=headers,
-                auth=(channel.config[Channel.CONFIG_USERNAME],
-                      channel.config[Channel.CONFIG_PASSWORD]))
-
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-        except Exception as e:
-            raise SendException(unicode(e), event=event, start=start)
-
-        if not (200 <= response.status_code < 300):
-            raise SendException("Received a non 200 response %d from Junebug" % response.status_code,
-                                event=event, start=start)
-
-        data = response.json()
-
-        if is_ussd and connection and connection.should_end:
-            connection.close()
-
-        try:
-            message_id = data['result']['message_id']
-            Channel.success(channel, msg, WIRED, start, event=event, external_id=message_id)
-        except KeyError, e:
-            raise SendException("Unable to read external message_id: %r" % (e,),
-                                event=HttpEvent('POST', log_url,
-                                                request_body=json.dumps(json.dumps(payload)),
-                                                response_body=json.dumps(data)),
-                                start=start)
-
-    @classmethod
     def send_mblox_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -2434,8 +2348,6 @@ STATUS_FULL = "FUL"
 
 SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
-                  Channel.TYPE_JUNEBUG: Channel.send_junebug_message,
-                  Channel.TYPE_JUNEBUG_USSD: Channel.send_junebug_message,
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,
                   Channel.TYPE_M3TECH: Channel.send_m3tech_message,
                   Channel.TYPE_MACROKIOSK: Channel.send_macrokiosk_message,
