@@ -4848,13 +4848,8 @@ class AddToGroupAction(Action):
                     if not errors:
                         group = ContactGroup.get_user_group(contact.org, value)
                         if not group:
+                            ActionLog.error(run, _("Unable to find group with name '%s'") % value)
 
-                            try:
-                                group = ContactGroup.create_static(contact.org, user, name=value)
-                                if run.contact.is_test:  # pragma: needs cover
-                                    ActionLog.info(run, _("Group '%s' created") % value)
-                            except ValueError:  # pragma: needs cover
-                                    ActionLog.error(run, _("Unable to create group with name '%s'") % value)
                     else:  # pragma: needs cover
                         ActionLog.error(run, _("Group name could not be evaluated: %s") % ', '.join(errors))
 
@@ -4980,12 +4975,10 @@ class AddLabelAction(Action):
                 (value, errors) = Msg.substitute_variables(label, context, org=run.flow.org)
 
                 if not errors:
-                    try:
-                        label = Label.get_or_create(contact.org, contact.org.get_user(), value)
-                        if run.contact.is_test:  # pragma: needs cover
-                            ActionLog.info(run, _("Label '%s' created") % label.name)
-                    except ValueError:  # pragma: needs cover
-                        ActionLog.error(run, _("Unable to create label with name '%s'") % label.name)
+                    label = Label.label_objects.filter(org=contact.org, name__iexact=value.strip()).first()
+                    if not label:
+                        ActionLog.error(run, _("Unable to find label with name '%s'") % value.strip())
+
                 else:  # pragma: needs cover
                     label = None
                     ActionLog.error(run, _("Label name could not be evaluated: %s") % ', '.join(errors))
