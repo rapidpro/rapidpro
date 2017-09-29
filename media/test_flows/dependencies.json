@@ -1,0 +1,64 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "https://textit.in", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 51, 
+          "destination": null, 
+          "uuid": "f60cf4f6-df30-4e6e-a87e-05b8d84cd05a", 
+          "actions": [
+            {
+              "type": "del_group", 
+              "groups": [
+                {
+                  "name": "Dog Facts", 
+                  "uuid": "35fa7196-c1f2-4d61-ae3d-f5819f7561ed"
+                }
+              ]
+            }, 
+            {
+              "type": "add_group", 
+              "groups": [
+                {
+                  "name": "Cat Facts", 
+                  "uuid": "c7bc1eef-b7aa-4959-ab90-3e33e0d3b1f9"
+                }
+              ]
+            }, 
+            {
+              "field": "favorite_cat", 
+              "type": "save", 
+              "value": "Scottish Fold", 
+              "label": "Favorite Cat"
+            }, 
+            {
+              "msg": {
+                "eng": "You are @contact.contact_age years old. @(CONCATENATE(\"Your CHW is \", contact.chw))."
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "f60cf4f6-df30-4e6e-a87e-05b8d84cd05a", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 9, 
+        "uuid": "17aebbfb-eb4f-4884-a550-50cbbae996fa", 
+        "name": "Dependencies",
+        "saved_on": "2017-09-06T18:27:56.501698Z"
+      }
+    }
+  ], 
+  "triggers": []
+}
