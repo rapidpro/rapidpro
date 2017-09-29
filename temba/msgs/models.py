@@ -1828,6 +1828,7 @@ class Label(TembaModel):
     much the same way labels or tags apply to messages in web-based email services.
     """
     MAX_NAME_LEN = 64
+    MAX_ORG_LABELS = 250
 
     TYPE_FOLDER = 'F'
     TYPE_LABEL = 'L'
@@ -1852,6 +1853,9 @@ class Label(TembaModel):
     def get_or_create(cls, org, user, name, folder=None):
         name = name.strip()
 
+        if cls.all_objects.filter(org=org, is_active=True).count() >= cls.MAX_ORG_LABELS:
+            raise ValueError("Reached 250 labels, please remove some to be able to add a new label")
+
         if not cls.is_valid_name(name):
             raise ValueError("Invalid label name: %s" % name)
 
@@ -1867,6 +1871,9 @@ class Label(TembaModel):
     @classmethod
     def get_or_create_folder(cls, org, user, name):
         name = name.strip()
+
+        if cls.all_objects.filter(org=org, is_active=True).count() >= cls.MAX_ORG_LABELS:
+            raise ValueError("Reached 250 labels, please remove some to be able to add a new label")
 
         if not cls.is_valid_name(name):  # pragma: needs cover
             raise ValueError("Invalid folder name: %s" % name)

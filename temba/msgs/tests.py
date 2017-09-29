@@ -1591,6 +1591,15 @@ class LabelTest(TembaTest):
         # don't allow invalid name
         self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
 
+    def test_maximum_labels_reached(self):
+        for i in range(125):
+            Label.get_or_create(self.org, self.user, "label%d" % i)
+            Label.get_or_create_folder(self.org, self.user, "folder%d" % i)
+
+        # don't allow more than 250
+        self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "foo")
+        self.assertRaises(ValueError, Label.get_or_create_folder, self.org, self.user, "bar")
+
     def test_is_valid_name(self):
         self.assertTrue(Label.is_valid_name('x'))
         self.assertTrue(Label.is_valid_name('1'))
