@@ -1853,9 +1853,6 @@ class Label(TembaModel):
     def get_or_create(cls, org, user, name, folder=None):
         name = name.strip()
 
-        if cls.all_objects.filter(org=org, is_active=True).count() >= cls.MAX_ORG_LABELS:
-            raise ValueError("Reached 250 labels, please remove some to be able to add a new label")
-
         if not cls.is_valid_name(name):
             raise ValueError("Invalid label name: %s" % name)
 
@@ -1866,14 +1863,14 @@ class Label(TembaModel):
         if label:
             return label
 
+        if cls.all_objects.filter(org=org, is_active=True).count() >= cls.MAX_ORG_LABELS:
+            raise ValueError("Reached 250 labels, please remove some to be able to add a new label")
+
         return cls.label_objects.create(org=org, name=name, folder=folder, created_by=user, modified_by=user)
 
     @classmethod
     def get_or_create_folder(cls, org, user, name):
         name = name.strip()
-
-        if cls.all_objects.filter(org=org, is_active=True).count() >= cls.MAX_ORG_LABELS:
-            raise ValueError("Reached 250 labels, please remove some to be able to add a new label")
 
         if not cls.is_valid_name(name):  # pragma: needs cover
             raise ValueError("Invalid folder name: %s" % name)
@@ -1881,6 +1878,9 @@ class Label(TembaModel):
         folder = cls.folder_objects.filter(org=org, name__iexact=name).first()
         if folder:  # pragma: needs cover
             return folder
+
+        if cls.all_objects.filter(org=org, is_active=True).count() >= cls.MAX_ORG_LABELS:
+            raise ValueError("Reached 250 labels, please remove some to be able to add a new label")
 
         return cls.folder_objects.create(org=org, name=name, label_type=Label.TYPE_FOLDER,
                                          created_by=user, modified_by=user)

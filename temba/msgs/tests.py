@@ -1596,7 +1596,11 @@ class LabelTest(TembaTest):
             Label.get_or_create(self.org, self.user, "label%d" % i)
             Label.get_or_create_folder(self.org, self.user, "folder%d" % i)
 
-        # don't allow more than 250
+        # allow to query existing labels
+        Label.get_or_create(self.org, self.user, "label1")
+        Label.get_or_create_folder(self.org, self.user, "folder1")
+
+        # don't allow creating more than 250
         self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "foo")
         self.assertRaises(ValueError, Label.get_or_create_folder, self.org, self.user, "bar")
 
