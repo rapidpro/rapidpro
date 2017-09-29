@@ -2933,6 +2933,26 @@ class ActionTest(TembaTest):
         self.assertEquals(response.attachments, ["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg')])
         self.assertEquals(self.contact, response.contact)
 
+    def test_media_expression(self):
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="profile")
+        run = FlowRun.create(self.flow, self.contact.pk)
+
+        action = ReplyAction(dict(base="Here is your profile pic."), 'image:/photos/contacts/@(contact.name).jpg')
+
+        # export and import our json to make sure that works as well
+        action_json = action.as_json()
+        action = ReplyAction.from_json(self.org, action_json)
+
+        # now execute it
+        self.execute_action(action, run, msg)
+        reply_msg = Msg.objects.get(contact=self.contact, direction='O')
+        self.assertEquals("Here is your profile pic.", reply_msg.text)
+        self.assertEquals(reply_msg.attachments, ["image:/photos/contacts/Eric.jpg"])
+
+        response = msg.responses.get()
+        self.assertEquals("Here is your profile pic.", response.text)
+        self.assertEquals(self.contact, response.contact)
+
     def test_ussd_action(self):
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
