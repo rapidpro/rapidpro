@@ -330,6 +330,7 @@ class ContactField(SmartModel):
     """
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
+    MAX_ORG_CONTACTFIELDS = 250
 
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
@@ -438,6 +439,10 @@ class ContactField(SmartModel):
 
                 if not ContactField.is_valid_key(key):
                     raise ValueError('Field key %s has invalid characters or is a reserved field name' % key)
+
+                if ContactField.objects.filter(org=org).count() >= cls.MAX_ORG_CONTACTFIELDS:
+                    raise ValueError('Reached %s contact fields, please remove some contact fields '
+                                     'to be able to create new contact fields' % cls.MAX_ORG_CONTACTFIELDS)
 
                 field = ContactField.objects.create(org=org, key=key, label=label,
                                                     show_in_table=show_in_table, value_type=value_type,

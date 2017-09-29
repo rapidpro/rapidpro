@@ -1592,7 +1592,7 @@ class LabelTest(TembaTest):
         self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
 
     def test_maximum_labels_reached(self):
-        for i in range(125):
+        for i in range(Label.MAX_ORG_LABELS / 2):
             Label.get_or_create(self.org, self.user, "label%d" % i)
             Label.get_or_create_folder(self.org, self.user, "folder%d" % i)
 

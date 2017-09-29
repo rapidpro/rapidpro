@@ -3851,6 +3851,16 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(field2.label, 'Games')
         self.assertEqual(field1.pk, field2.pk)
 
+    def test_reached_maximum_org_fields(self):
+        ContactField.objects.all().delete()
+
+        for i in range(ContactField.MAX_ORG_CONTACTFIELDS):
+            ContactField.get_or_create(self.org, self.admin, 'field%d' % i, 'Field%d' % i)
+
+        ContactField.get_or_create(self.org, self.admin, 'field1', 'Field1')
+
+        self.assertRaises(ValueError, ContactField.get_or_create, self.org, self.user, "place", "Place")
+
     def test_contact_templatetag(self):
         self.joe.set_field(self.user, 'First', 'Starter')
         self.assertEquals(contact_field(self.joe, 'First'), 'Starter')

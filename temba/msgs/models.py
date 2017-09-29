@@ -1880,7 +1880,7 @@ class Label(TembaModel):
             return folder
 
         if cls.all_objects.filter(org=org, is_active=True).count() >= cls.MAX_ORG_LABELS:
-            raise ValueError("Reached 250 labels, please remove some to be able to add a new label")
+            raise ValueError("Reached %s labels, please remove some to be able to add a new label" % cls.MAX_ORG_LABELS)
 
         return cls.folder_objects.create(org=org, name=name, label_type=Label.TYPE_FOLDER,
                                          created_by=user, modified_by=user)
