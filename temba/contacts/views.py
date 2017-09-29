@@ -86,6 +86,10 @@ class ContactGroupForm(forms.ModelForm):
         if not ContactGroup.is_valid_name(name):
             raise forms.ValidationError(_("Group name must not be blank or begin with + or -"))
 
+        if ContactGroup.user_groups.count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+            raise forms.ValidationError(_('Reached %s contact groups, please remove some contact groups '
+                                          'to be able to create new contact groups' % ContactGroup.MAX_ORG_CONTACTGROUPS))
+
         return name
 
     class Meta:

@@ -1787,6 +1787,15 @@ class LabelCRUDLTest(TembaTest):
         response = self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="+label_1"))
         self.assertFormError(response, 'form', 'name', "Name must not be blank or begin with punctuation")
 
+        Label.all_objects.all().delete()
+
+        for i in range(Label.MAX_ORG_LABELS):
+            Label.get_or_create(self.org, self.user, "label%d" % i)
+
+        response = self.client.post(create_label_url, dict(name="Label"))
+        self.assertFormError(response, 'form', 'name',
+                             "Reached 250 labels, please remove some to be able to add a new label")
+
     def test_label_delete(self):
         label_one = Label.get_or_create(self.org, self.user, "label1")
 

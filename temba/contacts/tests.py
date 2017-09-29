@@ -457,6 +457,15 @@ class ContactGroupCRUDLTest(TembaTest):
         group = ContactGroup.user_groups.get(org=self.org, name="Frank", query="frank")
         self.assertEqual(set(group.contacts.all()), {self.frank})
 
+        ContactGroup.user_groups.all().delete()
+
+        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+            ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
+
+        response = self.client.post(url, dict(name="People"))
+        self.assertFormError(response, 'form', 'name', "Reached 250 contact groups, please remove some contact groups "
+                                                       "to be able to create new contact groups")
+
     def test_update(self):
         url = reverse('contacts.contactgroup_update', args=[self.joe_and_frank.pk])
 
