@@ -452,10 +452,10 @@ class Broadcast(models.Model):
 
             media = self.get_translated_media(contact)
             if media:
-                media_type, media_url = media.split(':')
-
-                # if we have a localized media, create the url
-                if media_url:
+                media_type, media_url = media.split(':', 1)
+                # arbitrary media urls don't have a full content type, so only
+                # make uploads into fully qualified urls
+                if media_url and len(media_type.split('/')) > 1:
                     media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
             # add in our parent context if the message references @parent
@@ -1475,6 +1475,12 @@ class Msg(models.Model):
         if text:
             text = text[:Msg.MAX_TEXT_LEN]
 
+        evaluated_attachments = []
+        if attachments:
+            for attachment in attachments:
+                (attachment, errors) = Msg.substitute_variables(attachment, message_context, contact=contact, org=org)
+                evaluated_attachments.append(attachment)
+
         # if we are doing a single message, check whether this might be a loop of some kind
         if insert_object:
             # prevent the loop of message while the sending phone is the channel
@@ -1482,7 +1488,7 @@ class Msg(models.Model):
             same_msgs = Msg.objects.filter(contact_urn=contact_urn,
                                            contact__is_test=False,
                                            channel=channel,
-                                           attachments=attachments,
+                                           attachments=evaluated_attachments,
                                            text=text,
                                            direction=OUTGOING,
                                            created_on__gte=created_on - timedelta(minutes=10))
@@ -1539,7 +1545,7 @@ class Msg(models.Model):
                         msg_type=msg_type,
                         priority=500 if high_priority else 100,
                         high_priority=high_priority,
-                        attachments=attachments,
+                        attachments=evaluated_attachments,
                         connection=connection,
                         has_template_error=len(errors) > 0)
 
