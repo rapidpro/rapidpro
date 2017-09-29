@@ -2880,41 +2880,6 @@ class ChannelClaimTest(TembaTest):
         self.assertContains(response, reverse('courier.mk', args=[channel.uuid, 'receive']))
         self.assertContains(response, reverse('courier.mk', args=[channel.uuid, 'status']))
 
-    def test_m3tech(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_m3tech'))
-        post_data = response.context['form'].initial
-
-        post_data['country'] = 'PK'
-        post_data['number'] = '250788123123'
-        post_data['username'] = 'user1'
-        post_data['password'] = 'pass1'
-
-        response = self.client.post(reverse('channels.channel_claim_m3tech'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('PK', channel.country)
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals('+250788123123', channel.address)
-        self.assertEquals(Channel.TYPE_M3TECH, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.m3', args=[channel.uuid, 'receive']))
-        self.assertContains(response, reverse('courier.m3', args=[channel.uuid, 'sent']))
-        self.assertContains(response, reverse('courier.m3', args=[channel.uuid, 'failed']))
-        self.assertContains(response, reverse('courier.m3', args=[channel.uuid, 'delivered']))
-
     @override_settings(SEND_EMAILS=True)
     def test_sms_alert(self):
         contact = self.create_contact("John Doe", '123')
