@@ -2122,6 +2122,7 @@ class UserContactGroupManager(models.Manager):
 @six.python_2_unicode_compatible
 class ContactGroup(TembaModel):
     MAX_NAME_LEN = 64
+    MAX_ORG_CONTACTGROUPS = 250
 
     TYPE_ALL = 'A'
     TYPE_BLOCKED = 'B'
@@ -2210,6 +2211,10 @@ class ContactGroup(TembaModel):
     @classmethod
     def _create(cls, org, user, name, task=None, query=None):
         full_group_name = cls.clean_name(name)
+
+        if cls.user_groups.count() >= cls.MAX_ORG_CONTACTGROUPS:
+            raise ValueError('Reached %s contact groups, please remove some contact groups '
+                             'to be able to create new contact groups' % cls.MAX_ORG_CONTACTGROUPS)
 
         if not cls.is_valid_name(full_group_name):
             raise ValueError("Invalid group name: %s" % name)
