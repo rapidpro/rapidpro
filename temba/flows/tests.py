@@ -2933,9 +2933,29 @@ class ActionTest(TembaTest):
         self.assertEquals(response.attachments, ["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg')])
         self.assertEquals(self.contact, response.contact)
 
+    def test_media_expression(self):
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="profile")
+        run = FlowRun.create(self.flow, self.contact.pk)
+
+        action = ReplyAction(dict(base="Here is your profile pic."), 'image:/photos/contacts/@(contact.name).jpg')
+
+        # export and import our json to make sure that works as well
+        action_json = action.as_json()
+        action = ReplyAction.from_json(self.org, action_json)
+
+        # now execute it
+        self.execute_action(action, run, msg)
+        reply_msg = Msg.objects.get(contact=self.contact, direction='O')
+        self.assertEquals("Here is your profile pic.", reply_msg.text)
+        self.assertEquals(reply_msg.attachments, ["image:/photos/contacts/Eric.jpg"])
+
+        response = msg.responses.get()
+        self.assertEquals("Here is your profile pic.", response.text)
+        self.assertEquals(self.contact, response.contact)
+
     def test_ussd_action(self):
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD)
 
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
@@ -2977,7 +2997,7 @@ class ActionTest(TembaTest):
 
     def test_multilanguage_ussd_menu_partly_translated(self):
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD)
 
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
@@ -3484,9 +3504,12 @@ class ActionTest(TembaTest):
         # user should now be in the group
         self.assertEqual(set(group.contacts.all()), {self.contact})
 
-        # we should have created a group with the name of the contact
-        replace_group1 = ContactGroup.user_groups.get(name=self.contact.name)
-        self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
+        # we should never create a new group in the flow execution
+        self.assertIsNone(ContactGroup.user_groups.filter(name=self.contact.name).first())
+
+        # should match existing group for variables
+        replace_group1 = ContactGroup.create_static(self.org, self.admin, self.contact.name)
+        self.assertEqual(set(replace_group1.contacts.all()), set())
 
         # passing through twice doesn't change anything
         self.execute_action(action, run, msg)
@@ -3504,15 +3527,15 @@ class ActionTest(TembaTest):
         self.assertEqual(set(group.contacts.all()), {self.contact})
         self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
 
+        replace_group2 = ContactGroup.create_static(self.org, self.admin, test_contact.name)
+
         # with test contact, action logs are also created
         self.execute_action(action, test_run, test_msg)
-
-        replace_group2 = ContactGroup.user_groups.get(name=test_contact.name)
 
         self.assertEqual(set(group.contacts.all()), {self.contact, test_contact})
         self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
         self.assertEqual(set(replace_group2.contacts.all()), {test_contact})
-        self.assertEqual(ActionLog.objects.filter(level='I').count(), 3)
+        self.assertEqual(ActionLog.objects.filter(level='I').count(), 2)
 
         # now try remove action
         action = DeleteFromGroupAction([group, "@step.contact"])
@@ -3536,7 +3559,7 @@ class ActionTest(TembaTest):
 
         self.assertEqual(set(group.contacts.all()), set())
         self.assertEqual(set(replace_group2.contacts.all()), set())
-        self.assertEqual(ActionLog.objects.filter(level='I').count(), 5)
+        self.assertEqual(ActionLog.objects.filter(level='I').count(), 4)
 
         # try when group is inactive
         action = DeleteFromGroupAction([group])
@@ -3565,7 +3588,7 @@ class ActionTest(TembaTest):
 
         self.assertEqual(dynamic_group.contacts.count(), 0)
 
-        self.assertEqual(ActionLog.objects.filter(level='E').count(), 1)
+        self.assertEqual(ActionLog.objects.filter(level='E').count(), 2)
 
         group1 = self.create_group("Flow Group 1", [])
         group2 = self.create_group("Flow Group 2", [])
@@ -3672,9 +3695,9 @@ class ActionTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(flow, self.contact.pk)
 
-        label = Label.get_or_create(self.org, self.user, "green label")
+        label1 = Label.get_or_create(self.org, self.user, "green label")
 
-        action = AddLabelAction([label, "@step.contact"])
+        action = AddLabelAction([label1, "@step.contact"])
 
         action_json = action.as_json()
         action = AddLabelAction.from_json(self.org, action_json)
@@ -3682,29 +3705,37 @@ class ActionTest(TembaTest):
         # no message yet; such Add Label action on entry Actionset. No error should be raised
         self.execute_action(action, run, None)
 
-        self.assertFalse(label.get_messages())
-        self.assertEqual(label.get_visible_count(), 0)
+        self.assertFalse(label1.get_messages())
+        self.assertEqual(label1.get_visible_count(), 0)
 
         self.execute_action(action, run, msg)
 
-        # new label should have been created with the name of the contact
-        new_label = Label.label_objects.get(name=self.contact.name)
-        label = Label.label_objects.get(pk=label.pk)
+        # only label one was added to the message and no new label created
+        self.assertEqual(set(label1.get_messages()), {msg})
+        self.assertEqual(label1.get_visible_count(), 1)
+        self.assertEqual(Label.label_objects.all().count(), 1)
+
+        # make sure the expression variable label exists too
+        label1 = Label.label_objects.get(pk=label1.pk)
+        label2 = Label.label_objects.create(org=self.org, name=self.contact.name, created_by=self.admin,
+                                            modified_by=self.admin)
+
+        self.execute_action(action, run, msg)
 
         # and message should have been labeled with both labels
         msg = Msg.objects.get(pk=msg.pk)
-        self.assertEqual(set(msg.labels.all()), {label, new_label})
-        self.assertEqual(set(label.get_messages()), {msg})
-        self.assertEqual(label.get_visible_count(), 1)
-        self.assertTrue(set(new_label.get_messages()), {msg})
-        self.assertEqual(new_label.get_visible_count(), 1)
+        self.assertEqual(set(msg.labels.all()), {label1, label2})
+        self.assertEqual(set(label1.get_messages()), {msg})
+        self.assertEqual(label1.get_visible_count(), 1)
+        self.assertTrue(set(label2.get_messages()), {msg})
+        self.assertEqual(label2.get_visible_count(), 1)
 
         # passing through twice doesn't change anything
         self.execute_action(action, run, msg)
 
-        self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label, new_label})
-        self.assertEquals(Label.label_objects.get(pk=label.pk).get_visible_count(), 1)
-        self.assertEquals(Label.label_objects.get(pk=new_label.pk).get_visible_count(), 1)
+        self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label1, label2})
+        self.assertEquals(Label.label_objects.get(pk=label1.pk).get_visible_count(), 1)
+        self.assertEquals(Label.label_objects.get(pk=label2.pk).get_visible_count(), 1)
 
     @override_settings(SEND_WEBHOOKS=True)
     @patch('django.utils.timezone.now')
@@ -3901,7 +3932,7 @@ class FlowRunTest(TembaTest):
     def test_is_interrupted(self):
         self.channel.delete()
         # Create a USSD channel type to test USSDSession.INTERRUPTED status
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD)
 
         flow = self.get_flow('ussd_example')
@@ -4341,7 +4372,7 @@ class SimulationTest(FlowFileTest):
     @patch('temba.ussd.models.USSDSession.handle_incoming')
     def test_ussd_simulation(self, handle_incoming):
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE)
         flow = self.get_flow('ussd_example')
 
@@ -4367,7 +4398,7 @@ class SimulationTest(FlowFileTest):
     @patch('temba.ussd.models.USSDSession.handle_incoming')
     def test_ussd_simulation_interrupt(self, handle_incoming):
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE)
         flow = self.get_flow('ussd_example')
 
@@ -4388,7 +4419,7 @@ class SimulationTest(FlowFileTest):
 
     def test_ussd_simulation_connection_end(self):
         self.ussd_channel = Channel.create(
-            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
+            self.org, self.user, 'RW', 'JNU', None, '*123#',
             schemes=['tel'], uuid='00000000-0000-0000-0000-000000002222',
             role=Channel.ROLE_USSD)
 
@@ -6172,7 +6203,7 @@ class FlowsTest(FlowFileTest):
     def test_interrupted_state(self):
         self.channel.delete()
         # Create a USSD channel type to test USSDSession.INTERRUPTED status
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD)
 
         flow = self.get_flow('ussd_interrupt_example')
@@ -6196,7 +6227,7 @@ class FlowsTest(FlowFileTest):
     def test_empty_interrupt_state(self):
         self.channel.delete()
         # Create a USSD channel type to test USSDSession.INTERRUPTED status
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD)
 
         flow = self.get_flow('ussd_interrupt_example')
@@ -7718,11 +7749,11 @@ class FlowChannelSelectionTest(FlowFileTest):
         super(FlowChannelSelectionTest, self).setUp()
         self.channel.delete()
         self.sms_channel = Channel.create(
-            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG, None, '+250788123123',
+            self.org, self.user, 'RW', 'JN', None, '+250788123123',
             schemes=['tel'], uuid='00000000-0000-0000-0000-000000001111',
             role=Channel.DEFAULT_ROLE)
         self.ussd_channel = Channel.create(
-            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
+            self.org, self.user, 'RW', 'JNU', None, '*123#',
             schemes=['tel'], uuid='00000000-0000-0000-0000-000000002222',
             role=Channel.ROLE_USSD)
 

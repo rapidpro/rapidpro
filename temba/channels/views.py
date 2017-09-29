@@ -916,11 +916,11 @@ class ChannelCRUDL(SmartCRUDL):
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
                'claim_android', 'claim_chikka', 'configuration',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender',
-               'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
+               'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_shaqodoon',
                'claim_verboice', 'claim_plivo', 'search_plivo',
-               'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
+               'claim_smscentral', 'claim_start', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_mblox',
-               'claim_twiml_api', 'claim_junebug', 'facebook_whitelist',
+               'claim_twiml_api', 'facebook_whitelist',
                'claim_red_rabbit', 'claim_macrokiosk')
     permissions = True
 
@@ -1464,66 +1464,6 @@ class ChannelCRUDL(SmartCRUDL):
 
             return super(ChannelCRUDL.ClaimViber, self).form_valid(form)
 
-    class ClaimKannel(OrgPermsMixin, SmartFormView):
-        class KannelClaimForm(forms.Form):
-            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The phone number or short code you are connecting"))
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                        help_text=_("The country this phone number is used in"))
-            url = forms.URLField(max_length=1024, label=_("Send URL"),
-                                 help_text=_("The publicly accessible URL for your Kannel instance for sending. "
-                                             "ex: https://kannel.macklemore.co/cgi-bin/sendsms"))
-            username = forms.CharField(max_length=64, required=False,
-                                       help_text=_("The username to use to authenticate to Kannel, if left blank we "
-                                                   "will generate one for you"))
-            password = forms.CharField(max_length=64, required=False,
-                                       help_text=_("The password to use to authenticate to Kannel, if left blank we "
-                                                   "will generate one for you"))
-            encoding = forms.ChoiceField(Channel.ENCODING_CHOICES, label=_("Encoding"),
-                                         help_text=_("What encoding to use for outgoing messages"))
-            verify_ssl = forms.BooleanField(initial=True, required=False, label=_("Verify SSL"),
-                                            help_text=_("Whether to verify the SSL connection (recommended)"))
-            use_national = forms.BooleanField(initial=False, required=False, label=_("Use National Numbers"),
-                                              help_text=_("Use only the national number (no country code) when "
-                                                          "sending (not recommended)"))
-
-        title = _("Connect Kannel Service")
-        permission = 'channels.channel_claim'
-        success_url = "id@channels.channel_configuration"
-        form_class = KannelClaimForm
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-            data = form.cleaned_data
-
-            country = data['country']
-            url = data['url']
-            number = data['number']
-            role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
-
-            config = {Channel.CONFIG_SEND_URL: url,
-                      Channel.CONFIG_VERIFY_SSL: data.get('verify_ssl', False),
-                      Channel.CONFIG_USE_NATIONAL: data.get('use_national', False),
-                      Channel.CONFIG_USERNAME: data.get('username', None),
-                      Channel.CONFIG_PASSWORD: data.get('password', None),
-                      Channel.CONFIG_ENCODING: data.get('encoding', Channel.ENCODING_DEFAULT)}
-            self.object = Channel.add_config_external_channel(org, self.request.user, country, number, Channel.TYPE_KANNEL,
-                                                              config, role=role, parent=None)
-
-            # if they didn't set a username or password, generate them, we do this after the addition above
-            # because we use the channel id in the configuration
-            config = self.object.config_json()
-            if not config.get(Channel.CONFIG_USERNAME, None):
-                config[Channel.CONFIG_USERNAME] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
-
-            if not config.get(Channel.CONFIG_PASSWORD, None):
-                config[Channel.CONFIG_PASSWORD] = str(uuid4())
-
-            self.object.config = json.dumps(config)
-            self.object.save()
-
-            return super(ChannelCRUDL.ClaimKannel, self).form_valid(form)
-
     class ClaimMacrokiosk(OrgPermsMixin, SmartFormView):
         class MacrokioskClaimForm(forms.Form):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
@@ -1608,7 +1548,7 @@ class ChannelCRUDL(SmartCRUDL):
         channel_type = "AE"
         template_name = 'channels/channel_claim_authenticated.html'
 
-        def get_submitted_country(self, data):
+        def get_submitted_country(self, data):  # pragma: no cover
             return data['country']
 
         def form_valid(self, form):
@@ -1634,61 +1574,9 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Connect Start")
         channel_type = Channel.TYPE_START
 
-    class ClaimM3tech(ClaimAuthenticatedExternal):
-        title = _("Connect M3 Tech")
-        channel_type = Channel.TYPE_M3TECH
-
     class ClaimRedRabbit(ClaimAuthenticatedExternal):
         title = _("Connect Red Rabbit")
         channel_type = Channel.TYPE_RED_RABBIT
-
-    class ClaimJunebug(ClaimAuthenticatedExternal):
-        class JunebugForm(forms.Form):
-            channel_type = forms.ChoiceField(choices=((Channel.TYPE_JUNEBUG, 'SMS'),
-                                                      (Channel.TYPE_JUNEBUG_USSD, 'USSD')),
-                                             widget=forms.RadioSelect,
-                                             label=_('Channel Type'),
-                                             help_text=_('The type of channel you are wanting to connect.'))
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                        help_text=_("The country this phone number is used in"))
-            number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
-                                     help_text=("The shortcode or phone number you are connecting."))
-            url = forms.URLField(label=_("URL"),
-                                 help_text=_("The URL for the Junebug channel. ex: https://junebug.praekelt.org/jb/channels/3853bb51-d38a-4bca-b332-8a57c00f2a48/messages.json"))
-            username = forms.CharField(label=_("Username"),
-                                       help_text=_("The username to be used to authenticate to Junebug"),
-                                       required=False)
-            password = forms.CharField(label=_("Password"),
-                                       help_text=_("The password to be used to authenticate to Junebug"),
-                                       required=False)
-            secret = forms.CharField(label=_("Secret"),
-                                     help_text=_("The token Junebug should use to authenticate"),
-                                     required=False)
-
-        title = _("Connect Junebug")
-        form_class = JunebugForm
-        fields = ('channel_type', 'country', 'number', 'url', 'username', 'password', 'secret')
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-            data = form.cleaned_data
-
-            if data['channel_type'] == Channel.TYPE_JUNEBUG_USSD:
-                role = Channel.ROLE_USSD
-            else:
-                role = Channel.DEFAULT_ROLE
-
-            self.object = Channel.add_authenticated_external_channel(org, self.request.user,
-                                                                     self.get_submitted_country(data),
-                                                                     data['number'], data['username'],
-                                                                     data['password'], data['channel_type'],
-                                                                     data.get('url'),
-                                                                     role=role)
-            if data['secret']:
-                self.object.secret = data['secret']
-                self.object.save()
-
-            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
     class ClaimMblox(ClaimAuthenticatedExternal):
         class MBloxForm(forms.Form):

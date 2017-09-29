@@ -75,7 +75,7 @@ class ChannelTest(TembaTest):
         self.released_channel = Channel.create(None, self.user, None, 'NX', name="Released Channel", address=None,
                                                secret=None, gcm_id="000")
 
-        self.ussd_channel = Channel.create(self.org, self.user, None, Channel.TYPE_JUNEBUG_USSD, name="Junebug USSD",
+        self.ussd_channel = Channel.create(self.org, self.user, None, 'JNU', name="Junebug USSD",
                                            address="*123#", role=Channel.ROLE_USSD)
 
     def send_message(self, numbers, message, org=None, user=None):
@@ -144,8 +144,8 @@ class ChannelTest(TembaTest):
         self.login(self.admin)
 
         channel_types = (
-            (Channel.TYPE_JUNEBUG, Channel.DEFAULT_ROLE, 'Sending Log'),
-            (Channel.TYPE_JUNEBUG_USSD, Channel.ROLE_USSD, 'USSD Log'),
+            ('JN', Channel.DEFAULT_ROLE, 'Sending Log'),
+            ('JNU', Channel.ROLE_USSD, 'USSD Log'),
             (Channel.TYPE_TWILIO, Channel.ROLE_CALL, 'Call Log'),
             (Channel.TYPE_TWILIO, Channel.ROLE_SEND + Channel.ROLE_CALL, 'Channel Log')
         )
@@ -251,6 +251,18 @@ class ChannelTest(TembaTest):
         msg = self.send_message(['+250788382382'], "Sent to an MTN number, but with shortcode channels")
         self.assertEquals(tigo, msg.channel)
         self.assertEquals(tigo, self.org.get_send_channel(contact_urn=msg.contact_urn))
+
+        # if we have prefixes matching set should honor those
+        mtn.config = json.dumps({Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES: ['25078', '25072']})
+        mtn.save()
+
+        msg = self.send_message(['+250788382382'], "Sent to an MTN number with shortcode channels and prefixes set")
+        self.assertEquals(mtn, msg.channel)
+        self.assertEquals(mtn, self.org.get_send_channel(contact_urn=msg.contact_urn))
+
+        msg = self.send_message(['+250728382382'], "Sent to a TIGO number with shortcode channels and prefixes set")
+        self.assertEquals(mtn, msg.channel)
+        self.assertEquals(mtn, self.org.get_send_channel(contact_urn=msg.contact_urn))
 
         # check for twitter
         self.assertEquals(self.twitter_channel, self.org.get_send_channel(scheme=TWITTER_SCHEME))
@@ -2396,11 +2408,11 @@ class ChannelTest(TembaTest):
         self.assertFalse(no_channel_context['has_outgoing_channel'])
         self.assertEqual(no_channel_context['is_ussd_channel'], False)
 
-        sms_context = get_context(Channel.TYPE_JUNEBUG, Channel.ROLE_SEND)
+        sms_context = get_context('JN', Channel.ROLE_SEND)
         self.assertTrue(sms_context['has_outgoing_channel'])
         self.assertEqual(sms_context['is_ussd_channel'], False)
 
-        ussd_context = get_context(Channel.TYPE_JUNEBUG_USSD, Channel.ROLE_USSD)
+        ussd_context = get_context('JNU', Channel.ROLE_USSD)
         self.assertTrue(ussd_context['has_outgoing_channel'])
         self.assertEqual(ussd_context['is_ussd_channel'], True)
 
@@ -2561,50 +2573,6 @@ class ChannelClaimTest(TembaTest):
 
         self.assertContains(response, reverse('courier.sq', args=[channel.uuid, 'receive']))
 
-    def test_kannel(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-
-        # should see the general channel claim page
-        response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, reverse('channels.channel_claim_kannel'))
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_kannel'))
-        post_data = response.context['form'].initial
-
-        post_data['number'] = '3071'
-        post_data['country'] = 'RW'
-        post_data['url'] = 'http://kannel.temba.com/cgi-bin/sendsms'
-        post_data['verify_ssl'] = False
-        post_data['encoding'] = Channel.ENCODING_SMART
-
-        response = self.client.post(reverse('channels.channel_claim_kannel'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('RW', channel.country)
-        self.assertTrue(channel.uuid)
-        self.assertEquals(post_data['number'], channel.address)
-        self.assertEquals(post_data['url'], channel.config_json()['send_url'])
-        self.assertEquals(False, channel.config_json()['verify_ssl'])
-        self.assertEquals(Channel.ENCODING_SMART, channel.config_json()[Channel.CONFIG_ENCODING])
-
-        # make sure we generated a username and password
-        self.assertTrue(channel.config_json()['username'])
-        self.assertTrue(channel.config_json()['password'])
-        self.assertEquals(Channel.TYPE_KANNEL, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        # our configuration page should list our receive URL
-        self.assertContains(response, reverse('courier.kn', args=[channel.uuid, 'receive']))
-
     def test_zenvia(self):
         Channel.objects.all().delete()
 
@@ -2729,102 +2697,6 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         self.assertContains(response, reverse('courier.ck', args=[channel.uuid]))
-
-    def test_claim_junebug(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        response = self.client.get(reverse('channels.channel_claim_junebug'))
-        self.assertEquals(200, response.status_code)
-
-        post_data = {
-            "channel_type": Channel.TYPE_JUNEBUG,
-            "country": "ZA",
-            "number": "+273454325324",
-            "url": "http://example.com/messages.json",
-            "username": "foo",
-            "password": "bar",
-        }
-
-        response = self.client.post(reverse('channels.channel_claim_junebug'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals(channel.country, post_data['country'])
-        self.assertEquals(channel.address, post_data['number'])
-        self.assertEquals(channel.config_json()['send_url'], post_data['url'])
-        self.assertEquals(channel.config_json()['username'], post_data['username'])
-        self.assertEquals(channel.config_json()['password'], post_data['password'])
-        self.assertEquals(channel.channel_type, Channel.TYPE_JUNEBUG)
-        self.assertEquals(channel.role, Channel.DEFAULT_ROLE)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.jn', args=[channel.uuid, 'inbound']))
-
-    def test_claim_junebug_with_secret(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        response = self.client.get(reverse('channels.channel_claim_junebug'))
-        self.assertEquals(200, response.status_code)
-
-        post_data = {
-            "channel_type": Channel.TYPE_JUNEBUG,
-            "country": "ZA",
-            "number": "+273454325324",
-            "url": "http://example.com/messages.json",
-            "username": "foo",
-            "password": "bar",
-            "secret": "UjOq8ATo2PDS6L08t6vlqSoK"
-        }
-
-        response = self.client.post(reverse('channels.channel_claim_junebug'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals(channel.country, post_data['country'])
-        self.assertEquals(channel.address, post_data['number'])
-        self.assertEquals(channel.secret, post_data['secret'])
-        self.assertEquals(channel.config_json()['send_url'], post_data['url'])
-        self.assertEquals(channel.config_json()['username'], post_data['username'])
-        self.assertEquals(channel.config_json()['password'], post_data['password'])
-        self.assertEquals(channel.channel_type, Channel.TYPE_JUNEBUG)
-        self.assertEquals(channel.role, Channel.DEFAULT_ROLE)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.jn', args=[channel.uuid, 'inbound']))
-
-    def test_claim_junebug_ussd(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        response = self.client.get(reverse('channels.channel_claim_junebug'))
-        self.assertEquals(200, response.status_code)
-
-        post_data = {
-            "channel_type": Channel.TYPE_JUNEBUG_USSD,
-            "country": "ZA",
-            "number": "+273454325324",
-            "url": "http://example.com/messages.json",
-            "username": "foo",
-            "password": "bar",
-        }
-
-        response = self.client.post(reverse('channels.channel_claim_junebug'), post_data)
-
-        channel = Channel.objects.get()
-        self.assertEquals(channel.channel_type, Channel.TYPE_JUNEBUG_USSD)
-        self.assertEquals(channel.role, Channel.ROLE_USSD)
 
     def test_claim_vumi_ussd(self):
         Channel.objects.all().delete()
@@ -3007,41 +2879,6 @@ class ChannelClaimTest(TembaTest):
 
         self.assertContains(response, reverse('courier.mk', args=[channel.uuid, 'receive']))
         self.assertContains(response, reverse('courier.mk', args=[channel.uuid, 'status']))
-
-    def test_m3tech(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_m3tech'))
-        post_data = response.context['form'].initial
-
-        post_data['country'] = 'PK'
-        post_data['number'] = '250788123123'
-        post_data['username'] = 'user1'
-        post_data['password'] = 'pass1'
-
-        response = self.client.post(reverse('channels.channel_claim_m3tech'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('PK', channel.country)
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals('+250788123123', channel.address)
-        self.assertEquals(Channel.TYPE_M3TECH, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.m3', args=[channel.uuid, 'receive']))
-        self.assertContains(response, reverse('courier.m3', args=[channel.uuid, 'sent']))
-        self.assertContains(response, reverse('courier.m3', args=[channel.uuid, 'failed']))
-        self.assertContains(response, reverse('courier.m3', args=[channel.uuid, 'delivered']))
 
     @override_settings(SEND_EMAILS=True)
     def test_sms_alert(self):
@@ -8876,7 +8713,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         self.channel.delete()
 
         self.channel = Channel.create(
-            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG, None, '1234',
+            self.org, self.user, 'RW', 'JN', None, '1234',
             config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
             uuid='00000000-0000-0000-0000-000000001234',
             role=Channel.DEFAULT_ROLE)
