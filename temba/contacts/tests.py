@@ -1422,6 +1422,7 @@ class ContactTest(TembaTest):
     def test_history(self):
         url = reverse('contacts.contact_history', args=[self.joe.uuid])
 
+        kurt = self.create_contact("Kurt", "123123")
         self.joe.created_on = timezone.now() - timedelta(days=1000)
         self.joe.save()
 
@@ -1445,17 +1446,17 @@ class ContactTest(TembaTest):
                         created_on=self.joe.created_on - timedelta(seconds=10))
 
         # start a joe flow
-        self.reminder_flow.start([], [self.joe])
+        self.reminder_flow.start([], [self.joe, kurt])
 
         # mark an outgoing message as failed
-        failed = Msg.objects.get(direction='O')
+        failed = Msg.objects.get(direction='O', contact=self.joe)
         failed.status = 'F'
         failed.save()
         log = ChannelLog.objects.create(channel=failed.channel, msg=failed, is_error=True,
                                         description="It didn't send!!")
 
         # pretend that flow run made a webhook request
-        WebHookEvent.trigger_flow_event(FlowRun.objects.get(), 'https://example.com', '1234', msg=None)
+        WebHookEvent.trigger_flow_event(FlowRun.objects.get(contact=self.joe), 'https://example.com', '1234', msg=None)
 
         # create an event from the past
         scheduled = timezone.now() - timedelta(days=5)
