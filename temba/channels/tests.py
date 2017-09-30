@@ -11198,9 +11198,12 @@ class CourierTest(TembaTest):
             incoming = self.create_msg(contact=bob, text="Hello", direction="I")
 
             # create some outgoing messages for our channel
-            msg1 = Msg.create_outgoing(self.org, self.admin, 'telegram:1', "Outgoing 1")
-            msg2 = Msg.create_outgoing(self.org, self.admin, 'telegram:2', "Outgoing 2", response_to=incoming)
-            msg3 = Msg.create_outgoing(self.org, self.admin, 'telegram:3', "Outgoing 3", high_priority=False)
+            msg1 = Msg.create_outgoing(self.org, self.admin, 'telegram:1', "Outgoing 1",
+                                       attachments=['image/jpg:https://example.com/test.jpg'])
+            msg2 = Msg.create_outgoing(self.org, self.admin, 'telegram:2', "Outgoing 2", response_to=incoming,
+                                       attachments=[])
+            msg3 = Msg.create_outgoing(self.org, self.admin, 'telegram:3', "Outgoing 3", high_priority=False,
+                                       attachments=None)
             msg4 = Msg.create_outgoing(self.org, self.admin, 'telegram:4', "Outgoing 4", high_priority=True)
             msg5 = Msg.create_outgoing(self.org, self.admin, 'telegram:4', "Outgoing 5", high_priority=True)
             all_msgs = [msg1, msg2, msg3, msg4, msg5]
@@ -11242,6 +11245,10 @@ class CourierTest(TembaTest):
 
             self.assertEqual([[m['text'] for m in b] for b in high_priority_msgs], [["Outgoing 4", "Outgoing 5"]])
             self.assertEqual([[m['text'] for m in b] for b in low_priority_msgs], [["Outgoing 1"], ["Outgoing 2"], ["Outgoing 3"]])
+
+            self.assertEqual(low_priority_msgs[0][0]['attachments'], ['image/jpg:https://example.com/test.jpg'])
+            self.assertIsNone(low_priority_msgs[1][0]['attachments'])
+            self.assertIsNone(low_priority_msgs[2][0]['attachments'])
 
 
 class HandleEventTest(TembaTest):
