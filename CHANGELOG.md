@@ -1,3 +1,11 @@
+v3.0.210
+----------
+ * Make message priority be based on responded state of flow runs
+ * Support templatized urls in media
+ * Add UI for URL Attachments
+ * Prevent creation of groups and labels at flow run time
+ * Dynamic channels: M3Tech, Kannel, Junebug and Junebug USSD
+
 v3.0.209
 ----------
  * Add a way to specify the prefixes short codes should be matching
