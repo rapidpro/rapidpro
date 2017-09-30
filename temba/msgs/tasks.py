@@ -136,7 +136,7 @@ def send_broadcast_task(broadcast_id):
     # get our broadcast
     from .models import Broadcast
     broadcast = Broadcast.objects.get(pk=broadcast_id)
-    high_priority = broadcast.recipient_count == 1
+    high_priority = (broadcast.recipient_count == 1)
     broadcast.send(high_priority=high_priority)
 
 
