@@ -1609,13 +1609,14 @@ class Flow(TembaModel):
         if started_flows is None:
             started_flows = []
 
-        # create the broadcast for this flow
-        send_actions = self.get_entry_send_actions()
-
         # for each send action, we need to create a broadcast, we'll group our created messages under these
         broadcasts = []
 
         if len(all_contact_ids) > 1:
+
+            # create the broadcast for this flow
+            send_actions = self.get_entry_send_actions()
+
             for send_action in send_actions:
                 # check that we either have text or media, available for the base language
                 if (send_action.msg and send_action.msg.get(self.base_language)) or (send_action.media and send_action.media.get(self.base_language)):
@@ -5161,9 +5162,6 @@ class ReplyAction(Action):
                 created_on = offline_on
             else:
                 created_on = None
-
-            # print (text)
-            # import pdb; pdb.set_trace()
 
             if msg and msg.id:
                 replies = msg.reply(text, user, trigger_send=False, message_context=context,
