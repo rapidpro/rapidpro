@@ -2475,9 +2475,9 @@ class FlowTest(TembaTest):
 
         # include people active in flows
         post_data['include_active'] = 'on'
-        count = Broadcast.objects.all().count()
+        count = Msg.objects.all().count()
         self.client.post(reverse('flows.flow_broadcast', args=[self.flow.id]), post_data, follow=True)
-        self.assertEquals(count + 1, Broadcast.objects.all().count())
+        self.assertEquals(count + 1, Msg.objects.all().count())
 
         # we should have a flow start
         start = FlowStart.objects.get(flow=self.flow)
@@ -5853,16 +5853,66 @@ class FlowsTest(FlowFileTest):
         # should have one event scheduled for this contact
         self.assertTrue(EventFire.objects.filter(contact=self.contact))
 
+    def test_priority(self):
+        self.get_flow('priorities')
+        joe = self.create_contact("joe", "112233")
+
+        parent = Flow.objects.get(name='Priority Parent')
+        parent.start([], [self.contact, joe])
+
+        self.assertEqual(8, Msg.objects.filter(direction='O').count())
+        self.assertEqual(2, Broadcast.objects.all().count())
+
+        # all messages so far are low prioirty as well because of no inbound
+        self.assertEqual(8, Msg.objects.filter(direction='O', high_priority=False).count())
+
+        # send a message in to become high priority
+        self.send("make me high priority por favor")
+
+        # each flow sends one message to cleanup
+        self.assertEqual(11, Msg.objects.filter(direction='O').count())
+        self.assertEqual(3, Msg.objects.filter(high_priority=True).count())
+
+        # we've completed three flows, but joe is still at it
+        self.assertEqual(5, FlowRun.objects.all().count())
+        self.assertEqual(3, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).count())
+        self.assertEqual(2, FlowRun.objects.filter(contact=joe, exit_type=None).count())
+
+    def test_priority_single_contact(self):
+        # try running with a single contact, we dont create broadcasts for a single
+        # contact, but the messages should still be low prioirty
+        self.get_flow('priorities')
+        parent = Flow.objects.get(name='Priority Parent')
+        parent.start([], [self.contact], restart_participants=True)
+
+        self.assertEqual(4, Msg.objects.count())
+        self.assertEqual(0, Broadcast.objects.count())
+        self.assertEqual(4, Msg.objects.filter(high_priority=False).count())
+
+    def test_priority_keyword_trigger(self):
+        self.get_flow('priorities')
+
+        # now lets kick a flow off with a message trigger
+        self.send("priority")
+
+        # now we should have two runs
+        self.assertEqual(2, FlowRun.objects.count())
+
+        # since the contact started us, all our messages should be high priority
+        self.assertEqual(0, Msg.objects.filter(high_priority=False).count())
+        self.assertEqual(4, Msg.objects.filter(direction='O', high_priority=True).count())
+
     def test_subflow(self):
         """
         Tests that a subflow can be called and the flow is handed back to the parent
         """
         self.get_flow('subflow')
         parent = Flow.objects.get(org=self.org, name='Parent Flow')
-        parent.start(groups=[], contacts=[self.contact], restart_participants=True)
+        parent.start(groups=[], contacts=[self.contact, self.create_contact("joe", "001122")], restart_participants=True)
 
         msg = Msg.objects.filter(contact=self.contact).first()
         self.assertEqual("This is a parent flow. What would you like to do?", msg.text)
+        self.assertFalse(msg.high_priority)
 
         # this should launch the child flow
         self.send_message(parent, "color", assert_reply=False)
@@ -5873,6 +5923,7 @@ class FlowsTest(FlowFileTest):
         # should have one step on the subflow ruleset
         self.assertEqual(1, FlowStep.objects.filter(step_uuid=subflow_ruleset.uuid).count())
         self.assertEqual("What color do you like?", msg.text)
+        self.assertTrue(msg.high_priority)
 
         # we should now have two active flows
         self.assertEqual(2, FlowRun.objects.filter(contact=self.contact, is_active=True).count())

@@ -11213,14 +11213,17 @@ class CourierTest(TembaTest):
                 self.assertEqual(msg.status, QUEUED)
 
             self.assertFalse(msg1.high_priority)
-            self.assertTrue(msg2.high_priority)  # is a response
+
+            # responses arent enough to be high priority, it depends on run responded
+            self.assertFalse(msg2.high_priority)
+
             self.assertFalse(msg3.high_priority)
             self.assertTrue(msg4.high_priority)  # explicitly high
             self.assertTrue(msg5.high_priority)
 
             # TODO remove numeric priority
             self.assertEqual(msg1.priority, 100)
-            self.assertEqual(msg2.priority, 500)
+            self.assertEqual(msg2.priority, 100)
             self.assertEqual(msg3.priority, 100)
             self.assertEqual(msg4.priority, 500)
             self.assertEqual(msg5.priority, 500)
@@ -11237,8 +11240,8 @@ class CourierTest(TembaTest):
             high_priority_msgs = [json.loads(t) for t in r.zrange(queue_name + "/1", 0, -1)]
             low_priority_msgs = [json.loads(t) for t in r.zrange(queue_name + "/0", 0, -1)]
 
-            self.assertEqual([[m['text'] for m in b] for b in high_priority_msgs], [["Outgoing 2"], ["Outgoing 4", "Outgoing 5"]])
-            self.assertEqual([[m['text'] for m in b] for b in low_priority_msgs], [["Outgoing 1"], ["Outgoing 3"]])
+            self.assertEqual([[m['text'] for m in b] for b in high_priority_msgs], [["Outgoing 4", "Outgoing 5"]])
+            self.assertEqual([[m['text'] for m in b] for b in low_priority_msgs], [["Outgoing 1"], ["Outgoing 2"], ["Outgoing 3"]])
 
 
 class HandleEventTest(TembaTest):
