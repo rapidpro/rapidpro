@@ -1518,7 +1518,7 @@ class ContactTest(TembaTest):
         bcast.save()
         bcast.msgs.all().delete()
 
-        recipient = BroadcastRecipient.objects.filter(broadcast=bcast).first()
+        recipient = BroadcastRecipient.objects.filter(contact=self.joe, broadcast=bcast).first()
         recipient.purged_status = 'F'
         recipient.save()
 
