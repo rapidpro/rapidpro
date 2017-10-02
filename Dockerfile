@@ -15,7 +15,6 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN mkdir rapidpro
 WORKDIR /rapidpro
 ADD . /rapidpro
-RUN mkdir /var/log/celery
 
 #################    Old dependencies    #################
 # For broken dependency to old Pillow version from django-quickblocks
@@ -58,7 +57,7 @@ RUN apt-get update && \
   npm install -g coffee-script && \
   npm install -g bower
 
-RUN apt-get install -y --no-install-recommends postgresql-client
+#RUN apt-get install -y --no-install-recommends postgresql-client
 
 #################    Set configuration    #################
 
