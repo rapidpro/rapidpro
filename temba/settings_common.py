@@ -1040,11 +1040,11 @@ REST_FRAMEWORK = {
         'temba.api.support.OrgRateThrottle',
     ),
     'DEFAULT_THROTTLE_RATES': {
-        'v2': '2500/hour',
-        'v2.contacts': '2500/hour',
-        'v2.messages': '2500/hour',
+        'v2': '250000/hour',
+        'v2.contacts': '250000/hour',
+        'v2.messages': '250000/hour',
         'v2.runs': '2500/hour',
-        'v2.api': '2500/hour',
+        'v2.api': '250000/hour',
     },
     'PAGE_SIZE': 100000000,
     'DEFAULT_RENDERER_CLASSES': (
@@ -1176,7 +1176,7 @@ VALUE_FIELD_SIZE = 640
 SUCCESS_LOGS_TRIM_TIME = 48
 ALL_LOGS_TRIM_TIME = 24 * 30
 
-# ----------------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------------
 # Ajax
 # -----------------------------------------------------------------------------------
 CORS_ORIGIN_ALLOW_ALL = True
