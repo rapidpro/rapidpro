@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM mvilchis/rapidpro-base:v1.0
 MAINTAINER Miguel Vilchis "mvilchis@ciencias.unam.mx"
 
 #################  Enviroment variables  #################
@@ -24,7 +24,6 @@ RUN sed -i '/Pillow/c\Pillow==3.4.2' /rapidpro/pip-freeze.txt
 RUN sed -i '/dj-database-url/c\dj-database-url==0.4.1' /rapidpro/pip-freeze.txt
 
 #################     Install packages    #################
-COPY ./geolibs.sh /
 RUN apt-get update && \
   apt-get install -y --no-install-recommends \
   bash \
@@ -53,8 +52,7 @@ RUN apt-get update && \
   libpq-dev \
   file \
   lib32ncurses5-dev \
-  libgeos-dev && \
-  sh /geolibs.sh \
+  libgeos-dev && \ 
   rm -rf /var/lib/apt/lists/* && \
   npm install -g less && \
   npm install -g coffee-script && \
