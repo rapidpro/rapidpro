@@ -392,12 +392,12 @@ class Broadcast(models.Model):
         return Language.get_localized_text(self.media, preferred_languages)
 
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
-             created_on=None, partial_recipients=None, run_map=None):
+             created_on=None, partial_recipients=None, run_map=None, high_priority=False):
         """
         Sends this broadcast by creating outgoing messages for each recipient.
         """
         # ignore mock messages
-        if response_to and not response_to.id:
+        if response_to and not response_to.id:  # pragma: no cover
             response_to = None
 
         # cannot ask for sending by us AND specify a created on, blow up in that case
@@ -434,9 +434,6 @@ class Broadcast(models.Model):
         batch_recipients = []
         existing_recipients = set(BroadcastRecipient.objects.filter(broadcast_id=self.id).values_list('contact_id', flat=True))
 
-        # high priority if this is to a single contact
-        high_priority = len(recipients) == 1
-
         # if they didn't pass in a created on, create one ourselves
         if not created_on:
             created_on = timezone.now()
@@ -452,10 +449,10 @@ class Broadcast(models.Model):
 
             media = self.get_translated_media(contact)
             if media:
-                media_type, media_url = media.split(':')
-
-                # if we have a localized media, create the url
-                if media_url:
+                media_type, media_url = media.split(':', 1)
+                # arbitrary media urls don't have a full content type, so only
+                # make uploads into fully qualified urls
+                if media_url and len(media_type.split('/')) > 1:
                     media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
             # add in our parent context if the message references @parent
@@ -1124,7 +1121,7 @@ class Msg(models.Model):
 
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
                                  response_to=self if self.id else None, connection=connection, attachments=attachments,
-                                 msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all)
+                                 msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all, high_priority=True)
 
     def update(self, cmd):
         """
@@ -1406,7 +1403,7 @@ class Msg(models.Model):
         return evaluate_template(text, context, url_encode, partial_vars)
 
     @classmethod
-    def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=None,
+    def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=False,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
                         attachments=None, topup_id=None, msg_type=INBOX, connection=None):
 
@@ -1458,6 +1455,16 @@ class Msg(models.Model):
         if text:
             text = text[:Msg.MAX_TEXT_LEN]
 
+        evaluated_attachments = []
+        if attachments:
+            for attachment in attachments:
+                (attachment, errors) = Msg.substitute_variables(attachment, message_context, contact=contact, org=org)
+                evaluated_attachments.append(attachment)
+
+        # prefer none to empty lists in the database
+        if len(evaluated_attachments) == 0:
+            evaluated_attachments = None
+
         # if we are doing a single message, check whether this might be a loop of some kind
         if insert_object:
             # prevent the loop of message while the sending phone is the channel
@@ -1465,7 +1472,7 @@ class Msg(models.Model):
             same_msgs = Msg.objects.filter(contact_urn=contact_urn,
                                            contact__is_test=False,
                                            channel=channel,
-                                           attachments=attachments,
+                                           attachments=evaluated_attachments,
                                            text=text,
                                            direction=OUTGOING,
                                            created_on__gte=created_on - timedelta(minutes=10))
@@ -1498,10 +1505,6 @@ class Msg(models.Model):
         if response_to:
             msg_type = response_to.msg_type
 
-        # if bulk priority has not been explicitly set, then it depends on whether this is a reply
-        if high_priority is None:
-            high_priority = bool(response_to)
-
         text = text.strip()
 
         # track this if we have a channel
@@ -1521,7 +1524,7 @@ class Msg(models.Model):
                         response_to=response_to,
                         msg_type=msg_type,
                         high_priority=high_priority,
-                        attachments=attachments,
+                        attachments=evaluated_attachments,
                         connection=connection,
                         has_template_error=len(errors) > 0)
 
