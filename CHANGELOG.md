@@ -1,3 +1,9 @@
+v3.0.211
+----------
+ * Properly create event fires for campaign events updated through api
+ * Strip matched string in not empty test
+ * Dynamic channels: Macrokiosk
+
 v3.0.210
 ----------
  * Make message priority be based on responded state of flow runs
