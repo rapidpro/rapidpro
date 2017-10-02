@@ -1129,6 +1129,7 @@ CHANNEL_TYPES = [
     'temba.channels.types.kannel.KannelType',
     'temba.channels.types.line.LineType',
     'temba.channels.types.m3tech.M3TechType',
+    'temba.channels.types.macrokiosk.MacrokioskType',
     'temba.channels.types.telegram.TelegramType',
     'temba.channels.types.twitter.TwitterType',
     'temba.channels.types.twitter_activity.TwitterActivityType',

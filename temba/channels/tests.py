@@ -2838,48 +2838,6 @@ class ChannelClaimTest(TembaTest):
 
         self.assertEquals(mail.outbox[1].body, text)
 
-    def test_claim_macrokiosk(self):
-        Channel.objects.all().delete()
-
-        self.org.timezone = 'Asia/Kuala_Lumpur'
-        self.org.save()
-
-        self.login(self.admin)
-        response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, reverse('channels.channel_claim_macrokiosk'))
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_macrokiosk'))
-        post_data = response.context['form'].initial
-
-        post_data['country'] = 'MY'
-        post_data['number'] = '250788123123'
-        post_data['username'] = 'user1'
-        post_data['password'] = 'pass1'
-        post_data['sender_id'] = 'macro'
-        post_data['service_id'] = 'SERVID'
-
-        response = self.client.post(reverse('channels.channel_claim_macrokiosk'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals(channel.country, 'MY')
-        self.assertEquals(channel.config_json()['username'], post_data['username'])
-        self.assertEquals(channel.config_json()['password'], post_data['password'])
-        self.assertEquals(channel.config_json()[Channel.CONFIG_MACROKIOSK_SENDER_ID], post_data['sender_id'])
-        self.assertEquals(channel.config_json()[Channel.CONFIG_MACROKIOSK_SERVICE_ID], post_data['service_id'])
-        self.assertEquals(channel.address, '250788123123')
-        self.assertEquals(channel.channel_type, Channel.TYPE_MACROKIOSK)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.mk', args=[channel.uuid, 'receive']))
-        self.assertContains(response, reverse('courier.mk', args=[channel.uuid, 'status']))
-
     @override_settings(SEND_EMAILS=True)
     def test_sms_alert(self):
         contact = self.create_contact("John Doe", '123')
@@ -11198,9 +11156,12 @@ class CourierTest(TembaTest):
             incoming = self.create_msg(contact=bob, text="Hello", direction="I")
 
             # create some outgoing messages for our channel
-            msg1 = Msg.create_outgoing(self.org, self.admin, 'telegram:1', "Outgoing 1")
-            msg2 = Msg.create_outgoing(self.org, self.admin, 'telegram:2', "Outgoing 2", response_to=incoming)
-            msg3 = Msg.create_outgoing(self.org, self.admin, 'telegram:3', "Outgoing 3", high_priority=False)
+            msg1 = Msg.create_outgoing(self.org, self.admin, 'telegram:1', "Outgoing 1",
+                                       attachments=['image/jpg:https://example.com/test.jpg'])
+            msg2 = Msg.create_outgoing(self.org, self.admin, 'telegram:2', "Outgoing 2", response_to=incoming,
+                                       attachments=[])
+            msg3 = Msg.create_outgoing(self.org, self.admin, 'telegram:3', "Outgoing 3", high_priority=False,
+                                       attachments=None)
             msg4 = Msg.create_outgoing(self.org, self.admin, 'telegram:4', "Outgoing 4", high_priority=True)
             msg5 = Msg.create_outgoing(self.org, self.admin, 'telegram:4', "Outgoing 5", high_priority=True)
             all_msgs = [msg1, msg2, msg3, msg4, msg5]
@@ -11242,6 +11203,10 @@ class CourierTest(TembaTest):
 
             self.assertEqual([[m['text'] for m in b] for b in high_priority_msgs], [["Outgoing 4", "Outgoing 5"]])
             self.assertEqual([[m['text'] for m in b] for b in low_priority_msgs], [["Outgoing 1"], ["Outgoing 2"], ["Outgoing 3"]])
+
+            self.assertEqual(low_priority_msgs[0][0]['attachments'], ['image/jpg:https://example.com/test.jpg'])
+            self.assertIsNone(low_priority_msgs[1][0]['attachments'])
+            self.assertIsNone(low_priority_msgs[2][0]['attachments'])
 
 
 class HandleEventTest(TembaTest):

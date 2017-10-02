@@ -6187,7 +6187,7 @@ class NotEmptyTest(Test):
 
     def evaluate(self, run, sms, context, text):  # pragma: needs cover
         if text and len(text.strip()):
-            return 1, text
+            return 1, text.strip()
         return 0, None
 
 
