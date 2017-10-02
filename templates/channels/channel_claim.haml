@@ -401,6 +401,23 @@
           .span9
             .claim-description
               %div= ch_type.get_claim_blurb
+    %h3
+      -trans "USSD Channels"
+
+    -for ch_type in channel_types.USSD
+      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+              .btn-container
+                .claim-glyph{class:"{{ ch_type.icon }}"}
+                %p.claim-text= ch_type.name
+          .span9
+            .claim-description
+              %div= ch_type.get_claim_blurb
 
     %h3
       -trans "API Channels"
