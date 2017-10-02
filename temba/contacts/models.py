@@ -330,7 +330,7 @@ class ContactField(SmartModel):
     """
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
-    MAX_ORG_CONTACTFIELDS = 250
+    MAX_ORG_CONTACTFIELDS = 200
 
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 

@@ -4129,6 +4129,27 @@ class ContactFieldTest(TembaTest):
         self.assertFormError(response, 'form', None, "Field key language has invalid characters "
                                                      "or is a reserved field name")
 
+        ContactField.objects.all().delete()
+
+        for i in range(ContactField.MAX_ORG_CONTACTFIELDS):
+            ContactField.get_or_create(self.org, self.admin, 'field%d' % i, 'Field%d' % i)
+
+        response = self.client.get(manage_fields_url)
+        post_data = dict()
+        for id, field in response.context['form'].fields.items():
+            if field.initial is None:
+                post_data[id] = ''
+            elif isinstance(field.initial, ContactField):
+                post_data[id] = field.initial.pk
+            else:
+                post_data[id] = field.initial
+
+        post_data['label_201'] = 'position'
+
+        response = self.client.post(manage_fields_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, "Reached 200 contact fields, please remove some contact fields "
+                                                     "to be able to create new contact fields")
+
     def test_json(self):
         contact_field_json_url = reverse('contacts.contactfield_json')
 
