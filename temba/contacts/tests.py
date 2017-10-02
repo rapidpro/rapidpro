@@ -3256,6 +3256,25 @@ class ContactTest(TembaTest):
         contact1 = Contact.objects.all().order_by('name')[0]
         self.assertEquals(contact1.get_field_raw('startdate'), '31-12-2014 10:00')
 
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+
+        response = self.assertContactImport(
+            '%s/test_imports/sample_contacts_with_extra_field_max_fields.xlsx' % settings.MEDIA_ROOT,
+            None, task_customize=True)
+
+        customize_url = reverse('contacts.contact_customize', args=[response.context['task'].pk])
+
+        post_data = dict()
+        fields = ['field%d' % elt for elt in range(1, 250)]
+        for field in fields:
+            post_data['column_%s_include' % field] = 'on'
+            post_data['column_%s_type' % field] = 'T'
+            post_data['column_%s_label' % field] = field
+
+        response = self.client.post(customize_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, "Reached 200 contact fields. Cannot import for contact fields")
+
     def test_contact_import_handle_update_contact(self):
         self.login(self.admin)
         self.create_campaign()
