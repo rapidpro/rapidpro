@@ -1602,6 +1602,16 @@ class APITest(TembaTest):
         response = self.postJSON(url, 'key=not_ours', {'label': "Something", 'value_type': 'text'})
         self.assert404(response)
 
+        ContactField.objects.all().delete()
+
+        for i in range(ContactField.MAX_ORG_CONTACTFIELDS):
+            ContactField.get_or_create(self.org, self.admin, 'field%d' % i, 'Field%d' % i)
+
+        response = self.postJSON(url, None, {'label': "Age", 'value_type': "numeric"})
+        self.assertResponseError(response, 'non_field_errors',
+                                 "Reached 200 contact fields, please remove some contact fields "
+                                 "to be able to create new contact fields")
+
     def test_flows(self):
         url = reverse('api.v2.flows')
 
@@ -1752,6 +1762,16 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, 'uuid=%s' % spammers.uuid)
         self.assert404(response)
 
+        ContactGroup.user_groups.all().delete()
+
+        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+            ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
+
+        response = self.postJSON(url, None, {'name': "Reporters"})
+        self.assertResponseError(response, 'non_field_errors',
+                                 "Reached 250 contact groups, please remove some contact groups "
+                                 "to be able to create new contact groups")
+
     def test_labels(self):
         url = reverse('api.v2.labels')
 
@@ -1839,6 +1859,15 @@ class APITest(TembaTest):
         # try to delete a label in another org
         response = self.deleteJSON(url, 'uuid=%s' % spam.uuid)
         self.assert404(response)
+
+        Label.all_objects.all().delete()
+
+        for i in range(Label.MAX_ORG_LABELS):
+            Label.get_or_create(self.org, self.user, "label%d" % i)
+
+        response = self.postJSON(url, None, {'name': "Interesting"})
+        self.assertResponseError(response, 'non_field_errors',
+                                 "Reached 250 labels, please remove some to be able to add a new label")
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
         self.assertEqual(msg_json, {
