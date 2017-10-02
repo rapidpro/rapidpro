@@ -17,7 +17,8 @@ from temba.channels.models import Channel
 from temba.channels.tests import JunebugTestMixin
 from temba.contacts.models import Contact, TEL_SCHEME
 from temba.flows.models import FlowRun, FlowSession
-from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING, USSD, DELIVERED, FAILED
+from temba.msgs.models import (WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING, USSD, DELIVERED, FAILED,
+                               HANDLED)
 from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct
@@ -31,7 +32,7 @@ class USSDSessionTest(TembaTest):
         super(USSDSessionTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE,
                                       uuid='00000000-0000-0000-0000-000000001234')
 
@@ -807,7 +808,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
 
         self.channel.delete()
         self.channel = Channel.create(
-            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '1234',
+            self.org, self.user, 'RW', 'JNU', None, '1234',
             config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
             uuid='00000000-0000-0000-0000-000000001234', role=Channel.ROLE_USSD)
 
@@ -863,6 +864,7 @@ class JunebugUSSDTest(JunebugTestMixin, TembaTest):
         self.assertEquals(outbound_msg.response_to, inbound_msg)
         self.assertEquals(outbound_msg.connection.status, USSDSession.TRIGGERED)
         self.assertEquals(inbound_msg.direction, INCOMING)
+        self.assertEquals(inbound_msg.status, HANDLED)
 
     def test_receive_with_session_id(self):
         from temba.ussd.models import USSDSession

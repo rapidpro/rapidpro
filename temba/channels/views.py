@@ -32,7 +32,7 @@ from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, 
 from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME
 from temba.msgs.models import Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
-from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
+from temba.orgs.models import Org, ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin, AnonMixin
 from temba.channels.models import ChannelSession
 from temba.utils import analytics
@@ -914,13 +914,13 @@ class UpdateTwitterForm(UpdateChannelForm):
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
-               'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration',
+               'claim_android', 'claim_chikka', 'configuration',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender',
-               'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_shaqodoon',
-               'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
-               'claim_smscentral', 'claim_start', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
-               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_globe',
-               'claim_twiml_api', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
+               'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_shaqodoon',
+               'claim_verboice', 'claim_plivo', 'search_plivo',
+               'claim_smscentral', 'claim_start', 'claim_yo', 'claim_viber', 'create_viber',
+               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_mblox',
+               'claim_twiml_api', 'facebook_whitelist',
                'claim_red_rabbit', 'claim_macrokiosk')
     permissions = True
 
@@ -1464,66 +1464,6 @@ class ChannelCRUDL(SmartCRUDL):
 
             return super(ChannelCRUDL.ClaimViber, self).form_valid(form)
 
-    class ClaimKannel(OrgPermsMixin, SmartFormView):
-        class KannelClaimForm(forms.Form):
-            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The phone number or short code you are connecting"))
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                        help_text=_("The country this phone number is used in"))
-            url = forms.URLField(max_length=1024, label=_("Send URL"),
-                                 help_text=_("The publicly accessible URL for your Kannel instance for sending. "
-                                             "ex: https://kannel.macklemore.co/cgi-bin/sendsms"))
-            username = forms.CharField(max_length=64, required=False,
-                                       help_text=_("The username to use to authenticate to Kannel, if left blank we "
-                                                   "will generate one for you"))
-            password = forms.CharField(max_length=64, required=False,
-                                       help_text=_("The password to use to authenticate to Kannel, if left blank we "
-                                                   "will generate one for you"))
-            encoding = forms.ChoiceField(Channel.ENCODING_CHOICES, label=_("Encoding"),
-                                         help_text=_("What encoding to use for outgoing messages"))
-            verify_ssl = forms.BooleanField(initial=True, required=False, label=_("Verify SSL"),
-                                            help_text=_("Whether to verify the SSL connection (recommended)"))
-            use_national = forms.BooleanField(initial=False, required=False, label=_("Use National Numbers"),
-                                              help_text=_("Use only the national number (no country code) when "
-                                                          "sending (not recommended)"))
-
-        title = _("Connect Kannel Service")
-        permission = 'channels.channel_claim'
-        success_url = "id@channels.channel_configuration"
-        form_class = KannelClaimForm
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-            data = form.cleaned_data
-
-            country = data['country']
-            url = data['url']
-            number = data['number']
-            role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
-
-            config = {Channel.CONFIG_SEND_URL: url,
-                      Channel.CONFIG_VERIFY_SSL: data.get('verify_ssl', False),
-                      Channel.CONFIG_USE_NATIONAL: data.get('use_national', False),
-                      Channel.CONFIG_USERNAME: data.get('username', None),
-                      Channel.CONFIG_PASSWORD: data.get('password', None),
-                      Channel.CONFIG_ENCODING: data.get('encoding', Channel.ENCODING_DEFAULT)}
-            self.object = Channel.add_config_external_channel(org, self.request.user, country, number, Channel.TYPE_KANNEL,
-                                                              config, role=role, parent=None)
-
-            # if they didn't set a username or password, generate them, we do this after the addition above
-            # because we use the channel id in the configuration
-            config = self.object.config_json()
-            if not config.get(Channel.CONFIG_USERNAME, None):
-                config[Channel.CONFIG_USERNAME] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
-
-            if not config.get(Channel.CONFIG_PASSWORD, None):
-                config[Channel.CONFIG_PASSWORD] = str(uuid4())
-
-            self.object.config = json.dumps(config)
-            self.object.save()
-
-            return super(ChannelCRUDL.ClaimKannel, self).form_valid(form)
-
     class ClaimMacrokiosk(OrgPermsMixin, SmartFormView):
         class MacrokioskClaimForm(forms.Form):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
@@ -1583,7 +1523,7 @@ class ChannelCRUDL(SmartCRUDL):
             password = forms.CharField(label=_("Password"),
                                        help_text=_("The password provided by the provider to use their API"))
 
-            def clean_number(self):
+            def clean_number(self):  # pragma: no cover
                 number = self.data['number']
 
                 # number is a shortcode, accept as is
@@ -1608,7 +1548,7 @@ class ChannelCRUDL(SmartCRUDL):
         channel_type = "AE"
         template_name = 'channels/channel_claim_authenticated.html'
 
-        def get_submitted_country(self, data):
+        def get_submitted_country(self, data):  # pragma: no cover
             return data['country']
 
         def form_valid(self, form):
@@ -1634,79 +1574,9 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Connect Start")
         channel_type = Channel.TYPE_START
 
-    class ClaimM3tech(ClaimAuthenticatedExternal):
-        title = _("Connect M3 Tech")
-        channel_type = Channel.TYPE_M3TECH
-
-    class ClaimJasmin(ClaimAuthenticatedExternal):
-        class JasminForm(forms.Form):
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                        help_text=_("The country this phone number is used in"))
-            number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
-                                     help_text=_("The short code or phone number you are connecting."))
-            url = forms.URLField(label=_("URL"),
-                                 help_text=_("The URL for the Jasmin server send path. ex: https://jasmin.gateway.io/send"))
-            username = forms.CharField(label=_("Username"),
-                                       help_text=_("The username to be used to authenticate to Jasmin"))
-            password = forms.CharField(label=_("Password"),
-                                       help_text=_("The password to be used to authenticate to Jasmin"))
-
-        title = _("Connect Jasmin")
-        channel_type = Channel.TYPE_JASMIN
-        form_class = JasminForm
-        fields = ('country', 'number', 'url', 'username', 'password')
-
     class ClaimRedRabbit(ClaimAuthenticatedExternal):
         title = _("Connect Red Rabbit")
         channel_type = Channel.TYPE_RED_RABBIT
-
-    class ClaimJunebug(ClaimAuthenticatedExternal):
-        class JunebugForm(forms.Form):
-            channel_type = forms.ChoiceField(choices=((Channel.TYPE_JUNEBUG, 'SMS'),
-                                                      (Channel.TYPE_JUNEBUG_USSD, 'USSD')),
-                                             widget=forms.RadioSelect,
-                                             label=_('Channel Type'),
-                                             help_text=_('The type of channel you are wanting to connect.'))
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                        help_text=_("The country this phone number is used in"))
-            number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
-                                     help_text=("The shortcode or phone number you are connecting."))
-            url = forms.URLField(label=_("URL"),
-                                 help_text=_("The URL for the Junebug channel. ex: https://junebug.praekelt.org/jb/channels/3853bb51-d38a-4bca-b332-8a57c00f2a48/messages.json"))
-            username = forms.CharField(label=_("Username"),
-                                       help_text=_("The username to be used to authenticate to Junebug"),
-                                       required=False)
-            password = forms.CharField(label=_("Password"),
-                                       help_text=_("The password to be used to authenticate to Junebug"),
-                                       required=False)
-            secret = forms.CharField(label=_("Secret"),
-                                     help_text=_("The token Junebug should use to authenticate"),
-                                     required=False)
-
-        title = _("Connect Junebug")
-        form_class = JunebugForm
-        fields = ('channel_type', 'country', 'number', 'url', 'username', 'password', 'secret')
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-            data = form.cleaned_data
-
-            if data['channel_type'] == Channel.TYPE_JUNEBUG_USSD:
-                role = Channel.ROLE_USSD
-            else:
-                role = Channel.DEFAULT_ROLE
-
-            self.object = Channel.add_authenticated_external_channel(org, self.request.user,
-                                                                     self.get_submitted_country(data),
-                                                                     data['number'], data['username'],
-                                                                     data['password'], data['channel_type'],
-                                                                     data.get('url'),
-                                                                     role=role)
-            if data['secret']:
-                self.object.secret = data['secret']
-                self.object.save()
-
-            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
     class ClaimMblox(ClaimAuthenticatedExternal):
         class MBloxForm(forms.Form):
@@ -1798,69 +1668,6 @@ class ChannelCRUDL(SmartCRUDL):
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
-    class ClaimGlobe(ClaimAuthenticatedExternal):
-        class GlobeClaimForm(forms.Form):
-            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The shortcode you have been assigned by Globe Labs "
-                                                 "ex: 15543"))
-            app_id = forms.CharField(label=_("Application Id"),
-                                     help_text=_("The id of your Globe Labs application"))
-            app_secret = forms.CharField(label=_("Application Secret"),
-                                         help_text=_("The secret assigned to your Globe Labs application"))
-            passphrase = forms.CharField(label=_("Passphrase"),
-                                         help_text=_("The passphrase assigned to you by Globe Labs to support sending"))
-
-        title = _("Connect Globe")
-        template_name = 'channels/channel_claim_globe.html'
-        channel_type = Channel.TYPE_GLOBE
-        form_class = GlobeClaimForm
-        fields = ('number', 'app_id', 'app_secret', 'passphrase')
-
-        def get_submitted_country(self, data):  # pragma: needs cover
-            return 'PH'
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-
-            if not org:  # pragma: no cover
-                raise Exception(_("No org for this user, cannot claim"))
-
-            data = form.cleaned_data
-            self.object = Channel.add_config_external_channel(org, self.request.user,
-                                                              'PH', data['number'], Channel.TYPE_GLOBE,
-                                                              dict(app_id=data['app_id'],
-                                                                   app_secret=data['app_secret'],
-                                                                   passphrase=data['passphrase']),
-                                                              role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
-
-            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
-    class ClaimHub9(ClaimAuthenticatedExternal):
-        title = _("Connect Hub9")
-        channel_type = Channel.TYPE_HUB9
-        readonly = ('country',)
-
-        def get_country(self, obj):  # pragma: needs cover
-            return "Indonesia"
-
-        def get_submitted_country(self, data):  # pragma: needs cover
-            return "ID"
-
-    class ClaimDartMedia(ClaimAuthenticatedExternal):
-        title = _("Connect Dart Media")
-        channel_type = Channel.TYPE_DARTMEDIA
-        readonly = ('country',)
-
-        def get_country(self, obj):
-            return "Indonesia"
-
-        def get_submitted_country(self, data):
-            return "ID"
-
-    class ClaimHighConnection(ClaimAuthenticatedExternal):
-        title = _("Claim High Connection")
-        channel_type = Channel.TYPE_HIGH_CONNECTION
-
     class ClaimShaqodoon(ClaimAuthenticatedExternal):
         class ShaqodoonForm(forms.Form):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
@@ -1946,83 +1753,6 @@ class ChannelCRUDL(SmartCRUDL):
         channel_type = Channel.TYPE_VUMI_USSD
         channel_role = Channel.ROLE_USSD
 
-    class ClaimClickatell(ClaimAuthenticatedExternal):
-        class ClickatellForm(forms.Form):
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                        help_text=_("The country this phone number is used in"))
-            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The phone number with country code or short code you are connecting. ex: +250788123124 or 15543"))
-            api_id = forms.CharField(label=_("API ID"),
-                                     help_text=_("Your API ID as provided by Clickatell"))
-            username = forms.CharField(label=_("Username"),
-                                       help_text=_("The username for your Clickatell account"))
-            password = forms.CharField(label=_("Password"),
-                                       help_text=_("The password for your Clickatell account"))
-
-            def clean_number(self):
-                # if this is a long number, try to normalize it
-                number = self.data['number']
-                if len(number) >= 8:
-                    try:
-                        cleaned = phonenumbers.parse(number, self.data['country'])
-                        return phonenumbers.format_number(cleaned, phonenumbers.PhoneNumberFormat.E164)
-                    except Exception:  # pragma: needs cover
-                        raise forms.ValidationError(_("Invalid phone number, please include the country code. ex: +250788123123"))
-                else:  # pragma: needs cover
-                    return number
-
-        title = _("Connect Clickatell")
-        channel_type = Channel.TYPE_CLICKATELL
-        form_class = ClickatellForm
-        fields = ('country', 'number', 'api_id', 'username', 'password')
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-
-            if not org:  # pragma: no cover
-                raise Exception(_("No org for this user, cannot claim"))
-
-            data = form.cleaned_data
-            self.object = Channel.add_config_external_channel(org, self.request.user,
-                                                              data['country'], data['number'], Channel.TYPE_CLICKATELL,
-                                                              dict(api_id=data['api_id'],
-                                                                   username=data['username'],
-                                                                   password=data['password']))
-
-            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
-    class ClaimAfricasTalking(OrgPermsMixin, SmartFormView):
-        class ATClaimForm(forms.Form):
-            shortcode = forms.CharField(max_length=6, min_length=1,
-                                        help_text=_("Your short code on Africa's Talking"))
-            country = forms.ChoiceField(choices=(('KE', _("Kenya")), ('UG', _("Uganda")), ('MW', _("Malawi"))))
-            is_shared = forms.BooleanField(initial=False, required=False,
-                                           help_text=_("Whether this short code is shared with others"))
-            username = forms.CharField(max_length=32,
-                                       help_text=_("Your username on Africa's Talking"))
-            api_key = forms.CharField(max_length=64,
-                                      help_text=_("Your api key, should be 64 characters"))
-
-        title = _("Connect Africa's Talking Account")
-        fields = ('shortcode', 'country', 'is_shared', 'username', 'api_key')
-        form_class = ATClaimForm
-        permission = 'channels.channel_claim'
-        success_url = "id@channels.channel_configuration"
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-
-            if not org:  # pragma: no cover
-                raise Exception(_("No org for this user, cannot claim"))
-
-            data = form.cleaned_data
-            self.object = Channel.add_africas_talking_channel(org, self.request.user,
-                                                              country=data['country'],
-                                                              phone=data['shortcode'], username=data['username'],
-                                                              api_key=data['api_key'], is_shared=data['is_shared'])
-
-            return super(ChannelCRUDL.ClaimAfricasTalking, self).form_valid(form)
-
     class ClaimTwilioMessagingService(OrgPermsMixin, SmartFormView):
         class TwilioMessagingServiceForm(forms.Form):
             country = forms.ChoiceField(choices=TWILIO_SUPPORTED_COUNTRIES)
@@ -2098,8 +1828,8 @@ class ChannelCRUDL(SmartCRUDL):
             role = data.get('role')
 
             config = {Channel.CONFIG_SEND_URL: url,
-                      ACCOUNT_SID: data.get('account_sid', None),
-                      ACCOUNT_TOKEN: data.get('account_token', None)}
+                      Channel.CONFIG_ACCOUNT_SID: data.get('account_sid', None),
+                      Channel.CONFIG_AUTH_TOKEN: data.get('account_token', None)}
 
             is_short_code = len(number) <= 6
 
@@ -2112,11 +1842,11 @@ class ChannelCRUDL(SmartCRUDL):
             # if they didn't set a username or password, generate them, we do this after the addition above
             # because we use the channel id in the configuration
             config = self.object.config_json()
-            if not config.get(ACCOUNT_SID, None):  # pragma: needs cover
-                config[ACCOUNT_SID] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
+            if not config.get(Channel.CONFIG_ACCOUNT_SID, None):  # pragma: needs cover
+                config[Channel.CONFIG_ACCOUNT_SID] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
 
-            if not config.get(ACCOUNT_TOKEN, None):  # pragma: needs cover
-                config[ACCOUNT_TOKEN] = str(uuid4())
+            if not config.get(Channel.CONFIG_AUTH_TOKEN, None):  # pragma: needs cover
+                config[Channel.CONFIG_AUTH_TOKEN] = str(uuid4())
 
             self.object.config = json.dumps(config)
             self.object.save()
@@ -2752,7 +2482,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             return client
 
-        def form_valid(self, form, *args, **kwargs):  # pragma: needs cover
+        def form_valid(self, form, *args, **kwargs):
             data = form.cleaned_data
             client = self.get_valid_client()
 
@@ -2761,14 +2491,12 @@ class ChannelCRUDL(SmartCRUDL):
                 status, response_data = client.search_phone_numbers(dict(country_iso=data['country'], pattern=data['area_code']))
 
                 if status == 200:
-                    for number_dict in response_data['objects']:
-                        results_numbers.append('+' + number_dict['number'])
+                    results_numbers = ['+' + number_dict['number'] for number_dict in response_data['objects']]
 
-                numbers = []
-                for number in results_numbers:
-                    numbers.append(phonenumbers.format_number(phonenumbers.parse(number, None),
-                                                              phonenumbers.PhoneNumberFormat.INTERNATIONAL))
-                return JsonResponse(numbers)
+                numbers = [phonenumbers.format_number(phonenumbers.parse(number, None),
+                                                      phonenumbers.PhoneNumberFormat.INTERNATIONAL)
+                           for number in results_numbers]
+                return JsonResponse(numbers, safe=False)
             except Exception as e:
                 return JsonResponse(dict(error=str(e)))
 

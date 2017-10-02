@@ -26,8 +26,9 @@ from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartT
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.values.models import Value
-from temba.utils import analytics, slugify_with, languages, datetime_to_ms, ms_to_datetime, on_transaction_commit
+from temba.utils import analytics, languages, datetime_to_ms, ms_to_datetime, on_transaction_commit
 from temba.utils.fields import Select2Field
+from temba.utils.text import slugify_with
 from temba.utils.views import BaseActionForm
 from .models import Contact, ContactGroup, ContactGroupCount, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
 from .models import ExportContactsTask, TEL_SCHEME

@@ -1820,11 +1820,7 @@ class ScheduleTest(TembaTest):
         channel_models.SEND_QUEUE_DEPTH = 500
         channel_models.SEND_BATCH_SIZE = 100
 
-        Broadcast.BULK_THRESHOLD = 50
-
     def test_batch(self):
-        Broadcast.BULK_THRESHOLD = 10
-
         # broadcast out to 11 contacts to test our batching
         contacts = []
         for i in range(1, 12):
@@ -1840,9 +1836,9 @@ class ScheduleTest(TembaTest):
         # create our messages, but don't sync
         broadcast.send(trigger_send=False)
 
-        # get one of our messages, should be at bulk priority since it was in a broadcast over our bulk threshold
+        # get one of our messages, should be at low priority since it was to more than one recipient
         sms = broadcast.get_messages()[0]
-        self.assertEqual(sms.priority, Msg.PRIORITY_BULK)
+        self.assertFalse(sms.high_priority)
 
         # we should now have 11 messages pending
         self.assertEquals(11, Msg.objects.filter(channel=self.channel, status=PENDING).count())
@@ -2155,7 +2151,7 @@ class CeleryTaskTest(TembaTest):
         self.joe = self.create_contact("Joe", "+250788383444")
 
         self.channel2 = Channel.create(
-            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '1234',
+            self.org, self.user, 'RW', 'JNU', None, '1234',
             config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
             uuid='00000000-0000-0000-0000-000000001234', role=Channel.ROLE_USSD)
 
@@ -2217,3 +2213,19 @@ class HandleEventTest(TembaTest):
         push_task(self.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=STOP_CONTACT_EVENT, contact_id=self.joe.id))
         self.joe.refresh_from_db()
         self.assertTrue(self.joe.is_stopped)
+
+    def test_unstop_contact(self):
+        self.joe = self.create_contact("Joe", "+12065551212")
+
+        # create a new incoming message with a status of H so that it isn't handled right away
+        msg = Msg.create_incoming(self.channel, 'tel:+12065551212', "incoming message", status=HANDLED)
+        msg.status = PENDING
+        msg.save()
+        self.joe.stop(self.admin)
+
+        # then queue it the same way courier would
+        msg.queue_handling(new_message=True)
+
+        # joe should be unstopped
+        self.joe.refresh_from_db()
+        self.assertFalse(self.joe.is_stopped)

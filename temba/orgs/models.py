@@ -37,11 +37,12 @@ from requests import Session
 from smartmin.models import SmartModel
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string, languages
+from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, languages
 from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from temba.utils.currencies import currency_for_country
 from temba.utils.email import send_template_email, send_simple_email, send_custom_smtp_email
 from temba.utils.models import SquashableModel
+from temba.utils.text import random_string
 from temba.utils.timezones import timezone_to_country_code
 from timezone_field import TimeZoneField
 from urlparse import urlparse
@@ -506,14 +507,18 @@ class Org(SmartModel):
                 # if we have more than one match, find the one with the highest overlap
                 if len(senders) > 1:
                     for sender in senders:
-                        channel_number = sender.address.strip('+')
+                        config = sender.config_json()
+                        channel_prefixes = config.get(Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES, [])
+                        if not channel_prefixes or not isinstance(channel_prefixes, list):
+                            channel_prefixes = [sender.address.strip('+')]
 
-                        for idx in range(prefix, len(channel_number)):
-                            if idx >= prefix and channel_number[0:idx] == contact_number[0:idx]:
-                                prefix = idx
-                                channel = sender
-                            else:
-                                break
+                        for chan_prefix in channel_prefixes:
+                            for idx in range(prefix, len(chan_prefix)):
+                                if idx >= prefix and chan_prefix[0:idx] == contact_number[0:idx]:
+                                    prefix = idx
+                                    channel = sender
+                                else:
+                                    break
                 elif senders:
                     channel = senders[0]
 
@@ -862,7 +867,11 @@ class Org(SmartModel):
         if self.config:
             # release any twilio channels
             from temba.channels.models import Channel
-            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_TWILIO):
+
+            twilio_channels = self.channels.filter(is_active=True,
+                                                   channel_type__in=[Channel.TYPE_TWILIO,
+                                                                     Channel.TYPE_TWILIO_MESSAGING_SERVICE])
+            for channel in twilio_channels:
                 channel.release()
 
             config = self.config_json()
@@ -1790,31 +1799,31 @@ class Org(SmartModel):
                                      'LT', 'NL', 'NO', 'PL', 'SE', 'CH', 'BE', 'ES', 'ZA']
 
         countrycode = timezone_to_country_code(self.timezone)
-        recommended = 'android'
+        recommended = 'A'
 
         if countrycode in [country[0] for country in TWILIO_SEARCH_COUNTRIES]:
-            recommended = 'twilio'
+            recommended = 'T'
 
         elif countrycode in NEXMO_RECOMMEND_COUNTRIES:
-            recommended = 'nexmo'
+            recommended = 'NX'
 
         elif countrycode == 'KE':
-            recommended = 'africastalking'
+            recommended = 'AT'
 
         elif countrycode == 'ID':
-            recommended = 'hub9'
+            recommended = 'H9'
 
         elif countrycode == 'SO':
-            recommended = 'shaqodoon'
+            recommended = 'SQ'
 
         elif countrycode == 'NP':  # pragma: needs cover
-            recommended = 'blackmyna'
+            recommended = 'BM'
 
         elif countrycode == 'UG':  # pragma: needs cover
-            recommended = 'yo'
+            recommended = 'YO'
 
         elif countrycode == 'PH':  # pragma: needs cover
-            recommended = 'globe'
+            recommended = 'GL'
 
         return recommended
 
