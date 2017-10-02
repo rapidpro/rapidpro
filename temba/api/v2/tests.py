@@ -17,7 +17,7 @@ from django.utils import timezone
 from mock import patch
 from rest_framework import serializers
 from rest_framework.test import APIClient
-from temba.campaigns.models import Campaign, CampaignEvent
+from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowLabel, FlowStart, ReplyAction
@@ -706,6 +706,11 @@ class APITest(TembaTest):
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         registration = ContactField.get_or_create(self.org, self.admin, 'registration', "Registration")
 
+        # create our contact and set a registration date
+        contact = self.create_contact("Joe", "+12065551515")
+        reporters.contacts.add(contact)
+        contact.set_field(self.admin, "registration", timezone.now())
+
         campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
         event1 = CampaignEvent.create_message_event(self.org, self.admin, campaign1, registration,
                                                     1, CampaignEvent.UNIT_DAYS, "Don't forget to brush your teeth")
@@ -836,6 +841,9 @@ class APITest(TembaTest):
         self.assertEqual(event2.message, None)
         self.assertEqual(event2.flow, flow)
 
+        # make sure some event fires were created for the contact
+        self.assertEqual(1, EventFire.objects.filter(contact=contact, event=event2).count())
+
         # update the message event to be a flow event
         response = self.postJSON(url, 'uuid=%s' % event1.uuid, {
             'campaign': campaign1.uuid,
@@ -903,6 +911,9 @@ class APITest(TembaTest):
 
         event1.refresh_from_db()
         self.assertFalse(event1.is_active)
+
+        # should no longer have any events
+        self.assertEqual(1, EventFire.objects.filter(contact=contact, event=event2).count())
 
     def test_channels(self):
         url = reverse('api.v2.channels')

@@ -5,7 +5,7 @@ import six
 
 from rest_framework import serializers
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
-from temba.campaigns.models import Campaign, CampaignEvent
+from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
@@ -303,6 +303,9 @@ class CampaignEventWriteSerializer(WriteSerializer):
                                                                    relative_to, offset, unit, translations,
                                                                    delivery_hour, base_language)
             self.instance.update_flow_name()
+
+        # create our event fires for this event in the background
+        EventFire.update_eventfires_for_event(self.instance)
 
         return self.instance
 
