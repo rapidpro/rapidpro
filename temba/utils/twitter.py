@@ -25,7 +25,7 @@ class TembaTwython(Twython):  # pragma: no cover
         self.events = []
 
     @classmethod
-    def from_channel(cls, channel, headers=None):
+    def from_channel(cls, channel):
         # could be passed a ChannelStruct or a Channel model instance
         config = channel.config_json() if isinstance(channel, Model) else channel.config
 
@@ -37,7 +37,7 @@ class TembaTwython(Twython):  # pragma: no cover
             api_key, api_secret = settings.TWITTER_API_KEY, settings.TWITTER_API_SECRET
             access_token, access_token_secret = config['oauth_token'], config['oauth_token_secret']
 
-        return TembaTwython(api_key, api_secret, access_token, access_token_secret, client_args=headers)
+        return TembaTwython(api_key, api_secret, access_token, access_token_secret)
 
     def _request(self, url, method='GET', params=None, api_call=None):
         """Internal request method"""
