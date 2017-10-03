@@ -463,8 +463,9 @@ class ContactGroupCRUDLTest(TembaTest):
             ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
 
         response = self.client.post(url, dict(name="People"))
-        self.assertFormError(response, 'form', 'name', "Reached 250 contact groups, please remove some contact groups "
-                                                       "to be able to create new contact groups")
+        self.assertFormError(response, 'form', 'name', "You have reached 250 contact groups, "
+                                                       "please remove some contact groups to be able "
+                                                       "to create new contact groups")
 
     def test_update(self):
         url = reverse('contacts.contactgroup_update', args=[self.joe_and_frank.pk])
@@ -3273,7 +3274,8 @@ class ContactTest(TembaTest):
             post_data['column_%s_label' % field] = field
 
         response = self.client.post(customize_url, post_data, follow=True)
-        self.assertFormError(response, 'form', None, "Reached 200 contact fields. Cannot import for contact fields")
+        self.assertFormError(response, 'form', None, "You have reached 200 contact fields. "
+                                                     "Cannot import for contact fields")
 
     def test_contact_import_handle_update_contact(self):
         self.login(self.admin)
@@ -4150,10 +4152,16 @@ class ContactFieldTest(TembaTest):
 
         ContactField.objects.all().delete()
 
-        for i in range(ContactField.MAX_ORG_CONTACTFIELDS):
-            ContactField.get_or_create(self.org, self.admin, 'field%d' % i, 'Field%d' % i)
+        for i in range(ContactField.MAX_ORG_CONTACTFIELDS * 2):
+            key = 'field%d' % i
+            label = 'Field%d' % i
+            ContactField.objects.create(org=self.org, key=key, label=label,
+                                        created_by=self.admin, modified_by=self.admin)
 
         response = self.client.get(manage_fields_url)
+        # no new form field to create new contact field
+        self.assertEqual(len(response.context['form'].fields), ContactField.MAX_ORG_CONTACTFIELDS * 2 * 4)
+
         post_data = dict()
         for id, field in response.context['form'].fields.items():
             if field.initial is None:
@@ -4163,11 +4171,8 @@ class ContactFieldTest(TembaTest):
             else:
                 post_data[id] = field.initial
 
-        post_data['label_201'] = 'position'
-
         response = self.client.post(manage_fields_url, post_data, follow=True)
-        self.assertFormError(response, 'form', None, "Reached 200 contact fields, please remove some contact fields "
-                                                     "to be able to create new contact fields")
+        self.assertEqual(response.status_code, 200)
 
     def test_json(self):
         contact_field_json_url = reverse('contacts.contactfield_json')

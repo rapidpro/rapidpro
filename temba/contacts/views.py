@@ -86,7 +86,7 @@ class ContactGroupForm(forms.ModelForm):
             raise forms.ValidationError(_("Group name must not be blank or begin with + or -"))
 
         if ContactGroup.user_groups.count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
-            raise forms.ValidationError(_('Reached %s contact groups, please remove some contact groups '
+            raise forms.ValidationError(_('You have reached %s contact groups, please remove some contact groups '
                                           'to be able to create new contact groups' % ContactGroup.MAX_ORG_CONTACTGROUPS))
 
         return name
@@ -424,7 +424,8 @@ class ContactCRUDL(SmartCRUDL):
                         used_labels.append(field_label)
 
                 if len(existing_contact_fields_map) + len(used_labels) > ContactField.MAX_ORG_CONTACTFIELDS:
-                    raise forms.ValidationError(_("Reached %s contact fields. Cannot import for contact fields")
+                    raise forms.ValidationError(_("You have reached %s contact fields. "
+                                                  "Cannot import for contact fields")
                                                 % ContactField.MAX_ORG_CONTACTFIELDS)
 
                 return self.cleaned_data
@@ -1232,11 +1233,6 @@ class ManageFieldsForm(forms.Form):
                     elif not ContactField.is_valid_key(ContactField.make_key(label)):
                         raise forms.ValidationError(_("Field name '%s' is a reserved word") % label)
                     used_labels.append(label.lower())
-
-        if len(used_labels) > ContactField.MAX_ORG_CONTACTFIELDS:
-            raise forms.ValidationError(_('Reached %s contact fields, please remove some contact fields '
-                                          'to be able to create new contact fields') % ContactField.MAX_ORG_CONTACTFIELDS)
-
         return self.cleaned_data
 
 
@@ -1292,7 +1288,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             num_fields = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True).count()
 
             contact_fields = []
-            for field_idx in range(1, num_fields + 2):
+            for field_idx in range(1, min([num_fields + 2, ContactField.MAX_ORG_CONTACTFIELDS + 1])):
                 contact_field = dict(show='show_%d' % field_idx,
                                      type='type_%d' % field_idx,
                                      label='label_%d' % field_idx,
@@ -1320,11 +1316,12 @@ class ContactFieldCRUDL(SmartCRUDL):
                 added_fields.append(("field_%d" % i, forms.ModelChoiceField(contact_fields, widget=forms.HiddenInput(), initial=contact_field)))
                 i += 1
 
-            # add a last field for the user to add one
-            added_fields.append(("show_%d" % i, forms.BooleanField(label=_("show"), initial=False, required=False)))
-            added_fields.append(("type_%d" % i, forms.ChoiceField(choices=Value.TYPE_CHOICES, initial=Value.TYPE_TEXT, required=True)))
-            added_fields.append(("label_%d" % i, forms.CharField(max_length=36, required=False)))
-            added_fields.append(("field_%d" % i, forms.CharField(widget=forms.HiddenInput(), initial="__new_field")))
+            if contact_fields.count() < ContactField.MAX_ORG_CONTACTFIELDS:
+                # add a last field for the user to add one
+                added_fields.append(("show_%d" % i, forms.BooleanField(label=_("show"), initial=False, required=False)))
+                added_fields.append(("type_%d" % i, forms.ChoiceField(choices=Value.TYPE_CHOICES, initial=Value.TYPE_TEXT, required=True)))
+                added_fields.append(("label_%d" % i, forms.CharField(max_length=36, required=False)))
+                added_fields.append(("field_%d" % i, forms.CharField(widget=forms.HiddenInput(), initial="__new_field")))
 
             form.fields = OrderedDict(form.fields.items() + added_fields)
 

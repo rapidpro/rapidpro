@@ -441,7 +441,7 @@ class ContactField(SmartModel):
                     raise ValueError('Field key %s has invalid characters or is a reserved field name' % key)
 
                 if ContactField.objects.filter(org=org).count() >= cls.MAX_ORG_CONTACTFIELDS:
-                    raise ValueError('Reached %s contact fields, please remove some contact fields '
+                    raise ValueError('You have reached %s contact fields, please remove some contact fields '
                                      'to be able to create new contact fields' % cls.MAX_ORG_CONTACTFIELDS)
 
                 field = ContactField.objects.create(org=org, key=key, label=label,
@@ -2213,7 +2213,7 @@ class ContactGroup(TembaModel):
         full_group_name = cls.clean_name(name)
 
         if cls.user_groups.count() >= cls.MAX_ORG_CONTACTGROUPS:
-            raise ValueError('Reached %s contact groups, please remove some contact groups '
+            raise ValueError('You have reached %s contact groups, please remove some contact groups '
                              'to be able to create new contact groups' % cls.MAX_ORG_CONTACTGROUPS)
 
         if not cls.is_valid_name(full_group_name):

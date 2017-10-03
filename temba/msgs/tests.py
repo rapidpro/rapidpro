@@ -1592,8 +1592,10 @@ class LabelTest(TembaTest):
         self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
 
     def test_maximum_labels_reached(self):
-        for i in range(Label.MAX_ORG_LABELS / 2):
+        for i in range(Label.MAX_ORG_LABELS):
             Label.get_or_create(self.org, self.user, "label%d" % i)
+
+        for i in range(Label.MAX_ORG_FOLDERS):
             Label.get_or_create_folder(self.org, self.user, "folder%d" % i)
 
         # allow to query existing labels
@@ -1794,7 +1796,7 @@ class LabelCRUDLTest(TembaTest):
 
         response = self.client.post(create_label_url, dict(name="Label"))
         self.assertFormError(response, 'form', 'name',
-                             "Reached 250 labels, please remove some to be able to add a new label")
+                             "You have reached 250 labels, please remove some to be able to add a new label")
 
     def test_label_delete(self):
         label_one = Label.get_or_create(self.org, self.user, "label1")
