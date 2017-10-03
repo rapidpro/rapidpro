@@ -45,11 +45,7 @@ class TembaTwython(Twython):  # pragma: no cover
         params = params or {}
 
         func = getattr(self.client, method)
-        if params.get("event", None):   # TODO: CHANGE THIS LINE BEFORE SEND
-            params = params
-            files = None
-        else:
-            params, files = _transparent_params(params)
+        params, files = _transparent_params(params)
 
         requests_args = {}
         for k, v in self.client_args.items():
