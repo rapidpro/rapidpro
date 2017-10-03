@@ -57,5 +57,5 @@ class Migration(migrations.Migration):
             old_name='translations',
             new_name='text',
         ),
-        migrations.RunSQL(SQL)
+        migrations.RunSQL(SQL)  # recreate trigger after removing fields
     ]
