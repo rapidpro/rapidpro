@@ -734,3 +734,30 @@ class CampaignTest(TembaTest):
         with self.assertRaises(ValidationError):
             event1.message = {}
             event1.full_clean()
+
+    def test_unarchiving_campaigns(self):
+        # create a campaign
+        campaign = Campaign.create(self.org, self.user, "Planting Reminders", self.farmers)
+
+        flow = self.create_flow()
+
+        CampaignEvent.create_flow_event(self.org, self.admin, campaign, self.planting_date,
+                                        offset=1, unit='W', flow=flow, delivery_hour='13')
+        CampaignEvent.create_flow_event(self.org, self.admin, campaign, self.planting_date,
+                                        offset=1, unit='W', flow=self.reminder_flow, delivery_hour='9')
+
+        CampaignEvent.create_message_event(self.org, self.admin, campaign, self.planting_date,
+                                           1, CampaignEvent.UNIT_DAYS, "Don't forget to brush your teeth")
+
+        flow.archive()
+        campaign.is_archived = True
+        campaign.save()
+
+        self.assertTrue(campaign.is_archived)
+        self.assertTrue(Flow.objects.filter(is_archived=True))
+
+        # unarchive
+        Campaign.apply_action_restore(self.admin, Campaign.objects.filter(pk=campaign.pk))
+        campaign.refresh_from_db()
+        self.assertFalse(campaign.is_archived)
+        self.assertFalse(Flow.objects.filter(is_archived=True))
