@@ -423,11 +423,6 @@ class ContactCRUDL(SmartCRUDL):
 
                         used_labels.append(field_label)
 
-                if len(existing_contact_fields_map) + len(used_labels) > ContactField.MAX_ORG_CONTACTFIELDS:
-                    raise forms.ValidationError(_("You have reached %s contact fields. "
-                                                  "Cannot import for contact fields")
-                                                % ContactField.MAX_ORG_CONTACTFIELDS)
-
                 return self.cleaned_data
 
             class Meta:
@@ -1288,7 +1283,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             num_fields = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True).count()
 
             contact_fields = []
-            for field_idx in range(1, min([num_fields + 2, ContactField.MAX_ORG_CONTACTFIELDS + 1])):
+            for field_idx in range(1, num_fields + 2):
                 contact_field = dict(show='show_%d' % field_idx,
                                      type='type_%d' % field_idx,
                                      label='label_%d' % field_idx,
@@ -1316,12 +1311,11 @@ class ContactFieldCRUDL(SmartCRUDL):
                 added_fields.append(("field_%d" % i, forms.ModelChoiceField(contact_fields, widget=forms.HiddenInput(), initial=contact_field)))
                 i += 1
 
-            if contact_fields.count() < ContactField.MAX_ORG_CONTACTFIELDS:
-                # add a last field for the user to add one
-                added_fields.append(("show_%d" % i, forms.BooleanField(label=_("show"), initial=False, required=False)))
-                added_fields.append(("type_%d" % i, forms.ChoiceField(choices=Value.TYPE_CHOICES, initial=Value.TYPE_TEXT, required=True)))
-                added_fields.append(("label_%d" % i, forms.CharField(max_length=36, required=False)))
-                added_fields.append(("field_%d" % i, forms.CharField(widget=forms.HiddenInput(), initial="__new_field")))
+            # add a last field for the user to add one
+            added_fields.append(("show_%d" % i, forms.BooleanField(label=_("show"), initial=False, required=False)))
+            added_fields.append(("type_%d" % i, forms.ChoiceField(choices=Value.TYPE_CHOICES, initial=Value.TYPE_TEXT, required=True)))
+            added_fields.append(("label_%d" % i, forms.CharField(max_length=36, required=False)))
+            added_fields.append(("field_%d" % i, forms.CharField(widget=forms.HiddenInput(), initial="__new_field")))
 
             form.fields = OrderedDict(form.fields.items() + added_fields)
 

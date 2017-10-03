@@ -440,10 +440,6 @@ class ContactField(SmartModel):
                 if not ContactField.is_valid_key(key):
                     raise ValueError('Field key %s has invalid characters or is a reserved field name' % key)
 
-                if org.contactfields.filter(is_active=True).count() >= cls.MAX_ORG_CONTACTFIELDS:
-                    raise ValueError('You have reached %s contact fields, please remove some contact fields '
-                                     'to be able to create new contact fields' % cls.MAX_ORG_CONTACTFIELDS)
-
                 field = ContactField.objects.create(org=org, key=key, label=label,
                                                     show_in_table=show_in_table, value_type=value_type,
                                                     created_by=user, modified_by=user)

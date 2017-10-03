@@ -421,6 +421,7 @@ class ContactGroupCRUDLTest(TembaTest):
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
         self.dynamic_group = self.create_group("Dynamic", query="joe")
 
+    @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_create(self):
         url = reverse('contacts.contactgroup_create')
 
@@ -3258,26 +3259,6 @@ class ContactTest(TembaTest):
         contact1 = Contact.objects.all().order_by('name')[0]
         self.assertEquals(contact1.get_field_raw('startdate'), '31-12-2014 10:00')
 
-        Contact.objects.all().delete()
-        ContactGroup.user_groups.all().delete()
-
-        response = self.assertContactImport(
-            '%s/test_imports/sample_contacts_with_extra_field_max_fields.xlsx' % settings.MEDIA_ROOT,
-            None, task_customize=True)
-
-        customize_url = reverse('contacts.contact_customize', args=[response.context['task'].pk])
-
-        post_data = dict()
-        fields = ['field%d' % elt for elt in range(1, 250)]
-        for field in fields:
-            post_data['column_%s_include' % field] = 'on'
-            post_data['column_%s_type' % field] = 'T'
-            post_data['column_%s_label' % field] = field
-
-        response = self.client.post(customize_url, post_data, follow=True)
-        self.assertFormError(response, 'form', None, "You have reached 10 contact fields. "
-                                                     "Cannot import for contact fields")
-
     def test_contact_import_handle_update_contact(self):
         self.login(self.admin)
         self.create_campaign()
@@ -3894,17 +3875,6 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(field2.label, 'Games')
         self.assertEqual(field1.pk, field2.pk)
 
-    @patch.object(ContactField, "MAX_ORG_CONTACTFIELDS", new=10)
-    def test_reached_maximum_org_fields(self):
-        ContactField.objects.all().delete()
-
-        for i in range(ContactField.MAX_ORG_CONTACTFIELDS):
-            ContactField.get_or_create(self.org, self.admin, 'field%d' % i, 'Field%d' % i)
-
-        ContactField.get_or_create(self.org, self.admin, 'field1', 'Field1')
-
-        self.assertRaises(ValueError, ContactField.get_or_create, self.org, self.user, "place", "Place")
-
     def test_contact_templatetag(self):
         self.joe.set_field(self.user, 'First', 'Starter')
         self.assertEquals(contact_field(self.joe, 'First'), 'Starter')
@@ -4053,7 +4023,6 @@ class ContactFieldTest(TembaTest):
         self.assertContains(response, 'first')
         self.assertNotContains(response, 'Second')
 
-    @patch.object(ContactField, "MAX_ORG_CONTACTFIELDS", new=10)
     def test_manage_fields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')
 
@@ -4152,30 +4121,6 @@ class ContactFieldTest(TembaTest):
         response = self.client.post(manage_fields_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, "Field key language has invalid characters "
                                                      "or is a reserved field name")
-
-        ContactField.objects.all().delete()
-
-        for i in range(ContactField.MAX_ORG_CONTACTFIELDS * 2):
-            key = 'field%d' % i
-            label = 'Field%d' % i
-            ContactField.objects.create(org=self.org, key=key, label=label,
-                                        created_by=self.admin, modified_by=self.admin)
-
-        response = self.client.get(manage_fields_url)
-        # no new form field to create new contact field
-        self.assertEqual(len(response.context['form'].fields), ContactField.MAX_ORG_CONTACTFIELDS * 2 * 4)
-
-        post_data = dict()
-        for id, field in response.context['form'].fields.items():
-            if field.initial is None:
-                post_data[id] = ''
-            elif isinstance(field.initial, ContactField):
-                post_data[id] = field.initial.pk
-            else:
-                post_data[id] = field.initial
-
-        response = self.client.post(manage_fields_url, post_data, follow=True)
-        self.assertEqual(response.status_code, 200)
 
     def test_json(self):
         contact_field_json_url = reverse('contacts.contactfield_json')
