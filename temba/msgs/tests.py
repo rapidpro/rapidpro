@@ -1591,6 +1591,7 @@ class LabelTest(TembaTest):
         # don't allow invalid name
         self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
 
+    @patch.object(Label, "MAX_ORG_LABELS", new=10)
     def test_maximum_labels_reached(self):
         for i in range(Label.MAX_ORG_LABELS):
             Label.get_or_create(self.org, self.user, "label%d" % i)
@@ -1748,6 +1749,7 @@ class LabelTest(TembaTest):
 
 class LabelCRUDLTest(TembaTest):
 
+    @patch.object(Label, "MAX_ORG_LABELS", new=10)
     def test_create_and_update(self):
         create_label_url = reverse('msgs.label_create')
         create_folder_url = reverse('msgs.label_create_folder')
@@ -1796,7 +1798,7 @@ class LabelCRUDLTest(TembaTest):
 
         response = self.client.post(create_label_url, dict(name="Label"))
         self.assertFormError(response, 'form', 'name',
-                             "You have reached 250 labels, please remove some to be able to add a new label")
+                             "You have reached 10 labels, please remove some to be able to add a new label")
 
     def test_label_delete(self):
         label_one = Label.get_or_create(self.org, self.user, "label1")

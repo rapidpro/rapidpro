@@ -464,7 +464,7 @@ class ContactGroupCRUDLTest(TembaTest):
             ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
 
         response = self.client.post(url, dict(name="People"))
-        self.assertFormError(response, 'form', 'name', "You have reached 250 contact groups, "
+        self.assertFormError(response, 'form', 'name', "You have reached 10 contact groups, "
                                                        "please remove some contact groups to be able "
                                                        "to create new contact groups")
 
@@ -3275,7 +3275,7 @@ class ContactTest(TembaTest):
             post_data['column_%s_label' % field] = field
 
         response = self.client.post(customize_url, post_data, follow=True)
-        self.assertFormError(response, 'form', None, "You have reached 200 contact fields. "
+        self.assertFormError(response, 'form', None, "You have reached 10 contact fields. "
                                                      "Cannot import for contact fields")
 
     def test_contact_import_handle_update_contact(self):

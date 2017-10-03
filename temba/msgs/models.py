@@ -1864,9 +1864,9 @@ class Label(TembaModel):
         if label:
             return label
 
-        if cls.all_objects.filter(org=org, is_active=True, label_type=Label.TYPE_LABEL).count() >= cls.MAX_ORG_LABELS:
+        if cls.all_objects.filter(org=org, is_active=True, label_type=Label.TYPE_LABEL).count() >= Label.MAX_ORG_LABELS:
             raise ValueError("You have reached %s labels, "
-                             "please remove some to be able to add a new label" % cls.MAX_ORG_LABELS)
+                             "please remove some to be able to add a new label" % Label.MAX_ORG_LABELS)
 
         return cls.label_objects.create(org=org, name=name, folder=folder, created_by=user, modified_by=user)
 

@@ -1610,7 +1610,7 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {'label': "Age", 'value_type': "numeric"})
         self.assertResponseError(response, 'non_field_errors',
-                                 "You have reached 200 contact fields, please remove some contact fields "
+                                 "You have reached 10 contact fields, please remove some contact fields "
                                  "to be able to create new contact fields")
 
     def test_flows(self):
@@ -1771,7 +1771,7 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {'name': "Reporters"})
         self.assertResponseError(response, 'non_field_errors',
-                                 "You have reached 250 contact groups, please remove some contact groups "
+                                 "You have reached 10 contact groups, please remove some contact groups "
                                  "to be able to create new contact groups")
 
     @patch.object(Label, "MAX_ORG_LABELS", new=10)
@@ -1870,7 +1870,7 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {'name': "Interesting"})
         self.assertResponseError(response, 'non_field_errors',
-                                 "You have reached 250 labels, please remove some to be able to add a new label")
+                                 "You have reached 10 labels, please remove some to be able to add a new label")
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
         self.assertEqual(msg_json, {
