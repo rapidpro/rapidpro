@@ -235,6 +235,7 @@ class ContactGroupTest(TembaTest):
         group.refresh_from_db()
         self.assertEqual(group.name, "first")
 
+    @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_reached_maximum_org_contact_groups(self):
         ContactGroup.user_groups.all().delete()
 
@@ -3893,6 +3894,7 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(field2.label, 'Games')
         self.assertEqual(field1.pk, field2.pk)
 
+    @patch.object(ContactField, "MAX_ORG_CONTACTFIELDS", new=10)
     def test_reached_maximum_org_fields(self):
         ContactField.objects.all().delete()
 
@@ -4051,6 +4053,7 @@ class ContactFieldTest(TembaTest):
         self.assertContains(response, 'first')
         self.assertNotContains(response, 'Second')
 
+    @patch.object(ContactField, "MAX_ORG_CONTACTFIELDS", new=10)
     def test_manage_fields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')
 

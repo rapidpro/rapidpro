@@ -1541,6 +1541,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'flow_uuid=%s&campaign_uuid=%s&dependencies=xx' % (flow.uuid, campaign.uuid))
         self.assertResponseError(response, None, 'dependencies must be one of none, flows, all')
 
+    @patch.object(ContactField, "MAX_ORG_CONTACTFIELDS", new=10)
     def test_fields(self):
         url = reverse('api.v2.fields')
 
@@ -1673,6 +1674,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'after=%s' % format_datetime(survey.modified_on))
         self.assertResultsByUUID(response, [survey])
 
+    @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_groups(self):
         url = reverse('api.v2.groups')
 
@@ -1772,6 +1774,7 @@ class APITest(TembaTest):
                                  "You have reached 250 contact groups, please remove some contact groups "
                                  "to be able to create new contact groups")
 
+    @patch.object(Label, "MAX_ORG_LABELS", new=10)
     def test_labels(self):
         url = reverse('api.v2.labels')
 
