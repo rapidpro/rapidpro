@@ -56,22 +56,17 @@ class TembaTwython(Twython):  # pragma: no cover
         if method == 'get':
             requests_args['params'] = params
         else:
-            if params.get("event", None):   # TODO: CHANGE THIS LINE BEFORE SEND
-                requests_args.update({
-                    'data': json.dumps(params),
-                    'files': files,
-                })
-            else:
-                requests_args.update({
-                    'data': params,
-                    'files': files,
-                })
+            requests_args.update({
+                'data': params,
+                'files': files,
+            })
         try:
             if method == 'get':
                 event = HttpEvent(method, url + '?' + urlencode(params))
             else:
                 event = HttpEvent(method, url, urlencode(params))
             self.events.append(event)
+
             response = func(url, **requests_args)
             event.status_code = response.status_code
             event.response_body = response.text
@@ -162,9 +157,7 @@ class TembaTwython(Twython):  # pragma: no cover
     def delete_webhook(self, webhook_id):
         """
         Removes the webhook from the provided application's configuration.
-
         Docs: https://dev.twitter.com/webhooks/reference/del/account_activity/webhooks
-
         """
         return self.request('account_activity/webhooks/%s' % webhook_id, method='DELETE')
 
@@ -175,15 +168,6 @@ class TembaTwython(Twython):  # pragma: no cover
         Docs: https://dev.twitter.com/webhooks/reference/post/account_activity/webhooks/subscriptions
         """
         return self.post('account_activity/webhooks/%s/subscriptions' % webhook_id)
-
-    def send_direct_message_with_events(self, params):
-        """
-        Send a direct message with events for the provided user context.
-
-        Docs: https://dev.twitter.com/rest/reference/post/direct_messages/events/new
-        """
-        # this method was implemented because twython can't set headers with easy format
-        return self.post('direct_messages/events/new', params=params)
 
 
 def generate_twitter_signature(content, consumer_secret):
