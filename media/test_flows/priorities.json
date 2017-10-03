@@ -1,0 +1,399 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "https://textit.in", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 139, 
+          "x": 74, 
+          "destination": null, 
+          "uuid": "1db36c29-a8ab-4f9e-b3fd-bf3a81a1fafb", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Hey Joe, where you goin with that gun in your hand?"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 152, 
+          "x": 377, 
+          "destination": null, 
+          "uuid": "3c899ea0-402a-4389-af65-8317b9af4dc9", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Hi Not Joe!"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "ca151b5a-2998-4b36-89a3-7b767bc27269", 
+      "rule_sets": [
+        {
+          "uuid": "ca151b5a-2998-4b36-89a3-7b767bc27269", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Joe"
+              }, 
+              "uuid": "3646ec30-9801-4304-85fa-9d35db48284b", 
+              "destination": "1db36c29-a8ab-4f9e-b3fd-bf3a81a1fafb", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": {
+                  "eng": "Joe"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "448ad858-c69b-49e4-a720-2730a1dc6e3f", 
+              "destination": "3c899ea0-402a-4389-af65-8317b9af4dc9", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "contact_field", 
+          "label": "Response 1", 
+          "operand": "@contact.name", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 0, 
+          "x": 180, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 7, 
+        "uuid": "f27468e3-6d82-45d8-adee-75f0cf00de9e", 
+        "name": "Priority Grandchild", 
+        "saved_on": "2017-09-30T16:17:09.530413Z"
+      }
+    }, 
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": "c1ca2788-5f38-4e37-9190-65c5f90c2a36", 
+          "uuid": "ef883e20-608a-48a8-bbb2-ebd3bb2c9452", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Parent Message 1"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }, 
+            {
+              "msg": {
+                "eng": "Parent Message 2"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 358, 
+          "x": 159, 
+          "destination": null, 
+          "uuid": "fe7cf639-fd9d-413e-9fce-df76da12f628", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "All done!"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "ef883e20-608a-48a8-bbb2-ebd3bb2c9452", 
+      "rule_sets": [
+        {
+          "uuid": "c1ca2788-5f38-4e37-9190-65c5f90c2a36", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Completed"
+              }, 
+              "uuid": "44136a02-2e03-47fc-adf4-8566151e646a", 
+              "destination": "fe7cf639-fd9d-413e-9fce-df76da12f628", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "subflow", 
+                "exit_type": "completed"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Expired"
+              }, 
+              "uuid": "052c76ee-44c2-4655-9a85-206c7edbf25d", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "type": "subflow", 
+                "exit_type": "expired"
+              }
+            }
+          ], 
+          "ruleset_type": "subflow", 
+          "label": "Response 1", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 166, 
+          "x": 265, 
+          "config": {
+            "flow": {
+              "name": "Priority Child", 
+              "uuid": "77cddff8-4128-46ce-b4b6-8abd29d66bac"
+            }
+          }
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "saved_on": "2017-09-30T16:17:54.873588Z", 
+        "uuid": "ce86d5c5-1b68-45aa-a74a-1bfd37c3917c", 
+        "name": "Priority Parent", 
+        "revision": 12
+      }
+    }, 
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 60, 
+          "destination": "6d011916-2d54-4769-89af-348585f107db", 
+          "uuid": "fa5b2dbe-e3a6-4a99-bc9e-80b22a3441bc", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Child Message 1"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 525, 
+          "x": 95, 
+          "destination": null, 
+          "uuid": "60c187f8-cd9e-4a75-bd5c-72e57c973ab2", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Finished Child Flow"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 190, 
+          "x": 47, 
+          "destination": "5190031d-37a3-4cc4-8fec-8fe300d31b41", 
+          "uuid": "fa2213ea-28dd-40d7-a204-eed987f35fed", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Hi Joe, want to become interactive?"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 197, 
+          "x": 415, 
+          "destination": "5190031d-37a3-4cc4-8fec-8fe300d31b41", 
+          "uuid": "f3fdc3c2-644e-485e-9fac-c033cb82d378", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Send a message to become interactive"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "fa5b2dbe-e3a6-4a99-bc9e-80b22a3441bc", 
+      "rule_sets": [
+        {
+          "uuid": "5190031d-37a3-4cc4-8fec-8fe300d31b41", 
+          "rules": [
+            {
+              "category": {
+                "eng": "All Responses"
+              }, 
+              "uuid": "84f907e2-3297-4219-a5d7-8d65fe411388", 
+              "destination": "ddf170c4-41c9-4bf6-844e-a46b2e39920b", 
+              "label": null, 
+              "destination_type": "R", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Interactive", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 345, 
+          "x": 164, 
+          "config": {}
+        }, 
+        {
+          "uuid": "ddf170c4-41c9-4bf6-844e-a46b2e39920b", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Completed"
+              }, 
+              "uuid": "824ca0df-a9c5-46f4-8f73-56fb6f10f27a", 
+              "destination": "60c187f8-cd9e-4a75-bd5c-72e57c973ab2", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "subflow", 
+                "exit_type": "completed"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Expired"
+              }, 
+              "uuid": "fa5009ca-389b-4399-86e4-45a41ed6a5ad", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "type": "subflow", 
+                "exit_type": "expired"
+              }
+            }
+          ], 
+          "ruleset_type": "subflow", 
+          "label": "Response 2", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 429, 
+          "x": 495, 
+          "config": {
+            "flow": {
+              "name": "Priority Grandchild", 
+              "uuid": "f27468e3-6d82-45d8-adee-75f0cf00de9e"
+            }
+          }
+        }, 
+        {
+          "uuid": "6d011916-2d54-4769-89af-348585f107db", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Joe"
+              }, 
+              "uuid": "e99ce2af-c473-4c1b-b940-a32e6fc7d1de", 
+              "destination": "fa2213ea-28dd-40d7-a204-eed987f35fed", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": {
+                  "eng": "Joe"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "96dc39f4-a703-497c-a19e-eaf348d5780c", 
+              "destination": "f3fdc3c2-644e-485e-9fac-c033cb82d378", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "contact_field", 
+          "label": "Response 3", 
+          "operand": "@contact.name", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 77, 
+          "x": 222, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 32, 
+        "uuid": "77cddff8-4128-46ce-b4b6-8abd29d66bac", 
+        "name": "Priority Child", 
+        "saved_on": "2017-09-30T16:20:21.042195Z"
+      }
+    }
+  ], 
+  "triggers": [
+    {
+      "trigger_type": "K", 
+      "flow": {
+        "name": "Priority Parent", 
+        "uuid": "ce86d5c5-1b68-45aa-a74a-1bfd37c3917c"
+      }, 
+      "groups": [], 
+      "keyword": "priority", 
+      "channel": null
+    }
+  ]
+}
