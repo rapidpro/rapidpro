@@ -136,7 +136,8 @@ def send_broadcast_task(broadcast_id):
     # get our broadcast
     from .models import Broadcast
     broadcast = Broadcast.objects.get(pk=broadcast_id)
-    broadcast.send()
+    high_priority = (broadcast.recipient_count == 1)
+    broadcast.send(high_priority=high_priority)
 
 
 @task(track_started=True, name='send_to_flow_node')

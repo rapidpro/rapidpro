@@ -652,7 +652,7 @@ class Flow(TembaModel):
                             Flow.should_close_connection(run, destination, result.get('destination')):
 
                         end_message = Msg.create_outgoing(msg.org, get_flow_user(msg.org), msg.contact, '',
-                                                          channel=msg.channel, priority=Msg.PRIORITY_HIGH,
+                                                          channel=msg.channel,
                                                           connection=msg.connection, response_to=msg if msg.id else None)
 
                         end_message.connection.mark_ending()
@@ -845,7 +845,7 @@ class Flow(TembaModel):
 
             # don't archive flows that belong to campaigns
             from temba.campaigns.models import CampaignEvent
-            if not CampaignEvent.objects.filter(flow=flow, campaign__org=user.get_org()).exists():
+            if not CampaignEvent.objects.filter(flow=flow, campaign__org=user.get_org(), campaign__is_archived=False).exists():
                 flow.archive()
                 changed.append(flow.pk)
 
@@ -1609,27 +1609,30 @@ class Flow(TembaModel):
         if started_flows is None:
             started_flows = []
 
-        # create the broadcast for this flow
-        send_actions = self.get_entry_send_actions()
-
         # for each send action, we need to create a broadcast, we'll group our created messages under these
         broadcasts = []
-        for send_action in send_actions:
-            # check that we either have text or media, available for the base language
-            if (send_action.msg and send_action.msg.get(self.base_language)) or (send_action.media and send_action.media.get(self.base_language)):
 
-                broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
-                                             media=send_action.media,
-                                             base_language=self.base_language,
-                                             send_all=send_action.send_all)
-                broadcast.update_contacts(all_contact_ids)
+        if len(all_contact_ids) > 1:
 
-                # manually set our broadcast status to QUEUED, our sub processes will send things off for us
-                broadcast.status = QUEUED
-                broadcast.save(update_fields=['status'])
+            # create the broadcast for this flow
+            send_actions = self.get_entry_send_actions()
 
-                # add it to the list of broadcasts in this flow start
-                broadcasts.append(broadcast)
+            for send_action in send_actions:
+                # check that we either have text or media, available for the base language
+                if (send_action.msg and send_action.msg.get(self.base_language)) or (send_action.media and send_action.media.get(self.base_language)):
+
+                    broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
+                                                 media=send_action.media,
+                                                 base_language=self.base_language,
+                                                 send_all=send_action.send_all)
+                    broadcast.update_contacts(all_contact_ids)
+
+                    # manually set our broadcast status to QUEUED, our sub processes will send things off for us
+                    broadcast.status = QUEUED
+                    broadcast.save(update_fields=['status'])
+
+                    # add it to the list of broadcasts in this flow start
+                    broadcasts.append(broadcast)
 
         # if there are fewer contacts than our batch size, do it immediately
         if len(all_contact_ids) < START_FLOW_BATCH_SIZE:
@@ -1680,7 +1683,7 @@ class Flow(TembaModel):
 
         for contact_id in batch_contact_ids:
             run = FlowRun.create(self, contact_id, fields=run_fields, start=flow_start, created_on=now,
-                                 parent=parent_run, db_insert=False)
+                                 parent=parent_run, db_insert=False, responded=start_msg is not None)
             batch.append(run)
         FlowRun.objects.bulk_create(batch)
 
@@ -2496,10 +2499,10 @@ class FlowRun(models.Model):
 
     @classmethod
     def create(cls, flow, contact_id, start=None, session=None, connection=None, fields=None,
-               created_on=None, db_insert=True, submitted_by=None, parent=None):
+               created_on=None, db_insert=True, submitted_by=None, parent=None, responded=False):
 
         args = dict(org=flow.org, flow=flow, contact_id=contact_id, start=start,
-                    session=session, connection=connection, fields=fields, submitted_by=submitted_by, parent=parent)
+                    session=session, connection=connection, fields=fields, submitted_by=submitted_by, parent=parent, responded=responded)
 
         if created_on:
             args['created_on'] = created_on
@@ -2602,6 +2605,12 @@ class FlowRun(models.Model):
 
     @classmethod
     def continue_parent_flow_run(cls, run, trigger_send=True, continue_parent=True):
+
+        # TODO: Remove this in favor of responded on session
+        if run.responded and not run.parent.responded:
+            run.parent.responded = True
+            run.parent.save(update_fields=['responded'])
+
         msgs = []
 
         steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
@@ -2631,6 +2640,18 @@ class FlowRun(models.Model):
                                                        resume_parent_run=True, trigger_send=trigger_send, continue_parent=continue_parent)
 
         return msgs
+
+    def get_session_responded(self):
+        """
+        TODO: Replace with Session.responded when it exists
+        """
+        current_run = self
+        while current_run and current_run.contact == self.contact:
+            if current_run.responded:
+                return True
+            current_run = current_run.parent
+
+        return False
 
     def is_ivr(self):
         """
@@ -4848,13 +4869,8 @@ class AddToGroupAction(Action):
                     if not errors:
                         group = ContactGroup.get_user_group(contact.org, value)
                         if not group:
+                            ActionLog.error(run, _("Unable to find group with name '%s'") % value)
 
-                            try:
-                                group = ContactGroup.create_static(contact.org, user, name=value)
-                                if run.contact.is_test:  # pragma: needs cover
-                                    ActionLog.info(run, _("Group '%s' created") % value)
-                            except ValueError:  # pragma: needs cover
-                                    ActionLog.error(run, _("Unable to create group with name '%s'") % value)
                     else:  # pragma: needs cover
                         ActionLog.error(run, _("Group name could not be evaluated: %s") % ', '.join(errors))
 
@@ -4980,12 +4996,10 @@ class AddLabelAction(Action):
                 (value, errors) = Msg.substitute_variables(label, context, org=run.flow.org)
 
                 if not errors:
-                    try:
-                        label = Label.get_or_create(contact.org, contact.org.get_user(), value)
-                        if run.contact.is_test:  # pragma: needs cover
-                            ActionLog.info(run, _("Label '%s' created") % label.name)
-                    except ValueError:  # pragma: needs cover
-                        ActionLog.error(run, _("Unable to create label with name '%s'") % label.name)
+                    label = Label.label_objects.filter(org=contact.org, name__iexact=value.strip()).first()
+                    if not label:
+                        ActionLog.error(run, _("Unable to find label with name '%s'") % value.strip())
+
                 else:  # pragma: needs cover
                     label = None
                     ActionLog.error(run, _("Label name could not be evaluated: %s") % ', '.join(errors))
@@ -5138,8 +5152,10 @@ class ReplyAction(Action):
                 media_type, media_url = run.flow.get_localized_text(self.media, run.contact).split(':', 1)
 
                 # if we have a localized media, create the url
-                if media_url:
+                if media_url and len(media_type.split('/')) > 1:
                     attachments = ["%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)]
+                else:
+                    attachments = ["%s:%s" % (media_type, media_url)]
 
             if offline_on:
                 context = None
@@ -5147,14 +5163,17 @@ class ReplyAction(Action):
             else:
                 created_on = None
 
-            if msg:
+            if msg and msg.id:
                 replies = msg.reply(text, user, trigger_send=False, message_context=context,
                                     connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
                                     send_all=self.send_all, created_on=created_on)
             else:
+                # if our run has been responded to or any of our parent runs have
+                # been responded to consider us interactive with high priority
+                high_priority = run.get_session_responded()
                 replies = run.contact.send(text, user, trigger_send=False, message_context=context,
                                            connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
-                                           created_on=created_on, all_urns=self.send_all)
+                                           created_on=created_on, all_urns=self.send_all, high_priority=high_priority)
         return replies
 
 
@@ -6168,7 +6187,7 @@ class NotEmptyTest(Test):
 
     def evaluate(self, run, sms, context, text):  # pragma: needs cover
         if text and len(text.strip()):
-            return 1, text
+            return 1, text.strip()
         return 0, None
 
 
@@ -6632,12 +6651,13 @@ class NumericTest(Test):
             # we only try this hard if we haven't already substituted characters
             if original_word == word:
                 # does this start with a number?  just use that part if so
-                match = regex.match(r"^(\d+).*$", word, regex.UNICODE | regex.V0)
-                if match:  # pragma: needs cover
+                match = regex.match(r"^[$£€]?([\d,][\d,\.]*([\.,]\d+)?)\D*$", word, regex.UNICODE | regex.V0)
+
+                if match:
                     return (match.group(1), Decimal(match.group(1)))
                 else:
                     raise e
-            else:  # pragma: needs cover
+            else:
                 raise e
 
     # test every word in the message against our test
