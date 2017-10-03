@@ -1085,7 +1085,7 @@ class Channel(TembaModel):
         from temba.contacts.models import TEL_SCHEME
         cost = 1
         if msg.contact_urn.scheme == TEL_SCHEME:
-            cost += calculate_num_segments(msg.text)
+            cost = calculate_num_segments(msg.text)
 
         if msg.attachments:
             cost += len(msg.attachments)
