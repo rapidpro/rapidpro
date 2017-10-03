@@ -919,7 +919,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_shaqodoon',
                'claim_verboice', 'claim_plivo', 'search_plivo',
                'claim_smscentral', 'claim_start', 'claim_yo', 'claim_viber', 'create_viber',
-               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_mblox',
+               'claim_twilio_messaging_service', 'claim_zenvia',
                'claim_twiml_api', 'facebook_whitelist',
                'claim_red_rabbit')
     permissions = True
@@ -1530,22 +1530,6 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimRedRabbit(ClaimAuthenticatedExternal):
         title = _("Connect Red Rabbit")
         channel_type = Channel.TYPE_RED_RABBIT
-
-    class ClaimMblox(ClaimAuthenticatedExternal):
-        class MBloxForm(forms.Form):
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                        help_text=_("The country this phone number is used in"))
-            number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
-                                     help_text=_("The short code or phone number you are connecting."))
-            username = forms.CharField(label=_("Username"),
-                                       help_text=_("The username for your MBlox REST API service"))
-            password = forms.CharField(label=_("API Token"),
-                                       help_text=_("The API token for your MBlox REST API service"))
-
-        title = _("Connect MBlox")
-        channel_type = Channel.TYPE_MBLOX
-        form_class = MBloxForm
-        fields = ('country', 'number', 'username', 'password')
 
     class ClaimChikka(ClaimAuthenticatedExternal):
         class ChikkaForm(forms.Form):
