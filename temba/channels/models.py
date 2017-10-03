@@ -39,7 +39,7 @@ from smartmin.models import SmartModel
 from temba.orgs.models import Org, NEXMO_UUID, NEXMO_APP_ID, CHATBASE_TYPE_AGENT, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
-from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
+from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
 from temba.utils.http import HttpEvent
 from temba.utils.nexmo import NexmoClient, NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid
@@ -1074,6 +1074,23 @@ class Channel(TembaModel):
 
     def is_ussd(self):
         return self.channel_type in Channel.USSD_CHANNELS
+
+    def calculate_tps_cost(self, msg):
+        """
+        Calculates the TPS cost for sending the passed in message. We look at the URN type and for any
+        `tel` URNs we just use the calculated segments here. All others have a cost of 1.
+
+        We also increase cost based on the number of attachments, 1 per attachment.
+        """
+        from temba.contacts.models import TEL_SCHEME
+        cost = 1
+        if msg.contact_urn.scheme == TEL_SCHEME:
+            cost += calculate_num_segments(msg.text)
+
+        if msg.attachments:
+            cost += len(msg.attachments)
+
+        return cost
 
     def claim(self, org, user, phone):
         """
