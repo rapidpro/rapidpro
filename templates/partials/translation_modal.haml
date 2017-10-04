@@ -1,5 +1,11 @@
 -load i18n
 
+:css
+  .quick-reply, .quick-reply:hover {
+    transition: none;
+    -webkit-transition: none;
+  }
+
 %html
   %body
     .translation.modal{data-dismiss:"modal"}
@@ -10,25 +16,28 @@
           %span{id:"modal-title"}><
             -trans "Translation"
       .modal-body
-        .translate-text.translate-from{ng-show:"translation.from"}
-          [[translation.from]]
-        %h5
-          -trans "[[language.name]] Translation"
-        %label
-          %textarea{ng-model:"translation.to",auto-complete:"",class:"translation"}
+        %form
+          .translation{ng-repeat:'translation in translations'}
+            %h5
+              -trans "[[language.name]] [[translation.name]]"
+            .translate-text.translate-from{ng-show:"translation.from"}
+              [[translation.from]]
+            %label
+              .large{ng-if:'!translation.input'}
+                %textarea{ng-model:"translation.to",auto-complete:"",class:"translation"}
+              .small{ng-if:'translation.input'}
+                %input{ng-model:"translation.to", type:"text", auto-complete:"",class:"translation"}
 
-          
-        .quick-reply{ng-show:"translation.toQuickReply.length"}
-          .modal-quick-reply-header
-            .quick_reply-title
-              -trans "Text"
-              
-          .modal-quick-reply{ng-repeat:"response in translation.toQuickReply", class:""}
-            .quick_reply-title.center-translate
-              .translate-from{ng-show:"translation.fromQuickReply[$index].title"}
-                -trans "[[translation.fromQuickReply[$index].title]]"
-              %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"response.title", ng-required:"true"}
-        
+            .quick-reply{ng-show:"translation.toQuickReply.length"}
+              .modal-quick-reply-header
+                .quick_reply-title
+                  -trans "Text"
+
+              .modal-quick-reply{ng-repeat:"response in translation.toQuickReply", class:""}
+                .quick_reply-title.center-translate
+                  .translate-from{ng-show:"translation.fromQuickReply[$index].title"}
+                    -trans "[[translation.fromQuickReply[$index].title]]"
+                  %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"response.title", ng-required:"true"}
       .modal-footer
         %button{ng-click:"cancel()",class:"btn btn-secondary"}
           -trans "Cancel"

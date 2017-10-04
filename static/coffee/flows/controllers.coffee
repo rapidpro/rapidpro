@@ -1832,26 +1832,22 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.action._attachType = "image"
 
   startNodeConfig = () ->
-    $scope.container_operation_visible = true
     $scope.actions_quick_reply = []
     $scope.action.quick_replies = {}
+    $scope.showQuickReplyButton = true
 
   if $scope.options.dragSource? || $scope.options.newStepAction?
     startNodeConfig()
   else
     if $scope.action.quick_replies? and $scope.action.quick_replies[currentLang] != undefined
       if $scope.action.quick_replies[currentLang]?
-        $scope.container_operation_visible = false
         $scope.actions_quick_reply = $scope.action.quick_replies[currentLang]
+        $scope.showQuickReplyButton = false
       else
         $scope.actions_quick_reply = []
-        $scope.container_operation_visible = true
 
     else
       startNodeConfig()
-
-    if $scope.action._media?
-      $scope.container_operation_visible = false
 
   if $scope.action.webhook_headers
     item_counter = 0
@@ -1888,8 +1884,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.addNewActionWebhookHeader()
 
   $scope.addNewQuickReply = ->
+    $scope.showQuickReplyButton = false
     if $scope.actions_quick_reply.length < 11
-      $scope.container_operation_visible = false
       if Object.keys($scope.action.quick_replies).length < 1
         $scope.actions_quick_reply.push({title:''})
       else
@@ -1904,7 +1900,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.actions_quick_reply.splice(index, 1)
 
     if a.length == 0
-      $scope.container_operation_visible = true
+      $scope.showQuickReplyButton = true
       $scope.actions_quick_reply = []
       $scope.action.quick_replies = {}
 

@@ -1,6 +1,5 @@
 -load i18n
 
-
 :css
   .attach-option {
   }
@@ -43,6 +42,20 @@
     margin-top: 3px;
   }
 
+  .quick-reply, .quick-reply:hover {
+    transition: none;
+    -webkit-transition: none;
+  }
+
+  .icon-button-quick-reply {
+    font-size: 18px;
+    margin-top: 4px;
+    margin-left: 2px;
+    transition: none;
+    -webkit-transition: none;
+  }
+
+
 .modal-header.title
   %span{ng-model:"config",data-icon:"show",class:"modal-title action-name"}><
 .modal-body
@@ -54,10 +67,8 @@
     %span{ng-if:'config.type == "reply"'}
       %span{auto-complete:"",msg:"action.msg",type:"sms",data-message:"message"}
       %button{ng-click:'saveMessage(message, "reply", showAttachVariable)',class:"submit hide"}
-      -#.container-operations{ng-show:"container_operation_visible"}
-      -#.icon-button-quick-reply.cursor-pointer{style:"font-size:22px; margin-top:-2px; margin-left:2px;", ng-click:'addNewQuickReply()', ng-show:'(!action._media && flow.flow_type=="F")'}
       .media{ng-hide:'action.uploading'}
-        .attachments{ng-class: '{active:showAttachOptions}', ng-show: '!action._media'}
+        .attachments{ng-class: '{active:showAttachOptions}', ng-show: '!action._media && !actions_quick_reply.length'}
           .attach-button{ng-show:'!showAttachOptions'}
             .icon-attachment.add-attachment{ng-click:'showAttachOptions = !showAttachOptions; showAttachVariable=false' }
 
@@ -81,7 +92,7 @@
             %span.attach-url
               %input{ng-model:"action._attachURL", name:"url", type:'text', auto-complete:"", placeholder: '@extra.attachment_url', ng-required:"showAttachVariable"}
             .icon.icon-close{ng-click:"showAttachOptions = false; showAttachVariable = false"}
-              
+
         .tag-button{ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
           .viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}'}
           .summary
@@ -90,18 +101,20 @@
             %a{href:'javascript:void(0);', ng-click:'removeAttachment(); $event.stopPropagation();'}
               .icon-close
 
-      -#.quick-reply{ng-show:"actions_quick_reply.length"}
-      -#  .modal-quick-reply-header
-      -#    .quick_reply-title
-      -#      -trans "Text"
-      -#
-      -#  .modal-quick-reply{ng-repeat:"response in actions_quick_reply", class:""}
-      -#    .quick_reply-title
-      -#      %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"response.title", ng-required:"true"}
-      -#
-      -#    .icon.icon-close{ng-click:"removeElementArrayQuickReply(actions_quick_reply, $index)"}
-      -#  %a{ng-click:"addNewQuickReply()", class:"cursor-pointer", ng-hide:"actions_quick_reply.length == 11"}
-      -#    -trans "Add new quick reply"
+        .icon-button-quick-reply.cursor-pointer{ng-click: 'addNewQuickReply();', ng-show: '!showAttachOptions && showQuickReplyButton && flow.flow_type=="F"'}
+
+      .quick-reply{ng-show:"!showQuickReplyButton"}
+        .modal-quick-reply-header
+          .quick_reply-title
+            -trans "Text"
+
+        .modal-quick-reply{ng-repeat:"response in actions_quick_reply", class:""}
+          .quick_reply-title
+            %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"response.title", ng-required:"true"}
+
+          .icon.icon-close{ng-click:"removeElementArrayQuickReply(actions_quick_reply, $index);"}
+        %a{ng-click:"addNewQuickReply()", class:"cursor-pointer", ng-hide:"actions_quick_reply.length == 11"}
+          -trans "Add new quick reply"
 
     %span{ng-if:'config.type == "end_ussd"'}
       %span{auto-complete:"",msg:"action.msg",type:"ussd",data-message:"message"}
