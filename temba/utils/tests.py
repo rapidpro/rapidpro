@@ -992,7 +992,7 @@ class GSM7Test(TembaTest):
         # 159 but with extended as last should be two as well
         self.assertEqual(2, calculate_num_segments(ten_chars * 15 + "123456789{"))
 
-        # 305 should be three segments
+        # 355 should be three segments
         self.assertEqual(3, calculate_num_segments(ten_chars * 35 + "12345"))
 
         # 134 is exactly two ucs2 segments
