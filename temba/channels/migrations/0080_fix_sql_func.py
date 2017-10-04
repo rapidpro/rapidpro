@@ -74,6 +74,45 @@ BEGIN
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+
+----------------------------------------------------------------------
+-- Manages keeping track of the # of messages in our channel log
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_update_channellog_count() RETURNS TRIGGER AS $$
+BEGIN
+  -- ChannelLog being added
+  IF TG_OP = 'INSERT' THEN
+    -- Error, increment our error count
+    IF NEW.is_error THEN
+      PERFORM temba_insert_channelcount(NEW.channel_id, 'LE', NULL::date, 1);
+    -- Success, increment that count instead
+    ELSE
+      PERFORM temba_insert_channelcount(NEW.channel_id, 'LS', NULL::date, 1);
+    END IF;
+
+  -- Updating is_error is forbidden
+  ELSIF TG_OP = 'UPDATE' THEN
+    RAISE EXCEPTION 'Cannot update is_error or channel_id on ChannelLog events';
+
+  -- Deleting, decrement our count
+  ELSIF TG_OP = 'DELETE' THEN
+    -- Error, decrement our error count
+    IF OLD.is_error THEN
+      PERFORM temba_insert_channelcount(OLD.channel_id, 'LE', NULL::date, -1);
+    -- Success, decrement that count instead
+    ELSE
+      PERFORM temba_insert_channelcount(OLD.channel_id, 'LS', NULL::date, -1);
+    END IF;
+
+  -- Table being cleared, reset all counts
+  ELSIF TG_OP = 'TRUNCATE' THEN
+    DELETE FROM channels_channelcount WHERE count_type IN ('LE', 'LS');
+  END IF;
+
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
 """
 
 
