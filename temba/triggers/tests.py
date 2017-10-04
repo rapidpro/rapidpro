@@ -788,6 +788,9 @@ class TriggerTest(TembaTest):
             contact = Contact.from_urn(self.org, 'facebook:1001')
             self.assertTrue(contact.name, "Ben Haggerty")
 
+            # and a new channel event for the conversation
+            self.assertTrue(ChannelEvent.objects.filter(channel=fb_channel, contact=contact, event_type=ChannelEvent.TYPE_NEW_CONVERSATION))
+
             run = FlowRun.objects.get(contact=contact)
             self.assertEqual(run.flow, flow)
 
