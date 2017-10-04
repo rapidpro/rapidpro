@@ -1080,15 +1080,16 @@ class Channel(TembaModel):
         Calculates the TPS cost for sending the passed in message. We look at the URN type and for any
         `tel` URNs we just use the calculated segments here. All others have a cost of 1.
 
-        We also increase cost based on the number of attachments, 1 per attachment.
+        In the case of attachments, our cost is the number of attachments.
         """
         from temba.contacts.models import TEL_SCHEME
         cost = 1
         if msg.contact_urn.scheme == TEL_SCHEME:
             cost = calculate_num_segments(msg.text)
 
+        # if we have attachments then use that as our cost (MMS bundles text into the attachment, but only one per)
         if msg.attachments:
-            cost += len(msg.attachments)
+            cost = len(msg.attachments)
 
         return cost
 

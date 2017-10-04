@@ -11156,7 +11156,7 @@ class CourierTest(TembaTest):
 
             # create some outgoing messages for our channel
             msg1 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065551111', "Outgoing 1",
-                                       attachments=['image/jpg:https://example.com/test.jpg'])
+                                       attachments=['image/jpg:https://example.com/test.jpg', 'image/jpg:https://example.com/test2.jpg'])
             msg2 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065552222', "Outgoing 2", response_to=incoming,
                                        attachments=[])
             msg3 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065553333', "Outgoing 3", high_priority=False,
@@ -11206,6 +11206,7 @@ class CourierTest(TembaTest):
             self.assertEqual(low_priority_msgs[0][0]['attachments'], ['image/jpg:https://example.com/test.jpg'])
             self.assertEqual(low_priority_msgs[0][0]['tps_cost'], 2)
             self.assertIsNone(low_priority_msgs[1][0]['attachments'])
+            self.assertIsNone(low_priority_msgs[1][0]['tps_cost'], 1)
             self.assertIsNone(low_priority_msgs[2][0]['attachments'])
 
 
