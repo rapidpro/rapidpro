@@ -53,10 +53,10 @@ window.updateSimulator = (data) ->
         quick_replies += "</div>"
 
     if msg.attachments and msg.attachments.length > 0
-      parts = msg.attachments[0].split(':')
-
+      attachment = msg.attachments[0]
+      parts = attachment.split(':')
       media_type = parts[0]
-      media_url = 'http:' + parts.slice(2).join(":")
+      media_url = parts.slice(1).join(":")
 
       if media_type == 'geo'
         media_type = 'icon-pin_drop'
@@ -251,7 +251,6 @@ getSimulateURL = ->
 showSimulator = (reset=false) ->
 
   messageCount = $(".simulator-body").data('message-count')
-  # console.log("Messages: " + messageCount)
 
   if reset or not messageCount or messageCount == 0
     resetSimulator()

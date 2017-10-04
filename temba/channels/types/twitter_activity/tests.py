@@ -85,7 +85,7 @@ class TwitterActivityTypeTest(TembaTest):
         self.assertEqual(json.loads(channel.config), {'handle_id': '87654', 'api_key': 'ak', 'api_secret': 'as',
                                                       'access_token': 'at', 'access_token_secret': 'ats', 'webhook_id': '1234567'})
 
-        mock_register_webhook.assert_called_once_with('https://temba.ngrok.io/handlers/twitter/%s' % channel.uuid)
+        mock_register_webhook.assert_called_once_with('https://temba.ngrok.io/c/twt/%s/receive' % channel.uuid)
         mock_subscribe_to_webhook.assert_called_once_with("1234567")
 
     @override_settings(IS_PROD=True)

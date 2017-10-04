@@ -652,7 +652,7 @@ class Flow(TembaModel):
                             Flow.should_close_connection(run, destination, result.get('destination')):
 
                         end_message = Msg.create_outgoing(msg.org, get_flow_user(msg.org), msg.contact, '',
-                                                          channel=msg.channel, priority=Msg.PRIORITY_HIGH,
+                                                          channel=msg.channel,
                                                           connection=msg.connection, response_to=msg if msg.id else None)
 
                         end_message.connection.mark_ending()
@@ -845,7 +845,7 @@ class Flow(TembaModel):
 
             # don't archive flows that belong to campaigns
             from temba.campaigns.models import CampaignEvent
-            if not CampaignEvent.objects.filter(flow=flow, campaign__org=user.get_org()).exists():
+            if not CampaignEvent.objects.filter(flow=flow, campaign__org=user.get_org(), campaign__is_archived=False).exists():
                 flow.archive()
                 changed.append(flow.pk)
 
@@ -2248,8 +2248,12 @@ class Flow(TembaModel):
                     top_y = y
                     top_uuid = uuid
 
-                # validate we can parse our rules, this will throw if not
-                Rule.from_json_array(self.org, rules)
+                # parse our rules, this will materialize any necessary dependencies
+                parsed_rules = []
+                rule_objects = Rule.from_json_array(self.org, rules)
+                for r in rule_objects:
+                    parsed_rules.append(r.as_json())
+                rules = parsed_rules
 
                 for rule in rules:
                     if 'destination' in rule:
@@ -3992,28 +3996,30 @@ class ExportFlowResultsTask(BaseExportTask):
                 for rule in ruleset.get_rules():
                     category_map[rule.uuid] = rule.get_category_name(ruleset.flow.base_language)
 
-        ruleset_steps = FlowStep.objects.filter(run__flow__in=flows, step_type=FlowStep.TYPE_RULE_SET)
-        ruleset_steps = ruleset_steps.order_by('contact', 'run', 'arrived_on', 'pk')
+        runs = FlowRun.objects.filter(flow__in=flows)
 
         if responded_only:
-            ruleset_steps = ruleset_steps.filter(run__responded=True)
+            runs = runs.filter(responded=True)
 
         # count of unique flow runs
         with SegmentProfiler("# of runs"):
-            all_runs_count = ruleset_steps.values('run').distinct().count()
+            all_runs_count = runs.count()
 
         # count of unique contacts
         with SegmentProfiler("# of contacts"):
-            contacts_count = ruleset_steps.values('contact').distinct().count()
+            contacts_count = runs.distinct('contact').count()
 
         # grab the ids for all our steps so we don't have to ever calculate them again
         with SegmentProfiler("calculate step ids"):
-            all_steps = FlowStep.objects.filter(run__flow__in=flows)\
+            node_uuids = list(RuleSet.objects.filter(flow__in=flows).values_list('uuid', flat=True))
+            node_uuids += list(ActionSet.objects.filter(flow__in=flows).values_list('uuid', flat=True))
+
+            all_steps = FlowStep.objects.filter(step_uuid__in=node_uuids)\
                                         .order_by('contact', 'run', 'arrived_on', 'pk')\
                                         .values('id')
 
             if responded_only:
-                all_steps = all_steps.filter(run__responded=True)
+                all_steps = all_steps.filter(run__in=runs)
             else:
                 broadcast_only_flow = not all_steps.exclude(step_type=FlowStep.TYPE_ACTION_SET).exists()
 
@@ -4852,13 +4858,8 @@ class AddToGroupAction(Action):
                     if not errors:
                         group = ContactGroup.get_user_group(contact.org, value)
                         if not group:
+                            ActionLog.error(run, _("Unable to find group with name '%s'") % value)
 
-                            try:
-                                group = ContactGroup.create_static(contact.org, user, name=value)
-                                if run.contact.is_test:  # pragma: needs cover
-                                    ActionLog.info(run, _("Group '%s' created") % value)
-                            except ValueError:  # pragma: needs cover
-                                    ActionLog.error(run, _("Unable to create group with name '%s'") % value)
                     else:  # pragma: needs cover
                         ActionLog.error(run, _("Group name could not be evaluated: %s") % ', '.join(errors))
 
@@ -4984,12 +4985,10 @@ class AddLabelAction(Action):
                 (value, errors) = Msg.substitute_variables(label, context, org=run.flow.org)
 
                 if not errors:
-                    try:
-                        label = Label.get_or_create(contact.org, contact.org.get_user(), value)
-                        if run.contact.is_test:  # pragma: needs cover
-                            ActionLog.info(run, _("Label '%s' created") % label.name)
-                    except ValueError:  # pragma: needs cover
-                        ActionLog.error(run, _("Unable to create label with name '%s'") % label.name)
+                    label = Label.label_objects.filter(org=contact.org, name__iexact=value.strip()).first()
+                    if not label:
+                        ActionLog.error(run, _("Unable to find label with name '%s'") % value.strip())
+
                 else:  # pragma: needs cover
                     label = None
                     ActionLog.error(run, _("Label name could not be evaluated: %s") % ', '.join(errors))
@@ -5166,8 +5165,10 @@ class ReplyAction(Action):
                 media_type, media_url = run.flow.get_localized_text(self.media, run.contact).split(':', 1)
 
                 # if we have a localized media, create the url
-                if media_url:
+                if media_url and len(media_type.split('/')) > 1:
                     attachments = ["%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)]
+                else:
+                    attachments = ["%s:%s" % (media_type, media_url)]
 
             if offline_on:
                 context = None
@@ -5360,11 +5361,10 @@ class VariableContactAction(Action):
                     groups.append(variable_group)
                 else:
                     country = run.flow.org.get_country_code()
-                    if country:
-                        (number, valid) = URN.normalize_number(variable, country)
-                        if number and valid:
-                            contact = Contact.get_or_create(run.org, get_flow_user(run.org), urns=[URN.from_tel(number)])
-                            contacts.append(contact)
+                    (number, valid) = URN.normalize_number(variable, country)
+                    if number and valid:
+                        contact = Contact.get_or_create(run.org, get_flow_user(run.org), urns=[URN.from_tel(number)])
+                        contacts.append(contact)
 
         return groups, contacts
 
@@ -6016,8 +6016,9 @@ class InGroupTest(Test):
         uuid = group.get(InGroupTest.UUID)
         return InGroupTest(ContactGroup.get_or_create(org, org.created_by, name, uuid))
 
-    def as_json(self):  # pragma: needs cover
-        return dict(type=InGroupTest.TYPE, name=self.group.name, uuid=self.group.uuid)
+    def as_json(self):
+        group = ContactGroup.get_or_create(self.group.org, self.group.org.created_by, self.group.name, self.group.uuid)
+        return dict(type=InGroupTest.TYPE, test=dict(name=group.name, uuid=group.uuid))
 
     def evaluate(self, run, sms, context, text):
         if run.contact.user_groups.filter(id=self.group.id).first():
@@ -6660,12 +6661,13 @@ class NumericTest(Test):
             # we only try this hard if we haven't already substituted characters
             if original_word == word:
                 # does this start with a number?  just use that part if so
-                match = regex.match(r"^(\d+).*$", word, regex.UNICODE | regex.V0)
-                if match:  # pragma: needs cover
+                match = regex.match(r"^[$£€]?([\d,][\d,\.]*([\.,]\d+)?)\D*$", word, regex.UNICODE | regex.V0)
+
+                if match:
                     return (match.group(1), Decimal(match.group(1)))
                 else:
                     raise e
-            else:  # pragma: needs cover
+            else:
                 raise e
 
     # test every word in the message against our test

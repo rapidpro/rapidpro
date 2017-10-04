@@ -40,7 +40,7 @@ class TelegramType(ChannelType):
     def activate(self, channel):
         config = channel.config_json()
         bot = telegram.Bot(config['auth_token'])
-        bot.set_webhook("https://" + settings.TEMBA_HOST + reverse('handlers.telegram_handler', args=[channel.uuid]))
+        bot.set_webhook("https://" + settings.TEMBA_HOST + reverse('courier.tg', args=[channel.uuid]))
 
     def deactivate(self, channel):
         config = channel.config_json()

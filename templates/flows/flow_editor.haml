@@ -376,6 +376,7 @@
                   %span.reply{ng-show:'action.type == "reply" || action.type == "send"'}
 
                     .node-attachment.viewer-button{ng-class:'{"icon-videocam": action._media.type == "video", "icon-photo": action._media.type=="image", "icon-arrow-right-8": action._media.type=="audio"}', ng-show:'action._media', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
+                    .node-attachment.icon-attachment{ng-show:'action._attachURL'}
                     .node-attachment.viewer-button{ng-class:'{"icon-button-quick-reply": action.quick_replies[language.iso_code].length > 0}', ng-show:'action.quick_replies[language.iso_code].length > 0', ng-click:'clickShowActionMedia(action); $event.stopPropagation();'}
 
                     .uploading{ng-show:'action.uploading'}
