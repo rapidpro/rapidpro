@@ -11203,10 +11203,10 @@ class CourierTest(TembaTest):
             self.assertEqual([[m['text'] for m in b] for b in high_priority_msgs], [["Outgoing 4", "Outgoing 5"]])
             self.assertEqual([[m['text'] for m in b] for b in low_priority_msgs], [["Outgoing 1"], ["Outgoing 2"], ["Outgoing 3"]])
 
-            self.assertEqual(low_priority_msgs[0][0]['attachments'], ['image/jpg:https://example.com/test.jpg'])
+            self.assertEqual(low_priority_msgs[0][0]['attachments'], ['image/jpg:https://example.com/test.jpg', 'image/jpg:https://example.com/test2.jpg'])
             self.assertEqual(low_priority_msgs[0][0]['tps_cost'], 2)
             self.assertIsNone(low_priority_msgs[1][0]['attachments'])
-            self.assertIsNone(low_priority_msgs[1][0]['tps_cost'], 1)
+            self.assertEqual(low_priority_msgs[1][0]['tps_cost'], 1)
             self.assertIsNone(low_priority_msgs[2][0]['attachments'])
 
 
