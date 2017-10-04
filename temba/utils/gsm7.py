@@ -4,14 +4,19 @@ from __future__ import unicode_literals
 
 import six
 
+GSM7_BASIC = u"@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1bÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>" \
+             u"?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ`¿abcdefghijklmnopqrstuvwxyzäöñüà"
+
+GSM7_EXTENDED = u"^{}\\[~]|€"
+
+
 # All valid GSM7 characters, table format
-VALID_GSM7 = u"@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1bÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>" \
-             u"?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ`¿abcdefghijklmnopqrstuvwxyzäöñüà" \
-             u"````````````````````^```````````````````{}`````\\````````````[~]`" \
-             u"|````````````````````````````````````€``````````````````````````"
+VALID_GSM7 = GSM7_BASIC + GSM7_EXTENDED
 
 # Valid GSM7 chars as a set
 GSM7_CHARS = {c for c in VALID_GSM7}
+GSM7_BASIC_CHARS = {c for c in GSM7_BASIC}
+GSM7_EXTENDED_CHARS = {c for c in GSM7_EXTENDED}
 
 # Characters we replace in GSM7 with versions that can actually be encoded
 GSM7_REPLACEMENTS = {u'á': 'a',
@@ -321,3 +326,59 @@ def decode(input_, errors='strict'):
 
     ret = u''.join(result)
     return ret, len(ret)
+
+
+def calculate_num_segments(text):
+    """
+    Calculates the number of SMS segments it will take to send the passed in text. This automatically figures out if
+    the text is GSM7 or UCS2 and then calculates how many segments it will break up into.
+
+    UCS2 messages can be 70 characters at max, if more, each segment is 67
+    GSM7 messages can be 160 characters at max, if more, each segment is 153
+
+    """
+    # are we ucs2?
+    gsm7 = is_gsm7(text)
+
+    # first figure out if we are multipart
+    is_multipart = False
+    segment_size = 0
+    for c in text:
+        if c in GSM7_EXTENDED_CHARS and gsm7:
+            segment_size += 2
+        else:
+            segment_size += 1
+
+        if not gsm7 and segment_size > 70:
+            is_multipart = True
+            break
+
+        if gsm7 and segment_size > 160:
+            is_multipart = True
+            break
+
+    # we aren't multipart, so just return a single segment
+    if not is_multipart:
+        return 1
+
+    # our current segment count
+    segment_count = 1
+    segment_size = 0
+
+    # calculate our total number of segments, we can't do simple division because multibyte extended chars
+    # may land on a boundary between messages (`{` as character 153 will not fit and force another segment)
+    for c in text:
+        if c in GSM7_EXTENDED_CHARS and gsm7:
+            segment_size += 2
+        else:
+            segment_size += 1
+
+        if gsm7 and segment_size > 153:
+            segment_size -= 153
+            segment_count += 1
+
+        if not gsm7 and segment_size > 67:
+            segment_size -= 67
+            segment_count += 1
+
+    return segment_count
