@@ -43,10 +43,10 @@ window.updateSimulator = (data) ->
     media_viewer_elt = null
 
     if msg.attachments and msg.attachments.length > 0
-      parts = msg.attachments[0].split(':')
-
+      attachment = msg.attachments[0]
+      parts = attachment.split(':')
       media_type = parts[0]
-      media_url = 'http:' + parts.slice(2).join(":")
+      media_url = parts.slice(1).join(":")
 
       if media_type == 'geo'
         media_type = 'icon-pin_drop'
@@ -61,8 +61,6 @@ window.updateSimulator = (data) ->
         else if media_type == 'audio'
           media_type = 'icon-mic'
           media_viewer_elt = "<span class=\"media-file\"><audio controls src=\"" + media_url + "\"></span>"
-
-
 
     ele = "<div class=\"" + model + " " + level + " " + direction + " " + ussd
     if media_type
@@ -234,7 +232,6 @@ getSimulateURL = ->
 showSimulator = (reset=false) ->
 
   messageCount = $(".simulator-body").data('message-count')
-  # console.log("Messages: " + messageCount)
 
   if reset or not messageCount or messageCount == 0
     resetSimulator()
