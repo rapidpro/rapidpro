@@ -10,7 +10,6 @@ from twilio import TwilioRestException
 from temba.channels.types.twilio.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import WIRED, Attachment
-from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.utils.twilio import TembaTwilioRestClient
 from ...models import Channel, ChannelType, SendException
 
@@ -61,7 +60,7 @@ class TwilioType(ChannelType):
                 pass
 
     def send(self, channel, msg, text):
-        callback_url = Channel.build_twilio_callback_url(channel.uuid, msg.id)
+        callback_url = Channel.build_twilio_callback_url(channel.channel_type, channel.uuid, msg.id)
 
         start = time.time()
         media_urls = []
@@ -73,10 +72,11 @@ class TwilioType(ChannelType):
 
         if channel.channel_type == 'TW':  # pragma: no cover
             config = channel.config
-            client = TembaTwilioRestClient(config.get(ACCOUNT_SID), config.get(ACCOUNT_TOKEN),
+            client = TembaTwilioRestClient(config.get(Channel.CONFIG_ACCOUNT_SID), config.get(Channel.CONFIG_AUTH_TOKEN),
                                            base=config.get(Channel.CONFIG_SEND_URL))
         else:
-            client = TembaTwilioRestClient(channel.org_config[ACCOUNT_SID], channel.org_config[ACCOUNT_TOKEN])
+            config = channel.config
+            client = TembaTwilioRestClient(config.get(Channel.CONFIG_ACCOUNT_SID), config.get(Channel.CONFIG_AUTH_TOKEN))
 
         try:
             if channel.channel_type == 'TMS':

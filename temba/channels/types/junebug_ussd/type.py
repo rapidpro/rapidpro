@@ -25,8 +25,6 @@ class JunebugUSSDType(ChannelType):
     schemes = [TEL_SCHEME]
     max_length = 1600
 
-    is_ussd = True
-
     def send(self, channel, msg, text):
         # use regular Junebug channel sending
         return Channel.get_type_from_code('JN').send(channel, msg, text)
