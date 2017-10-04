@@ -864,7 +864,7 @@ class Org(SmartModel):
     def remove_twilio_account(self, user):
         if self.config:
             # release any twilio and twilio messaging sevice channels
-            for channel in self.channels.filter(is_active=True, channel_type_in=['T', 'TMS']):
+            for channel in self.channels.filter(is_active=True, channel_type__in=['T', 'TMS']):
                 channel.release()
 
             config = self.config_json()
