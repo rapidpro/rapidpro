@@ -39,7 +39,7 @@ from .email import send_simple_email, is_valid_address
 from .export import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
 from .expressions import _build_function_signature
-from .gsm7 import is_gsm7, replace_non_gsm7_accents
+from .gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
 from .nexmo import NCCOException, NCCOResponse
 from .profiler import time_monitor
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
@@ -976,6 +976,30 @@ class GSM7Test(TembaTest):
         replaced = replace_non_gsm7_accents("Pour chercher du boulot, comment fais-tu ?")
         self.assertEquals('Pour chercher du boulot, comment fais-tu ?', replaced)
         self.assertTrue(is_gsm7(replaced))
+
+    def test_num_segments(self):
+        ten_chars = "1234567890"
+
+        self.assertEqual(1, calculate_num_segments(ten_chars * 16))
+        self.assertEqual(1, calculate_num_segments(ten_chars * 6 + "“word”7890"))
+
+        # 161 should be two segments
+        self.assertEqual(2, calculate_num_segments(ten_chars * 16 + "1"))
+
+        # 306 is exactly two gsm7 segments
+        self.assertEqual(2, calculate_num_segments(ten_chars * 30 + "123456"))
+
+        # 159 but with extended as last should be two as well
+        self.assertEqual(2, calculate_num_segments(ten_chars * 15 + "123456789{"))
+
+        # 355 should be three segments
+        self.assertEqual(3, calculate_num_segments(ten_chars * 35 + "12345"))
+
+        # 134 is exactly two ucs2 segments
+        self.assertEqual(2, calculate_num_segments(ten_chars * 12 + "“word”12345678"))
+
+        # 136 characters with quotes should be three segments
+        self.assertEqual(3, calculate_num_segments(ten_chars * 13 + "“word”"))
 
 
 class ChunkTest(TembaTest):
