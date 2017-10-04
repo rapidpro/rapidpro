@@ -252,6 +252,18 @@ class ChannelTest(TembaTest):
         self.assertEquals(tigo, msg.channel)
         self.assertEquals(tigo, self.org.get_send_channel(contact_urn=msg.contact_urn))
 
+        # if we have prefixes matching set should honor those
+        mtn.config = json.dumps({Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES: ['25078', '25072']})
+        mtn.save()
+
+        msg = self.send_message(['+250788382382'], "Sent to an MTN number with shortcode channels and prefixes set")
+        self.assertEquals(mtn, msg.channel)
+        self.assertEquals(mtn, self.org.get_send_channel(contact_urn=msg.contact_urn))
+
+        msg = self.send_message(['+250728382382'], "Sent to a TIGO number with shortcode channels and prefixes set")
+        self.assertEquals(mtn, msg.channel)
+        self.assertEquals(mtn, self.org.get_send_channel(contact_urn=msg.contact_urn))
+
         # check for twitter
         self.assertEquals(self.twitter_channel, self.org.get_send_channel(scheme=TWITTER_SCHEME))
 
@@ -1462,13 +1474,13 @@ class ChannelTest(TembaTest):
         channel = self.org.channels.all().first()
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
         self.assertEqual(channel.channel_type, "TW")
-        self.assertEqual(channel.config_json(), dict(ACCOUNT_TOKEN='abcd1234', send_url='https://twilio.com', ACCOUNT_SID='abcd1234'))
+        self.assertEqual(channel.config_json(), dict(auth_token='abcd1234', send_url='https://twilio.com', account_sid='abcd1234'))
 
         response = self.client.post(claim_url, dict(country='US', number='12345678', url='https://twilio.com', role='SR', account_sid='abcd4321', account_token='abcd4321'))
         channel = self.org.channels.all().first()
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
         self.assertEqual(channel.channel_type, "TW")
-        self.assertEqual(channel.config_json(), dict(ACCOUNT_TOKEN='abcd4321', send_url='https://twilio.com', ACCOUNT_SID='abcd4321'))
+        self.assertEqual(channel.config_json(), dict(auth_token='abcd4321', send_url='https://twilio.com', account_sid='abcd4321'))
 
         self.org.channels.update(is_active=False, org=None)
 
@@ -1476,7 +1488,7 @@ class ChannelTest(TembaTest):
         channel = self.org.channels.all().first()
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
         self.assertEqual(channel.channel_type, "TW")
-        self.assertEqual(channel.config_json(), dict(ACCOUNT_TOKEN='abcd1234', send_url='https://twilio.com', ACCOUNT_SID='abcd1234'))
+        self.assertEqual(channel.config_json(), dict(auth_token='abcd1234', send_url='https://twilio.com', account_sid='abcd1234'))
 
     def test_search_nexmo(self):
         self.login(self.admin)
@@ -1514,6 +1526,26 @@ class ChannelTest(TembaTest):
             response = self.client.post(search_nexmo_url, post_data, follow=True)
 
             self.assertEquals(response.json(), ['+1 360-788-4540', '+1 360-788-4550'])
+
+    def test_plivo_search_numbers(self):
+        self.login(self.admin)
+
+        plivo_search_url = reverse('channels.channel_search_plivo')
+
+        with patch('requests.get') as plivo_get:
+            plivo_get.return_value = MockResponse(200, json.dumps(dict(objects=[])))
+
+            response = self.client.post(plivo_search_url, dict(country='US', area_code=''), follow=True)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertNotContains(response, 'error')
+
+            # missing key to throw exception
+            plivo_get.return_value = MockResponse(200, json.dumps(dict()))
+            response = self.client.post(plivo_search_url, dict(country='US', area_code=''), follow=True)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, 'error')
 
     def test_release(self):
         Channel.objects.all().delete()
@@ -5839,6 +5871,10 @@ class TwilioTest(TembaTest):
                                               APPLICATION_SID: self.application_sid})
         self.channel.org.save()
 
+        self.channel.config = json.dumps(dict(auth_token=self.account_token,
+                                              account_sid=self.account_sid))
+        self.channel.save()
+
         response = self.signed_request(twilio_url + "?action=callback&id=%d" % msg.id, post_data)
         self.assertEqual(response.status_code, 200)
 
@@ -5881,7 +5917,8 @@ class TwilioTest(TembaTest):
 
         send_url = "https://api.twilio.com"
 
-        self.channel.config = json.dumps({ACCOUNT_SID: self.account_sid, ACCOUNT_TOKEN: self.account_token,
+        self.channel.config = json.dumps({Channel.CONFIG_ACCOUNT_SID: self.account_sid,
+                                          Channel.CONFIG_AUTH_TOKEN: self.account_token,
                                           Channel.CONFIG_SEND_URL: send_url})
         self.channel.save()
 
@@ -5920,7 +5957,7 @@ class TwilioTest(TembaTest):
 
         with self.settings(SEND_MESSAGES=True):
             with patch('twilio.rest.resources.base.make_request') as mock:
-                for channel_type in ['T', 'TMS']:
+                for channel_type in ['T', 'TMS', 'TW']:
                     ChannelLog.objects.all().delete()
                     Msg.objects.all().delete()
 
@@ -5931,6 +5968,10 @@ class TwilioTest(TembaTest):
                         self.channel.config = json.dumps(dict(messaging_service_sid="MSG-SERVICE-SID",
                                                               auth_token='twilio_token',
                                                               account_sid='twilio_sid'))
+                    elif channel_type == 'TW':
+                        self.channel.config = json.dumps({Channel.CONFIG_SEND_URL: 'https://api.twilio.com',
+                                                          Channel.CONFIG_ACCOUNT_SID: 'twilio_sid',
+                                                          Channel.CONFIG_AUTH_TOKEN: 'twilio_token'})
                     self.channel.save()
 
                     mock.return_value = MockResponse(200, '{ "account_sid": "ac1232", "sid": "12345"}')
@@ -5948,7 +5989,9 @@ class TwilioTest(TembaTest):
                     self.clear_cache()
 
                     # handle the status callback
-                    callback_url = Channel.build_twilio_callback_url(self.channel.uuid, msg.id)
+                    callback_url = Channel.build_twilio_callback_url(channel_type, self.channel.uuid, msg.id)
+
+                    self.assertTrue(callback_url.find("c/%s/%s/status" % (channel_type.lower(), self.channel.uuid)) >= 0)
 
                     client = self.org.get_twilio_client()
                     validator = RequestValidator(client.auth[1])
@@ -5960,6 +6003,32 @@ class TwilioTest(TembaTest):
                     self.assertEquals(response.status_code, 200)
                     msg.refresh_from_db()
                     self.assertEquals(msg.status, DELIVERED)
+
+                    msg.status = WIRED
+                    msg.save()
+
+                    validator = RequestValidator(client.auth[1])
+                    post_data = dict(SmsStatus='sent', To='+250788383383')
+                    signature = validator.compute_signature(callback_url, post_data)
+
+                    response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+                    self.assertEquals(response.status_code, 200)
+                    msg.refresh_from_db()
+                    self.assertEquals(msg.status, SENT)
+
+                    msg.status = WIRED
+                    msg.save()
+
+                    validator = RequestValidator(client.auth[1])
+                    post_data = dict(SmsStatus='failed', To='+250788383383')
+                    signature = validator.compute_signature(callback_url, post_data)
+
+                    response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+                    self.assertEquals(response.status_code, 200)
+                    msg.refresh_from_db()
+                    self.assertEquals(msg.status, FAILED)
 
                     msg.status = WIRED
                     msg.save()
@@ -5985,6 +6054,20 @@ class TwilioTest(TembaTest):
                     msg.refresh_from_db()
                     self.assertEquals(FAILED, msg.status)
                     self.assertTrue(Contact.objects.get(id=msg.contact_id))
+
+                    msg.channel = None
+                    msg.save()
+                    response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+                    self.assertEquals(response.status_code, 200)
+
+                    missing_sms_callback_url = Channel.build_twilio_callback_url(channel_type, self.channel.uuid, msg.id + 100)
+                    response = self.client.post(missing_sms_callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+                    self.assertEquals(response.status_code, 400)
+
+                    with patch('temba.orgs.models.Org.is_connected_to_twilio') as mock_connected_twilio:
+                        mock_connected_twilio.return_value = False
+                        response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+                        self.assertEquals(response.status_code, 400)
 
             # check that our channel log works as well
             self.login(self.admin)
@@ -6044,7 +6127,7 @@ class TwilioTest(TembaTest):
             self.clear_cache()
 
             # handle the status callback
-            callback_url = Channel.build_twilio_callback_url(self.channel.uuid, msg.id)
+            callback_url = Channel.build_twilio_callback_url(self.channel.channel_type, self.channel.uuid, msg.id)
 
             client = self.org.get_twilio_client()
             validator = RequestValidator(client.auth[1])
@@ -10701,17 +10784,42 @@ class CourierTest(TembaTest):
             self.channel.schemes = [TELEGRAM_SCHEME]
             self.channel.save()
 
+            bob = self.create_contact("Bob", urn='telegram:2')
+            incoming = self.create_msg(contact=bob, text="Hello", direction="I")
+
             # create some outgoing messages for our channel
-            msg1 = Msg.create_outgoing(self.org, self.admin, 'telegram:1', "Outgoing message 1")
-            msg2 = Msg.create_outgoing(self.org, self.admin, 'telegram:2', "Outgoing message 2", priority=Msg.PRIORITY_BULK)
-            Msg.send_messages([msg1, msg2])
+            msg1 = Msg.create_outgoing(self.org, self.admin, 'telegram:1', "Outgoing 1",
+                                       attachments=['image/jpg:https://example.com/test.jpg'])
+            msg2 = Msg.create_outgoing(self.org, self.admin, 'telegram:2', "Outgoing 2", response_to=incoming,
+                                       attachments=[])
+            msg3 = Msg.create_outgoing(self.org, self.admin, 'telegram:3', "Outgoing 3", high_priority=False,
+                                       attachments=None)
+            msg4 = Msg.create_outgoing(self.org, self.admin, 'telegram:4', "Outgoing 4", high_priority=True)
+            msg5 = Msg.create_outgoing(self.org, self.admin, 'telegram:4', "Outgoing 5", high_priority=True)
+            all_msgs = [msg1, msg2, msg3, msg4, msg5]
 
-            # we should have been queued to our courier queues and our msg should be marked as such
-            msg1.refresh_from_db()
-            self.assertEqual(msg1.status, QUEUED)
+            Msg.send_messages(all_msgs)
 
-            msg2.refresh_from_db()
-            self.assertEqual(msg2.status, QUEUED)
+            # we should have been queued to our courier queues and our msgs should be marked as such
+            for msg in all_msgs:
+                msg.refresh_from_db()
+                self.assertEqual(msg.status, QUEUED)
+
+            self.assertFalse(msg1.high_priority)
+
+            # responses arent enough to be high priority, it depends on run responded
+            self.assertFalse(msg2.high_priority)
+
+            self.assertFalse(msg3.high_priority)
+            self.assertTrue(msg4.high_priority)  # explicitly high
+            self.assertTrue(msg5.high_priority)
+
+            # TODO remove numeric priority
+            self.assertEqual(msg1.priority, 100)
+            self.assertEqual(msg2.priority, 100)
+            self.assertEqual(msg3.priority, 100)
+            self.assertEqual(msg4.priority, 500)
+            self.assertEqual(msg5.priority, 500)
 
             # check against redis
             r = get_redis_connection()
@@ -10721,9 +10829,16 @@ class CourierTest(TembaTest):
             self.assertEqual(1, r.zcard("msgs:active"))
             self.assertEqual(0, r.zrank("msgs:active", queue_name))
 
-            # should have one msg in each queue (based on priority)
-            self.assertEqual(1, r.zcard(queue_name + "/1"))
-            self.assertEqual(1, r.zcard(queue_name + "/0"))
+            # check that messages went into the correct queues
+            high_priority_msgs = [json.loads(t) for t in r.zrange(queue_name + "/1", 0, -1)]
+            low_priority_msgs = [json.loads(t) for t in r.zrange(queue_name + "/0", 0, -1)]
+
+            self.assertEqual([[m['text'] for m in b] for b in high_priority_msgs], [["Outgoing 4", "Outgoing 5"]])
+            self.assertEqual([[m['text'] for m in b] for b in low_priority_msgs], [["Outgoing 1"], ["Outgoing 2"], ["Outgoing 3"]])
+
+            self.assertEqual(low_priority_msgs[0][0]['attachments'], ['image/jpg:https://example.com/test.jpg'])
+            self.assertIsNone(low_priority_msgs[1][0]['attachments'])
+            self.assertIsNone(low_priority_msgs[2][0]['attachments'])
 
 
 class HandleEventTest(TembaTest):
