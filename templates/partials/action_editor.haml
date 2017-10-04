@@ -106,15 +106,15 @@
       .quick-reply{ng-show:"!showQuickReplyButton"}
         .modal-quick-reply-header
           .quick_reply-title
-            -trans "Text"
+            -trans "Quick Replies"
 
         .modal-quick-reply{ng-repeat:"response in actions_quick_reply", class:""}
           .quick_reply-title
             %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"response.title", ng-required:"true"}
 
           .icon.icon-close{ng-click:"removeElementArrayQuickReply(actions_quick_reply, $index);"}
-        %a{ng-click:"addNewQuickReply()", class:"cursor-pointer", ng-hide:"actions_quick_reply.length == 11"}
-          -trans "Add new quick reply"
+        %a.add-reply{ng-click:"addNewQuickReply()", class:"cursor-pointer", ng-hide:"actions_quick_reply.length == 11"}
+          -trans "Add reply"
 
     %span{ng-if:'config.type == "end_ussd"'}
       %span{auto-complete:"",msg:"action.msg",type:"ussd",data-message:"message"}
