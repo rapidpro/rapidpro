@@ -40,7 +40,7 @@ class VumiType(ChannelType):
 
     def send(self, channel, msg, text):
 
-        is_ussd = Channel.get_type_from_code(channel.channel_type).has_ussd_support(channel)
+        is_ussd = Channel.get_type_from_code(channel.channel_type).category == ChannelType.Category.USSD
         channel.config['transport_name'] = 'ussd_transport' if is_ussd else 'mtech_ng_smpp_transport'
 
         session = None
