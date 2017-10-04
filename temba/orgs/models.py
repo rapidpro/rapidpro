@@ -507,14 +507,18 @@ class Org(SmartModel):
                 # if we have more than one match, find the one with the highest overlap
                 if len(senders) > 1:
                     for sender in senders:
-                        channel_number = sender.address.strip('+')
+                        config = sender.config_json()
+                        channel_prefixes = config.get(Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES, [])
+                        if not channel_prefixes or not isinstance(channel_prefixes, list):
+                            channel_prefixes = [sender.address.strip('+')]
 
-                        for idx in range(prefix, len(channel_number)):
-                            if idx >= prefix and channel_number[0:idx] == contact_number[0:idx]:
-                                prefix = idx
-                                channel = sender
-                            else:
-                                break
+                        for chan_prefix in channel_prefixes:
+                            for idx in range(prefix, len(chan_prefix)):
+                                if idx >= prefix and chan_prefix[0:idx] == contact_number[0:idx]:
+                                    prefix = idx
+                                    channel = sender
+                                else:
+                                    break
                 elif senders:
                     channel = senders[0]
 
@@ -859,8 +863,8 @@ class Org(SmartModel):
 
     def remove_twilio_account(self, user):
         if self.config:
-            # release any twilio channels
-            for channel in self.channels.filter(is_active=True, channel_type='T'):
+            # release any twilio and twilio messaging sevice channels
+            for channel in self.channels.filter(is_active=True, channel_type_in=['T', 'TMS']):
                 channel.release()
 
             config = self.config_json()

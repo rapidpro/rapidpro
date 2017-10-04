@@ -667,12 +667,12 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             queryset = queryset.filter(id=broadcast_id)
 
         queryset = queryset.prefetch_related(
-            Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name')),
-            Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name')),
+            Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name').order_by('pk')),
+            Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name').order_by('pk')),
         )
 
         if not org.is_anon:
-            queryset = queryset.prefetch_related(Prefetch('urns', queryset=ContactURN.objects.only('scheme', 'path', 'display')))
+            queryset = queryset.prefetch_related(Prefetch('urns', queryset=ContactURN.objects.only('scheme', 'path', 'display').order_by('pk')))
 
         return self.filter_before_after(queryset, 'created_on')
 
@@ -1349,7 +1349,8 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
-            Prefetch('all_groups', queryset=ContactGroup.user_groups.only('uuid', 'name'), to_attr='prefetched_user_groups')
+            Prefetch('all_groups', queryset=ContactGroup.user_groups.only('uuid', 'name').order_by('pk'),
+                     to_attr='prefetched_user_groups')
         )
 
         return self.filter_before_after(queryset, 'modified_on')
@@ -2296,7 +2297,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name')),
             Prefetch('contact_urn', queryset=ContactURN.objects.only('scheme', 'path', 'display')),
             Prefetch('channel', queryset=Channel.objects.only('uuid', 'name')),
-            Prefetch('labels', queryset=Label.label_objects.only('uuid', 'name')),
+            Prefetch('labels', queryset=Label.label_objects.only('uuid', 'name').order_by('pk')),
         )
 
         # incoming folder gets sorted by 'modified_on'
@@ -2970,8 +2971,8 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
-            Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name')),
-            Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name')),
+            Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name').order_by('pk')),
+            Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name').order_by('pk')),
         )
 
         return self.filter_before_after(queryset, 'modified_on')

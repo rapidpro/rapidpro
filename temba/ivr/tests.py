@@ -881,7 +881,6 @@ class IVRTests(FlowFileTest):
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_flow(self):
-        from temba.orgs.models import ACCOUNT_TOKEN, ACCOUNT_SID
 
         # should be able to create an ivr flow
         self.assertTrue(self.org.supports_ivr())
@@ -903,8 +902,8 @@ class IVRTests(FlowFileTest):
 
         # twiml api config
         config = {Channel.CONFIG_SEND_URL: 'https://api.twilio.com',
-                  ACCOUNT_SID: 'TEST_SID',
-                  ACCOUNT_TOKEN: 'TEST_TOKEN'}
+                  Channel.CONFIG_ACCOUNT_SID: 'TEST_SID',
+                  Channel.CONFIG_AUTH_TOKEN: 'TEST_TOKEN'}
         channel = Channel.create(self.org, self.org.get_user(), 'BR', 'TW', '+558299990000', '+558299990000', config, 'AC')
         self.assertEqual(channel.org, self.org)
         self.assertEqual(channel.address, '+558299990000')
