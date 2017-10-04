@@ -525,7 +525,7 @@ BEGIN
 
   -- Table being cleared, reset all counts
   ELSIF TG_OP = 'TRUNCATE' THEN
-    DELETE FROM channels_channel WHERE count_type IN ('IV', 'IM', 'OV', 'OM');
+    DELETE FROM channels_channelcount WHERE count_type IN ('IV', 'IM', 'OV', 'OM');
   END IF;
 
   RETURN NULL;
@@ -633,7 +633,7 @@ CREATE OR REPLACE FUNCTION temba_update_flowruncount() RETURNS TRIGGER AS $$
 BEGIN
   -- Table being cleared, reset all counts
   IF TG_OP = 'TRUNCATE' THEN
-    TRUNCATE flows_flowruncounts;
+    TRUNCATE flows_flowruncount;
     RETURN NULL;
   END IF;
 
