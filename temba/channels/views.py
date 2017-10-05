@@ -29,7 +29,7 @@ from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView, SmartModelActionView
-from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import ContactURN, URN, TEL_SCHEME
 from temba.msgs.models import Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID
@@ -1039,6 +1039,14 @@ class UpdateTwitterForm(UpdateChannelForm):
         helps = {'address': _('Twitter handle of this channel')}
 
 
+TYPE_UPDATE_FORM_CLASSES = {
+    Channel.TYPE_ANDROID: UpdateAndroidForm,
+    'NX': UpdateNexmoForm,
+    'TT': UpdateTwitterForm,
+    'TWT': UpdateTwitterForm,
+}
+
+
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
@@ -1355,16 +1363,7 @@ class ChannelCRUDL(SmartCRUDL):
             return reverse('channels.channel_read', args=[self.object.uuid])
 
         def get_form_class(self):
-            channel_type = self.object.channel_type
-
-            if channel_type == Channel.TYPE_ANDROID:
-                return UpdateAndroidForm
-            elif channel_type == 'NX':
-                return UpdateNexmoForm
-            elif TWITTER_SCHEME in self.object.schemes:
-                return UpdateTwitterForm
-            else:
-                return UpdateChannelForm
+            return TYPE_UPDATE_FORM_CLASSES.get(self.object.channel_type, UpdateChannelForm)
 
         def get_form_kwargs(self):
             kwargs = super(ChannelCRUDL.Update, self).get_form_kwargs()
