@@ -57,9 +57,7 @@ class TelegramType(ChannelType):
             for reply in quick_replies:
                 replies.append([dict(text=reply.get('title'))])
 
-            keyboard_json = dict(resize_keyboard=True, one_time_keyboard=True)
-            keyboard_json['keyboard'] = replies
-            post_body['reply_markup'] = json.dumps(keyboard_json)
+            post_body['reply_markup'] = json.dumps(dict(resize_keyboard=True, one_time_keyboard=True, keyboard=replies))
 
         return post_body
 
