@@ -78,6 +78,10 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         USSD = 3
         API = 4
 
+    class IVRProtocol(Enum):
+        IVR_PROTOCOL_TWIML = 1
+        IVR_PROTOCOL_NCCO = 2
+
     code = None
     slug = None
     category = None
@@ -94,6 +98,8 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     max_tps = None
     attachment_support = False
     free_sending = False
+
+    ivr_protocol = None
 
     def is_available_to(self, user):
         """
@@ -314,8 +320,6 @@ class Channel(TembaModel):
     USSD_CHANNELS = [TYPE_VUMI_USSD]
 
     TWIML_CHANNELS = [TYPE_TWILIO, TYPE_VERBOICE, TYPE_TWIML]
-
-    NCCO_CHANNELS = ['NX']
 
     MEDIA_CHANNELS = [TYPE_TWILIO, TYPE_TWIML, TYPE_TWILIO_MESSAGING_SERVICE]
 
@@ -777,9 +781,10 @@ class Channel(TembaModel):
         return self.parent and Channel.ROLE_CALL in self.role
 
     def generate_ivr_response(self):
-        if self.channel_type in Channel.TWIML_CHANNELS:
+        ivr_protocol = Channel.get_type_from_code(self.channel_type).ivr_protocol
+        if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML:
             return twiml.Response()
-        if self.channel_type in Channel.NCCO_CHANNELS:
+        if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO:
             return NCCOResponse()
 
     def get_ivr_client(self):

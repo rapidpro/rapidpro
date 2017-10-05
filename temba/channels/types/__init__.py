@@ -41,7 +41,8 @@ def reload_channel_types():
             max_tps=type_settings.get('max_tps'),
             attachment_support=code in Channel.MEDIA_CHANNELS,
             free_sending=code in Channel.FREE_SENDING_CHANNEL_TYPES,
-            send=SEND_FUNCTIONS.get(code)
+            send=SEND_FUNCTIONS.get(code),
+            ivr_protocol=ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML if code in Channel.TWIML_CHANNELS else None
         ))
         register_channel_type(dyn_type_class)
 

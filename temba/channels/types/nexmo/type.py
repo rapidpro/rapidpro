@@ -33,6 +33,8 @@ class NexmoType(ChannelType):
     max_length = 1600
     max_tps = 1
 
+    ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO
+
     def is_available_to(self, user):
         org = user.get_org()
         return org.is_connected_to_nexmo()
