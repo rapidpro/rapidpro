@@ -68,7 +68,7 @@
       %span{auto-complete:"",msg:"action.msg",type:"sms",data-message:"message"}
       %button{ng-click:'saveMessage(message, "reply", showAttachVariable)',class:"submit hide"}
       .media{ng-hide:'action.uploading'}
-        .attachments{ng-class: '{active:showAttachOptions}', ng-show: '!action._media && !actions_quick_reply.length'}
+        .attachments{ng-class: '{active:showAttachOptions}', ng-show: '!action._media && !quickReplies.length'}
           .attach-button{ng-show:'!showAttachOptions'}
             .icon-attachment.add-attachment{ng-click:'showAttachOptions = !showAttachOptions; showAttachVariable=false' }
 
@@ -108,12 +108,12 @@
           .quick_reply-title
             -trans "Quick Replies"
 
-        .modal-quick-reply{ng-repeat:"response in actions_quick_reply", class:""}
+        .modal-quick-reply{ng-repeat:"reply in quickReplies", class:""}
           .quick_reply-title
-            %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"response.title", ng-required:"true"}
+            %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"reply.title", ng-required:"true"}
 
-          .icon.icon-close{ng-click:"removeElementArrayQuickReply(actions_quick_reply, $index);"}
-        %a.add-reply{ng-click:"addNewQuickReply()", class:"cursor-pointer", ng-hide:"actions_quick_reply.length == 11"}
+          .icon.icon-close{ng-click:"removeElementArrayQuickReply(quickReplies, $index);"}
+        %a.add-reply{ng-click:"addNewQuickReply()", class:"cursor-pointer", ng-hide:"quickReplies.length == 11"}
           -trans "Add reply"
 
     %span{ng-if:'config.type == "end_ussd"'}

@@ -1832,7 +1832,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.action._attachType = "image"
 
   startNodeConfig = () ->
-    $scope.actions_quick_reply = []
+    $scope.quickReplies = []
     $scope.action.quick_replies = {}
     $scope.showQuickReplyButton = true
 
@@ -1841,10 +1841,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   else
     if $scope.action.quick_replies? and $scope.action.quick_replies[currentLang] != undefined
       if $scope.action.quick_replies[currentLang]?
-        $scope.actions_quick_reply = $scope.action.quick_replies[currentLang]
+        $scope.quickReplies = $scope.action.quick_replies[currentLang]
         $scope.showQuickReplyButton = false
       else
-        $scope.actions_quick_reply = []
+        $scope.quickReplies = []
 
     else
       startNodeConfig()
@@ -1885,9 +1885,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   $scope.addNewQuickReply = ->
     $scope.showQuickReplyButton = false
-    if $scope.actions_quick_reply.length < 11
+    if $scope.quickReplies.length < 11
       if Object.keys($scope.action.quick_replies).length < 1
-        $scope.actions_quick_reply.push({title:''})
+        $scope.quickReplies.push({title:''})
       else
         for lang of $scope.action.quick_replies
           $scope.action.quick_replies[lang].push({title:''})
@@ -1897,11 +1897,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.action.quick_replies[lang].splice(index, 1)
 
     if Object.getOwnPropertyNames($scope.action.quick_replies).length == 0 || $scope.action.quick_replies.length == 0
-      $scope.actions_quick_reply.splice(index, 1)
+      $scope.quickReplies.splice(index, 1)
 
     if a.length == 0
       $scope.showQuickReplyButton = true
-      $scope.actions_quick_reply = []
+      $scope.quickReplies = []
       $scope.action.quick_replies = {}
 
   $scope.actionset = actionset
@@ -1980,8 +1980,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if Object.prototype.toString.call($scope.action.quick_replies) != '[object Object]'
       $scope.action.quick_replies = {}
       
-    if $scope.actions_quick_reply.length > 0
-      $scope.action.quick_replies[$scope.base_language] = $scope.actions_quick_reply
+    if $scope.quickReplies.length > 0
+      $scope.action.quick_replies[$scope.base_language] = $scope.quickReplies
     else
       $scope.action.quick_replies = {}
 
