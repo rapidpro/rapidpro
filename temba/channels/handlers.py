@@ -2593,6 +2593,40 @@ class LineHandler(BaseChannelHandler):
             return HttpResponse("Not handled. Error: %s" % e.args, status=400)
 
 
+class SkypeHandler(BaseChannelHandler):
+    '''
+    Receive a POST whenever a new conversation is started with the Bot
+    '''
+
+    url = r'^skype/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.skype_handler'
+
+    def get(self, request, *args, **kwargs):
+        return self.post(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+
+        channel_uuid = kwargs['uuid']
+
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_SKYPE).exclude(org=None).first()
+        if not channel:  # pragma: needs cover
+            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
+
+        try:
+            data = json.loads(request.body)
+            ''' Checking if sent data is messages '''
+            if data.get('type') == 'message':
+                text = data.get('text')
+                user_id = data['from']['id']
+                date = datetime.strptime(data['timestamp'], "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=pytz.UTC)
+                Msg.create_incoming(channel=channel, urn=URN.from_skype(user_id), text=text, date=date, auth=data)
+                return HttpResponse("Msg Accepted", status=200)
+            else:
+                return HttpResponse("Msg Ignored", status=200)
+        except Exception as e:
+            return HttpResponse("Not handled. Error: %s" % e.args, status=400)
+
 class ViberPublicHandler(BaseChannelHandler):
 
     url = r'^viber_public/(?P<uuid>[a-z0-9\-]+)/?$'

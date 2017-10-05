@@ -49,6 +49,7 @@ EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
 FACEBOOK_SCHEME = 'facebook'
 LINE_SCHEME = 'line'
+SKYPE_SCHEME = 'skype'
 TEL_SCHEME = 'tel'
 TELEGRAM_SCHEME = 'telegram'
 TWILIO_SCHEME = 'twilio'
@@ -64,6 +65,7 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (TWITTER_SCHEME, _("Twitter handle"), 'twitter', TWITTER_SCHEME),
                      (VIBER_SCHEME, _("Viber identifier"), 'viber', VIBER_SCHEME),
                      (LINE_SCHEME, _("LINE identifier"), 'line', LINE_SCHEME),
+                     (SKYPE_SCHEME, _("SKYPE identifier"), 'skype', SKYPE_SCHEME),
                      (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
                      (EMAIL_SCHEME, _("Email address"), 'email', EMAIL_SCHEME),
                      (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME),
@@ -263,6 +265,10 @@ class URN(object):
     @classmethod
     def from_line(cls, path):
         return cls.from_parts(LINE_SCHEME, path)
+
+    @classmethod
+    def from_skype(cls, path):
+        return cls.from_parts(SKYPE_SCHEME, path)
 
     @classmethod
     def from_telegram(cls, path):
@@ -1876,6 +1882,7 @@ class ContactURN(models.Model):
         EXTERNAL_SCHEME: dict(label="External", key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
         EMAIL_SCHEME: dict(label="Email", key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
         TELEGRAM_SCHEME: dict(label="Telegram", key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
+        SKYPE_SCHEME: dict(label="Skype", key=None, id=0, field=None, urn_scheme=SKYPE_SCHEME),
         FACEBOOK_SCHEME: dict(label="Facebook", key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
         VIBER_SCHEME: dict(label="Viber", key=None, id=0, field=None, urn_scheme=VIBER_SCHEME),
         FCM_SCHEME: dict(label="FCM", key=None, id=0, field=None, urn_scheme=FCM_SCHEME),

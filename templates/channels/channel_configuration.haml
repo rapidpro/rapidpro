@@ -93,6 +93,18 @@
 
     %hr
 
+  -elif object.channel_type == 'SK'
+    %h4
+      -blocktrans
+        To complete the configuration of your Skype Bot, you will need to set the following callback URL on the Bot registration site
+
+    %h4
+      -trans "Return URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.skype_handler' object.uuid %}
+
+    %hr
 
   -elif object.channel_type == 'SQ'
     %h4

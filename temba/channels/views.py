@@ -50,6 +50,7 @@ RELAYER_TYPE_ICONS = {Channel.TYPE_ANDROID: "icon-channel-android",
                       Channel.TYPE_EXTERNAL: "icon-channel-external",
                       Channel.TYPE_KANNEL: "icon-channel-kannel",
                       Channel.TYPE_LINE: "icon-line",
+                      Channel.TYPE_SKYPE: "icon-skype",
                       Channel.TYPE_NEXMO: "icon-channel-nexmo",
                       Channel.TYPE_VERBOICE: "icon-channel-external",
                       Channel.TYPE_TWILIO: "icon-channel-twilio",
@@ -882,7 +883,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
                'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media', 'claim_junebug', 'facebook_whitelist',
-               'claim_red_rabbit', 'claim_macrokiosk')
+               'claim_red_rabbit', 'claim_macrokiosk', 'claim_skype')
     permissions = True
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -2490,6 +2491,57 @@ class ChannelCRUDL(SmartCRUDL):
             self.object = Channel.add_line_channel(org=self.request.user.get_org(), user=self.request.user, credentials=credentials, name=profile.get('display_name'))
 
             return super(ChannelCRUDL.ClaimLine, self).form_valid(form)
+
+    class ClaimSkype(OrgPermsMixin, SmartFormView):
+        class SkypeForm(forms.Form):
+            microsoft_app_id = forms.CharField(label=_("MICROSOFT-APP-ID"), required=True)
+            microsoft_app_password = forms.CharField(label=_("MICROSOFT-APP-PASSWORD"), required=True)
+
+            def clean(self):
+                from django.db.models.query import Q
+                microsoft_app_id = self.cleaned_data.get('microsoft_app_id')
+                microsoft_app_password = self.cleaned_data.get('microsoft_app_password')
+
+                ''' Verifying that credentials are valid '''
+                url = 'https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token'
+                data = {'grant_type': 'client_credentials',
+                        'client_id': microsoft_app_id,
+                        'client_secret': microsoft_app_password,
+                        'scope': 'https://api.botframework.com/.default'
+                        }
+                response = requests.post(url=url, data=data)
+                content = response.json()
+
+                if response.status_code != 200:
+                    raise ValidationError(content.get('error_desciption'))
+                else:
+                    credentials = {
+                        'microsoft_app_id': microsoft_app_id,
+                        'microsoft_app_password': microsoft_app_password
+                    }
+
+                    ''' Verifying that the channel already exists with the same credentials '''
+                    existing = Channel.objects.filter(
+                        Q(config__contains=microsoft_app_id) | Q(config__contains=microsoft_app_password),
+                        channel_type=Channel.TYPE_SKYPE, is_active=True).first()
+                    if existing:
+                        raise ValidationError(_("A channel with this configuration already exists."))
+
+                    return credentials
+
+        form_class = SkypeForm
+        title = _("Skype Channel")
+        fields = ('microsoft_app_id', 'microsoft_app_password')
+        success_url = "id@channels.channel_configuration"
+
+        def form_valid(self, form):
+            credentials = form.cleaned_data
+            ''' Saving the channel with valid credentials '''
+            self.object = Channel.add_skype_channel(org=self.request.user.get_org(),
+                                                    user=self.request.user,
+                                                    credentials=credentials)
+
+            return super(ChannelCRUDL.ClaimSkype, self).form_valid(form)
 
     class List(OrgPermsMixin, SmartListView):
         title = _("Channels")

@@ -1,0 +1,40 @@
+-extends "smartmin/form.html"
+-load i18n compress temba
+
+-block title
+  .medium-help.icon-skype.float-left
+
+  %h2.font_normalize.header-margin
+    -trans "Connect SKYPE Bot"
+
+-block pre-form
+  .info
+    %p
+      -blocktrans with name=brand.name
+        You can add a <a href="https://www.skype.com" target="_blank">Skype</a> channel using a Bot to receive and send messages.
+    %p
+      -blocktrans
+        To start creating a Skype Bot, go to<a href="https://docs.microsoft.com/en-us/bot-framework/portal-register-bot" target="_blank"> Register a bot with Bot Framework </a>.
+
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    ol.line-steps li {
+      margin-top: 10px;
+      list-style: decimal;
+    }
+
+    .info {
+      width: 800px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom:15px;
+    }
+
+    #id_* {
+      width: 340px;
+    }

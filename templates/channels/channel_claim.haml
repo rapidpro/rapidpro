@@ -731,6 +731,24 @@
                     for free. Your users will need an Android, Windows or iOS device and a LINE account to send
                     and receive messages.
 
+      -if org_perms.channels.channel_claim_skype
+        .claim-row.line-channel
+          .row
+            .span3
+              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_skype' %}"}
+                .btn-container
+                  .claim-glyph.icon-skype
+                  %p.claim-text
+                    -trans "SKYPE"
+
+            .span9
+              .claim-description
+                %div
+                  -blocktrans
+                    Add a <a href="https://www.skype.com">SKYPE</a> button to send and receive messages to SKYPE users for free. Your users will
+                    need a Mobile, PC or MAC device and a SKYPE account to send and receive messages.
+
+
     %h3
       -trans "API Channels"
 
