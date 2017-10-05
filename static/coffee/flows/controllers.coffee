@@ -727,21 +727,21 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
       if action.type in ["send", "reply", "say", "end_ussd"]
 
-        fromQuickReply = action.quick_replies[Flow.flow.base_language] || []
-        toQuickReply = action.quick_replies[Flow.language.iso_code] || []
+        fromQuickReplies = action.quick_replies[Flow.flow.base_language] || []
+        toQuickReplies = action.quick_replies[Flow.language.iso_code] || []
 
-        if toQuickReply.length == 0 && (fromQuickReply != [] && fromQuickReply?)
+        if toQuickReplies.length == 0 && (fromQuickReplies != [] && fromQuickReplies?)
 
-          for obj in fromQuickReply
-            toQuickReply.push({title: ''})
+          for obj in fromQuickReplies
+            toQuickReplies.push({title: ''})
 
         translations = [
           {
             name: 'Message Text',
             from: action.msg[Flow.flow.base_language],
             to: action.msg[Flow.language.iso_code],
-            fromQuickReply: fromQuickReply,
-            toQuickReply: toQuickReply
+            fromQuickReplies: fromQuickReplies,
+            toQuickReplies: toQuickReplies
           }
         ]
 
@@ -780,8 +780,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             results = action.msg
             translated = if translation.to?.strip().length > 0 then translation.to else null
 
-            if translation.toQuickReply? && translation.toQuickReply != []
-              action.quick_replies[Flow.language.iso_code] = translation.toQuickReply
+            if translation.toQuickReplies? && translation.toQuickReplies != []
+              action.quick_replies[Flow.language.iso_code] = translation.toQuickReplies
             else
               delete action.quick_replies[Flow.language.iso_code]
             
