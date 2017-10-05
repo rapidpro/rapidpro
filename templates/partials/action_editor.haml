@@ -112,7 +112,7 @@
           .quick_reply-title
             %input{type:"text", name:"quick-reply-title", auto-complete:"", ng-model:"reply.title", ng-required:"true"}
 
-          .icon.icon-close{ng-click:"removeElementArrayQuickReply(quickReplies, $index);"}
+          .icon.icon-close{ng-click:"removeQuickReply(quickReplies, $index);"}
         %a.add-reply{ng-click:"addNewQuickReply()", class:"cursor-pointer", ng-hide:"quickReplies.length == 11"}
           -trans "Add reply"
 

@@ -1892,7 +1892,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         for lang of $scope.action.quick_replies
           $scope.action.quick_replies[lang].push({title:''})
 
-  $scope.removeElementArrayQuickReply = (a, index) ->
+  $scope.removeQuickReply = (a, index) ->
     for lang of $scope.action.quick_replies
       $scope.action.quick_replies[lang].splice(index, 1)
 
