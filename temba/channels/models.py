@@ -39,7 +39,7 @@ from smartmin.models import SmartModel
 from temba.orgs.models import Org, NEXMO_UUID, NEXMO_APP_ID, CHATBASE_TYPE_AGENT, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
-from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
+from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
 from temba.utils.http import HttpEvent
 from temba.utils.nexmo import NexmoClient, NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid
@@ -168,7 +168,6 @@ class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_CHIKKA = 'CK'
     TYPE_DUMMY = 'DM'
-    TYPE_MBLOX = 'MB'
     TYPE_NEXMO = 'NX'
     TYPE_PLIVO = 'PL'
     TYPE_RED_RABBIT = 'RR'
@@ -270,7 +269,6 @@ class Channel(TembaModel):
         TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
         TYPE_NEXMO: dict(schemes=['tel'], max_length=1600, max_tps=1),
-        TYPE_MBLOX: dict(schemes=['tel'], max_length=459),
         TYPE_PLIVO: dict(schemes=['tel'], max_length=1600),
         TYPE_RED_RABBIT: dict(schemes=['tel'], max_length=1600),
         TYPE_SHAQODOON: dict(schemes=['tel'], max_length=1600),
@@ -290,7 +288,6 @@ class Channel(TembaModel):
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
                     (TYPE_CHIKKA, "Chikka"),
                     (TYPE_DUMMY, "Dummy"),
-                    (TYPE_MBLOX, "Mblox"),
                     (TYPE_NEXMO, "Nexmo"),
                     (TYPE_PLIVO, "Plivo"),
                     (TYPE_RED_RABBIT, "Red Rabbit"),
@@ -1078,6 +1075,24 @@ class Channel(TembaModel):
     def is_ussd(self):
         return self.channel_type in Channel.USSD_CHANNELS
 
+    def calculate_tps_cost(self, msg):
+        """
+        Calculates the TPS cost for sending the passed in message. We look at the URN type and for any
+        `tel` URNs we just use the calculated segments here. All others have a cost of 1.
+
+        In the case of attachments, our cost is the number of attachments.
+        """
+        from temba.contacts.models import TEL_SCHEME
+        cost = 1
+        if msg.contact_urn.scheme == TEL_SCHEME:
+            cost = calculate_num_segments(msg.text)
+
+        # if we have attachments then use that as our cost (MMS bundles text into the attachment, but only one per)
+        if msg.attachments:
+            cost = len(msg.attachments)
+
+        return cost
+
     def claim(self, org, user, phone):
         """
         Claims this channel for the given org/user
@@ -1338,62 +1353,6 @@ class Channel(TembaModel):
             raise SendException(six.text_type(e), event=event, start=start)
 
         Channel.success(channel, msg, WIRED, start, event=event)
-
-    @classmethod
-    def send_mblox_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        # build our payload
-        payload = dict()
-        payload['from'] = channel.address.lstrip('+')
-        payload['to'] = [msg.urn_path.lstrip('+')]
-        payload['body'] = text
-        payload['delivery_report'] = 'per_recipient'
-
-        request_body = json.dumps(payload)
-
-        url = 'https://api.mblox.com/xms/v1/%s/batches' % channel.config[Channel.CONFIG_USERNAME]
-        headers = {'Content-Type': 'application/json',
-                   'Authorization': 'Bearer %s' % channel.config[Channel.CONFIG_PASSWORD]}
-
-        start = time.time()
-
-        event = HttpEvent('POST', url, request_body)
-
-        try:
-            response = requests.post(url, request_body, headers=headers, timeout=15)
-            event.status_code = response.status_code
-            event.response_body = response.text
-        except Exception as e:  # pragma: no cover
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
-            raise SendException("Got non-200 response [%d] from MBlox" % response.status_code,
-                                event=event, start=start)
-
-        # response in format:
-        # {
-        #  "id": "Oyi75urq5_yB",
-        #  "to": [ "593997290044" ],
-        #  "from": "18444651185",
-        #  "canceled": false,
-        #  "body": "Hello world.",
-        #  "type": "mt_text",
-        #  "created_at": "2016-03-30T17:55:03.683Z",
-        #  "modified_at": "2016-03-30T17:55:03.683Z",
-        #  "delivery_report": "none",
-        #  "expire_at": "2016-04-02T17:55:03.683Z"
-        # }
-
-        external_id = None
-        try:
-            response_json = response.json()
-            external_id = response_json['id']
-        except:  # pragma: no cover
-            raise SendException("Unable to parse response body from MBlox",
-                                event=event, start=start)
-
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
     def send_shaqodoon_message(cls, channel, msg, text):
@@ -2157,7 +2116,6 @@ STATUS_FULL = "FUL"
 
 SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
-                  Channel.TYPE_MBLOX: Channel.send_mblox_message,
                   Channel.TYPE_NEXMO: Channel.send_nexmo_message,
                   Channel.TYPE_PLIVO: Channel.send_plivo_message,
                   Channel.TYPE_RED_RABBIT: Channel.send_red_rabbit_message,
