@@ -81,6 +81,7 @@ class Channel(TembaModel):
     TYPE_JUNEBUG_USSD = 'JNU'
     TYPE_KANNEL = 'KN'
     TYPE_LINE = 'LN'
+    TYPE_SKYPE = 'SK'
     TYPE_MACROKIOSK = 'MK'
     TYPE_M3TECH = 'M3'
     TYPE_MBLOX = 'MB'
@@ -198,6 +199,7 @@ class Channel(TembaModel):
         TYPE_JUNEBUG_USSD: dict(scheme='tel', max_length=1600),
         TYPE_KANNEL: dict(scheme='tel', max_length=1600),
         TYPE_LINE: dict(scheme='line', max_length=1600),
+        TYPE_SKYPE: dict(scheme='skype', max_length=1600),
         TYPE_MACROKIOSK: dict(scheme='tel', max_length=1600),
         TYPE_M3TECH: dict(scheme='tel', max_length=160),
         TYPE_NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
@@ -239,6 +241,7 @@ class Channel(TembaModel):
                     (TYPE_JUNEBUG_USSD, "Junebug USSD"),
                     (TYPE_KANNEL, "Kannel"),
                     (TYPE_LINE, "Line"),
+                    (TYPE_SKYPE, "Skype"),
                     (TYPE_M3TECH, "M3 Tech"),
                     (TYPE_MBLOX, "Mblox"),
                     (TYPE_NEXMO, "Nexmo"),
@@ -698,6 +701,16 @@ class Channel(TembaModel):
         channel_access_token = credentials.get('channel_access_token')
 
         return Channel.create(org, user, None, Channel.TYPE_LINE, name=name, address=channel_mid, config={Channel.CONFIG_AUTH_TOKEN: channel_access_token, Channel.CONFIG_CHANNEL_ID: channel_id, Channel.CONFIG_CHANNEL_SECRET: channel_secret, Channel.CONFIG_CHANNEL_MID: channel_mid})
+
+    @classmethod
+    def add_skype_channel(cls, org, user, credentials):
+        ''' Adds the skype credentials to the database for later use of the channel '''
+        microsoft_app_id = credentials.get('microsoft_app_id')
+        microsoft_app_password = credentials.get('microsoft_app_password')
+
+        return Channel.create(org, user, None, Channel.TYPE_SKYPE, name='Bot', address='',
+                              config={Channel.CONFIG_MICROSOFT_APP_ID: microsoft_app_id,
+                                      Channel.CONFIG_MICROSOFT_APP_PASSWORD: microsoft_app_password})
 
     @classmethod
     def add_twitter_channel(cls, org, user, screen_name, handle_id, oauth_token, oauth_token_secret):
@@ -1649,6 +1662,68 @@ class Channel(TembaModel):
             raise SendException(six.text_type(e), event=event, start=start)
 
         if response.status_code not in [200, 201, 202]:  # pragma: needs cover
+            raise SendException("Got non-200 response [%d] from Line" % response.status_code,
+                                event=event, start=start)
+
+        Channel.success(channel, msg, WIRED, start, event=event)
+
+    @classmethod
+    def send_skype_message(cls, channel, msg, text):
+        from temba.msgs.models import WIRED
+
+        microsoft_app_id = channel.config.get(Channel.CONFIG_MICROSOFT_APP_ID)
+        microsoft_app_password = channel.config.get(Channel.CONFIG_MICROSOFT_APP_PASSWORD)
+
+        ''' Verifying that credentials are valid '''
+        url = 'https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token'
+        data = {'grant_type': 'client_credentials',
+                'client_id': microsoft_app_id,
+                'client_secret': microsoft_app_password,
+                'scope': 'https://api.botframework.com/.default'
+                }
+        response = requests.post(url=url, data=data)
+        content = response.json()
+
+        import ast
+        access_token = content.get('access_token')
+        auth = ast.literal_eval(msg.auth)
+
+        ''' Mounting return URL '''
+        url_message = '%s/v3/conversations/%s/activities/%s' % (
+            auth['serviceUrl'], auth['conversation']['id'], auth['id'])
+
+        data = json.dumps({
+            "type": "message",
+            "from": {
+                "id": auth['recipient']['id'],
+                "name": auth['recipient']['name']
+            },
+            "conversation": {
+                "id": auth['conversation']['id']
+            },
+            "recipient": {
+                "id": auth['from']['id'],
+                "name": auth['recipient']['name']
+            },
+            "text": text,
+            "replyToId": auth['id']
+        })
+
+        start = time.time()
+        headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % access_token}
+        headers.update(TEMBA_HEADERS)
+
+        event = HttpEvent('POST', url_message, data)
+
+        try:
+            response = requests.post(url_message, data=data, headers=headers)
+            response.json()
+            event.status_code = response.status_code
+            event.response_body = text
+        except Exception as e:
+            raise SendException(six.text_type(e), event=event, start=start)
+
+        if response.status_code not in [200, 201, 202]:
             raise SendException("Got non-200 response [%d] from Line" % response.status_code,
                                 event=event, start=start)
 
@@ -3188,6 +3263,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_JUNEBUG_USSD: Channel.send_junebug_message,
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,
                   Channel.TYPE_LINE: Channel.send_line_message,
+                  Channel.TYPE_SKYPE: Channel.send_skype_message,
                   Channel.TYPE_M3TECH: Channel.send_m3tech_message,
                   Channel.TYPE_MACROKIOSK: Channel.send_macrokiosk_message,
                   Channel.TYPE_MBLOX: Channel.send_mblox_message,
