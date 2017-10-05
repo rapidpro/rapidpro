@@ -1041,9 +1041,6 @@ class UpdateTwitterForm(UpdateChannelForm):
 
 TYPE_UPDATE_FORM_CLASSES = {
     Channel.TYPE_ANDROID: UpdateAndroidForm,
-    'NX': UpdateNexmoForm,
-    'TT': UpdateTwitterForm,
-    'TWT': UpdateTwitterForm,
 }
 
 
@@ -1363,7 +1360,7 @@ class ChannelCRUDL(SmartCRUDL):
             return reverse('channels.channel_read', args=[self.object.uuid])
 
         def get_form_class(self):
-            return TYPE_UPDATE_FORM_CLASSES.get(self.object.channel_type, UpdateChannelForm)
+            return Channel.get_type_from_code(self.object.channel_type).get_update_form()
 
         def get_form_kwargs(self):
             kwargs = super(ChannelCRUDL.Update, self).get_form_kwargs()

@@ -94,6 +94,8 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     claim_blurb = None
     claim_view = None
 
+    update_form = None
+
     max_length = -1
     max_tps = None
     attachment_support = False
@@ -120,6 +122,12 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         rel_url = r'^claim/%s/' % self.slug
         url_name = 'channels.claim_%s' % self.slug
         return url(rel_url, self.claim_view.as_view(channel_type=self), name=url_name)
+
+    def get_update_form(self):
+        if self.update_form is None:
+            from .views import UpdateChannelForm
+            return UpdateChannelForm
+        return self.update_form
 
     def activate(self, channel):
         """

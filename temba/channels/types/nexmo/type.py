@@ -8,6 +8,7 @@ import regex
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import ChannelType, Channel, SendException
+from temba.channels.views import UpdateNexmoForm
 from temba.channels.types.nexmo.views import ClaimView
 from temba.contacts.models import TEL_SCHEME
 from temba.msgs.models import SENT
@@ -28,6 +29,8 @@ class NexmoType(ChannelType):
 
     claim_blurb = _("""Easily add a two way number you have configured with <a href="https://www.twilio.com/">Twilio</a> using their APIs.""")
     claim_view = ClaimView
+
+    update_form = UpdateNexmoForm
 
     schemes = [TEL_SCHEME]
     max_length = 1600
