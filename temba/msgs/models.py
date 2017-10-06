@@ -1177,7 +1177,8 @@ class Msg(models.Model):
 
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
                                  response_to=self if self.id else None, connection=connection, attachments=attachments,
-                                 msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all, metadata=metadata)
+                                 msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all,
+                                 quick_replies=metadata)
 
     def update(self, cmd):
         """

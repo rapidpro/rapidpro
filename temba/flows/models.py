@@ -5182,7 +5182,7 @@ class ReplyAction(Action):
                                     attachments=attachments, send_all=self.send_all, created_on=created_on)
             else:
                 replies = run.contact.send(text, user, trigger_send=False, message_context=context,
-                                           connection=run.connection, msg_type=self.MSG_TYPE, metadata=metadata,
+                                           connection=run.connection, msg_type=self.MSG_TYPE, quick_replies=metadata,
                                            attachments=attachments, created_on=created_on, all_urns=self.send_all)
         return replies
 

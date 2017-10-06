@@ -7495,7 +7495,7 @@ class TelegramTest(TembaTest):
         }
         """
         joe = self.create_contact("Ernie", urn='telegram:1234')
-        msg = joe.send("Test message", self.admin, trigger_send=False, metadata=metadata)[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
         settings.SEND_MESSAGES = True
 
@@ -7962,7 +7962,7 @@ class TwitterTest(TembaTest):
 
     def test_send_quick_replies(self):
         metadata = json.dumps(dict(quick_replies=[dict(title='Yes'), dict(title='No')]))
-        msg = self.joe.send("Hello, world!", self.admin, trigger_send=False, metadata=metadata)[0]
+        msg = self.joe.send("Hello, world!", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
         try:
             settings.SEND_MESSAGES = True
@@ -10014,7 +10014,7 @@ class FacebookTest(TembaTest):
         }
         """
 
-        msg = joe.send("Facebook Msg", self.admin, trigger_send=False, metadata=metadata)[0]
+        msg = joe.send("Facebook Msg", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
         with self.settings(SEND_MESSAGES=True):
 
@@ -11195,7 +11195,7 @@ class ViberPublicTest(TembaTest):
     def test_send_quick_replies(self):
         metadata = json.dumps(dict(quick_replies=[dict(title='Yes'), dict(title='No')]))
         joe = self.create_contact("Joe", urn="viber:FXLP/JstS7kDuoiUGihkgA==")
-        msg = joe.send("Hello, world!", self.admin, trigger_send=False, metadata=metadata)[0]
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
         settings.SEND_MESSAGES = True
         with patch('requests.post') as mock:
@@ -11425,7 +11425,7 @@ class FcmTest(TembaTest):
         }
         """
         joe = self.create_contact("Joe", urn="fcm:12345abcde", auth="123456abcdef")
-        msg = joe.send("Hello, world!", self.admin, trigger_send=False, metadata=metadata)[0]
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
         with self.settings(SEND_MESSAGES=True):
 
