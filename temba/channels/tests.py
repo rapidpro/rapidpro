@@ -10856,23 +10856,22 @@ class FcmTest(TembaTest):
 
 class CourierTest(TembaTest):
     def test_queue_to_courier(self):
-        with self.settings(COURIER_CHANNELS=['TG']):
-            self.channel.channel_type = 'TG'
-            self.channel.schemes = [TELEGRAM_SCHEME]
+        with self.settings(COURIER_CHANNELS=['T']):
+            self.channel.channel_type = 'T'
             self.channel.save()
 
-            bob = self.create_contact("Bob", urn='telegram:2')
+            bob = self.create_contact("Bob", urn='tel:+12065551111')
             incoming = self.create_msg(contact=bob, text="Hello", direction="I")
 
             # create some outgoing messages for our channel
-            msg1 = Msg.create_outgoing(self.org, self.admin, 'telegram:1', "Outgoing 1",
-                                       attachments=['image/jpg:https://example.com/test.jpg'])
-            msg2 = Msg.create_outgoing(self.org, self.admin, 'telegram:2', "Outgoing 2", response_to=incoming,
+            msg1 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065551111', "Outgoing 1",
+                                       attachments=['image/jpg:https://example.com/test.jpg', 'image/jpg:https://example.com/test2.jpg'])
+            msg2 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065552222', "Outgoing 2", response_to=incoming,
                                        attachments=[])
-            msg3 = Msg.create_outgoing(self.org, self.admin, 'telegram:3', "Outgoing 3", high_priority=False,
+            msg3 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065553333', "Outgoing 3", high_priority=False,
                                        attachments=None)
-            msg4 = Msg.create_outgoing(self.org, self.admin, 'telegram:4', "Outgoing 4", high_priority=True)
-            msg5 = Msg.create_outgoing(self.org, self.admin, 'telegram:4', "Outgoing 5", high_priority=True)
+            msg4 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065554444', "Outgoing 4", high_priority=True)
+            msg5 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065554444', "Outgoing 5", high_priority=True)
             all_msgs = [msg1, msg2, msg3, msg4, msg5]
 
             Msg.send_messages(all_msgs)
@@ -10913,8 +10912,10 @@ class CourierTest(TembaTest):
             self.assertEqual([[m['text'] for m in b] for b in high_priority_msgs], [["Outgoing 4", "Outgoing 5"]])
             self.assertEqual([[m['text'] for m in b] for b in low_priority_msgs], [["Outgoing 1"], ["Outgoing 2"], ["Outgoing 3"]])
 
-            self.assertEqual(low_priority_msgs[0][0]['attachments'], ['image/jpg:https://example.com/test.jpg'])
+            self.assertEqual(low_priority_msgs[0][0]['attachments'], ['image/jpg:https://example.com/test.jpg', 'image/jpg:https://example.com/test2.jpg'])
+            self.assertEqual(low_priority_msgs[0][0]['tps_cost'], 2)
             self.assertIsNone(low_priority_msgs[1][0]['attachments'])
+            self.assertEqual(low_priority_msgs[1][0]['tps_cost'], 1)
             self.assertIsNone(low_priority_msgs[2][0]['attachments'])
 
 

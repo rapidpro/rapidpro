@@ -664,7 +664,7 @@ class Msg(models.Model):
     text = models.TextField(verbose_name=_("Text"),
                             help_text=_("The actual message content that was sent"))
 
-    priority = models.IntegerField(default=500,
+    priority = models.IntegerField(default=500, null=True,
                                    help_text=_("The priority for this message to be sent, higher is higher priority"))
 
     high_priority = models.NullBooleanField(help_text=_("Give this message higher priority than other messages"))
