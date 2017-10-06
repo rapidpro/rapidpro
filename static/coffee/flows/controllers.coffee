@@ -2243,10 +2243,9 @@ TerminalWarningController = ($scope, $modalInstance, $log, actionset, flowContro
     $modalInstance.dismiss "cancel"
 
 
-AttachmentViewerController = ($scope, $modalInstance, action, type, Flow) ->
+AttachmentViewerController = ($scope, $modalInstance, action, type) ->
   $scope.action = action
   $scope.type = type
-  $scope.currentLang = Flow.language.iso_code
 
   $scope.cancel = ->
     $modalInstance.dismiss "cancel"
