@@ -1950,7 +1950,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.action.media = null
     $scope.action._media = null
     $scope.action._attachURL = null
-    $scope.container_operation_visible = true
 
   # Saving a reply message in the flow
   $scope.saveMessage = (message, type='reply', hasAttachURL=false) ->
@@ -1976,7 +1975,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     else if not $scope.action._media
       $scope.action.media = null
 
-    if Object.prototype.toString.call($scope.action.quick_replies) != '[object Object]'
+    if typeof($scope.action.quick_replies) != "object"
       $scope.action.quick_replies = {}
       
     if $scope.quickReplies.length > 0
