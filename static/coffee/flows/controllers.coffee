@@ -1895,7 +1895,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     for lang of $scope.action.quick_replies
       $scope.action.quick_replies[lang].splice(index, 1)
 
-    if Object.getOwnPropertyNames($scope.action.quick_replies).length == 0 || $scope.action.quick_replies.length == 0
+    if Object.keys($scope.action.quick_replies).length == 0
       $scope.quickReplies.splice(index, 1)
 
     if a.length == 0
