@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 from django.conf import settings
 from django.utils.module_loading import import_string
 
+from temba.channels.views import TYPE_UPDATE_FORM_CLASSES
 from ..models import Channel, ChannelType, SEND_FUNCTIONS
 
 TYPES = {}
@@ -41,7 +42,9 @@ def reload_channel_types():
             max_tps=type_settings.get('max_tps'),
             attachment_support=code in Channel.MEDIA_CHANNELS,
             free_sending=code in Channel.FREE_SENDING_CHANNEL_TYPES,
-            send=SEND_FUNCTIONS.get(code)
+            update_form=TYPE_UPDATE_FORM_CLASSES.get(code),
+            send=SEND_FUNCTIONS.get(code),
+            ivr_protocol=ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML if code in Channel.TWIML_CHANNELS else None
         ))
         register_channel_type(dyn_type_class)
 

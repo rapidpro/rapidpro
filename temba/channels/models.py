@@ -38,7 +38,7 @@ from smartmin.models import SmartModel
 from temba.orgs.models import Org, CHATBASE_TYPE_AGENT, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.utils import analytics, dict_to_struct, dict_to_json, on_transaction_commit, get_anonymous_user
 from temba.utils.email import send_template_email
-from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
+from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
 from temba.utils.http import HttpEvent
 from temba.utils.nexmo import NCCOResponse
 from temba.utils.models import SquashableModel, TembaModel, generate_uuid
@@ -78,6 +78,10 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         USSD = 3
         API = 4
 
+    class IVRProtocol(Enum):
+        IVR_PROTOCOL_TWIML = 1
+        IVR_PROTOCOL_NCCO = 2
+
     code = None
     slug = None
     category = None
@@ -90,10 +94,14 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     claim_blurb = None
     claim_view = None
 
+    update_form = None
+
     max_length = -1
     max_tps = None
     attachment_support = False
     free_sending = False
+
+    ivr_protocol = None
 
     def is_available_to(self, user):
         """
@@ -114,6 +122,12 @@ class ChannelType(six.with_metaclass(ABCMeta)):
         rel_url = r'^claim/%s/' % self.slug
         url_name = 'channels.claim_%s' % self.slug
         return url(rel_url, self.claim_view.as_view(channel_type=self), name=url_name)
+
+    def get_update_form(self):
+        if self.update_form is None:
+            from .views import UpdateChannelForm
+            return UpdateChannelForm
+        return self.update_form
 
     def activate(self, channel):
         """
@@ -310,8 +324,6 @@ class Channel(TembaModel):
     USSD_CHANNELS = [TYPE_VUMI_USSD]
 
     TWIML_CHANNELS = [TYPE_TWILIO, TYPE_VERBOICE, TYPE_TWIML]
-
-    NCCO_CHANNELS = ['NX']
 
     MEDIA_CHANNELS = [TYPE_TWILIO, TYPE_TWIML, TYPE_TWILIO_MESSAGING_SERVICE]
 
@@ -725,9 +737,10 @@ class Channel(TembaModel):
         return self.parent and Channel.ROLE_CALL in self.role
 
     def generate_ivr_response(self):
-        if self.channel_type in Channel.TWIML_CHANNELS:
+        ivr_protocol = Channel.get_type_from_code(self.channel_type).ivr_protocol
+        if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML:
             return twiml.Response()
-        if self.channel_type in Channel.NCCO_CHANNELS:
+        if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO:
             return NCCOResponse()
 
     def get_ivr_client(self):
@@ -947,6 +960,24 @@ class Channel(TembaModel):
 
     def is_ussd(self):
         return self.channel_type in Channel.USSD_CHANNELS
+
+    def calculate_tps_cost(self, msg):
+        """
+        Calculates the TPS cost for sending the passed in message. We look at the URN type and for any
+        `tel` URNs we just use the calculated segments here. All others have a cost of 1.
+
+        In the case of attachments, our cost is the number of attachments.
+        """
+        from temba.contacts.models import TEL_SCHEME
+        cost = 1
+        if msg.contact_urn.scheme == TEL_SCHEME:
+            cost = calculate_num_segments(msg.text)
+
+        # if we have attachments then use that as our cost (MMS bundles text into the attachment, but only one per)
+        if msg.attachments:
+            cost = len(msg.attachments)
+
+        return cost
 
     def claim(self, org, user, phone):
         """
