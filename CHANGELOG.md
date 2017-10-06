@@ -1,3 +1,79 @@
+v3.0.209
+----------
+ * Add a way to specify the prefixes short codes should be matching
+ * Include both high_priority and priority in courier JSON
+ * Fix TwiML migration
+ * Fix JSON response when searching Plivo numbers
+
+v3.0.208
+----------
+ * Msg.bulk_priority -> Msg.high_priority
+ * Change for currencies for numeric rule
+ * Dynamic channels for Jasmin, Infobip, and Hub9
+
+v3.0.207
+----------
+ * Fix Twiml config JSON keys
+ * Unarchiving a campaign should unarchive all its flows
+
+v3.0.206
+----------
+ * Fix broken Twilio Messaging Service status callback URL
+ * Only update dynamic groups from set_field if value has changed
+ * Optimize how we lookup contacts for some API endpoints
+ * More dynamic channels
+
+v3.0.205
+----------
+ * add way to show recommended channel on claim page for dynamic channels
+ * change Org.get_recommended_channel to return the channel type instead of a random string
+
+v3.0.204
+----------
+ * separate create and drop index operations in migration
+
+v3.0.203
+----------
+ * create new compound index on channel id and external id, remove old external id index
+ * consistent header for contact uuid in exports and imports
+ * unstop contacts in handle message for new messages
+ * populate @extra even on webhook failures
+ * fix flow simulator with chatbase connected
+ * use ContactQL for name of contact querying grammar
+ * dynamic channels: Clickatell
+ * fix contact searching where text includes + or / chars
+ * replace Ply with ANTLR for contact searching (WIP)
+
+v3.0.201
+----------
+ * Make clean string method replace non characteres correctly
+
+v3.0.200
+----------
+ * Support Telegram /start command to trigger new conversation trigger
+
+v3.0.199
+----------
+ * Use correct Twilio callback URL, status is for voice, keep as handler
+
+v3.0.198
+----------
+ * Add /c/kn/uuid-uuid-uuid/receive style endpoints for all channel types
+ * Delete webhook events in batches
+ * Dynamic channels: Blackmyna
+
+v3.0.197
+----------
+ * update triggers so that updates in migration work
+
+v3.0.196
+----------
+ * make sure new uuids are honored in in_group tests
+ * removes giant join through run/flow to figure out flow steps during export
+ * create contacts from start flow action with ambiguous country
+ * add tasks for handling of channel events, update handlers to use ChannelEvent.handle
+ * add org level dashboard for multi-org organizations
+
 v3.0.195
 ----------
  * Tweaks to allow message handling straight from courier

@@ -45,7 +45,7 @@ class APITest(TembaTest):
                                                  channel=self.channel,
                                                  org=self.org,
                                                  event_type=ChannelEvent.TYPE_CALL_OUT_MISSED,
-                                                 time=timezone.now())
+                                                 occurred_on=timezone.now())
 
         # this is needed to prevent REST framework from rolling back transaction created around each unit test
         connection.settings_dict['ATOMIC_REQUESTS'] = False

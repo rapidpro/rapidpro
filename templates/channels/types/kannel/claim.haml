@@ -1,6 +1,18 @@
 -extends "channels/channel_claim_form.html"
 -load i18n
 
+-block title
+  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
+
+  %h2.font_normalize.header-margin
+    {{ title }}
+
+-block pre-form
+  .info
+    %p
+      -blocktrans
+        After entering your endpoint URL below, we'll provide you with the configuration details for your Kannel configuration file.
+
 -block extra-script
   {{ block.super }}
 
@@ -10,17 +22,6 @@
       $("#id_method").select2({ minimumResultsForSearch: -1 });
     });
 
--block title
-  .medium-help.icon-channel-kannel.float-left
-
-  %h2.font_normalize.header-margin
-    -trans "Connect Kannel"
-
--block pre-form
-  .info
-    %p
-      -blocktrans
-        After entering your endpoint URL below, we'll provide you with the configuration details for your Kannel configuration file.
 
 -block extra-style
   {{ block.super }}

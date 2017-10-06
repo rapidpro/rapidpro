@@ -14,6 +14,7 @@ from django.db.models import Count
 from django.utils import timezone
 from django_redis import get_redis_connection
 from temba.contacts.models import Contact, STOP_CONTACT_EVENT
+from temba.channels.models import ChannelEvent, CHANNEL_EVENT
 from temba.utils import json_date_to_datetime, chunk_list, analytics
 from temba.utils.mage import handle_new_message, handle_new_contact
 from temba.utils.queues import start_task, complete_task, nonoverlapping_task
@@ -315,6 +316,10 @@ def handle_event_task():
         elif event_task['type'] == STOP_CONTACT_EVENT:
             contact = Contact.objects.get(id=event_task['contact_id'])
             contact.stop(contact.modified_by)
+
+        elif event_task['type'] == CHANNEL_EVENT:
+            event = ChannelEvent.objects.get(id=event_task['event_id'])
+            event.handle()
 
         else:  # pragma: needs cover
             raise Exception("Unexpected event type: %s" % event_task)
