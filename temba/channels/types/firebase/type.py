@@ -33,14 +33,10 @@ class FirebaseCloudMessagingType(ChannelType):
     free_sending = True
 
     @classmethod
-    def get_quick_replies(cls, metadata, post_body):
-        metadata = json.loads(metadata)
-        quick_replies = metadata.get('quick_replies', None)
-
-        if quick_replies:
-            post_body['data']['metadata'] = dict(quick_replies=quick_replies)
-
-        return post_body
+    def format_quick_replies(cls, quick_replies):
+        data = json.loads(quick_replies)
+        data = data.get('quick_replies', None)
+        return data
 
     def send(self, channel, msg, text):
         start = time.time()
@@ -66,8 +62,10 @@ class FirebaseCloudMessagingType(ChannelType):
             }
             data['content_available'] = True
 
-        if hasattr(msg, 'metadata'):
-            data = self.get_quick_replies(msg.metadata, data)
+        metadata = getattr(msg, 'metadata', None)
+        quick_replies = self.format_quick_replies(metadata) if metadata else None
+        if quick_replies:
+            data['data']['metadata'] = quick_replies
 
         payload = json.dumps(data)
         headers = {'Content-Type': 'application/json', 'Authorization': 'key=%s' % channel.config.get('FCM_KEY')}
