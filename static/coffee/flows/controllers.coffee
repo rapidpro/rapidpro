@@ -656,7 +656,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           DragHelper.showSendReply($('#' + category.sources[0] + ' .source'))
         ,0
 
-  $scope.addAction = (actionset, newStepAction=null) ->
+  $scope.addAction = (actionset) ->
 
     if window.dragging or not window.mutable
       return
@@ -667,7 +667,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         action:
           type: defaultActionSetType()
           uuid: uuid()
-        newStepAction: newStepAction
 
       flowController: -> $scope
 
@@ -1836,7 +1835,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.action.quick_replies = {}
     $scope.showQuickReplyButton = true
 
-  if $scope.options.dragSource? || $scope.options.newStepAction?
+  if $scope.options.dragSource?
     startNodeConfig()
   else
     if $scope.action.quick_replies? and $scope.action.quick_replies[currentLang] != undefined
