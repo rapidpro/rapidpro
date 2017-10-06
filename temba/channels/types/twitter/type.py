@@ -51,7 +51,7 @@ class TwitterType(ChannelType):
         if quick_replies:
             replies = []
             for quick_reply in quick_replies:
-                replies.append(dict(label=quick_reply.get('title')))
+                replies.append(dict(label=quick_reply.get('text')))
 
             post_body = dict(
                 event=dict(

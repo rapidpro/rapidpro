@@ -732,7 +732,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         if toQuickReplies.length == 0 && (fromQuickReplies != [] && fromQuickReplies?)
 
           for obj in fromQuickReplies
-            toQuickReplies.push({title: ''})
+            toQuickReplies.push({text: ''})
 
         translations = [
           {
@@ -1886,10 +1886,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.showQuickReplyButton = false
     if $scope.quickReplies.length < 11
       if Object.keys($scope.action.quick_replies).length < 1
-        $scope.quickReplies.push({title:''})
+        $scope.quickReplies.push({text:''})
       else
         for lang of $scope.action.quick_replies
-          $scope.action.quick_replies[lang].push({title:''})
+          $scope.action.quick_replies[lang].push({text:''})
 
   $scope.removeQuickReply = (a, index) ->
     for lang of $scope.action.quick_replies

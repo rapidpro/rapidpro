@@ -5138,8 +5138,8 @@ class ReplyAction(Action):
 
         if language_metadata:
             for i, item in enumerate(language_metadata):
-                if not item.get('title'):
-                    item['title'] = base_metadata[i]['title']
+                if not item.get('text'):
+                    item['text'] = base_metadata[i]['text']
 
             return language_metadata
         else:

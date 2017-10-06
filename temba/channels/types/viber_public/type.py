@@ -57,7 +57,7 @@ class ViberPublicType(ChannelType):
 
         if quick_replies:
             for quick_reply in quick_replies:
-                buttons.append(dict(Text=quick_reply.get('title'), ActionBody=quick_reply.get('title'),
+                buttons.append(dict(Text=quick_reply.get('text'), ActionBody=quick_reply.get('text'),
                                     ActionType='reply', TextSize='regular'))
 
             post_body['keyboard'] = dict(Type="keyboard", DefaultHeight=True, Buttons=buttons)

@@ -59,7 +59,7 @@ class FacebookType(ChannelType):
 
         if quick_replies:
             for reply in quick_replies:
-                replies.append(dict(title=reply.get('title'), payload=reply.get('title'), content_type='text'))
+                replies.append(dict(title=reply.get('text'), payload=reply.get('text'), content_type='text'))
 
             post_body['message']['quick_replies'] = replies
 

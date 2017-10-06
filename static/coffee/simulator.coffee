@@ -49,7 +49,7 @@ window.updateSimulator = (data) ->
       if params.quick_replies? and params.quick_replies[0]?
         quick_replies = "<div id='quick-reply-content'>"
         for reply in params.quick_replies
-          quick_replies += "<button class=\"btn quick-reply\" data-payload=\"" + reply.title + "\"> " + reply.title + "</button>"
+          quick_replies += "<button class=\"btn quick-reply\" data-payload=\"" + reply.text + "\"> " + reply.text + "</button>"
         quick_replies += "</div>"
 
     if msg.attachments and msg.attachments.length > 0

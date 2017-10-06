@@ -398,8 +398,8 @@ class Broadcast(models.Model):
 
         if language_metadata:
             for i, item in enumerate(language_metadata):
-                if not item.get('title'):
-                    item['title'] = base_metadata[i]['title']
+                if not item.get('text'):
+                    item['text'] = base_metadata[i]['text']
 
             return language_metadata
         else:
@@ -672,7 +672,7 @@ class Msg(models.Model):
     CONTACT_HANDLING_QUEUE = 'ch:%d'
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
-    MAX_QUICK_REPLY_TITLE_LEN = settings.QUICK_REPLY_TITLE_SIZE
+    MAX_QUICK_REPLY_TEXT_LEN = settings.QUICK_REPLY_TEXT_SIZE
 
     uuid = models.UUIDField(null=True, default=uuid.uuid4,
                             help_text=_("The UUID for this message"))
@@ -1081,12 +1081,12 @@ class Msg(models.Model):
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
     def as_json(self):
-        return dict(direction=self.direction,
-                    text=self.text,
-                    id=self.id,
-                    attachments=self.attachments,
-                    created_on=self.created_on.strftime('%x %X'),
-                    model="msg")
+        msg_json = dict(direction=self.direction,
+                        text=self.text,
+                        id=self.id,
+                        attachments=self.attachments,
+                        created_on=self.created_on.strftime('%x %X'),
+                        model="msg")
 
         if self.metadata:
             msg_json['metadata'] = self.metadata
@@ -1470,10 +1470,10 @@ class Msg(models.Model):
         quick_replies = metadata.get('quick_replies', None)
         if quick_replies:
             for reply in quick_replies:
-                (title, errors) = Msg.substitute_variables(reply.get('title', None), message_context,
-                                                           contact=contact, org=org)
-                if title:
-                    reply['title'] = title[:Msg.MAX_QUICK_REPLY_TITLE_LEN]
+                (text, errors) = Msg.substitute_variables(reply.get('text', None), message_context,
+                                                          contact=contact, org=org)
+                if text:
+                    reply['text'] = text[:Msg.MAX_QUICK_REPLY_TEXT_LEN]
 
         return json.dumps(metadata)
 

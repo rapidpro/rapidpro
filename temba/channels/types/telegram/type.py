@@ -55,7 +55,7 @@ class TelegramType(ChannelType):
 
         if quick_replies:
             for reply in quick_replies:
-                replies.append([dict(text=reply.get('title'))])
+                replies.append([dict(text=reply.get('text'))])
 
             post_body['reply_markup'] = json.dumps(dict(resize_keyboard=True, one_time_keyboard=True, keyboard=replies))
 
