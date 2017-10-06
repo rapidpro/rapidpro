@@ -176,6 +176,19 @@
         return null;
     };
 
+    excellent.Parser.prototype.getContactFields = function(text) {
+        var fields = {};
+        var re = /(parent|child\.)*contact\.([a-z0-9_]+)/g;
+        var expressions = this.expressions(text);
+        for (var i=0; i<expressions.length; i++) {
+            var match;
+            while (match = re.exec(expressions[i].text)) {
+                fields[match[2]] = true;
+            }
+        }
+        return Object.keys(fields);
+    }
+
     /**
      * Finds all expressions in the given text, including any partially complete expression at the end of the input
      */

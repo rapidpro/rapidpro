@@ -1,0 +1,94 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "https://textit.in", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 34, 
+          "destination": "86f2ce52-cfdd-425a-a1ec-1a9105349047", 
+          "uuid": "cc1873f9-767c-4f21-a606-06c2a343bc57", 
+          "actions": [
+            {
+              "recording": null, 
+              "msg": {
+                "eng": "This is how you @contact.play_message!"
+              }, 
+              "type": "say", 
+              "uuid": "673a18ac-b952-4b8f-a6af-7b3760af5cb6"
+            }
+          ]
+        }, 
+        {
+          "y": 229, 
+          "x": 37, 
+          "destination": null, 
+          "uuid": "72344181-7921-4974-8976-fb63bfb61dd1", 
+          "actions": [
+            {
+              "url": "@contact.voice_recording", 
+              "type": "play", 
+              "uuid": "512eb20d-56d2-4f3c-b04d-917a3bea3088"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "V", 
+      "entry": "cc1873f9-767c-4f21-a606-06c2a343bc57", 
+      "rule_sets": [
+        {
+          "uuid": "86f2ce52-cfdd-425a-a1ec-1a9105349047", 
+          "rules": [
+            {
+              "category": {
+                "base": "1", 
+                "eng": "1"
+              }, 
+              "uuid": "5289d5df-ee7a-4f41-98b1-3663b1d77ddc", 
+              "destination": "72344181-7921-4974-8976-fb63bfb61dd1", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": "@contact.voice_rule", 
+                "type": "eq"
+              }
+            }, 
+            {
+              "category": {
+                "base": "All Responses", 
+                "eng": "Other"
+              }, 
+              "uuid": "9ba2d7bc-b8e7-4c7e-a997-a9da49c72efe", 
+              "destination": null, 
+              "label": null, 
+              "destination_type": null, 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_digits", 
+          "label": "Button", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 121, 
+          "x": 36, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 1, 
+        "revision": 22, 
+        "uuid": "e05a2116-20b5-4641-833d-f7184a13ddd5", 
+        "name": "Voice Dependencies", 
+        "saved_on": "2017-10-05T20:05:37.219777Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

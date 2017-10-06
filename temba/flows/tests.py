@@ -5432,7 +5432,7 @@ class FlowsTest(FlowFileTest):
 
         group_names = ['Dog Facts', 'Cat Facts', 'Fish Facts', 'Monkey Facts']
         for name in group_names:
-            self.assertIsNotNone(flow.group_dependencies.filter(name=name).first())
+            self.assertIsNotNone(flow.group_dependencies.filter(name=name).first(), 'Missing group %s' % name)
 
         # trim off our first action which is remove from Dog Facts
         update_json = flow.as_json()
@@ -5669,8 +5669,75 @@ class FlowsTest(FlowFileTest):
 
     def test_flow_delete_with_dependencies(self):
         self.login(self.admin)
+
         self.get_flow('dependencies')
+        self.get_flow('dependencies_voice')
+        parent = Flow.objects.filter(name='Dependencies').first()
         child = Flow.objects.filter(name='Child Flow').first()
+        voice = Flow.objects.filter(name='Voice Dependencies').first()
+
+        contact_fields = (
+            {'key': 'contact_age', 'label': 'Contact Age'},
+
+            # fields based on parent and child references
+            {'key': 'top'},
+            {'key': 'bottom'},
+
+            # replies
+            {'key': 'chw'},
+
+            # url attachemnts
+            {'key': 'attachment'},
+
+            # dynamic groups
+            {'key': 'cat_breed', 'label': 'Cat Breed'},
+            {'key': 'organization'},
+
+            # sending messages
+            {'key': 'recipient'},
+            {'key': 'message'},
+
+            # sending emails
+            {'key': 'email_message', 'label': 'Email Message'},
+            {'key': 'subject'},
+
+            # trigger someone else
+            {'key': 'other_phone', 'label': 'Other Phone'},
+
+            # rules and localizations
+            {'key': 'rule'},
+            {'key': 'french_rule', 'label': 'French Rule'},
+
+            # updating contacts
+            {'key': 'favorite_cat', 'label': 'Favorite Cat'},
+            {'key': 'next_cat_fact', 'label': 'Next Cat Fact'},
+            {'key': 'last_cat_fact', 'label': 'Last Cat Fact'},
+
+            # webhook urls
+            {'key': 'webhook'},
+
+            # expression splits
+            {'key': 'expression_split', 'label': 'Expression Split'},
+
+            # voice says
+            {'key': 'play_message', 'label': 'Play Message', 'flow': voice},
+            {'key': 'voice_rule', 'label': 'Voice Rule', 'flow': voice},
+
+            # voice plays (recordings)
+            {'key': 'voice_recording', 'label': 'Voice Recording', 'flow': voice}
+        )
+
+        for field_spec in contact_fields:
+            key = field_spec.get('key')
+            label = field_spec.get('label', key.capitalize())
+            flow = field_spec.get('flow', parent)
+
+            # make sure our field exists after import
+            field = ContactField.objects.filter(key=key, label=label).first()
+            self.assertIsNotNone(field, "Couldn't find field %s (%s)" % (key, label))
+
+            # and our flow is dependent on us
+            self.assertIsNotNone(flow.field_dependencies.filter(key__in=[key]).first(), "Flow is missing dependency on %s (%s)" % (key, label))
 
         # deleting should fail since the 'Dependencies' flow depends on us
         self.client.post(reverse('flows.flow_delete', args=[child.id]))

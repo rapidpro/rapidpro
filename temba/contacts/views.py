@@ -1226,11 +1226,18 @@ class ContactGroupCRUDL(SmartCRUDL):
 
 
 class ManageFieldsForm(forms.Form):
+
+    def __init__(self, *args, **kwargs):
+        self.org = kwargs['org']
+        del kwargs['org']
+        super(ManageFieldsForm, self).__init__(*args, **kwargs)
+
     def clean(self):
         used_labels = []
         for key in self.cleaned_data:
             if key.startswith('field_'):
                 idx = key[6:]
+                field = self.cleaned_data[key]
                 label = self.cleaned_data["label_%s" % idx]
 
                 if label:
@@ -1243,6 +1250,13 @@ class ManageFieldsForm(forms.Form):
                     elif not ContactField.is_valid_key(ContactField.make_key(label)):
                         raise forms.ValidationError(_("Field name '%s' is a reserved word") % label)
                     used_labels.append(label.lower())
+                else:
+                    # don't allow fields that are dependencies for flows be removed
+                    if field != '__new_field':
+                        from temba.flows.models import Flow
+                        flow = Flow.objects.filter(org=self.org, field_dependencies__in=[field]).first()
+                        if flow:
+                            raise forms.ValidationError(_('The field "%s" cannot be removed while it is still used in the flow "%s"' % (field.label, flow.name)))
 
         return self.cleaned_data
 
@@ -1308,6 +1322,11 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             context['contact_fields'] = contact_fields
             return context
+
+        def get_form_kwargs(self):
+            kwargs = super(ContactFieldCRUDL.Managefields, self).get_form_kwargs()
+            kwargs['org'] = self.derive_org()
+            return kwargs
 
         def get_form(self):
             form = super(ContactFieldCRUDL.Managefields, self).get_form()
