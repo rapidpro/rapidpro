@@ -66,7 +66,7 @@ class FacebookType(ChannelType):
         # build our payload
         payload = {'message': {'text': text}}
 
-        metadata = getattr(msg, 'metadata', None)
+        metadata = msg.metadata if hasattr(msg, 'metadata') else None
         quick_replies = self.format_quick_replies(metadata) if metadata else None
         if quick_replies:
             payload['message']['quick_replies'] = quick_replies

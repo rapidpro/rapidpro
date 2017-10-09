@@ -66,7 +66,7 @@ class TelegramType(ChannelType):
         send_url = 'https://api.telegram.org/bot%s/sendMessage' % auth_token
         post_body = {'chat_id': msg.urn_path, 'text': text}
 
-        metadata = getattr(msg, 'metadata', None)
+        metadata = msg.metadata if hasattr(msg, 'metadata') else None
         quick_replies = self.format_quick_replies(metadata) if metadata else None
         if quick_replies:
             post_body['reply_markup'] = quick_replies
