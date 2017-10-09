@@ -116,6 +116,10 @@ CHATBASE_TYPE_USER = 'user'
 CHATBASE_FEEDBACK = 'CHATBASE_FEEDBACK'
 CHATBASE_VERSION = 'CHATBASE_VERSION'
 
+NLU_API_NAME = 'NLU_API_NAME'
+NLU_API_KEY = 'NLU_API_KEY'
+NLU_API_CHOICES = (('BTH', 'BotHub'), ('WIT', 'Wit.AI'),)
+
 ORG_STATUS = 'STATUS'
 SUSPENDED = 'suspended'
 RESTORED = 'restored'
@@ -242,6 +246,9 @@ class Org(SmartModel):
                                          help_text=_('A password that allows users to register as surveyors'))
 
     parent = models.ForeignKey('orgs.Org', null=True, blank=True, help_text=_('The parent org that manages this org'))
+
+    nlu_api_config = models.CharField(null=True, max_length=255, default=None,
+                                      help_text=_('Configurations to Natural Language Understand Api'))
 
     @classmethod
     def get_unique_slug(cls, name):
@@ -416,6 +423,12 @@ class Org(SmartModel):
     def config_json(self):
         if self.config:
             return json.loads(self.config)
+        else:
+            return dict()
+
+    def nlu_api_config_json(self):
+        if self.nlu_api_config:
+            return json.loads(self.nlu_api_config)
         else:
             return dict()
 
@@ -920,6 +933,27 @@ class Org(SmartModel):
             chatbase_api_key = config.get(CHATBASE_API_KEY, None)
             chatbase_version = config.get(CHATBASE_VERSION, None)
             return chatbase_api_key, chatbase_version
+        else:
+            return None, None
+
+    def connect_nlu_api(self, api_name, api_key, user):
+        nlu_api_config = {
+            NLU_API_NAME: api_name,
+            NLU_API_KEY: api_key
+        }
+        self.nlu_api_config = json.dumps(nlu_api_config)
+        self.modified_by = user
+        self.save()
+
+    def remove_nlu_api(self):
+        pass
+
+    def get_nlu_api_credentials(self):
+        nlu_api_config = self.nlu_api_config_json()
+        if nlu_api_config:
+            nlu_api_name = nlu_api_config.get(NLU_API_NAME, None)
+            nlu_api_key = nlu_api_config.get(NLU_API_KEY, None)
+            return nlu_api_name, nlu_api_key
         else:
             return None, None
 

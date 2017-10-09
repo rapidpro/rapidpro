@@ -50,6 +50,7 @@ from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, 
 from .models import TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_LOGIN, SMTP_FROM_EMAIL
 from .models import SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_PORT, SMTP_ENCRYPTION
 from .models import CHATBASE_API_KEY, CHATBASE_VERSION, CHATBASE_AGENT_NAME
+from .models import NLU_API_NAME, NLU_API_KEY, NLU_API_CHOICES
 
 
 def check_login(request):
@@ -451,7 +452,7 @@ class UserSettingsCRUDL(SmartCRUDL):
 
 class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'edit_sub_org', 'join', 'grant', 'accounts', 'create_login',
-               'chatbase', 'choose', 'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country',
+               'chatbase', 'nlu_api', 'choose', 'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country',
                'languages', 'clear_cache', 'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account',
                'nexmo_connect', 'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'resthooks',
                'service', 'surveyor', 'transfer_credits', 'transfer_to_account', 'smtp_server')
@@ -2042,6 +2043,49 @@ class OrgCRUDL(SmartCRUDL):
 
             return super(OrgCRUDL.Chatbase, self).form_valid(form)
 
+    class NluApi(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+
+        class NluApiForm(forms.ModelForm):
+            api_name = forms.ChoiceField(label=_("Api Name"), required=True,
+                                         help_text="Enter your Api name", choices=NLU_API_CHOICES)
+            api_key = forms.CharField(max_length=255, label=_("API Key"), required=False,
+                                      help_text="Enter your NLU Api Key")
+
+            class Meta:
+                model = Org
+                fields = ('api_name', 'api_key')
+
+        success_message = ''
+        success_url = '@orgs.org_home'
+        form_class = NluApiForm
+
+        def derive_initial(self):
+            initial = super(OrgCRUDL.NluApi, self).derive_initial()
+            org = self.get_object()
+            config = org.nlu_api_config_json()
+            initial['api_name'] = config.get(NLU_API_NAME, '')
+            initial['api_key'] = config.get(NLU_API_KEY, '')
+            return initial
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.NluApi, self).get_context_data(**kwargs)
+            api_name, api_key = self.object.get_nlu_api_credentials()
+            if api_key:
+                context['api_name'] = dict(NLU_API_CHOICES).get(api_name, None)
+
+            return context
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+
+            api_name = form.cleaned_data.get('api_name')
+            api_key = form.cleaned_data.get('api_key')
+            if api_name and api_key:
+                org.connect_nlu_api(api_name, api_key, user)
+
+            return super(OrgCRUDL.NluApi, self).form_valid(form)
+
     class Home(FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
 
@@ -2123,6 +2167,15 @@ class OrgCRUDL(SmartCRUDL):
                                        action='redirect', button=_("Connect"))
                 else:  # pragma: needs cover
                     formax.add_section('chatbase', reverse('orgs.org_chatbase'), icon='icon-chatbase',
+                                       action='redirect', nobutton=True)
+
+            if self.has_org_perm('orgs.org_nlu_api'):
+                nlu_api_name, nlu_api_key = self.object.get_nlu_api_credentials()
+                if not nlu_api_key:
+                    formax.add_section('nlu_api', reverse('orgs.org_nlu_api'), icon='icon-language',
+                                       action='redirect', button=_("Connect"))
+                else:  # pragma: needs cover
+                    formax.add_section('nlu_api', reverse('orgs.org_nlu_api'), icon='icon-language',
                                        action='redirect', nobutton=True)
 
             if self.has_org_perm('orgs.org_webhook'):

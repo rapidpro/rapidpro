@@ -1,0 +1,35 @@
+-extends 'smartmin/form.html'
+
+-load compress temba smartmin i18n
+
+-block form-span
+
+-block title-text
+  .title-text
+    %h1
+      -trans "Natural Language Understand Api"
+
+-block summary
+  -if object.nlu_api_config_json
+    -trans "Connected to NLU Api"
+    <b>{{api_name}}</b>.
+  -else
+    -trans "Connect your NLU Api"
+
+-block pre-form
+  -if not object.nlu_api_config_json
+    -blocktrans
+      Connecting your Natural Language Understand Api will allow you get entity's and intentions of yours 
+      users messages.
+    %hr
+
+-block fields
+    {{ block.super }}
+
+-block form-buttons
+    bla
+-block post-form
+    bla
+
+-block extra-script
+    
