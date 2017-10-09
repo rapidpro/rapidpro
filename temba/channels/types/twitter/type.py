@@ -44,34 +44,11 @@ class TwitterType(ChannelType):
         notify_mage_task.delay(channel.uuid, MageStreamAction.deactivate.name)
 
     @classmethod
-    def get_quick_replies(cls, metadata, post_body):
-        metadata = json.loads(metadata)
-        quick_replies = metadata.get('quick_replies', None)
-
-        if quick_replies:
-            replies = []
-            for quick_reply in quick_replies:
-                replies.append(dict(label=quick_reply.get('text')))
-
-            post_body = dict(
-                event=dict(
-                    type='message_create',
-                    message_create=dict(
-                        target=dict(
-                            recipient_id=post_body.get('user_id')
-                        ),
-                        message_data=dict(
-                            text=post_body.get('text'),
-                            quick_reply=dict(
-                                type='options',
-                                options=replies
-                            )
-                        )
-                    )
-                )
-            )
-
-        return post_body
+    def format_quick_replies(cls, quick_replies):
+        data = json.loads(quick_replies)
+        data = data.get('quick_replies', None)
+        replies = [dict(label=item.get('text')) for item in data] if data else []
+        return replies
 
     def send(self, channel, msg, text):
         twitter = TembaTwython.from_channel(channel)
@@ -88,13 +65,30 @@ class TwitterType(ChannelType):
 
             # this is a new twitterid URN, our path is our user id
             else:
-                post_body = dict(user_id=path, text=text)
-                if hasattr(msg, 'metadata'):
-                    params = self.get_quick_replies(msg.metadata, post_body)
+                metadata = msg.metadata if hasattr(msg, 'metadata') else None
+                quick_replies = self.format_quick_replies(metadata) if metadata else None
+                if quick_replies:
+                    params = dict(
+                        event=dict(
+                            type='message_create',
+                            message_create=dict(
+                                target=dict(
+                                    recipient_id=path
+                                ),
+                                message_data=dict(
+                                    text=text,
+                                    quick_reply=dict(
+                                        type='options',
+                                        options=quick_replies
+                                    )
+                                )
+                            )
+                        )
+                    )
                     dm = twitter.post('direct_messages/events/new', params=params)
                     external_id = dm['event']['id']
                 else:
-                    dm = twitter.send_direct_message(**post_body)
+                    dm = twitter.send_direct_message(user_id=path, text=text)
                     external_id = dm['id']
 
         except Exception as e:

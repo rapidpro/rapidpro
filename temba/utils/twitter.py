@@ -45,7 +45,7 @@ class TembaTwython(Twython):  # pragma: no cover
         params = params or {}
 
         func = getattr(self.client, method)
-        params, files = _transparent_params(params)
+        params, files = (params, None) if 'event' in params else _transparent_params(params)
 
         requests_args = {}
         for k, v in self.client_args.items():
@@ -57,8 +57,8 @@ class TembaTwython(Twython):  # pragma: no cover
             requests_args['params'] = params
         else:
             requests_args.update({
-                'data': params,
-                'files': files,
+                'data': json.dumps(params) if 'event' in params else params,
+                'files': files
             })
         try:
             if method == 'get':
