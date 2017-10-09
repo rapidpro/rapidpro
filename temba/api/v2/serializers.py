@@ -513,7 +513,7 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
     def validate(self, data):
 
-        if ContactField.objects.filter(org=self.context['org']).count() >= ContactField.MAX_ORG_CONTACTFIELDS:
+        if not self.instance and ContactField.objects.filter(org=self.context['org']).count() >= ContactField.MAX_ORG_CONTACTFIELDS:
             raise serializers.ValidationError('You have reached %s contact fields, '
                                               'please remove some contact fields to be able '
                                               'to create new contact fields' % ContactField.MAX_ORG_CONTACTFIELDS)
@@ -785,7 +785,7 @@ class LabelWriteSerializer(WriteSerializer):
         return value
 
     def validate(self, data):
-        if Label.all_objects.filter(org=self.context['org'], is_active=True).count() >= Label.MAX_ORG_LABELS:
+        if Label.label_objects.filter(org=self.context['org'], is_active=True).count() >= Label.MAX_ORG_LABELS:
             raise serializers.ValidationError("You have reached %s labels, "
                                               "please remove some to be able to add a new label" % Label.MAX_ORG_LABELS)
         return data
