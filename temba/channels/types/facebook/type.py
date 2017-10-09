@@ -55,11 +55,10 @@ class FacebookType(ChannelType):
     def format_quick_replies(cls, quick_replies):
         data = json.loads(quick_replies)
         data = data.get('quick_replies', None)
+        replies = []
 
         if data:
             replies = [dict(title=item.get('text'), payload=item.get('text'), content_type='text') for item in data]
-        else:
-            replies = None
 
         return replies
 
