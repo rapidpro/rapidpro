@@ -48,26 +48,28 @@ class TelegramType(ChannelType):
         bot.delete_webhook()
 
     @classmethod
-    def get_quick_replies(cls, metadata, post_body):
-        metadata = json.loads(metadata)
-        quick_replies = metadata.get('quick_replies', None)
+    def format_quick_replies(cls, quick_replies):
+        data = json.loads(quick_replies)
+        data = data.get('quick_replies', None)
         replies = []
 
-        if quick_replies:
-            for reply in quick_replies:
-                replies.append([dict(text=reply.get('text'))])
+        if data:
+            for item in data:
+                replies.append([dict(text=item.get('text'))])
 
-            post_body['reply_markup'] = json.dumps(dict(resize_keyboard=True, one_time_keyboard=True, keyboard=replies))
+            replies = json.dumps(dict(resize_keyboard=True, one_time_keyboard=True, keyboard=replies))
 
-        return post_body
+        return replies
 
     def send(self, channel, msg, text):
         auth_token = channel.config['auth_token']
         send_url = 'https://api.telegram.org/bot%s/sendMessage' % auth_token
         post_body = {'chat_id': msg.urn_path, 'text': text}
 
-        if hasattr(msg, 'metadata'):
-            post_body = self.get_quick_replies(msg.metadata, post_body)
+        metadata = getattr(msg, 'metadata', None)
+        quick_replies = self.format_quick_replies(metadata) if metadata else None
+        if quick_replies:
+            post_body['reply_markup'] = quick_replies
 
         start = time.time()
 
