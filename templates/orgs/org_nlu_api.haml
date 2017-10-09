@@ -24,12 +24,35 @@
     %hr
 
 -block fields
-    {{ block.super }}
+    -if not object.nlu_api_config_json
+        {{ block.super }}
 
 -block form-buttons
-    bla
+
 -block post-form
-    bla
+    %p
+      -trans "Your NLU Api is connected"
+      {{api_name}}.
+
+    %p
+      -trans "If you no longer want it connected, you can"
+      %a{href:'javascript:confirmNluApiDisconnect();'}
+        -trans "disconnect"
+      -trans "your NLU Api. Doing so will interrupt flows that use NLU."
+
+    .disconnect-nlu-api.hide
+      .title
+        -trans "Disconnect NLU Api"
+      .body
+        -blocktrans
+          This will disconnect your NLU Api. Are you sure you want to proceed?
+    %a#disconnect-nlu-api-form.posterize{href:'{% url "orgs.org_nlu_api" %}?disconnect=true'}
 
 -block extra-script
-    
+  :javascript
+    $(document).ready(function() {
+      select2div('#id_type');
+    });
+    function confirmNluApiDisconnect() {
+      removalConfirmation("disconnect-nlu-api", "Disconnect");
+    }
