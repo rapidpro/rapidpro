@@ -496,6 +496,7 @@ PERMISSIONS = {
                          'keyword',
                          'missed_call',
                          'new_conversation',
+                         'nlu_api',
                          'referral',
                          'register',
                          'schedule',

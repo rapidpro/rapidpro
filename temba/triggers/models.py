@@ -33,6 +33,7 @@ class Trigger(SmartModel):
     TYPE_SCHEDULE = 'S'
     TYPE_USSD_PULL = 'U'
     TYPE_INBOUND_CALL = 'V'
+    TYPE_NLU_API = 'L'
 
     TRIGGER_TYPES = ((TYPE_KEYWORD, _("Keyword Trigger")),
                      (TYPE_SCHEDULE, _("Schedule Trigger")),
@@ -42,7 +43,8 @@ class Trigger(SmartModel):
                      (TYPE_FOLLOW, _("Follow Account Trigger")),
                      (TYPE_NEW_CONVERSATION, _("New Conversation Trigger")),
                      (TYPE_USSD_PULL, _("USSD Pull Session Trigger")),
-                     (TYPE_REFERRAL, _("Referral Trigger")))
+                     (TYPE_REFERRAL, _("Referral Trigger")),
+                     (TYPE_NLU_API, _("NLU Api Trigger")))
 
     KEYWORD_MAX_LEN = 16
 
