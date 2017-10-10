@@ -369,12 +369,12 @@ class NluApiTriggerForm(GroupBasedTriggerForm):
     """
     For for catchall triggers
     """
-    intetion = forms.CharField(max_length=255, required=True, label=_("Intetion Keyword"),
-                                  help_text=_("The intentions that will trigger this flow"))
+    intents = forms.CharField(max_length=255, required=True, label=_("Intents Keyword"),
+                                  help_text=_("The intents that will trigger this flow"))
     accurancy = forms.IntegerField(max_value=100, min_value=0, required=True, label=_("Accurancy Value"),
-                                  help_text=_("The minimum accurancy value of the intention to trigger this flow"))
+                                  help_text=_("The minimum accuracy value between 0 and 100"))
     bots = forms.ChoiceField((), label=_("Bot Intepreter"), required=True,
-                             help_text=_("Bot that will intepreter words and return intentions"))
+                             help_text=_("Bot that will intepreter words and return intents"))
 
     def __init__(self, user, *args, **kwargs):
         flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW])
@@ -395,7 +395,7 @@ class NluApiTriggerForm(GroupBasedTriggerForm):
                 ("bot_id2", "bot_name2"),)
 
     class Meta(BaseTriggerForm.Meta):
-        fields = ('flow', 'groups', 'bots', 'intetion', 'accurancy')
+        fields = ('flow', 'groups', 'bots', 'intents', 'accurancy')
 
 
 class TriggerActionForm(BaseActionForm):

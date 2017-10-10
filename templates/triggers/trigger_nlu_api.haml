@@ -9,8 +9,14 @@
   %script
     $(document).ready(function() {
       select2div("#id_nlu_api_flow", "520px");
+      select2div("#id_nlu_api_bots", "520px");
       $("#id_nlu_api_groups").select2({
         containerCssClass: "select2-temba-field"
       });
-      select2div("#id_nlu_api_bots", "520px");
+     $("#id_nlu_api_intents").select2({
+        tags: true,
+        tokenSeparators: [",", "\t", "\n", " "],
+        dropdownCssClass : 'select2-no-search',
+        containerCssClass: "select2-temba-field"
+      });
     });
