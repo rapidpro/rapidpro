@@ -7486,10 +7486,10 @@ class TelegramTest(TembaTest):
         {
             "quick_replies": [
                 {
-                    "title": "Yes"
+                    "text": "Yes"
                 },
                 {
-                    "title": "No"
+                    "text": "No"
                 }
             ]
         }
@@ -7961,7 +7961,7 @@ class TwitterTest(TembaTest):
             settings.SEND_MESSAGES = False
 
     def test_send_quick_replies(self):
-        metadata = json.dumps(dict(quick_replies=[dict(title='Yes'), dict(title='No')]))
+        metadata = json.dumps(dict(quick_replies=[dict(text='Yes'), dict(text='No')]))
         msg = self.joe.send("Hello, world!", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
         try:
@@ -10005,10 +10005,10 @@ class FacebookTest(TembaTest):
         {
             "quick_replies": [
                 {
-                    "title": "Yes"
+                    "text": "Yes"
                 },
                 {
-                    "title": "No"
+                    "text": "No"
                 }
             ]
         }
@@ -11193,7 +11193,7 @@ class ViberPublicTest(TembaTest):
             self.clear_cache()
 
     def test_send_quick_replies(self):
-        metadata = json.dumps(dict(quick_replies=[dict(title='Yes'), dict(title='No')]))
+        metadata = json.dumps(dict(quick_replies=[dict(text='Yes'), dict(text='No')]))
         joe = self.create_contact("Joe", urn="viber:FXLP/JstS7kDuoiUGihkgA==")
         msg = joe.send("Hello, world!", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
@@ -11416,10 +11416,10 @@ class FcmTest(TembaTest):
         {
             "quick_replies": [
                 {
-                    "title": "Yes"
+                    "text": "Yes"
                 },
                 {
-                    "title": "No"
+                    "text": "No"
                 }
             ]
         }
@@ -11446,16 +11446,14 @@ class FcmTest(TembaTest):
                         'title': 'FCM Channel',
                         'message': 'Hello, world!',
                         'message_id': msg.id,
-                        'metadata': {
-                            "quick_replies": [
-                                {
-                                    "title": "Yes"
-                                },
-                                {
-                                    "title": "No"
-                                }
-                            ]
-                        }
+                        'metadata': [
+                            {
+                                "text": "Yes"
+                            },
+                            {
+                                "text": "No"
+                            }
+                        ]
                     },
                     'content_available': True,
                     'to': '123456abcdef',
