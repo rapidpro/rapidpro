@@ -134,6 +134,8 @@ class window.AutoComplete
           return value
 
   findInvalidFields: (text) ->
+    if not text
+      return []
     validKeys = {}
     for variable in @variables
       if variable.name.startsWith('contact')
