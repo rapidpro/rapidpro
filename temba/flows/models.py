@@ -2516,7 +2516,7 @@ class Flow(TembaModel):
                             for lang, text in six.iteritems(rule.test.test):
                                 fields.update(collector.get_contact_fields(text))
                         # voice rules are not localized
-                        elif six.text_type(rule.test.test):
+                        elif isinstance(rule.test.test, six.string_types):
                             fields.update(collector.get_contact_fields(rule.test.test))
                     if isinstance(rule.test, InGroupTest):
                         groups.add(rule.test.group)
@@ -2526,7 +2526,7 @@ class Flow(TembaModel):
 
             # create any field that doesn't already exist
             for field in fields:
-                if field not in existing:
+                if ContactField.is_valid_key(field) and field not in existing:
                     # reverse slug to get a reasonable label
                     label = ' '.join([word.capitalize() for word in field.split('_')])
                     ContactField.get_or_create(self.org, self.modified_by, field, label)

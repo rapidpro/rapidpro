@@ -1,8 +1,10 @@
 from __future__ import absolute_import, unicode_literals
 
 import regex
+import six
 
 from temba_expressions.evaluator import Evaluator, EvaluationContext, EvaluationStrategy, DEFAULT_FUNCTION_MANAGER
+from temba.contacts.models import ContactField
 
 ALLOWED_TOP_LEVELS = ('channel', 'contact', 'date', 'extra', 'flow', 'step', 'parent', 'child')
 
@@ -264,8 +266,6 @@ class ContactFieldCollector (EvaluationContext):
     A simple evaluator that extracts contact fields from the parse tree
     """
 
-    reserved = ('tel_e164', 'tel', 'facebook', 'telegram')
-
     @classmethod
     def get_contact_field(cls, path):
         parts = path.split('.')
@@ -274,7 +274,7 @@ class ContactFieldCollector (EvaluationContext):
                 parts = parts[1:]
             if parts[0] == 'contact':
                 field_name = parts[1]
-                if field_name not in cls.reserved:
+                if ContactField.is_valid_key(field_name):
                     return parts[1]
         return None
 
@@ -283,7 +283,8 @@ class ContactFieldCollector (EvaluationContext):
 
     def get_contact_fields(self, msg):
         self.contact_fields = set()
-        evaluate_template(msg, self, False, False)
+        if msg:
+            evaluate_template(six.text_type(msg), self, False, False)
         return self.contact_fields
 
     def resolve_variable(self, path):

@@ -5454,9 +5454,11 @@ class FlowsTest(FlowFileTest):
         # we should depend on our child flow
         self.assertIsNotNone(flow.flow_dependencies.filter(name='Child Flow').first())
 
-        # remove our subflow call
+        # remove our start flow action
         update_json = flow.as_json()
-        update_json['rule_sets'] = update_json['rule_sets'][:1]
+        actionsets = update_json['action_sets']
+        actionsets[-1]['actions'] = actionsets[-1]['actions'][0:-1]
+        update_json['action_sets'] = actionsets
         flow.update(update_json)
 
         # now we no longer depend on it
@@ -5484,8 +5486,9 @@ class FlowsTest(FlowFileTest):
             for action in actions:
                 if action['type'] in ('add_group', 'del_group'):
                     for group in action['groups']:
-                        group_count += 1
-                        self.assertIsNotNone(ContactGroup.user_groups.filter(uuid=group['uuid']).first())
+                        if isinstance(group, dict):
+                            group_count += 1
+                            self.assertIsNotNone(ContactGroup.user_groups.filter(uuid=group['uuid']).first())
 
         # make sure we found both our group actions
         self.assertEqual(2, group_count)
@@ -5539,7 +5542,6 @@ class FlowsTest(FlowFileTest):
 
     def test_substitution(self):
         flow = self.get_flow('substitution')
-
         self.contact.name = "Ben Haggerty"
         self.contact.save()
 
@@ -5594,7 +5596,6 @@ class FlowsTest(FlowFileTest):
     def test_mother_registration(self):
         mother_flow = self.get_flow('new_mother')
         registration_flow = self.get_flow('mother_registration', dict(NEW_MOTHER_FLOW_ID=mother_flow.pk))
-
         self.assertEqual(mother_flow.runs.count(), 0)
 
         self.assertEquals("What is her expected delivery date?", self.send_message(registration_flow, "Judy Pottier"))
