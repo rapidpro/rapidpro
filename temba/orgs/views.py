@@ -2050,10 +2050,23 @@ class OrgCRUDL(SmartCRUDL):
                                          help_text="Enter your Api name", choices=NLU_API_CHOICES)
             api_key = forms.CharField(max_length=255, label=_("API Key"), required=False,
                                       help_text="Enter your NLU Api Key")
+            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
+
+            def clean(self):
+                super(OrgCRUDL.NluApi.NluApiForm, self).clean()
+                if self.cleaned_data.get('disconnect', 'false') == 'false':
+                    api_name = self.cleaned_data.get('api_name')
+                    api_key = self.cleaned_data.get('api_key')
+
+                    if not api_name or not api_key:
+                        raise ValidationError(_("Missing data: API Name or API Key."
+                                                "Please check them again and retry."))
+
+                return self.cleaned_data
 
             class Meta:
                 model = Org
-                fields = ('api_name', 'api_key')
+                fields = ('api_name', 'api_key', 'disconnect')
 
         success_message = ''
         success_url = '@orgs.org_home'
@@ -2065,6 +2078,7 @@ class OrgCRUDL(SmartCRUDL):
             config = org.nlu_api_config_json()
             initial['api_name'] = config.get(NLU_API_NAME, '')
             initial['api_key'] = config.get(NLU_API_KEY, '')
+            initial['disconnect'] = 'false'
             return initial
 
         def get_context_data(self, **kwargs):
@@ -2074,6 +2088,15 @@ class OrgCRUDL(SmartCRUDL):
                 context['api_name'] = dict(NLU_API_CHOICES).get(api_name, None)
 
             return context
+        
+        def post(self, *args, **kwargs):
+            user = self.request.user
+            org = user.get_org()
+            if self.request.POST.get('disconnect', 'false') == 'true':
+                org.remove_nlu_api(user)
+                return HttpResponseRedirect(reverse('orgs.org_home'))
+
+            return super(OrgCRUDL.NluApi, self).post(self, *args, **kwargs)
 
         def form_valid(self, form):
             user = self.request.user
@@ -2081,7 +2104,12 @@ class OrgCRUDL(SmartCRUDL):
 
             api_name = form.cleaned_data.get('api_name')
             api_key = form.cleaned_data.get('api_key')
-            if api_name and api_key:
+            disconnect = form.cleaned_data.get('disconnect', 'false') == 'true'
+
+            if disconnect:
+                org.remove_nlu_api(user)
+                return HttpResponseRedirect(reverse('orgs.org_home'))
+            elif api_name and api_key:
                 org.connect_nlu_api(api_name, api_key, user)
 
             return super(OrgCRUDL.NluApi, self).form_valid(form)

@@ -945,8 +945,10 @@ class Org(SmartModel):
         self.modified_by = user
         self.save()
 
-    def remove_nlu_api(self):
-        pass
+    def remove_nlu_api(self, user):
+        self.nlu_api_config = None
+        self.modified_by = user
+        self.save()
 
     def get_nlu_api_credentials(self):
         nlu_api_config = self.nlu_api_config_json()
