@@ -397,9 +397,9 @@ class Broadcast(models.Model):
         base_metadata = Language.get_localized_text(metadata.get('quick_replies'), [self.base_language])
 
         if language_metadata:
-            for i, item in enumerate(language_metadata):
-                if not item.get('text'):
-                    item['text'] = base_metadata[i]['text']
+            for i, item in enumerate(base_metadata):
+                if not (i < len(language_metadata)):
+                    language_metadata += (dict(text=item['text']),)
 
             return language_metadata
         else:

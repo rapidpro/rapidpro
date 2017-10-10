@@ -729,11 +729,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         fromQuickReplies = action.quick_replies[Flow.flow.base_language] || []
         toQuickReplies = action.quick_replies[Flow.language.iso_code] || []
 
-        if toQuickReplies.length == 0 && (fromQuickReplies != [] && fromQuickReplies?)
-
-          for obj in fromQuickReplies
-            toQuickReplies.push({text: ''})
-
         translations = [
           {
             name: 'Message Text',
@@ -780,7 +775,14 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             translated = if translation.to?.strip().length > 0 then translation.to else null
 
             if translation.toQuickReplies? && translation.toQuickReplies != []
-              action.quick_replies[Flow.language.iso_code] = translation.toQuickReplies
+              for item, counter in translation.toQuickReplies
+                console.log(item?['text'])
+                if !(item?['text'])
+                  translation.toQuickReplies.splice(counter, 1)
+              if !translation.toQuickReplies.length
+                delete action.quick_replies[Flow.language.iso_code]
+              else
+                action.quick_replies[Flow.language.iso_code] = translation.toQuickReplies
             else
               delete action.quick_replies[Flow.language.iso_code]
             
