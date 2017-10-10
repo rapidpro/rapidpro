@@ -62,9 +62,6 @@ class FlowTest(TembaTest):
 
         self.flow = self.create_flow(name="Color Flow", base_language='base', definition=self.COLOR_FLOW_DEFINITION)
 
-        self.flow_quick_replies = self.create_flow(name="Quick Replies Flow", base_language='eng',
-                                                   definition=self.QUICK_REPLY_FLOW_DEFINITION)
-
         self.other_group = self.create_group("Other", [])
 
     def export_flow_results(self, flow, responded_only=False, include_msgs=True, include_runs=True, contact_fields=None, extra_urns=[]):
