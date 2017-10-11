@@ -393,17 +393,13 @@ class Broadcast(models.Model):
         """
         preferred_languages = self.get_preferred_languages(contact, org)
         metadata = json.loads(metadata)
-        language_metadata = Language.get_localized_text(metadata.get('quick_replies'), preferred_languages)
-        base_metadata = Language.get_localized_text(metadata.get('quick_replies'), [self.base_language])
+        language_metadata = []
+        for item in metadata.get('quick_replies'):
+            current_language = preferred_languages[0] if preferred_languages else None
+            quick_reply = item.get(current_language) if current_language in item else item.get(self.base_language)
+            language_metadata.append(quick_reply)
 
-        if language_metadata:
-            for i, item in enumerate(base_metadata):
-                if not (i < len(language_metadata)):
-                    language_metadata += (dict(text=item['text']),)
-
-            return language_metadata
-        else:
-            return base_metadata
+        return language_metadata
 
     def get_translated_media(self, contact, org=None):
         """
@@ -1470,11 +1466,10 @@ class Msg(models.Model):
         metadata = json.loads(metadata)
         quick_replies = metadata.get('quick_replies', None)
         if quick_replies:
-            for reply in quick_replies:
-                (text, errors) = Msg.substitute_variables(reply.get('text', None), message_context,
-                                                          contact=contact, org=org)
+            for counter, reply in enumerate(quick_replies):
+                (text, errors) = Msg.substitute_variables(reply, message_context, contact=contact, org=org)
                 if text:
-                    reply['text'] = text[:Msg.MAX_QUICK_REPLY_TEXT_LEN]
+                    quick_replies[counter] = text[:Msg.MAX_QUICK_REPLY_TEXT_LEN]
 
         return json.dumps(metadata)
 

@@ -5133,17 +5133,13 @@ class ReplyAction(Action):
         """
         Gets the appropriate metadata translation for the given contact
         """
-        language_metadata = Language.get_localized_text(metadata, [run.contact.language])
-        base_metadata = Language.get_localized_text(metadata, [run.flow.base_language])
+        language_metadata = []
+        for item in metadata.get('quick_replies'):
+            quick_reply = item.get(run.contact.language) \
+                if run.contact.language in item else item.get(run.flow.base_language)
+            language_metadata.append(quick_reply)
 
-        if language_metadata:
-            for i, item in enumerate(language_metadata):
-                if not item.get('text'):
-                    item['text'] = base_metadata[i]['text']
-
-            return language_metadata
-        else:
-            return base_metadata
+        return language_metadata
 
     def execute(self, run, context, actionset_uuid, msg, offline_on=None):
         replies = []

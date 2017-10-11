@@ -58,7 +58,7 @@ class FacebookType(ChannelType):
         replies = []
 
         if data:
-            replies = [dict(title=item.get('text'), payload=item.get('text'), content_type='text') for item in data]
+            replies = [dict(title=item, payload=item, content_type='text') for item in data]
 
         return replies
 

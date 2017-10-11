@@ -55,7 +55,7 @@ class TelegramType(ChannelType):
 
         if data:
             for item in data:
-                replies.append([dict(text=item.get('text'))])
+                replies.append([dict(text=item)])
 
             replies = json.dumps(dict(resize_keyboard=True, one_time_keyboard=True, keyboard=replies))
 

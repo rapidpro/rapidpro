@@ -47,7 +47,7 @@ class TwitterType(ChannelType):
     def format_quick_replies(cls, quick_replies):
         data = json.loads(quick_replies)
         data = data.get('quick_replies', None)
-        replies = [dict(label=item.get('text')) for item in data] if data else []
+        replies = [dict(label=item) for item in data] if data else []
         return replies
 
     def send(self, channel, msg, text):
