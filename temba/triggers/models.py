@@ -462,8 +462,19 @@ class Trigger(SmartModel):
         self.trigger_count += 1
         self.save()
 
-    def catch_nlu_triggers(self, msg, trigger_type):
-        pass
+    @classmethod
+    def catch_nlu_triggers(cls, entity, trigger_type):
+        if not entity:
+            return False
+
+        triggers = Trigger.get_triggers_of_type(entity.org, trigger_type)
+        print(triggers)
+        for trigger in triggers:
+            try:
+                pass
+            except:
+                pass
+        return True
 
     def get_nlu_data(self):
         nlu_data = json.loads(self.nlu_data)
