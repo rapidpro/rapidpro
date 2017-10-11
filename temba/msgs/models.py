@@ -1481,6 +1481,10 @@ class Msg(models.Model):
                 (attachment, errors) = Msg.substitute_variables(attachment, message_context, contact=contact, org=org)
                 evaluated_attachments.append(attachment)
 
+        # prefer none to empty lists in the database
+        if len(evaluated_attachments) == 0:
+            evaluated_attachments = None
+
         # if we are doing a single message, check whether this might be a loop of some kind
         if insert_object:
             # prevent the loop of message while the sending phone is the channel
