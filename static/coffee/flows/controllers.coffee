@@ -726,16 +726,12 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
       if action.type in ["send", "reply", "say", "end_ussd"]
 
-        fromQuickReplies = action.quick_replies[Flow.flow.base_language] || []
-        toQuickReplies = action.quick_replies[Flow.language.iso_code] || []
-
         translations = [
           {
             name: 'Message Text',
             from: action.msg[Flow.flow.base_language],
             to: action.msg[Flow.language.iso_code],
-            fromQuickReplies: fromQuickReplies,
-            toQuickReplies: toQuickReplies
+            fromQuickReplies: action.quick_replies || []
           }
         ]
 
@@ -774,17 +770,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             results = action.msg
             translated = if translation.to?.strip().length > 0 then translation.to else null
 
-            if translation.toQuickReplies? && translation.toQuickReplies != []
-              for item, counter in translation.toQuickReplies
-                console.log(item?['text'])
-                if !(item?['text'])
-                  translation.toQuickReplies.splice(counter, 1)
-              if !translation.toQuickReplies.length
-                delete action.quick_replies[Flow.language.iso_code]
-              else
-                action.quick_replies[Flow.language.iso_code] = translation.toQuickReplies
-            else
-              delete action.quick_replies[Flow.language.iso_code]
+            if translation.fromQuickReplies? && translation.fromQuickReplies != []
+              action.quick_replies = translation.fromQuickReplies
             
             if translation.name == "Attachment"
               results = action.media
@@ -1821,7 +1808,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.action = utils.clone(action)
   $scope.action_webhook_headers_name = []
   $scope.action_webhook_headers_value = []
-  currentLang = Flow.language.iso_code
 
   $scope.showAttachOptions = false
   $scope.showAttachVariable = false
@@ -1834,19 +1820,15 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   startNodeConfig = () ->
     $scope.quickReplies = []
-    $scope.action.quick_replies = {}
+    $scope.action.quick_replies = []
     $scope.showQuickReplyButton = true
 
   if $scope.options.dragSource?
     startNodeConfig()
   else
-    if $scope.action.quick_replies? and $scope.action.quick_replies[currentLang] != undefined
-      if $scope.action.quick_replies[currentLang]?
-        $scope.quickReplies = $scope.action.quick_replies[currentLang]
-        $scope.showQuickReplyButton = false
-      else
-        $scope.quickReplies = []
-
+    if $scope.action.quick_replies? and $scope.action.quick_replies != undefined and $scope.action.quick_replies.length > 0
+      $scope.quickReplies = $scope.action.quick_replies
+      $scope.showQuickReplyButton = false
     else
       startNodeConfig()
 
@@ -1887,15 +1869,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.addNewQuickReply = ->
     $scope.showQuickReplyButton = false
     if $scope.quickReplies.length < 11
-      if Object.keys($scope.action.quick_replies).length < 1
-        $scope.quickReplies.push({text:''})
-      else
-        for lang of $scope.action.quick_replies
-          $scope.action.quick_replies[lang].push({text:''})
+      addQuickReply = {}
+      addQuickReply[$scope.base_language] = ''
+      $scope.quickReplies.push(addQuickReply)
 
   $scope.removeQuickReply = (a, index) ->
-    for lang of $scope.action.quick_replies
-      $scope.action.quick_replies[lang].splice(index, 1)
+    a.splice(index, 1)
 
     if Object.keys($scope.action.quick_replies).length == 0
       $scope.quickReplies.splice(index, 1)
@@ -1903,7 +1882,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if a.length == 0
       $scope.showQuickReplyButton = true
       $scope.quickReplies = []
-      $scope.action.quick_replies = {}
+      $scope.action.quick_replies = []
 
   $scope.actionset = actionset
   $scope.flowId = window.flowId
@@ -1977,13 +1956,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     else if not $scope.action._media
       $scope.action.media = null
 
-    if typeof($scope.action.quick_replies) != "object"
-      $scope.action.quick_replies = {}
-      
     if $scope.quickReplies.length > 0
-      $scope.action.quick_replies[$scope.base_language] = $scope.quickReplies
+      $scope.action.quick_replies = $scope.quickReplies
     else
-      $scope.action.quick_replies = {}
+      $scope.action.quick_replies = []
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
