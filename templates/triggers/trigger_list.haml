@@ -168,7 +168,7 @@
                               on
                               %span.attn
                                 %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
-                          -trans "with accurancy more than "
+                          -trans "with accurancy more than"
                             {{ obj.get_nlu_data.accurancy }}%
 
                         -if obj.schedule

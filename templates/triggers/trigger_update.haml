@@ -162,6 +162,9 @@
           dropdownCssClass : 'select2-no-search',
           containerCssClass: "select2-temba-field"
         });
+        $('#id_bots').val( {% autoescape off %} {{ bot }} {% endautoescape %}).trigger('change');
+        $("#id_intents").select2("val", {% autoescape off %} {{ intents }} {% endautoescape %})
+        $("#id_accurancy").val({{ accurancy }})
       {% endif %}
 
       new AutoComplete({{completions|safe}}, {{function_completions|safe}}).bind($('#id_response'));

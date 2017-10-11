@@ -492,6 +492,12 @@ class TriggerCRUDL(SmartCRUDL):
             context = super(TriggerCRUDL.Update, self).get_context_data(**kwargs)
             if self.get_object().schedule:
                 context['days'] = self.get_object().schedule.explode_bitmask()
+            if self.get_object().nlu_data:
+                nlu_data = self.get_object().get_nlu_data()
+                context['bot'] = json.dumps(nlu_data.get('bot'))
+                context['intents'] = json.dumps(nlu_data.get('intents').split(','))
+                context['accurancy'] = nlu_data.get('accurancy')
+
             context['user_tz'] = get_current_timezone_name()
             context['user_tz_offset'] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() / 60)
             return context
