@@ -157,6 +157,20 @@
                             %span.attn
                               %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
 
+                        -elif obj.trigger_type == 'L'
+                          -trans "The intents"
+                          %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
+                            - if org_perms.triggers.trigger_update
+                              %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}= obj.get_nlu_data.intents_replaced
+                            - else
+                              =obj.keyword
+                            -if obj.channel
+                              on
+                              %span.attn
+                                %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
+                          -trans "with accurancy more than "
+                            {{ obj.get_nlu_data.accurancy }}%
+
                         -if obj.schedule
                           -trans "The"
                         -else

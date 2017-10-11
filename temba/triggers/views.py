@@ -481,7 +481,8 @@ class TriggerCRUDL(SmartCRUDL):
                          Trigger.TYPE_FOLLOW: FollowTriggerForm,
                          Trigger.TYPE_NEW_CONVERSATION: NewConversationTriggerForm,
                          Trigger.TYPE_USSD_PULL: UssdTriggerForm,
-                         Trigger.TYPE_REFERRAL: ReferralTriggerForm}
+                         Trigger.TYPE_REFERRAL: ReferralTriggerForm,
+                         Trigger.TYPE_NLU_API: NluApiTriggerForm}
 
         def get_form_class(self):
             trigger_type = self.object.trigger_type
@@ -570,6 +571,16 @@ class TriggerCRUDL(SmartCRUDL):
                 if trigger.schedule.is_expired():
                     from temba.schedules.tasks import check_schedule_task
                     on_transaction_commit(lambda: check_schedule_task.delay(trigger.schedule.pk))
+
+            if trigger_type == Trigger.TYPE_NLU_API:
+                nlu_data = {
+                    'bot': form.cleaned_data['bots'],
+                    'intents': form.cleaned_data['intents'],
+                    'accurancy': form.cleaned_data['accurancy']
+                }
+                nlu_data = json.dumps(nlu_data)
+
+                trigger.nlu_data = nlu_data
 
             response = super(TriggerCRUDL.Update, self).form_valid(form)
             response['REDIRECT'] = self.get_success_url()
@@ -936,9 +947,19 @@ class TriggerCRUDL(SmartCRUDL):
         def form_valid(self, form):
             user = self.request.user
             org = user.get_org()
+            groups = form.cleaned_data['groups']
+
+            nlu_data = {
+                'bot': form.cleaned_data['bots'],
+                'intents': form.cleaned_data['intents'],
+                'accurancy': form.cleaned_data['accurancy']
+            }
+            nlu_data = json.dumps(nlu_data)
 
             self.object = Trigger.create(org, user, Trigger.TYPE_NLU_API, form.cleaned_data['flow'],
-                                         form.cleaned_data['channel'], keyword=form.cleaned_data['keyword'])
+                                         nlu_data=nlu_data)
+            for group in groups:
+                self.object.groups.add(group)
 
             analytics.track(self.request.user.username, 'temba.trigger_created_nlu_api')
 

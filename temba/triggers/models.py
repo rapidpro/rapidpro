@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import regex
 import six
+import json
 
 from django.conf import settings
 from django.db import models
@@ -92,6 +93,9 @@ class Trigger(SmartModel):
 
     channel = models.ForeignKey(Channel, verbose_name=_("Channel"), null=True, related_name='triggers',
                                 help_text=_("The associated channel"))
+
+    nlu_data = models.TextField(null=True, verbose_name=_("Nlu Data"),
+                                help_text=_('Intents, accurancy, bots, somethings that will be used to nlu'))
 
     @classmethod
     def create(cls, org, user, trigger_type, flow, channel=None, **kwargs):
@@ -457,3 +461,8 @@ class Trigger(SmartModel):
         self.last_triggered = timezone.now()
         self.trigger_count += 1
         self.save()
+
+    def get_nlu_data(self):
+        nlu_data = json.loads(self.nlu_data)
+        nlu_data['intents_replaced'] = nlu_data.get('intents').replace(',', ', ')
+        return nlu_data
