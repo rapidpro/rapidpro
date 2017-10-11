@@ -462,6 +462,9 @@ class Trigger(SmartModel):
         self.trigger_count += 1
         self.save()
 
+    def catch_nlu_triggers(self, msg, trigger_type):
+        pass
+
     def get_nlu_data(self):
         nlu_data = json.loads(self.nlu_data)
         nlu_data['intents_replaced'] = nlu_data.get('intents').replace(',', ', ')
