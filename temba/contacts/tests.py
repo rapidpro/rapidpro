@@ -1444,6 +1444,11 @@ class ContactTest(TembaTest):
         ])
 
     def test_history(self):
+
+        # use a max history size of 100
+        from temba.contacts import models
+        models.MAX_HISTORY = 100
+
         url = reverse('contacts.contact_history', args=[self.joe.uuid])
 
         kurt = self.create_contact("Kurt", "123123")
@@ -1600,6 +1605,9 @@ class ContactTest(TembaTest):
         activity = response.context['activity']
         self.assertEqual(len(activity), 99)
 
+        # before date should not match our last activity, that only happens when we truncate
+        self.assertNotEqual(response.context['before'], datetime_to_ms(response.context['activity'][-1]['time']))
+
         self.assertIsInstance(activity[0]['obj'], Msg)
         self.assertEqual(activity[0]['obj'].direction, 'O')
         self.assertEqual(activity[1]['type'], 'run-start')
@@ -1614,6 +1622,18 @@ class ContactTest(TembaTest):
         self.assertIsInstance(activity[5]['obj'], ChannelEvent)
         self.assertIsInstance(activity[6]['obj'], WebHookResult)
         self.assertIsInstance(activity[7]['obj'], FlowRun)
+
+        # now try a shorter max history to test truncation
+        models.MAX_HISTORY = 50
+        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+
+        # our before should be the same as the last item
+        last_item_date = datetime_to_ms(response.context['activity'][-1]['time'])
+        self.assertEqual(response.context['before'], last_item_date)
+
+        # and our after should be 90 days earlier
+        self.assertEqual(response.context['after'], last_item_date - (90 * 24 * 60 * 60 * 1000))
+        self.assertEqual(len(response.context['activity']), 50)
 
     def test_event_times(self):
 

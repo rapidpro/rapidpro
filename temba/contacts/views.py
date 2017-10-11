@@ -841,9 +841,15 @@ class ContactCRUDL(SmartCRUDL):
             if not recent_only:
                 if before > contact.created_on:
                     context['has_older'] = bool(contact.get_activity(contact_creation, after))
-                context['before'] = datetime_to_ms(after)
-                context['after'] = datetime_to_ms(max(after - timedelta(days=90), contact_creation))
 
+            # mark our after as the last item in our list
+            from temba.contacts.models import MAX_HISTORY
+            if len(activity) >= MAX_HISTORY:
+                print ("Setting to last activity item", len(activity), MAX_HISTORY)
+                after = activity[-1]['time']
+
+            context['before'] = datetime_to_ms(after)
+            context['after'] = datetime_to_ms(max(after - timedelta(days=90), contact_creation))
             context['activity'] = activity
             return context
 
