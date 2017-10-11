@@ -56,6 +56,8 @@ def msg_as_task(msg):
                     response_to_id=msg.response_to_id,
                     external_id=msg.external_id,
 
+                    tps_cost=msg.channel.calculate_tps_cost(msg),
+
                     next_attempt=datetime_to_str(msg.next_attempt, ms=True),
                     created_on=datetime_to_str(msg.created_on, ms=True),
                     modified_on=datetime_to_str(msg.modified_on, ms=True),

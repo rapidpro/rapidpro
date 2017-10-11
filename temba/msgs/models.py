@@ -1813,6 +1813,8 @@ class Label(TembaModel):
     much the same way labels or tags apply to messages in web-based email services.
     """
     MAX_NAME_LEN = 64
+    MAX_ORG_LABELS = 250
+    MAX_ORG_FOLDERS = 250
 
     TYPE_FOLDER = 'F'
     TYPE_LABEL = 'L'
@@ -1847,6 +1849,10 @@ class Label(TembaModel):
         if label:
             return label
 
+        if Label.label_objects.filter(org=org, is_active=True).count() >= Label.MAX_ORG_LABELS:
+            raise ValueError("You have reached %s labels, "
+                             "please remove some to be able to add a new label" % Label.MAX_ORG_LABELS)
+
         return cls.label_objects.create(org=org, name=name, folder=folder, created_by=user, modified_by=user)
 
     @classmethod
@@ -1859,6 +1865,10 @@ class Label(TembaModel):
         folder = cls.folder_objects.filter(org=org, name__iexact=name).first()
         if folder:  # pragma: needs cover
             return folder
+
+        if Label.folder_objects.filter(org=org, is_active=True).count() >= Label.MAX_ORG_FOLDERS:
+            raise ValueError("You have reached %s labels, "
+                             "please remove some to be able to add a new label" % cls.MAX_ORG_FOLDERS)
 
         return cls.folder_objects.create(org=org, name=name, label_type=Label.TYPE_FOLDER,
                                          created_by=user, modified_by=user)

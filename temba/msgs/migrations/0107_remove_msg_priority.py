@@ -42,7 +42,7 @@ $$ LANGUAGE plpgsql;
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0105_msg_high_priority'),
+        ('msgs', '0106_auto_20171004_2118'),
     ]
 
     operations = [
