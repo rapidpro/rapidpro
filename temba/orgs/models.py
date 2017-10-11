@@ -1389,6 +1389,9 @@ class Org(SmartModel):
                     self._calculate_credit_caches()
                     org._calculate_credit_caches()
 
+                    # apply topups to messages missing them
+                    org.apply_topups()
+
                 return True
 
         # couldn't allocate credits
