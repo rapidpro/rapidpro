@@ -237,6 +237,7 @@ INSTALLED_APPS = (
     'temba.ussd',
     'temba.locations',
     'temba.values',
+    'temba.nlu',
     'temba.airtime',
 )
 
