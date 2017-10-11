@@ -42,7 +42,7 @@ class CallHandler(View):
         request_method = request.method
         request_path = request.get_full_path()
 
-        if channel_type in Channel.TWIML_CHANNELS and request.POST.get('hangup', 0):
+        if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML and request.POST.get('hangup', 0):
             if not request.user.is_anonymous():
                 user_org = request.user.get_org()
                 if user_org and user_org.pk == call.org.pk:
@@ -55,7 +55,7 @@ class CallHandler(View):
         if client.validate(request):
             status = None
             duration = None
-            if channel_type in Channel.TWIML_CHANNELS:
+            if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML:
                 status = request.POST.get('CallStatus', None)
                 duration = request.POST.get('CallDuration', None)
             elif ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO:
@@ -80,7 +80,7 @@ class CallHandler(View):
             media_url = None
             has_event = False
 
-            if channel_type in Channel.TWIML_CHANNELS:
+            if ivr_protocol == ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML:
 
                 # figure out if this is a callback due to an empty gather
                 is_empty = '1' == request.GET.get('empty', '0')

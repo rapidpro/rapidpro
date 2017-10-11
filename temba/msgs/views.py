@@ -696,11 +696,14 @@ class BaseLabelForm(forms.ModelForm):
         name = self.cleaned_data['name']
 
         if not Label.is_valid_name(name):
-            raise forms.ValidationError("Name must not be blank or begin with punctuation")
+            raise forms.ValidationError(_("Name must not be blank or begin with punctuation"))
 
         existing_id = self.existing.pk if self.existing else None
         if Label.all_objects.filter(org=self.org, name__iexact=name).exclude(pk=existing_id).exists():
-            raise forms.ValidationError("Name must be unique")
+            raise forms.ValidationError(_("Name must be unique"))
+
+        if Label.all_objects.filter(org=self.org, is_active=True).count() >= Label.MAX_ORG_LABELS:
+            raise forms.ValidationError(_("You have reached %s labels, please remove some to be able to add a new label" % Label.MAX_ORG_LABELS))
 
         return name
 
