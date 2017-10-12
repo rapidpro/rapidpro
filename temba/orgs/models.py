@@ -507,14 +507,18 @@ class Org(SmartModel):
                 # if we have more than one match, find the one with the highest overlap
                 if len(senders) > 1:
                     for sender in senders:
-                        channel_number = sender.address.strip('+')
+                        config = sender.config_json()
+                        channel_prefixes = config.get(Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES, [])
+                        if not channel_prefixes or not isinstance(channel_prefixes, list):
+                            channel_prefixes = [sender.address.strip('+')]
 
-                        for idx in range(prefix, len(channel_number)):
-                            if idx >= prefix and channel_number[0:idx] == contact_number[0:idx]:
-                                prefix = idx
-                                channel = sender
-                            else:
-                                break
+                        for chan_prefix in channel_prefixes:
+                            for idx in range(prefix, len(chan_prefix)):
+                                if idx >= prefix and chan_prefix[0:idx] == contact_number[0:idx]:
+                                    prefix = idx
+                                    channel = sender
+                                else:
+                                    break
                 elif senders:
                     channel = senders[0]
 
@@ -845,8 +849,7 @@ class Org(SmartModel):
     def remove_nexmo_account(self, user):
         if self.config:
             # release any nexmo channels
-            from temba.channels.models import Channel
-            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_NEXMO):  # pragma: needs cover
+            for channel in self.channels.filter(is_active=True, channel_type='NX'):  # pragma: needs cover
                 channel.release()
 
             config = self.config_json()
@@ -1181,8 +1184,7 @@ class Org(SmartModel):
         return self.channels.filter(channel_type=Channel.TYPE_TWILIO)
 
     def has_nexmo_number(self):  # pragma: needs cover
-        from temba.channels.models import Channel
-        return self.channels.filter(channel_type=Channel.TYPE_NEXMO)
+        return self.channels.filter(channel_type='NX')
 
     def create_welcome_topup(self, topup_size=None):
         if topup_size:

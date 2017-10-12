@@ -1591,6 +1591,22 @@ class LabelTest(TembaTest):
         # don't allow invalid name
         self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "+Important")
 
+    @patch.object(Label, "MAX_ORG_LABELS", new=10)
+    def test_maximum_labels_reached(self):
+        for i in range(Label.MAX_ORG_LABELS):
+            Label.get_or_create(self.org, self.user, "label%d" % i)
+
+        for i in range(Label.MAX_ORG_FOLDERS):
+            Label.get_or_create_folder(self.org, self.user, "folder%d" % i)
+
+        # allow to query existing labels
+        Label.get_or_create(self.org, self.user, "label1")
+        Label.get_or_create_folder(self.org, self.user, "folder1")
+
+        # don't allow creating more than 250
+        self.assertRaises(ValueError, Label.get_or_create, self.org, self.user, "foo")
+        self.assertRaises(ValueError, Label.get_or_create_folder, self.org, self.user, "bar")
+
     def test_is_valid_name(self):
         self.assertTrue(Label.is_valid_name('x'))
         self.assertTrue(Label.is_valid_name('1'))
@@ -1733,6 +1749,7 @@ class LabelTest(TembaTest):
 
 class LabelCRUDLTest(TembaTest):
 
+    @patch.object(Label, "MAX_ORG_LABELS", new=10)
     def test_create_and_update(self):
         create_label_url = reverse('msgs.label_create')
         create_folder_url = reverse('msgs.label_create_folder')
@@ -1773,6 +1790,15 @@ class LabelCRUDLTest(TembaTest):
         # try to update to invalid label name
         response = self.client.post(reverse('msgs.label_update', args=[label_one.pk]), dict(name="+label_1"))
         self.assertFormError(response, 'form', 'name', "Name must not be blank or begin with punctuation")
+
+        Label.all_objects.all().delete()
+
+        for i in range(Label.MAX_ORG_LABELS):
+            Label.get_or_create(self.org, self.user, "label%d" % i)
+
+        response = self.client.post(create_label_url, dict(name="Label"))
+        self.assertFormError(response, 'form', 'name',
+                             "You have reached 10 labels, please remove some to be able to add a new label")
 
     def test_label_delete(self):
         label_one = Label.get_or_create(self.org, self.user, "label1")
@@ -1820,11 +1846,7 @@ class ScheduleTest(TembaTest):
         channel_models.SEND_QUEUE_DEPTH = 500
         channel_models.SEND_BATCH_SIZE = 100
 
-        Broadcast.BULK_THRESHOLD = 50
-
     def test_batch(self):
-        Broadcast.BULK_THRESHOLD = 10
-
         # broadcast out to 11 contacts to test our batching
         contacts = []
         for i in range(1, 12):
@@ -1840,9 +1862,9 @@ class ScheduleTest(TembaTest):
         # create our messages, but don't sync
         broadcast.send(trigger_send=False)
 
-        # get one of our messages, should be at bulk priority since it was in a broadcast over our bulk threshold
+        # get one of our messages, should be at low priority since it was to more than one recipient
         sms = broadcast.get_messages()[0]
-        self.assertEqual(sms.priority, Msg.PRIORITY_BULK)
+        self.assertFalse(sms.high_priority)
 
         # we should now have 11 messages pending
         self.assertEquals(11, Msg.objects.filter(channel=self.channel, status=PENDING).count())
@@ -2155,7 +2177,7 @@ class CeleryTaskTest(TembaTest):
         self.joe = self.create_contact("Joe", "+250788383444")
 
         self.channel2 = Channel.create(
-            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '1234',
+            self.org, self.user, 'RW', 'JNU', None, '1234',
             config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
             uuid='00000000-0000-0000-0000-000000001234', role=Channel.ROLE_USSD)
 

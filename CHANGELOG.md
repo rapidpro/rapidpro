@@ -1,3 +1,43 @@
+v3.0.212
+----------
+ * Make Msg.priority nullable so courier doesn't have to write to it
+ * Calculate TPS cost for messages and add them to courier queues
+ * Fix truncate cases in SQL triggers
+ * Fix migration to recreate trigger on msgs table
+ * Dynamic channels: Mblox
+
+v3.0.211
+----------
+ * Properly create event fires for campaign events updated through api
+ * Strip matched string in not empty test
+ * Dynamic channels: Macrokiosk
+
+v3.0.210
+----------
+ * Make message priority be based on responded state of flow runs
+ * Support templatized urls in media
+ * Add UI for URL Attachments
+ * Prevent creation of groups and labels at flow run time
+ * Dynamic channels: M3Tech, Kannel, Junebug and Junebug USSD
+
+v3.0.209
+----------
+ * Add a way to specify the prefixes short codes should be matching
+ * Include both high_priority and priority in courier JSON
+ * Fix TwiML migration
+ * Fix JSON response when searching Plivo numbers
+
+v3.0.208
+----------
+ * Msg.bulk_priority -> Msg.high_priority
+ * Change for currencies for numeric rule
+ * Dynamic channels for Jasmin, Infobip, and Hub9
+
+v3.0.207
+----------
+ * Fix Twiml config JSON keys
+ * Unarchiving a campaign should unarchive all its flows
+
 v3.0.206
 ----------
  * Fix broken Twilio Messaging Service status callback URL

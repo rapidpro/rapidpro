@@ -9,7 +9,6 @@ from datetime import timedelta
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.db import IntegrityError
@@ -85,6 +84,10 @@ class ContactGroupForm(forms.ModelForm):
         # and that the name is valid
         if not ContactGroup.is_valid_name(name):
             raise forms.ValidationError(_("Group name must not be blank or begin with + or -"))
+
+        if ContactGroup.user_groups.count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+            raise forms.ValidationError(_('You have reached %s contact groups, please remove some contact groups '
+                                          'to be able to create new contact groups' % ContactGroup.MAX_ORG_CONTACTGROUPS))
 
         return name
 
@@ -404,20 +407,19 @@ class ContactCRUDL(SmartCRUDL):
                         field_key = ContactField.make_key(field_label)
 
                         if not ContactField.is_valid_label(field_label):
-                            raise ValidationError(_("Field names can only contain letters, numbers, "
-                                                    "hypens"))
+                            raise forms.ValidationError(_("Field names can only contain letters, numbers, hypens"))
 
                         if not ContactField.is_valid_key(field_key):
-                            raise ValidationError(_("%s is an invalid name or is a reserved name for contact fields, "
-                                                    "field names should start with a letter.") % value)
+                            raise forms.ValidationError(_("%s is an invalid name or is a reserved name for contact "
+                                                          "fields, field names should start with a letter.") % value)
 
                         if field_label in used_labels:
-                            raise ValidationError(_("%s should be used once") % field_label)
+                            raise forms.ValidationError(_("%s should be used once") % field_label)
 
                         existing_key = existing_contact_fields_map.get(field_label, None)
                         if existing_key and existing_key in Contact.RESERVED_FIELDS:
-                            raise ValidationError(_("'%s' contact field has '%s' key which is reserved name. "
-                                                    "Column cannot be imported") % (value, existing_key))
+                            raise forms.ValidationError(_("'%s' contact field has '%s' key which is reserved name. "
+                                                          "Column cannot be imported") % (value, existing_key))
 
                         used_labels.append(field_label)
 
@@ -1238,12 +1240,11 @@ class ManageFieldsForm(forms.Form):
                         raise forms.ValidationError(_("Field names can only contain letters, numbers and hypens"))
 
                     if label.lower() in used_labels:
-                        raise ValidationError(_("Field names must be unique. '%s' is duplicated") % label)
+                        raise forms.ValidationError(_("Field names must be unique. '%s' is duplicated") % label)
 
                     elif not ContactField.is_valid_key(ContactField.make_key(label)):
                         raise forms.ValidationError(_("Field name '%s' is a reserved word") % label)
                     used_labels.append(label.lower())
-
         return self.cleaned_data
 
 

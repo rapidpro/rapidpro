@@ -235,6 +235,19 @@ class ContactGroupTest(TembaTest):
         group.refresh_from_db()
         self.assertEqual(group.name, "first")
 
+    @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
+    def test_reached_maximum_org_contact_groups(self):
+        ContactGroup.user_groups.all().delete()
+
+        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+            ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
+
+        ContactGroup.get_or_create(self.org, self.admin, 'group1')
+
+        self.assertRaises(ValueError, ContactGroup.get_or_create, self.org, self.user, "Team")
+        self.assertRaises(ValueError, ContactGroup.create_static, self.org, self.user, "Team")
+        self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.user, "Team", "Age > 10")
+
     def test_get_user_groups(self):
         self.create_field('gender', "Gender")
         static = ContactGroup.create_static(self.org, self.admin, "Static")
@@ -441,6 +454,7 @@ class ContactGroupCRUDLTest(TembaTest):
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
         self.dynamic_group = self.create_group("Dynamic", query="joe")
 
+    @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_create(self):
         url = reverse('contacts.contactgroup_create')
 
@@ -477,6 +491,16 @@ class ContactGroupCRUDLTest(TembaTest):
         self.client.post(url, dict(name="Frank", group_query="frank"))
         group = ContactGroup.user_groups.get(org=self.org, name="Frank", query="frank")
         self.assertEqual(set(group.contacts.all()), {self.frank})
+
+        ContactGroup.user_groups.all().delete()
+
+        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+            ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
+
+        response = self.client.post(url, dict(name="People"))
+        self.assertFormError(response, 'form', 'name', "You have reached 10 contact groups, "
+                                                       "please remove some contact groups to be able "
+                                                       "to create new contact groups")
 
     def test_update(self):
         url = reverse('contacts.contactgroup_update', args=[self.joe_and_frank.pk])
@@ -1456,6 +1480,7 @@ class ContactTest(TembaTest):
     def test_history(self):
         url = reverse('contacts.contact_history', args=[self.joe.uuid])
 
+        kurt = self.create_contact("Kurt", "123123")
         self.joe.created_on = timezone.now() - timedelta(days=1000)
         self.joe.save()
 
@@ -1479,17 +1504,17 @@ class ContactTest(TembaTest):
                         created_on=self.joe.created_on - timedelta(seconds=10))
 
         # start a joe flow
-        self.reminder_flow.start([], [self.joe])
+        self.reminder_flow.start([], [self.joe, kurt])
 
         # mark an outgoing message as failed
-        failed = Msg.objects.get(direction='O')
+        failed = Msg.objects.get(direction='O', contact=self.joe)
         failed.status = 'F'
         failed.save()
         log = ChannelLog.objects.create(channel=failed.channel, msg=failed, is_error=True,
                                         description="It didn't send!!")
 
         # pretend that flow run made a webhook request
-        WebHookEvent.trigger_flow_event(FlowRun.objects.get(), 'https://example.com', '1234', msg=None)
+        WebHookEvent.trigger_flow_event(FlowRun.objects.get(contact=self.joe), 'https://example.com', '1234', msg=None)
 
         # create an event from the past
         scheduled = timezone.now() - timedelta(days=5)
@@ -1551,7 +1576,7 @@ class ContactTest(TembaTest):
         bcast.save()
         bcast.msgs.all().delete()
 
-        recipient = BroadcastRecipient.objects.filter(broadcast=bcast).first()
+        recipient = BroadcastRecipient.objects.filter(contact=self.joe, broadcast=bcast).first()
         recipient.purged_status = 'F'
         recipient.save()
 
