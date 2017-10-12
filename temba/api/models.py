@@ -590,7 +590,7 @@ class WebHookResult(SmartModel):
     body = models.TextField(null=True, blank=True,
                             help_text="The body of the HTTP response as returned by the web hook")
     request_time = models.IntegerField(null=True, help_text=_('Time it took to process this request'))
-    contact = models.ForeignKey('contacts.Contact', related_name='results',
+    contact = models.ForeignKey('contacts.Contact', null=True, related_name='results',
                                 help_text="The contact that generated this result")
 
     @classmethod
