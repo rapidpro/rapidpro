@@ -24,6 +24,9 @@ services:
 
 matrix:
   fast_finish: true
+  include:
+    - env: TEST=lint
+    - env: TEST=build
 
 install:
 - pip install --upgrade pip
@@ -44,13 +47,7 @@ before_script:
 - psql -U temba postgres -c "CREATE DATABASE temba;"
 - ln -s $TRAVIS_BUILD_DIR/temba/settings.py.dev $TRAVIS_BUILD_DIR/temba/settings.py
 
-script:
-- flake8
-- python manage.py makemigrations --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
-- python manage.py collectstatic --noinput
-- (! python manage.py compress --extension=".haml" --settings=temba.settings_travis | grep 'Error') || exit 1
-- node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
-- coverage run manage.py test --noinput --verbosity=2
+script: ./travis.sh
 
 after_success:
 - coveralls --rcfile .coveragerc_failcheck
