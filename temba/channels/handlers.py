@@ -1750,7 +1750,7 @@ class PlivoHandler(BaseChannelHandler):
         if sms_from is None or sms_to is None or sms_id is None:
             return HttpResponse("Missing one of 'From', 'To', or 'MessageUUID' in request parameters.", status=400)
 
-        channel = Channel.objects.filter(is_active=True, uuid=request_uuid, channel_type=Channel.TYPE_PLIVO).first()
+        channel = Channel.objects.filter(is_active=True, uuid=request_uuid, channel_type='PL').first()
 
         if action == 'status':
             plivo_channel_address = sms_from
