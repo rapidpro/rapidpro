@@ -465,7 +465,7 @@ class FlowTest(TembaTest):
         contact1_msg = broadcast.msgs.get(contact=self.contact)
         self.assertEqual(contact1_msg.text, "What is your favorite color?")
         self.assertEqual(contact1_msg.status, PENDING)
-        self.assertEqual(contact1_msg.priority, Msg.PRIORITY_NORMAL)
+        self.assertFalse(contact1_msg.high_priority)
 
         # should have a flow run for each contact
         contact1_run = FlowRun.objects.get(contact=self.contact)
@@ -555,8 +555,8 @@ class FlowTest(TembaTest):
         self.assertEquals(self.contact, reply.contact)
         self.assertEquals("I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange", reply.text)
 
-        # should be high priority
-        self.assertEqual(reply.priority, Msg.PRIORITY_HIGH)
+        # should be high priority as this is a reply
+        self.assertTrue(reply.high_priority)
 
         # our previous state should be executed
         step = FlowStep.objects.get(run__contact=self.contact, pk=step.id)
@@ -1679,8 +1679,25 @@ class FlowTest(TembaTest):
         sms.text = "I have 7"
         self.assertTest(True, Decimal("7"), test)
 
-        # phone tests
+        sms.text = "$250"
+        self.assertTest(True, Decimal("250"), test)
 
+        sms.text = "Where is my £5,656.56?"
+        self.assertTest(True, Decimal("5656.56"), test)
+
+        sms.text = "Very hot in here, temp at 38°c"
+        self.assertTest(True, Decimal("38"), test)
+
+        sms.text = "This is aw350me"
+        self.assertTest(False, None, test)
+
+        sms.text = "random typing 12333xg333"
+        self.assertTest(False, None, test)
+
+        sms.text = ",34"
+        self.assertTest(True, Decimal("34"), test)
+
+        # phone tests
         test = PhoneTest()
         sms.text = "My phone number is 0788 383 383"
         self.assertTest(True, "+250788383383", test)
@@ -1764,7 +1781,7 @@ class FlowTest(TembaTest):
         self.assertTest(False, None, NotEmptyTest())
         sms.text = " "
         self.assertTest(False, None, NotEmptyTest())
-        sms.text = "it works"
+        sms.text = "it works "
         self.assertTest(True, "it works", NotEmptyTest())
 
         def perform_date_tests(sms, dayfirst):
@@ -2459,9 +2476,9 @@ class FlowTest(TembaTest):
 
         # include people active in flows
         post_data['include_active'] = 'on'
-        count = Broadcast.objects.all().count()
+        count = Msg.objects.all().count()
         self.client.post(reverse('flows.flow_broadcast', args=[self.flow.id]), post_data, follow=True)
-        self.assertEquals(count + 1, Broadcast.objects.all().count())
+        self.assertEquals(count + 1, Msg.objects.all().count())
 
         # we should have a flow start
         start = FlowStart.objects.get(flow=self.flow)
@@ -2917,9 +2934,29 @@ class ActionTest(TembaTest):
         self.assertEquals(response.attachments, ["image/jpeg:https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, 'path/to/media.jpg')])
         self.assertEquals(self.contact, response.contact)
 
+    def test_media_expression(self):
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="profile")
+        run = FlowRun.create(self.flow, self.contact.pk)
+
+        action = ReplyAction(dict(base="Here is your profile pic."), 'image:/photos/contacts/@(contact.name).jpg')
+
+        # export and import our json to make sure that works as well
+        action_json = action.as_json()
+        action = ReplyAction.from_json(self.org, action_json)
+
+        # now execute it
+        self.execute_action(action, run, msg)
+        reply_msg = Msg.objects.get(contact=self.contact, direction='O')
+        self.assertEquals("Here is your profile pic.", reply_msg.text)
+        self.assertEquals(reply_msg.attachments, ["image:/photos/contacts/Eric.jpg"])
+
+        response = msg.responses.get()
+        self.assertEquals("Here is your profile pic.", response.text)
+        self.assertEquals(self.contact, response.contact)
+
     def test_ussd_action(self):
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD)
 
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
@@ -2961,7 +2998,7 @@ class ActionTest(TembaTest):
 
     def test_multilanguage_ussd_menu_partly_translated(self):
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD)
 
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
@@ -3444,9 +3481,12 @@ class ActionTest(TembaTest):
         # user should now be in the group
         self.assertEqual(set(group.contacts.all()), {self.contact})
 
-        # we should have created a group with the name of the contact
-        replace_group1 = ContactGroup.user_groups.get(name=self.contact.name)
-        self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
+        # we should never create a new group in the flow execution
+        self.assertIsNone(ContactGroup.user_groups.filter(name=self.contact.name).first())
+
+        # should match existing group for variables
+        replace_group1 = ContactGroup.create_static(self.org, self.admin, self.contact.name)
+        self.assertEqual(set(replace_group1.contacts.all()), set())
 
         # passing through twice doesn't change anything
         self.execute_action(action, run, msg)
@@ -3464,15 +3504,15 @@ class ActionTest(TembaTest):
         self.assertEqual(set(group.contacts.all()), {self.contact})
         self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
 
+        replace_group2 = ContactGroup.create_static(self.org, self.admin, test_contact.name)
+
         # with test contact, action logs are also created
         self.execute_action(action, test_run, test_msg)
-
-        replace_group2 = ContactGroup.user_groups.get(name=test_contact.name)
 
         self.assertEqual(set(group.contacts.all()), {self.contact, test_contact})
         self.assertEqual(set(replace_group1.contacts.all()), {self.contact})
         self.assertEqual(set(replace_group2.contacts.all()), {test_contact})
-        self.assertEqual(ActionLog.objects.filter(level='I').count(), 3)
+        self.assertEqual(ActionLog.objects.filter(level='I').count(), 2)
 
         # now try remove action
         action = DeleteFromGroupAction([group, "@step.contact"])
@@ -3496,7 +3536,7 @@ class ActionTest(TembaTest):
 
         self.assertEqual(set(group.contacts.all()), set())
         self.assertEqual(set(replace_group2.contacts.all()), set())
-        self.assertEqual(ActionLog.objects.filter(level='I').count(), 5)
+        self.assertEqual(ActionLog.objects.filter(level='I').count(), 4)
 
         # try when group is inactive
         action = DeleteFromGroupAction([group])
@@ -3525,7 +3565,7 @@ class ActionTest(TembaTest):
 
         self.assertEqual(dynamic_group.contacts.count(), 0)
 
-        self.assertEqual(ActionLog.objects.filter(level='E').count(), 1)
+        self.assertEqual(ActionLog.objects.filter(level='E').count(), 2)
 
         group1 = self.create_group("Flow Group 1", [])
         group2 = self.create_group("Flow Group 2", [])
@@ -3632,9 +3672,9 @@ class ActionTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(flow, self.contact.pk)
 
-        label = Label.get_or_create(self.org, self.user, "green label")
+        label1 = Label.get_or_create(self.org, self.user, "green label")
 
-        action = AddLabelAction([label, "@step.contact"])
+        action = AddLabelAction([label1, "@step.contact"])
 
         action_json = action.as_json()
         action = AddLabelAction.from_json(self.org, action_json)
@@ -3642,29 +3682,37 @@ class ActionTest(TembaTest):
         # no message yet; such Add Label action on entry Actionset. No error should be raised
         self.execute_action(action, run, None)
 
-        self.assertFalse(label.get_messages())
-        self.assertEqual(label.get_visible_count(), 0)
+        self.assertFalse(label1.get_messages())
+        self.assertEqual(label1.get_visible_count(), 0)
 
         self.execute_action(action, run, msg)
 
-        # new label should have been created with the name of the contact
-        new_label = Label.label_objects.get(name=self.contact.name)
-        label = Label.label_objects.get(pk=label.pk)
+        # only label one was added to the message and no new label created
+        self.assertEqual(set(label1.get_messages()), {msg})
+        self.assertEqual(label1.get_visible_count(), 1)
+        self.assertEqual(Label.label_objects.all().count(), 1)
+
+        # make sure the expression variable label exists too
+        label1 = Label.label_objects.get(pk=label1.pk)
+        label2 = Label.label_objects.create(org=self.org, name=self.contact.name, created_by=self.admin,
+                                            modified_by=self.admin)
+
+        self.execute_action(action, run, msg)
 
         # and message should have been labeled with both labels
         msg = Msg.objects.get(pk=msg.pk)
-        self.assertEqual(set(msg.labels.all()), {label, new_label})
-        self.assertEqual(set(label.get_messages()), {msg})
-        self.assertEqual(label.get_visible_count(), 1)
-        self.assertTrue(set(new_label.get_messages()), {msg})
-        self.assertEqual(new_label.get_visible_count(), 1)
+        self.assertEqual(set(msg.labels.all()), {label1, label2})
+        self.assertEqual(set(label1.get_messages()), {msg})
+        self.assertEqual(label1.get_visible_count(), 1)
+        self.assertTrue(set(label2.get_messages()), {msg})
+        self.assertEqual(label2.get_visible_count(), 1)
 
         # passing through twice doesn't change anything
         self.execute_action(action, run, msg)
 
-        self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label, new_label})
-        self.assertEquals(Label.label_objects.get(pk=label.pk).get_visible_count(), 1)
-        self.assertEquals(Label.label_objects.get(pk=new_label.pk).get_visible_count(), 1)
+        self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label1, label2})
+        self.assertEquals(Label.label_objects.get(pk=label1.pk).get_visible_count(), 1)
+        self.assertEquals(Label.label_objects.get(pk=label2.pk).get_visible_count(), 1)
 
     @override_settings(SEND_WEBHOOKS=True)
     @patch('django.utils.timezone.now')
@@ -3861,7 +3909,7 @@ class FlowRunTest(TembaTest):
     def test_is_interrupted(self):
         self.channel.delete()
         # Create a USSD channel type to test USSDSession.INTERRUPTED status
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD)
 
         flow = self.get_flow('ussd_example')
@@ -4301,7 +4349,7 @@ class SimulationTest(FlowFileTest):
     @patch('temba.ussd.models.USSDSession.handle_incoming')
     def test_ussd_simulation(self, handle_incoming):
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE)
         flow = self.get_flow('ussd_example')
 
@@ -4322,7 +4370,7 @@ class SimulationTest(FlowFileTest):
     @patch('temba.ussd.models.USSDSession.handle_incoming')
     def test_ussd_simulation_interrupt(self, handle_incoming):
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD + Channel.DEFAULT_ROLE)
         flow = self.get_flow('ussd_example')
 
@@ -4343,7 +4391,7 @@ class SimulationTest(FlowFileTest):
 
     def test_ussd_simulation_connection_end(self):
         self.ussd_channel = Channel.create(
-            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
+            self.org, self.user, 'RW', 'JNU', None, '*123#',
             schemes=['tel'], uuid='00000000-0000-0000-0000-000000002222',
             role=Channel.ROLE_USSD)
 
@@ -5873,16 +5921,66 @@ class FlowsTest(FlowFileTest):
         # should have one event scheduled for this contact
         self.assertTrue(EventFire.objects.filter(contact=self.contact))
 
+    def test_priority(self):
+        self.get_flow('priorities')
+        joe = self.create_contact("joe", "112233")
+
+        parent = Flow.objects.get(name='Priority Parent')
+        parent.start([], [self.contact, joe])
+
+        self.assertEqual(8, Msg.objects.filter(direction='O').count())
+        self.assertEqual(2, Broadcast.objects.all().count())
+
+        # all messages so far are low prioirty as well because of no inbound
+        self.assertEqual(8, Msg.objects.filter(direction='O', high_priority=False).count())
+
+        # send a message in to become high priority
+        self.send("make me high priority por favor")
+
+        # each flow sends one message to cleanup
+        self.assertEqual(11, Msg.objects.filter(direction='O').count())
+        self.assertEqual(3, Msg.objects.filter(high_priority=True).count())
+
+        # we've completed three flows, but joe is still at it
+        self.assertEqual(5, FlowRun.objects.all().count())
+        self.assertEqual(3, FlowRun.objects.filter(contact=self.contact, exit_type=FlowRun.EXIT_TYPE_COMPLETED).count())
+        self.assertEqual(2, FlowRun.objects.filter(contact=joe, exit_type=None).count())
+
+    def test_priority_single_contact(self):
+        # try running with a single contact, we dont create broadcasts for a single
+        # contact, but the messages should still be low prioirty
+        self.get_flow('priorities')
+        parent = Flow.objects.get(name='Priority Parent')
+        parent.start([], [self.contact], restart_participants=True)
+
+        self.assertEqual(4, Msg.objects.count())
+        self.assertEqual(0, Broadcast.objects.count())
+        self.assertEqual(4, Msg.objects.filter(high_priority=False).count())
+
+    def test_priority_keyword_trigger(self):
+        self.get_flow('priorities')
+
+        # now lets kick a flow off with a message trigger
+        self.send("priority")
+
+        # now we should have two runs
+        self.assertEqual(2, FlowRun.objects.count())
+
+        # since the contact started us, all our messages should be high priority
+        self.assertEqual(0, Msg.objects.filter(high_priority=False).count())
+        self.assertEqual(4, Msg.objects.filter(direction='O', high_priority=True).count())
+
     def test_subflow(self):
         """
         Tests that a subflow can be called and the flow is handed back to the parent
         """
         self.get_flow('subflow')
         parent = Flow.objects.get(org=self.org, name='Parent Flow')
-        parent.start(groups=[], contacts=[self.contact], restart_participants=True)
+        parent.start(groups=[], contacts=[self.contact, self.create_contact("joe", "001122")], restart_participants=True)
 
         msg = Msg.objects.filter(contact=self.contact).first()
         self.assertEqual("This is a parent flow. What would you like to do?", msg.text)
+        self.assertFalse(msg.high_priority)
 
         # this should launch the child flow
         self.send_message(parent, "color", assert_reply=False)
@@ -5893,6 +5991,7 @@ class FlowsTest(FlowFileTest):
         # should have one step on the subflow ruleset
         self.assertEqual(1, FlowStep.objects.filter(step_uuid=subflow_ruleset.uuid).count())
         self.assertEqual("What color do you like?", msg.text)
+        self.assertTrue(msg.high_priority)
 
         # we should now have two active flows
         self.assertEqual(2, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
@@ -6221,7 +6320,7 @@ class FlowsTest(FlowFileTest):
     def test_interrupted_state(self):
         self.channel.delete()
         # Create a USSD channel type to test USSDSession.INTERRUPTED status
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD)
 
         flow = self.get_flow('ussd_interrupt_example')
@@ -6245,7 +6344,7 @@ class FlowsTest(FlowFileTest):
     def test_empty_interrupt_state(self):
         self.channel.delete()
         # Create a USSD channel type to test USSDSession.INTERRUPTED status
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JNU', None, '+250788123123',
                                       role=Channel.ROLE_USSD)
 
         flow = self.get_flow('ussd_interrupt_example')
@@ -7771,11 +7870,11 @@ class FlowChannelSelectionTest(FlowFileTest):
         super(FlowChannelSelectionTest, self).setUp()
         self.channel.delete()
         self.sms_channel = Channel.create(
-            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG, None, '+250788123123',
+            self.org, self.user, 'RW', 'JN', None, '+250788123123',
             schemes=['tel'], uuid='00000000-0000-0000-0000-000000001111',
             role=Channel.DEFAULT_ROLE)
         self.ussd_channel = Channel.create(
-            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG_USSD, None, '*123#',
+            self.org, self.user, 'RW', 'JNU', None, '*123#',
             schemes=['tel'], uuid='00000000-0000-0000-0000-000000002222',
             role=Channel.ROLE_USSD)
 

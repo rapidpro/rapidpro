@@ -75,7 +75,7 @@ class ChannelTest(TembaTest):
         self.released_channel = Channel.create(None, self.user, None, 'NX', name="Released Channel", address=None,
                                                secret=None, gcm_id="000")
 
-        self.ussd_channel = Channel.create(self.org, self.user, None, Channel.TYPE_JUNEBUG_USSD, name="Junebug USSD",
+        self.ussd_channel = Channel.create(self.org, self.user, None, 'JNU', name="Junebug USSD",
                                            address="*123#", role=Channel.ROLE_USSD)
 
     def send_message(self, numbers, message, org=None, user=None):
@@ -144,8 +144,8 @@ class ChannelTest(TembaTest):
         self.login(self.admin)
 
         channel_types = (
-            (Channel.TYPE_JUNEBUG, Channel.DEFAULT_ROLE, 'Sending Log'),
-            (Channel.TYPE_JUNEBUG_USSD, Channel.ROLE_USSD, 'USSD Log'),
+            ('JN', Channel.DEFAULT_ROLE, 'Sending Log'),
+            ('JNU', Channel.ROLE_USSD, 'USSD Log'),
             (Channel.TYPE_TWILIO, Channel.ROLE_CALL, 'Call Log'),
             (Channel.TYPE_TWILIO, Channel.ROLE_SEND + Channel.ROLE_CALL, 'Channel Log')
         )
@@ -251,6 +251,18 @@ class ChannelTest(TembaTest):
         msg = self.send_message(['+250788382382'], "Sent to an MTN number, but with shortcode channels")
         self.assertEquals(tigo, msg.channel)
         self.assertEquals(tigo, self.org.get_send_channel(contact_urn=msg.contact_urn))
+
+        # if we have prefixes matching set should honor those
+        mtn.config = json.dumps({Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES: ['25078', '25072']})
+        mtn.save()
+
+        msg = self.send_message(['+250788382382'], "Sent to an MTN number with shortcode channels and prefixes set")
+        self.assertEquals(mtn, msg.channel)
+        self.assertEquals(mtn, self.org.get_send_channel(contact_urn=msg.contact_urn))
+
+        msg = self.send_message(['+250728382382'], "Sent to a TIGO number with shortcode channels and prefixes set")
+        self.assertEquals(mtn, msg.channel)
+        self.assertEquals(mtn, self.org.get_send_channel(contact_urn=msg.contact_urn))
 
         # check for twitter
         self.assertEquals(self.twitter_channel, self.org.get_send_channel(scheme=TWITTER_SCHEME))
@@ -1515,296 +1527,25 @@ class ChannelTest(TembaTest):
 
             self.assertEquals(response.json(), ['+1 360-788-4540', '+1 360-788-4550'])
 
-    @patch('temba.utils.nexmo.time.sleep')
-    def test_claim_nexmo(self, mock_time_sleep):
-        mock_time_sleep.return_value = None
+    def test_plivo_search_numbers(self):
         self.login(self.admin)
 
-        # remove any existing channels
-        self.org.channels.update(is_active=False, org=None)
-
-        # make sure nexmo is on the claim page
-        response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, "Nexmo")
-        self.assertContains(response, reverse('orgs.org_nexmo_connect'))
-
-        nexmo_config = dict(NEXMO_KEY='nexmo-key', NEXMO_SECRET='nexmo-secret', NEXMO_UUID='nexmo-uuid',
-                            NEXMO_APP_ID='nexmo-app-id', NEXMO_APP_PRIVATE_KEY='nexmo-app-private-key')
-        self.org.config = json.dumps(nexmo_config)
-        self.org.save()
-
-        # hit the claim page, should now have a claim nexmo link
-        claim_nexmo = reverse('channels.channel_claim_nexmo')
-        response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, claim_nexmo)
-
-        # try adding a shortcode
-        with patch('requests.get') as nexmo_get:
-            with patch('requests.post') as nexmo_post:
-                nexmo_get.side_effect = [
-                    MockResponse(200, '{"count":0,"numbers":[] }'),
-                    MockResponse(200,
-                                 '{"count":1,"numbers":[{"features": ["SMS"], "type":"mobile-lvn",'
-                                 '"country":"US","msisdn":"8080"}] }'),
-                    MockResponse(200,
-                                 '{"count":1,"numbers":[{"features": ["SMS"], "type":"mobile-lvn",'
-                                 '"country":"US","msisdn":"8080"}] }'),
-                ]
-                nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
-                response = self.client.post(claim_nexmo, dict(country='US', phone_number='8080'))
-                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
-                channel = Channel.objects.filter(address='8080').first()
-                self.assertTrue(Channel.ROLE_SEND in channel.role)
-                self.assertTrue(Channel.ROLE_RECEIVE in channel.role)
-                self.assertFalse(Channel.ROLE_ANSWER in channel.role)
-                self.assertFalse(Channel.ROLE_CALL in channel.role)
-                self.assertFalse(mock_time_sleep.called)
-                Channel.objects.all().delete()
-
-        # try buying a number not on the account
-        with patch('requests.get') as nexmo_get:
-            with patch('requests.post') as nexmo_post:
-                nexmo_get.side_effect = [
-                    MockResponse(200, '{"count":0,"numbers":[] }'),
-                    MockResponse(200, '{"count":0,"numbers":[] }'),
-                    MockResponse(200,
-                                 '{"count":1,"numbers":[{"features": ["sms", "voice"], "type":"mobile",'
-                                 '"country":"US","msisdn":"+12065551212"}] }'),
-                ]
-                nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
-                response = self.client.post(claim_nexmo, dict(country='US', phone_number='+12065551212'))
-                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
-                channel = Channel.objects.filter(address='+12065551212').first()
-                self.assertTrue(Channel.ROLE_SEND in channel.role)
-                self.assertTrue(Channel.ROLE_RECEIVE in channel.role)
-                self.assertTrue(Channel.ROLE_ANSWER in channel.role)
-                self.assertTrue(Channel.ROLE_CALL in channel.role)
-                Channel.objects.all().delete()
-
-        # Try when we get 429 too many requests, we retry
-        with patch('requests.get') as nexmo_get:
-            with patch('requests.post') as nexmo_post:
-                nexmo_get.side_effect = [
-                    MockResponse(429, '{"error_code":429,"message":"max limit, retry later" }'),
-                    MockResponse(200, '{"count":0,"numbers":[] }'),
-                    MockResponse(429, '{"error_code":429,"message":"max limit, retry later" }'),
-                    MockResponse(200, '{"count":0,"numbers":[] }'),
-                    MockResponse(429, '{"error_code":429,"message":"max limit, retry later" }'),
-                    MockResponse(200,
-                                 '{"count":1,"numbers":[{"features": ["sms", "voice"], "type":"mobile",'
-                                 '"country":"US","msisdn":"+12065551212"}] }'),
-                ]
-                nexmo_post.side_effect = [
-                    MockResponse(429, '{"error_code":429,"message":"max limit, retry later" }'),
-                    MockResponse(200, '{"error-code": "200"}'),
-                    MockResponse(429, '{"error_code":429,"message":"max limit, retry later" }'),
-                    MockResponse(200, '{"error-code": "200"}')
-                ]
-                response = self.client.post(claim_nexmo, dict(country='US', phone_number='+12065551212'))
-                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
-                channel = Channel.objects.filter(address='+12065551212').first()
-                self.assertTrue(Channel.ROLE_SEND in channel.role)
-                self.assertTrue(Channel.ROLE_RECEIVE in channel.role)
-                self.assertTrue(Channel.ROLE_ANSWER in channel.role)
-                self.assertTrue(Channel.ROLE_CALL in channel.role)
-                Channel.objects.all().delete()
-                self.assertEqual(mock_time_sleep.call_count, 5)
-
-        # try failing to buy a number not on the account
-        with patch('requests.get') as nexmo_get:
-            with patch('requests.post') as nexmo_post:
-                nexmo_get.side_effect = [
-                    MockResponse(200, '{"count":0,"numbers":[] }'),
-                    MockResponse(200, '{"count":0,"numbers":[] }'),
-                ]
-                nexmo_post.side_effect = Exception('Error')
-                response = self.client.post(claim_nexmo, dict(country='US', phone_number='+12065551212'))
-                self.assertTrue(response.context['form'].errors)
-                self.assertContains(response, "There was a problem claiming that number, "
-                                              "please check the balance on your account. "
-                                              "Note that you can only claim numbers after "
-                                              "adding credit to your Nexmo account.")
-                Channel.objects.all().delete()
-
-        # let's add a number already connected to the account
-        with patch('requests.get') as nexmo_get:
-            with patch('requests.post') as nexmo_post:
-                nexmo_get.return_value = MockResponse(200,
-                                                      '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
-                                                      '"type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }')
-                nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
-
-                # make sure our number appears on the claim page
-                response = self.client.get(claim_nexmo)
-                self.assertFalse('account_trial' in response.context)
-                self.assertContains(response, '360-788-4540')
-
-                # claim it
-                response = self.client.post(claim_nexmo, dict(country='US', phone_number='13607884540'))
-                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
-
-                # make sure it is actually connected
-                channel = Channel.objects.get(channel_type='NX', org=self.org)
-                self.assertTrue(Channel.ROLE_SEND in channel.role)
-                self.assertTrue(Channel.ROLE_RECEIVE in channel.role)
-                self.assertTrue(Channel.ROLE_ANSWER in channel.role)
-                self.assertTrue(Channel.ROLE_CALL in channel.role)
-
-                # test the update page for nexmo
-                update_url = reverse('channels.channel_update', args=[channel.pk])
-                response = self.client.get(update_url)
-
-                # try changing our address
-                updated = response.context['form'].initial
-                updated['address'] = 'MTN'
-                updated['alert_email'] = 'foo@bar.com'
-
-                response = self.client.post(update_url, updated)
-                channel = Channel.objects.get(pk=channel.id)
-
-                self.assertEquals('MTN', channel.address)
-
-                # add a canada number
-                nexmo_get.return_value = MockResponse(200, '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], "type":"mobile-lvn","country":"CA","msisdn":"15797884540"}] }')
-                nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
-
-                # make sure our number appears on the claim page
-                response = self.client.get(claim_nexmo)
-                self.assertFalse('account_trial' in response.context)
-                self.assertContains(response, '579-788-4540')
-
-                # claim it
-                response = self.client.post(claim_nexmo, dict(country='CA', phone_number='15797884540'))
-                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
-
-                # make sure it is actually connected
-                self.assertTrue(Channel.objects.filter(channel_type='NX', org=self.org, address='+15797884540').first())
-
-                # as is our old one
-                self.assertTrue(Channel.objects.filter(channel_type='NX', org=self.org, address='MTN').first())
-
-                config_url = reverse('channels.channel_configuration', args=[channel.pk])
-                response = self.client.get(config_url)
-                self.assertEquals(200, response.status_code)
-
-                self.assertContains(response, reverse('courier.nx', args=[channel.org.nexmo_uuid(), 'receive']))
-                self.assertContains(response, reverse('courier.nx', args=[channel.org.nexmo_uuid(), 'status']))
-                self.assertContains(response, reverse('handlers.nexmo_call_handler', args=['answer', channel.uuid]))
-
-                call_handler_event_url = reverse('handlers.nexmo_call_handler', args=['event', channel.uuid])
-                response = self.client.get(call_handler_event_url)
-
-                self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.content, "")
-
-    def test_claim_plivo(self):
-        self.login(self.admin)
-
-        # remove any existing channels
-        self.org.channels.update(is_active=False, org=None)
-
-        connect_plivo_url = reverse('orgs.org_plivo_connect')
-        claim_plivo_url = reverse('channels.channel_claim_plivo')
-
-        # make sure plivo is on the claim page
-        response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, "Connect plivo")
-        self.assertContains(response, reverse('orgs.org_plivo_connect'))
+        plivo_search_url = reverse('channels.channel_search_plivo')
 
         with patch('requests.get') as plivo_get:
-            plivo_get.return_value = MockResponse(400, json.dumps(dict()))
+            plivo_get.return_value = MockResponse(200, json.dumps(dict(objects=[])))
 
-            # try hit the claim page, should be redirected; no credentials in session
-            response = self.client.get(claim_plivo_url, follow=True)
-            self.assertFalse('account_trial' in response.context)
-            self.assertContains(response, connect_plivo_url)
+            response = self.client.post(plivo_search_url, dict(country='US', area_code=''), follow=True)
 
-        # let's add a number already connected to the account
-        with patch('requests.get') as plivo_get:
-            with patch('requests.post') as plivo_post:
-                plivo_get.return_value = MockResponse(200,
-                                                      json.dumps(dict(objects=[dict(number='16062681435',
-                                                                                    region="California, UNITED STATES"),
-                                                                               dict(number='8080',
-                                                                                    region='GUADALAJARA, MEXICO')])))
+            self.assertEqual(response.status_code, 200)
+            self.assertNotContains(response, 'error')
 
-                plivo_post.return_value = MockResponse(202, json.dumps(dict(status='changed', app_id='app-id')))
+            # missing key to throw exception
+            plivo_get.return_value = MockResponse(200, json.dumps(dict()))
+            response = self.client.post(plivo_search_url, dict(country='US', area_code=''), follow=True)
 
-                # make sure our numbers appear on the claim page
-                response = self.client.get(claim_plivo_url)
-                self.assertContains(response, "+1 606-268-1435")
-                self.assertContains(response, "8080")
-                self.assertContains(response, 'US')
-                self.assertContains(response, 'MX')
-
-                # claim it the US number
-                session = self.client.session
-                session[Channel.CONFIG_PLIVO_AUTH_ID] = 'auth-id'
-                session[Channel.CONFIG_PLIVO_AUTH_TOKEN] = 'auth-token'
-                session.save()
-
-                self.assertTrue(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
-                self.assertTrue(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
-
-                response = self.client.post(claim_plivo_url, dict(phone_number='+1 606-268-1435', country='US'))
-                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
-
-                # make sure it is actually connected
-                channel = Channel.objects.get(channel_type='PL', org=self.org)
-                self.assertEqual(channel.role, Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
-                self.assertEquals(channel.config_json(), {Channel.CONFIG_PLIVO_AUTH_ID: 'auth-id',
-                                                          Channel.CONFIG_PLIVO_AUTH_TOKEN: 'auth-token',
-                                                          Channel.CONFIG_PLIVO_APP_ID: 'app-id'})
-                self.assertEquals(channel.address, "+16062681435")
-                # no more credential in the session
-                self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
-                self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
-
-        # delete existing channels
-        Channel.objects.all().delete()
-
-        with patch('temba.channels.views.plivo.RestAPI.get_account') as mock_plivo_get_account:
-            with patch('temba.channels.views.plivo.RestAPI.create_application') as mock_plivo_create_application:
-
-                with patch('temba.channels.models.plivo.RestAPI.get_number') as mock_plivo_get_number:
-                    with patch('temba.channels.models.plivo.RestAPI.buy_phone_number') as mock_plivo_buy_phone_number:
-                        mock_plivo_get_account.return_value = (200, MockResponse(200, json.dumps(dict())))
-
-                        mock_plivo_create_application.return_value = (200, dict(app_id='app-id'))
-
-                        mock_plivo_get_number.return_value = (400, MockResponse(400, json.dumps(dict())))
-
-                        response_body = json.dumps({
-                            'status': 'fulfilled',
-                            'message': 'created',
-                            'numbers': [{'status': 'Success', 'number': '27816855210'}],
-                            'api_id': '4334c747-9e83-11e5-9147-22000acb8094'
-                        })
-                        mock_plivo_buy_phone_number.return_value = (201, MockResponse(201, response_body))
-
-                        # claim it the US number
-                        session = self.client.session
-                        session[Channel.CONFIG_PLIVO_AUTH_ID] = 'auth-id'
-                        session[Channel.CONFIG_PLIVO_AUTH_TOKEN] = 'auth-token'
-                        session.save()
-
-                        self.assertTrue(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
-                        self.assertTrue(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
-
-                        response = self.client.post(claim_plivo_url, dict(phone_number='+1 606-268-1440', country='US'))
-                        self.assertRedirects(response, reverse('public.public_welcome') + "?success")
-
-                        # make sure it is actually connected
-                        channel = Channel.objects.get(channel_type='PL', org=self.org)
-                        self.assertEquals(channel.config_json(), {
-                            Channel.CONFIG_PLIVO_AUTH_ID: 'auth-id',
-                            Channel.CONFIG_PLIVO_AUTH_TOKEN: 'auth-token',
-                            Channel.CONFIG_PLIVO_APP_ID: 'app-id'
-                        })
-                        self.assertEquals(channel.address, "+16062681440")
-                        # no more credential in the session
-                        self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
-                        self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, 'error')
 
     def test_release(self):
         Channel.objects.all().delete()
@@ -2350,7 +2091,7 @@ class ChannelTest(TembaTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
-        channel.channel_type = Channel.TYPE_NEXMO
+        channel.channel_type = 'NX'
         channel.save()
 
         self.assertIsNotNone(channel.get_ivr_client())
@@ -2376,11 +2117,11 @@ class ChannelTest(TembaTest):
         self.assertFalse(no_channel_context['has_outgoing_channel'])
         self.assertEqual(no_channel_context['is_ussd_channel'], False)
 
-        sms_context = get_context(Channel.TYPE_JUNEBUG, Channel.ROLE_SEND)
+        sms_context = get_context('JN', Channel.ROLE_SEND)
         self.assertTrue(sms_context['has_outgoing_channel'])
         self.assertEqual(sms_context['is_ussd_channel'], False)
 
-        ussd_context = get_context(Channel.TYPE_JUNEBUG_USSD, Channel.ROLE_USSD)
+        ussd_context = get_context('JNU', Channel.ROLE_USSD)
         self.assertTrue(ussd_context['has_outgoing_channel'])
         self.assertEqual(ussd_context['is_ussd_channel'], True)
 
@@ -2541,50 +2282,6 @@ class ChannelClaimTest(TembaTest):
 
         self.assertContains(response, reverse('courier.sq', args=[channel.uuid, 'receive']))
 
-    def test_kannel(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-
-        # should see the general channel claim page
-        response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, reverse('channels.channel_claim_kannel'))
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_kannel'))
-        post_data = response.context['form'].initial
-
-        post_data['number'] = '3071'
-        post_data['country'] = 'RW'
-        post_data['url'] = 'http://kannel.temba.com/cgi-bin/sendsms'
-        post_data['verify_ssl'] = False
-        post_data['encoding'] = Channel.ENCODING_SMART
-
-        response = self.client.post(reverse('channels.channel_claim_kannel'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('RW', channel.country)
-        self.assertTrue(channel.uuid)
-        self.assertEquals(post_data['number'], channel.address)
-        self.assertEquals(post_data['url'], channel.config_json()['send_url'])
-        self.assertEquals(False, channel.config_json()['verify_ssl'])
-        self.assertEquals(Channel.ENCODING_SMART, channel.config_json()[Channel.CONFIG_ENCODING])
-
-        # make sure we generated a username and password
-        self.assertTrue(channel.config_json()['username'])
-        self.assertTrue(channel.config_json()['password'])
-        self.assertEquals(Channel.TYPE_KANNEL, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        # our configuration page should list our receive URL
-        self.assertContains(response, reverse('courier.kn', args=[channel.uuid, 'receive']))
-
     def test_zenvia(self):
         Channel.objects.all().delete()
 
@@ -2709,102 +2406,6 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         self.assertContains(response, reverse('courier.ck', args=[channel.uuid]))
-
-    def test_claim_junebug(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        response = self.client.get(reverse('channels.channel_claim_junebug'))
-        self.assertEquals(200, response.status_code)
-
-        post_data = {
-            "channel_type": Channel.TYPE_JUNEBUG,
-            "country": "ZA",
-            "number": "+273454325324",
-            "url": "http://example.com/messages.json",
-            "username": "foo",
-            "password": "bar",
-        }
-
-        response = self.client.post(reverse('channels.channel_claim_junebug'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals(channel.country, post_data['country'])
-        self.assertEquals(channel.address, post_data['number'])
-        self.assertEquals(channel.config_json()['send_url'], post_data['url'])
-        self.assertEquals(channel.config_json()['username'], post_data['username'])
-        self.assertEquals(channel.config_json()['password'], post_data['password'])
-        self.assertEquals(channel.channel_type, Channel.TYPE_JUNEBUG)
-        self.assertEquals(channel.role, Channel.DEFAULT_ROLE)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.jn', args=[channel.uuid, 'inbound']))
-
-    def test_claim_junebug_with_secret(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        response = self.client.get(reverse('channels.channel_claim_junebug'))
-        self.assertEquals(200, response.status_code)
-
-        post_data = {
-            "channel_type": Channel.TYPE_JUNEBUG,
-            "country": "ZA",
-            "number": "+273454325324",
-            "url": "http://example.com/messages.json",
-            "username": "foo",
-            "password": "bar",
-            "secret": "UjOq8ATo2PDS6L08t6vlqSoK"
-        }
-
-        response = self.client.post(reverse('channels.channel_claim_junebug'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals(channel.country, post_data['country'])
-        self.assertEquals(channel.address, post_data['number'])
-        self.assertEquals(channel.secret, post_data['secret'])
-        self.assertEquals(channel.config_json()['send_url'], post_data['url'])
-        self.assertEquals(channel.config_json()['username'], post_data['username'])
-        self.assertEquals(channel.config_json()['password'], post_data['password'])
-        self.assertEquals(channel.channel_type, Channel.TYPE_JUNEBUG)
-        self.assertEquals(channel.role, Channel.DEFAULT_ROLE)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.jn', args=[channel.uuid, 'inbound']))
-
-    def test_claim_junebug_ussd(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        response = self.client.get(reverse('channels.channel_claim_junebug'))
-        self.assertEquals(200, response.status_code)
-
-        post_data = {
-            "channel_type": Channel.TYPE_JUNEBUG_USSD,
-            "country": "ZA",
-            "number": "+273454325324",
-            "url": "http://example.com/messages.json",
-            "username": "foo",
-            "password": "bar",
-        }
-
-        response = self.client.post(reverse('channels.channel_claim_junebug'), post_data)
-
-        channel = Channel.objects.get()
-        self.assertEquals(channel.channel_type, Channel.TYPE_JUNEBUG_USSD)
-        self.assertEquals(channel.role, Channel.ROLE_USSD)
 
     def test_claim_vumi_ussd(self):
         Channel.objects.all().delete()
@@ -2945,83 +2546,6 @@ class ChannelClaimTest(TembaTest):
         text = text_template.render(context)
 
         self.assertEquals(mail.outbox[1].body, text)
-
-    def test_claim_macrokiosk(self):
-        Channel.objects.all().delete()
-
-        self.org.timezone = 'Asia/Kuala_Lumpur'
-        self.org.save()
-
-        self.login(self.admin)
-        response = self.client.get(reverse('channels.channel_claim'))
-        self.assertContains(response, reverse('channels.channel_claim_macrokiosk'))
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_macrokiosk'))
-        post_data = response.context['form'].initial
-
-        post_data['country'] = 'MY'
-        post_data['number'] = '250788123123'
-        post_data['username'] = 'user1'
-        post_data['password'] = 'pass1'
-        post_data['sender_id'] = 'macro'
-        post_data['service_id'] = 'SERVID'
-
-        response = self.client.post(reverse('channels.channel_claim_macrokiosk'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals(channel.country, 'MY')
-        self.assertEquals(channel.config_json()['username'], post_data['username'])
-        self.assertEquals(channel.config_json()['password'], post_data['password'])
-        self.assertEquals(channel.config_json()[Channel.CONFIG_MACROKIOSK_SENDER_ID], post_data['sender_id'])
-        self.assertEquals(channel.config_json()[Channel.CONFIG_MACROKIOSK_SERVICE_ID], post_data['service_id'])
-        self.assertEquals(channel.address, '250788123123')
-        self.assertEquals(channel.channel_type, Channel.TYPE_MACROKIOSK)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.mk', args=[channel.uuid, 'receive']))
-        self.assertContains(response, reverse('courier.mk', args=[channel.uuid, 'status']))
-
-    def test_m3tech(self):
-        Channel.objects.all().delete()
-
-        self.login(self.admin)
-
-        # try to claim a channel
-        response = self.client.get(reverse('channels.channel_claim_m3tech'))
-        post_data = response.context['form'].initial
-
-        post_data['country'] = 'PK'
-        post_data['number'] = '250788123123'
-        post_data['username'] = 'user1'
-        post_data['password'] = 'pass1'
-
-        response = self.client.post(reverse('channels.channel_claim_m3tech'), post_data)
-
-        channel = Channel.objects.get()
-
-        self.assertEquals('PK', channel.country)
-        self.assertEquals(post_data['username'], channel.config_json()['username'])
-        self.assertEquals(post_data['password'], channel.config_json()['password'])
-        self.assertEquals('+250788123123', channel.address)
-        self.assertEquals(Channel.TYPE_M3TECH, channel.channel_type)
-
-        config_url = reverse('channels.channel_configuration', args=[channel.pk])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEquals(200, response.status_code)
-
-        self.assertContains(response, reverse('courier.m3', args=[channel.uuid, 'receive']))
-        self.assertContains(response, reverse('courier.m3', args=[channel.uuid, 'sent']))
-        self.assertContains(response, reverse('courier.m3', args=[channel.uuid, 'failed']))
-        self.assertContains(response, reverse('courier.m3', args=[channel.uuid, 'delivered']))
 
     @override_settings(SEND_EMAILS=True)
     def test_sms_alert(self):
@@ -4535,7 +4059,7 @@ class NexmoTest(TembaTest):
         self.org.config = json.dumps(org_config)
         self.org.clear_channel_caches()
 
-        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.channel_type = 'NX'
         self.channel.save()
 
         joe = self.create_contact("Joe", "+250788383383")
@@ -4670,7 +4194,7 @@ class NexmoTest(TembaTest):
         self.org.config = json.dumps(org_config)
         self.org.clear_channel_caches()
 
-        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.channel_type = 'NX'
         self.channel.save()
 
         joe = self.create_contact("Joe", "+250788383383")
@@ -8856,7 +8380,7 @@ class JunebugTest(JunebugTestMixin, TembaTest):
         self.channel.delete()
 
         self.channel = Channel.create(
-            self.org, self.user, 'RW', Channel.TYPE_JUNEBUG, None, '1234',
+            self.org, self.user, 'RW', 'JN', None, '1234',
             config=dict(username='junebug-user', password='junebug-pass', send_url='http://example.org/'),
             uuid='00000000-0000-0000-0000-000000001234',
             role=Channel.DEFAULT_ROLE)
@@ -11332,22 +10856,46 @@ class FcmTest(TembaTest):
 
 class CourierTest(TembaTest):
     def test_queue_to_courier(self):
-        with self.settings(COURIER_CHANNELS=['TG']):
-            self.channel.channel_type = 'TG'
-            self.channel.schemes = [TELEGRAM_SCHEME]
+        with self.settings(COURIER_CHANNELS=['T']):
+            self.channel.channel_type = 'T'
             self.channel.save()
 
+            bob = self.create_contact("Bob", urn='tel:+12065551111')
+            incoming = self.create_msg(contact=bob, text="Hello", direction="I")
+
             # create some outgoing messages for our channel
-            msg1 = Msg.create_outgoing(self.org, self.admin, 'telegram:1', "Outgoing message 1")
-            msg2 = Msg.create_outgoing(self.org, self.admin, 'telegram:2', "Outgoing message 2", priority=Msg.PRIORITY_BULK)
-            Msg.send_messages([msg1, msg2])
+            msg1 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065551111', "Outgoing 1",
+                                       attachments=['image/jpg:https://example.com/test.jpg', 'image/jpg:https://example.com/test2.jpg'])
+            msg2 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065552222', "Outgoing 2", response_to=incoming,
+                                       attachments=[])
+            msg3 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065553333', "Outgoing 3", high_priority=False,
+                                       attachments=None)
+            msg4 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065554444', "Outgoing 4", high_priority=True)
+            msg5 = Msg.create_outgoing(self.org, self.admin, 'tel:+12065554444', "Outgoing 5", high_priority=True)
+            all_msgs = [msg1, msg2, msg3, msg4, msg5]
 
-            # we should have been queued to our courier queues and our msg should be marked as such
-            msg1.refresh_from_db()
-            self.assertEqual(msg1.status, QUEUED)
+            Msg.send_messages(all_msgs)
 
-            msg2.refresh_from_db()
-            self.assertEqual(msg2.status, QUEUED)
+            # we should have been queued to our courier queues and our msgs should be marked as such
+            for msg in all_msgs:
+                msg.refresh_from_db()
+                self.assertEqual(msg.status, QUEUED)
+
+            self.assertFalse(msg1.high_priority)
+
+            # responses arent enough to be high priority, it depends on run responded
+            self.assertFalse(msg2.high_priority)
+
+            self.assertFalse(msg3.high_priority)
+            self.assertTrue(msg4.high_priority)  # explicitly high
+            self.assertTrue(msg5.high_priority)
+
+            # TODO remove numeric priority
+            self.assertEqual(msg1.priority, 100)
+            self.assertEqual(msg2.priority, 100)
+            self.assertEqual(msg3.priority, 100)
+            self.assertEqual(msg4.priority, 500)
+            self.assertEqual(msg5.priority, 500)
 
             # check against redis
             r = get_redis_connection()
@@ -11357,9 +10905,18 @@ class CourierTest(TembaTest):
             self.assertEqual(1, r.zcard("msgs:active"))
             self.assertEqual(0, r.zrank("msgs:active", queue_name))
 
-            # should have one msg in each queue (based on priority)
-            self.assertEqual(1, r.zcard(queue_name + "/1"))
-            self.assertEqual(1, r.zcard(queue_name + "/0"))
+            # check that messages went into the correct queues
+            high_priority_msgs = [json.loads(t) for t in r.zrange(queue_name + "/1", 0, -1)]
+            low_priority_msgs = [json.loads(t) for t in r.zrange(queue_name + "/0", 0, -1)]
+
+            self.assertEqual([[m['text'] for m in b] for b in high_priority_msgs], [["Outgoing 4", "Outgoing 5"]])
+            self.assertEqual([[m['text'] for m in b] for b in low_priority_msgs], [["Outgoing 1"], ["Outgoing 2"], ["Outgoing 3"]])
+
+            self.assertEqual(low_priority_msgs[0][0]['attachments'], ['image/jpg:https://example.com/test.jpg', 'image/jpg:https://example.com/test2.jpg'])
+            self.assertEqual(low_priority_msgs[0][0]['tps_cost'], 2)
+            self.assertIsNone(low_priority_msgs[1][0]['attachments'])
+            self.assertEqual(low_priority_msgs[1][0]['tps_cost'], 1)
+            self.assertIsNone(low_priority_msgs[2][0]['attachments'])
 
 
 class HandleEventTest(TembaTest):
