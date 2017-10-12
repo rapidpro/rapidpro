@@ -1,3 +1,17 @@
+v3.0.212
+----------
+ * Make Msg.priority nullable so courier doesn't have to write to it
+ * Calculate TPS cost for messages and add them to courier queues
+ * Fix truncate cases in SQL triggers
+ * Fix migration to recreate trigger on msgs table
+ * Dynamic channels: Mblox
+
+v3.0.211
+----------
+ * Properly create event fires for campaign events updated through api
+ * Strip matched string in not empty test
+ * Dynamic channels: Macrokiosk
+
 v3.0.210
 ----------
  * Make message priority be based on responded state of flow runs

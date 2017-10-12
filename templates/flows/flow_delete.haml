@@ -9,15 +9,15 @@
             -blocktrans count counter=flows|length
                 There is an active flow using this flow. It cannot be deleted until it is removed from the
             
-                -plural
-                    There are {{counter}} flows using this flow. It cannot be deleted until it is removed from the
+            -plural
+                There are {{counter}} flows using this flow. It cannot be deleted until it is removed from the
 
             -for flow in flows
                 <a href="{%url 'flows.flow_editor' flow.uuid%}">{{flow.name}}</a>{{forloop|oxford}}
             
             -blocktrans count counter=flows|length
                 flow.
-                -plural
+            -plural
                 flows.
 
             :javascript

@@ -1017,13 +1017,6 @@ class FlowCRUDL(SmartCRUDL):
                                   js_class='delete-flow',
                                   href="#"))
 
-            # if self.has_org_perm('flows.flow_delete'):
-            #     links.append(dict(divider=True)),
-            #     links.append(dict(title=_("Delete"),
-            #                       delete=True,
-            #                       success_url=reverse('flows.flow_list'),
-            #                       href=reverse('flows.flow_delete', args=[flow.id])))
-
             return links
 
     class Editor(Read):

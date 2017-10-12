@@ -2455,7 +2455,7 @@ class Flow(TembaModel):
         fields = set()
         for actionset in self.action_sets.all():
             for action in actionset.get_actions():
-                if action.TYPE in ('add_group', 'del_group'):
+                if action.TYPE in (AddToGroupAction.TYPE, DeleteFromGroupAction.TYPE):
                     # iterate over them so we can type crack to ignore expression strings :(
                     for group in action.groups:
                         if isinstance(group, ContactGroup):
@@ -2464,7 +2464,7 @@ class Flow(TembaModel):
                             # group names can be an expression
                             fields.update(collector.get_contact_fields(group))
 
-                if action.TYPE == 'trigger-flow':
+                if action.TYPE == TriggerFlowAction.TYPE:
                     flows.add(action.flow)
                     for recipient in action.variables:
                         fields.update(collector.get_contact_fields(recipient))
@@ -6299,7 +6299,7 @@ class NotEmptyTest(Test):
 
     def evaluate(self, run, sms, context, text):  # pragma: needs cover
         if text and len(text.strip()):
-            return 1, text
+            return 1, text.strip()
         return 0, None
 
 

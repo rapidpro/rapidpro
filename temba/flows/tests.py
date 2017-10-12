@@ -1780,7 +1780,7 @@ class FlowTest(TembaTest):
         self.assertTest(False, None, NotEmptyTest())
         sms.text = " "
         self.assertTest(False, None, NotEmptyTest())
-        sms.text = "it works"
+        sms.text = "it works "
         self.assertTest(True, "it works", NotEmptyTest())
 
         def perform_date_tests(sms, dayfirst):

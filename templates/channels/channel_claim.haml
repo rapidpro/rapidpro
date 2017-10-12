@@ -215,30 +215,6 @@
                   Another great option is to connect
                   a <a href="http://nexmo.com" target="_blank">Nexmo</a> Account and get a dedicated number in a few minutes.
 
-    -else
-      .claim-row.nexmo-channel{class:"{% if recommended == 'nexmo' %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans
-            We recommend using a Nexmo number in your country, select this option to purchase a number or use one you already have.
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_nexmo' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-nexmo
-                %p.claim-text
-                  -trans "Nexmo Number"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Instantly add a dedicated phone number in the area code of your
-                  choice from your connected
-                %a.nexmo-account{href:"#"}
-                  -trans "Nexmo Account."
-
     .claim-row.plivo-channel{class:"{% if recommended_channel == 'PL' %}recommended{% endif %}"}
       .recommendation.hide
         %h3
@@ -290,23 +266,6 @@
               %div
                 -blocktrans
                   Easily add a two way number you have configured with <a href="http://smscentral.com.np/">SMSCentral</a> using their APIs.
-
-
-    -if org_timezone == 'Asia/Kuala_Lumpur'
-      .claim-row.macrokiosk-channel
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_macrokiosk' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Macrokiosk Number"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Easily add a two way number you have configured with <a href="http://macrokiosk.com/">Macrokiosk</a> using their APIs.
 
     -if org_timezone == 'Europe/Kiev'
       .claim-row.start-channel
