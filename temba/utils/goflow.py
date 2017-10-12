@@ -261,7 +261,11 @@ class RequestBuilder(object):
         return self
 
     def start(self, flow):
-        self.request['flow_uuid'] = str(flow.uuid)
+        self.request['trigger'] = {
+            'type': 'manual',
+            'flow': {'uuid': str(flow.uuid), 'name': flow.name},
+            'triggered_on': datetime_to_str(now())
+        }
 
         return self.client.start(self.request)
 
