@@ -845,7 +845,6 @@ class ContactCRUDL(SmartCRUDL):
             # mark our after as the last item in our list
             from temba.contacts.models import MAX_HISTORY
             if len(activity) >= MAX_HISTORY:
-                print ("Setting to last activity item", len(activity), MAX_HISTORY)
                 after = activity[-1]['time']
 
             context['before'] = datetime_to_ms(after)
