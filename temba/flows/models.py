@@ -2895,16 +2895,15 @@ class FlowRun(models.Model):
         """
         A message being sent to a contact (not necessarily this contact)
         """
-        urn = event.get('urn')
-        contact_uuid = event.get('contact_uuid')
-        if contact_uuid:
-            if self.contact.uuid == contact_uuid:
-                contact = self.contact
-            else:
-                contact = Contact.objects.get(uuid=contact_uuid, org=self.org)
-
         # use our urn if we have one specified in the event
-        recipient = urn or contact
+        recipient = event.get('urn')
+        contact_ref = event.get('contact')
+
+        if contact_ref:
+            if self.contact.uuid == contact_ref['uuid']:
+                recipient = self.contact
+            else:
+                recipient = Contact.objects.get(uuid=contact_ref['uuid'], org=self.org)
 
         user = get_flow_user(self.org)
 
@@ -2949,7 +2948,7 @@ class FlowRun(models.Model):
         Properties of this contact being updated
         """
         user = get_flow_user(self.org)
-        field = ContactField.objects.get(org=self.org, key=event['field_key'])
+        field = ContactField.objects.get(org=self.org, key=event['field']['key'])
         value = event['value']
 
         # TODO goflow will send location values back as OSM IDs, but set_field currently needs location names
@@ -2972,8 +2971,11 @@ class FlowRun(models.Model):
                              created_on=iso8601.parse_date(event['created_on']))
 
     def apply_add_label(self, event, msg):
-        if msg:
-            label = Label.label_objects.get(org=self.org, uuid=event['label_uuid'])
+        if not msg:
+            return
+
+        for label_ref in event['labels']:
+            label = Label.label_objects.get(org=self.org, uuid=label_ref['uuid'])
             if not self.contact.is_test:
                 label.toggle_label([msg], True)
             else:
@@ -2984,8 +2986,8 @@ class FlowRun(models.Model):
         This contact being added to one or more groups
         """
         user = get_flow_user(self.org)
-        for group_uuid in event['group_uuids']:
-            group = ContactGroup.get_user_groups(self.org).get(uuid=group_uuid)
+        for group_ref in event['groups']:
+            group = ContactGroup.get_user_groups(self.org).get(uuid=group_ref['uuid'])
             if not self.contact.is_stopped:
                 group.update_contacts(user, [self.contact], add=True)
 
@@ -2997,8 +2999,8 @@ class FlowRun(models.Model):
         This contact being removed from one or more groups
         """
         user = get_flow_user(self.org)
-        for group_uuid in event['group_uuids']:
-            group = ContactGroup.get_user_groups(self.org).get(uuid=group_uuid)
+        for group_ref in event['groups']:
+            group = ContactGroup.get_user_groups(self.org).get(uuid=group_ref['uuid'])
             if not self.contact.is_stopped:
                 group.update_contacts(user, [self.contact], add=False)
 

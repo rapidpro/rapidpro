@@ -2938,7 +2938,7 @@ class ActionTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="profile")
         run = FlowRun.create(self.flow, self.contact.pk)
 
-        action = ReplyAction(dict(base="Here is your profile pic."), 'image:/photos/contacts/@(contact.name).jpg')
+        action = ReplyAction(str(uuid4()), dict(base="Here is your profile pic."), 'image:/photos/contacts/@(contact.name).jpg')
 
         # export and import our json to make sure that works as well
         action_json = action.as_json()
