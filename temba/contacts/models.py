@@ -25,10 +25,11 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string, get_anonymous_user
+from temba.utils import analytics, format_decimal, datetime_to_str, chunk_list, get_anonymous_user
 from temba.utils.models import SquashableModel, TembaModel
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.profiler import time_monitor
+from temba.utils.text import clean_string, truncate
 from temba.values.models import Value
 
 
@@ -329,6 +330,7 @@ class ContactField(SmartModel):
     """
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
+    MAX_ORG_CONTACTFIELDS = 200
 
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
@@ -486,12 +488,13 @@ class Contact(TembaModel):
     LANGUAGE = 'language'
     PHONE = 'phone'
     UUID = 'uuid'
+    CONTACT_UUID = 'contact uuid'
     GROUPS = 'groups'
     ID = 'id'
 
     # reserved contact fields
     RESERVED_FIELDS = [
-        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, 'created_by', 'modified_by', 'org', 'is', 'has'
+        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, CONTACT_UUID, 'created_by', 'modified_by', 'org', 'is', 'has'
     ] + [c[0] for c in IMPORT_HEADERS]
 
     @property
@@ -689,8 +692,12 @@ class Contact(TembaModel):
         field = ContactField.get_or_create(self.org, user, key, label)
 
         existing = None
+        has_changed = False
+
         if value is None or value == '':
+            # setting a blank value is equivalent to removing the value
             Value.objects.filter(contact=self, contact_field__pk=field.id).delete()
+            has_changed = True
         else:
             # parse as all value data types
             str_value = six.text_type(value)[:Value.MAX_VALUE_LEN]
@@ -718,46 +725,52 @@ class Contact(TembaModel):
             else:
                 loc_value = None
 
+            category = loc_value.name if loc_value else None
+
             # find the existing value
             existing = Value.objects.filter(contact=self, contact_field__pk=field.id).first()
 
-            # update it if it exists
             if existing:
-                existing.string_value = str_value
-                existing.decimal_value = dec_value
-                existing.datetime_value = dt_value
-                existing.location_value = loc_value
+                # only update the existing value if it will be different
+                if existing.string_value != str_value \
+                        or existing.decimal_value != dec_value \
+                        or existing.datetime_value != dt_value \
+                        or existing.location_value != loc_value \
+                        or existing.category != category:
 
-                if loc_value:
-                    existing.category = loc_value.name
-                else:
-                    existing.category = None
+                    existing.string_value = str_value
+                    existing.decimal_value = dec_value
+                    existing.datetime_value = dt_value
+                    existing.location_value = loc_value
+                    existing.category = category
 
-                existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
-                                             'location_value', 'category', 'modified_on'])
+                    existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
+                                                 'location_value', 'category', 'modified_on'])
+                    has_changed = True
 
                 # remove any others on the same field that may exist
                 Value.objects.filter(contact=self, contact_field__pk=field.id).exclude(id=existing.id).delete()
 
             # otherwise, create a new value for it
             else:
-                category = loc_value.name if loc_value else None
                 existing = Value.objects.create(contact=self, contact_field=field, org=self.org,
                                                 string_value=str_value, decimal_value=dec_value, datetime_value=dt_value,
                                                 location_value=loc_value, category=category)
+                has_changed = True
 
-        # cache
+        # cache this field value
         self.set_cached_field_value(key, existing)
 
-        self.modified_by = user
-        self.save(update_fields=('modified_by', 'modified_on'))
+        if has_changed:
+            self.modified_by = user
+            self.save(update_fields=('modified_by', 'modified_on'))
 
-        # update any groups or campaigns for this contact if not importing
-        if not importing:
-            self.handle_update(field=field)
+            # update any groups or campaigns for this contact if not importing
+            if not importing:
+                self.handle_update(field=field)
 
-        # invalidate our value cache for this contact field
-        Value.invalidate_cache(contact_field=field)
+            # invalidate our value cache for this contact field
+            Value.invalidate_cache(contact_field=field)
 
     def set_cached_field_value(self, key, value):
         setattr(self, '__field__%s' % key, value)
@@ -1040,7 +1053,11 @@ class Contact(TembaModel):
         org = field_dict.pop('org')
         user = field_dict.pop('created_by')
         is_admin = org.administrators.filter(id=user.id).exists()
-        uuid = field_dict.pop('uuid', None)
+        uuid = field_dict.pop('contact uuid', None)
+
+        # for backward compatibility
+        if uuid is None:
+            uuid = field_dict.pop('uuid', None)
 
         country = org.get_country_code()
         urns = []
@@ -1101,7 +1118,7 @@ class Contact(TembaModel):
 
         if not urns and not (org.is_anon or uuid):
             error_str = "Missing any valid URNs"
-            error_str += "; at least one among %s should be provided" % ", ".join(possible_urn_headers)
+            error_str += "; at least one among %s should be provided or a Contact UUID" % ", ".join(possible_urn_headers)
 
             raise SmartImportRowError(error_str)
 
@@ -1217,12 +1234,12 @@ class Contact(TembaModel):
 
         capitalized_possible_headers = '", "'.join([h.capitalize() for h in possible_headers])
 
-        if 'uuid' in headers:
+        if 'uuid' in headers or 'contact uuid' in headers:
             return
 
         if not found_headers:
             raise Exception(ugettext('The file you provided is missing a required header. At least one of "%s" '
-                                     'should be included.' % capitalized_possible_headers))
+                                     'or "Contact UUID" should be included.' % capitalized_possible_headers))
 
         if 'name' not in headers:
             raise Exception(ugettext('The file you provided is missing a required header called "Name".'))
@@ -1852,7 +1869,7 @@ class Contact(TembaModel):
             return tel.path
 
     def send(self, text, user, trigger_send=True, response_to=None, message_context=None, connection=None,
-             attachments=None, msg_type=None, created_on=None, all_urns=False):
+             attachments=None, msg_type=None, created_on=None, all_urns=False, high_priority=False):
         from temba.msgs.models import Msg, INBOX, PENDING, SENT, UnreachableException
 
         status = SENT if created_on else PENDING
@@ -1865,10 +1882,10 @@ class Contact(TembaModel):
         msgs = []
         for recipient in recipients:
             try:
-                msg = Msg.create_outgoing(self.org, user, recipient, text, priority=Msg.PRIORITY_HIGH,
+                msg = Msg.create_outgoing(self.org, user, recipient, text,
                                           response_to=response_to, message_context=message_context, connection=connection,
                                           attachments=attachments, msg_type=msg_type or INBOX, status=status,
-                                          created_on=created_on)
+                                          created_on=created_on, high_priority=high_priority)
                 if msg is not None:
                     msgs.append(msg)
             except UnreachableException:
@@ -2101,6 +2118,7 @@ class UserContactGroupManager(models.Manager):
 @six.python_2_unicode_compatible
 class ContactGroup(TembaModel):
     MAX_NAME_LEN = 64
+    MAX_ORG_CONTACTGROUPS = 250
 
     TYPE_ALL = 'A'
     TYPE_BLOCKED = 'B'
@@ -2189,6 +2207,10 @@ class ContactGroup(TembaModel):
     @classmethod
     def _create(cls, org, user, name, task=None, query=None):
         full_group_name = cls.clean_name(name)
+
+        if cls.user_groups.count() >= cls.MAX_ORG_CONTACTGROUPS:
+            raise ValueError('You have reached %s contact groups, please remove some contact groups '
+                             'to be able to create new contact groups' % cls.MAX_ORG_CONTACTGROUPS)
 
         if not cls.is_valid_name(full_group_name):
             raise ValueError("Invalid group name: %s" % name)
@@ -2451,7 +2473,7 @@ class ExportContactsTask(BaseExportTask):
 
     def get_export_fields_and_schemes(self):
 
-        fields = [dict(label='UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
+        fields = [dict(label='Contact UUID', key=Contact.UUID, id=0, field=None, urn_scheme=None),
                   dict(label='Name', key=Contact.NAME, id=0, field=None, urn_scheme=None)]
 
         # anon orgs also get an ID column that is just the PK

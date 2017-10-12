@@ -29,9 +29,9 @@ from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
 from temba.tests import TembaTest
 from temba_expressions.evaluator import EvaluationContext, DateStyle
-from . import format_decimal, slugify_with, str_to_datetime, str_to_time, date_to_utc_range, truncate, random_string
+from . import format_decimal, str_to_datetime, str_to_time, date_to_utc_range
 from . import json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
-from . import percentage, datetime_to_json_date, json_date_to_datetime, clean_string
+from . import percentage, datetime_to_json_date, json_date_to_datetime
 from . import datetime_to_str, chunk_list, get_country_code_by_name, datetime_to_epoch, voicexml
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing, QueueRecord
 from .currencies import currency_for_country
@@ -39,13 +39,13 @@ from .email import send_simple_email, is_valid_address
 from .export import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
 from .expressions import _build_function_signature
-from .gsm7 import is_gsm7, replace_non_gsm7_accents
+from .gsm7 import is_gsm7, replace_non_gsm7_accents, calculate_num_segments
 from .nexmo import NCCOException, NCCOResponse
 from .profiler import time_monitor
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .timezones import TimeZoneFormField, timezone_to_country_code
+from .text import clean_string, decode_base64, truncate, slugify_with, random_string
 from .voicexml import VoiceXMLException
-from . import decode_base64
 
 
 class InitTest(TembaTest):
@@ -57,6 +57,14 @@ class InitTest(TembaTest):
         self.assertEqual('Please vote NO on the confirmation of Gorsuch.',
                          decode_base64('Please vote NO on the confirmation of Gorsuch.'))
 
+        # length not multiple of 4
+        self.assertEqual('The aim of the game is to be the first player to score 500 points, achieved (usually over several rounds of play)',
+                         decode_base64('The aim of the game is to be the first player to score 500 points, achieved (usually over several rounds of play)'))
+
+        # end not match base64 characteres
+        self.assertEqual('The aim of the game is to be the first player to score 500 points, achieved (usually over several rounds of play) by a player discarding all of their cards!!???',
+                         decode_base64('The aim of the game is to be the first player to score 500 points, achieved (usually over several rounds of play) by a player discarding all of their cards!!???'))
+
         self.assertEqual('Bannon Explains The World ...\n\u201cThe Camp of the Saints',
                          decode_base64('QmFubm9uIEV4cGxhaW5zIFRoZSBXb3JsZCAuLi4K4oCcVGhlIENhbXAgb2YgdGhlIFNhaW50c+KA\r'))
 
@@ -65,6 +73,16 @@ class InitTest(TembaTest):
 
         self.assertIn('I find them to be friendly',
                       decode_base64('Tm93IGlzDQp0aGUgdGltZQ0KZm9yIGFsbCBnb29kDQpwZW9wbGUgdG8NCnJlc2lzdC4NCg0KSG93IGFib3V0IGhhaWt1cz8NCkkgZmluZCB0aGVtIHRvIGJlIGZyaWVuZGx5Lg0KcmVmcmlnZXJhdG9yDQoNCjAxMjM0NTY3ODkNCiFAIyQlXiYqKCkgW117fS09Xys7JzoiLC4vPD4/fFx+YA0KQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg=='))
+
+        # not 50% ascii letters
+        self.assertEqual('8J+YgvCfmITwn5iA8J+YhvCfkY3wn5ii8J+Yn/CfmK3wn5it4pi677iP8J+YjPCfmInwn5iK8J+YivCfmIrwn5iK8J+YivCfmIrwn5iK8J+ko/CfpKPwn6Sj8J+ko/CfpKNvaw==',
+                         decode_base64('8J+YgvCfmITwn5iA8J+YhvCfkY3wn5ii8J+Yn/CfmK3wn5it4pi677iP8J+YjPCfmInwn5iK8J+YivCfmIrwn5iK8J+YivCfmIrwn5iK8J+ko/CfpKPwn6Sj8J+ko/CfpKNvaw=='))
+
+        with patch('temba.utils.text.Counter') as mock_decode:
+            mock_decode.side_effect = Exception('blah')
+
+            self.assertEqual('Tm93IGlzDQp0aGUgdGltZQ0KZm9yIGFsbCBnb29kDQpwZW9wbGUgdG8NCnJlc2lzdC4NCg0KSG93IGFib3V0IGhhaWt1cz8NCkkgZmluZCB0aGVtIHRvIGJlIGZyaWVuZGx5Lg0KcmVmcmlnZXJhdG9yDQoNCjAxMjM0NTY3ODkNCiFAIyQlXiYqKCkgW117fS09Xys7JzoiLC4vPD4/fFx+YA0KQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg==',
+                             decode_base64('Tm93IGlzDQp0aGUgdGltZQ0KZm9yIGFsbCBnb29kDQpwZW9wbGUgdG8NCnJlc2lzdC4NCg0KSG93IGFib3V0IGhhaWt1cz8NCkkgZmluZCB0aGVtIHRvIGJlIGZyaWVuZGx5Lg0KcmVmcmlnZXJhdG9yDQoNCjAxMjM0NTY3ODkNCiFAIyQlXiYqKCkgW117fS09Xys7JzoiLC4vPD4/fFx+YA0KQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg=='))
 
     def test_datetime_to_ms(self):
         d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, tzinfo=pytz.utc)
@@ -982,6 +1000,30 @@ class GSM7Test(TembaTest):
         replaced = replace_non_gsm7_accents("Pour chercher du boulot, comment fais-tu ?")
         self.assertEquals('Pour chercher du boulot, comment fais-tu ?', replaced)
         self.assertTrue(is_gsm7(replaced))
+
+    def test_num_segments(self):
+        ten_chars = "1234567890"
+
+        self.assertEqual(1, calculate_num_segments(ten_chars * 16))
+        self.assertEqual(1, calculate_num_segments(ten_chars * 6 + "“word”7890"))
+
+        # 161 should be two segments
+        self.assertEqual(2, calculate_num_segments(ten_chars * 16 + "1"))
+
+        # 306 is exactly two gsm7 segments
+        self.assertEqual(2, calculate_num_segments(ten_chars * 30 + "123456"))
+
+        # 159 but with extended as last should be two as well
+        self.assertEqual(2, calculate_num_segments(ten_chars * 15 + "123456789{"))
+
+        # 355 should be three segments
+        self.assertEqual(3, calculate_num_segments(ten_chars * 35 + "12345"))
+
+        # 134 is exactly two ucs2 segments
+        self.assertEqual(2, calculate_num_segments(ten_chars * 12 + "“word”12345678"))
+
+        # 136 characters with quotes should be three segments
+        self.assertEqual(3, calculate_num_segments(ten_chars * 13 + "“word”"))
 
 
 class ChunkTest(TembaTest):
