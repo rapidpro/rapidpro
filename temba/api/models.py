@@ -590,7 +590,7 @@ class WebHookResult(SmartModel):
     body = models.TextField(null=True, blank=True,
                             help_text="The body of the HTTP response as returned by the web hook")
     request_time = models.IntegerField(null=True, help_text=_('Time it took to process this request'))
-    contact = models.ForeignKey('contacts.Contact', null=True, related_name='results',
+    contact = models.ForeignKey('contacts.Contact', null=True, related_name='webhook_results',
                                 help_text="The contact that generated this result")
 
     @classmethod
@@ -612,12 +612,7 @@ class WebHookResult(SmartModel):
 
         request_time = result.get('request_time', None)
 
-        contact = None
-        if event.run:
-            contact = event.run.contact
-
         cls.objects.create(event=event,
-                           contact=contact,
                            url=result['url'],
                            request=result.get('request'),  # flow webhooks won't have 'request'
                            data=result['data'],

@@ -588,7 +588,6 @@ class Contact(TembaModel):
 
         exited_runs = self.runs.filter(exited_on__gte=after, exited_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
         exited_runs = exited_runs.exclude(exit_type=None).order_by('-created_on').select_related('flow')[:MAX_HISTORY]
-        print (str(exited_runs.query))
 
         channel_events = self.channel_events.filter(created_on__gte=after, created_on__lt=before)
         channel_events = channel_events.order_by('-created_on').select_related('channel')[:MAX_HISTORY]

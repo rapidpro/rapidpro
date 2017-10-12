@@ -8,8 +8,8 @@ import django.db.models.deletion
 
 def backfill_webhook_result_contact(apps, schema_editor):
     WebHookResult = apps.get_model('api', 'WebHookResult')
-    for result in WebHookResult.objects.filter(contact=None).select_related('event__run__contact'):
-        result.contact = result.event.run.contact
+    for result in WebHookResult.objects.filter(contact=None).exclude(event__run=None).select_related('event__run__contact'):
+        result.contact_id = result.event.run.contact_id
         result.save()
 
 
@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='webhookresult',
             name='contact',
-            field=models.ForeignKey(help_text='The contact that generated this result', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='results', to='contacts.Contact'),
+            field=models.ForeignKey(help_text='The contact that generated this result', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='webhook_results', to='contacts.Contact'),
         ),
 
         # backfill contact field
