@@ -5136,7 +5136,7 @@ class ReplyAction(Action):
         language_metadata = []
         for item in metadata.get('quick_replies'):
             quick_reply = item.get(run.contact.language) \
-                if run.contact.language in item else item.get(run.flow.base_language)
+                if run.contact.language and run.contact.language in item else item.get(run.flow.base_language)
             language_metadata.append(quick_reply)
 
         return language_metadata
