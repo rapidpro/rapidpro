@@ -1929,6 +1929,15 @@ class FlowTest(TembaTest):
         self.assertEquals("15", step.rule_value)
         self.assertEquals(Decimal("15"), step.rule_decimal_value)
 
+        # get our run and assert our value is saved (as a string)
+        run = FlowRun.objects.get(flow=self.flow, contact=self.contact)
+        results = run.results_dict()
+        self.assertEqual("15", results['color']['value'])
+        self.assertEqual("bd531ace-911e-4722-8e53-6730d6122fe1", results['color']['node_uuid'])
+        self.assertEqual("> 10", results['color']['category'])
+        self.assertEqual("color", results['color']['name'])
+        self.assertIsNotNone(results['color']['modified_on'])
+
     def test_location_entry_test(self):
 
         self.country = AdminBoundary.objects.create(osm_id='192787', name='Nigeria', level=0)

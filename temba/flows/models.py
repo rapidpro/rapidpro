@@ -2497,6 +2497,9 @@ class FlowRun(models.Model):
 
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
 
+    results = models.TextField(null=True,
+                               help_text=_("The results collected during this flow run in JSON format"))
+
     @classmethod
     def create(cls, flow, contact_id, start=None, session=None, connection=None, fields=None,
                created_on=None, db_insert=True, submitted_by=None, parent=None, responded=False):
@@ -2863,6 +2866,25 @@ class FlowRun(models.Model):
                 self.voice_response.say(text)
 
         return msg
+
+    def results_dict(self):
+        return json.loads(self.results) if self.results else dict()
+
+    def save_run_result(self, name, node_uuid, category, value):
+        # slug our name
+        key = Flow.label_to_slug(name)
+
+        # create our result dict
+        results = self.results_dict()
+        results[key] = dict(name=name,
+                            node_uuid=node_uuid,
+                            category=category,
+                            value=value,
+                            modified_on=datetime_to_str(timezone.now()))
+
+        self.results = json.dumps(results)
+        self.modified_on = timezone.now()
+        self.save(update_fields=['results', 'modified_on'])
 
 
 @six.python_2_unicode_compatible
@@ -3469,6 +3491,11 @@ class RuleSet(models.Model):
         Value.objects.create(contact=run.contact, run=run, ruleset=self, category=rule.category, rule_uuid=rule.uuid,
                              string_value=value, decimal_value=dec_value, datetime_value=dt_value,
                              location_value=location_value, media_value=media_value, org=run.flow.org)
+
+        run.save_run_result(name=self.label,
+                            node_uuid=self.uuid,
+                            category=rule.category,
+                            value=value)
 
         # invalidate any cache on this ruleset
         Value.invalidate_cache(ruleset=self)
