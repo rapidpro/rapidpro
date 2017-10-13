@@ -32,12 +32,14 @@ class BaseConsumer(object):
 
 class BothubConsumer(BaseConsumer):
     def predict(self, msg):
+        print(msg)
         # CALL BOTHUB API
-        return "BOTHUB RETURN"
+        return 'zika', 90
 
 
 class WitConsumer(BaseConsumer):
     def predict(self, msg):
+        print(msg)
         # CALL WIT API
         return "WIT RETURN"
 
