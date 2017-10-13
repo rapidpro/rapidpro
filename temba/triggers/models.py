@@ -15,6 +15,7 @@ from temba.contacts.models import Contact, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg
+from temba.nlu.models import NluApiConsumer, NLU_API_NAME, NLU_API_KEY
 from temba.orgs.models import Org
 from temba_expressions.utils import tokenize
 
@@ -468,15 +469,24 @@ class Trigger(SmartModel):
             return False
 
         triggers = Trigger.get_triggers_of_type(entity.org, trigger_type)
-        print(triggers)
+
         for trigger in triggers:
             try:
-                pass
+                nlu_org_config = entity.org.nlu_api_config_json()
+                consumer = NluApiConsumer.factory(nlu_org_config.get(NLU_API_NAME),
+                                                  nlu_org_config.get(NLU_API_KEY))
+                nlu_data = trigger.get_nlu_data()
+                intent, accurancy = consumer.predict(entity)
+
+                if intent in nlu_data.get('intents_splited') and accurancy >= nlu_data.get('accurancy'):
+                    trigger.flow.start([], [entity.contact], start_msg=entity, restart_participants=True)
+                    return True
             except:
                 pass
-        return True
+        return False
 
     def get_nlu_data(self):
         nlu_data = json.loads(self.nlu_data)
         nlu_data['intents_replaced'] = nlu_data.get('intents').replace(',', ', ')
+        nlu_data['intents_splited'] = nlu_data.get('intents').split(',')
         return nlu_data
