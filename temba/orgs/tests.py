@@ -5,6 +5,7 @@ import json
 import nexmo
 import pytz
 import six
+import stripe
 
 from bs4 import BeautifulSoup
 from context_processors import GroupPermWrapper
@@ -25,7 +26,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME
 from temba.flows.models import Flow, ActionSet
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
@@ -118,7 +119,7 @@ class OrgTest(TembaTest):
                                                                  currency_name='US Dollar', currency_code='USD')])
 
         Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
-                       address="billy_bob", role="SR", scheme='twitter')
+                       address="billy_bob", role="SR")
 
         self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
                                                                  currency_code='RWF'),
@@ -156,27 +157,27 @@ class OrgTest(TembaTest):
     def test_recommended_channel(self):
         self.org.timezone = pytz.timezone('Africa/Nairobi')
         self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'africastalking')
+        self.assertEquals(self.org.get_recommended_channel(), 'AT')
 
         self.org.timezone = pytz.timezone('America/Phoenix')
         self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'twilio')
+        self.assertEquals(self.org.get_recommended_channel(), 'T')
 
         self.org.timezone = pytz.timezone('Asia/Jakarta')
         self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'hub9')
+        self.assertEquals(self.org.get_recommended_channel(), 'H9')
 
         self.org.timezone = pytz.timezone('Africa/Mogadishu')
         self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'shaqodoon')
+        self.assertEquals(self.org.get_recommended_channel(), 'SQ')
 
         self.org.timezone = pytz.timezone('Europe/Amsterdam')
         self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'nexmo')
+        self.assertEquals(self.org.get_recommended_channel(), 'NX')
 
         self.org.timezone = pytz.timezone('Africa/Kigali')
         self.org.save()
-        self.assertEquals(self.org.get_recommended_channel(), 'android')
+        self.assertEquals(self.org.get_recommended_channel(), 'A')
 
     def test_country(self):
         country_url = reverse('orgs.org_country')
@@ -1988,13 +1989,13 @@ class AnonOrgTest(TembaTest):
         self.assertNotContains(response, "788 123 123")
 
         # create an incoming SMS, check our flow page
-        Msg.create_incoming(self.channel, contact.get_urn().urn, "Blue")
+        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Blue")
         response = self.client.get(reverse('msgs.msg_flow'))
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
 
         # send another, this will be in our inbox this time
-        Msg.create_incoming(self.channel, contact.get_urn().urn, "Where's the beef?")
+        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Where's the beef?")
         response = self.client.get(reverse('msgs.msg_flow'))
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
@@ -2273,8 +2274,8 @@ class OrgCRUDLTest(TembaTest):
         # add a twitter channel
         Channel.create(self.org, self.user, None, 'TT', "Twitter")
         self.org = Org.objects.get(pk=self.org.id)
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
+        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
     def test_login_case_not_sensitive(self):
         login_url = reverse('users.user_login')
@@ -3038,7 +3039,7 @@ class EmailContextProcessorsTest(SmartminTest):
             self.assertTrue('app.rapidpro.io' in sent_email.body)
 
 
-class TestStripeCredits(TembaTest):
+class StripeCreditsTest(TembaTest):
 
     @patch('stripe.Customer.create')
     @patch('stripe.Charge.create')
@@ -3146,11 +3147,17 @@ class TestStripeCredits(TembaTest):
                 pass
 
         class MockCards(object):
+            def __init__(self):
+                self.throw = False
+
             def all(self):
                 return dict_to_struct('MockCardData', dict(data=[MockCard(), MockCard()]))
 
             def create(self, card):
-                return MockCard()
+                if self.throw:
+                    raise stripe.CardError("Card declined", None, 400)
+                else:
+                    return MockCard()
 
         class MockCustomer(object):
             def __init__(self, id, email):
@@ -3188,6 +3195,14 @@ class TestStripeCredits(TembaTest):
         self.assertTrue('Rudolph' in email.body)
         self.assertTrue('Visa' in email.body)
         self.assertTrue('$20' in email.body)
+
+        # try with an invalid card
+        customer_retrieve.return_value.cards.throw = True
+        try:
+            self.org.add_credits('2000', 'stripe-token', self.admin)
+            self.fail("should have thrown")
+        except ValidationError as e:
+            self.assertEqual("Sorry, your card was declined, please contact your provider or try another card.", e.message)
 
         # do it again with a different user, should create a new stripe customer
         self.org.add_credits('2000', 'stripe-token', self.admin2)

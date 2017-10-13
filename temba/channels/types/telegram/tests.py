@@ -15,7 +15,7 @@ class TelegramTypeTest(TembaTest):
         super(TelegramTypeTest, self).setUp()
 
         self.channel = Channel.create(self.org, self.user, None, 'TG', name="Telegram", address="12345",
-                                      role="SR", scheme='telegram',
+                                      role="SR", schemes=['telegram'],
                                       config={'auth_token': '123456789:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'})
 
     @override_settings(IS_PROD=True)

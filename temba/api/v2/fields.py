@@ -7,7 +7,7 @@ from rest_framework import serializers
 
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, ContactField as ContactFieldModel, URN
+from temba.contacts.models import Contact, ContactGroup, ContactURN, ContactField as ContactFieldModel, URN
 from temba.flows.models import Flow
 from temba.msgs.models import Label, Msg
 
@@ -189,11 +189,13 @@ class ContactField(TembaModelField):
     def get_object(self, value):
         # try to normalize as URN but don't blow up if it's a UUID
         try:
-            as_urn = URN.normalize(value)
+            as_urn = URN.identity(URN.normalize(value))
         except ValueError:
             as_urn = value
 
-        return self.get_queryset().filter(Q(uuid=value) | Q(urns__urn=as_urn)).first()
+        contact_ids_with_urn = list(ContactURN.objects.filter(identity=as_urn).values_list('contact_id', flat=True))
+
+        return self.get_queryset().filter(Q(uuid=value) | Q(id__in=contact_ids_with_urn)).first()
 
 
 class ContactFieldField(TembaModelField):

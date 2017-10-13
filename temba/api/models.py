@@ -311,19 +311,20 @@ class WebHookEvent(SmartModel):
                 body = 'Skipped actual send'
                 status_code = 200
 
+            # process the webhook response
+            try:
+                response_json = json.loads(body, object_pairs_hook=OrderedDict)
+
+                # only update if we got a valid JSON dictionary or list
+                if not isinstance(response_json, dict) and not isinstance(response_json, list):
+                    raise ValueError("Response must be a JSON dictionary or list, ignoring response.")
+
+                run.update_fields(response_json)
+                message = "Webhook called successfully."
+            except ValueError:
+                message = "Response must be a JSON dictionary, ignoring response."
+
             if 200 <= status_code < 300:
-                try:
-                    response_json = json.loads(body, object_pairs_hook=OrderedDict)
-
-                    # only update if we got a valid JSON dictionary or list
-                    if not isinstance(response_json, dict) and not isinstance(response_json, list):
-                        raise ValueError("Response must be a JSON dictionary or list, ignoring response.")
-
-                    run.update_fields(response_json)
-                    message = "Webhook called successfully."
-                except ValueError:
-                    message = "Response must be a JSON dictionary, ignoring response."
-
                 webhook_event.status = cls.STATUS_COMPLETE
             else:
                 webhook_event.status = cls.STATUS_FAILED
@@ -419,14 +420,14 @@ class WebHookEvent(SmartModel):
 
         api_user = get_api_user()
 
-        json_time = call.time.strftime('%Y-%m-%dT%H:%M:%S.%f')
+        json_time = call.occurred_on.strftime('%Y-%m-%dT%H:%M:%S.%f')
         data = dict(call=call.pk,
                     phone=call.contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=call.contact.uuid,
                     contact_name=call.contact.name,
                     urn=six.text_type(call.contact_urn),
-                    duration=call.duration,
-                    time=json_time)
+                    extra=call.extra_json(),
+                    occurred_on=json_time)
         hook_event = cls.objects.create(org=org, channel=call.channel, event=event, data=json.dumps(data),
                                         created_by=api_user, modified_by=api_user)
         hook_event.fire()

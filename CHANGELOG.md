@@ -1,3 +1,172 @@
+v3.0.209
+----------
+ * Add a way to specify the prefixes short codes should be matching
+ * Include both high_priority and priority in courier JSON
+ * Fix TwiML migration
+ * Fix JSON response when searching Plivo numbers
+
+v3.0.208
+----------
+ * Msg.bulk_priority -> Msg.high_priority
+ * Change for currencies for numeric rule
+ * Dynamic channels for Jasmin, Infobip, and Hub9
+
+v3.0.207
+----------
+ * Fix Twiml config JSON keys
+ * Unarchiving a campaign should unarchive all its flows
+
+v3.0.206
+----------
+ * Fix broken Twilio Messaging Service status callback URL
+ * Only update dynamic groups from set_field if value has changed
+ * Optimize how we lookup contacts for some API endpoints
+ * More dynamic channels
+
+v3.0.205
+----------
+ * add way to show recommended channel on claim page for dynamic channels
+ * change Org.get_recommended_channel to return the channel type instead of a random string
+
+v3.0.204
+----------
+ * separate create and drop index operations in migration
+
+v3.0.203
+----------
+ * create new compound index on channel id and external id, remove old external id index
+ * consistent header for contact uuid in exports and imports
+ * unstop contacts in handle message for new messages
+ * populate @extra even on webhook failures
+ * fix flow simulator with chatbase connected
+ * use ContactQL for name of contact querying grammar
+ * dynamic channels: Clickatell
+ * fix contact searching where text includes + or / chars
+ * replace Ply with ANTLR for contact searching (WIP)
+
+v3.0.201
+----------
+ * Make clean string method replace non characteres correctly
+
+v3.0.200
+----------
+ * Support Telegram /start command to trigger new conversation trigger
+
+v3.0.199
+----------
+ * Use correct Twilio callback URL, status is for voice, keep as handler
+
+v3.0.198
+----------
+ * Add /c/kn/uuid-uuid-uuid/receive style endpoints for all channel types
+ * Delete webhook events in batches
+ * Dynamic channels: Blackmyna
+
+v3.0.197
+----------
+ * update triggers so that updates in migration work
+
+v3.0.196
+----------
+ * make sure new uuids are honored in in_group tests
+ * removes giant join through run/flow to figure out flow steps during export
+ * create contacts from start flow action with ambiguous country
+ * add tasks for handling of channel events, update handlers to use ChannelEvent.handle
+ * add org level dashboard for multi-org organizations
+
+v3.0.195
+----------
+ * Tweaks to allow message handling straight from courier
+
+v3.0.193
+----------
+ * Add flow session model and start creating instances for IVR and USSD channel sessions
+
+v3.0.192
+----------
+ * Allow empty contact names for surveyor submissions but make them null
+ * Honor admin org brand in get_user_orgs
+ * Fix external channel bulk sender URL
+ * Send broadcast in the same task as it is created in and JS utility method to format number
+ * Try the variable as a contact uuid and use its contact when building recipients
+ * Fix org lookup, use the same code path for sending a broadcast
+ * Fix broadcast to flow node to consider all current contacts on the the step
+
+v3.0.191
+----------
+ * Update test_db to generate deterministic UUIDs which are also valid UUID4
+
+v3.0.190
+----------
+ * Turn down default courier TPS to 10/s
+
+v3.0.189
+----------
+ * Make sure msg time never wraps in the inbox
+
+v3.0.188
+----------
+ * Use a real but mockable HTTP server to test flows that hit external URLs instead of mocking the requests
+ * Add infobip as dynamic channel type and Update it to use the latest Infobip API
+ * Add support for Courier message sending
+
+v3.0.183
+----------
+ * Use twitter icon for twitter id urns
+
+v3.0.182
+----------
+ * Tweak test_start_flow_action to test parent run states only after child runs have completed
+ * Stop contacts when they have only an invalid twitter screen name
+ * Change to max USSD session length
+
+v3.0.181
+----------
+ * Ignore case when looking up twitter screen names
+
+v3.0.180
+----------
+ * Switch to using twitterid scheme for Twitter messages
+ * Should be shipped before Mage v0.1.84
+
+v3.0.179
+----------
+ * Allow editing of start conversation triggers
+
+v3.0.178
+----------
+ * Remove urn field, urn compound index, remove last uses of urn field
+
+v3.0.177
+----------
+ * remove all uses of urn (except when writing)
+ * create display index, backfill identity
+ * Allow users to specify extra URNs columns to include on the flow results export
+
+v3.0.176
+----------
+ * Add display and identity fields to ContactURN
+ * Add schemes field to allow channels to support more than one scheme
+
+v3.0.175
+----------
+ * Fix incorrect lambda use so message sending works
+
+v3.0.174
+----------
+ * Make ContactField.uuid unique and non-null
+
+v3.0.173
+----------
+ * Add migration to populate ContactField.uuid
+
+v3.0.172
+----------
+ * Only try to delete Twilio app when channel config contains 'application_sid'
+ * Surveyor submissions should try rematching the rules if the same ruleset got updated by the user and old rules were removed
+ * Add uuid field to ContactField
+ * Convert more channel types to dynamic types 
+
 v3.0.171
 ----------
  * Fixes for Twitter Activity channels

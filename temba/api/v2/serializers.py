@@ -101,7 +101,7 @@ class BroadcastReadSerializer(ReadSerializer):
         if self.context['org'].is_anon:
             return None
         else:
-            return [urn.urn for urn in obj.urns.all()]
+            return [six.text_type(urn) for urn in obj.urns.all()]
 
     class Meta:
         model = Broadcast
@@ -152,13 +152,20 @@ class ChannelEventReadSerializer(ReadSerializer):
     type = serializers.SerializerMethodField()
     contact = fields.ContactField()
     channel = fields.ChannelField()
+    extra = serializers.SerializerMethodField()
 
     def get_type(self, obj):
         return self.TYPES.get(obj.event_type)
 
+    def get_extra(self, obj):
+        if obj.extra:
+            return obj.extra_json()
+        else:
+            return None
+
     class Meta:
         model = ChannelEvent
-        fields = ('id', 'type', 'contact', 'channel', 'time', 'duration', 'created_on')
+        fields = ('id', 'type', 'contact', 'channel', 'extra', 'occurred_on', 'created_on')
 
 
 class CampaignReadSerializer(ReadSerializer):
@@ -343,7 +350,7 @@ class ContactReadSerializer(ReadSerializer):
         if self.context['org'].is_anon or not obj.is_active:
             return []
 
-        return [urn.urn for urn in obj.get_urns()]
+        return [six.text_type(urn) for urn in obj.get_urns()]
 
     def get_groups(self, obj):
         if not obj.is_active:
@@ -404,7 +411,7 @@ class ContactWriteSerializer(WriteSerializer):
         org = self.context['org']
 
         # this field isn't allowed if we are looking up by URN in the URL
-        if 'urns__urn' in self.context['lookup_values']:
+        if 'urns__identity' in self.context['lookup_values']:
             raise serializers.ValidationError("Field not allowed when using URN in URL")
 
         # or for updates by anonymous organizations (we do allow creation of contacts with URNs)
@@ -421,8 +428,8 @@ class ContactWriteSerializer(WriteSerializer):
 
     def validate(self, data):
         # we allow creation of contacts by URN used for lookup
-        if not data.get('urns') and 'urns__urn' in self.context['lookup_values']:
-            url_urn = self.context['lookup_values']['urns__urn']
+        if not data.get('urns') and 'urns__identity' in self.context['lookup_values']:
+            url_urn = self.context['lookup_values']['urns__identity']
 
             data['urns'] = [fields.validate_urn(url_urn)]
 

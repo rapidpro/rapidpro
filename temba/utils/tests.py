@@ -29,9 +29,9 @@ from temba.flows.models import FlowRun
 from temba.orgs.models import Org, UserSettings
 from temba.tests import TembaTest
 from temba_expressions.evaluator import EvaluationContext, DateStyle
-from . import format_decimal, slugify_with, str_to_datetime, str_to_time, date_to_utc_range, truncate, random_string
+from . import format_decimal, str_to_datetime, str_to_time, date_to_utc_range
 from . import json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
-from . import percentage, datetime_to_json_date, json_date_to_datetime, clean_string
+from . import percentage, datetime_to_json_date, json_date_to_datetime
 from . import datetime_to_str, chunk_list, get_country_code_by_name, datetime_to_epoch, voicexml
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing, QueueRecord
 from .currencies import currency_for_country
@@ -44,8 +44,8 @@ from .nexmo import NCCOException, NCCOResponse
 from .profiler import time_monitor
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .timezones import TimeZoneFormField, timezone_to_country_code
+from .text import clean_string, decode_base64, truncate, slugify_with, random_string
 from .voicexml import VoiceXMLException
-from . import decode_base64
 
 
 class InitTest(TembaTest):
@@ -57,6 +57,14 @@ class InitTest(TembaTest):
         self.assertEqual('Please vote NO on the confirmation of Gorsuch.',
                          decode_base64('Please vote NO on the confirmation of Gorsuch.'))
 
+        # length not multiple of 4
+        self.assertEqual('The aim of the game is to be the first player to score 500 points, achieved (usually over several rounds of play)',
+                         decode_base64('The aim of the game is to be the first player to score 500 points, achieved (usually over several rounds of play)'))
+
+        # end not match base64 characteres
+        self.assertEqual('The aim of the game is to be the first player to score 500 points, achieved (usually over several rounds of play) by a player discarding all of their cards!!???',
+                         decode_base64('The aim of the game is to be the first player to score 500 points, achieved (usually over several rounds of play) by a player discarding all of their cards!!???'))
+
         self.assertEqual('Bannon Explains The World ...\n\u201cThe Camp of the Saints',
                          decode_base64('QmFubm9uIEV4cGxhaW5zIFRoZSBXb3JsZCAuLi4K4oCcVGhlIENhbXAgb2YgdGhlIFNhaW50c+KA\r'))
 
@@ -65,6 +73,16 @@ class InitTest(TembaTest):
 
         self.assertIn('I find them to be friendly',
                       decode_base64('Tm93IGlzDQp0aGUgdGltZQ0KZm9yIGFsbCBnb29kDQpwZW9wbGUgdG8NCnJlc2lzdC4NCg0KSG93IGFib3V0IGhhaWt1cz8NCkkgZmluZCB0aGVtIHRvIGJlIGZyaWVuZGx5Lg0KcmVmcmlnZXJhdG9yDQoNCjAxMjM0NTY3ODkNCiFAIyQlXiYqKCkgW117fS09Xys7JzoiLC4vPD4/fFx+YA0KQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg=='))
+
+        # not 50% ascii letters
+        self.assertEqual('8J+YgvCfmITwn5iA8J+YhvCfkY3wn5ii8J+Yn/CfmK3wn5it4pi677iP8J+YjPCfmInwn5iK8J+YivCfmIrwn5iK8J+YivCfmIrwn5iK8J+ko/CfpKPwn6Sj8J+ko/CfpKNvaw==',
+                         decode_base64('8J+YgvCfmITwn5iA8J+YhvCfkY3wn5ii8J+Yn/CfmK3wn5it4pi677iP8J+YjPCfmInwn5iK8J+YivCfmIrwn5iK8J+YivCfmIrwn5iK8J+ko/CfpKPwn6Sj8J+ko/CfpKNvaw=='))
+
+        with patch('temba.utils.text.Counter') as mock_decode:
+            mock_decode.side_effect = Exception('blah')
+
+            self.assertEqual('Tm93IGlzDQp0aGUgdGltZQ0KZm9yIGFsbCBnb29kDQpwZW9wbGUgdG8NCnJlc2lzdC4NCg0KSG93IGFib3V0IGhhaWt1cz8NCkkgZmluZCB0aGVtIHRvIGJlIGZyaWVuZGx5Lg0KcmVmcmlnZXJhdG9yDQoNCjAxMjM0NTY3ODkNCiFAIyQlXiYqKCkgW117fS09Xys7JzoiLC4vPD4/fFx+YA0KQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg==',
+                             decode_base64('Tm93IGlzDQp0aGUgdGltZQ0KZm9yIGFsbCBnb29kDQpwZW9wbGUgdG8NCnJlc2lzdC4NCg0KSG93IGFib3V0IGhhaWt1cz8NCkkgZmluZCB0aGVtIHRvIGJlIGZyaWVuZGx5Lg0KcmVmcmlnZXJhdG9yDQoNCjAxMjM0NTY3ODkNCiFAIyQlXiYqKCkgW117fS09Xys7JzoiLC4vPD4/fFx+YA0KQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg=='))
 
     def test_datetime_to_ms(self):
         d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, tzinfo=pytz.utc)
@@ -213,6 +231,9 @@ class InitTest(TembaTest):
         self.assertIsNone(clean_string(None))
         self.assertEqual(clean_string("ngert\x07in."), "ngertin.")
         self.assertEqual(clean_string("Norbért"), "Norbért")
+
+    def test_replace_non_characters(self):
+        self.assertEqual(clean_string("Bangsa\ufddfBangsa"), "Bangsa\ufffdBangsa")
 
 
 class TimezonesTest(TembaTest):
@@ -1541,7 +1562,7 @@ class MakeTestDBTest(SimpleTestCase):
         self.assertEqual(list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list('count')), [(17,)])
 
         # same seed should generate objects with same UUIDs
-        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'ea60312b-25f5-47a0-cac7-4fe0c2064f3e')
+        self.assertEqual(ContactGroup.user_groups.order_by('id').first().uuid, 'ea60312b-25f5-47a0-8ac7-4fe0c2064f3e')
 
         # check generate can't be run again on a now non-empty database
         with self.assertRaises(CommandError):

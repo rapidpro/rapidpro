@@ -230,6 +230,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       modal.result.then (value) ->
         if value == 'ok'
           action._media = null
+          action._attachURL = null
+          action._attachType = null
           scope.onFileSelect($files, actionset, action)
       return
 
@@ -277,7 +279,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             mime: parts[0]
             url:  window.mediaURL + parts[1]
             type: parts[0].split('/')[0]
-
       if save
         Flow.saveAction(actionset, action)
       return
@@ -506,8 +507,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       if lastAction
         return lastAction._missingTranslation
 
-  $scope.broadcastToStep = (event, uuid) ->
-    window.broadcastToNode(uuid)
+  $scope.broadcastToStep = (event, uuid, count) ->
+    window.broadcastToNode(uuid, count)
     event.stopPropagation()
 
   $scope.addNote = (event) ->
@@ -724,27 +725,53 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
       if action.type in ["send", "reply", "say", "end_ussd"]
 
-        fromText = action.msg[Flow.flow.base_language]
+        translations = [{ name: 'Message Text', from: action.msg[Flow.flow.base_language], to: action.msg[Flow.language.iso_code] }]
+
+        # add in our media for localization if we have some
+        if action.media and action.media[Flow.flow.base_language]
+
+          fromMedia = action.media[Flow.flow.base_language]
+          toMedia = action.media[Flow.language.iso_code]
+
+          # this is a bit of a hack, our localizable strings take the form of audio:...
+          # but uploads are in the form of audio/wav:http...
+          fromMediaSplit = fromMedia?.split(':')
+          toMediaSplit = toMedia?.split(':')
+          mimeType = fromMediaSplit?[0].split('/')
+
+          # we only care about types that aren't full mime types
+          if mimeType?.length == 1
+            translations.push({ name:'Attachment', type: mimeType, from:fromMediaSplit[1], to:toMediaSplit?[1], input:true})
 
         resolveObj =
-          languages: ->
+          language: ->
             from: Flow.flow.base_language
             to: Flow.language.iso_code
-          translation: ->
-            from: fromText
-            to: action.msg[Flow.language.iso_code]
+            name: Flow.language.name
+          translations: -> translations
 
         $scope.dialog = utils.openModal("/partials/translation_modal", TranslationController, resolveObj)
 
         $scope.dialog.opened.then ->
           $('textarea').focus()
 
-        $scope.dialog.result.then (translation) ->
+        $scope.dialog.result.then (translations) ->
           action = utils.clone(action)
-          if translation and translation.strip().length > 0
-             action.msg[Flow.language.iso_code] = translation
-          else
-            delete action.msg[Flow.language.iso_code]
+
+          for translation in translations
+            results = action.msg
+            translated = if translation.to?.strip().length > 0 then translation.to else null
+            
+            if translation.name == "Attachment"
+              results = action.media
+              if translated
+                translated = translation.type + ':' + translated
+
+            if translated
+              results[Flow.language.iso_code] = translated
+            else
+              delete results[Flow.language.iso_code]
+
           Flow.saveAction(actionset, action)
         , (-> $log.info "Modal dismissed at: " + new Date())
 
@@ -895,9 +922,9 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
     $modalInstance.dismiss "cancel"
 
 # The controller for our translation modal
-TranslationController = ($scope, $modalInstance, languages, translation) ->
-  $scope.translation = translation
-  $scope.languages = languages
+TranslationController = ($scope, $modalInstance, language, translations) ->
+  $scope.translations = translations
+  $scope.language = language
 
   $scope.ok = (translationText) ->
     $modalInstance.close translationText
@@ -1771,6 +1798,15 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.action_webhook_headers_name = []
   $scope.action_webhook_headers_value = []
 
+  $scope.showAttachOptions = false
+  $scope.showAttachVariable = false
+  
+  if $scope.action._attachURL
+    $scope.showAttachOptions = true
+    $scope.showAttachVariable = true
+  else
+    $scope.action._attachType = "image"
+
   if $scope.action.webhook_headers
     item_counter = 0
     for item in $scope.action.webhook_headers
@@ -1851,15 +1887,32 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.removeAttachment = ->
     $scope.action.media = null
     $scope.action._media = null
+    $scope.action._attachURL = null
 
   # Saving a reply message in the flow
-  $scope.saveMessage = (message, type='reply') ->
+  $scope.saveMessage = (message, type='reply', hasAttachURL=false) ->
 
     if typeof($scope.action.msg) != "object"
       $scope.action.msg = {}
-    $scope.action.msg[$scope.base_language] = message
 
+    $scope.action.msg[$scope.base_language] = message
     $scope.action.type = type
+
+    if hasAttachURL and $scope.action._attachURL
+      if not $scope.action.media
+        $scope.action.media = {}
+      
+      $scope.action.media[$scope.base_language] = $scope.action._attachType + ':' + $scope.action._attachURL
+
+      # make sure our localizations all have the same type
+      for key in Object.keys($scope.action.media)
+        if key != $scope.base_language
+          translation = $scope.action.media[key]
+          $scope.action.media[key] = $scope.action._attachType + ':' + translation.split(':')[1]
+    
+    else if not $scope.action._media
+      $scope.action.media = null
+
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 

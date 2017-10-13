@@ -30,14 +30,14 @@ class ViberPublicType(ChannelType):
     messages.""")
     claim_view = ClaimView
 
-    scheme = VIBER_SCHEME
+    schemes = [VIBER_SCHEME]
     max_length = 7000
     attachment_support = False
     free_sending = True
 
     def activate(self, channel):
         auth_token = channel.config_json()['auth_token']
-        handler_url = "https://" + settings.TEMBA_HOST + reverse('handlers.viber_public_handler', args=[channel.uuid])
+        handler_url = "https://" + settings.TEMBA_HOST + reverse('courier.vp', args=[channel.uuid])
 
         requests.post('https://chatapi.viber.com/pa/set_webhook', json={
             'auth_token': auth_token,

@@ -19,7 +19,7 @@
     %h3
       -trans "Phone Channels"
 
-    .claim-row.android-channel{class:"{% if recommended_channel == 'android' %}recommended{% endif %}"}
+    .claim-row.android-channel{class:"{% if recommended_channel == 'A' %}recommended{% endif %}"}
       .recommendation.hide
         %h3
           -trans "Recommendation"
@@ -60,32 +60,8 @@
                   code from <a href="http://www.zenvia.com.br/">Zenvia</a> and connect it
                   in a few simple steps.
 
-    -if org_timezone == 'Africa/Nairobi' or org_timezone == 'Africa/Kampala' or org_timezone == 'Africa/Lilongwe'
-      .claim-row.africastalking-channel{class:"{% if recommended_channel == 'africastalking' %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans with "<a href='http://africastalking.com'>" as link_start and "</a>" as link_end
-            We recommend using an Africa's Talking shortcode in Kenya, Uganda or Malawi. Visit {{link_start}}their website{{link_end}} for details.
-
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_africas_talking' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Africa's Talking Short Code"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans with "<a href='http://africastalking.com'>" as link_start and "</a>" as link_end
-                  If you are based in Kenya, Uganda or Malawi you can purchase a short
-                  code from {{link_start}}Africa's Talking{{link_end}} and connect it
-                  in a few simple steps.
-
     -if org_timezone == 'Africa/Kampala'
-      .claim-row.yo-channel{class:"{% if recommended_channel == 'yo' %}recommended{% endif %}"}
+      .claim-row.yo-channel{class:"{% if recommended_channel == 'YO' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -108,7 +84,7 @@
                   and receive messages on your shortcode.
 
     -if org_timezone == 'Africa/Mogadishu'
-      .claim-row.shaqodoon-channel{class:"{% if recommended_channel == 'shaqodoon' %}recommended{% endif %}"}
+      .claim-row.shaqodoon-channel{class:"{% if recommended_channel == 'SQ' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -131,28 +107,6 @@
                   and receive messages on your shortcode.
 
     -if org_timezone == 'Asia/Manila'
-      .claim-row.globe-channel{class:"{% if recommended_channel == 'globe' %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans with "<a href='http://www.globelabs.com.ph/'>" as link_start and "</a>" as link_end
-            We recommend using Globe Labs in the Phillipines. Visit {{link_start}}their website{{link_end}} for details.
-
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_globe' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Globe Short Code"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans with brand.name as brand
-                  If you are based in the Phillipines, you can integrate {{ brand }} with Globe Labs to send
-                  and receive messages on your shortcode.
-
       .claim-row.chikka-channel
         .row
           .span3
@@ -169,52 +123,8 @@
                   If you are based in the Phillipines, you can integrate {{ brand }} with Chikka to send
                   and receive messages on your shortcode.
 
-    -if org_timezone == 'Asia/Jakarta'
-      .claim-row.hub9-channel{class:"{% if recommended_channel == 'hub9' %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans with "<a href='http://www.hub9.biz'>" as link_start and "</a>" as link_end
-            We recommend using a Hub9 phone number in Indonesia, please visit {{link_start}}http://www.hub9.biz{{link_end}} for details.
-
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_hub9' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Hub9 Number"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Easily add a two way number you have configured with Hub9 in Indonesia.
-
-      .claim-row.dartmedia-channel{class:"{% if recommended_channel == 'dartmedia' %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans with "<a href='http://www.dartmedia.biz'>" as link_start and "</a>" as link_end
-            We recommend using a Dart Media phone number in Indonesia, please visit {{link_start}}http://www.dartmedia.biz{{link_end}} for details.
-
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_dart_media' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Dart Media Number"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Easily add a two way number you have configured with Dart Media in Indonesia.
-
-
     -if not user_org.is_connected_to_twilio
-      .claim-row.twilio-channel{class:"{% if recommended_channel == 'twilio' %}recommended{% endif %}"}
+      .claim-row.twilio-channel{class:"{% if recommended_channel == 'T' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -240,7 +150,7 @@
 
 
     -else
-      .claim-row.twilio-channel{class:"{% if recommended_channel == 'twilio' %}recommended{% endif %}"}
+      .claim-row.twilio-channel{class:"{% if recommended_channel == 'T' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -284,7 +194,7 @@
                   You can connect a messaging service from your Twilio account to benefit from <a href="https://www.twilio.com/copilot">Twilio Copilot features</a></br>
 
     -if not user_org.is_connected_to_nexmo
-      .claim-row.nexmo-channel{class:"{% if recommended_channel == 'nexmo' %}recommended{% endif %}"}
+      .claim-row.nexmo-channel{class:"{% if recommended_channel == 'NX' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
@@ -329,25 +239,7 @@
                 %a.nexmo-account{href:"#"}
                   -trans "Nexmo Account."
 
-    -if org_timezone == 'Europe/Paris'
-      .claim-row.highconnection-channel
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_high_connection' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "High Connexion Number"
-
-          .span9.no-margin
-            .claim-description
-              %div
-                -blocktrans
-                  If you are based in France, you can purchase a number from High Connexion
-                  <a href="http://www.highconnexion.com/en/">High Connection</a> and connect it in a few simple steps.
-
-
-    .claim-row.plivo-channel{class:"{% if recommended_channel == 'plivo' %}recommended{% endif %}"}
+    .claim-row.plivo-channel{class:"{% if recommended_channel == 'PL' %}recommended{% endif %}"}
       .recommendation.hide
         %h3
           -trans "Recommendation"
@@ -368,70 +260,6 @@
                 <a href="http://plivo.com" target="_blank">Plivo</a> provides local connectivity in a number of countries, connect
                 your Plivo Account and get a dedicated number in a few minutes.
 
-    .claim-row.clickatell-channel
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_clickatell' %}"}
-            .btn-container
-              .claim-glyph.icon-channel-clickatell
-              %p.claim-text
-                -trans "Clickatell"
-
-        .span9
-          .claim-description
-            %div
-              -blocktrans
-                Connect your <a href="http://clickatell.com/" target="_blank">Clickatell</a> number, we'll walk you
-                through the steps necessary to get your Clickatell connection working in a few minutes.
-
-    .claim-row.kannel-channel
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_kannel' %}"}
-            .btn-container
-              .claim-glyph.icon-channel-kannel
-              %p.claim-text
-                -trans "Kannel"
-
-        .span9
-          .claim-description
-            %div
-              -blocktrans
-                Connect your <a href="http://www.kannel.org/" target="_blank">Kannel</a> instance, we'll walk you through
-                the steps necessary to get your SMSC connection working in a few minutes.
-
-    .claim-row.jasmin-channel
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_jasmin' %}"}
-            .btn-container
-              .claim-glyph.icon-channel-external
-              %p.claim-text
-                -trans "Jasmin"
-
-        .span9
-          .claim-description
-            %div
-              -blocktrans
-                Connect your <a href="http://www.jasminsms.com/" target="_blank">Jasmin</a> instance that you have
-                already connected to an SMSC.
-
-    .claim-row.junebug-channel
-      .row
-        .span3
-          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_junebug' %}"}
-            .btn-container
-              .claim-glyph.icon-junebug
-              %p.claim-text
-                -trans "Junebug"
-
-        .span9
-          .claim-description
-            %div
-              -blocktrans
-                Connect your <a href="https://junebug.praekelt.org/" target="_blank">Junebug</a> instance that you have
-                already set up and configured.
-
     .claim-row.twiml-channel
       .row
         .span3
@@ -448,26 +276,6 @@
                 Connect to a service that speaks TwiML. You can use this to connect to TwiML compatible services outside of Twilio.
 
     -if org_timezone == 'Asia/Kathmandu'
-      .claim-row.blackmyna-channel{class:"{% if recommended_channel == 'blackmyna' %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans
-            We recommend using a Blackmyna phone number for SMS in your country, select this option to configure your number.
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_blackmyna' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Blackmyna Number"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Easily add a two way number you have configured with <a href="http://blackmyna.com">Blackmyna</a> using their APIs.
-
       .claim-row.smscentral-channel
         .row
           .span3
@@ -482,6 +290,7 @@
               %div
                 -blocktrans
                   Easily add a two way number you have configured with <a href="http://smscentral.com.np/">SMSCentral</a> using their APIs.
+
 
     -if org_timezone == 'Asia/Kuala_Lumpur'
       .claim-row.macrokiosk-channel
@@ -514,48 +323,6 @@
               %div
                 -blocktrans
                   Easily add a two way number you have configured with <a href="https://bulk.startmobile.ua/">Start Mobile</a> using their APIs.
-
-    -if False
-      .claim-row.infobip-channel
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans
-            We recommend using an Infobip phone number for SMS in your country, select this option to configure your number.
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_infobip' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "Infobip Number"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Easily add a two way number you have configured with <a href="http://infobip.com">Infobip</a> using their APIs.
-
-    -if org_timezone == 'Asia/Karachi'
-      .claim-row.m3tech-channel{class:"{% if recommended_channel == 'm3tech' %}recommended{% endif %}"}
-        .recommendation.hide
-          %h3
-            -trans "Recommendation"
-          -blocktrans
-            We recommend using an M3 Tech phone number for SMS in your country, select this option to configure your number.
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_m3tech' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "M3 Tech Number"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Easily add a two way number you have configured with <a href="http://m3techservice.com">M3 Tech</a> using their APIs.
 
     -if False
       .claim-row.verboice-channel
@@ -620,7 +387,10 @@
                   Easily connect your <a href="http://go.vumi.org/">Vumi</a> account to take advantage of session based messaging across USSD transports.
 
     -for ch_type in channel_types.PHONE
-      .claim-row
+      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
@@ -635,7 +405,27 @@
       -trans "Social Network Channels"
 
     -for ch_type in channel_types.SOCIAL_MEDIA
-      .claim-row
+      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
+              .btn-container
+                .claim-glyph{class:"{{ ch_type.icon }}"}
+                %p.claim-text= ch_type.name
+          .span9
+            .claim-description
+              %div= ch_type.get_claim_blurb
+    %h3
+      -trans "USSD Channels"
+
+    -for ch_type in channel_types.USSD
+      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
@@ -650,7 +440,10 @@
       -trans "API Channels"
 
     -for ch_type in channel_types.API
-      .claim-row
+      .claim-row{class:"{% if user_org.get_recommended_channel == ch_type.code %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.claim_'|add:ch_type.slug %}"}
