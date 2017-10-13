@@ -823,7 +823,7 @@ class MsgReadSerializer(ReadSerializer):
         return [a.as_json() for a in obj.get_attachments()]
 
     def get_metadata(self, obj):
-        return json.loads(obj.metadata) if obj.metadata else []
+        return json.loads(obj.metadata) if obj.metadata else {}
 
     def get_media(self, obj):
         return obj.attachments[0] if obj.attachments else None
