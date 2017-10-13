@@ -773,13 +773,14 @@ describe 'Controllers:', ->
       actionset = flowService.flow.action_sets[0]
       action = actionset.actions[0]
     
-      json_quick_reply = 'base':[{'text': 'Yes'}]
+      json_quick_reply = ['Yes', 'No']
 
       editAction actionset, action, (scope) ->
         scope.quickReplies = []
         scope.action.quick_replies = {}
         scope.addNewQuickReply()
-        scope.quickReplies[0]['text'] = 'Yes'
+        scope.quickReplies[0] = 'Yes'
+        scope.quickReplies[1] = 'No'
         scope.formData.msg = "test"
         scope.saveMessage('test', type='reply')
 
