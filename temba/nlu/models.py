@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from django.db import models
-
 
 NLU_API_NAME = 'NLU_API_NAME'
 NLU_API_KEY = 'NLU_API_KEY'
@@ -13,6 +11,8 @@ NLU_WIT_AI_TAG = 'WIT'
 NLU_API_CHOICES = (
     (NLU_BOTHUB_TAG, 'BotHub'),
     (NLU_WIT_AI_TAG, 'Wit.AI'),)
+
+NLU_API_WITHOUT_KEY = [NLU_WIT_AI_TAG]
 
 
 class BaseConsumer(object):
@@ -47,5 +47,5 @@ class NluApiConsumer(object):
     def factory(nlu_type, auth):
         if nlu_type == NLU_BOTHUB_TAG:
             return BothubConsumer(auth, nlu_type)
-        elif nlu_type == NLU_WIT_AI_TAG:
+        if nlu_type == NLU_WIT_AI_TAG:
             return WitConsumer(auth, nlu_type)

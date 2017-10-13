@@ -37,7 +37,7 @@ from requests import Session
 from smartmin.models import SmartModel
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.nlu.models import NLU_API_KEY, NLU_API_NAME, NLU_API_CHOICES, NluApiConsumer
+from temba.nlu.models import NLU_API_KEY, NLU_API_NAME, NLU_API_WITHOUT_KEY
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, languages
 from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from temba.utils.currencies import currency_for_country
@@ -933,11 +933,14 @@ class Org(SmartModel):
         else:
             return None, None
 
-    def connect_nlu_api(self, api_name, api_key, user):
+    def connect_nlu_api(self, user, api_name, api_key=None):
         nlu_api_config = {
-            NLU_API_NAME: api_name,
-            NLU_API_KEY: api_key
+            NLU_API_NAME: api_name
         }
+
+        if api_key and api_name not in NLU_API_WITHOUT_KEY:
+            nlu_api_config.update({NLU_API_KEY: api_key})
+
         self.nlu_api_config = json.dumps(nlu_api_config)
         self.modified_by = user
         self.save()

@@ -10,49 +10,56 @@
       -trans "Natural Language Understand Api"
 
 -block summary
-  -if object.nlu_api_config_json
+  -if api_name
     -trans "Connected to NLU Api"
     <b>{{api_name}}</b>.
   -else
     -trans "Connect your NLU Api"
 
 -block pre-form
-  -if not object.nlu_api_config_json
+  -if not api_name
     -blocktrans
       Connecting your Natural Language Understand Api will allow you get entity's and intentions of yours 
       users messages.
     %hr
 
 -block fields
-    -if not object.nlu_api_config_json
-        {{ block.super }}
+  -if not api_name
+    {{ block.super }}
 
 -block form-buttons
 
 -block post-form
-    -if object.nlu_api_config_json
-      %p
-        -trans "Your NLU Api is connected"
-        {{api_name}}.
+  -if api_name
+    %p
+      -trans "Your NLU Api is connected"
+      {{api_name}}.
 
-      %p
-        -trans "If you no longer want it connected, you can"
-        %a{href:'javascript:confirmNluApiDisconnect();'}
-          -trans "disconnect"
-        -trans "your NLU Api. Doing so will interrupt flows that use NLU."
+    %p
+      -trans "If you no longer want it connected, you can"
+      %a{href:'javascript:confirmNluApiDisconnect();'}
+        -trans "disconnect"
+      -trans "your NLU Api. Doing so will interrupt flows that use NLU."
 
-      .disconnect-nlu-api.hide
-        .title
-          -trans "Disconnect NLU Api"
-        .body
-          -blocktrans
-            This will disconnect your NLU Api. Are you sure you want to proceed?
-      %a#disconnect-nlu-api-form.posterize{href:'{% url "orgs.org_nlu_api" %}?disconnect=true'}
+    .disconnect-nlu-api.hide
+      .title
+        -trans "Disconnect NLU Api"
+      .body
+        -blocktrans
+          This will disconnect your NLU Api. Are you sure you want to proceed?
+    %a#disconnect-nlu-api-form.posterize{href:'{% url "orgs.org_nlu_api" %}?disconnect=true'}
 
 -block extra-script
   :javascript
     $(document).ready(function() {
       select2div('#id_api_name');
+      $('#id_api_name').change(() => {
+        if($('#id_api_name').val() == 'WIT'){
+          $('.field_api_key').eq(1).hide()
+        }else{
+          $('.field_api_key').eq(1).show()
+        }
+      })
     });
     function confirmNluApiDisconnect() {
       removalConfirmation("disconnect-nlu-api", "Disconnect");

@@ -22,6 +22,7 @@ from temba.schedules.views import BaseScheduleForm
 from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.msgs.views import ModalMixin
+from temba.nlu.models import NLU_API_NAME, NLU_WIT_AI_TAG
 from temba.utils import analytics, on_transaction_commit
 from temba.utils.views import BaseActionForm
 from .models import Trigger
@@ -370,16 +371,21 @@ class NluApiTriggerForm(GroupBasedTriggerForm):
     For for catchall triggers
     """
     intents = forms.CharField(max_length=255, required=True, label=_("Intents Keyword"),
-                                  help_text=_("The intents that will trigger this flow"))
+                              help_text=_("The intents that will trigger this flow"))
     accurancy = forms.IntegerField(max_value=100, min_value=0, required=True, label=_("Accurancy Value"),
-                                  help_text=_("The minimum accuracy value between 0 and 100"))
+                                   help_text=_("The minimum accuracy value between 0 and 100"))
     bots = forms.ChoiceField((), label=_("Bot Intepreter"), required=True,
                              help_text=_("Bot that will intepreter words and return intents"))
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW])
+        org = user.get_org()
+        flows = Flow.objects.filter(org=org, is_active=True, is_archived=False, flow_type__in=[Flow.FLOW])
         super(NluApiTriggerForm, self).__init__(user, flows, *args, **kwargs)
-        self.fields['bots'].choices = self.get_bots_by_org(user.get_org())
+        if org.nlu_api_config_json().get(NLU_API_NAME, None) == NLU_WIT_AI_TAG:
+            self.fields['bots'] = forms.CharField(max_length=255, required=True, label=_("Wit.AI Application Key"),
+                                                  help_text=_("The key to identify you wit application "))
+        else:
+            self.fields['bots'].choices = self.get_bots_by_org(org)
 
     def get_existing_triggers(self, cleaned_data):
         existing = super(NluApiTriggerForm, self).get_existing_triggers(cleaned_data)
@@ -466,10 +472,9 @@ class TriggerCRUDL(SmartCRUDL):
                 add_section('trigger-ussd', 'triggers.trigger_ussd', 'icon-mobile')
             add_section('trigger-catchall', 'triggers.trigger_catchall', 'icon-bubble')
 
-            api_key, api_name = self.org.get_nlu_api_credentials()
-            if api_key and api_name:
+            api_name, api_key = self.org.get_nlu_api_credentials()
+            if api_name:
                 add_section('trigger-nlu-api', 'triggers.trigger_nlu_api', 'icon-tree')
-
 
     class Update(ModalMixin, OrgMixin, SmartUpdateView):
         success_message = ''
@@ -493,6 +498,7 @@ class TriggerCRUDL(SmartCRUDL):
             if self.get_object().schedule:
                 context['days'] = self.get_object().schedule.explode_bitmask()
             if self.get_object().nlu_data:
+                context['api_name'], api_key = self.get_object().org.get_nlu_api_credentials()
                 nlu_data = self.get_object().get_nlu_data()
                 context['bot'] = json.dumps(nlu_data.get('bot'))
                 context['intents'] = json.dumps(nlu_data.get('intents').split(','))
@@ -972,6 +978,11 @@ class TriggerCRUDL(SmartCRUDL):
             response = self.render_to_response(self.get_context_data(form=form))
             response['REDIRECT'] = self.get_success_url()
             return response
+
+        def get_context_data(self, **kwargs):
+            context = super(TriggerCRUDL.NluApi, self).get_context_data(**kwargs)
+            context['api_name'], api_key = self.request.user.get_org().get_nlu_api_credentials()
+            return context
 
         def get_form_kwargs(self):
             kwargs = super(TriggerCRUDL.NluApi, self).get_form_kwargs()

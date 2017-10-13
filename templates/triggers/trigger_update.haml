@@ -152,7 +152,9 @@
       {% endif %}
 
       {% if object.trigger_type == 'L' %}
-        select2div("#id_bots", "520px");
+        {% if not api_name == 'WIT' %}
+          select2div("#id_bots", "520px");
+        {% endif %}
         $("#id_groups").select2({
           containerCssClass: "select2-temba-field"
         });

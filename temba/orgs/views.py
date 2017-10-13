@@ -39,7 +39,7 @@ from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.nlu.models import NLU_API_NAME, NLU_API_KEY, NLU_API_CHOICES
+from temba.nlu.models import NLU_API_NAME, NLU_API_KEY, NLU_API_CHOICES, NLU_API_WITHOUT_KEY
 from temba.utils import analytics, languages
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.email import is_valid_address
@@ -2058,10 +2058,12 @@ class OrgCRUDL(SmartCRUDL):
                     api_name = self.cleaned_data.get('api_name')
                     api_key = self.cleaned_data.get('api_key')
 
-                    if not api_name or not api_key:
-                        raise ValidationError(_("Missing data: API Name or API Key. "
+                    if not api_name:
+                        raise ValidationError(_("Missing data: API Name. "
                                                 "Please check them again and retry."))
-
+                    if not api_key and api_name not in NLU_API_WITHOUT_KEY:
+                        raise ValidationError(_("Missing data: API Key. "
+                                                "Please check them again and retry."))
                 return self.cleaned_data
 
             class Meta:
@@ -2084,11 +2086,11 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.NluApi, self).get_context_data(**kwargs)
             api_name, api_key = self.object.get_nlu_api_credentials()
-            if api_key:
+            if api_name:
                 context['api_name'] = dict(NLU_API_CHOICES).get(api_name, None)
 
             return context
-        
+
         def post(self, *args, **kwargs):
             user = self.request.user
             org = user.get_org()
@@ -2109,8 +2111,8 @@ class OrgCRUDL(SmartCRUDL):
             if disconnect:
                 org.remove_nlu_api(user)
                 return HttpResponseRedirect(reverse('orgs.org_home'))
-            elif api_name and api_key:
-                org.connect_nlu_api(api_name, api_key, user)
+            elif api_name:
+                org.connect_nlu_api(user, api_name, api_key)
 
             return super(OrgCRUDL.NluApi, self).form_valid(form)
 
@@ -2199,7 +2201,7 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm('orgs.org_nlu_api'):
                 nlu_api_name, nlu_api_key = self.object.get_nlu_api_credentials()
-                if not nlu_api_key:
+                if not nlu_api_name:
                     formax.add_section('nlu_api', reverse('orgs.org_nlu_api'), icon='icon-language',
                                        action='redirect', button=_("Connect"))
                 else:  # pragma: needs cover
