@@ -1,0 +1,156 @@
+{
+  "campaigns": [], 
+  "version": 10,
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 44, 
+          "x": 223, 
+          "destination": "4297b822-734e-44cb-a1c9-2e20bc2cdb19", 
+          "uuid": "163462f8-8a82-49df-ab8a-4eee3f7b9feb", 
+          "actions": [
+            {
+              "msg": {
+                "por": "Voc\u00ea gosta de jogar futebol?", 
+                "eng": "Do you like to play football?"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply", 
+              "quick_replies": [
+                {
+                  "por": "Sim", 
+                  "eng": "Yes"
+                }, 
+                {
+                  "eng": "No"
+                }
+              ]
+            }
+          ]
+        }, 
+        {
+          "y": 319, 
+          "x": 262, 
+          "destination": null, 
+          "uuid": "a26a36b9-d4d7-4355-aad3-2fc86e84a7f1", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Good!"
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply", 
+              "quick_replies": []
+            }
+          ]
+        }, 
+        {
+          "y": 318, 
+          "x": 509, 
+          "destination": null, 
+          "uuid": "cdf0b558-6a44-44c9-8bee-6a6b6e8ad9c4", 
+          "actions": [
+            {
+              "msg": {
+                "eng": ":("
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply", 
+              "quick_replies": []
+            }
+          ]
+        }, 
+        {
+          "y": 173, 
+          "x": 749, 
+          "destination": "4297b822-734e-44cb-a1c9-2e20bc2cdb19", 
+          "uuid": "4b7366eb-6099-4135-9a00-72492e6fdb8d", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Sorry, I don't understand."
+              }, 
+              "media": {}, 
+              "send_all": false, 
+              "type": "reply", 
+              "quick_replies": []
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "163462f8-8a82-49df-ab8a-4eee3f7b9feb", 
+      "rule_sets": [
+        {
+          "uuid": "4297b822-734e-44cb-a1c9-2e20bc2cdb19", 
+          "rules": [
+            {
+              "category": {
+                "eng": "Yes"
+              }, 
+              "uuid": "e8014483-e9ee-4384-85ea-f88c67ddf494", 
+              "destination": "a26a36b9-d4d7-4355-aad3-2fc86e84a7f1", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": {
+                  "eng": "Yes, Sim"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "No"
+              }, 
+              "uuid": "a0b594ae-491f-4f2c-93af-0f158f69a5d8", 
+              "destination": "cdf0b558-6a44-44c9-8bee-6a6b6e8ad9c4", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "test": {
+                  "eng": "No"
+                }, 
+                "type": "contains_any"
+              }
+            }, 
+            {
+              "category": {
+                "eng": "Other"
+              }, 
+              "uuid": "b27d6067-f3fd-4b9b-a79a-127791987ec5", 
+              "destination": "4b7366eb-6099-4135-9a00-72492e6fdb8d", 
+              "label": null, 
+              "destination_type": "A", 
+              "test": {
+                "type": "true"
+              }
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Response 1", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 160, 
+          "x": 381, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 106, 
+        "uuid": "711489ef-87c9-4fbc-8e6e-92af2b671fc4", 
+        "name": "Quick Replies", 
+        "saved_on": "2017-10-13T13:09:02.747795Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

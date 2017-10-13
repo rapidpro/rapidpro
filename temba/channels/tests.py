@@ -7482,18 +7482,7 @@ class TelegramTest(TembaTest):
             self.assertEqual(mock.call_args[0][1]['chat_id'], "1234")
 
     def test_send_quick_replies(self):
-        metadata = """
-        {
-            "quick_replies": [
-                {
-                    "text": "Yes"
-                },
-                {
-                    "text": "No"
-                }
-            ]
-        }
-        """
+        metadata = json.dumps(dict(quick_replies=['Yes', 'No']))
         joe = self.create_contact("Ernie", urn='telegram:1234')
         msg = joe.send("Test message", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
@@ -7961,7 +7950,7 @@ class TwitterTest(TembaTest):
             settings.SEND_MESSAGES = False
 
     def test_send_quick_replies(self):
-        metadata = json.dumps(dict(quick_replies=[dict(text='Yes'), dict(text='No')]))
+        metadata = json.dumps(dict(quick_replies=['Yes', 'No']))
         msg = self.joe.send("Hello, world!", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
         try:
@@ -10001,19 +9990,7 @@ class FacebookTest(TembaTest):
 
     def test_send_quick_replies(self):
         joe = self.create_contact("Joe", urn="facebook:1234")
-        metadata = """
-        {
-            "quick_replies": [
-                {
-                    "text": "Yes"
-                },
-                {
-                    "text": "No"
-                }
-            ]
-        }
-        """
-
+        metadata = json.dumps(dict(quick_replies=['Yes', 'No']))
         msg = joe.send("Facebook Msg", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
         with self.settings(SEND_MESSAGES=True):
@@ -11193,7 +11170,7 @@ class ViberPublicTest(TembaTest):
             self.clear_cache()
 
     def test_send_quick_replies(self):
-        metadata = json.dumps(dict(quick_replies=[dict(text='Yes'), dict(text='No')]))
+        metadata = json.dumps(dict(quick_replies=['Yes', 'No']))
         joe = self.create_contact("Joe", urn="viber:FXLP/JstS7kDuoiUGihkgA==")
         msg = joe.send("Hello, world!", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
@@ -11412,18 +11389,7 @@ class FcmTest(TembaTest):
                 self.clear_cache()
 
     def test_send_quick_replies(self):
-        metadata = """
-        {
-            "quick_replies": [
-                {
-                    "text": "Yes"
-                },
-                {
-                    "text": "No"
-                }
-            ]
-        }
-        """
+        metadata = json.dumps(dict(quick_replies=['Yes', 'No']))
         joe = self.create_contact("Joe", urn="fcm:12345abcde", auth="123456abcdef")
         msg = joe.send("Hello, world!", self.admin, trigger_send=False, quick_replies=metadata)[0]
 
@@ -11446,14 +11412,7 @@ class FcmTest(TembaTest):
                         'title': 'FCM Channel',
                         'message': 'Hello, world!',
                         'message_id': msg.id,
-                        'metadata': [
-                            {
-                                "text": "Yes"
-                            },
-                            {
-                                "text": "No"
-                            }
-                        ]
+                        'metadata': ["Yes", "No"]
                     },
                     'content_available': True,
                     'to': '123456abcdef',

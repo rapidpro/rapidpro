@@ -121,9 +121,6 @@ class TembaTest(SmartminTest):
         with open('%s/test_flows/color.json' % settings.MEDIA_ROOT, 'r') as f:
             cls.COLOR_FLOW_DEFINITION = json.load(f)
 
-        with open('%s/test_flows/flow_quick_replies.json' % settings.MEDIA_ROOT, 'r') as fqr:
-            cls.QUICK_REPLY_FLOW_DEFINITION = json.load(fqr)
-
     def setUp(self):
 
         # if we are super verbose, turn on debug for sql queries

@@ -285,7 +285,7 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse('flows.flow_list'))
         self.assertContains(response, self.flow.name)
         self.assertContains(response, flow3.name)
-        self.assertEquals(3, response.context['folders'][0]['count'])
+        self.assertEquals(2, response.context['folders'][0]['count'])
         self.assertEquals(1, response.context['folders'][1]['count'])
 
         # archive it
@@ -294,7 +294,7 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse('flows.flow_list'))
         self.assertNotContains(response, self.flow.name)
         self.assertContains(response, flow3.name)
-        self.assertEquals(2, response.context['folders'][0]['count'])
+        self.assertEquals(1, response.context['folders'][0]['count'])
         self.assertEquals(2, response.context['folders'][1]['count'])
 
         response = self.client.get(reverse('flows.flow_archived'), post_data)
@@ -312,7 +312,7 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse('flows.flow_list'), post_data)
         self.assertContains(response, self.flow.name)
         self.assertContains(response, flow3.name)
-        self.assertEquals(3, response.context['folders'][0]['count'])
+        self.assertEquals(2, response.context['folders'][0]['count'])
         self.assertEquals(1, response.context['folders'][1]['count'])
 
         # voice flows should be included in the count
@@ -320,7 +320,7 @@ class FlowTest(TembaTest):
 
         response = self.client.get(reverse('flows.flow_list'))
         self.assertContains(response, self.flow.name)
-        self.assertEquals(3, response.context['folders'][0]['count'])
+        self.assertEquals(2, response.context['folders'][0]['count'])
         self.assertEquals(1, response.context['folders'][1]['count'])
 
         # single message flow (flom campaign) should not be included in counts and not even on this list
@@ -329,7 +329,7 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse('flows.flow_list'))
 
         self.assertNotContains(response, self.flow.name)
-        self.assertEquals(2, response.context['folders'][0]['count'])
+        self.assertEquals(1, response.context['folders'][0]['count'])
         self.assertEquals(1, response.context['folders'][1]['count'])
 
         # single message flow should not be even in the archived list
@@ -337,7 +337,7 @@ class FlowTest(TembaTest):
 
         response = self.client.get(reverse('flows.flow_archived'))
         self.assertNotContains(response, self.flow.name)
-        self.assertEquals(2, response.context['folders'][0]['count'])
+        self.assertEquals(1, response.context['folders'][0]['count'])
         self.assertEquals(1, response.context['folders'][1]['count'])  # only flow2
 
     def test_campaign_filter(self):
@@ -1236,7 +1236,7 @@ class FlowTest(TembaTest):
 
     def test_parsing(self):
         # our flow should have the appropriate RuleSet and ActionSet objects
-        self.assertEquals(6, ActionSet.objects.all().count())
+        self.assertEquals(4, ActionSet.objects.all().count())
 
         entry = ActionSet.objects.get(uuid="d51ec25f-04e6-4349-a448-e7c4d93d4597")
         actions = entry.get_actions()
@@ -1250,7 +1250,7 @@ class FlowTest(TembaTest):
         self.assertEquals(1, len(actions))
         self.assertEquals(ReplyAction(dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow')).as_json(), actions[0].as_json())
 
-        self.assertEquals(2, RuleSet.objects.all().count())
+        self.assertEquals(1, RuleSet.objects.all().count())
         ruleset = RuleSet.objects.get(uuid="bd531ace-911e-4722-8e53-6730d6122fe1")
         self.assertEquals(entry.destination, ruleset.uuid)
         rules = ruleset.get_rules()
@@ -1294,7 +1294,7 @@ class FlowTest(TembaTest):
         # update
         self.flow.update(json_dict)
 
-        self.assertEquals(5, ActionSet.objects.all().count())
+        self.assertEquals(3, ActionSet.objects.all().count())
 
         entry = ActionSet.objects.get(uuid="d51ec25f-04e6-4349-a448-e7c4d93d4597")
         actions = entry.get_actions()
@@ -1308,7 +1308,7 @@ class FlowTest(TembaTest):
         self.assertEquals(1, len(actions))
         self.assertEquals(ReplyAction(dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow')).as_json(), actions[0].as_json())
 
-        self.assertEquals(2, RuleSet.objects.all().count())
+        self.assertEquals(1, RuleSet.objects.all().count())
         ruleset = RuleSet.objects.get(uuid="bd531ace-911e-4722-8e53-6730d6122fe1")
         self.assertEquals(entry.destination, ruleset.uuid)
         rules = ruleset.get_rules()
@@ -2138,7 +2138,7 @@ class FlowTest(TembaTest):
 
         # list, should have only one flow (the one created in setUp)
         response = self.client.get(reverse('flows.flow_list'))
-        self.assertEquals(2, len(response.context['object_list']))
+        self.assertEquals(1, len(response.context['object_list']))
 
         # inactive list shouldn't have any flows
         response = self.client.get(reverse('flows.flow_archived'))
@@ -2321,8 +2321,7 @@ class FlowTest(TembaTest):
 
         # check flow listing
         response = self.client.get(reverse('flows.flow_list'))
-        self.assertEqual(list(response.context['object_list']), [flow3, voice_flow, flow2, flow1,
-                                                                 self.flow_quick_replies, self.flow])  # by saved_on
+        self.assertEqual(list(response.context['object_list']), [flow3, voice_flow, flow2, flow1, self.flow])  # by saved_on
 
         # start a contact in a flow
         self.flow.start([], [self.contact])
@@ -2332,7 +2331,7 @@ class FlowTest(TembaTest):
         self.assertIn('channels', response.json())
         self.assertIn('languages', response.json())
         self.assertIn('channel_countries', response.json())
-        self.assertEqual(ActionSet.objects.all().count(), 30)
+        self.assertEqual(ActionSet.objects.all().count(), 28)
 
         json_dict = response.json()['flow']
 
@@ -2344,7 +2343,7 @@ class FlowTest(TembaTest):
 
         response = self.client.post(reverse('flows.flow_json', args=[self.flow.id]), json.dumps(json_dict), content_type="application/json")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(ActionSet.objects.all().count(), 27)
+        self.assertEqual(ActionSet.objects.all().count(), 25)
 
         # check that the flow only has a single actionset
         ActionSet.objects.get(flow=self.flow)
@@ -2576,7 +2575,7 @@ class FlowTest(TembaTest):
         # list, should have only one flow (the one created in setUp)
 
         response = self.client.get(flow_list_url)
-        self.assertEquals(2, len(response.context['object_list']))
+        self.assertEquals(1, len(response.context['object_list']))
         # no create links
         self.assertFalse(flow_create_url in response.content)
         self.assertFalse(flowlabel_create_url in response.content)
@@ -2595,7 +2594,7 @@ class FlowTest(TembaTest):
         post_data['add'] = True
 
         response = self.client.post(flow_list_url, post_data, follow=True)
-        self.assertEquals(2, response.context['object_list'].count())
+        self.assertEquals(1, response.context['object_list'].count())
         self.assertFalse(response.context['object_list'][0].labels.all())
 
         # can not archive
@@ -2603,8 +2602,7 @@ class FlowTest(TembaTest):
         post_data['action'] = 'archive'
         post_data['objects'] = self.flow.pk
         response = self.client.post(flow_list_url, post_data, follow=True)
-        self.assertEquals(2, response.context['object_list'].count())
-        self.assertEquals(response.context['object_list'][0].pk, self.flow_quick_replies.pk)
+        self.assertEquals(1, response.context['object_list'].count())
         self.assertFalse(response.context['object_list'][0].is_archived)
 
         # inactive list shouldn't have any flows
@@ -2627,7 +2625,7 @@ class FlowTest(TembaTest):
         self.flow.save()
 
         response = self.client.get(flow_list_url)
-        self.assertEquals(1, len(response.context['object_list']))
+        self.assertEquals(0, len(response.context['object_list']))
 
         # can not restore
         post_data = dict()
@@ -2690,8 +2688,8 @@ class FlowTest(TembaTest):
         self.assertEquals(Msg.objects.get(pk=sms.pk).msg_type, FLOW)
 
     def test_flow_start_with_quick_replies(self):
-        sms = self.create_msg(direction=INCOMING, contact=self.contact4, text="1")
-        self.flow_quick_replies.start([], [self.contact4], start_msg=sms)
+        flow = self.get_flow('quick_replies')
+        flow.start([], [self.contact4])
 
         self.assertTrue(FlowRun.objects.filter(contact=self.contact4))
         run = FlowRun.objects.filter(contact=self.contact4).first()
@@ -2704,7 +2702,7 @@ class FlowTest(TembaTest):
         self.assertFalse(ruleset_step.messages.all())
 
         # should have 2 messages on the actionset step
-        self.assertEquals(actionset_step.messages.all().count(), 2)
+        self.assertEquals(actionset_step.messages.all().count(), 1)
 
     def test_multiple(self):
         self.flow.start([], [self.contact])
@@ -2973,10 +2971,10 @@ class ActionTest(TembaTest):
         self.assertEquals(self.contact, response.contact)
 
     def test_quick_replies_action(self):
-        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Yes")
         run = FlowRun.create(self.flow, self.contact.pk)
 
-        payload = dict(quick_replies=dict(eng=[dict(payload='yes', title='Yes'), dict(payload='no', title='No')]))
+        payload = dict(quick_replies=dict(eng=['Yes', 'No']))
 
         action = ReplyAction(msg=dict(base="Are you fine?"), quick_replies=payload)
         action_json = action.as_json()
