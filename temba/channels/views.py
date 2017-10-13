@@ -1052,8 +1052,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_verboice', 'search_plivo',
                'claim_smscentral', 'claim_start', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia',
-               'claim_twiml_api', 'facebook_whitelist',
-               'claim_red_rabbit')
+               'claim_twiml_api', 'facebook_whitelist')
     permissions = True
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -1649,10 +1648,6 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimStart(ClaimAuthenticatedExternal):
         title = _("Connect Start")
         channel_type = Channel.TYPE_START
-
-    class ClaimRedRabbit(ClaimAuthenticatedExternal):
-        title = _("Connect Red Rabbit")
-        channel_type = Channel.TYPE_RED_RABBIT
 
     class ClaimChikka(ClaimAuthenticatedExternal):
         class ChikkaForm(forms.Form):
