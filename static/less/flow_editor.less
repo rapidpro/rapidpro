@@ -9,6 +9,7 @@
 @color-rules:@flat-grey + #333;
 @color-send-email:@flat-mutedpurple;
 @color-webhook:@flat-mutedorange;
+@color-stop-contact:@flat-red;
 @color-passive:@flat-darkwhite;
 @color-subflow:@flat-darkwhite;
 @color-missing:@flat-mutedred + #444;
@@ -1010,6 +1011,13 @@
     .title {
       text-shadow: 0px 1px @color-webhook - #222;
       .bg-gradient(@color-webhook, @color-webhook - #101010);
+    }
+  }
+
+  .stop_contact {
+    .title {
+      text-shadow: 0px 1px @color-stop-contact - #222;
+      .bg-gradient(@color-stop-contact, @color-stop-contact - #101010);
     }
   }
 

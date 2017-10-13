@@ -197,6 +197,13 @@
       %button{ng-click:"saveStartFlow(action_editor.flow.selected)",class:"submit hide"}
         -trans "Ok"
 
+    %div.stop_contact{ng-if:'config.type == "stop_contact"'}
+      %p{class:"description"}
+        -blocktrans
+          This action stop the contact to not receive messages from this organization.
+      %button{ng-click:"saveStopContact()",class:"submit hide"}
+        -trans "Ok"
+
     %div{ng-if:'config.type == "api"'}
       %p{class:"description"}
         -blocktrans

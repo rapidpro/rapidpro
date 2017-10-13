@@ -4649,6 +4649,7 @@ class Action(object):
                 PlayAction.TYPE: PlayAction,
                 TriggerFlowAction.TYPE: TriggerFlowAction,
                 EndUssdAction.TYPE: EndUssdAction,
+                StopContactAction.TYPE: StopContactAction,
             }
 
         action_type = json_obj.get(cls.TYPE)
@@ -4668,6 +4669,36 @@ class Action(object):
             if action:
                 actions.append(action)
         return actions
+
+
+class StopContactAction(Action):
+    """
+    Stops contact
+    """
+    TYPE = 'stop_contact'
+    VALUE = 'value'
+
+    def __init__(self, value):
+        self.value = value
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        return StopContactAction(json_obj.get(StopContactAction.VALUE))
+
+    def as_json(self):
+        return dict(type=StopContactAction.TYPE, value=self.value)
+
+    def execute(self, run, context, actionset_uuid, msg, offline_on=None):
+        contact = run.contact
+
+        if contact.is_test:  # pragma: needs cover
+            ActionLog.info(run, _("Contact stopped"))
+        elif not contact.is_stopped:
+            from temba.contacts.models import Contact
+            contact = Contact.objects.get(id=contact.id)
+            contact.stop(contact.modified_by)
+
+        return []
 
 
 class EmailAction(Action):
