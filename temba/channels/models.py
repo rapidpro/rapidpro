@@ -96,6 +96,7 @@ class ChannelType(six.with_metaclass(ABCMeta)):
     max_tps = None
     attachment_support = False
     free_sending = False
+    quick_reply_text_size = 20
 
     def is_available_to(self, user):
         """

@@ -31,6 +31,7 @@ class TwitterType(ChannelType):
     max_length = 10000
     show_config_page = False
     free_sending = True
+    quick_reply_text_size = 36
 
     FATAL_403S = ("messages to this user right now",  # handle is suspended
                   "users who are not following you")  # handle no longer follows us

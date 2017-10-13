@@ -668,7 +668,6 @@ class Msg(models.Model):
     CONTACT_HANDLING_QUEUE = 'ch:%d'
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
-    MAX_QUICK_REPLY_TEXT_LEN = settings.QUICK_REPLY_TEXT_SIZE
 
     uuid = models.UUIDField(null=True, default=uuid.uuid4,
                             help_text=_("The UUID for this message"))
@@ -1462,14 +1461,15 @@ class Msg(models.Model):
         return evaluate_template(text, context, url_encode, partial_vars)
 
     @classmethod
-    def get_outgoing_metadata(cls, metadata, message_context, contact, org):
+    def get_outgoing_metadata(cls, metadata, message_context, contact, org, channel):
         metadata = json.loads(metadata)
         quick_replies = metadata.get('quick_replies', None)
         if quick_replies:
             for counter, reply in enumerate(quick_replies):
                 (text, errors) = Msg.substitute_variables(reply, message_context, contact=contact, org=org)
                 if text:
-                    quick_replies[counter] = text[:Msg.MAX_QUICK_REPLY_TEXT_LEN]
+                    channel_type = Channel.get_type_from_code(channel.channel_type)
+                    quick_replies[counter] = text[:channel_type.quick_reply_text_size]
 
         return json.dumps(metadata)
 
@@ -1587,7 +1587,7 @@ class Msg(models.Model):
             analytics.gauge('temba.msg_outgoing_%s' % channel.channel_type.lower())
 
         if metadata:
-            metadata = Msg.get_outgoing_metadata(metadata, message_context, contact, org)
+            metadata = Msg.get_outgoing_metadata(metadata, message_context, contact, org, channel)
 
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,
