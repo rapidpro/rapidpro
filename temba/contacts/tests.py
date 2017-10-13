@@ -4085,6 +4085,12 @@ class ContactFieldTest(TembaTest):
 
         # try deleting favorite_cat, should not work since our flow depends on it
         before = ContactField.objects.filter(org=self.org, is_active=True).count()
+
+        # make sure we can't delete it directly
+        with self.assertRaises(Exception):
+            ContactField.hide_field(self.org, self.admin, 'favorite_cat')
+
+        # or through the ui
         post_data[favorite_cat] = ''
         response = self.client.post(manage_fields_url, post_data, follow=True)
         self.assertEquals(response.status_code, 200)

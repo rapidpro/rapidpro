@@ -365,7 +365,6 @@ class ContactField(SmartModel):
     def hide_field(cls, org, user, key):
         existing = ContactField.objects.filter(org=org, key=key).first()
         if existing:
-
             from temba.flows.models import Flow
             if Flow.objects.filter(field_dependencies__in=[existing]).first():
                 raise Exception(_("Cannot delete field '%s' while used in flows." % key))
