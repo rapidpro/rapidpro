@@ -946,6 +946,8 @@ class Org(SmartModel):
         self.save()
 
     def remove_nlu_api(self, user):
+        from temba.triggers.models import Trigger
+        Trigger.remove_all_triggers_nlu(user)
         self.nlu_api_config = None
         self.modified_by = user
         self.save()

@@ -490,3 +490,10 @@ class Trigger(SmartModel):
         nlu_data['intents_replaced'] = nlu_data.get('intents').replace(',', ', ')
         nlu_data['intents_splited'] = nlu_data.get('intents').split(',')
         return nlu_data
+
+    @classmethod
+    def remove_all_triggers_nlu(cls, user):
+        triggers = Trigger.get_triggers_of_type(user.get_org(), Trigger.TYPE_NLU_API)
+        for trigger in triggers:
+            trigger.archive(user)
+        return True
