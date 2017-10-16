@@ -2876,11 +2876,13 @@ class FlowRun(models.Model):
 
         # create our result dict
         results = self.results_dict()
-        results[key] = dict(name=name,
-                            node_uuid=node_uuid,
-                            category=category,
-                            value=value,
-                            modified_on=datetime_to_str(timezone.now()))
+        results[key] = {
+            FlowRun.RESULT_NAME: name,
+            FlowRun.RESULT_NODE_UUID: node_uuid,
+            FlowRun.RESULT_CATEGORY: category,
+            FlowRun.RESULT_VALUE: value,
+            FlowRun.RESULT_MODIFIED_ON: datetime_to_str(timezone.now())
+        }
 
         self.results = json.dumps(results)
         self.modified_on = timezone.now()
