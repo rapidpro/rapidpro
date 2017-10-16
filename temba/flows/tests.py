@@ -39,7 +39,7 @@ from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision,
 from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user
 from .models import FlowPathRecentMessage, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest, ContainsOnlyPhraseTest, ContainsPhraseTest
-from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
+from .models import DateEqualTest, DateAfterTest, DateBeforeTest, DateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import HasStateTest, HasDistrictTest, HasWardTest, HasEmailTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction, SetChannelAction
@@ -1389,6 +1389,10 @@ class FlowTest(TembaTest):
         tz = run.flow.org.timezone
         context = run.flow.build_expressions_context(run.contact, None)
 
+        # turn to JSON and back
+        test_json = test.as_json()
+        test = test.__class__.from_json(run.org, test_json)
+
         tuple = test.evaluate(run, self.sms, context, self.sms.text)
         if expected_test:
             self.assertTrue(tuple[0])
@@ -1799,7 +1803,7 @@ class FlowTest(TembaTest):
                 five_days_next = now + timedelta(days=5)
 
                 sms.text = "no date in this text"
-                test = HasDateTest()
+                test = DateTest()
                 self.assertDateTest(False, None, test)
 
                 sms.text = "123"

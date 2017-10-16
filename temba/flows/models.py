@@ -3258,23 +3258,28 @@ class RuleSet(models.Model):
         rule_count = 0
 
         for rule in self.get_rules():
-            if not isinstance(rule, TrueTest):
+            if not isinstance(rule.test, TrueTest):
                 rule_count += 1
 
-            if isinstance(rule, NumericTest):  # pragma: needs cover
+            if isinstance(rule.test, NumericTest):
                 dec_rules += 1
-            elif isinstance(rule, DateTest):  # pragma: needs cover
+
+            elif isinstance(rule.test, DateTest):
                 dt_rules += 1
 
         # no real rules? this is open ended, return
-        if rule_count == 0:  # pragma: needs cover
+        if rule_count == 0:
             return Value.TYPE_TEXT
 
-        # if we are all of one type (excluding other) then we are that type
+        # this is a decimal test
         if dec_rules == len(rules) - 1:
             return Value.TYPE_DECIMAL
-        elif dt_rules == len(rules) - 1:  # pragma: needs cover
+
+        # our output will be a date
+        elif dt_rules == len(rules) - 1:
             return Value.TYPE_DATETIME
+
+        # default is just text
         else:
             return Value.TYPE_TEXT
 
@@ -5878,7 +5883,7 @@ class Test(object):
                 FalseTest.TYPE: FalseTest,
                 GtTest.TYPE: GtTest,
                 GteTest.TYPE: GteTest,
-                HasDateTest.TYPE: HasDateTest,
+                DateTest.TYPE: DateTest,
                 HasDistrictTest.TYPE: HasDistrictTest,
                 HasEmailTest.TYPE: HasEmailTest,
                 HasStateTest.TYPE: HasStateTest,
@@ -6538,71 +6543,47 @@ class HasWardTest(Test):
         return 0, None
 
 
-class HasDateTest(Test):
-    TYPE = 'date'
-
-    def __init__(self):
-        pass
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls()
-
-    def as_json(self):  # pragma: needs cover
-        return dict(type=self.TYPE)
-
-    def evaluate_date_test(self, message_date):
-        return True
-
-    def evaluate(self, run, sms, context, text):
-        text = text.replace(' ', "-")
-        org = run.flow.org
-        dayfirst = org.get_dayfirst()
-        tz = org.timezone
-
-        (date_format, time_format) = get_datetime_format(dayfirst)
-
-        date = str_to_datetime(text, tz=tz, dayfirst=org.get_dayfirst())
-        if date is not None and self.evaluate_date_test(date):
-            return 1, datetime_to_str(date, tz=tz, format=time_format, ms=False)
-
-        return 0, None  # pragma: needs cover
-
-
 class DateTest(Test):
     """
     Base class for those tests that check relative dates
     """
-    TEST = 'test'
+    TEST = None
     TYPE = 'date'
 
-    def __init__(self, test):
+    def __init__(self, test=None):
         self.test = test
 
     @classmethod
     def from_json(cls, org, json):
-        return cls(json[cls.TEST])
+        if cls.TEST:
+            return cls(json[cls.TEST])
+        else:
+            return cls()
 
-    def as_json(self):  # pragma: needs cover
-        return dict(type=self.TYPE, test=self.test)
+    def as_json(self):
+        if self.test:
+            return dict(type=self.TYPE, test=self.test)
+        else:
+            return dict(type=self.TYPE)
 
-    def evaluate_date_test(self, date_message, date_test):  # pragma: needs cover
-        raise FlowException("Evaluate date test needs to be defined by subclass.")
+    def evaluate_date_test(self, date_message, date_test):
+        return date_message is not None
 
-    def evaluate(self, run, sms, context, text):  # pragma: needs cover
+    def evaluate(self, run, sms, context, text):
         org = run.flow.org
-        dayfirst = org.get_dayfirst()
+        day_first = org.get_dayfirst()
         tz = org.timezone
-        test, errors = Msg.substitute_variables(self.test, context, org=org)
 
         text = text.replace(' ', "-")
+
+        test, errors = Msg.substitute_variables(self.test, context, org=org)
         if not errors:
-            date_message = str_to_datetime(text, tz=tz, dayfirst=dayfirst)
-            date_test = str_to_datetime(test, tz=tz, dayfirst=dayfirst)
+            (date_format, time_format) = get_datetime_format(day_first)
 
-            (date_format, time_format) = get_datetime_format(dayfirst)
+            date_message = str_to_datetime(text, tz=tz, dayfirst=day_first)
+            date_test = str_to_datetime(test, tz=tz, dayfirst=day_first)
 
-            if date_message is not None and date_test is not None and self.evaluate_date_test(date_message, date_test):
+            if self.evaluate_date_test(date_message, date_test):
                 return 1, datetime_to_str(date_message, tz=tz, format=time_format, ms=False)
 
         return 0, None
@@ -6612,24 +6593,24 @@ class DateEqualTest(DateTest):
     TEST = 'test'
     TYPE = 'date_equal'
 
-    def evaluate_date_test(self, date_message, date_test):  # pragma: needs cover
-        return date_message.date() == date_test.date()
+    def evaluate_date_test(self, date_message, date_test):
+        return date_message and date_test and date_message.date() == date_test.date()
 
 
 class DateAfterTest(DateTest):
     TEST = 'test'
     TYPE = 'date_after'
 
-    def evaluate_date_test(self, date_message, date_test):  # pragma: needs cover
-        return date_message >= date_test
+    def evaluate_date_test(self, date_message, date_test):
+        return date_message and date_test and date_message >= date_test
 
 
 class DateBeforeTest(DateTest):
     TEST = 'test'
     TYPE = 'date_before'
 
-    def evaluate_date_test(self, date_message, date_test):  # pragma: needs cover
-        return date_message <= date_test
+    def evaluate_date_test(self, date_message, date_test):
+        return date_message and date_test and date_message <= date_test
 
 
 class NumericTest(Test):
@@ -6725,7 +6706,7 @@ class NumberTest(NumericTest):
         return True
 
 
-class SimpleNumericTest(Test):
+class SimpleNumericTest(NumericTest):
     """
     Base class for those tests that do a numeric test with a single value
     """
