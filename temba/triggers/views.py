@@ -474,7 +474,7 @@ class TriggerCRUDL(SmartCRUDL):
 
             api_name, api_key = self.org.get_nlu_api_credentials()
             if api_name:
-                add_section('trigger-nlu-api', 'triggers.trigger_nlu_api', 'icon-tree')
+                add_section('trigger-nlu-api', 'triggers.trigger_nlu_api', 'icon-robot-nlu')
 
     class Update(ModalMixin, OrgMixin, SmartUpdateView):
         success_message = ''

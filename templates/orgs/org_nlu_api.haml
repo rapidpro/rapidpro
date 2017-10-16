@@ -33,13 +33,18 @@
   -if api_name
     %p
       -trans "Your NLU Api is connected"
-      {{api_name}}.
+      %b
+       {{api_name}}.
 
     %p
       -trans "If you no longer want it connected, you can"
       %a{href:'javascript:confirmNluApiDisconnect();'}
-        -trans "disconnect"
-      -trans "your NLU Api. Doing so will interrupt flows that use NLU."
+        %b
+         -trans "disconnect"
+      -trans "your NLU Api."
+      %p
+       %b
+        -trans "Doing so will interrupt flows that use NLU."
 
     .disconnect-nlu-api.hide
       .title

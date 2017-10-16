@@ -2202,10 +2202,10 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm('orgs.org_nlu_api'):
                 nlu_api_name, nlu_api_key = self.object.get_nlu_api_credentials()
                 if not nlu_api_name:
-                    formax.add_section('nlu_api', reverse('orgs.org_nlu_api'), icon='icon-language',
+                    formax.add_section('nlu_api', reverse('orgs.org_nlu_api'), icon='icon-robot-nlu',
                                        action='redirect', button=_("Connect"))
                 else:  # pragma: needs cover
-                    formax.add_section('nlu_api', reverse('orgs.org_nlu_api'), icon='icon-language',
+                    formax.add_section('nlu_api', reverse('orgs.org_nlu_api'), icon='icon-robot-nlu',
                                        action='redirect', nobutton=True)
 
             if self.has_org_perm('orgs.org_webhook'):
