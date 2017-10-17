@@ -1,6 +1,9 @@
 -extends "smartmin/read.html"
 -load smartmin sms compress temba contacts i18n
 
+-block page-title
+  -trans "Results"
+  \- {{object.name}}
 -block extra-less
 
   -compress css inline
