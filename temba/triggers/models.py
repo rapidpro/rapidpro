@@ -471,22 +471,22 @@ class Trigger(SmartModel):
         triggers = Trigger.get_triggers_of_type(entity.org, trigger_type)
 
         for trigger in triggers:
-            try:
-                nlu_org_config = entity.org.nlu_api_config_json()
-                nlu_api_key = nlu_org_config.get(NLU_API_KEY)
-                nlu_data = trigger.get_nlu_data()
-                if not nlu_api_key:
-                    nlu_api_key = nlu_data.get('bot')
-                consumer = NluApiConsumer.factory(nlu_org_config.get(NLU_API_NAME), nlu_api_key)
 
+            nlu_org_config = entity.org.nlu_api_config_json()
+            nlu_api_key = nlu_org_config.get(NLU_API_KEY)
+            nlu_data = trigger.get_nlu_data()
+            if not nlu_api_key:
+                nlu_api_key = nlu_data.get('bot')
+            consumer = NluApiConsumer.factory(nlu_org_config.get(NLU_API_NAME), nlu_api_key)
+
+            if consumer:
                 intent, accurancy = consumer.predict(entity, nlu_data.get('bot'))
                 accurancy = accurancy * 100
 
                 if intent in nlu_data.get('intents_splited') and accurancy >= nlu_data.get('accurancy'):
                     trigger.flow.start([], [entity.contact], start_msg=entity, restart_participants=True)
                     return True
-            except:
-                pass
+
         return False
 
     def get_nlu_data(self):
