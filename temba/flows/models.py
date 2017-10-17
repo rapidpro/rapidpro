@@ -285,7 +285,8 @@ class FlowSession(models.Model):
         step_to_run = {}
         for run in output.session['runs']:
             for step in run['path']:
-                step_to_run[step['uuid']] = run['uuid']
+                if step['uuid']:
+                    step_to_run[step['uuid']] = run['uuid']
 
         run_receiving_input = prev_waiting_run or output.session['runs'][0]
 
@@ -294,7 +295,7 @@ class FlowSession(models.Model):
         msgs_to_send = []
         first_run = None
         for run in output.session['runs']:
-            run_log = [event for event in output.log if step_to_run[event.step_uuid] == run['uuid']]
+            run_log = [event for event in output.log if event.step_uuid and step_to_run[event.step_uuid] == run['uuid']]
 
             wait = output.session['wait'] if run['status'] == "waiting" else None
 

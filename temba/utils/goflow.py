@@ -284,7 +284,7 @@ class Output(object):
 
         @classmethod
         def from_json(cls, entry_json):
-            return cls(entry_json['step_uuid'], entry_json.get('action_uuid'), entry_json['event'])
+            return cls(entry_json.get('step_uuid'), entry_json.get('action_uuid'), entry_json['event'])
 
     def __init__(self, session, log):
         self.session = session
