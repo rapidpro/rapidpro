@@ -5,6 +5,21 @@ from __future__ import unicode_literals
 from django.db import migrations, models
 import temba.utils.models
 
+SQL = """
+----------------------------------------------------------------------
+-- Determines the (mutually exclusive) system label for a broadcast record
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_broadcast_determine_system_label(_broadcast msgs_broadcast) RETURNS CHAR(1) AS $$
+BEGIN
+  IF _broadcast.is_active AND _broadcast.schedule_id IS NOT NULL THEN
+    RETURN 'E';
+  END IF;
+
+  RETURN NULL; -- might not match any label
+END;
+$$ LANGUAGE plpgsql;
+"""
+
 
 class Migration(migrations.Migration):
 
@@ -42,4 +57,5 @@ class Migration(migrations.Migration):
             old_name='translations',
             new_name='text',
         ),
+        migrations.RunSQL(SQL)  # recreate trigger after removing fields
     ]
