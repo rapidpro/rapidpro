@@ -4,6 +4,7 @@ import json
 import time
 
 from datetime import timedelta
+from six import text_type
 
 import requests
 from django.conf import settings
@@ -93,7 +94,7 @@ class JunebugType(ChannelType):
             event.response_body = response.text
 
         except Exception as e:
-            raise SendException(unicode(e), event=event, start=start)
+            raise SendException(text_type(e), event=event, start=start)
 
         if not (200 <= response.status_code < 300):
             raise SendException("Received a non 200 response %d from Junebug" % response.status_code,
@@ -107,7 +108,7 @@ class JunebugType(ChannelType):
         try:
             message_id = data['result']['message_id']
             Channel.success(channel, msg, WIRED, start, event=event, external_id=message_id)
-        except KeyError, e:
+        except KeyError as e:
             raise SendException("Unable to read external message_id: %r" % (e,),
                                 event=HttpEvent('POST', log_url,
                                                 request_body=json.dumps(json.dumps(payload)),
