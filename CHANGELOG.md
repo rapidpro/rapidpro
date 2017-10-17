@@ -1,3 +1,13 @@
+v3.0.217
+----------
+ * Add page titles for common pages
+ * New index for contact history
+ * Exit flows in batches so we dont have to grab all runs at once
+ * Check we can create a new groups before importing contact and show the error message to the user
+ * Fixes value type guessing on rulesets (we had zero typed as dates)
+ * Update po files
+ * Dynamic channels: Shaqodoon
+
 v3.0.216
 ----------
  * Should filter user groups by org before limiting to 250
