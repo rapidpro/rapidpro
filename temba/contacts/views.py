@@ -75,9 +75,10 @@ class ContactGroupForm(forms.ModelForm):
 
     def clean_name(self):
         name = self.cleaned_data['name'].strip()
+        org = self.user.get_org()
 
         # make sure the name isn't already taken
-        existing = ContactGroup.get_user_group(self.user.get_org(), name)
+        existing = ContactGroup.get_user_group(org, name)
         if existing and self.instance != existing:
             raise forms.ValidationError(_("Name is used by another group"))
 
@@ -85,7 +86,7 @@ class ContactGroupForm(forms.ModelForm):
         if not ContactGroup.is_valid_name(name):
             raise forms.ValidationError(_("Group name must not be blank or begin with + or -"))
 
-        if ContactGroup.user_groups.count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+        if ContactGroup.user_groups.filter(org=org).count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
             raise forms.ValidationError(_('You have reached %s contact groups, please remove some contact groups '
                                           'to be able to create new contact groups' % ContactGroup.MAX_ORG_CONTACTGROUPS))
 

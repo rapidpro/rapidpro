@@ -2212,7 +2212,7 @@ class ContactGroup(TembaModel):
     def _create(cls, org, user, name, task=None, query=None):
         full_group_name = cls.clean_name(name)
 
-        if cls.user_groups.count() >= cls.MAX_ORG_CONTACTGROUPS:
+        if cls.user_groups.filter(org=org).count() >= cls.MAX_ORG_CONTACTGROUPS:
             raise ValueError('You have reached %s contact groups, please remove some contact groups '
                              'to be able to create new contact groups' % cls.MAX_ORG_CONTACTGROUPS)
 
