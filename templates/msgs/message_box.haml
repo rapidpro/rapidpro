@@ -9,6 +9,10 @@
   -if has_messages
     {{page_top}}
 
+-block page-title
+  -trans "Messages"
+  \- {{title}}
+
 -block title-icon
   %span.title-icon
     .glyph.icon-inbox

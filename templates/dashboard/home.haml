@@ -2,6 +2,11 @@
 
 -load smartmin temba compress i18n humanize tz
 
+-block page-title
+  -trans "Dashboard"
+  -if user_org
+    \- {{user_org.name|capfirst}}
+
 -block page-top
 
 -block messages
