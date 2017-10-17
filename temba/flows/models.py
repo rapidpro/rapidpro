@@ -27,6 +27,7 @@ from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
 from django_redis import get_redis_connection
 from enum import Enum
+from six.moves import range
 from smartmin.models import SmartModel
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
@@ -97,13 +98,13 @@ def edit_distance(s1, s2):  # pragma: no cover
     lenstr1 = len(s1)
     lenstr2 = len(s2)
 
-    for i in xrange(-1, lenstr1 + 1):
+    for i in range(-1, lenstr1 + 1):
         d[(i, -1)] = i + 1
-    for j in xrange(-1, lenstr2 + 1):
+    for j in range(-1, lenstr2 + 1):
         d[(-1, j)] = j + 1
 
-    for i in xrange(0, lenstr1):
-        for j in xrange(0, lenstr2):
+    for i in range(0, lenstr1):
+        for j in range(0, lenstr2):
             if s1[i] == s2[j]:
                 cost = 0
             else:
@@ -1444,8 +1445,9 @@ class Flow(TembaModel):
             ancestor = ancestor.parent
 
         # for the contacts that will be started, exit any existing flow runs
-        active_runs = FlowRun.objects.filter(is_active=True, contact__pk__in=all_contact_ids).exclude(id__in=ancestor_ids)
-        FlowRun.bulk_exit(active_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
+        for contact_batch in chunk_list(all_contact_ids, 1000):
+            active_runs = FlowRun.objects.filter(is_active=True, contact__pk__in=contact_batch).exclude(id__in=ancestor_ids)
+            FlowRun.bulk_exit(active_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
 
         # if we are interrupting parent flow runs, mark them as completed
         if ancestor_ids and interrupt:
@@ -1609,27 +1611,30 @@ class Flow(TembaModel):
         if started_flows is None:
             started_flows = []
 
-        # create the broadcast for this flow
-        send_actions = self.get_entry_send_actions()
-
         # for each send action, we need to create a broadcast, we'll group our created messages under these
         broadcasts = []
-        for send_action in send_actions:
-            # check that we either have text or media, available for the base language
-            if (send_action.msg and send_action.msg.get(self.base_language)) or (send_action.media and send_action.media.get(self.base_language)):
 
-                broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
-                                             media=send_action.media,
-                                             base_language=self.base_language,
-                                             send_all=send_action.send_all)
-                broadcast.update_contacts(all_contact_ids)
+        if len(all_contact_ids) > 1:
 
-                # manually set our broadcast status to QUEUED, our sub processes will send things off for us
-                broadcast.status = QUEUED
-                broadcast.save(update_fields=['status'])
+            # create the broadcast for this flow
+            send_actions = self.get_entry_send_actions()
 
-                # add it to the list of broadcasts in this flow start
-                broadcasts.append(broadcast)
+            for send_action in send_actions:
+                # check that we either have text or media, available for the base language
+                if (send_action.msg and send_action.msg.get(self.base_language)) or (send_action.media and send_action.media.get(self.base_language)):
+
+                    broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
+                                                 media=send_action.media,
+                                                 base_language=self.base_language,
+                                                 send_all=send_action.send_all)
+                    broadcast.update_contacts(all_contact_ids)
+
+                    # manually set our broadcast status to QUEUED, our sub processes will send things off for us
+                    broadcast.status = QUEUED
+                    broadcast.save(update_fields=['status'])
+
+                    # add it to the list of broadcasts in this flow start
+                    broadcasts.append(broadcast)
 
         # if there are fewer contacts than our batch size, do it immediately
         if len(all_contact_ids) < START_FLOW_BATCH_SIZE:
@@ -1680,7 +1685,7 @@ class Flow(TembaModel):
 
         for contact_id in batch_contact_ids:
             run = FlowRun.create(self, contact_id, fields=run_fields, start=flow_start, created_on=now,
-                                 parent=parent_run, db_insert=False)
+                                 parent=parent_run, db_insert=False, responded=start_msg is not None)
             batch.append(run)
         FlowRun.objects.bulk_create(batch)
 
@@ -2496,10 +2501,10 @@ class FlowRun(models.Model):
 
     @classmethod
     def create(cls, flow, contact_id, start=None, session=None, connection=None, fields=None,
-               created_on=None, db_insert=True, submitted_by=None, parent=None):
+               created_on=None, db_insert=True, submitted_by=None, parent=None, responded=False):
 
         args = dict(org=flow.org, flow=flow, contact_id=contact_id, start=start,
-                    session=session, connection=connection, fields=fields, submitted_by=submitted_by, parent=parent)
+                    session=session, connection=connection, fields=fields, submitted_by=submitted_by, parent=parent, responded=responded)
 
         if created_on:
             args['created_on'] = created_on
@@ -2602,6 +2607,12 @@ class FlowRun(models.Model):
 
     @classmethod
     def continue_parent_flow_run(cls, run, trigger_send=True, continue_parent=True):
+
+        # TODO: Remove this in favor of responded on session
+        if run.responded and not run.parent.responded:
+            run.parent.responded = True
+            run.parent.save(update_fields=['responded'])
+
         msgs = []
 
         steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
@@ -2631,6 +2642,18 @@ class FlowRun(models.Model):
                                                        resume_parent_run=True, trigger_send=trigger_send, continue_parent=continue_parent)
 
         return msgs
+
+    def get_session_responded(self):
+        """
+        TODO: Replace with Session.responded when it exists
+        """
+        current_run = self
+        while current_run and current_run.contact == self.contact:
+            if current_run.responded:
+                return True
+            current_run = current_run.parent
+
+        return False
 
     def is_ivr(self):
         """
@@ -3229,33 +3252,37 @@ class RuleSet(models.Model):
         """
         Determines the value type that this ruleset will generate.
         """
-        rules = self.get_rules()
-
         # we keep track of specialized rule types we see
-        dec_rules = 0
-        dt_rules = 0
-        rule_count = 0
+        value_type = None
 
         for rule in self.get_rules():
-            if not isinstance(rule, TrueTest):
-                rule_count += 1
+            if isinstance(rule.test, TrueTest):
+                continue
 
-            if isinstance(rule, NumericTest):  # pragma: needs cover
-                dec_rules += 1
-            elif isinstance(rule, DateTest):  # pragma: needs cover
-                dt_rules += 1
+            rule_type = None
 
-        # no real rules? this is open ended, return
-        if rule_count == 0:  # pragma: needs cover
-            return Value.TYPE_TEXT
+            if isinstance(rule.test, NumericTest):
+                rule_type = Value.TYPE_DECIMAL
 
-        # if we are all of one type (excluding other) then we are that type
-        if dec_rules == len(rules) - 1:
-            return Value.TYPE_DECIMAL
-        elif dt_rules == len(rules) - 1:  # pragma: needs cover
-            return Value.TYPE_DATETIME
-        else:
-            return Value.TYPE_TEXT
+            elif isinstance(rule.test, DateTest):
+                rule_type = Value.TYPE_DATETIME
+
+            elif isinstance(rule.test, HasStateTest):  # pragma: no cover
+                rule_type = Value.TYPE_STATE
+
+            elif isinstance(rule.test, HasDistrictTest):  # pragma: no cover
+                rule_type = Value.TYPE_DISTRICT
+
+            elif isinstance(rule.test, HasWardTest):  # pragma: no cover
+                rule_type = Value.TYPE_WARD
+
+            # this either isn't one of our value types or we have more than one type in this ruleset
+            if not rule_type or (value_type and rule_type != value_type):
+                return Value.TYPE_TEXT
+
+            value_type = rule_type
+
+        return value_type if value_type else Value.TYPE_TEXT
 
     def get_voice_input(self, voice_response, action=None):
 
@@ -5142,14 +5169,17 @@ class ReplyAction(Action):
             else:
                 created_on = None
 
-            if msg:
+            if msg and msg.id:
                 replies = msg.reply(text, user, trigger_send=False, message_context=context,
                                     connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
                                     send_all=self.send_all, created_on=created_on)
             else:
+                # if our run has been responded to or any of our parent runs have
+                # been responded to consider us interactive with high priority
+                high_priority = run.get_session_responded()
                 replies = run.contact.send(text, user, trigger_send=False, message_context=context,
                                            connection=run.connection, msg_type=self.MSG_TYPE, attachments=attachments,
-                                           created_on=created_on, all_urns=self.send_all)
+                                           created_on=created_on, all_urns=self.send_all, high_priority=high_priority)
         return replies
 
 
@@ -5854,7 +5884,7 @@ class Test(object):
                 FalseTest.TYPE: FalseTest,
                 GtTest.TYPE: GtTest,
                 GteTest.TYPE: GteTest,
-                HasDateTest.TYPE: HasDateTest,
+                DateTest.TYPE: DateTest,
                 HasDistrictTest.TYPE: HasDistrictTest,
                 HasEmailTest.TYPE: HasEmailTest,
                 HasStateTest.TYPE: HasStateTest,
@@ -6163,7 +6193,7 @@ class NotEmptyTest(Test):
 
     def evaluate(self, run, sms, context, text):  # pragma: needs cover
         if text and len(text.strip()):
-            return 1, text
+            return 1, text.strip()
         return 0, None
 
 
@@ -6514,71 +6544,47 @@ class HasWardTest(Test):
         return 0, None
 
 
-class HasDateTest(Test):
-    TYPE = 'date'
-
-    def __init__(self):
-        pass
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls()
-
-    def as_json(self):  # pragma: needs cover
-        return dict(type=self.TYPE)
-
-    def evaluate_date_test(self, message_date):
-        return True
-
-    def evaluate(self, run, sms, context, text):
-        text = text.replace(' ', "-")
-        org = run.flow.org
-        dayfirst = org.get_dayfirst()
-        tz = org.timezone
-
-        (date_format, time_format) = get_datetime_format(dayfirst)
-
-        date = str_to_datetime(text, tz=tz, dayfirst=org.get_dayfirst())
-        if date is not None and self.evaluate_date_test(date):
-            return 1, datetime_to_str(date, tz=tz, format=time_format, ms=False)
-
-        return 0, None  # pragma: needs cover
-
-
 class DateTest(Test):
     """
     Base class for those tests that check relative dates
     """
-    TEST = 'test'
+    TEST = None
     TYPE = 'date'
 
-    def __init__(self, test):
+    def __init__(self, test=None):
         self.test = test
 
     @classmethod
     def from_json(cls, org, json):
-        return cls(json[cls.TEST])
+        if cls.TEST:
+            return cls(json[cls.TEST])
+        else:
+            return cls()
 
-    def as_json(self):  # pragma: needs cover
-        return dict(type=self.TYPE, test=self.test)
+    def as_json(self):
+        if self.test:
+            return dict(type=self.TYPE, test=self.test)
+        else:
+            return dict(type=self.TYPE)
 
-    def evaluate_date_test(self, date_message, date_test):  # pragma: needs cover
-        raise FlowException("Evaluate date test needs to be defined by subclass.")
+    def evaluate_date_test(self, date_message, date_test):
+        return date_message is not None
 
-    def evaluate(self, run, sms, context, text):  # pragma: needs cover
+    def evaluate(self, run, sms, context, text):
         org = run.flow.org
-        dayfirst = org.get_dayfirst()
+        day_first = org.get_dayfirst()
         tz = org.timezone
-        test, errors = Msg.substitute_variables(self.test, context, org=org)
 
         text = text.replace(' ', "-")
+
+        test, errors = Msg.substitute_variables(self.test, context, org=org)
         if not errors:
-            date_message = str_to_datetime(text, tz=tz, dayfirst=dayfirst)
-            date_test = str_to_datetime(test, tz=tz, dayfirst=dayfirst)
+            (date_format, time_format) = get_datetime_format(day_first)
 
-            (date_format, time_format) = get_datetime_format(dayfirst)
+            date_message = str_to_datetime(text, tz=tz, dayfirst=day_first)
+            date_test = str_to_datetime(test, tz=tz, dayfirst=day_first)
 
-            if date_message is not None and date_test is not None and self.evaluate_date_test(date_message, date_test):
+            if self.evaluate_date_test(date_message, date_test):
                 return 1, datetime_to_str(date_message, tz=tz, format=time_format, ms=False)
 
         return 0, None
@@ -6588,24 +6594,24 @@ class DateEqualTest(DateTest):
     TEST = 'test'
     TYPE = 'date_equal'
 
-    def evaluate_date_test(self, date_message, date_test):  # pragma: needs cover
-        return date_message.date() == date_test.date()
+    def evaluate_date_test(self, date_message, date_test):
+        return date_message and date_test and date_message.date() == date_test.date()
 
 
 class DateAfterTest(DateTest):
     TEST = 'test'
     TYPE = 'date_after'
 
-    def evaluate_date_test(self, date_message, date_test):  # pragma: needs cover
-        return date_message >= date_test
+    def evaluate_date_test(self, date_message, date_test):
+        return date_message and date_test and date_message >= date_test
 
 
 class DateBeforeTest(DateTest):
     TEST = 'test'
     TYPE = 'date_before'
 
-    def evaluate_date_test(self, date_message, date_test):  # pragma: needs cover
-        return date_message <= date_test
+    def evaluate_date_test(self, date_message, date_test):
+        return date_message and date_test and date_message <= date_test
 
 
 class NumericTest(Test):
@@ -6701,7 +6707,7 @@ class NumberTest(NumericTest):
         return True
 
 
-class SimpleNumericTest(Test):
+class SimpleNumericTest(NumericTest):
     """
     Base class for those tests that do a numeric test with a single value
     """

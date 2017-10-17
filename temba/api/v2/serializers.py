@@ -5,7 +5,7 @@ import six
 
 from rest_framework import serializers
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
-from temba.campaigns.models import Campaign, CampaignEvent
+from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStart
@@ -304,6 +304,9 @@ class CampaignEventWriteSerializer(WriteSerializer):
                                                                    delivery_hour, base_language)
             self.instance.update_flow_name()
 
+        # create our event fires for this event in the background
+        EventFire.update_eventfires_for_event(self.instance)
+
         return self.instance
 
 
@@ -511,6 +514,15 @@ class ContactFieldWriteSerializer(WriteSerializer):
     def validate_value_type(self, value):
         return self.VALUE_TYPES.get(value)
 
+    def validate(self, data):
+
+        if not self.instance and ContactField.objects.filter(org=self.context['org']).count() >= ContactField.MAX_ORG_CONTACTFIELDS:
+            raise serializers.ValidationError('You have reached %s contact fields, '
+                                              'please remove some contact fields to be able '
+                                              'to create new contact fields' % ContactField.MAX_ORG_CONTACTFIELDS)
+
+        return data
+
     def save(self):
         label = self.validated_data.get('label')
         value_type = self.validated_data.get('value_type')
@@ -544,6 +556,13 @@ class ContactGroupWriteSerializer(WriteSerializer):
         if not ContactGroup.is_valid_name(value):
             raise serializers.ValidationError("Name contains illegal characters.")
         return value
+
+    def validate(self, data):
+        if ContactGroup.user_groups.filter(org=self.context['org']).count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+            raise serializers.ValidationError("You have reached %s contact groups, "
+                                              "please remove some contact groups to be able "
+                                              "to create new contact groups" % ContactGroup.MAX_ORG_CONTACTGROUPS)
+        return data
 
     def save(self):
         name = self.validated_data.get('name')
@@ -767,6 +786,12 @@ class LabelWriteSerializer(WriteSerializer):
         if not Label.is_valid_name(value):
             raise serializers.ValidationError("Name contains illegal characters.")
         return value
+
+    def validate(self, data):
+        if Label.label_objects.filter(org=self.context['org'], is_active=True).count() >= Label.MAX_ORG_LABELS:
+            raise serializers.ValidationError("You have reached %s labels, "
+                                              "please remove some to be able to add a new label" % Label.MAX_ORG_LABELS)
+        return data
 
     def save(self):
         name = self.validated_data.get('name')

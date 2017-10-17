@@ -58,7 +58,7 @@ USERS = (
 )
 CHANNELS = (
     {'name': "Android", 'channel_type': Channel.TYPE_ANDROID, 'scheme': 'tel', 'address': "1234"},
-    {'name': "Nexmo", 'channel_type': Channel.TYPE_NEXMO, 'scheme': 'tel', 'address': "2345"},
+    {'name': "Nexmo", 'channel_type': 'NX', 'scheme': 'tel', 'address': "2345"},
     {'name': "Twitter", 'channel_type': 'TT', 'scheme': 'twitter', 'address': "my_handle"},
 )
 FIELDS = (
@@ -191,7 +191,7 @@ class Command(BaseCommand):
         self.configure_random(len(orgs))
 
         # in real life Nexmo messages are throttled, but that's not necessary for this simulation
-        del Channel.CHANNEL_SETTINGS[Channel.TYPE_NEXMO]['max_tps']
+        Channel.get_type_from_code('NX').max_tps = None
 
         inputs_by_flow_name = {f['name']: f['templates'] for f in FLOWS}
 

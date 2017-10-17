@@ -10,6 +10,7 @@ from temba.utils.twitter import TembaTwython
 from .views import ClaimView
 from ...models import Channel, ChannelType, SendException
 from ...tasks import MageStreamAction, notify_mage_task
+from ...views import UpdateTwitterForm
 
 
 class TwitterType(ChannelType):
@@ -25,6 +26,8 @@ class TwitterType(ChannelType):
 
     claim_blurb = _("""Add a <a href="http://twitter.com">Twitter</a> account to send messages as direct messages.""")
     claim_view = ClaimView
+
+    update_form = UpdateTwitterForm
 
     schemes = [TWITTER_SCHEME, TWITTERID_SCHEME]
     max_length = 10000
