@@ -5515,7 +5515,7 @@ class FlowsTest(FlowFileTest):
 
         self.assertEquals("Thanks, you typed +250788123123", self.send_message(flow, "0788123123"))
         sms = Msg.objects.get(org=flow.org, contact__urns__path="+250788123123")
-        self.assertEquals("Hi from Ben Haggerty! Your phone is 0788 123 123.", sms.text)
+        self.assertEquals("Hi from Ben Haggerty! Your phone is (206) 555-2020.", sms.text)
 
     def test_group_send(self):
         # create an inactive group with the same name, to test that this doesn't blow up our import

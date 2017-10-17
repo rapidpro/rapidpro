@@ -1708,15 +1708,12 @@ class Flow(TembaModel):
 
             # and add each contact and message to each broadcast
             for broadcast in broadcasts:
-                # create our message context
-                message_context = message_context_base.copy()
-
                 # provide the broadcast with a partial recipient list
                 partial_recipients = list(), Contact.objects.filter(org=self.org, pk__in=batch_contact_ids)
 
                 # create the sms messages
                 created_on = timezone.now()
-                broadcast.send(message_context=message_context, trigger_send=False,
+                broadcast.send(message_context=message_context_base, trigger_send=False,
                                response_to=start_msg, status=INITIALIZING, msg_type=FLOW,
                                created_on=created_on, partial_recipients=partial_recipients, run_map=run_map)
 
