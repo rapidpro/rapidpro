@@ -22,7 +22,7 @@ from temba.schedules.views import BaseScheduleForm
 from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.msgs.views import ModalMixin
-from temba.nlu.models import NLU_API_NAME, NLU_WIT_AI_TAG, NluApiConsumer
+from temba.nlu.models import NLU_API_NAME, NLU_WIT_AI_TAG, NLU_BOTHUB_TAG, NluApiConsumer
 from temba.utils import analytics, on_transaction_commit
 from temba.utils.views import BaseActionForm
 from .models import Trigger
@@ -368,7 +368,7 @@ class UssdTriggerForm(BaseTriggerForm):
 
 class NluApiTriggerForm(GroupBasedTriggerForm):
     """
-    For for catchall triggers
+    For for catch NLU triggers
     """
     intents = forms.CharField(max_length=255, required=True, label=_("Intents Keyword"),
                               help_text=_("The intents that will trigger this flow"))
@@ -384,7 +384,7 @@ class NluApiTriggerForm(GroupBasedTriggerForm):
         if org.nlu_api_config_json().get(NLU_API_NAME, None) == NLU_WIT_AI_TAG:
             self.fields['bots'] = forms.CharField(max_length=255, required=True, label=_("Wit.AI Application Key"),
                                                   help_text=_("The key to identify you wit application "))
-        else:
+        elif org.nlu_api_config_json().get(NLU_API_NAME, None) == NLU_BOTHUB_TAG:
             self.fields['bots'].choices = self.get_bots_by_org(org)
 
     def get_existing_triggers(self, cleaned_data):
@@ -956,6 +956,11 @@ class TriggerCRUDL(SmartCRUDL):
 
     class NluApi(CreateTrigger):
         form_class = NluApiTriggerForm
+
+        def pre_process(self, request, *args, **kwargs):
+            if not request.user.get_org().nlu_api_config_json().get(NLU_API_NAME, None):
+                return HttpResponseRedirect(reverse("triggers.trigger_create"))
+            return super(TriggerCRUDL.NluApi, self).pre_process(request, *args, **kwargs)
 
         def form_valid(self, form):
             user = self.request.user
