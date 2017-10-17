@@ -838,15 +838,15 @@ class ContactCRUDL(SmartCRUDL):
                 else:
                     after = max(after - timedelta(days=90), contact_creation)
 
-            # check if there are more pages to fetch
-            if not recent_only:
-                if before > contact.created_on:
-                    context['has_older'] = bool(contact.get_activity(contact_creation, after))
-
             # mark our after as the last item in our list
             from temba.contacts.models import MAX_HISTORY
             if len(activity) >= MAX_HISTORY:
                 after = activity[-1]['time']
+
+            # check if there are more pages to fetch
+            context['has_older'] = False
+            if not recent_only and before > contact.created_on:
+                context['has_older'] = bool(contact.get_activity(contact_creation, after))
 
             context['before'] = datetime_to_ms(after)
             context['after'] = datetime_to_ms(max(after - timedelta(days=90), contact_creation))
