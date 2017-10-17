@@ -651,7 +651,8 @@ class Msg(models.Model):
 
     contact = models.ForeignKey(Contact,
                                 related_name='msgs', verbose_name=_("Contact"),
-                                help_text=_("The contact this message is communicating with"))
+                                help_text=_("The contact this message is communicating with"),
+                                db_index=False)
 
     contact_urn = models.ForeignKey(ContactURN, null=True,
                                     related_name='msgs', verbose_name=_("Contact URN"),
