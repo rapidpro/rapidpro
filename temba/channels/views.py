@@ -1048,12 +1048,11 @@ class ChannelCRUDL(SmartCRUDL):
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
                'claim_android', 'claim_chikka', 'configuration',
                'search_nexmo', 'bulk_sender_options', 'create_bulk_sender',
-               'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_shaqodoon',
+               'claim_vumi', 'claim_vumi_ussd', 'create_caller',
                'claim_verboice', 'search_plivo',
                'claim_smscentral', 'claim_start', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia',
-               'claim_twiml_api', 'facebook_whitelist',
-               'claim_red_rabbit')
+               'claim_twiml_api', 'facebook_whitelist')
     permissions = True
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -1650,10 +1649,6 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Connect Start")
         channel_type = Channel.TYPE_START
 
-    class ClaimRedRabbit(ClaimAuthenticatedExternal):
-        title = _("Connect Red Rabbit")
-        channel_type = Channel.TYPE_RED_RABBIT
-
     class ClaimChikka(ClaimAuthenticatedExternal):
         class ChikkaForm(forms.Form):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
@@ -1725,46 +1720,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                                    password=data['password'],
                                                                    channel=data['channel']),
                                                               role=Channel.ROLE_CALL + Channel.ROLE_ANSWER)
-
-            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
-    class ClaimShaqodoon(ClaimAuthenticatedExternal):
-        class ShaqodoonForm(forms.Form):
-            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                        help_text=_("The country this phone number is used in"))
-            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The short code you are connecting with."))
-            url = forms.URLField(label=_("URL"),
-                                 help_text=_("The url provided to deliver messages"))
-            username = forms.CharField(label=_("Username"),
-                                       help_text=_("The username provided to use their API"))
-            password = forms.CharField(label=_("Password"),
-                                       help_text=_("The password provided to use their API"))
-
-        title = _("Connect Shaqodoon")
-        channel_type = Channel.TYPE_SHAQODOON
-        readonly = ('country',)
-        form_class = ShaqodoonForm
-        fields = ('country', 'number', 'url', 'username', 'password')
-
-        def get_country(self, obj):
-            return "Somalia"
-
-        def get_submitted_country(self, data):  # pragma: needs cover
-            return 'SO'
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-
-            if not org:  # pragma: no cover
-                raise Exception(_("No org for this user, cannot claim"))
-
-            data = form.cleaned_data
-            self.object = Channel.add_config_external_channel(org, self.request.user,
-                                                              'SO', data['number'], Channel.TYPE_SHAQODOON,
-                                                              dict(send_url=data['url'],
-                                                                   username=data['username'],
-                                                                   password=data['password']))
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 

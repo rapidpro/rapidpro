@@ -180,8 +180,6 @@ class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_CHIKKA = 'CK'
     TYPE_DUMMY = 'DM'
-    TYPE_RED_RABBIT = 'RR'
-    TYPE_SHAQODOON = 'SQ'
     TYPE_SMSCENTRAL = 'SC'
     TYPE_START = 'ST'
     TYPE_TWILIO = 'T'
@@ -278,8 +276,6 @@ class Channel(TembaModel):
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
-        TYPE_RED_RABBIT: dict(schemes=['tel'], max_length=1600),
-        TYPE_SHAQODOON: dict(schemes=['tel'], max_length=1600),
         TYPE_SMSCENTRAL: dict(schemes=['tel'], max_length=1600, max_tps=1),
         TYPE_START: dict(schemes=['tel'], max_length=1600),
         TYPE_TWILIO: dict(schemes=['tel'], max_length=1600),
@@ -296,8 +292,6 @@ class Channel(TembaModel):
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
                     (TYPE_CHIKKA, "Chikka"),
                     (TYPE_DUMMY, "Dummy"),
-                    (TYPE_RED_RABBIT, "Red Rabbit"),
-                    (TYPE_SHAQODOON, "Shaqodoon"),
                     (TYPE_SMSCENTRAL, "SMSCentral"),
                     (TYPE_START, "Start Mobile"),
                     (TYPE_TWILIO, "Twilio"),
@@ -1206,73 +1200,6 @@ class Channel(TembaModel):
                                       CHATBASE_TYPE_AGENT)
 
     @classmethod
-    def send_red_rabbit_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-        encoding, text = Channel.determine_encoding(text, replace=True)
-
-        # http://http1.javna.com/epicenter/gatewaysendG.asp?LoginName=xxxx&Password=xxxx&Tracking=1&Mobtyp=1&MessageRecipients=962796760057&MessageBody=hi&SenderName=Xxx
-        params = dict()
-        params['LoginName'] = channel.config[Channel.CONFIG_USERNAME]
-        params['Password'] = channel.config[Channel.CONFIG_PASSWORD]
-        params['Tracking'] = 1
-        params['Mobtyp'] = 1
-        params['MessageRecipients'] = msg.urn_path.lstrip('+')
-        params['MessageBody'] = text
-        params['SenderName'] = channel.address.lstrip('+')
-
-        # we are unicode
-        if encoding == Encoding.UNICODE:
-            params['Msgtyp'] = 10 if len(text) >= 70 else 9
-        elif len(text) > 160:
-            params['Msgtyp'] = 5
-
-        url = 'http://http1.javna.com/epicenter/GatewaySendG.asp'
-        event = HttpEvent('GET', url + '?' + urlencode(params))
-        start = time.time()
-
-        try:
-            response = requests.get(url, params=params, headers=TEMBA_HEADERS, timeout=15)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-        except Exception as e:  # pragma: no cover
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        Channel.success(channel, msg, WIRED, start, event=event)
-
-    @classmethod
-    def send_shaqodoon_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        # requests are signed with a key built as follows:
-        # signing_key = md5(username|password|from|to|msg|key|current_date)
-        # where current_date is in the format: d/m/y H
-        payload = {'from': channel.address.lstrip('+'), 'to': msg.urn_path.lstrip('+'),
-                   'username': channel.config[Channel.CONFIG_USERNAME], 'password': channel.config[Channel.CONFIG_PASSWORD],
-                   'msg': text}
-
-        # build our send URL
-        url = channel.config[Channel.CONFIG_SEND_URL] + "?" + urlencode(payload)
-        start = time.time()
-
-        event = HttpEvent('GET', url)
-
-        try:
-            # these guys use a self signed certificate
-            response = requests.get(url, headers=TEMBA_HEADERS, timeout=15, verify=False)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
-            raise SendException("Got non-200 response [%d] from API" % response.status_code,
-                                event=event, start=start)
-
-        Channel.success(channel, msg, WIRED, start, event=event)
-
-    @classmethod
     def send_dummy_message(cls, channel, msg, text):  # pragma: no cover
         from temba.msgs.models import WIRED
 
@@ -1939,8 +1866,6 @@ STATUS_FULL = "FUL"
 
 SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
-                  Channel.TYPE_RED_RABBIT: Channel.send_red_rabbit_message,
-                  Channel.TYPE_SHAQODOON: Channel.send_shaqodoon_message,
                   Channel.TYPE_SMSCENTRAL: Channel.send_smscentral_message,
                   Channel.TYPE_START: Channel.send_start_message,
                   Channel.TYPE_TWILIO: Channel.send_twilio_message,

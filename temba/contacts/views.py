@@ -75,9 +75,10 @@ class ContactGroupForm(forms.ModelForm):
 
     def clean_name(self):
         name = self.cleaned_data['name'].strip()
+        org = self.user.get_org()
 
         # make sure the name isn't already taken
-        existing = ContactGroup.get_user_group(self.user.get_org(), name)
+        existing = ContactGroup.get_user_group(org, name)
         if existing and self.instance != existing:
             raise forms.ValidationError(_("Name is used by another group"))
 
@@ -85,7 +86,7 @@ class ContactGroupForm(forms.ModelForm):
         if not ContactGroup.is_valid_name(name):
             raise forms.ValidationError(_("Group name must not be blank or begin with + or -"))
 
-        if ContactGroup.user_groups.count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+        if ContactGroup.user_groups.filter(org=org).count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
             raise forms.ValidationError(_('You have reached %s contact groups, please remove some contact groups '
                                           'to be able to create new contact groups' % ContactGroup.MAX_ORG_CONTACTGROUPS))
 
@@ -583,6 +584,14 @@ class ContactCRUDL(SmartCRUDL):
 
                 return self.cleaned_data['csv_file']
 
+            def clean(self):
+                if ContactGroup.user_groups.filter(org=self.org).count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+                    raise forms.ValidationError('You have reached %s contact groups, please remove some contact groups '
+                                                'to be able to import contacts in a contact group' %
+                                                ContactGroup.MAX_ORG_CONTACTGROUPS)
+
+                return self.cleaned_data
+
             class Meta:
                 model = ImportTask
                 fields = '__all__'
@@ -841,9 +850,14 @@ class ContactCRUDL(SmartCRUDL):
             if not recent_only:
                 if before > contact.created_on:
                     context['has_older'] = bool(contact.get_activity(contact_creation, after))
-                context['before'] = datetime_to_ms(after)
-                context['after'] = datetime_to_ms(max(after - timedelta(days=90), contact_creation))
 
+            # mark our after as the last item in our list
+            from temba.contacts.models import MAX_HISTORY
+            if len(activity) >= MAX_HISTORY:
+                after = activity[-1]['time']
+
+            context['before'] = datetime_to_ms(after)
+            context['after'] = datetime_to_ms(max(after - timedelta(days=90), contact_creation))
             context['activity'] = activity
             return context
 

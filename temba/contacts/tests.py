@@ -459,11 +459,22 @@ class ContactGroupCRUDLTest(TembaTest):
         group = ContactGroup.user_groups.get(org=self.org, name="Frank", query="frank")
         self.assertEqual(set(group.contacts.all()), {self.frank})
 
+        self.create_secondary_org()
+        ContactGroup.user_groups.all().delete()
+
+        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+            ContactGroup.create_static(self.org2, self.admin2, 'group%d' % i)
+
+        response = self.client.post(url, dict(name="People"))
+        self.assertNoFormErrors(response)
+        ContactGroup.user_groups.get(org=self.org, name="People")
+
         ContactGroup.user_groups.all().delete()
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
             ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
 
+        self.assertEquals(ContactGroup.user_groups.all().count(), ContactGroup.MAX_ORG_CONTACTGROUPS)
         response = self.client.post(url, dict(name="People"))
         self.assertFormError(response, 'form', 'name', "You have reached 10 contact groups, "
                                                        "please remove some contact groups to be able "
@@ -1444,6 +1455,11 @@ class ContactTest(TembaTest):
         ])
 
     def test_history(self):
+
+        # use a max history size of 100
+        from temba.contacts import models
+        models.MAX_HISTORY = 100
+
         url = reverse('contacts.contact_history', args=[self.joe.uuid])
 
         kurt = self.create_contact("Kurt", "123123")
@@ -1600,6 +1616,9 @@ class ContactTest(TembaTest):
         activity = response.context['activity']
         self.assertEqual(len(activity), 99)
 
+        # before date should not match our last activity, that only happens when we truncate
+        self.assertNotEqual(response.context['before'], datetime_to_ms(response.context['activity'][-1]['time']))
+
         self.assertIsInstance(activity[0]['obj'], Msg)
         self.assertEqual(activity[0]['obj'].direction, 'O')
         self.assertEqual(activity[1]['type'], 'run-start')
@@ -1614,6 +1633,18 @@ class ContactTest(TembaTest):
         self.assertIsInstance(activity[5]['obj'], ChannelEvent)
         self.assertIsInstance(activity[6]['obj'], WebHookResult)
         self.assertIsInstance(activity[7]['obj'], FlowRun)
+
+        # now try a shorter max history to test truncation
+        models.MAX_HISTORY = 50
+        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+
+        # our before should be the same as the last item
+        last_item_date = datetime_to_ms(response.context['activity'][-1]['time'])
+        self.assertEqual(response.context['before'], last_item_date)
+
+        # and our after should be 90 days earlier
+        self.assertEqual(response.context['after'], last_item_date - (90 * 24 * 60 * 60 * 1000))
+        self.assertEqual(len(response.context['activity']), 50)
 
     def test_event_times(self):
 
@@ -2545,6 +2576,7 @@ class ContactTest(TembaTest):
 
         return response
 
+    @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_contact_import(self):
         #
         # first import brings in 3 contacts
@@ -3071,6 +3103,18 @@ class ContactTest(TembaTest):
                              'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
                              '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Email", "External", '
                              '"Jiochat", "Fcm" or "Contact UUID" should be included.')
+
+        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+            ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
+
+        csv_file = open('%s/test_imports/sample_contacts.xls' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data)
+        self.assertFormError(response, 'form', '__all__', 'You have reached %s contact groups, please remove '
+                                                          'some contact groups to be able to import contacts '
+                                                          'in a contact group' % ContactGroup.MAX_ORG_CONTACTGROUPS)
+
+        ContactGroup.user_groups.all().delete()
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
