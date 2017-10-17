@@ -1,3 +1,7 @@
+v3.0.214
+----------
+ * Should filter user groups by org before limiting to 250
+
 v3.0.213
 ----------
  * Fixes for slow contact history
