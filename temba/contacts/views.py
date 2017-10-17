@@ -848,6 +848,7 @@ class ContactCRUDL(SmartCRUDL):
             if not recent_only and before > contact.created_on:
                 context['has_older'] = bool(contact.get_activity(contact_creation, after))
 
+            context['recent_only'] = recent_only
             context['before'] = datetime_to_ms(after)
             context['after'] = datetime_to_ms(max(after - timedelta(days=90), contact_creation))
             context['activity'] = activity
