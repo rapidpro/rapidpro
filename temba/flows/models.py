@@ -1444,8 +1444,9 @@ class Flow(TembaModel):
             ancestor = ancestor.parent
 
         # for the contacts that will be started, exit any existing flow runs
-        active_runs = FlowRun.objects.filter(is_active=True, contact__pk__in=all_contact_ids).exclude(id__in=ancestor_ids)
-        FlowRun.bulk_exit(active_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
+        for contact_batch in chunk_list(all_contact_ids, 1000):
+            active_runs = FlowRun.objects.filter(is_active=True, contact__pk__in=contact_batch).exclude(id__in=ancestor_ids)
+            FlowRun.bulk_exit(active_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
 
         # if we are interrupting parent flow runs, mark them as completed
         if ancestor_ids and interrupt:
