@@ -441,6 +441,9 @@ class Broadcast(models.Model):
         # pre-fetch channels to reduce database hits
         org = Org.objects.filter(pk=self.org.id).prefetch_related('channels').first()
 
+        if not message_context:
+            message_context = {}
+
         for recipient in recipients:
             contact = recipient if isinstance(recipient, Contact) else recipient.contact
 
@@ -455,6 +458,10 @@ class Broadcast(models.Model):
                 if media_url and len(media_type.split('/')) > 1:
                     media = "%s:https://%s/%s" % (media_type, settings.AWS_BUCKET_DOMAIN, media_url)
 
+            context = message_context.copy()
+            if 'contact' not in context:
+                context['contact'] = contact.build_expressions_context()
+
             # add in our parent context if the message references @parent
             if run_map:
                 run = run_map.get(recipient.pk, None)
@@ -465,8 +472,7 @@ class Broadcast(models.Model):
                     if 'parent' in text:
                         if run.parent:
                             from temba.flows.models import Flow
-                            message_context = message_context.copy()
-                            message_context.update(dict(parent=Flow.build_flow_context(run.parent.flow, run.parent.contact)))
+                            context.update(dict(parent=Flow.build_flow_context(run.parent.flow, run.parent.contact)))
 
             try:
                 msg = Msg.create_outgoing(org,
@@ -476,7 +482,7 @@ class Broadcast(models.Model):
                                           broadcast=self,
                                           channel=self.channel,
                                           response_to=response_to,
-                                          message_context=message_context,
+                                          message_context=context,
                                           status=status,
                                           msg_type=msg_type,
                                           high_priority=high_priority,
@@ -1204,7 +1210,7 @@ class Msg(models.Model):
         else:
             on_transaction_commit(lambda: self.queue_handling())
 
-    def build_expressions_context(self, contact_context=None):
+    def build_expressions_context(self):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
         value = six.text_type(self)
         attachments = {six.text_type(a): attachment.url for a, attachment in enumerate(self.get_attachments())}
@@ -1214,7 +1220,6 @@ class Msg(models.Model):
             'value': value,
             'text': self.text,
             'attachments': attachments,
-            'contact': contact_context or self.contact.build_expressions_context(),
             'time': datetime_to_str(self.created_on, format=date_format, tz=self.org.timezone)
         }
 
@@ -1374,7 +1379,7 @@ class Msg(models.Model):
         return msg
 
     @classmethod
-    def substitute_variables(cls, text, context, contact=None, org=None, url_encode=False, partial_vars=False):
+    def substitute_variables(cls, text, context, org=None, url_encode=False, partial_vars=False):
         """
         Given input ```text```, tries to find variables in the format @foo.bar and replace them according to
         the passed in context, contact and org. If some variables are not resolved to values, then the variable
@@ -1386,13 +1391,11 @@ class Msg(models.Model):
         if not text or text.find('@') < 0:
             return text, []
 
-        # a provided contact overrides the run contact, e.g. sending to a different contact
-        if contact:
-            context['contact'] = contact.build_expressions_context()
-
         # add 'step.contact' if it isn't already populated (like in flow batch starts)
-        if 'step' not in context or 'contact' not in context['step']:
+        if 'step' not in context:
             context['step'] = dict(contact=context['contact'])
+        if 'contact' not in context['step']:
+            context['step']['contact'] = context.get('contact')
 
         if not org:
             dayfirst = True
@@ -1465,17 +1468,17 @@ class Msg(models.Model):
             message_context = dict()
 
         # make sure 'channel' is populated if we have a channel
-        if channel:
+        if channel and 'channel' not in message_context:
             message_context['channel'] = channel.build_expressions_context()
 
-        (text, errors) = Msg.substitute_variables(text, message_context, contact=contact, org=org)
+        (text, errors) = Msg.substitute_variables(text, message_context, org=org)
         if text:
             text = text[:Msg.MAX_TEXT_LEN]
 
         evaluated_attachments = []
         if attachments:
             for attachment in attachments:
-                (attachment, errors) = Msg.substitute_variables(attachment, message_context, contact=contact, org=org)
+                (attachment, errors) = Msg.substitute_variables(attachment, message_context, org=org)
                 evaluated_attachments.append(attachment)
 
         # prefer none to empty lists in the database
