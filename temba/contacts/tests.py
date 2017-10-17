@@ -459,11 +459,22 @@ class ContactGroupCRUDLTest(TembaTest):
         group = ContactGroup.user_groups.get(org=self.org, name="Frank", query="frank")
         self.assertEqual(set(group.contacts.all()), {self.frank})
 
+        self.create_secondary_org()
+        ContactGroup.user_groups.all().delete()
+
+        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+            ContactGroup.create_static(self.org2, self.admin2, 'group%d' % i)
+
+        response = self.client.post(url, dict(name="People"))
+        self.assertNoFormErrors(response)
+        ContactGroup.user_groups.get(org=self.org, name="People")
+
         ContactGroup.user_groups.all().delete()
 
         for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
             ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
 
+        self.assertEquals(ContactGroup.user_groups.all().count(), ContactGroup.MAX_ORG_CONTACTGROUPS)
         response = self.client.post(url, dict(name="People"))
         self.assertFormError(response, 'form', 'name', "You have reached 10 contact groups, "
                                                        "please remove some contact groups to be able "
