@@ -5,7 +5,7 @@
 
 -block title-icon
   .title-icon
-    %span.glyph.icon-channel-plivo
+    %span.glyph{class:"{{ view.channel_type.icon }}"}
 
 
 -block country-select
@@ -13,3 +13,6 @@
     - for country in search_countries
       %option{ value:"{{country.key}}" }
         {{country.label}}
+
+-block search-pattern
+  %input#area-code{ type:"text", maxlength:"7", name:"area_code" }

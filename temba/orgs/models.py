@@ -849,8 +849,7 @@ class Org(SmartModel):
     def remove_nexmo_account(self, user):
         if self.config:
             # release any nexmo channels
-            from temba.channels.models import Channel
-            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_NEXMO):  # pragma: needs cover
+            for channel in self.channels.filter(is_active=True, channel_type='NX'):  # pragma: needs cover
                 channel.release()
 
             config = self.config_json()
@@ -1185,8 +1184,7 @@ class Org(SmartModel):
         return self.channels.filter(channel_type=Channel.TYPE_TWILIO)
 
     def has_nexmo_number(self):  # pragma: needs cover
-        from temba.channels.models import Channel
-        return self.channels.filter(channel_type=Channel.TYPE_NEXMO)
+        return self.channels.filter(channel_type='NX')
 
     def create_welcome_topup(self, topup_size=None):
         if topup_size:
@@ -1388,6 +1386,9 @@ class Org(SmartModel):
                     # recalculate our caches
                     self._calculate_credit_caches()
                     org._calculate_credit_caches()
+
+                    # apply topups to messages missing them
+                    org.apply_topups()
 
                 return True
 
