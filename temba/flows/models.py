@@ -3251,33 +3251,37 @@ class RuleSet(models.Model):
         """
         Determines the value type that this ruleset will generate.
         """
-        rules = self.get_rules()
-
         # we keep track of specialized rule types we see
-        dec_rules = 0
-        dt_rules = 0
-        rule_count = 0
+        value_type = None
 
         for rule in self.get_rules():
-            if not isinstance(rule, TrueTest):
-                rule_count += 1
+            if isinstance(rule.test, TrueTest):
+                continue
 
-            if isinstance(rule, NumericTest):  # pragma: needs cover
-                dec_rules += 1
-            elif isinstance(rule, DateTest):  # pragma: needs cover
-                dt_rules += 1
+            rule_type = None
 
-        # no real rules? this is open ended, return
-        if rule_count == 0:  # pragma: needs cover
-            return Value.TYPE_TEXT
+            if isinstance(rule.test, NumericTest):
+                rule_type = Value.TYPE_DECIMAL
 
-        # if we are all of one type (excluding other) then we are that type
-        if dec_rules == len(rules) - 1:
-            return Value.TYPE_DECIMAL
-        elif dt_rules == len(rules) - 1:  # pragma: needs cover
-            return Value.TYPE_DATETIME
-        else:
-            return Value.TYPE_TEXT
+            elif isinstance(rule.test, DateTest):
+                rule_type = Value.TYPE_DATETIME
+
+            elif isinstance(rule.test, HasStateTest):  # pragma: no cover
+                rule_type = Value.TYPE_STATE
+
+            elif isinstance(rule.test, HasDistrictTest):  # pragma: no cover
+                rule_type = Value.TYPE_DISTRICT
+
+            elif isinstance(rule.test, HasWardTest):  # pragma: no cover
+                rule_type = Value.TYPE_WARD
+
+            # this either isn't one of our value types or we have more than one type in this ruleset
+            if not rule_type or (value_type and rule_type != value_type):
+                return Value.TYPE_TEXT
+
+            value_type = rule_type
+
+        return value_type if value_type else Value.TYPE_TEXT
 
     def get_voice_input(self, voice_response, action=None):
 
@@ -5879,7 +5883,7 @@ class Test(object):
                 FalseTest.TYPE: FalseTest,
                 GtTest.TYPE: GtTest,
                 GteTest.TYPE: GteTest,
-                HasDateTest.TYPE: HasDateTest,
+                DateTest.TYPE: DateTest,
                 HasDistrictTest.TYPE: HasDistrictTest,
                 HasEmailTest.TYPE: HasEmailTest,
                 HasStateTest.TYPE: HasStateTest,
@@ -6539,71 +6543,47 @@ class HasWardTest(Test):
         return 0, None
 
 
-class HasDateTest(Test):
-    TYPE = 'date'
-
-    def __init__(self):
-        pass
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls()
-
-    def as_json(self):  # pragma: needs cover
-        return dict(type=self.TYPE)
-
-    def evaluate_date_test(self, message_date):
-        return True
-
-    def evaluate(self, run, sms, context, text):
-        text = text.replace(' ', "-")
-        org = run.flow.org
-        dayfirst = org.get_dayfirst()
-        tz = org.timezone
-
-        (date_format, time_format) = get_datetime_format(dayfirst)
-
-        date = str_to_datetime(text, tz=tz, dayfirst=org.get_dayfirst())
-        if date is not None and self.evaluate_date_test(date):
-            return 1, datetime_to_str(date, tz=tz, format=time_format, ms=False)
-
-        return 0, None  # pragma: needs cover
-
-
 class DateTest(Test):
     """
     Base class for those tests that check relative dates
     """
-    TEST = 'test'
+    TEST = None
     TYPE = 'date'
 
-    def __init__(self, test):
+    def __init__(self, test=None):
         self.test = test
 
     @classmethod
     def from_json(cls, org, json):
-        return cls(json[cls.TEST])
+        if cls.TEST:
+            return cls(json[cls.TEST])
+        else:
+            return cls()
 
-    def as_json(self):  # pragma: needs cover
-        return dict(type=self.TYPE, test=self.test)
+    def as_json(self):
+        if self.test:
+            return dict(type=self.TYPE, test=self.test)
+        else:
+            return dict(type=self.TYPE)
 
-    def evaluate_date_test(self, date_message, date_test):  # pragma: needs cover
-        raise FlowException("Evaluate date test needs to be defined by subclass.")
+    def evaluate_date_test(self, date_message, date_test):
+        return date_message is not None
 
-    def evaluate(self, run, sms, context, text):  # pragma: needs cover
+    def evaluate(self, run, sms, context, text):
         org = run.flow.org
-        dayfirst = org.get_dayfirst()
+        day_first = org.get_dayfirst()
         tz = org.timezone
-        test, errors = Msg.substitute_variables(self.test, context, org=org)
 
         text = text.replace(' ', "-")
+
+        test, errors = Msg.substitute_variables(self.test, context, org=org)
         if not errors:
-            date_message = str_to_datetime(text, tz=tz, dayfirst=dayfirst)
-            date_test = str_to_datetime(test, tz=tz, dayfirst=dayfirst)
+            (date_format, time_format) = get_datetime_format(day_first)
 
-            (date_format, time_format) = get_datetime_format(dayfirst)
+            date_message = str_to_datetime(text, tz=tz, dayfirst=day_first)
+            date_test = str_to_datetime(test, tz=tz, dayfirst=day_first)
 
-            if date_message is not None and date_test is not None and self.evaluate_date_test(date_message, date_test):
+            if self.evaluate_date_test(date_message, date_test):
                 return 1, datetime_to_str(date_message, tz=tz, format=time_format, ms=False)
 
         return 0, None
@@ -6613,24 +6593,24 @@ class DateEqualTest(DateTest):
     TEST = 'test'
     TYPE = 'date_equal'
 
-    def evaluate_date_test(self, date_message, date_test):  # pragma: needs cover
-        return date_message.date() == date_test.date()
+    def evaluate_date_test(self, date_message, date_test):
+        return date_message and date_test and date_message.date() == date_test.date()
 
 
 class DateAfterTest(DateTest):
     TEST = 'test'
     TYPE = 'date_after'
 
-    def evaluate_date_test(self, date_message, date_test):  # pragma: needs cover
-        return date_message >= date_test
+    def evaluate_date_test(self, date_message, date_test):
+        return date_message and date_test and date_message >= date_test
 
 
 class DateBeforeTest(DateTest):
     TEST = 'test'
     TYPE = 'date_before'
 
-    def evaluate_date_test(self, date_message, date_test):  # pragma: needs cover
-        return date_message <= date_test
+    def evaluate_date_test(self, date_message, date_test):
+        return date_message and date_test and date_message <= date_test
 
 
 class NumericTest(Test):
@@ -6726,7 +6706,7 @@ class NumberTest(NumericTest):
         return True
 
 
-class SimpleNumericTest(Test):
+class SimpleNumericTest(NumericTest):
     """
     Base class for those tests that do a numeric test with a single value
     """
