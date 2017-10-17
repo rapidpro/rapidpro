@@ -1215,15 +1215,13 @@ class Flow(TembaModel):
 
         # add our message context
         if msg:
-            message_context = msg.build_expressions_context(contact_context=contact_context)
+            message_context = msg.build_expressions_context()
 
             # some fake channel deets for simulation
             if msg.contact.is_test:
                 channel_context = Channel.SIMULATOR_CONTEXT
             elif msg.channel:
                 channel_context = msg.channel.build_expressions_context()
-        elif contact:
-            message_context = dict(__default__='', contact=contact_context)
         else:
             message_context = dict(__default__='')
 
@@ -1711,16 +1709,12 @@ class Flow(TembaModel):
 
             # and add each contact and message to each broadcast
             for broadcast in broadcasts:
-                # create our message context
-                message_context = dict()
-                message_context.update(message_context_base)
-
                 # provide the broadcast with a partial recipient list
                 partial_recipients = list(), Contact.objects.filter(org=self.org, pk__in=batch_contact_ids)
 
                 # create the sms messages
                 created_on = timezone.now()
-                broadcast.send(message_context=message_context, trigger_send=False,
+                broadcast.send(message_context=message_context_base, trigger_send=False,
                                response_to=start_msg, status=INITIALIZING, msg_type=FLOW,
                                created_on=created_on, partial_recipients=partial_recipients, run_map=run_map)
 
@@ -5775,9 +5769,6 @@ class SendAction(VariableContactAction):
                 for group in groups:
                     for contact in group.contacts.all():
                         unique_contacts.add(contact.pk)
-
-                # contact refers to each contact this message is being sent to so evaluate without it for logging
-                del context['contact']
 
                 text = run.flow.get_localized_text(self.msg, run.contact)
                 (message, errors) = Msg.substitute_variables(text, context, org=run.flow.org, partial_vars=True)
