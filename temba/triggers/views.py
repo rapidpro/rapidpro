@@ -22,7 +22,7 @@ from temba.schedules.views import BaseScheduleForm
 from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.msgs.views import ModalMixin
-from temba.nlu.models import NLU_API_NAME, NLU_WIT_AI_TAG
+from temba.nlu.models import NLU_API_NAME, NLU_WIT_AI_TAG, NluApiConsumer
 from temba.utils import analytics, on_transaction_commit
 from temba.utils.views import BaseActionForm
 from .models import Trigger
@@ -396,9 +396,10 @@ class NluApiTriggerForm(GroupBasedTriggerForm):
         """
         This function will return all data bots of specific token organization (NLU Api Token)
         """
-        return (("bot_id0", "bot_name0"),
-                ("bot_id1", "bot_name1"),
-                ("bot_id2", "bot_name2"),)
+        api_name, api_key = org.get_nlu_api_credentials()
+        consumer = NluApiConsumer.factory(api_name, api_key)
+
+        return consumer.list_bots()
 
     class Meta(BaseTriggerForm.Meta):
         fields = ('flow', 'groups', 'bots', 'intents', 'accurancy')

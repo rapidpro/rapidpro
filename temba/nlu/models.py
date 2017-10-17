@@ -33,7 +33,7 @@ class BaseConsumer(object):
     def list_bots(self):
         pass
 
-    def predict(self, msg):
+    def predict(self, msg, bot):
         pass
 
     def get_headers(self):
@@ -56,12 +56,12 @@ class BothubConsumer(BaseConsumer):
     Bothub consumer
     This consumer will call Bothub api.
     """
-    BASE_URL = 'https://api.bothub.it/'
+    BASE_URL = 'http://api.bothub.it/'
 
-    def predict(self, msg):
+    def predict(self, msg, bot):
         predict_url = self.BASE_URL + 'bots'
         data = {
-            'uuid': '',
+            'uuid': bot,
             'msg': msg
         }
         response = self._request(predict_url, data=data, headers=self.get_headers())
@@ -69,6 +69,16 @@ class BothubConsumer(BaseConsumer):
         intent = predict.get('answer', None).get('intent', None)
 
         return intent.get('name', None), intent.get('confidence', None)
+
+    def list_bots(self):
+        list_bots_url = self.BASE_URL + 'auth'
+        response = self._request(list_bots_url, headers=self.get_headers())
+        tuple_bots = tuple(json.loads(response.content))
+        list_bots = list()
+        for bot in tuple_bots:
+            list_bots.append((bot.get('uuid'), bot.get('slug')))
+
+        return tuple(list_bots)
 
 
 class WitConsumer(BaseConsumer):
@@ -78,7 +88,7 @@ class WitConsumer(BaseConsumer):
     """
     BASE_URL = 'https://api.wit.ai/'
 
-    def predict(self, msg):
+    def predict(self, msg, bot):
         predict_url = self.BASE_URL + 'message'
         data = {
             'q': msg,
