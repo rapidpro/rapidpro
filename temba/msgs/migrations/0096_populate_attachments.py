@@ -20,7 +20,7 @@ def populate_attachments(Msg):
             msg.save(update_fields=('attachments',))
 
         num_updated += len(id_batch)
-        print (" > Updated %d of %d messages with media" % (num_updated, len(id_batch)))
+        print(" > Updated %d of %d messages with media" % (num_updated, len(id_batch)))
 
 
 def apply_as_migration(apps, schema_editor):
