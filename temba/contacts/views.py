@@ -584,6 +584,14 @@ class ContactCRUDL(SmartCRUDL):
 
                 return self.cleaned_data['csv_file']
 
+            def clean(self):
+                if ContactGroup.user_groups.filter(org=self.org).count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+                    raise forms.ValidationError('You have reached %s contact groups, please remove some contact groups '
+                                                'to be able to import contacts in a contact group' %
+                                                ContactGroup.MAX_ORG_CONTACTGROUPS)
+
+                return self.cleaned_data
+
             class Meta:
                 model = ImportTask
                 fields = '__all__'
