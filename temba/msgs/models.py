@@ -1391,9 +1391,9 @@ class Msg(models.Model):
         if not text or text.find('@') < 0:
             return text, []
 
-        # add 'step.contact' if it isn't already populated (like in flow batch starts)
+        # add 'step.contact' if it isn't populated for backwards compatibility
         if 'step' not in context:
-            context['step'] = dict(contact=context['contact'])
+            context['step'] = dict()
         if 'contact' not in context['step']:
             context['step']['contact'] = context.get('contact')
 
