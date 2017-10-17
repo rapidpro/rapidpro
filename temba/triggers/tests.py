@@ -16,6 +16,7 @@ from temba.contacts.models import TEL_SCHEME, Contact
 from temba.flows.models import Flow, ActionSet, FlowRun
 from temba.orgs.models import Language
 from temba.msgs.models import Msg, INCOMING
+from temba.nlu.models import NLU_WIT_AI_TAG, NLU_BOTHUB_TAG
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, MockResponse
 from .models import Trigger
@@ -931,6 +932,57 @@ class TriggerTest(TembaTest):
         # trigger should no longer be active
         group_catch_all.refresh_from_db()
         self.assertFalse(group_catch_all.is_active)
+
+    def test_catch_nlu_trigger(self):
+        self.login(self.admin)
+        trigger_nlu = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_NLU_API).first()
+        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+
+        contact = self.create_contact("Ali", "250788739305")
+
+        self.assertFalse(trigger_nlu)
+
+        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hi")
+        self.assertEquals(1, Msg.objects.all().count())
+        self.assertEquals(0, flow.runs.all().count())
+
+        trigger_url = reverse("triggers.trigger_nlu_api")
+
+        response = self.client.get(trigger_url)
+        self.assertEquals(response.status_code, 302)
+
+        payload = dict(api_name=NLU_WIT_AI_TAG, disconnect='false')
+        self.client.post(reverse('orgs.org_nlu_api'), payload, follow=True)
+        self.org.refresh_from_db()
+
+        response = self.client.get(trigger_url)
+        self.assertEquals(response.status_code, 200)
+        post_data = dict(flow=flow.pk, intents='restaurant_search,goodbye,greet', accurancy=65, bots='BOT_KEY')
+
+        response = self.client.post(trigger_url, post_data)
+        trigger = Trigger.objects.all().order_by('-pk')[0]
+
+        self.assertEquals(trigger.trigger_type, Trigger.TYPE_NLU_API)
+        self.assertEquals(trigger.flow.pk, flow.pk)
+        get_nlu_data = trigger.get_nlu_data()
+        self.assertEquals(get_nlu_data['intents'], 'restaurant_search,goodbye,greet')
+        self.assertEquals(get_nlu_data['intents_replaced'], 'restaurant_search, goodbye, greet')
+        self.assertEquals(get_nlu_data['intents_splited'], ['restaurant_search', 'goodbye', 'greet'])
+        self.assertEquals(get_nlu_data['accurancy'], 65)
+        self.assertEquals(get_nlu_data['bot'], 'BOT_KEY')
+
+        trigger_nlu = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_NLU_API).first()
+
+        self.assertEquals(trigger_nlu.pk, trigger.pk)
+
+        with patch('requests.get') as mock_get:
+            mock_get.return_value = MockResponse(200, '{"msg_id":"0GhmeqSm6P3Wkz0P0","_text":"greet","entities":{"intent":[{"confidence":0.35233400021608,"value":"greet"}]}}')
+            Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hello")
+            self.assertEquals(0, flow.runs.all().count())
+
+            mock_get.return_value = MockResponse(200, '{"msg_id":"0GhmeqSm6P3Wkz0P0","_text":"greet","entities":{"intent":[{"confidence":0.65233400021608,"value":"greet"}]}}')
+            Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hello")
+            self.assertEquals(1, flow.runs.all().count())
 
     def test_update(self):
         self.login(self.admin)
