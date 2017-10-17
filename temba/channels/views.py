@@ -7,7 +7,6 @@ import hmac
 import json
 import phonenumbers
 import plivo
-import pycountry
 import pytz
 import six
 import time
@@ -29,7 +28,7 @@ from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView, SmartModelActionView
-from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import ContactURN, URN, TEL_SCHEME
 from temba.msgs.models import Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID
@@ -827,6 +826,134 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
         return super(AuthenticatedExternalClaimView, self).form_valid(form)
 
 
+class BaseClaimNumberMixin(ClaimViewMixin):
+    def pre_process(self, *args, **kwargs):  # pragma: needs cover
+        return None
+
+    def get_context_data(self, **kwargs):
+        context = super(BaseClaimNumberMixin, self).get_context_data(**kwargs)
+        org = self.request.user.get_org()
+
+        try:
+            context['account_numbers'] = self.get_existing_numbers(org)
+        except Exception as e:
+            context['account_numbers'] = []
+            context['error'] = str(e)
+
+        context['search_url'] = self.get_search_url()
+        context['claim_url'] = self.get_claim_url()
+
+        context['search_countries'] = self.get_search_countries()
+        context['supported_country_iso_codes'] = self.get_supported_country_iso_codes()
+
+        return context
+
+    def get_search_countries(self):
+        search_countries = []
+
+        for country in self.get_search_countries_tuple():
+            search_countries.append(dict(key=country[0], label=country[1]))
+
+        return search_countries
+
+    def get_supported_country_iso_codes(self):
+        supported_country_iso_codes = []
+
+        for country in self.get_supported_countries_tuple():
+            supported_country_iso_codes.append(country[0])
+
+        return supported_country_iso_codes
+
+    def get_search_countries_tuple(self):  # pragma: no cover
+        raise NotImplementedError('method "get_search_countries_tuple" should be overridden in %s.%s'
+                                  % (self.crudl.__class__.__name__, self.__class__.__name__))
+
+    def get_supported_countries_tuple(self):  # pragma: no cover
+        raise NotImplementedError('method "get_supported_countries_tuple" should be overridden in %s.%s'
+                                  % (self.crudl.__class__.__name__, self.__class__.__name__))
+
+    def get_search_url(self):  # pragma: no cover
+        raise NotImplementedError('method "get_search_url" should be overridden in %s.%s'
+                                  % (self.crudl.__class__.__name__, self.__class__.__name__))
+
+    def get_claim_url(self):  # pragma: no cover
+        raise NotImplementedError('method "get_claim_url" should be overridden in %s.%s'
+                                  % (self.crudl.__class__.__name__, self.__class__.__name__))
+
+    def get_existing_numbers(self, org):  # pragma: no cover
+        raise NotImplementedError('method "get_existing_numbers" should be overridden in %s.%s'
+                                  % (self.crudl.__class__.__name__, self.__class__.__name__))
+
+    def is_valid_country(self, country_code):  # pragma: no cover
+        raise NotImplementedError('method "is_valid_country" should be overridden in %s.%s'
+                                  % (self.crudl.__class__.__name__, self.__class__.__name__))
+
+    def is_messaging_country(self, country):  # pragma: no cover
+        raise NotImplementedError('method "is_messaging_country" should be overridden in %s.%s'
+                                  % (self.crudl.__class__.__name__, self.__class__.__name__))
+
+    def claim_number(self, user, phone_number, country, role):  # pragma: no cover
+        raise NotImplementedError('method "claim_number" should be overridden in %s.%s'
+                                  % (self.crudl.__class__.__name__, self.__class__.__name__))
+
+    def remove_api_credentials_from_session(self):
+        pass
+
+    def form_valid(self, form, *args, **kwargs):
+
+        # must have an org
+        org = self.request.user.get_org()
+        if not org:  # pragma: needs cover
+            form._errors['upgrade'] = True
+            form._errors['phone_number'] = form.error_class(
+                [_("Sorry, you need to have an organization to add numbers. "
+                   "You can still test things out for free using an Android phone.")])
+            return self.form_invalid(form)
+
+        data = form.cleaned_data
+
+        # no number parse for short codes
+        if len(data['phone_number']) > 6:
+            phone = phonenumbers.parse(data['phone_number'])
+            if not self.is_valid_country(phone.country_code):  # pragma: needs cover
+                form._errors['phone_number'] = form.error_class([_("Sorry, the number you chose is not supported. "
+                                                                   "You can still deploy in any country using your "
+                                                                   "own SIM card and an Android phone.")])
+                return self.form_invalid(form)
+
+        # don't add the same number twice to the same account
+        existing = org.channels.filter(is_active=True, address=data['phone_number']).first()
+        if existing:  # pragma: needs cover
+            form._errors['phone_number'] = form.error_class(
+                [_("That number is already connected (%s)" % data['phone_number'])])
+            return self.form_invalid(form)
+
+        existing = Channel.objects.filter(is_active=True, address=data['phone_number']).first()
+        if existing:  # pragma: needs cover
+            form._errors['phone_number'] = form.error_class([_("That number is already connected to another account - %s (%s)" % (existing.org, existing.created_by.username))])
+            return self.form_invalid(form)
+
+        # try to claim the number
+        try:
+            role = Channel.ROLE_CALL + Channel.ROLE_ANSWER
+            if self.is_messaging_country(data['country']):
+                role += Channel.ROLE_SEND + Channel.ROLE_RECEIVE
+            self.claim_number(self.request.user, data['phone_number'], data['country'], role)
+            self.remove_api_credentials_from_session()
+
+            return HttpResponseRedirect('%s?success' % reverse('public.public_welcome'))
+        except Exception as e:  # pragma: needs cover
+            import traceback
+            traceback.print_exc(e)
+            if e.message:
+                form._errors['phone_number'] = form.error_class([six.text_type(e.message)])
+            else:
+                form._errors['phone_number'] = _(
+                    "An error occurred connecting your Twilio number, try removing your "
+                    "Twilio account, reconnecting it and trying again.")
+            return self.form_invalid(form)
+
+
 class ClaimAndroidForm(forms.Form):
     claim_code = forms.CharField(max_length=12, help_text=_("The claim code from your Android phone"))
     phone_number = forms.CharField(max_length=15, help_text=_("The phone number of the phone"))
@@ -911,17 +1038,21 @@ class UpdateTwitterForm(UpdateChannelForm):
         helps = {'address': _('Twitter handle of this channel')}
 
 
+TYPE_UPDATE_FORM_CLASSES = {
+    Channel.TYPE_ANDROID: UpdateAndroidForm,
+}
+
+
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
                'claim_android', 'claim_chikka', 'configuration',
-               'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender',
+               'search_nexmo', 'bulk_sender_options', 'create_bulk_sender',
                'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_shaqodoon',
-               'claim_verboice', 'claim_plivo', 'search_plivo',
+               'claim_verboice', 'search_plivo',
                'claim_smscentral', 'claim_start', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia',
-               'claim_twiml_api', 'facebook_whitelist',
-               'claim_red_rabbit')
+               'claim_twiml_api', 'facebook_whitelist')
     permissions = True
 
     class Read(OrgObjPermsMixin, SmartReadView):
@@ -1227,16 +1358,7 @@ class ChannelCRUDL(SmartCRUDL):
             return reverse('channels.channel_read', args=[self.object.uuid])
 
         def get_form_class(self):
-            channel_type = self.object.channel_type
-
-            if channel_type == Channel.TYPE_ANDROID:
-                return UpdateAndroidForm
-            elif channel_type == Channel.TYPE_NEXMO:
-                return UpdateNexmoForm
-            elif TWITTER_SCHEME in self.object.schemes:
-                return UpdateTwitterForm
-            else:
-                return UpdateChannelForm
+            return Channel.get_type_from_code(self.object.channel_type).get_update_form()
 
         def get_form_kwargs(self):
             kwargs = super(ChannelCRUDL.Update, self).get_form_kwargs()
@@ -1309,7 +1431,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             def clean_connection(self):
                 connection = self.cleaned_data['connection']
-                if connection == Channel.TYPE_NEXMO and not self.org.is_connected_to_nexmo():
+                if connection == 'NX' and not self.org.is_connected_to_nexmo():
                     raise forms.ValidationError(_("A connection to a Nexmo account is required"))
                 return connection
 
@@ -1526,10 +1648,6 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimStart(ClaimAuthenticatedExternal):
         title = _("Connect Start")
         channel_type = Channel.TYPE_START
-
-    class ClaimRedRabbit(ClaimAuthenticatedExternal):
-        title = _("Connect Red Rabbit")
-        channel_type = Channel.TYPE_RED_RABBIT
 
     class ClaimChikka(ClaimAuthenticatedExternal):
         class ChikkaForm(forms.Form):
@@ -2183,81 +2301,6 @@ class ChannelCRUDL(SmartCRUDL):
             # add this channel
             return Channel.add_twilio_channel(user.get_org(), user, phone_number, country, role)
 
-    class ClaimNexmo(BaseClaimNumber):
-        class ClaimNexmoForm(forms.Form):
-            country = forms.ChoiceField(choices=NEXMO_SUPPORTED_COUNTRIES)
-            phone_number = forms.CharField(help_text=_("The phone number being added"))
-
-            def clean_phone_number(self):
-                if not self.cleaned_data.get('country', None):  # pragma: needs cover
-                    raise ValidationError(_("That number is not currently supported."))
-
-                phone = self.cleaned_data['phone_number']
-                phone = phonenumbers.parse(phone, self.cleaned_data['country'])
-
-                return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
-
-        form_class = ClaimNexmoForm
-
-        template_name = 'channels/channel_claim_nexmo.html'
-
-        def pre_process(self, *args, **kwargs):
-            org = Org.objects.get(pk=self.request.user.get_org().pk)
-            try:
-                client = org.get_nexmo_client()
-            except Exception:  # pragma: needs cover
-                client = None
-
-            if client:
-                return None
-            else:  # pragma: needs cover
-                return HttpResponseRedirect(reverse('channels.channel_claim'))
-
-        def is_valid_country(self, country_code):
-            return country_code in NEXMO_SUPPORTED_COUNTRY_CODES
-
-        def is_messaging_country(self, country):
-            return country in [c[0] for c in NEXMO_SUPPORTED_COUNTRIES]
-
-        def get_search_url(self):
-            return reverse('channels.channel_search_nexmo')
-
-        def get_claim_url(self):
-            return reverse('channels.channel_claim_nexmo')
-
-        def get_supported_countries_tuple(self):
-            return NEXMO_SUPPORTED_COUNTRIES
-
-        def get_search_countries_tuple(self):
-            return NEXMO_SUPPORTED_COUNTRIES
-
-        def get_existing_numbers(self, org):
-            client = org.get_nexmo_client()
-            if client:
-                account_numbers = client.get_numbers(size=100)
-
-            numbers = []
-            for number in account_numbers:
-                if number['type'] == 'mobile-shortcode':  # pragma: needs cover
-                    phone_number = number['msisdn']
-                else:
-                    parsed = phonenumbers.parse(number['msisdn'], number['country'])
-                    phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
-                numbers.append(dict(number=phone_number, country=number['country']))
-
-            return numbers
-
-        def claim_number(self, user, phone_number, country, role):
-            analytics.track(user.username, 'temba.channel_claim_nexmo', dict(number=phone_number))
-
-            # add this channel
-            channel = Channel.add_nexmo_channel(user.get_org(),
-                                                user,
-                                                country,
-                                                phone_number)
-
-            return channel
-
     class SearchNexmo(SearchNumbers):
         class SearchNexmoForm(forms.Form):
             area_code = forms.CharField(max_length=7, required=False,
@@ -2282,111 +2325,6 @@ class ChannelCRUDL(SmartCRUDL):
                 return JsonResponse(numbers, safe=False)
             except Exception as e:
                 return JsonResponse(dict(error=str(e)))
-
-    class ClaimPlivo(BaseClaimNumber):
-        class ClaimPlivoForm(forms.Form):
-            country = forms.ChoiceField(choices=PLIVO_SUPPORTED_COUNTRIES)
-            phone_number = forms.CharField(help_text=_("The phone number being added"))
-
-            def clean_phone_number(self):
-                if not self.cleaned_data.get('country', None):  # pragma: needs cover
-                    raise ValidationError(_("That number is not currently supported."))
-
-                phone = self.cleaned_data['phone_number']
-                phone = phonenumbers.parse(phone, self.cleaned_data['country'])
-
-                return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
-
-        form_class = ClaimPlivoForm
-        template_name = 'channels/channel_claim_plivo.html'
-
-        def pre_process(self, *args, **kwargs):
-            client = self.get_valid_client()
-
-            if client:
-                return None
-            else:
-                return HttpResponseRedirect(reverse('channels.channel_claim'))
-
-        def get_valid_client(self):
-            auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
-            auth_token = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_TOKEN, None)
-
-            try:
-                client = plivo.RestAPI(auth_id, auth_token)
-                validation_response = client.get_account()
-                if validation_response[0] != 200:
-                    client = None
-            except plivo.PlivoError:  # pragma: needs cover
-                client = None
-
-            return client
-
-        def is_valid_country(self, country_code):
-            return country_code in PLIVO_SUPPORTED_COUNTRY_CODES
-
-        def is_messaging_country(self, country):
-            return country in [c[0] for c in PLIVO_SUPPORTED_COUNTRIES]
-
-        def get_search_url(self):
-            return reverse('channels.channel_search_plivo')
-
-        def get_claim_url(self):
-            return reverse('channels.channel_claim_plivo')
-
-        def get_supported_countries_tuple(self):
-            return PLIVO_SUPPORTED_COUNTRIES
-
-        def get_search_countries_tuple(self):
-            return PLIVO_SUPPORTED_COUNTRIES
-
-        def get_existing_numbers(self, org):
-            client = self.get_valid_client()
-
-            account_numbers = []
-            if client:
-                status, data = client.get_numbers()
-
-                if status == 200:
-                    for number_dict in data['objects']:
-
-                        region = number_dict['region']
-                        country_name = region.split(',')[-1].strip().title()
-                        country = pycountry.countries.get(name=country_name).alpha_2
-
-                        if len(number_dict['number']) <= 6:
-                            phone_number = number_dict['number']
-                        else:
-                            parsed = phonenumbers.parse('+' + number_dict['number'], None)
-                            phone_number = phonenumbers.format_number(parsed,
-                                                                      phonenumbers.PhoneNumberFormat.INTERNATIONAL)
-
-                        account_numbers.append(dict(number=phone_number, country=country))
-
-            return account_numbers
-
-        def claim_number(self, user, phone_number, country, role):
-
-            auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
-            auth_token = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_TOKEN, None)
-
-            # add this channel
-            channel = Channel.add_plivo_channel(user.get_org(),
-                                                user,
-                                                country,
-                                                phone_number,
-                                                auth_id,
-                                                auth_token)
-
-            analytics.track(user.username, 'temba.channel_claim_plivo', dict(number=phone_number))
-
-            return channel
-
-        def remove_api_credentials_from_session(self):
-            if Channel.CONFIG_PLIVO_AUTH_ID in self.request.session:
-                del self.request.session[Channel.CONFIG_PLIVO_AUTH_ID]
-            if Channel.CONFIG_PLIVO_AUTH_TOKEN in self.request.session:
-                del self.request.session[Channel.CONFIG_PLIVO_AUTH_TOKEN]
 
     class SearchPlivo(SearchNumbers):
         class SearchPlivoForm(forms.Form):

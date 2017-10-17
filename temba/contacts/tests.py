@@ -235,6 +235,19 @@ class ContactGroupTest(TembaTest):
         group.refresh_from_db()
         self.assertEqual(group.name, "first")
 
+    @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
+    def test_reached_maximum_org_contact_groups(self):
+        ContactGroup.user_groups.all().delete()
+
+        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+            ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
+
+        ContactGroup.get_or_create(self.org, self.admin, 'group1')
+
+        self.assertRaises(ValueError, ContactGroup.get_or_create, self.org, self.user, "Team")
+        self.assertRaises(ValueError, ContactGroup.create_static, self.org, self.user, "Team")
+        self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.user, "Team", "Age > 10")
+
     def test_get_user_groups(self):
         self.create_field('gender', "Gender")
         static = ContactGroup.create_static(self.org, self.admin, "Static")
@@ -408,6 +421,7 @@ class ContactGroupCRUDLTest(TembaTest):
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
         self.dynamic_group = self.create_group("Dynamic", query="joe")
 
+    @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_create(self):
         url = reverse('contacts.contactgroup_create')
 
@@ -444,6 +458,16 @@ class ContactGroupCRUDLTest(TembaTest):
         self.client.post(url, dict(name="Frank", group_query="frank"))
         group = ContactGroup.user_groups.get(org=self.org, name="Frank", query="frank")
         self.assertEqual(set(group.contacts.all()), {self.frank})
+
+        ContactGroup.user_groups.all().delete()
+
+        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+            ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
+
+        response = self.client.post(url, dict(name="People"))
+        self.assertFormError(response, 'form', 'name', "You have reached 10 contact groups, "
+                                                       "please remove some contact groups to be able "
+                                                       "to create new contact groups")
 
     def test_update(self):
         url = reverse('contacts.contactgroup_update', args=[self.joe_and_frank.pk])
@@ -1420,6 +1444,11 @@ class ContactTest(TembaTest):
         ])
 
     def test_history(self):
+
+        # use a max history size of 100
+        from temba.contacts import models
+        models.MAX_HISTORY = 100
+
         url = reverse('contacts.contact_history', args=[self.joe.uuid])
 
         kurt = self.create_contact("Kurt", "123123")
@@ -1576,6 +1605,9 @@ class ContactTest(TembaTest):
         activity = response.context['activity']
         self.assertEqual(len(activity), 99)
 
+        # before date should not match our last activity, that only happens when we truncate
+        self.assertNotEqual(response.context['before'], datetime_to_ms(response.context['activity'][-1]['time']))
+
         self.assertIsInstance(activity[0]['obj'], Msg)
         self.assertEqual(activity[0]['obj'].direction, 'O')
         self.assertEqual(activity[1]['type'], 'run-start')
@@ -1590,6 +1622,18 @@ class ContactTest(TembaTest):
         self.assertIsInstance(activity[5]['obj'], ChannelEvent)
         self.assertIsInstance(activity[6]['obj'], WebHookResult)
         self.assertIsInstance(activity[7]['obj'], FlowRun)
+
+        # now try a shorter max history to test truncation
+        models.MAX_HISTORY = 50
+        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+
+        # our before should be the same as the last item
+        last_item_date = datetime_to_ms(response.context['activity'][-1]['time'])
+        self.assertEqual(response.context['before'], last_item_date)
+
+        # and our after should be 90 days earlier
+        self.assertEqual(response.context['after'], last_item_date - (90 * 24 * 60 * 60 * 1000))
+        self.assertEqual(len(response.context['activity']), 50)
 
     def test_event_times(self):
 
