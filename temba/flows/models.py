@@ -3250,38 +3250,37 @@ class RuleSet(models.Model):
         """
         Determines the value type that this ruleset will generate.
         """
-        rules = self.get_rules()
-
         # we keep track of specialized rule types we see
-        dec_rules = 0
-        dt_rules = 0
-        rule_count = 0
+        value_type = None
 
         for rule in self.get_rules():
-            if not isinstance(rule.test, TrueTest):
-                rule_count += 1
+            if isinstance(rule.test, TrueTest):
+                pass
+
+            rule_type = None
 
             if isinstance(rule.test, NumericTest):
-                dec_rules += 1
+                rule_type = Value.TYPE_DECIMAL
 
             elif isinstance(rule.test, DateTest):
-                dt_rules += 1
+                rule_type = Value.TYPE_DATETIME
 
-        # no real rules? this is open ended, return
-        if rule_count == 0:
-            return Value.TYPE_TEXT
+            elif isinstance(rule.test, HasStateTest):
+                rule_type = Value.TYPE_STATE
 
-        # this is a decimal test
-        if dec_rules == len(rules) - 1:
-            return Value.TYPE_DECIMAL
+            elif isinstance(rule.test, HasDistrictTest):
+                rule_type = Value.TYPE_DISTRICT
 
-        # our output will be a date
-        elif dt_rules == len(rules) - 1:
-            return Value.TYPE_DATETIME
+            elif isinstance(rule.test, HasWardTest):
+                rule_type = Value.TYPE_WARD
 
-        # default is just text
-        else:
-            return Value.TYPE_TEXT
+            # this either isn't one of our value types or we have more than one type in this ruleset
+            if not rule_type or (value_type and rule_type != value_type):
+                return Value.TYPE_TEXT
+
+            value_type = rule_type
+
+        return value_type if value_type else Value.TYPE_TEXT
 
     def get_voice_input(self, voice_response, action=None):
 
