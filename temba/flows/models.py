@@ -27,6 +27,7 @@ from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
 from django_redis import get_redis_connection
 from enum import Enum
+from six.moves import range
 from smartmin.models import SmartModel
 from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
@@ -97,13 +98,13 @@ def edit_distance(s1, s2):  # pragma: no cover
     lenstr1 = len(s1)
     lenstr2 = len(s2)
 
-    for i in xrange(-1, lenstr1 + 1):
+    for i in range(-1, lenstr1 + 1):
         d[(i, -1)] = i + 1
-    for j in xrange(-1, lenstr2 + 1):
+    for j in range(-1, lenstr2 + 1):
         d[(-1, j)] = j + 1
 
-    for i in xrange(0, lenstr1):
-        for j in xrange(0, lenstr2):
+    for i in range(0, lenstr1):
+        for j in range(0, lenstr2):
             if s1[i] == s2[j]:
                 cost = 0
             else:
