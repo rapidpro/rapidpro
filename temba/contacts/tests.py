@@ -2579,6 +2579,7 @@ class ContactTest(TembaTest):
 
         return response
 
+    @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_contact_import(self):
         #
         # first import brings in 3 contacts
@@ -3105,6 +3106,18 @@ class ContactTest(TembaTest):
                              'The file you provided is missing a required header. At least one of "Phone", "Facebook", '
                              '"Twitter", "Twitterid", "Viber", "Line", "Telegram", "Email", "External", '
                              '"Jiochat", "Fcm" or "Contact UUID" should be included.')
+
+        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+            ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
+
+        csv_file = open('%s/test_imports/sample_contacts.xls' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data)
+        self.assertFormError(response, 'form', '__all__', 'You have reached %s contact groups, please remove '
+                                                          'some contact groups to be able to import contacts '
+                                                          'in a contact group' % ContactGroup.MAX_ORG_CONTACTGROUPS)
+
+        ContactGroup.user_groups.all().delete()
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
