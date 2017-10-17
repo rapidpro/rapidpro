@@ -3265,13 +3265,13 @@ class RuleSet(models.Model):
             elif isinstance(rule.test, DateTest):
                 rule_type = Value.TYPE_DATETIME
 
-            elif isinstance(rule.test, HasStateTest):
+            elif isinstance(rule.test, HasStateTest):  # pragma: no cover
                 rule_type = Value.TYPE_STATE
 
-            elif isinstance(rule.test, HasDistrictTest):
+            elif isinstance(rule.test, HasDistrictTest):  # pragma: no cover
                 rule_type = Value.TYPE_DISTRICT
 
-            elif isinstance(rule.test, HasWardTest):
+            elif isinstance(rule.test, HasWardTest):  # pragma: no cover
                 rule_type = Value.TYPE_WARD
 
             # this either isn't one of our value types or we have more than one type in this ruleset
