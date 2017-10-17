@@ -2108,10 +2108,7 @@ class OrgCRUDL(SmartCRUDL):
             api_key = form.cleaned_data.get('api_key')
             disconnect = form.cleaned_data.get('disconnect', 'false') == 'true'
 
-            if disconnect:
-                org.remove_nlu_api(user)
-                return HttpResponseRedirect(reverse('orgs.org_home'))
-            elif api_name:
+            if api_name:
                 org.connect_nlu_api(user, api_name, api_key)
 
             return super(OrgCRUDL.NluApi, self).form_valid(form)
