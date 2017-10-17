@@ -3,10 +3,10 @@
 -load i18n humanize
 
 -block page-title
-  {{title}}
-
   -if current_group
-    \- {{current_group.name}}
+    {{current_group.name}}
+  -else
+    {{title}}
   
 -block page-top
   {% render as page_top %}
