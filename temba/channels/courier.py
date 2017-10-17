@@ -39,7 +39,7 @@ def msg_as_task(msg):
     Used to serialize msgs as tasks to courier
     """
     msg_json = dict(id=msg.id,
-                    uuid=unicode(msg.uuid) if msg.uuid else "",
+                    uuid=str(msg.uuid) if msg.uuid else "",
                     org_id=msg.org_id,
                     channel_id=msg.channel_id,
                     channel_uuid=msg.channel.uuid,
@@ -56,6 +56,8 @@ def msg_as_task(msg):
                     attachments=msg.attachments,
                     response_to_id=msg.response_to_id,
                     external_id=msg.external_id,
+
+                    tps_cost=msg.channel.calculate_tps_cost(msg),
 
                     next_attempt=datetime_to_str(msg.next_attempt, ms=True),
                     created_on=datetime_to_str(msg.created_on, ms=True),

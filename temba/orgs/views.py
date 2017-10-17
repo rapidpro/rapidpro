@@ -661,7 +661,7 @@ class OrgCRUDL(SmartCRUDL):
                 nexmo_client.update_account('http://%s%s' % (TEMBA_HOST, mo_path),
                                             'http://%s%s' % (TEMBA_HOST, dl_path))
 
-                return HttpResponseRedirect(reverse("channels.channel_claim_nexmo"))
+                return HttpResponseRedirect(reverse("channels.claim_nexmo"))
 
             except nexmo.Error:
                 return super(OrgCRUDL.NexmoConfiguration, self).get(request, *args, **kwargs)
@@ -823,7 +823,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = PlivoConnectForm
         submit_button_name = "Save"
-        success_url = '@channels.channel_claim_plivo'
+        success_url = '@channels.claim_plivo'
         field_config = dict(auth_id=dict(label=""), auth_token=dict(label=""))
         success_message = "Plivo credentials verified. You can now add a Plivo channel."
 
