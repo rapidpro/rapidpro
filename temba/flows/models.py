@@ -3255,7 +3255,7 @@ class RuleSet(models.Model):
 
         for rule in self.get_rules():
             if isinstance(rule.test, TrueTest):
-                pass
+                continue
 
             rule_type = None
 
