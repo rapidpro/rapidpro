@@ -1,17 +1,6 @@
 v3.0.216
 ----------
- * tweak changelog
-
-v3.0.214 
-----------
- * Update CHANGELOG.md for v3.0.214
-
-v3.0.214 
-----------
  * Should filter user groups by org before limiting to 250
-
-v3.0.213
-----------
  * Fixes for slow contact history
  * Allow updating existing fields via API without checking the count
  * Update TWIML IVR protocol check
@@ -22,9 +11,7 @@ v3.0.213
  * Limit the contact fields max per org to 200 to below the max form post fields allowed
  * Limit number of contact groups creation on org to 250
  * Limit number of contact fields creation on org to 250
- * Dynamic channels: Red Rabbit
- * Dynamic channels: Plivo
- * Dynamic channels: Nexmo
+ * Dynamic channels: Red Rabbit, Plivo Nexmo
 
 v3.0.212
 ----------
