@@ -2978,7 +2978,7 @@ class ActionTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Yes")
         run = FlowRun.create(self.flow, self.contact.pk)
 
-        payload = dict(quick_replies=[dict(eng=['Yes', 'No'])])
+        payload = [dict(eng='Yes'), dict(eng='No')]
 
         action = ReplyAction(msg=dict(base="Are you fine?"), quick_replies=payload)
         action_json = action.as_json()
