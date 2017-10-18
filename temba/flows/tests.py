@@ -7435,6 +7435,15 @@ class OrderingTest(FlowFileTest):
 
 class TimeoutTest(FlowFileTest):
 
+    def _update_timeout(self, run, timeout_on):
+        run.timeout_on = timeout_on
+        run.save(update_fields=('timeout_on',))
+
+        output = json.loads(run.session.output)
+        output['wait']['timeout_on'] = datetime_to_str(timeout_on)
+        run.session.output = json.dumps(output)
+        run.session.save(update_fields=('output',))
+
     def test_disappearing_timeout(self):
         from temba.flows.tasks import check_flow_timeouts_task
         flow = self.get_flow('timeout')
@@ -7457,7 +7466,7 @@ class TimeoutTest(FlowFileTest):
 
         # ok, change our timeout to the past
         timeout = timezone.now()
-        FlowRun.objects.all().update(timeout_on=timeout)
+        self._update_timeout(run, timeout)
 
         # remove our timeout rule
         flow_json = flow.as_json()
@@ -7508,8 +7517,7 @@ class TimeoutTest(FlowFileTest):
 
         # ok, change our timeout to the past
         timeout = timezone.now()
-        run1.timeout_on = timezone.now()
-        run1.save(update_fields=['timeout_on'])
+        self._update_timeout(run1, timeout)
 
         # process our timeout
         run1.resume_after_timeout(timeout)
@@ -7535,7 +7543,8 @@ class TimeoutTest(FlowFileTest):
         timeout = timezone.now()
         expiration = run.expires_on
 
-        FlowRun.objects.all().update(timeout_on=timeout)
+        self._update_timeout(run, timezone.now())
+
         check_flow_timeouts_task()
 
         # should have a new outgoing message
@@ -7574,11 +7583,12 @@ class TimeoutTest(FlowFileTest):
         msg = self.create_msg(contact=self.contact, direction='I', text="Wilson")
         Flow.find_and_handle(msg)
 
-        time.sleep(1)
-        FlowRun.objects.all().update(timeout_on=timezone.now())
-        check_flow_timeouts_task()
-
         run = FlowRun.objects.get()
+
+        time.sleep(1)
+        self._update_timeout(run, timezone.now())
+
+        check_flow_timeouts_task()
 
         # nothing should have changed as we haven't yet sent our msg
         self.assertTrue(run.is_active)
@@ -7601,7 +7611,9 @@ class TimeoutTest(FlowFileTest):
         last_msg.save()
 
         time.sleep(1)
-        FlowRun.objects.all().update(timeout_on=timezone.now())
+
+        self._update_timeout(run, timezone.now())
+
         check_flow_timeouts_task()
         run.refresh_from_db()
 
@@ -7663,7 +7675,7 @@ class TimeoutTest(FlowFileTest):
         time.sleep(1)
 
         # ok, change our timeout to the past
-        FlowRun.objects.all().update(timeout_on=timezone.now())
+        self._update_timeout(run, timezone.now())
 
         # check our timeouts again
         check_flow_timeouts_task()
