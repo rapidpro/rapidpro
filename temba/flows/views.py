@@ -1380,7 +1380,7 @@ class FlowCRUDL(SmartCRUDL):
                     analytics.track(user.username, 'temba.flow_simulated')
 
                 ActionLog.objects.filter(run__in=runs).delete()
-                Msg.objects.filter(contact=test_contact).delete()
+                Msg.objects.filter(contact=test_contact).defer('response_to').delete()
                 IVRCall.objects.filter(contact=test_contact).delete()
                 USSDSession.objects.filter(contact=test_contact).delete()
 
