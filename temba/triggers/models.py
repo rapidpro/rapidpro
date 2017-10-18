@@ -159,7 +159,7 @@ class Trigger(SmartModel):
         """
         now = timezone.now()
 
-        if not self.trigger_type == Trigger.TYPE_SCHEDULE:
+        if not self.trigger_type == Trigger.TYPE_SCHEDULE and not self.trigger_type == Trigger.TYPE_NLU_API:
             matches = Trigger.objects.filter(org=self.org, is_active=True, is_archived=False, trigger_type=self.trigger_type)
 
             # if this trigger has a keyword, only archive others with the same keyword

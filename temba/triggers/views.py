@@ -401,6 +401,9 @@ class NluApiTriggerForm(GroupBasedTriggerForm):
 
         return consumer.list_bots()
 
+    def clean(self):
+        pass
+
     class Meta(BaseTriggerForm.Meta):
         fields = ('flow', 'groups', 'bots', 'intents', 'accurancy')
 
