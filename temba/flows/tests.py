@@ -2708,6 +2708,9 @@ class FlowTest(TembaTest):
         # should have 2 messages on the actionset step
         self.assertEquals(actionset_step.messages.all().count(), 1)
 
+        runs = flow.start_msg_flow([self.contact3.id, self.contact4.id])
+        self.assertEquals(2, len(runs))
+
     def test_multiple(self):
         self.flow.start([], [self.contact])
 
