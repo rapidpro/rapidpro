@@ -457,7 +457,7 @@ class OrgCRUDL(SmartCRUDL):
                'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country', 'languages', 'clear_cache',
                'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect',
                'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'resthooks', 'service', 'surveyor',
-               'transfer_credits', 'transfer_to_account', 'smtp_server', 'custom_channels')
+               'transfer_credits', 'transfer_to_account', 'smtp_server')
 
     model = Org
 
@@ -1996,41 +1996,6 @@ class OrgCRUDL(SmartCRUDL):
             context['failed_webhooks'] = WebHookEvent.get_recent_errored(self.request.user.get_org()).exists()
             return context
 
-    class Chatbase(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-
-        class ChatbaseForm(forms.ModelForm):
-            agent_name = forms.CharField(max_length=255, label=_("Agent Name"), required=False,
-                                         help_text="Enter your Chatbase Agent's name")
-            api_key = forms.CharField(max_length=255, label=_("API Key"), required=False,
-                                      help_text="You can find your Agent's API Key "
-                                                "<a href='https://chatbase.com/agents/main-page' target='_new'>here</a>")
-            version = forms.CharField(max_length=10, label=_("Version"), required=False, help_text="Any will do, e.g. 1.0, 1.2.1")
-            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
-
-            def clean(self):
-                super(OrgCRUDL.Chatbase.ChatbaseForm, self).clean()
-                if self.cleaned_data.get('disconnect', 'false') == 'false':
-                    agent_name = self.cleaned_data.get('agent_name')
-                    api_key = self.cleaned_data.get('api_key')
-
-                    if not agent_name or not api_key:
-                        raise ValidationError(_("Missing data: Agent Name or API Key."
-                                                "Please check them again and retry."))
-
-                return self.cleaned_data
-
-            class Meta:
-                model = Org
-                fields = ('id', 'use_customize')
-
-        form_class = CustomChannelForm
-        success_message = ''
-
-        def has_permission(self, request, *args, **kwargs):
-            self.org = self.derive_org()
-            return self.has_org_perm('orgs.org_edit')
-
-
     class Home(FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
 
@@ -2087,9 +2052,6 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm('orgs.org_edit'):
                 formax.add_section('org', reverse('orgs.org_edit'), icon='icon-office')
-
-            if self.has_org_perm('orgs.org_edit'):
-                formax.add_section('customize', reverse('orgs.org_custom_channels'), icon='icon-facebook-telegram')
 
             if self.has_org_perm('orgs.org_languages'):
                 formax.add_section('languages', reverse('orgs.org_languages'), icon='icon-language')
