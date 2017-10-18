@@ -3131,6 +3131,8 @@ class ActionTest(TembaTest):
         self.assertFalse(self.other_group.pk in [g.pk for g in updated_action.groups])
 
     def test_send_action(self):
+        # previously @step.contact was the run contact and @contact would become the recipient but that has been
+        # changed so that both are the run contact
         msg_body = "Hi @contact.name (@contact.state). @step.contact (@step.contact.state) is in the flow"
 
         self.contact.set_field(self.user, 'state', "WA", label="State")
@@ -3152,7 +3154,7 @@ class ActionTest(TembaTest):
         self.assertEqual(broadcast.get_messages().count(), 1)
         msg = broadcast.get_messages().first()
         self.assertEqual(msg.contact, self.contact2)
-        self.assertEqual(msg.text, "Hi Nic (GA). Eric (WA) is in the flow")
+        self.assertEqual(msg.text, "Hi Eric (WA). Eric (WA) is in the flow")
 
         # empty message should be a no-op
         action = SendAction(dict(base=""), [], [self.contact], [])
@@ -3175,7 +3177,7 @@ class ActionTest(TembaTest):
         self.assertEqual(Broadcast.objects.all().count(), 1)
 
         # but we should have logged instead
-        logged = "Sending &#39;Hi @contact.name (@contact.state). Mr Test (IN) is in the flow&#39; to 2 contacts"
+        logged = "Sending &#39;Hi Mr Test (IN). Mr Test (IN) is in the flow&#39; to 2 contacts"
         self.assertEqual(ActionLog.objects.all().first().text, logged)
 
         # delete the group
@@ -5517,7 +5519,7 @@ class FlowsTest(FlowFileTest):
 
         self.assertEquals("Thanks, you typed +250788123123", self.send_message(flow, "0788123123"))
         sms = Msg.objects.get(org=flow.org, contact__urns__path="+250788123123")
-        self.assertEquals("Hi from Ben Haggerty! Your phone is 0788 123 123.", sms.text)
+        self.assertEquals("Hi from Ben Haggerty! Your phone is (206) 555-2020.", sms.text)
 
     def test_group_send(self):
         # create an inactive group with the same name, to test that this doesn't blow up our import
