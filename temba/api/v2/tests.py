@@ -17,7 +17,7 @@ from django.utils import timezone
 from mock import patch
 from rest_framework import serializers
 from rest_framework.test import APIClient
-from temba.campaigns.models import Campaign, CampaignEvent
+from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowLabel, FlowStart, ReplyAction
@@ -706,6 +706,11 @@ class APITest(TembaTest):
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         registration = ContactField.get_or_create(self.org, self.admin, 'registration', "Registration")
 
+        # create our contact and set a registration date
+        contact = self.create_contact("Joe", "+12065551515")
+        reporters.contacts.add(contact)
+        contact.set_field(self.admin, "registration", timezone.now())
+
         campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
         event1 = CampaignEvent.create_message_event(self.org, self.admin, campaign1, registration,
                                                     1, CampaignEvent.UNIT_DAYS, "Don't forget to brush your teeth")
@@ -836,6 +841,9 @@ class APITest(TembaTest):
         self.assertEqual(event2.message, None)
         self.assertEqual(event2.flow, flow)
 
+        # make sure some event fires were created for the contact
+        self.assertEqual(1, EventFire.objects.filter(contact=contact, event=event2).count())
+
         # update the message event to be a flow event
         response = self.postJSON(url, 'uuid=%s' % event1.uuid, {
             'campaign': campaign1.uuid,
@@ -903,6 +911,9 @@ class APITest(TembaTest):
 
         event1.refresh_from_db()
         self.assertFalse(event1.is_active)
+
+        # should no longer have any events
+        self.assertEqual(1, EventFire.objects.filter(contact=contact, event=event2).count())
 
     def test_channels(self):
         url = reverse('api.v2.channels')
@@ -1541,6 +1552,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'flow_uuid=%s&campaign_uuid=%s&dependencies=xx' % (flow.uuid, campaign.uuid))
         self.assertResponseError(response, None, 'dependencies must be one of none, flows, all')
 
+    @patch.object(ContactField, "MAX_ORG_CONTACTFIELDS", new=10)
     def test_fields(self):
         url = reverse('api.v2.fields')
 
@@ -1601,6 +1613,16 @@ class APITest(TembaTest):
         # try to update with non-existent key
         response = self.postJSON(url, 'key=not_ours', {'label': "Something", 'value_type': 'text'})
         self.assert404(response)
+
+        ContactField.objects.all().delete()
+
+        for i in range(ContactField.MAX_ORG_CONTACTFIELDS):
+            ContactField.get_or_create(self.org, self.admin, 'field%d' % i, 'Field%d' % i)
+
+        response = self.postJSON(url, None, {'label': "Age", 'value_type': "numeric"})
+        self.assertResponseError(response, 'non_field_errors',
+                                 "You have reached 10 contact fields, please remove some contact fields "
+                                 "to be able to create new contact fields")
 
     def test_flows(self):
         url = reverse('api.v2.flows')
@@ -1663,6 +1685,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'after=%s' % format_datetime(survey.modified_on))
         self.assertResultsByUUID(response, [survey])
 
+    @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
     def test_groups(self):
         url = reverse('api.v2.groups')
 
@@ -1752,6 +1775,25 @@ class APITest(TembaTest):
         response = self.deleteJSON(url, 'uuid=%s' % spammers.uuid)
         self.assert404(response)
 
+        ContactGroup.user_groups.all().delete()
+
+        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+            ContactGroup.create_static(self.org2, self.admin2, 'group%d' % i)
+
+        response = self.postJSON(url, None, {'name': "Reporters"})
+        self.assertEqual(response.status_code, 201)
+
+        ContactGroup.user_groups.all().delete()
+
+        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+            ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
+
+        response = self.postJSON(url, None, {'name': "Reporters"})
+        self.assertResponseError(response, 'non_field_errors',
+                                 "You have reached 10 contact groups, please remove some contact groups "
+                                 "to be able to create new contact groups")
+
+    @patch.object(Label, "MAX_ORG_LABELS", new=10)
     def test_labels(self):
         url = reverse('api.v2.labels')
 
@@ -1839,6 +1881,15 @@ class APITest(TembaTest):
         # try to delete a label in another org
         response = self.deleteJSON(url, 'uuid=%s' % spam.uuid)
         self.assert404(response)
+
+        Label.all_objects.all().delete()
+
+        for i in range(Label.MAX_ORG_LABELS):
+            Label.get_or_create(self.org, self.user, "label%d" % i)
+
+        response = self.postJSON(url, None, {'name': "Interesting"})
+        self.assertResponseError(response, 'non_field_errors',
+                                 "You have reached 10 labels, please remove some to be able to add a new label")
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
         self.assertEqual(msg_json, {

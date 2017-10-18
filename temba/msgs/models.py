@@ -392,12 +392,12 @@ class Broadcast(models.Model):
         return Language.get_localized_text(self.media, preferred_languages)
 
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
-             created_on=None, partial_recipients=None, run_map=None):
+             created_on=None, partial_recipients=None, run_map=None, high_priority=False):
         """
         Sends this broadcast by creating outgoing messages for each recipient.
         """
         # ignore mock messages
-        if response_to and not response_to.id:
+        if response_to and not response_to.id:  # pragma: no cover
             response_to = None
 
         # cannot ask for sending by us AND specify a created on, blow up in that case
@@ -433,9 +433,6 @@ class Broadcast(models.Model):
         batch = []
         batch_recipients = []
         existing_recipients = set(BroadcastRecipient.objects.filter(broadcast_id=self.id).values_list('contact_id', flat=True))
-
-        # high priority if this is to a single contact
-        high_priority = len(recipients) == 1
 
         # if they didn't pass in a created on, create one ourselves
         if not created_on:
@@ -654,7 +651,8 @@ class Msg(models.Model):
 
     contact = models.ForeignKey(Contact,
                                 related_name='msgs', verbose_name=_("Contact"),
-                                help_text=_("The contact this message is communicating with"))
+                                help_text=_("The contact this message is communicating with"),
+                                db_index=False)
 
     contact_urn = models.ForeignKey(ContactURN, null=True,
                                     related_name='msgs', verbose_name=_("Contact URN"),
@@ -667,7 +665,7 @@ class Msg(models.Model):
     text = models.TextField(verbose_name=_("Text"),
                             help_text=_("The actual message content that was sent"))
 
-    priority = models.IntegerField(default=500,
+    priority = models.IntegerField(default=500, null=True,
                                    help_text=_("The priority for this message to be sent, higher is higher priority"))
 
     high_priority = models.NullBooleanField(help_text=_("Give this message higher priority than other messages"))
@@ -1138,7 +1136,7 @@ class Msg(models.Model):
 
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
                                  response_to=self if self.id else None, connection=connection, attachments=attachments,
-                                 msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all)
+                                 msg_type=msg_type or self.msg_type, created_on=created_on, all_urns=send_all, high_priority=True)
 
     def update(self, cmd):
         """
@@ -1423,7 +1421,7 @@ class Msg(models.Model):
         return evaluate_template(text, context, url_encode, partial_vars)
 
     @classmethod
-    def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=None,
+    def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, high_priority=False,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
                         attachments=None, topup_id=None, msg_type=INBOX, connection=None):
 
@@ -1524,10 +1522,6 @@ class Msg(models.Model):
 
         if response_to:
             msg_type = response_to.msg_type
-
-        # if bulk priority has not been explicitly set, then it depends on whether this is a reply
-        if high_priority is None:
-            high_priority = bool(response_to)
 
         text = text.strip()
 
@@ -1838,6 +1832,8 @@ class Label(TembaModel):
     much the same way labels or tags apply to messages in web-based email services.
     """
     MAX_NAME_LEN = 64
+    MAX_ORG_LABELS = 250
+    MAX_ORG_FOLDERS = 250
 
     TYPE_FOLDER = 'F'
     TYPE_LABEL = 'L'
@@ -1872,6 +1868,10 @@ class Label(TembaModel):
         if label:
             return label
 
+        if Label.label_objects.filter(org=org, is_active=True).count() >= Label.MAX_ORG_LABELS:
+            raise ValueError("You have reached %s labels, "
+                             "please remove some to be able to add a new label" % Label.MAX_ORG_LABELS)
+
         return cls.label_objects.create(org=org, name=name, folder=folder, created_by=user, modified_by=user)
 
     @classmethod
@@ -1884,6 +1884,10 @@ class Label(TembaModel):
         folder = cls.folder_objects.filter(org=org, name__iexact=name).first()
         if folder:  # pragma: needs cover
             return folder
+
+        if Label.folder_objects.filter(org=org, is_active=True).count() >= Label.MAX_ORG_FOLDERS:
+            raise ValueError("You have reached %s labels, "
+                             "please remove some to be able to add a new label" % cls.MAX_ORG_FOLDERS)
 
         return cls.folder_objects.create(org=org, name=name, label_type=Label.TYPE_FOLDER,
                                          created_by=user, modified_by=user)

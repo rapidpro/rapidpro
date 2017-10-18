@@ -1146,6 +1146,12 @@ CHANNEL_TYPES = [
     'temba.channels.types.kannel.KannelType',
     'temba.channels.types.line.LineType',
     'temba.channels.types.m3tech.M3TechType',
+    'temba.channels.types.macrokiosk.MacrokioskType',
+    'temba.channels.types.mblox.MbloxType',
+    'temba.channels.types.nexmo.NexmoType',
+    'temba.channels.types.plivo.PlivoType',
+    'temba.channels.types.redrabbit.RedRabbitType',
+    'temba.channels.types.shaqodoon.ShaqodoonType',
     'temba.channels.types.telegram.TelegramType',
     'temba.channels.types.twitter.TwitterType',
     'temba.channels.types.twitter_activity.TwitterActivityType',
@@ -1208,3 +1214,7 @@ COURIER_CHANNELS = set()
 # Chatbase integration
 # -----------------------------------------------------------------------------------
 CHATBASE_API_URL = 'https://chatbase.com/api/message'
+
+
+# To allow manage fields to support up to 1000 fields
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 4000

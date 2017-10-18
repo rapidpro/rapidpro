@@ -595,7 +595,7 @@ class ShaqodoonHandler(ExternalHandler):
     handler_name = 'handlers.shaqodoon_handler'
 
     def get_channel_type(self):
-        return Channel.TYPE_SHAQODOON
+        return 'SQ'
 
 
 class YoHandler(ExternalHandler):
@@ -1089,7 +1089,7 @@ class MacroKioskHandler(BaseChannelHandler):
         from temba.msgs.models import Msg
 
         channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_MACROKIOSK).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='MK').exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
 
@@ -1236,7 +1236,7 @@ class NexmoCallHandler(BaseChannelHandler):
             # look up the channel
             address_q = Q(address=channel_number) | Q(address=('+' + channel_number))
             channel = Channel.objects.filter(address_q).filter(is_active=True,
-                                                               channel_type=Channel.TYPE_NEXMO).exclude(org=None).first()
+                                                               channel_type='NX').exclude(org=None).first()
 
             # make sure we got one, and that it matches the key for our org
             org_uuid = None
@@ -1305,7 +1305,7 @@ class NexmoHandler(BaseChannelHandler):
 
         # look up the channel
         address_q = Q(address=channel_number) | Q(address=('+' + channel_number))
-        channel = Channel.objects.filter(address_q).filter(is_active=True, channel_type=Channel.TYPE_NEXMO).exclude(org=None).first()
+        channel = Channel.objects.filter(address_q).filter(is_active=True, channel_type='NX').exclude(org=None).first()
 
         # make sure we got one, and that it matches the key for our org
         org_uuid = None
@@ -1750,7 +1750,7 @@ class PlivoHandler(BaseChannelHandler):
         if sms_from is None or sms_to is None or sms_id is None:
             return HttpResponse("Missing one of 'From', 'To', or 'MessageUUID' in request parameters.", status=400)
 
-        channel = Channel.objects.filter(is_active=True, uuid=request_uuid, channel_type=Channel.TYPE_PLIVO).first()
+        channel = Channel.objects.filter(is_active=True, uuid=request_uuid, channel_type='PL').first()
 
         if action == 'status':
             plivo_channel_address = sms_from
@@ -2244,7 +2244,7 @@ class JunebugHandler(BaseChannelHandler):
 
 
 class MbloxHandler(BaseChannelHandler):
-    courier_url = r'^mb/(?P<uuid>[a-z0-9\-]+)/receive$'
+    courier_url = r'^mb/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$'
     courier_name = 'courier.mb'
 
     handler_url = r'^mblox/(?P<uuid>[a-z0-9\-]+)/?$'
@@ -2260,7 +2260,7 @@ class MbloxHandler(BaseChannelHandler):
 
         # look up the channel
         channel = Channel.objects.filter(uuid=request_uuid, is_active=True,
-                                         channel_type=Channel.TYPE_MBLOX).exclude(org=None).first()
+                                         channel_type='MB').exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
@@ -2364,7 +2364,7 @@ class JioChatHandler(BaseChannelHandler):
         create_time = body.get('CreateTime', None)
         msg_date = None
         if create_time:
-            msg_date = datetime.utcfromtimestamp(float(unicode(create_time)[:10])).replace(tzinfo=pytz.utc)
+            msg_date = datetime.utcfromtimestamp(float(six.text_type(create_time)[:10])).replace(tzinfo=pytz.utc)
         msg_type = body.get('MsgType')
         external_id = body.get('MsgId', None)
 

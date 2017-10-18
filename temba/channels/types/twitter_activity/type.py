@@ -10,6 +10,7 @@ from temba.utils.twitter import TembaTwython
 from .views import ClaimView
 from .tasks import resolve_twitter_ids
 from ...models import Channel, ChannelType
+from ...views import UpdateTwitterForm
 
 
 class TwitterActivityType(ChannelType):
@@ -25,6 +26,8 @@ class TwitterActivityType(ChannelType):
     claim_blurb = _("""If you have access to the new <a href="https://dev.twitter.com/webhooks/account-activity">Twitter
     Activity API</a> which is currently in beta, you can add a Twitter channel for that here.""")
     claim_view = ClaimView
+
+    update_form = UpdateTwitterForm
 
     schemes = [TWITTER_SCHEME, TWITTERID_SCHEME]
     show_config_page = False

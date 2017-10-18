@@ -1701,7 +1701,7 @@ class OrgTest(TembaTest):
             self.assertEqual(response.status_code, 302)
 
             response = self.client.get(nexmo_configuration_url, follow=True)
-            self.assertEqual(response.request['PATH_INFO'], reverse('channels.channel_claim_nexmo'))
+            self.assertEqual(response.request['PATH_INFO'], reverse('channels.claim_nexmo'))
 
         with patch('temba.utils.nexmo.NexmoClient.update_account') as mock_update_account:
             mock_update_account.side_effect = [nexmo.Error, nexmo.Error]
@@ -1803,13 +1803,22 @@ class OrgTest(TembaTest):
         # our sub account should have zero credits
         self.assertEqual(0, sub_org.get_credits_remaining())
 
+        Channel.create(sub_org, self.user, 'RW', 'A', name="Test Channel", address="+250785551212",
+                       device="Nexus 5X", secret="12355", gcm_id="145")
+        contact = self.create_contact("Joe", "+250788383444", org=sub_org)
+        msg = Msg.create_outgoing(sub_org, self.admin, contact, "How is it going?")
+        self.assertFalse(msg.topup)
+
         # default values should be the same as parent
         self.assertEqual(self.org.timezone, sub_org.timezone)
         self.assertEqual(self.org.created_by, sub_org.created_by)
 
         # now allocate some credits to our sub org
         self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 700))
-        self.assertEqual(700, sub_org.get_credits_remaining())
+
+        msg.refresh_from_db()
+        self.assertTrue(msg.topup)
+        self.assertEqual(699, sub_org.get_credits_remaining())
         self.assertEqual(1300, self.org.get_credits_remaining())
 
         # we should have a debit to track this transaction
@@ -1823,13 +1832,13 @@ class OrgTest(TembaTest):
 
         # try allocating more than we have
         self.assertFalse(self.org.allocate_credits(self.admin, sub_org, 1301))
-        self.assertEqual(700, sub_org.get_credits_remaining())
+        self.assertEqual(699, sub_org.get_credits_remaining())
         self.assertEqual(1300, self.org.get_credits_remaining())
         self.assertEqual(700, self.org._calculate_credits_used())
 
         # now allocate across our remaining topups
         self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 1200))
-        self.assertEqual(1900, sub_org.get_credits_remaining())
+        self.assertEqual(1899, sub_org.get_credits_remaining())
         self.assertEqual(1900, self.org.get_credits_used())
         self.assertEqual(100, self.org.get_credits_remaining())
 
@@ -1837,7 +1846,7 @@ class OrgTest(TembaTest):
         self.org._calculate_credit_caches()
         sub_org._calculate_credit_caches()
 
-        self.assertEqual(1900, sub_org.get_credits_remaining())
+        self.assertEqual(1899, sub_org.get_credits_remaining())
         self.assertEqual(100, self.org.get_credits_remaining())
 
         # this creates two more debits, for a total of three
@@ -1850,7 +1859,7 @@ class OrgTest(TembaTest):
 
         # allocate the exact number of credits remaining
         self.org.allocate_credits(self.admin, sub_org, 100)
-        self.assertEqual(2000, sub_org.get_credits_remaining())
+        self.assertEqual(1999, sub_org.get_credits_remaining())
         self.assertEqual(0, self.org.get_credits_remaining())
 
     def test_sub_org_ui(self):
