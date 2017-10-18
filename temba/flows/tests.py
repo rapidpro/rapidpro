@@ -5466,7 +5466,7 @@ class FlowsTest(FlowFileTest):
     def test_numeric_rule_allows_variables(self):
         flow = self.get_flow('numeric_rule_allows_variables')
 
-        zinedine = self.create_contact('Zinedine', '+123456')
+        zinedine = self.create_contact('Zinedine', '+12065550100')
         zinedine.set_field(self.user, 'age', 25)
 
         self.assertEquals('Good count', self.send_message(flow, "35", contact=zinedine))
@@ -5475,7 +5475,7 @@ class FlowsTest(FlowFileTest):
 
         flow = self.get_flow('non_blocking_rule_first')
 
-        eminem = self.create_contact('Eminem', '+12345')
+        eminem = self.create_contact('Eminem', '+12065550100')
         flow.start(groups=[], contacts=[eminem])
         msg = Msg.objects.filter(direction='O', contact=eminem).first()
         self.assertEquals('Hi there Eminem', msg.text)
@@ -5485,7 +5485,7 @@ class FlowsTest(FlowFileTest):
         ruleset.webhook_url = 'http://localhost'
         ruleset.save()
 
-        tupac = self.create_contact('Tupac', '+15432')
+        tupac = self.create_contact('Tupac', '+12065550100')
         flow.start(groups=[], contacts=[tupac])
         msg = Msg.objects.filter(direction='O', contact=tupac).first()
         self.assertEquals('Hi there Tupac', msg.text)
@@ -5493,7 +5493,7 @@ class FlowsTest(FlowFileTest):
     def test_webhook_rule_first(self):
 
         flow = self.get_flow('webhook_rule_first')
-        tupac = self.create_contact('Tupac', '+15432')
+        tupac = self.create_contact('Tupac', '+12065550100')
         flow.start(groups=[], contacts=[tupac])
 
         # a message should have been sent
