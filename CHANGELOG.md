@@ -1,3 +1,10 @@
+v3.0.218
+----------
+ * Delete simulation messages in batch of 25 to use the response_to index
+ * Fix Kannel channel type icon
+ * @step.contact and @contact should both be the run contact
+ * Migration to set value_type on all RuleSets
+
 v3.0.217
 ----------
  * Add page titles for common pages
