@@ -1197,7 +1197,8 @@ class BroadcastTest(TembaTest):
         self.joe.set_field(self.user, 'dob', "28/5/1981")
 
         def substitute(s, context):
-            return Msg.substitute_variables(s, context, contact=self.joe)
+            context['contact'] = self.joe.build_expressions_context()
+            return Msg.substitute_variables(s, context)
 
         self.assertEquals(("Hello World", []), substitute("Hello World", dict()))
         self.assertEquals(("Hello World Joe", []), substitute("Hello World @contact.first_name", dict()))
@@ -1283,8 +1284,6 @@ class BroadcastTest(TembaTest):
         self.assertEqual(context['value'], "keyword remainder-remainder")
         self.assertEqual(context['text'], "keyword remainder-remainder")
         self.assertEqual(context['attachments'], {})
-        self.assertEqual(context['contact']['__default__'], "Joe Blow")
-        self.assertEqual(context['contact']['superhero_name'], "batman")
 
         # time should be in org format and timezone
         self.assertEqual(context['time'], datetime_to_str(msg.created_on, '%d-%m-%Y %H:%M', tz=self.org.timezone))

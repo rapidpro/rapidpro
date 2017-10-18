@@ -584,6 +584,14 @@ class ContactCRUDL(SmartCRUDL):
 
                 return self.cleaned_data['csv_file']
 
+            def clean(self):
+                if ContactGroup.user_groups.filter(org=self.org).count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+                    raise forms.ValidationError('You have reached %s contact groups, please remove some contact groups '
+                                                'to be able to import contacts in a contact group' %
+                                                ContactGroup.MAX_ORG_CONTACTGROUPS)
+
+                return self.cleaned_data
+
             class Meta:
                 model = ImportTask
                 fields = '__all__'
@@ -838,16 +846,17 @@ class ContactCRUDL(SmartCRUDL):
                 else:
                     after = max(after - timedelta(days=90), contact_creation)
 
-            # check if there are more pages to fetch
-            if not recent_only:
-                if before > contact.created_on:
-                    context['has_older'] = bool(contact.get_activity(contact_creation, after))
-
             # mark our after as the last item in our list
             from temba.contacts.models import MAX_HISTORY
             if len(activity) >= MAX_HISTORY:
                 after = activity[-1]['time']
 
+            # check if there are more pages to fetch
+            context['has_older'] = False
+            if not recent_only and before > contact.created_on:
+                context['has_older'] = bool(contact.get_activity(contact_creation, after))
+
+            context['recent_only'] = recent_only
             context['before'] = datetime_to_ms(after)
             context['after'] = datetime_to_ms(max(after - timedelta(days=90), contact_creation))
             context['activity'] = activity
