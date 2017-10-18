@@ -392,7 +392,6 @@ class Broadcast(models.Model):
         Gets the appropriate metadata translation for the given contact
         """
         preferred_languages = self.get_preferred_languages(contact, org)
-        metadata = json.loads(metadata)
         language_metadata = []
         for item in metadata:
             current_language = preferred_languages[0] if preferred_languages else None
