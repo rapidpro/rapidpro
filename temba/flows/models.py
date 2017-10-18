@@ -5161,7 +5161,7 @@ class ReplyAction(Action):
         Gets the appropriate metadata translation for the given contact
         """
         language_metadata = []
-        for item in metadata.get('quick_replies'):
+        for item in metadata:
             quick_reply = item.get(run.contact.language) \
                 if run.contact.language and run.contact.language in item else item.get(run.flow.base_language)
             language_metadata.append(quick_reply)
