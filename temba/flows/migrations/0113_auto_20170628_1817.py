@@ -19,6 +19,11 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='flowsession',
+            name='responded',
+            field=models.BooleanField(default=False, help_text='Whether the contact has responded in this session'),
+        ),
+        migrations.AddField(
+            model_name='flowsession',
             name='status',
             field=models.CharField(
                 choices=[('W', 'Waiting'), ('C', 'Completed'), ('I', 'Interrupted'), ('X', 'Expired'),

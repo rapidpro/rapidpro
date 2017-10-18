@@ -152,6 +152,8 @@ class FlowSession(models.Model):
     connection = models.OneToOneField('channels.ChannelSession', null=True, related_name='session',
                                       help_text=_("The channel connection used for flow sessions over IVR or USSD"))
 
+    responded = models.BooleanField(default=False, help_text='Whether the contact has responded in this session')
+
     output = models.TextField(null=True)
 
     @classmethod
@@ -187,15 +189,9 @@ class FlowSession(models.Model):
                 .set_environment(flow.org)\
                 .set_contact(contact)
 
-            # if we're testing we need to include all assets with the request
             if settings.TESTING:
-                for f in flow.org.flows.filter(is_active=True):
-                    request = request.include_flow(f)
-                for channel in flow.org.channels.filter(is_active=True):
-                    request = request.include_channel(channel)
-                request = request.include_fields(flow.org).include_groups(flow.org).include_labels(flow.org)
-                if flow.org.country_id:
-                    request = request.include_country(flow.org)
+                # TODO find a way to run an assets server during testing?
+                request = request.include_all(flow.org)
 
             # only include message if it's a real message
             if msg_in and msg_in.created_on:
@@ -212,7 +208,8 @@ class FlowSession(models.Model):
 
             # create our session
             session = cls.objects.create(org=contact.org, contact=contact, status=status,
-                                         output=json.dumps(output.session))
+                                         output=json.dumps(output.session),
+                                         responded=bool(msg_in and msg_in.created_on))
 
             contact_runs = session.sync_runs(output, msg_in, broadcasts)
             runs.append(contact_runs[0])
@@ -239,13 +236,8 @@ class FlowSession(models.Model):
         request = client.request_builder(asset_timestamp).asset_urls(self.org)
 
         if settings.TESTING:
-            for f in self.org.flows.filter(is_active=True):
-                request = request.include_flow(f)
-            for channel in self.org.channels.filter(is_active=True):
-                request = request.include_channel(channel)
-            request = request.include_fields(self.org).include_groups(self.org).include_labels(self.org)
-            if self.org.country_id:
-                request = request.include_country(self.org)
+            # TODO find a way to run an assets server during testing?
+            request = request.include_all(self.org)
 
         # only include message if it's a real message
         if msg_in and msg_in.created_on:
@@ -262,9 +254,9 @@ class FlowSession(models.Model):
 
             # update our output
             self.output = json.dumps(output.session)
+            self.responded = bool(msg_in and msg_in.created_on)
             self.status = self.GOFLOW_STATUSES[output.session['status']]
-            self.modified_on = timezone.now()
-            self.save(update_fields=('output', 'status'))
+            self.save(update_fields=('output', 'responded', 'status'))
 
             # update our session
             self.sync_runs(output, msg_in, (), waiting_run)
@@ -320,18 +312,6 @@ class FlowSession(models.Model):
             self.org.trigger_send(msgs_to_send)
 
         return runs
-
-    def get_root_flow(self):
-        """
-        Returns the root flow for this session, this looks at all our runs until
-        we find one which has no parent, then returns that flow
-        """
-        output = self.as_json()
-        for run in output['runs']:
-            if run.get('parent_uuid', None) is None:
-                return Flow.objects.filter(org=self.org, is_active=True, uuid=run['flow_uuid']).first()
-
-        return None
 
     def as_json(self):
         return json.loads(self.output) if self.output else None
@@ -2895,10 +2875,12 @@ class FlowRun(models.Model):
         # use our urn if we have one specified in the event
         recipient = event.get('urn')
         contact_ref = event.get('contact')
+        high_priority = False
 
         if contact_ref:
             if self.contact.uuid == contact_ref['uuid']:
                 recipient = self.contact
+                high_priority = self.session.responded
             else:
                 recipient = Contact.objects.get(uuid=contact_ref['uuid'], org=self.org)
 
@@ -2914,6 +2896,7 @@ class FlowRun(models.Model):
                                        text=event['text'],
                                        attachments=attachments,
                                        channel=msg.channel if msg else None,
+                                       high_priority=high_priority,
                                        created_on=iso8601.parse_date(event['created_on']),
                                        response_to=msg if msg and msg.id else None)
 

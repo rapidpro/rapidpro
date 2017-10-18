@@ -100,6 +100,18 @@ class RequestBuilder(object):
         self.asset_timestamp = asset_timestamp
         self.request = {'assets': [], 'events': []}
 
+    def include_all(self, org):
+        request = self
+        for f in org.flows.filter(is_active=True):
+            request = request.include_flow(f)
+        for channel in org.channels.filter(is_active=True):
+            request = request.include_channel(channel)
+        request = request.include_fields(org).include_groups(org).include_labels(org)
+        if org.country_id:
+            request = request.include_country(org)
+
+        return request
+
     def include_channel(self, channel):
         self.request['assets'].append({
             'type': "channel",
