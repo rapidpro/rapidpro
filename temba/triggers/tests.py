@@ -933,7 +933,7 @@ class TriggerTest(TembaTest):
         group_catch_all.refresh_from_db()
         self.assertFalse(group_catch_all.is_active)
 
-    def test_catch_nlu_trigger(self):
+    def test_catch_nlu_trigger_wit(self):
         self.login(self.admin)
         trigger_nlu = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_NLU_API).first()
         flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
@@ -976,13 +976,83 @@ class TriggerTest(TembaTest):
         self.assertEquals(trigger_nlu.pk, trigger.pk)
 
         with patch('requests.get') as mock_get:
-            mock_get.return_value = MockResponse(200, '{"msg_id":"0GhmeqSm6P3Wkz0P0","_text":"greet","entities":{"intent":[{"confidence":0.35233400021608,"value":"greet"}]}}')
+            mock_return_wit = '{"msg_id":"0GhmeqSm6P3Wkz0P0","_text":"greet","entities":{"intent":[{"confidence":%s,"value":"greet"}]}}'
+            mock_get.return_value = MockResponse(200, mock_return_wit % '0.35233400021608')
             Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hello")
             self.assertEquals(0, flow.runs.all().count())
 
-            mock_get.return_value = MockResponse(200, '{"msg_id":"0GhmeqSm6P3Wkz0P0","_text":"greet","entities":{"intent":[{"confidence":0.65233400021608,"value":"greet"}]}}')
+            mock_get.return_value = MockResponse(200, mock_return_wit % '0.65233400021608')
             Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hello")
             self.assertEquals(1, flow.runs.all().count())
+
+    def test_catch_nlu_trigger_bothub(self):
+        self.login(self.admin)
+        trigger_nlu = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_NLU_API).first()
+        flow = self.create_flow(definition=self.COLOR_FLOW_DEFINITION)
+
+        contact = self.create_contact("Ali", "250788739305")
+
+        self.assertFalse(trigger_nlu)
+
+        Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "Hi")
+        self.assertEquals(1, Msg.objects.all().count())
+        self.assertEquals(0, flow.runs.all().count())
+
+        trigger_url = reverse("triggers.trigger_nlu_api")
+
+        response = self.client.get(trigger_url)
+        self.assertEquals(response.status_code, 302)
+
+        payload = dict(api_name=NLU_BOTHUB_TAG, api_key='BOTHUB_KEY', disconnect='false')
+        self.client.post(reverse('orgs.org_nlu_api'), payload, follow=True)
+        self.org.refresh_from_db()
+        with patch('requests.get') as mock_get:
+            mock_get.return_value = MockResponse(200, '[{"slug": "bot-slug-16", "uuid": "3c15fefc-58cc-4fcb-a29f-38dc8b1ef76f"}, \
+                                                        {"slug": "bot-slug-15", "uuid": "53c800c6-9e90-4ede-b3b8-723596bd8b2e"}]')
+            response = self.client.get(trigger_url)
+            self.assertEquals(response.status_code, 200)
+            post_data = dict(flow=flow.pk, intents='restaurant_search,goodbye,greet', accurancy=65, bots='53c800c6-9e90-4ede-b3b8-723596bd8b2e')
+            response = self.client.post(trigger_url, post_data)
+
+            with patch('requests.get') as mock_get:
+                mock_return_bothub = """
+                {
+                    "bot_uuid": "53c800c6-9e90-4ede-b3b8-723596bd8b2e",
+                    "answer": {
+                        "text": "i want chinese food",
+                        "entities": [],
+                        "intent_ranking": [
+                            {
+                                "confidence": 0.6948301844545473,
+                                "name": "restaurant_search"
+                            },
+                            {
+                                "confidence": 0.1375480668428505,
+                                "name": "goodbye"
+                            },
+                            {
+                                "confidence": 0.09062990371961123,
+                                "name": "greet"
+                            },
+                            {
+                                "confidence": 0.07699184498299105,
+                                "name": "affirm"
+                            }
+                        ],
+                        "intent": {
+                            "confidence": %s,
+                            "name": "restaurant_search"
+                        }
+                    }
+                }
+                """
+                mock_get.return_value = MockResponse(200, mock_return_bothub % '0.35233400021608')
+                Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "i want chinese food")
+                self.assertEquals(0, flow.runs.all().count())
+
+                mock_get.return_value = MockResponse(200, mock_return_bothub % '0.6948301844545473')
+                Msg.create_incoming(self.channel, six.text_type(contact.get_urn()), "i want chinese food")
+                self.assertEquals(1, flow.runs.all().count())
 
     def test_update(self):
         self.login(self.admin)
