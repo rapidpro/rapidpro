@@ -10,7 +10,8 @@ def backfill_value_type(apps, schema_editor):
     from temba.flows.models import RuleSet
 
     ruleset_ids = RuleSet.objects.all().only('id').values_list('id', flat=True)
-    print("found %d rulesets to set value type on" % len(ruleset_ids))
+    if ruleset_ids:
+        print("found %d rulesets to set value type on" % len(ruleset_ids))
     count = 0
 
     for batch in chunk_list(ruleset_ids, 1000):
