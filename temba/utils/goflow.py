@@ -102,7 +102,7 @@ class RequestBuilder(object):
 
     def include_all(self, org):
         request = self
-        for f in org.flows.filter(is_active=True):
+        for f in org.flows.filter(is_active=True, is_archived=False):
             request = request.include_flow(f)
         for channel in org.channels.filter(is_active=True):
             request = request.include_channel(channel)
