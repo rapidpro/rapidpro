@@ -21,7 +21,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models, connection as db_connection
-from django.db.models import Q, Count, QuerySet, Sum
+from django.db.models import Q, Count, QuerySet, Sum, Max
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
@@ -919,6 +919,33 @@ class Flow(TembaModel):
 
         # delete our results in the background
         on_transaction_commit(lambda: delete_flow_results_task.delay(self.id))
+
+    def get_category_counts(self, deleted_nodes=True):
+
+        actives = self.rule_sets.all().values('uuid', 'label')
+
+        uuids = [active['uuid'] for active in actives]
+        keys = [Flow.label_to_slug(active['label']) for active in actives]
+        counts = FlowCategoryCount.objects.filter(flow_id=self.id)
+
+        # always filter by active keys
+        counts = counts.filter(result_key__in=keys)
+
+        # filter by active nodes if we aren't including deleted nodes
+        if not deleted_nodes:
+            counts = counts.filter(node_uuid__in=uuids)
+        counts = counts.values('result_key', 'category_name').annotate(count=Sum('count'), result_name=Max('result_name'))
+
+        results = {}
+        for count in counts:
+            result = results.get(count['result_key'], {})
+            if 'name' not in result:
+                result['name'] = count['result_name']
+                result['categories'] = [dict(name=count['category_name'], count=count['count'])]
+            else:
+                result['categories'].append(dict(name=count['category_name'], count=count['count']))
+            results[count['result_key']] = result
+        return results
 
     def delete_results(self):
         """
@@ -3738,6 +3765,33 @@ class FlowRevision(SmartModel):
                     id=self.pk,
                     version=self.spec_version,
                     revision=self.revision)
+
+
+class FlowCategoryCount(SquashableModel):
+    """
+    Maintains counts for categories across all possible results in a flow
+    """
+    SQUASH_OVER = ('flow_id', 'node_uuid', 'result_key', 'result_name', 'category_name')
+
+    flow = models.ForeignKey(Flow, related_name='category_counts', help_text="The flow the result belongs to")
+    node_uuid = models.UUIDField(db_index=True)
+    result_key = models.CharField(max_length=36, help_text="The sluggified key for the result")
+    result_name = models.CharField(max_length=36, help_text="The result the category belongs to")
+    category_name = models.CharField(max_length=36, help_text="The category name for a result")
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def get_squash_query(cls, distinct_set):
+        sql = """
+        WITH removed as (
+            DELETE FROM %(table)s WHERE "flow_id" = %%s AND "node_uuid" = %%s AND "result_key" = %%s AND "result_name" = %%s AND "category_name" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("flow_id", "node_uuid", "result_key", "result_name", "category_name", "count", "is_squashed")
+        VALUES (%%s, %%s, %%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+        """ % {'table': cls._meta.db_table}
+
+        params = (distinct_set.flow_id, distinct_set.node_uuid, distinct_set.result_key, distinct_set.result_name, distinct_set.category_name) * 2
+        return sql, params
 
 
 @six.python_2_unicode_compatible

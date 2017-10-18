@@ -37,7 +37,7 @@ from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate
 from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate_export_to_version_9
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
 from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user
-from .models import FlowPathRecentMessage, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
+from .models import FlowCategoryCount, FlowPathRecentMessage, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest, ContainsOnlyPhraseTest, ContainsPhraseTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
@@ -1937,6 +1937,10 @@ class FlowTest(TembaTest):
         self.assertEqual("> 10", results['color']['category'])
         self.assertEqual("color", results['color']['name'])
         self.assertIsNotNone(results['color']['modified_on'])
+
+        # and that the category counts have been updated
+        self.assertIsNotNone(FlowCategoryCount.objects.filter(node_uuid='bd531ace-911e-4722-8e53-6730d6122fe1', category_name='> 10',
+                                                              result_name='color', result_key='color', count=1).first())
 
     def test_location_entry_test(self):
 
@@ -4534,6 +4538,65 @@ class FlowsTest(FlowFileTest):
         # but if we save from in the past after our save it should fail
         response = flow.update(flow_json, self.admin)
         self.assertEquals(response.get('status'), 'unsaved')
+
+    def test_flow_category_counts(self):
+
+        def assertCount(count_map, result_key, category_name, count):
+            categories = count_map[result_key]['categories']
+            found = False
+            for category in categories:
+                if category['name'] == category_name:
+                    found = True
+                    self.assertEqual(category['count'], count)
+            self.assertTrue(found)
+
+        favorites = self.get_flow('favorites')
+
+        # add in some fake data
+        for i in range(0, 10):
+            contact = self.create_contact('Contact %d' % i, '+120655530%d' % i)
+            self.send_message(favorites, 'blue', contact=contact)
+            self.send_message(favorites, 'primus', contact=contact)
+
+        for i in range(0, 5):
+            contact = self.create_contact('Contact %d' % i, '+120655531%d' % i)
+            self.send_message(favorites, 'red', contact=contact)
+            self.send_message(favorites, 'primus', contact=contact)
+
+        counts = favorites.get_category_counts()
+        assertCount(counts, 'color', 'Blue', 10)
+        assertCount(counts, 'color', 'Red', 5)
+        assertCount(counts, 'beer', 'Primus', 15)
+
+        # now remap the uuid for our color node
+        flow_json = favorites.as_json()
+        color_ruleset = (flow_json['rule_sets'][0])
+        flow_json = json.loads(json.dumps(flow_json).replace(color_ruleset['uuid'], str(uuid4())))
+        favorites.update(flow_json)
+
+        # send a few more runs through our updated flow
+        for i in range(0, 3):
+            contact = self.create_contact('Contact %d' % i, '+120655532%d' % i)
+            self.send_message(favorites, 'red', contact=contact)
+            self.send_message(favorites, 'turbo', contact=contact)
+
+        # should now have three more reds
+        counts = favorites.get_category_counts()
+        assertCount(counts, 'color', 'Red', 8)
+        assertCount(counts, 'beer', 'Turbo King', 3)
+
+        # but if we ignore the ones from our deleted color node, should only have the three new ones
+        counts = favorites.get_category_counts(deleted_nodes=False)
+        assertCount(counts, 'color', 'Red', 3)
+
+        # now erase the color key entirely
+        flow_json['rule_sets'] = flow_json['rule_sets'][1:]
+        favorites.update(flow_json)
+
+        # now the color counts have been removed, but beer is still there
+        counts = favorites.get_category_counts()
+        self.assertNotIn('color', counts)
+        assertCount(counts, 'beer', 'Turbo King', 3)
 
     def test_flow_results(self):
         favorites = self.get_flow('favorites')
