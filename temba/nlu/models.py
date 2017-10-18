@@ -66,9 +66,12 @@ class BothubConsumer(BaseConsumer):
         }
         response = self._request(predict_url, data=data, headers=self.get_headers())
         predict = json.loads(response.content)
-        intent = predict.get('answer', None).get('intent', None)
 
-        return intent.get('name', None), intent.get('confidence', None)
+        answer = predict.get('answer', None)
+        intent = answer.get('intent', None)
+        entities = self.get_entities( answer.get('entities', None))
+
+        return intent.get('name', None), intent.get('confidence', None), entities
 
     def list_bots(self):
         list_bots_url = self.BASE_URL + 'auth'
@@ -79,6 +82,9 @@ class BothubConsumer(BaseConsumer):
             list_bots.append((bot.get('uuid'), bot.get('slug')))
 
         return tuple(list_bots)
+
+    def get_entities(self, entities):
+        return [{'type': entity.get('entity'), 'value': entity.get('value')} for entity in entities ]
 
 
 class WitConsumer(BaseConsumer):
