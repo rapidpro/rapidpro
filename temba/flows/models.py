@@ -1629,7 +1629,7 @@ class Flow(TembaModel):
             for send_action in send_actions:
                 # check that we either have text or media, available for the base language
                 if (send_action.msg and send_action.msg.get(self.base_language)) or (send_action.media and send_action.media.get(self.base_language)):
-                    
+
                     metadata = Flow.get_send_action_metadata(send_action)
 
                     broadcast = Broadcast.create(self.org, self.created_by, send_action.msg, [],
