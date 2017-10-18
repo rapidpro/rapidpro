@@ -7871,3 +7871,15 @@ class FlowTriggerTest(TembaTest):
         # nothing should have changed
         self.assertEquals(2, FlowRun.objects.filter(flow=flow, contact=contact).count())
         self.assertEquals(1, FlowStart.objects.all().count())
+
+
+class TypeTest(TembaTest):
+
+    def test_value_types(self):
+        self.get_flow('type_flow')
+        self.assertEqual(Value.TYPE_TEXT, RuleSet.objects.get(label="Text").value_type)
+        self.assertEqual(Value.TYPE_DECIMAL, RuleSet.objects.get(label="Number").value_type)
+        self.assertEqual(Value.TYPE_DATETIME, RuleSet.objects.get(label="Date").value_type)
+        self.assertEqual(Value.TYPE_STATE, RuleSet.objects.get(label="State").value_type)
+        self.assertEqual(Value.TYPE_DISTRICT, RuleSet.objects.get(label="District").value_type)
+        self.assertEqual(Value.TYPE_WARD, RuleSet.objects.get(label="Ward").value_type)
