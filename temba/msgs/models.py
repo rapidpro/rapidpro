@@ -394,7 +394,7 @@ class Broadcast(models.Model):
         preferred_languages = self.get_preferred_languages(contact, org)
         metadata = json.loads(metadata)
         language_metadata = []
-        for item in metadata.get('quick_replies'):
+        for item in metadata:
             current_language = preferred_languages[0] if preferred_languages else None
             quick_reply = item.get(current_language) if current_language in item else item.get(self.base_language)
             language_metadata.append(quick_reply)
