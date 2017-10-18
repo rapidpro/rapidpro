@@ -84,7 +84,7 @@ class BothubConsumer(BaseConsumer):
         return tuple(list_bots)
 
     def get_entities(self, entities):
-        return [{'type': entity.get('entity'), 'value': entity.get('value')} for entity in entities ]
+        return [{'type': entity.get('entity'), 'value': entity.get('value')} for entity in entities]
 
 
 class WitConsumer(BaseConsumer):
@@ -106,8 +106,10 @@ class WitConsumer(BaseConsumer):
         if entities:
             intents = entities.get('intent', None)
             if intents:
-                return intents[0].get('value'), intents[0].get('confidence')
+                return intents[0].get('value'), intents[0].get('confidence'), self.get_entities(entities)
 
+    def get_entities(self, entities):
+        return []
 
 class NluApiConsumer(object):
     """

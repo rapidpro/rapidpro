@@ -480,11 +480,14 @@ class Trigger(SmartModel):
             consumer = NluApiConsumer.factory(nlu_org_config.get(NLU_API_NAME), nlu_api_key)
 
             if consumer:
-                intent, accurancy = consumer.predict(entity, nlu_data.get('bot'))
+                intent, accurancy, entities = consumer.predict(entity, nlu_data.get('bot'))
                 accurancy = accurancy * 100
-
+                extra = {
+                    'intent': intent,
+                    'entities': {str(v): k for v, k in enumerate(entities)}
+                }
                 if intent in nlu_data.get('intents_splited') and accurancy >= nlu_data.get('accurancy'):
-                    trigger.flow.start([], [entity.contact], start_msg=entity, restart_participants=True)
+                    trigger.flow.start([], [entity.contact], start_msg=entity, restart_participants=True, extra=extra)
                     return True
 
         return False
