@@ -792,7 +792,7 @@ class LabelWriteSerializer(WriteSerializer):
     def validate(self, data):
         labels_count = Label.label_objects.filter(org=self.context['org'], is_active=True).count()
         if labels_count >= Label.MAX_ORG_LABELS:
-            raise serializers.ValidationError("This org has %s contact fields and the limit is %s. "
+            raise serializers.ValidationError("This org has %s labels and the limit is %s. "
                                               "You must delete existing ones before you can "
                                               "create new ones." % (labels_count, Label.MAX_ORG_LABELS))
         return data

@@ -1793,6 +1793,10 @@ class APITest(TembaTest):
                                  "This org has 10 groups and the limit is 10. "
                                  "You must delete existing ones before you can create new ones.")
 
+        group1 = ContactGroup.user_groups.filter(org=self.org, name='group1').first()
+        response = self.deleteJSON(url, 'uuid=%s' % group1.uuid)
+        self.assertEqual(response.status_code, 204)
+
     @patch.object(Label, "MAX_ORG_LABELS", new=10)
     def test_labels(self):
         url = reverse('api.v2.labels')
@@ -1889,7 +1893,7 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {'name': "Interesting"})
         self.assertResponseError(response, 'non_field_errors',
-                                 "This org has 10 groups and the limit is 10. "
+                                 "This org has 10 labels and the limit is 10. "
                                  "You must delete existing ones before you can create new ones."
                                  )
 
