@@ -375,25 +375,28 @@ class MsgTest(TembaTest):
 
     def test_broadcast_metadata(self):
         contact = self.create_contact('Stephen', '+12078778899')
+        contact2 = self.create_contact('Maaaarcos', '+12078778888')
         ContactURN.get_or_create(self.org, contact, 'tel:+12078778800')
-        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact], send_all=True,
+        ContactURN.get_or_create(self.org, contact2, 'tel:+12078778888')
+        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact, contact2], send_all=True,
                                      metadata=[dict(eng='Yes'), dict(eng='No')])
-        partial_recipients = list(), Contact.objects.filter(pk=contact.pk)
-        broadcast.send(True, partial_recipients=partial_recipients, metadata=broadcast.metadata)
+        partial_recipients = list(), Contact.objects.filter(pk__in=[contact.pk, contact2.pk])
+        broadcast.send(True, partial_recipients=partial_recipients, metadata=json.dumps(dict(quick_replies=broadcast.metadata)))
 
         self.assertTrue(broadcast.metadata)
-        self.assertEquals(2, broadcast.msgs.all().count())
+        self.assertEquals(3, broadcast.msgs.all().count())
 
         # should not create a broadcast recipient if a similar one exists
-        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact], send_all=True,
+        broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [contact, contact2], send_all=True,
                                      metadata=[dict(eng='Yes'), dict(eng='No')])
         BroadcastRecipient.objects.create(broadcast_id=broadcast.id, contact_id=contact.id)
+        BroadcastRecipient.objects.create(broadcast_id=broadcast.id, contact_id=contact2.id)
 
-        partial_recipients = list(), Contact.objects.filter(pk=contact.pk)
-        broadcast.send(True, partial_recipients=partial_recipients, metadata=broadcast.metadata)
+        partial_recipients = list(), Contact.objects.filter(pk__in=[contact.pk, contact2.pk])
+        broadcast.send(True, partial_recipients=partial_recipients, metadata=json.dumps(dict(quick_replies=broadcast.metadata)))
 
-        self.assertEquals(1, broadcast.recipients.all().count())
-        self.assertEquals(2, broadcast.msgs.all().count())
+        self.assertEquals(2, broadcast.recipients.all().count())
+        self.assertEquals(3, broadcast.msgs.all().count())
 
     def test_update_contacts(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
