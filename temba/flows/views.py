@@ -40,7 +40,7 @@ from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Label, PENDING
 from temba.triggers.models import Trigger
-from temba.utils import analytics, percentage, datetime_to_str, on_transaction_commit, goflow
+from temba.utils import analytics, percentage, datetime_to_str, on_transaction_commit, goflow, chunk_list
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 from temba.values.models import Value
@@ -1381,13 +1381,19 @@ class FlowCRUDL(SmartCRUDL):
                 if runs and runs.first().created_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover
                     analytics.track(user.username, 'temba.flow_simulated')
 
-                ActionLog.objects.filter(run__in=runs).delete()
-                Msg.objects.filter(contact=test_contact).delete()
+                action_log_ids = list(ActionLog.objects.filter(run__in=runs).values_list('id', flat=True))
+                ActionLog.objects.filter(id__in=action_log_ids).delete()
+
+                msg_ids = list(Msg.objects.filter(contact=test_contact).only('id').values_list('id', flat=True))
+
+                for batch in chunk_list(msg_ids, 25):
+                    Msg.objects.filter(id__in=list(batch)).delete()
+
                 IVRCall.objects.filter(contact=test_contact).delete()
                 USSDSession.objects.filter(contact=test_contact).delete()
 
-                runs.delete()
                 steps.delete()
+                FlowRun.objects.filter(contact=test_contact).delete()
 
                 # reset all contact fields values
                 test_contact.values.all().delete()
