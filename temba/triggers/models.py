@@ -484,7 +484,7 @@ class Trigger(SmartModel):
                 accurancy = accurancy * 100
                 extra = {
                     'intent': intent,
-                    'entities': {str(v): k for v, k in enumerate(entities)}
+                    'entities': entities
                 }
                 if intent in nlu_data.get('intents_splited') and accurancy >= nlu_data.get('accurancy'):
                     trigger.flow.start([], [entity.contact], start_msg=entity, restart_participants=True, extra=extra)

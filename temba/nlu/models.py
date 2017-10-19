@@ -41,6 +41,9 @@ class BaseConsumer(object):
             'Authorization': 'Bearer %s' % self.auth
         }
 
+    def get_entities(self, entities):
+        pass
+
     def _request(self, base_url, data=None, headers=None, method='GET'):
         try:
             if method == 'POST':
@@ -69,7 +72,7 @@ class BothubConsumer(BaseConsumer):
 
         answer = predict.get('answer', None)
         intent = answer.get('intent', None)
-        entities = self.get_entities( answer.get('entities', None))
+        entities = self.get_entities(answer.get('entities', None))
 
         return intent.get('name', None), intent.get('confidence', None), entities
 
@@ -84,7 +87,10 @@ class BothubConsumer(BaseConsumer):
         return tuple(list_bots)
 
     def get_entities(self, entities):
-        return [{'type': entity.get('entity'), 'value': entity.get('value')} for entity in entities]
+        ent = dict()
+        for entity in entities:
+            ent.update({entity.get('entity'): entity.get('value')})
+        return ent
 
 
 class WitConsumer(BaseConsumer):
@@ -109,7 +115,11 @@ class WitConsumer(BaseConsumer):
                 return intents[0].get('value'), intents[0].get('confidence'), self.get_entities(entities)
 
     def get_entities(self, entities):
-        return []
+        ent = dict()
+        for entity in entities.pop('intent', None).items():
+            ent.update({entity[0]: entity[1][0].get('value')})
+        return ent
+
 
 class NluApiConsumer(object):
     """
