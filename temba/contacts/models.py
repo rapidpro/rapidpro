@@ -330,6 +330,7 @@ class ContactField(SmartModel):
     """
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
+    MAX_ORG_CONTACTFIELDS = 200
 
     uuid = models.UUIDField(unique=True, default=uuid.uuid4)
 
@@ -458,6 +459,7 @@ class ContactField(SmartModel):
 
 
 NEW_CONTACT_VARIABLE = "@new_contact"
+MAX_HISTORY = 50
 
 
 @six.python_2_unicode_compatible
@@ -564,12 +566,12 @@ class Contact(TembaModel):
         from temba.msgs.models import Msg, BroadcastRecipient
 
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
-        msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).select_related('channel').prefetch_related('channel_logs')
+        msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).order_by('-created_on').select_related('channel').prefetch_related('channel_logs')[:MAX_HISTORY]
 
         # we also include in the timeline purged broadcasts with a best guess at the translation used
         recipients = BroadcastRecipient.objects.filter(contact=self)
         recipients = recipients.filter(broadcast__purged=True, broadcast__created_on__gte=after, broadcast__created_on__lt=before)
-        recipients = recipients.select_related('broadcast')
+        recipients = recipients.order_by('-broadcast__created_on').select_related('broadcast')[:MAX_HISTORY]
         broadcasts = []
         for recipient in recipients:
             broadcast = recipient.broadcast
@@ -581,37 +583,40 @@ class Contact(TembaModel):
             broadcasts.append(broadcast)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
-        runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
-        runs = runs.select_related('flow')
+        started_runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
+        started_runs = started_runs.order_by('-created_on').select_related('flow')[:MAX_HISTORY]
+
+        exited_runs = self.runs.filter(exited_on__gte=after, exited_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
+        exited_runs = exited_runs.exclude(exit_type=None).order_by('-created_on').select_related('flow')[:MAX_HISTORY]
 
         channel_events = self.channel_events.filter(created_on__gte=after, created_on__lt=before)
-        channel_events = channel_events.select_related('channel')
+        channel_events = channel_events.order_by('-created_on').select_related('channel')[:MAX_HISTORY]
 
         event_fires = self.fire_events.filter(fired__gte=after, fired__lt=before).exclude(fired=None)
-        event_fires = event_fires.select_related('event__campaign')
+        event_fires = event_fires.order_by('-event__created_on').select_related('event__campaign')[:MAX_HISTORY]
 
-        webhook_result = WebHookResult.objects.filter(created_on__gte=after, created_on__lt=before, event__run__contact=self)
-        webhook_result = webhook_result.select_related('event')
+        webhook_results = WebHookResult.objects.filter(created_on__gte=after, created_on__lt=before, contact=self)
+        webhook_results = webhook_results.order_by('-created_on').select_related('event')[:MAX_HISTORY]
 
         # and the contact's failed IVR calls
         calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
             IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED
         ])
-        calls = calls.select_related('channel')
+        calls = calls.order_by('-created_on').select_related('channel')[:MAX_HISTORY]
 
         # wrap items, chain and sort by time
         activity = chain(
             [{'type': 'msg', 'time': m.created_on, 'obj': m} for m in msgs],
             [{'type': 'broadcast', 'time': b.created_on, 'obj': b} for b in broadcasts],
-            [{'type': 'run-start', 'time': r.created_on, 'obj': r} for r in runs],
-            [{'type': 'run-exit', 'time': r.exited_on, 'obj': r} for r in runs.exclude(exit_type=None)],
+            [{'type': 'run-start', 'time': r.created_on, 'obj': r} for r in started_runs],
+            [{'type': 'run-exit', 'time': r.exited_on, 'obj': r} for r in exited_runs],
             [{'type': 'channel-event', 'time': e.created_on, 'obj': e} for e in channel_events],
             [{'type': 'event-fire', 'time': f.fired, 'obj': f} for f in event_fires],
-            [{'type': 'webhook-result', 'time': r.created_on, 'obj': r} for r in webhook_result],
+            [{'type': 'webhook-result', 'time': r.created_on, 'obj': r} for r in webhook_results],
             [{'type': 'call', 'time': c.created_on, 'obj': c} for c in calls],
         )
 
-        return sorted(activity, key=lambda i: i['time'], reverse=True)
+        return sorted(activity, key=lambda i: i['time'], reverse=True)[:MAX_HISTORY]
 
     def get_field(self, key):
         """
@@ -1868,7 +1873,7 @@ class Contact(TembaModel):
             return tel.path
 
     def send(self, text, user, trigger_send=True, response_to=None, message_context=None, connection=None,
-             attachments=None, msg_type=None, created_on=None, all_urns=False):
+             attachments=None, msg_type=None, created_on=None, all_urns=False, high_priority=False):
         from temba.msgs.models import Msg, INBOX, PENDING, SENT, UnreachableException
 
         status = SENT if created_on else PENDING
@@ -1884,7 +1889,7 @@ class Contact(TembaModel):
                 msg = Msg.create_outgoing(self.org, user, recipient, text,
                                           response_to=response_to, message_context=message_context, connection=connection,
                                           attachments=attachments, msg_type=msg_type or INBOX, status=status,
-                                          created_on=created_on)
+                                          created_on=created_on, high_priority=high_priority)
                 if msg is not None:
                     msgs.append(msg)
             except UnreachableException:
@@ -2117,6 +2122,7 @@ class UserContactGroupManager(models.Manager):
 @six.python_2_unicode_compatible
 class ContactGroup(TembaModel):
     MAX_NAME_LEN = 64
+    MAX_ORG_CONTACTGROUPS = 250
 
     TYPE_ALL = 'A'
     TYPE_BLOCKED = 'B'
@@ -2205,6 +2211,10 @@ class ContactGroup(TembaModel):
     @classmethod
     def _create(cls, org, user, name, task=None, query=None):
         full_group_name = cls.clean_name(name)
+
+        if cls.user_groups.filter(org=org).count() >= cls.MAX_ORG_CONTACTGROUPS:
+            raise ValueError('You have reached %s contact groups, please remove some contact groups '
+                             'to be able to create new contact groups' % cls.MAX_ORG_CONTACTGROUPS)
 
         if not cls.is_valid_name(full_group_name):
             raise ValueError("Invalid group name: %s" % name)
