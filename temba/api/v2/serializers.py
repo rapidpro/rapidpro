@@ -516,10 +516,12 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
     def validate(self, data):
 
+        fields_count = ContactField.objects.filter(org=self.context['org']).count()
         if not self.instance and ContactField.objects.filter(org=self.context['org']).count() >= ContactField.MAX_ORG_CONTACTFIELDS:
-            raise serializers.ValidationError('You have reached %s contact fields, '
+            raise serializers.ValidationError('You have reached %s contact fields (%s contact fields currently), '
                                               'please remove some contact fields to be able '
-                                              'to create new contact fields' % ContactField.MAX_ORG_CONTACTFIELDS)
+                                              'to create new contact fields' % (ContactField.MAX_ORG_CONTACTFIELDS,
+                                                                                fields_count))
 
         return data
 

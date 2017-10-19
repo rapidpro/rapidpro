@@ -1404,8 +1404,8 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, dict(label='Real Age', value_type='T'))
         self.assertResponseError(response, 'non_field_errors',
-                                 "You have reached 10 contact fields, please remove some contact fields "
-                                 "to be able to create new contact fields")
+                                 "You have reached 10 contact fields (10 contact fields currently), please remove "
+                                 "some contact fields to be able to create new contact fields")
 
     def test_api_authenticate(self):
         url = reverse('api.v1.authenticate')
