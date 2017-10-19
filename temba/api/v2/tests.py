@@ -1889,7 +1889,8 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {'name': "Interesting"})
         self.assertResponseError(response, 'non_field_errors',
-                                 "You have reached 10 labels, please remove some to be able to add a new label")
+                                 "You have reached 10 labels (10 labels currently), please remove some "
+                                 "to be able to add a new label")
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
         self.assertEqual(msg_json, {

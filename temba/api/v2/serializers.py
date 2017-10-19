@@ -792,9 +792,11 @@ class LabelWriteSerializer(WriteSerializer):
         return value
 
     def validate(self, data):
-        if Label.label_objects.filter(org=self.context['org'], is_active=True).count() >= Label.MAX_ORG_LABELS:
-            raise serializers.ValidationError("You have reached %s labels, "
-                                              "please remove some to be able to add a new label" % Label.MAX_ORG_LABELS)
+        labels_count = Label.label_objects.filter(org=self.context['org'], is_active=True).count()
+        if labels_count >= Label.MAX_ORG_LABELS:
+            raise serializers.ValidationError("You have reached %s labels (%s labels currently), please remove "
+                                              "some to be able to add a new label" % (Label.MAX_ORG_LABELS,
+                                                                                      labels_count))
         return data
 
     def save(self):
