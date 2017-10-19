@@ -32,7 +32,7 @@ BEGIN
     FOR result_key, result_value IN SELECT key, value from json_each(new)
     LOOP
         -- if its a new key, create a new count
-        IF old->>result_key IS NULL THEN
+        IF (old->result_key) IS NULL THEN
             execute temba_insert_flowcategorycount(_flow_id, result_key, new->result_key, 1);
         ELSE
             _new := new->result_key;
@@ -56,7 +56,7 @@ BEGIN
     -- look over keys in our old results that might now be gone
     FOR result_key, result_value IN SELECT key, value from json_each(old)
     LOOP
-        IF new->>result_key IS NULL THEN
+        IF (new->result_key) IS NULL THEN
             -- found a key that's since been deleted, add a negation
             execute temba_insert_flowcategorycount(_flow_id, result_key, old->result_key, -1);
         END IF;
