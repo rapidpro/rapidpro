@@ -5485,7 +5485,7 @@ class FlowsTest(FlowFileTest):
         ruleset.webhook_url = 'http://localhost'
         ruleset.save()
 
-        tupac = self.create_contact('Tupac', '+12065550100')
+        tupac = self.create_contact('Tupac', '+12065550101')
         flow.start(groups=[], contacts=[tupac])
         msg = Msg.objects.filter(direction='O', contact=tupac).first()
         self.assertEquals('Hi there Tupac', msg.text)
@@ -5493,7 +5493,7 @@ class FlowsTest(FlowFileTest):
     def test_webhook_rule_first(self):
 
         flow = self.get_flow('webhook_rule_first')
-        tupac = self.create_contact('Tupac', '+12065550100')
+        tupac = self.create_contact('Tupac', '+12065550101')
         flow.start(groups=[], contacts=[tupac])
 
         # a message should have been sent
