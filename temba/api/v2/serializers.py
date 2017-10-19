@@ -558,10 +558,12 @@ class ContactGroupWriteSerializer(WriteSerializer):
         return value
 
     def validate(self, data):
-        if ContactGroup.user_groups.filter(org=self.context['org']).count() >= ContactGroup.MAX_ORG_CONTACTGROUPS:
-            raise serializers.ValidationError("You have reached %s contact groups, "
+        group_count = ContactGroup.user_groups.filter(org=self.context['org']).count()
+        if group_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+            raise serializers.ValidationError("You have reached %s contact groups (%s groups currently), "
                                               "please remove some contact groups to be able "
-                                              "to create new contact groups" % ContactGroup.MAX_ORG_CONTACTGROUPS)
+                                              "to create new contact groups" % (ContactGroup.MAX_ORG_CONTACTGROUPS,
+                                                                                group_count))
         return data
 
     def save(self):
