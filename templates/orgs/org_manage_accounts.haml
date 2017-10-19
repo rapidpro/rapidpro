@@ -2,6 +2,9 @@
 - load smartmin temba compress
 - load i18n
 
+-block page-title
+  -trans "Manage Accounts"
+  \- {{user_org.name|capfirst}}
 
 -block extra-less
   -compress css inline

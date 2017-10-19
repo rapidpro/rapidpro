@@ -2364,7 +2364,7 @@ class JioChatHandler(BaseChannelHandler):
         create_time = body.get('CreateTime', None)
         msg_date = None
         if create_time:
-            msg_date = datetime.utcfromtimestamp(float(unicode(create_time)[:10])).replace(tzinfo=pytz.utc)
+            msg_date = datetime.utcfromtimestamp(float(six.text_type(create_time)[:10])).replace(tzinfo=pytz.utc)
         msg_type = body.get('MsgType')
         external_id = body.get('MsgId', None)
 
