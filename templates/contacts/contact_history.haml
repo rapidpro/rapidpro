@@ -107,8 +107,7 @@
               %a{href:"{%url 'api.log_read' event.id %}"}
                 .icon-docs-2
 
-
--if has_older and not recent
+-if has_older and not recent_only
   %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{after}}&before={{before}}", 
        ic-trigger-on:"scrolled-into-view", 
        ic-target:"table.activity tbody.previous", 

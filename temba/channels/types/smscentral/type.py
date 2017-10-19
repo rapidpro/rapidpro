@@ -35,6 +35,10 @@ class SMSCentralType(ChannelType):
 
     attachment_support = False
 
+    def is_available_to(self, user):
+        org = user.get_org()
+        return org.timezone and six.text_type(org.timezone) in ["Asia/Kathmandu"]
+
     def send(self, channel, msg, text):
 
         # strip a leading +
