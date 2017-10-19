@@ -4598,6 +4598,16 @@ class FlowsTest(FlowFileTest):
         self.assertNotIn('color', counts)
         assertCount(counts, 'beer', 'Turbo King', 3)
 
+        # make sure it still works after ze squashings
+        FlowCategoryCount.squash()
+        counts = favorites.get_category_counts()
+        assertCount(counts, 'beer', 'Turbo King', 3)
+
+        # and if we delete our runs, things zero out
+        FlowRun.objects.all().delete()
+        counts = favorites.get_category_counts()
+        assertCount(counts, 'beer', 'Turbo King', 0)
+
     def test_flow_results(self):
         favorites = self.get_flow('favorites')
         FlowCRUDL.RunTable.paginate_by = 1
