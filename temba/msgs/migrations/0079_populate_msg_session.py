@@ -29,7 +29,7 @@ def do_populate(ChannelSession, Msg):
                                   created_on__lte=session.ended_on)
         updated += msgs.filter(Q(msg_type='V') | Q(channel__channel_type='VMU')).update(session=session)
         if idx % 1000 == 0:
-            print ("Populated %d of %d sessions (%d msgs)" % (idx, count, updated))
+            print("Populated %d of %d sessions (%d msgs)" % (idx, count, updated))
             updated = 0
 
 

@@ -39,7 +39,7 @@ def msg_as_task(msg):
     Used to serialize msgs as tasks to courier
     """
     msg_json = dict(id=msg.id,
-                    uuid=unicode(msg.uuid) if msg.uuid else "",
+                    uuid=str(msg.uuid) if msg.uuid else "",
                     org_id=msg.org_id,
                     channel_id=msg.channel_id,
                     channel_uuid=msg.channel.uuid,

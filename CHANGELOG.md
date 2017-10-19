@@ -1,17 +1,23 @@
+v3.0.218
+----------
+ * Delete simulation messages in batch of 25 to use the response_to index
+ * Fix Kannel channel type icon
+ * @step.contact and @contact should both be the run contact
+ * Migration to set value_type on all RuleSets
+
+v3.0.217
+----------
+ * Add page titles for common pages
+ * New index for contact history
+ * Exit flows in batches so we dont have to grab all runs at once
+ * Check we can create a new groups before importing contact and show the error message to the user
+ * Fixes value type guessing on rulesets (we had zero typed as dates)
+ * Update po files
+ * Dynamic channels: Shaqodoon
+
 v3.0.216
 ----------
- * tweak changelog
-
-v3.0.214 
-----------
- * Update CHANGELOG.md for v3.0.214
-
-v3.0.214 
-----------
  * Should filter user groups by org before limiting to 250
-
-v3.0.213
-----------
  * Fixes for slow contact history
  * Allow updating existing fields via API without checking the count
  * Update TWIML IVR protocol check
@@ -22,9 +28,7 @@ v3.0.213
  * Limit the contact fields max per org to 200 to below the max form post fields allowed
  * Limit number of contact groups creation on org to 250
  * Limit number of contact fields creation on org to 250
- * Dynamic channels: Red Rabbit
- * Dynamic channels: Plivo
- * Dynamic channels: Nexmo
+ * Dynamic channels: Red Rabbit, Plivo Nexmo
 
 v3.0.212
 ----------

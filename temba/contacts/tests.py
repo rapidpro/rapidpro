@@ -1636,7 +1636,7 @@ class ContactTest(TembaTest):
 
         # now try a shorter max history to test truncation
         models.MAX_HISTORY = 50
-        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]) + '?before=%d' % datetime_to_ms(timezone.now()), self.admin)
 
         # our before should be the same as the last item
         last_item_date = datetime_to_ms(response.context['activity'][-1]['time'])
@@ -1645,6 +1645,9 @@ class ContactTest(TembaTest):
         # and our after should be 90 days earlier
         self.assertEqual(response.context['after'], last_item_date - (90 * 24 * 60 * 60 * 1000))
         self.assertEqual(len(response.context['activity']), 50)
+
+        # and we should have a marker for older items
+        self.assertTrue(response.context['has_older'])
 
     def test_event_times(self):
 

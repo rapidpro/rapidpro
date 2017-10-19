@@ -7704,6 +7704,8 @@ class MageHandlerTest(TembaTest):
         response = self.client.post(url, dict(channel_id=channel.id, contact_urn_id=urn.id), **headers)
         self.assertEqual(200, response.status_code)
         self.assertEqual(1, flow.runs.all().count())
+        self.assertTrue(ChannelEvent.objects.filter(channel=channel, contact=contact,
+                                                    event_type=ChannelEvent.TYPE_FOLLOW))
 
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(2, contact_counts[ContactGroup.TYPE_ALL])
@@ -7738,6 +7740,14 @@ class MageHandlerTest(TembaTest):
         # check contact count updated
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(contact_counts[ContactGroup.TYPE_ALL], 3)
+
+        # simulate the follow of a released channel
+        channel_events_count = ChannelEvent.objects.filter(channel=channel).count()
+        channel.release()
+
+        response = self.client.post(url, dict(channel_id=channel.id, contact_urn_id=urn.id), **headers)
+        self.assertEqual(200, response.status_code)
+        self.assertEquals(ChannelEvent.objects.filter(channel=channel).count(), channel_events_count)
 
     def test_stop_contact(self):
         url = reverse('handlers.mage_handler', args=['stop_contact'])

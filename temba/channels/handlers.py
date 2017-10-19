@@ -1055,7 +1055,7 @@ class SMSCentralHandler(BaseChannelHandler):
         from temba.msgs.models import Msg
 
         channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_SMSCENTRAL).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='SC').exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
 
@@ -1902,7 +1902,7 @@ class StartHandler(BaseChannelHandler):
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_START).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type='ST').exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=400)
 
@@ -2364,7 +2364,7 @@ class JioChatHandler(BaseChannelHandler):
         create_time = body.get('CreateTime', None)
         msg_date = None
         if create_time:
-            msg_date = datetime.utcfromtimestamp(float(unicode(create_time)[:10])).replace(tzinfo=pytz.utc)
+            msg_date = datetime.utcfromtimestamp(float(six.text_type(create_time)[:10])).replace(tzinfo=pytz.utc)
         msg_type = body.get('MsgType')
         external_id = body.get('MsgId', None)
 
