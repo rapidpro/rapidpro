@@ -43,7 +43,8 @@ from temba.utils import analytics, languages
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.email import is_valid_address
 from twilio.rest import TwilioRestClient
-from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials
+from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials, ACCOUNT_SID, \
+    ACCOUNT_TOKEN
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
 from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
 from .models import TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_LOGIN, SMTP_FROM_EMAIL
@@ -660,7 +661,7 @@ class OrgCRUDL(SmartCRUDL):
                 nexmo_client.update_account('http://%s%s' % (TEMBA_HOST, mo_path),
                                             'http://%s%s' % (TEMBA_HOST, dl_path))
 
-                return HttpResponseRedirect(reverse("channels.channel_claim_nexmo"))
+                return HttpResponseRedirect(reverse("channels.claim_nexmo"))
 
             except nexmo.Error:
                 return super(OrgCRUDL.NexmoConfiguration, self).get(request, *args, **kwargs)
@@ -822,7 +823,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = PlivoConnectForm
         submit_button_name = "Save"
-        success_url = '@channels.channel_claim_plivo'
+        success_url = '@channels.claim_plivo'
         field_config = dict(auth_id=dict(label=""), auth_token=dict(label=""))
         success_message = "Plivo credentials verified. You can now add a Plivo channel."
 
@@ -1977,11 +1978,11 @@ class OrgCRUDL(SmartCRUDL):
 
         class ChatbaseForm(forms.ModelForm):
             agent_name = forms.CharField(max_length=255, label=_("Agent Name"), required=False,
-                                         help_text="Set the your Chatbase application name")
+                                         help_text="Enter your Chatbase Agent's name")
             api_key = forms.CharField(max_length=255, label=_("API Key"), required=False,
-                                      help_text="You can find your API Key by clicking "
-                                                "<a href='https://chatbase.com/agents' target='_new'>here</a>")
-            version = forms.CharField(max_length=10, label=_("Version"), required=False, help_text="E.g. 1.0, 1.2.1")
+                                      help_text="You can find your Agent's API Key "
+                                                "<a href='https://chatbase.com/agents/main-page' target='_new'>here</a>")
+            version = forms.CharField(max_length=10, label=_("Version"), required=False, help_text="Any will do, e.g. 1.0, 1.2.1")
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
 
             def clean(self):
@@ -2259,8 +2260,8 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super(OrgCRUDL.TwilioAccount, self).derive_initial()
             config = json.loads(self.object.config)
-            initial['account_sid'] = config['ACCOUNT_SID']
-            initial['account_token'] = config['ACCOUNT_TOKEN']
+            initial['account_sid'] = config[ACCOUNT_SID]
+            initial['account_token'] = config[ACCOUNT_TOKEN]
             initial['disconnect'] = 'false'
             return initial
 

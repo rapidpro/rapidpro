@@ -1,3 +1,82 @@
+v3.0.218
+----------
+ * Delete simulation messages in batch of 25 to use the response_to index
+ * Fix Kannel channel type icon
+ * @step.contact and @contact should both be the run contact
+ * Migration to set value_type on all RuleSets
+
+v3.0.217
+----------
+ * Add page titles for common pages
+ * New index for contact history
+ * Exit flows in batches so we dont have to grab all runs at once
+ * Check we can create a new groups before importing contact and show the error message to the user
+ * Fixes value type guessing on rulesets (we had zero typed as dates)
+ * Update po files
+ * Dynamic channels: Shaqodoon
+
+v3.0.216
+----------
+ * Should filter user groups by org before limiting to 250
+ * Fixes for slow contact history
+ * Allow updating existing fields via API without checking the count
+ * Update TWIML IVR protocol check
+ * Add update form fields in dynamic channel types
+ * Abstract out the channel update view form classes
+ * Add ivr_protocol field on channel type
+ * Mock constants to not create a lot of objects in test DB
+ * Limit the contact fields max per org to 200 to below the max form post fields allowed
+ * Limit number of contact groups creation on org to 250
+ * Limit number of contact fields creation on org to 250
+ * Dynamic channels: Red Rabbit, Plivo Nexmo
+
+v3.0.212
+----------
+ * Make Msg.priority nullable so courier doesn't have to write to it
+ * Calculate TPS cost for messages and add them to courier queues
+ * Fix truncate cases in SQL triggers
+ * Fix migration to recreate trigger on msgs table
+ * Dynamic channels: Mblox
+
+v3.0.211
+----------
+ * Properly create event fires for campaign events updated through api
+ * Strip matched string in not empty test
+ * Dynamic channels: Macrokiosk
+
+v3.0.210
+----------
+ * Make message priority be based on responded state of flow runs
+ * Support templatized urls in media
+ * Add UI for URL Attachments
+ * Prevent creation of groups and labels at flow run time
+ * Dynamic channels: M3Tech, Kannel, Junebug and Junebug USSD
+
+v3.0.209
+----------
+ * Add a way to specify the prefixes short codes should be matching
+ * Include both high_priority and priority in courier JSON
+ * Fix TwiML migration
+ * Fix JSON response when searching Plivo numbers
+
+v3.0.208
+----------
+ * Msg.bulk_priority -> Msg.high_priority
+ * Change for currencies for numeric rule
+ * Dynamic channels for Jasmin, Infobip, and Hub9
+
+v3.0.207
+----------
+ * Fix Twiml config JSON keys
+ * Unarchiving a campaign should unarchive all its flows
+
+v3.0.206
+----------
+ * Fix broken Twilio Messaging Service status callback URL
+ * Only update dynamic groups from set_field if value has changed
+ * Optimize how we lookup contacts for some API endpoints
+ * More dynamic channels
+
 v3.0.205
 ----------
  * add way to show recommended channel on claim page for dynamic channels
