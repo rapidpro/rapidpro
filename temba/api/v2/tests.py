@@ -328,19 +328,19 @@ class APITest(TembaTest):
         url = reverse('api.v2.explorer')
 
         response = self.fetchHTML(url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertContains(response, "Log in to use the Explorer")
 
         # login as non-org user
         self.login(self.non_org_user)
         response = self.fetchHTML(url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertContains(response, "Log in to use the Explorer")
 
         # login as administrator
         self.login(self.admin)
         response = self.fetchHTML(url)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         self.assertNotContains(response, "Log in to use the Explorer")
 
     def test_pagination(self):

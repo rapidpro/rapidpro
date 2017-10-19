@@ -39,7 +39,7 @@ class ScheduleTest(TembaTest):
     def test_get_days_bitmask(self):
         now = timezone.now()
         sched = Schedule.create_schedule(now, "W", self.user, 244)
-        self.assertEquals(sched.get_days_bitmask(), ['4', '16', '32', '64', '128'])
+        self.assertEqual(sched.get_days_bitmask(), ['4', '16', '32', '64', '128'])
 
     def test_schedule(self):
         # updates two days later on Saturday
@@ -47,28 +47,28 @@ class ScheduleTest(TembaTest):
         sched = self.create_schedule('W', [THURSDAY, SATURDAY], start_date=tomorrow)
 
         self.assertTrue(sched.has_pending_fire())
-        self.assertEquals(sched.status, 'S')
+        self.assertEqual(sched.status, 'S')
 
-        self.assertEquals(sched.get_repeat_days_display(), ['Thursday', 'Saturday'])
+        self.assertEqual(sched.get_repeat_days_display(), ['Thursday', 'Saturday'])
 
         sched.unschedule()
-        self.assertEquals(sched.status, 'U')
+        self.assertEqual(sched.status, 'U')
 
     def test_next_fire(self):
 
         # updates two days later on Saturday
         sched = self.create_schedule('W', [THURSDAY, SATURDAY])
 
-        self.assertEquals(sched.repeat_days, 80)
-        self.assertEquals(datetime(2013, 1, 5, hour=10).replace(tzinfo=timezone.pytz.utc), sched.get_next_fire(sched.next_fire))
+        self.assertEqual(sched.repeat_days, 80)
+        self.assertEqual(datetime(2013, 1, 5, hour=10).replace(tzinfo=timezone.pytz.utc), sched.get_next_fire(sched.next_fire))
 
         # updates six days later on Wednesday
         sched = self.create_schedule('W', [WEDNESDAY, THURSDAY])
-        self.assertEquals(datetime(2013, 1, 9, hour=10).replace(tzinfo=timezone.pytz.utc), sched.get_next_fire(sched.next_fire))
+        self.assertEqual(datetime(2013, 1, 9, hour=10).replace(tzinfo=timezone.pytz.utc), sched.get_next_fire(sched.next_fire))
 
         # since we are starting thursday, a thursday should be 7 days out
         sched = self.create_schedule('W', [THURSDAY])
-        self.assertEquals(datetime(2013, 1, 10, hour=10).replace(tzinfo=timezone.pytz.utc), sched.get_next_fire(sched.next_fire))
+        self.assertEqual(datetime(2013, 1, 10, hour=10).replace(tzinfo=timezone.pytz.utc), sched.get_next_fire(sched.next_fire))
 
         # now update, should advance to next thursday (present time)
         now = timezone.now()
@@ -84,30 +84,30 @@ class ScheduleTest(TembaTest):
                 next_update += timedelta(days=1)
 
         self.assertTrue(sched.update_schedule())
-        self.assertEquals(next_update, sched.next_fire)
+        self.assertEqual(next_update, sched.next_fire)
 
         # try a weekly schedule
         sched = self.create_schedule('W', [THURSDAY])
-        self.assertEquals(datetime(2013, 1, 10, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
+        self.assertEqual(datetime(2013, 1, 10, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
         self.assertTrue(sched.update_schedule())
-        self.assertEquals(next_update, sched.next_fire)
+        self.assertEqual(next_update, sched.next_fire)
 
         # lastly, a daily schedule
         sched = self.create_schedule('D')
-        self.assertEquals(datetime(2013, 1, 4, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
+        self.assertEqual(datetime(2013, 1, 4, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
 
         sched = self.create_schedule('M')
-        self.assertEquals(datetime(2013, 2, 3, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
+        self.assertEqual(datetime(2013, 2, 3, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
         self.assertTrue(sched.update_schedule(datetime(2013, 4, 1).replace(tzinfo=pytz.utc)))
-        self.assertEquals(str(datetime(2013, 4, 3, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertEqual(str(datetime(2013, 4, 3, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
 
         sched = self.create_schedule('M', start_date=datetime(2014, 1, 31, hour=10).replace(tzinfo=pytz.utc))
-        self.assertEquals(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
+        self.assertEqual(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(sched.next_fire))
         self.assertTrue(sched.update_schedule(datetime(2014, 3, 31).replace(tzinfo=pytz.utc)))
-        self.assertEquals(str(datetime(2014, 4, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
+        self.assertEqual(str(datetime(2014, 4, 30, hour=10).replace(tzinfo=pytz.utc)), str(sched.next_fire))
 
         sched = self.create_schedule('M', start_date=datetime(2014, 1, 31, hour=10).replace(tzinfo=pytz.utc))
-        self.assertEquals(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(datetime(2014, 2, 27, hour=10).replace(tzinfo=pytz.utc)))
+        self.assertEqual(datetime(2014, 2, 28, hour=10).replace(tzinfo=pytz.utc), sched.get_next_fire(datetime(2014, 2, 27, hour=10).replace(tzinfo=pytz.utc)))
 
     def test_schedule_ui(self):
 
@@ -179,7 +179,7 @@ class ScheduleTest(TembaTest):
         response = self.client.post(update_url, post_data)
 
         schedule = Schedule.objects.get(pk=sched.pk)
-        self.assertEquals(schedule.status, 'U')
+        self.assertEqual(schedule.status, 'U')
 
         post_data = dict()
         post_data['start'] = 'stop'
@@ -188,7 +188,7 @@ class ScheduleTest(TembaTest):
         response = self.client.post(update_url, post_data)
 
         schedule = Schedule.objects.get(pk=sched.pk)
-        self.assertEquals(schedule.status, 'U')
+        self.assertEqual(schedule.status, 'U')
 
         post_data = dict()
         post_data['start'] = 'now'
@@ -198,7 +198,7 @@ class ScheduleTest(TembaTest):
         response = self.client.post(update_url, post_data)
 
         schedule = Schedule.objects.get(pk=sched.pk)
-        self.assertEquals(schedule.repeat_period, 'O')
+        self.assertEqual(schedule.repeat_period, 'O')
         self.assertFalse(schedule.next_fire)
 
         post_data = dict()
@@ -209,7 +209,7 @@ class ScheduleTest(TembaTest):
         response = self.client.post(update_url, post_data)
 
         schedule = Schedule.objects.get(pk=sched.pk)
-        self.assertEquals(schedule.repeat_period, 'D')
+        self.assertEqual(schedule.repeat_period, 'D')
 
         post_data = dict()
         post_data['repeat_period'] = 'D'
@@ -218,7 +218,7 @@ class ScheduleTest(TembaTest):
         response = self.client.post(update_url, post_data)
 
         schedule = Schedule.objects.get(pk=sched.pk)
-        self.assertEquals(schedule.repeat_period, 'D')
+        self.assertEqual(schedule.repeat_period, 'D')
 
     def test_calculating_next_fire(self):
 
@@ -239,7 +239,7 @@ class ScheduleTest(TembaTest):
         sched_date = tz.localize(datetime(2013, 1, 3, hour=23, minute=30, second=0, microsecond=0))
 
         schedule.update_schedule(sched_date)
-        self.assertEquals('2013-01-04 23:15:00-05:00', six.text_type(schedule.next_fire))
+        self.assertEqual('2013-01-04 23:15:00-05:00', six.text_type(schedule.next_fire))
 
     def test_update_near_day_boundary(self):
 
@@ -268,7 +268,7 @@ class ScheduleTest(TembaTest):
         sched = Schedule.objects.get(pk=sched.pk)
 
         # 11pm in NY should be 4am UTC the next day
-        self.assertEquals('2050-01-04 04:00:00+00:00', six.text_type(sched.next_fire))
+        self.assertEqual('2050-01-04 04:00:00+00:00', six.text_type(sched.next_fire))
 
         # a time in the past
         start_date = datetime(2010, 1, 3, 23, 45, 0, 0)
