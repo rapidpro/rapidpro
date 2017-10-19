@@ -94,7 +94,7 @@ python-magic==0.4.13
 python-telegram-bot==6.1.0
 pytz==2017.2
 pyyaml==3.12              # via uservoice
-rapidpro-expressions==1.2
+rapidpro-expressions==1.3
 raven==6.1.0
 rcssmin==1.0.6            # via django-compressor
 redis==2.10.5
