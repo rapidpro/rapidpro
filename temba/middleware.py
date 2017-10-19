@@ -9,6 +9,7 @@ from django.utils import timezone, translation
 from io import StringIO
 from temba.orgs.models import Org
 from temba.contacts.models import Contact
+from temba.flows.models import get_flow_user
 
 
 class ExceptionMiddleware(object):
@@ -125,6 +126,26 @@ class FlowSimulationMiddleware(object):
     """
     def process_request(self, request):
         Contact.set_simulation(False)
+        return None
+
+
+class FlowUserMiddleware(object):
+    """
+    Allows requests to be authenticated as an org's flow user when they provide the right org-level flow user token
+    """
+    FLOW_USER_AUTH_TYPE = 'flow-user-token'
+
+    def process_request(self, request):
+        auth_header = request.META.get('HTTP_AUTHENTICATION')
+        if auth_header:
+            auth_header_parts = auth_header.split(' ', 1)
+            if len(auth_header_parts) == 2 and auth_header_parts[0].lower() == self.FLOW_USER_AUTH_TYPE:
+                flow_user_token = auth_header_parts[1].strip()
+                if flow_user_token:
+                    org = Org.objects.filter(flow_user_token=flow_user_token).first()
+                    request.user = get_flow_user(org)
+                    request.user.set_org(org)
+
         return None
 
 

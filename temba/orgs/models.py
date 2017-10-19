@@ -141,6 +141,10 @@ ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
 
 
+def generate_flow_user_token():
+    return random_string(128)
+
+
 class OrgEvent(Enum):
     """
     Represents an internal org event
@@ -240,6 +244,9 @@ class Org(SmartModel):
 
     surveyor_password = models.CharField(null=True, max_length=128, default=None,
                                          help_text=_('A password that allows users to register as surveyors'))
+
+    flow_user_token = models.CharField(max_length=128, unique=True, default=generate_flow_user_token,
+                                       help_text=_('A token that allows requests to authenticate as the flow user'))
 
     parent = models.ForeignKey('orgs.Org', null=True, blank=True, help_text=_('The parent org that manages this org'))
 
