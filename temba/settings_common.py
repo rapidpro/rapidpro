@@ -167,6 +167,7 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'temba.middleware.FlowUserMiddleware',
     'temba.middleware.BrandingMiddleware',
     'temba.middleware.OrgTimezoneMiddleware',
     'temba.middleware.FlowSimulationMiddleware',
@@ -435,6 +436,7 @@ PERMISSIONS = {
                    'activity_list',
                    'analytics',
                    'api',
+                   'assets',
                    'archived',
                    'broadcast',
                    'campaign',
@@ -505,7 +507,8 @@ PERMISSIONS = {
 # assigns the permissions that each group should have
 GROUP_PERMISSIONS = {
     "Service Users": (  # internal Temba services have limited permissions
-        'msgs.msg_create',
+        'flows.flow_assets',
+        'msgs.msg_create'
     ),
     "Alpha": (
     ),
@@ -807,6 +810,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_activity',
         'flows.flow_activity_chart',
         'flows.flow_archived',
+        'flows.flow_assets',
         'flows.flow_campaign',
         'flows.flow_completion',
         'flows.flow_export',
