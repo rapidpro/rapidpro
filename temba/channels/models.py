@@ -45,7 +45,7 @@ from temba.utils.models import SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
 from twilio import twiml, TwilioRestException
 from uuid import uuid4
-from xml.sax.saxutils import quoteattr, escape
+from xml.sax.saxutils import escape
 
 logger = logging.getLogger(__name__)
 
@@ -180,7 +180,6 @@ class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_CHIKKA = 'CK'
     TYPE_DUMMY = 'DM'
-    TYPE_START = 'ST'
     TYPE_TWILIO = 'T'
     TYPE_TWIML = 'TW'
     TYPE_TWILIO_MESSAGING_SERVICE = 'TMS'
@@ -275,7 +274,6 @@ class Channel(TembaModel):
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
-        TYPE_START: dict(schemes=['tel'], max_length=1600),
         TYPE_TWILIO: dict(schemes=['tel'], max_length=1600),
         TYPE_TWIML: dict(schemes=['tel'], max_length=1600),
         TYPE_TWILIO_MESSAGING_SERVICE: dict(schemes=['tel'], max_length=1600),
@@ -290,7 +288,6 @@ class Channel(TembaModel):
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
                     (TYPE_CHIKKA, "Chikka"),
                     (TYPE_DUMMY, "Dummy"),
-                    (TYPE_START, "Start Mobile"),
                     (TYPE_TWILIO, "Twilio"),
                     (TYPE_TWIML, "TwiML Rest API"),
                     (TYPE_TWILIO_MESSAGING_SERVICE, "Twilio Messaging Service"),
@@ -1283,56 +1280,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, events=events)
 
     @classmethod
-    def send_start_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        url = 'http://bulk.startmobile.com.ua/clients.php'
-        post_body = u"""
-          <message>
-            <service id="single" source=$$FROM$$ validity=$$VALIDITY$$/>
-            <to>$$TO$$</to>
-            <body content-type="plain/text" encoding="plain">$$BODY$$</body>
-          </message>
-        """
-        post_body = post_body.replace("$$FROM$$", quoteattr(channel.address))
-
-        # tell Start to attempt to deliver this message for up to 12 hours
-        post_body = post_body.replace("$$VALIDITY$$", quoteattr("+12 hours"))
-        post_body = post_body.replace("$$TO$$", escape(msg.urn_path))
-        post_body = post_body.replace("$$BODY$$", escape(text))
-        event = HttpEvent('POST', url, post_body)
-        post_body = post_body.encode('utf8')
-
-        start = time.time()
-        try:
-            headers = {'Content-Type': 'application/xml; charset=utf8'}
-            headers.update(TEMBA_HEADERS)
-
-            response = requests.post(url,
-                                     data=post_body,
-                                     headers=headers,
-                                     auth=(channel.config[Channel.CONFIG_USERNAME], channel.config[Channel.CONFIG_PASSWORD]),
-                                     timeout=30)
-
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if (response.status_code != 200 and response.status_code != 201) or response.text.find("error") >= 0:
-            raise SendException("Error Sending Message", event=event, start=start)
-
-        # parse out our id, this is XML but we only care about the id
-        external_id = None
-        start_idx = response.text.find("<id>")
-        end_idx = response.text.find("</id>")
-        if end_idx > start_idx > 0:
-            external_id = response.text[start_idx + 4:end_idx]
-
-        Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
-
-    @classmethod
     def send_vumi_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED, Msg
         from temba.contacts.models import Contact
@@ -1831,7 +1778,6 @@ STATUS_FULL = "FUL"
 
 SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
-                  Channel.TYPE_START: Channel.send_start_message,
                   Channel.TYPE_TWILIO: Channel.send_twilio_message,
                   Channel.TYPE_TWIML: Channel.send_twilio_message,
                   Channel.TYPE_TWILIO_MESSAGING_SERVICE: Channel.send_twilio_message,
