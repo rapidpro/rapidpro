@@ -1318,6 +1318,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'page=2&test=e')
         self.assertResultCount(response, 303)
 
+    @patch.object(ContactField, "MAX_ORG_CONTACTFIELDS", new=10)
     def test_api_fields(self):
         url = reverse('api.v1.contactfields')
 
@@ -1395,6 +1396,16 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(key='name', label='Real Name', value_type='T'))
         self.assertEquals(400, response.status_code)
         self.assertResponseError(response, 'key', "Field is invalid or a reserved name")
+
+        ContactField.objects.all().delete()
+
+        for i in range(ContactField.MAX_ORG_CONTACTFIELDS):
+            ContactField.get_or_create(self.org, self.admin, 'field%d' % i, 'Field%d' % i)
+
+        response = self.postJSON(url, dict(label='Real Age', value_type='T'))
+        self.assertResponseError(response, 'non_field_errors',
+                                 "You have reached 10 contact fields, please remove some contact fields "
+                                 "to be able to create new contact fields")
 
     def test_api_authenticate(self):
         url = reverse('api.v1.authenticate')

@@ -2,7 +2,10 @@
 
 -load compress temba smartmin humanize
 -load i18n
-
+-block page-title
+  -trans "Manage Organizations"
+  \- {{user_org.name|capfirst}}
+  
 -block extra-less
   {{block.super}}
   -compress css
