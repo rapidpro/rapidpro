@@ -1135,6 +1135,7 @@ CHANNEL_TYPES = [
     'temba.channels.types.plivo.PlivoType',
     'temba.channels.types.redrabbit.RedRabbitType',
     'temba.channels.types.shaqodoon.ShaqodoonType',
+    'temba.channels.types.smscentral.SMSCentralType',
     'temba.channels.types.telegram.TelegramType',
     'temba.channels.types.twitter.TwitterType',
     'temba.channels.types.twitter_activity.TwitterActivityType',

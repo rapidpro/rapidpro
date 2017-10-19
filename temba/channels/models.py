@@ -180,7 +180,6 @@ class Channel(TembaModel):
     TYPE_ANDROID = 'A'
     TYPE_CHIKKA = 'CK'
     TYPE_DUMMY = 'DM'
-    TYPE_SMSCENTRAL = 'SC'
     TYPE_START = 'ST'
     TYPE_TWILIO = 'T'
     TYPE_TWIML = 'TW'
@@ -276,7 +275,6 @@ class Channel(TembaModel):
         TYPE_ANDROID: dict(schemes=['tel'], max_length=-1),
         TYPE_CHIKKA: dict(schemes=['tel'], max_length=160),
         TYPE_DUMMY: dict(schemes=['tel'], max_length=160),
-        TYPE_SMSCENTRAL: dict(schemes=['tel'], max_length=1600, max_tps=1),
         TYPE_START: dict(schemes=['tel'], max_length=1600),
         TYPE_TWILIO: dict(schemes=['tel'], max_length=1600),
         TYPE_TWIML: dict(schemes=['tel'], max_length=1600),
@@ -292,7 +290,6 @@ class Channel(TembaModel):
     TYPE_CHOICES = ((TYPE_ANDROID, "Android"),
                     (TYPE_CHIKKA, "Chikka"),
                     (TYPE_DUMMY, "Dummy"),
-                    (TYPE_SMSCENTRAL, "SMSCentral"),
                     (TYPE_START, "Start Mobile"),
                     (TYPE_TWILIO, "Twilio"),
                     (TYPE_TWIML, "TwiML Rest API"),
@@ -1336,38 +1333,6 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, event=event, external_id=external_id)
 
     @classmethod
-    def send_smscentral_message(cls, channel, msg, text):
-        from temba.msgs.models import WIRED
-
-        # strip a leading +
-        mobile = msg.urn_path[1:] if msg.urn_path.startswith('+') else msg.urn_path
-
-        payload = {
-            'user': channel.config[Channel.CONFIG_USERNAME], 'pass': channel.config[Channel.CONFIG_PASSWORD], 'mobile': mobile, 'content': text,
-        }
-
-        url = 'http://smail.smscentral.com.np/bp/ApiSms.php'
-        log_payload = urlencode(payload)
-
-        event = HttpEvent('POST', url, log_payload)
-
-        start = time.time()
-
-        try:
-            response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=30)
-            event.status_code = response.status_code
-            event.response_body = response.text
-
-        except Exception as e:
-            raise SendException(six.text_type(e), event=event, start=start)
-
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
-            raise SendException("Got non-200 response [%d] from API" % response.status_code,
-                                event=event, start=start)
-
-        Channel.success(channel, msg, WIRED, start, event=event)
-
-    @classmethod
     def send_vumi_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED, Msg
         from temba.contacts.models import Contact
@@ -1866,7 +1831,6 @@ STATUS_FULL = "FUL"
 
 SEND_FUNCTIONS = {Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
-                  Channel.TYPE_SMSCENTRAL: Channel.send_smscentral_message,
                   Channel.TYPE_START: Channel.send_start_message,
                   Channel.TYPE_TWILIO: Channel.send_twilio_message,
                   Channel.TYPE_TWIML: Channel.send_twilio_message,

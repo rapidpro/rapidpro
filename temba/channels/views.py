@@ -1050,7 +1050,7 @@ class ChannelCRUDL(SmartCRUDL):
                'search_nexmo', 'bulk_sender_options', 'create_bulk_sender',
                'claim_vumi', 'claim_vumi_ussd', 'create_caller',
                'claim_verboice', 'search_plivo',
-               'claim_smscentral', 'claim_start', 'claim_yo', 'claim_viber', 'create_viber',
+               'claim_start', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia',
                'claim_twiml_api', 'facebook_whitelist')
     permissions = True
@@ -1640,10 +1640,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                                      data.get('url'))
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
-    class ClaimSmscentral(ClaimAuthenticatedExternal):
-        title = _("Connect SMSCentral")
-        channel_type = Channel.TYPE_SMSCENTRAL
 
     class ClaimStart(ClaimAuthenticatedExternal):
         title = _("Connect Start")
