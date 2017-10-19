@@ -1889,6 +1889,8 @@ class APITest(TembaTest):
 
         response = self.postJSON(url, None, {'name': "Interesting"})
         self.assertResponseError(response, 'non_field_errors',
+                                 "This org has 10 groups and the limit is 10. "
+                                 "You must delete existing ones before you can create new ones."
                                  )
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
