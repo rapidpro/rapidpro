@@ -366,8 +366,8 @@ class ContactField(SmartModel):
         existing = ContactField.objects.filter(org=org, key=key).first()
         if existing:
             from temba.flows.models import Flow
-            if Flow.objects.filter(field_dependencies__in=[existing]).first():
-                raise Exception(_("Cannot delete field '%s' while used in flows." % key))
+            if Flow.objects.filter(field_dependencies__in=[existing]).exists():
+                raise ValueError("Cannot delete field '%s' while used in flows." % key)
 
             existing.is_active = False
             existing.show_in_table = False

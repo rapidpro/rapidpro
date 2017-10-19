@@ -16,6 +16,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='flow',
             name='field_dependencies',
-            field=models.ManyToManyField(blank=True, help_text='Any fields this flow depends on', related_name='dependent_fields', to='contacts.ContactField', verbose_name=''),
+            field=models.ManyToManyField(blank=True, help_text='Any fields this flow depends on', related_name='dependent_flows', to='contacts.ContactField', verbose_name=''),
         ),
     ]

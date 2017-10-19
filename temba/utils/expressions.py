@@ -261,7 +261,7 @@ def convert_equals_style(expression):
     return expression
 
 
-class ContactFieldCollector (EvaluationContext):
+class ContactFieldCollector(EvaluationContext):
     """
     A simple evaluator that extracts contact fields from the parse tree
     """
@@ -284,10 +284,11 @@ class ContactFieldCollector (EvaluationContext):
     def get_contact_fields(self, msg):
         self.contact_fields = set()
         if msg:
-            evaluate_template(six.text_type(msg), self, False, False)
+            evaluate_template(six.text_type(msg), self, False, True)
         return self.contact_fields
 
     def resolve_variable(self, path):
         contact_field = ContactFieldCollector.get_contact_field(path)
         if contact_field:
             self.contact_fields.add(contact_field)
+        return ""

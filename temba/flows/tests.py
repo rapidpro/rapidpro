@@ -5708,6 +5708,8 @@ class FlowsTest(FlowFileTest):
             # rules and localizations
             {'key': 'rule'},
             {'key': 'french_rule', 'label': 'French Rule'},
+            {'key': 'french_age', 'label': 'French Age'},
+            {'key': 'french_fries', 'label': 'French Fries'},
 
             # updating contacts
             {'key': 'favorite_cat', 'label': 'Favorite Cat'},

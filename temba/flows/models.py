@@ -2446,6 +2446,10 @@ class Flow(TembaModel):
             raise e
 
     def update_dependencies(self):
+
+        # need to make sure we have the latest version
+        self.ensure_current_version()
+
         groups = set()
         flows = set()
 

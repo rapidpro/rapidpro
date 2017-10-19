@@ -29,26 +29,26 @@
                   "uuid": "119ef829-1ab8-4170-ada0-7d22041cc777"
                 }
               ]
-            }, 
+            },
             {
               "field": "favorite_cat", 
               "type": "save", 
               "value": "Scottish Fold", 
               "label": "Favorite Cat"
-            }, 
+            },
             {
               "msg": {
-                "fre": "French @contact.french_age.", 
+                "fre": "French @(10 / contact.french_age & contact.french_fries).",
                 "eng": "You are @contact.contact_age years old. @(CONCATENATE(\"Your CHW is \", contact.chw)). Your score is @(MAX(parent.contact.top, child.contact.bottom))"
-              }, 
+              },
               "media": {
                 "eng": "image:@contact.attachment"
-              }, 
+              },
               "send_all": false, 
               "type": "reply"
             }
           ]
-        }, 
+        },
         {
           "y": 552, 
           "x": 64, 
