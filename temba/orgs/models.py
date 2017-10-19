@@ -37,6 +37,7 @@ from requests import Session
 from smartmin.models import SmartModel
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
+from temba.nlu.models import NLU_API_KEY, NLU_API_NAME, NLU_API_WITHOUT_KEY
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, languages
 from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from temba.utils.currencies import currency_for_country
@@ -243,6 +244,9 @@ class Org(SmartModel):
 
     parent = models.ForeignKey('orgs.Org', null=True, blank=True, help_text=_('The parent org that manages this org'))
 
+    nlu_api_config = models.CharField(null=True, max_length=255, default=None,
+                                      help_text=_('Configurations to Natural Language Understand Api'))
+
     @classmethod
     def get_unique_slug(cls, name):
         slug = slugify(name)
@@ -416,6 +420,12 @@ class Org(SmartModel):
     def config_json(self):
         if self.config:
             return json.loads(self.config)
+        else:
+            return dict()
+
+    def nlu_api_config_json(self):
+        if self.nlu_api_config:
+            return json.loads(self.nlu_api_config)
         else:
             return dict()
 
@@ -919,6 +929,34 @@ class Org(SmartModel):
             chatbase_api_key = config.get(CHATBASE_API_KEY, None)
             chatbase_version = config.get(CHATBASE_VERSION, None)
             return chatbase_api_key, chatbase_version
+        else:
+            return None, None
+
+    def connect_nlu_api(self, user, api_name, api_key=None):
+        nlu_api_config = {
+            NLU_API_NAME: api_name
+        }
+
+        if api_key and api_name not in NLU_API_WITHOUT_KEY:
+            nlu_api_config.update({NLU_API_KEY: api_key})
+
+        self.nlu_api_config = json.dumps(nlu_api_config)
+        self.modified_by = user
+        self.save()
+
+    def remove_nlu_api(self, user):
+        from temba.triggers.models import Trigger
+        Trigger.remove_all_triggers_nlu(user)
+        self.nlu_api_config = None
+        self.modified_by = user
+        self.save()
+
+    def get_nlu_api_credentials(self):
+        nlu_api_config = self.nlu_api_config_json()
+        if nlu_api_config:
+            nlu_api_name = nlu_api_config.get(NLU_API_NAME, None)
+            nlu_api_key = nlu_api_config.get(NLU_API_KEY, None)
+            return nlu_api_name, nlu_api_key
         else:
             return None, None
 

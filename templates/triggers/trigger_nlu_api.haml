@@ -1,0 +1,23 @@
+-extends 'smartmin/form.html'
+-load i18n
+
+-block summary
+  -trans "Start flow based return NLU API intention."
+
+-block extra-script
+  {{block.super}}
+  %script
+    $(document).ready(function() {
+      select2div("#id_nlu_api_flow", "520px");
+      -if not api_name == 'WIT'
+        select2div("#id_nlu_api_bots", "520px");
+      $("#id_nlu_api_groups").select2({
+        containerCssClass: "select2-temba-field"
+      });
+     $("#id_nlu_api_intents").select2({
+        tags: true,
+        tokenSeparators: [",", "\t", "\n", " "],
+        dropdownCssClass : 'select2-no-search',
+        containerCssClass: "select2-temba-field"
+      });
+    });

@@ -237,6 +237,7 @@ INSTALLED_APPS = (
     'temba.ussd',
     'temba.locations',
     'temba.values',
+    'temba.nlu',
     'temba.airtime',
 )
 
@@ -394,6 +395,7 @@ PERMISSIONS = {
                  'nexmo_configuration',
                  'nexmo_account',
                  'nexmo_connect',
+                 'nlu_api',
                  'plivo_connect',
                  'profile',
                  'resthooks',
@@ -495,6 +497,7 @@ PERMISSIONS = {
                          'keyword',
                          'missed_call',
                          'new_conversation',
+                         'nlu_api',
                          'referral',
                          'register',
                          'schedule',
@@ -607,6 +610,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_nexmo_account',
         'orgs.org_nexmo_connect',
         'orgs.org_nexmo_configuration',
+        'orgs.org_nlu_api',
         'orgs.org_plivo_connect',
         'orgs.org_profile',
         'orgs.org_resthooks',
@@ -1107,6 +1111,7 @@ SEND_CALLS = False
 MESSAGE_HANDLERS = [
     'temba.triggers.handlers.TriggerHandler',
     'temba.flows.handlers.FlowHandler',
+    'temba.triggers.handlers.NluApiHandler',
     'temba.triggers.handlers.CatchAllHandler'
 ]
 

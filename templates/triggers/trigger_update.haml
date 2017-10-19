@@ -151,6 +151,24 @@
         $('#id_groups').select2({ containerCssClass: "select2-temba-field" });
       {% endif %}
 
+      {% if object.trigger_type == 'L' %}
+        {% if not api_name == 'WIT' %}
+          select2div("#id_bots", "520px");
+        {% endif %}
+        $("#id_groups").select2({
+          containerCssClass: "select2-temba-field"
+        });
+        $("#id_intents").select2({
+          tags: true,
+          tokenSeparators: [",", "\t", "\n", " "],
+          dropdownCssClass : 'select2-no-search',
+          containerCssClass: "select2-temba-field"
+        });
+        $('#id_bots').val( {% autoescape off %} {{ bot }} {% endautoescape %}).trigger('change');
+        $("#id_intents").select2("val", {% autoescape off %} {{ intents }} {% endautoescape %})
+        $("#id_accurancy").val({{ accurancy }})
+      {% endif %}
+
       new AutoComplete({{completions|safe}}, {{function_completions|safe}}).bind($('#id_response'));
 
       $('#id_flow').select2({

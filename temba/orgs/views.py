@@ -39,6 +39,7 @@ from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
+from temba.nlu.models import NLU_API_NAME, NLU_API_KEY, NLU_API_CHOICES, NLU_API_WITHOUT_KEY
 from temba.utils import analytics, languages
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.email import is_valid_address
@@ -451,7 +452,7 @@ class UserSettingsCRUDL(SmartCRUDL):
 
 class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'edit_sub_org', 'join', 'grant', 'accounts', 'create_login',
-               'chatbase', 'choose', 'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country',
+               'chatbase', 'nlu_api', 'choose', 'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country',
                'languages', 'clear_cache', 'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account',
                'nexmo_connect', 'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'resthooks',
                'service', 'surveyor', 'transfer_credits', 'transfer_to_account', 'smtp_server')
@@ -2042,6 +2043,75 @@ class OrgCRUDL(SmartCRUDL):
 
             return super(OrgCRUDL.Chatbase, self).form_valid(form)
 
+    class NluApi(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+
+        class NluApiForm(forms.ModelForm):
+            api_name = forms.ChoiceField(label=_("API Name"), required=True,
+                                         help_text="Enter your Api Name", choices=NLU_API_CHOICES)
+            api_key = forms.CharField(max_length=255, label=_("API Key"), required=False,
+                                      help_text="Enter your NLU Api Key")
+            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
+
+            def clean(self):
+                super(OrgCRUDL.NluApi.NluApiForm, self).clean()
+                if self.cleaned_data.get('disconnect', 'false') == 'false':
+                    api_name = self.cleaned_data.get('api_name')
+                    api_key = self.cleaned_data.get('api_key')
+
+                    if not api_name:
+                        raise ValidationError(_("Missing data: API Name. "
+                                                "Please check them again and retry."))
+                    if not api_key and api_name not in NLU_API_WITHOUT_KEY:
+                        raise ValidationError(_("Missing data: API Key. "
+                                                "Please check them again and retry."))
+                return self.cleaned_data
+
+            class Meta:
+                model = Org
+                fields = ('api_name', 'api_key', 'disconnect')
+
+        success_message = ''
+        success_url = '@orgs.org_home'
+        form_class = NluApiForm
+
+        def derive_initial(self):
+            initial = super(OrgCRUDL.NluApi, self).derive_initial()
+            org = self.get_object()
+            config = org.nlu_api_config_json()
+            initial['api_name'] = config.get(NLU_API_NAME, '')
+            initial['api_key'] = config.get(NLU_API_KEY, '')
+            initial['disconnect'] = 'false'
+            return initial
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.NluApi, self).get_context_data(**kwargs)
+            api_name, api_key = self.object.get_nlu_api_credentials()
+            if api_name:
+                context['api_name'] = dict(NLU_API_CHOICES).get(api_name, None)
+
+            return context
+
+        def post(self, *args, **kwargs):
+            user = self.request.user
+            org = user.get_org()
+            if self.request.POST.get('disconnect', 'false') == 'true':
+                org.remove_nlu_api(user)
+                return HttpResponseRedirect(reverse('orgs.org_home'))
+
+            return super(OrgCRUDL.NluApi, self).post(self, *args, **kwargs)
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+
+            api_name = form.cleaned_data.get('api_name')
+            api_key = form.cleaned_data.get('api_key')
+
+            if api_name:
+                org.connect_nlu_api(user, api_name, api_key)
+
+            return super(OrgCRUDL.NluApi, self).form_valid(form)
+
     class Home(FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
 
@@ -2123,6 +2193,15 @@ class OrgCRUDL(SmartCRUDL):
                                        action='redirect', button=_("Connect"))
                 else:  # pragma: needs cover
                     formax.add_section('chatbase', reverse('orgs.org_chatbase'), icon='icon-chatbase',
+                                       action='redirect', nobutton=True)
+
+            if self.has_org_perm('orgs.org_nlu_api'):
+                nlu_api_name, nlu_api_key = self.object.get_nlu_api_credentials()
+                if not nlu_api_name:
+                    formax.add_section('nlu_api', reverse('orgs.org_nlu_api'), icon='icon-robot-nlu',
+                                       action='redirect', button=_("Connect"))
+                else:  # pragma: needs cover
+                    formax.add_section('nlu_api', reverse('orgs.org_nlu_api'), icon='icon-robot-nlu',
                                        action='redirect', nobutton=True)
 
             if self.has_org_perm('orgs.org_webhook'):

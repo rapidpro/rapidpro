@@ -18,3 +18,11 @@ class CatchAllHandler(MessageHandler):
 
     def handle(self, msg):
         return Trigger.catch_triggers(msg, Trigger.TYPE_CATCH_ALL, msg.channel)
+
+
+class NluApiHandler(MessageHandler):
+    def __init__(self):
+        super(NluApiHandler, self).__init__('triggers nlu')
+
+    def handle(self, msg):
+        return Trigger.catch_nlu_triggers(msg, Trigger.TYPE_NLU_API)
