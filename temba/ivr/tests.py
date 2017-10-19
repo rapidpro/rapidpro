@@ -68,7 +68,7 @@ class IVRTests(FlowFileTest):
         self.org.save()
 
         # manually create a Nexmo channel
-        nexmo = Channel.create(self.org, self.user, 'RW', Channel.TYPE_NEXMO, role=Channel.ROLE_CALL + Channel.ROLE_ANSWER + Channel.ROLE_SEND,
+        nexmo = Channel.create(self.org, self.user, 'RW', 'NX', role=Channel.ROLE_CALL + Channel.ROLE_ANSWER + Channel.ROLE_SEND,
                                name="Nexmo Channel", address="+250785551215")
 
         # set the preferred channel on this contact to Twilio
@@ -93,7 +93,7 @@ class IVRTests(FlowFileTest):
 
         call = IVRCall.objects.all().last()
         self.assertEquals(IVRCall.PENDING, call.status)
-        self.assertEquals(Channel.TYPE_NEXMO, call.channel.channel_type)
+        self.assertEquals('NX', call.channel.channel_type)
 
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
@@ -303,7 +303,7 @@ class IVRTests(FlowFileTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
-        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.channel_type = 'NX'
         self.channel.save()
 
         self.import_file('capture_recording')
@@ -709,7 +709,7 @@ class IVRTests(FlowFileTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
-        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.channel_type = 'NX'
         self.channel.save()
 
         # import an ivr flow
@@ -760,7 +760,7 @@ class IVRTests(FlowFileTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
-        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.channel_type = 'NX'
         self.channel.save()
 
         # import an ivr flow
@@ -810,7 +810,7 @@ class IVRTests(FlowFileTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
-        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.channel_type = 'NX'
         self.channel.save()
 
         # import an ivr flow
@@ -1063,14 +1063,14 @@ class IVRTests(FlowFileTest):
         test_status_update(call, 'failed', IVRCall.FAILED, Channel.TYPE_TWILIO)
         test_status_update(call, 'no-answer', IVRCall.NO_ANSWER, Channel.TYPE_TWILIO)
 
-        test_status_update(call, 'answered', IVRCall.IN_PROGRESS, Channel.TYPE_NEXMO)
-        test_status_update(call, 'ringing', IVRCall.RINGING, Channel.TYPE_NEXMO)
-        test_status_update(call, 'completed', IVRCall.COMPLETED, Channel.TYPE_NEXMO)
-        test_status_update(call, 'failed', IVRCall.FAILED, Channel.TYPE_NEXMO)
-        test_status_update(call, 'unanswered', IVRCall.NO_ANSWER, Channel.TYPE_NEXMO)
-        test_status_update(call, 'timeout', IVRCall.NO_ANSWER, Channel.TYPE_NEXMO)
-        test_status_update(call, 'busy', IVRCall.BUSY, Channel.TYPE_NEXMO)
-        test_status_update(call, 'rejected', IVRCall.BUSY, Channel.TYPE_NEXMO)
+        test_status_update(call, 'answered', IVRCall.IN_PROGRESS, 'NX')
+        test_status_update(call, 'ringing', IVRCall.RINGING, 'NX')
+        test_status_update(call, 'completed', IVRCall.COMPLETED, 'NX')
+        test_status_update(call, 'failed', IVRCall.FAILED, 'NX')
+        test_status_update(call, 'unanswered', IVRCall.NO_ANSWER, 'NX')
+        test_status_update(call, 'timeout', IVRCall.NO_ANSWER, 'NX')
+        test_status_update(call, 'busy', IVRCall.BUSY, 'NX')
+        test_status_update(call, 'rejected', IVRCall.BUSY, 'NX')
 
         FlowStep.objects.all().delete()
         IVRCall.objects.all().delete()
@@ -1251,7 +1251,7 @@ class IVRTests(FlowFileTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
-        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.channel_type = 'NX'
         self.channel.save()
 
         nexmo_uuid = self.org.config_json()['NEXMO_UUID']
@@ -1293,7 +1293,7 @@ class IVRTests(FlowFileTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
-        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.channel_type = 'NX'
         self.channel.save()
 
         nexmo_uuid = self.org.config_json()['NEXMO_UUID']
@@ -1435,7 +1435,7 @@ class IVRTests(FlowFileTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
-        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.channel_type = 'NX'
         self.channel.save()
 
         nexmo_uuid = self.org.config_json()['NEXMO_UUID']
@@ -1553,7 +1553,7 @@ class IVRTests(FlowFileTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
-        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.channel_type = 'NX'
         self.channel.save()
 
         # import an ivr flow
@@ -1608,7 +1608,7 @@ class IVRTests(FlowFileTest):
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
-        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.channel_type = 'NX'
         self.channel.save()
 
         # import an ivr flow
