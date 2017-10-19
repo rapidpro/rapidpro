@@ -476,9 +476,7 @@ class ContactGroupCRUDLTest(TembaTest):
 
         self.assertEquals(ContactGroup.user_groups.all().count(), ContactGroup.MAX_ORG_CONTACTGROUPS)
         response = self.client.post(url, dict(name="People"))
-        self.assertFormError(response, 'form', 'name', "You have reached 10 contact groups (10 groups currently), "
-                                                       "please remove some contact groups to be able "
-                                                       "to create new contact groups")
+        self.assertFormError(response, 'form', 'name', "")
 
     def test_update(self):
         url = reverse('contacts.contactgroup_update', args=[self.joe_and_frank.pk])
@@ -3114,8 +3112,8 @@ class ContactTest(TembaTest):
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', '__all__',
-                             'You have reached 10 contact groups (10 groups currently), please remove some contact '
-                             'groups to be able to import contacts in a contact group')
+                             "This org has 10 groups and the limit is 10. "
+                             "You must delete existing ones before you can create new ones.")
 
         ContactGroup.user_groups.all().delete()
 

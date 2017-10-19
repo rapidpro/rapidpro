@@ -86,11 +86,11 @@ class ContactGroupForm(forms.ModelForm):
         if not ContactGroup.is_valid_name(name):
             raise forms.ValidationError(_("Group name must not be blank or begin with + or -"))
 
-        group_count = ContactGroup.user_groups.filter(org=org).count()
-        if group_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
-            raise forms.ValidationError(_('You have reached %s contact groups (%s groups currently), '
-                                          'please remove some contact groups to be able to create new '
-                                          'contact groups' % (ContactGroup.MAX_ORG_CONTACTGROUPS, group_count)))
+        groups_count = ContactGroup.user_groups.filter(org=org).count()
+        if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+            raise forms.ValidationError(_("This org has %s groups and the limit is %s. "
+                                          "You must delete existing ones before you can "
+                                          "create new ones." % (groups_count, ContactGroup.MAX_ORG_CONTACTGROUPS)))
 
         return name
 
@@ -587,12 +587,11 @@ class ContactCRUDL(SmartCRUDL):
                 return self.cleaned_data['csv_file']
 
             def clean(self):
-                group_count = ContactGroup.user_groups.filter(org=self.org).count()
-                if group_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
-                    raise forms.ValidationError('You have reached %s contact groups (%s groups currently), '
-                                                'please remove some contact groups to be able to import contacts '
-                                                'in a contact group' % (ContactGroup.MAX_ORG_CONTACTGROUPS,
-                                                                        group_count))
+                groups_count = ContactGroup.user_groups.filter(org=self.org).count()
+                if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+                    raise forms.ValidationError("This org has %s groups and the limit is %s. "
+                                                "You must delete existing ones before you can "
+                                                "create new ones." % (groups_count, ContactGroup.MAX_ORG_CONTACTGROUPS))
 
                 return self.cleaned_data
 

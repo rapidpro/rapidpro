@@ -517,11 +517,10 @@ class ContactFieldWriteSerializer(WriteSerializer):
     def validate(self, data):
 
         fields_count = ContactField.objects.filter(org=self.context['org']).count()
-        if not self.instance and ContactField.objects.filter(org=self.context['org']).count() >= ContactField.MAX_ORG_CONTACTFIELDS:
-            raise serializers.ValidationError('You have reached %s contact fields (%s contact fields currently), '
-                                              'please remove some contact fields to be able '
-                                              'to create new contact fields' % (ContactField.MAX_ORG_CONTACTFIELDS,
-                                                                                fields_count))
+        if not self.instance and fields_count >= ContactField.MAX_ORG_CONTACTFIELDS:
+            raise serializers.ValidationError("This org has %s contact fields and the limit is %s. "
+                                              "You must delete existing ones before you can "
+                                              "create new ones." % (fields_count, ContactField.MAX_ORG_CONTACTFIELDS))
 
         return data
 
@@ -562,10 +561,9 @@ class ContactGroupWriteSerializer(WriteSerializer):
     def validate(self, data):
         group_count = ContactGroup.user_groups.filter(org=self.context['org']).count()
         if group_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
-            raise serializers.ValidationError("You have reached %s contact groups (%s groups currently), "
-                                              "please remove some contact groups to be able "
-                                              "to create new contact groups" % (ContactGroup.MAX_ORG_CONTACTGROUPS,
-                                                                                group_count))
+            raise serializers.ValidationError("This org has %s groups and the limit is %s. "
+                                              "You must delete existing ones before you can "
+                                              "create new ones." % (group_count, ContactGroup.MAX_ORG_CONTACTGROUPS))
         return data
 
     def save(self):
@@ -794,9 +792,9 @@ class LabelWriteSerializer(WriteSerializer):
     def validate(self, data):
         labels_count = Label.label_objects.filter(org=self.context['org'], is_active=True).count()
         if labels_count >= Label.MAX_ORG_LABELS:
-            raise serializers.ValidationError("You have reached %s labels (%s labels currently), please remove "
-                                              "some to be able to add a new label" % (Label.MAX_ORG_LABELS,
-                                                                                      labels_count))
+            raise serializers.ValidationError("This org has %s contact fields and the limit is %s. "
+                                              "You must delete existing ones before you can "
+                                              "create new ones." % (labels_count, Label.MAX_ORG_LABELS))
         return data
 
     def save(self):

@@ -2214,9 +2214,9 @@ class ContactGroup(TembaModel):
 
         groups_count = ContactGroup.user_groups.filter(org=org).count()
         if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
-            raise ValueError('You have reached %s contact groups (%s groups currently), please remove some contact '
-                             'groups to be able to create new contact groups' % (ContactGroup.MAX_ORG_CONTACTGROUPS,
-                                                                                 groups_count))
+            raise ValueError("This org has %s groups and the limit is %s. "
+                             "You must delete existing ones before you can "
+                             "create new ones." % (groups_count, ContactGroup.MAX_ORG_CONTACTGROUPS))
 
         if not cls.is_valid_name(full_group_name):
             raise ValueError("Invalid group name: %s" % name)

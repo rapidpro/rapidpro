@@ -1797,8 +1797,8 @@ class LabelCRUDLTest(TembaTest):
 
         response = self.client.post(create_label_url, dict(name="Label"))
         self.assertFormError(response, 'form', 'name',
-                             "You have reached 10 labels (10 labels currently), please remove some "
-                             "to be able to add a new label")
+                             "This org has 10 labels and the limit is 10. "
+                             "You must delete existing ones before you can create new ones.")
 
     def test_label_delete(self):
         label_one = Label.get_or_create(self.org, self.user, "label1")
