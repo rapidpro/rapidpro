@@ -116,7 +116,8 @@ class WitConsumer(BaseConsumer):
 
     def get_entities(self, entities):
         ent = dict()
-        for entity in entities.pop('intent', None).items():
+        entities.pop('intent', None)
+        for entity in entities.items():
             ent.update({entity[0]: entity[1][0].get('value')})
         return ent
 
