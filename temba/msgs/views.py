@@ -702,8 +702,11 @@ class BaseLabelForm(forms.ModelForm):
         if Label.all_objects.filter(org=self.org, name__iexact=name).exclude(pk=existing_id).exists():
             raise forms.ValidationError(_("Name must be unique"))
 
-        if Label.all_objects.filter(org=self.org, is_active=True).count() >= Label.MAX_ORG_LABELS:
-            raise forms.ValidationError(_("You have reached %s labels, please remove some to be able to add a new label" % Label.MAX_ORG_LABELS))
+        labels_count = Label.all_objects.filter(org=self.org, is_active=True).count()
+        if labels_count >= Label.MAX_ORG_LABELS:
+            raise forms.ValidationError(_("You have reached %s labels (%s labels currently), "
+                                          "please remove some to be able to add a new label" % (Label.MAX_ORG_LABELS,
+                                                                                                labels_count)))
 
         return name
 
