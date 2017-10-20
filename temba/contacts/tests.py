@@ -235,19 +235,6 @@ class ContactGroupTest(TembaTest):
         group.refresh_from_db()
         self.assertEqual(group.name, "first")
 
-    @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
-    def test_reached_maximum_org_contact_groups(self):
-        ContactGroup.user_groups.all().delete()
-
-        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
-            ContactGroup.create_static(self.org, self.admin, 'group%d' % i)
-
-        ContactGroup.get_or_create(self.org, self.admin, 'group1')
-
-        self.assertRaises(ValueError, ContactGroup.get_or_create, self.org, self.user, "Team")
-        self.assertRaises(ValueError, ContactGroup.create_static, self.org, self.user, "Team")
-        self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.user, "Team", "Age > 10")
-
     def test_get_user_groups(self):
         self.create_field('gender', "Gender")
         static = ContactGroup.create_static(self.org, self.admin, "Static")
