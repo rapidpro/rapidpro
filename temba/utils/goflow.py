@@ -257,8 +257,8 @@ class RequestBuilder(object):
         })
         return self
 
-    def asset_urls(self, org):
-        asset_urls = {
+    def asset_server(self, org):
+        type_urls = {
             'channel': get_assets_url(org, self.asset_timestamp, 'channel'),
             'field': get_assets_url(org, self.asset_timestamp, 'field'),
             'flow': get_assets_url(org, self.asset_timestamp, 'flow'),
@@ -267,9 +267,12 @@ class RequestBuilder(object):
         }
 
         if org.country_id:
-            asset_urls['location_hierarchy'] = get_assets_url(org, self.asset_timestamp, 'location_hierarchy')
+            type_urls['location_hierarchy'] = get_assets_url(org, self.asset_timestamp, 'location_hierarchy')
 
-        self.request['asset_urls'] = asset_urls
+        self.request['asset_server'] = {
+            'auth_header': 'flow-user-token %s' % org.flow_user_token,
+            'type_urls': type_urls
+        }
         return self
 
     def start(self, flow):
@@ -356,14 +359,14 @@ class FlowServerClient:
 
 def get_assets_url(org, timestamp, asset_type=None, asset_uuid=None):
     if settings.TESTING:
-        url = 'http://localhost:8000/flow_assets/%d/%d' % (org.id, timestamp)
+        url = 'http://localhost:8000/flow/assets/%d/%d/' % (org.id, timestamp)
     else:
-        url = 'https://%s/flow_assets/%d/%d' % (settings.HOSTNAME, org.id, timestamp)
+        url = 'https://%s/flow/assets/%d/%d/' % (settings.HOSTNAME, org.id, timestamp)
 
     if asset_type:
-        url = url + '/' + asset_type
+        url = url + asset_type + '/'
     if asset_uuid:
-        url = url + '/' + asset_uuid
+        url = url + asset_uuid + '/'
     return url
 
 

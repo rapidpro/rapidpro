@@ -185,7 +185,7 @@ class FlowSession(models.Model):
         for contact in contacts:
             # build request to flow server
             request = client.request_builder(asset_timestamp) \
-                .asset_urls(flow.org)\
+                .asset_server(flow.org)\
                 .set_environment(flow.org)\
                 .set_contact(contact)
 
@@ -233,7 +233,7 @@ class FlowSession(models.Model):
 
         # build request to flow server
         asset_timestamp = int(time.time() * 1000000)
-        request = client.request_builder(asset_timestamp).asset_urls(self.org)
+        request = client.request_builder(asset_timestamp).asset_server(self.org)
 
         if settings.TESTING:
             # TODO find a way to run an assets server during testing?
